@@ -28,6 +28,21 @@ sign-off alone must not be treated as copyright assignment or an unrestricted
 right to issue commercial sublicenses. This file does not itself impose a new
 contributor agreement or retrospectively change a submitted work's license.
 
+## Publication is not an upstream contribution agreement
+
+Sections 4.1-4.5 of [Community License 1.1](LICENSE.md) require public release of
+Covered Modifications when the specified triggers occur. A public fork or
+complete patch set can satisfy that duty; an upstream pull request or merger
+is not mandatory. Publishing under the Community License does not assign
+copyright or automatically grant the project separate commercial sublicensing
+rights. Maintainers must still complete the inbound-rights process above before
+incorporating another person's changes into commercially licensed releases.
+
+The source-sharing duty concerns the engine modifications and necessary build
+materials, not an independent user's whole application or confidential data.
+Do not publish secrets, private rights records, or customer documents with a
+contribution; use non-secret placeholders and synthetic fixtures as appropriate.
+
 ## Third-party and generated material
 
 Record the provenance, version, license, and required notices of any copied or
