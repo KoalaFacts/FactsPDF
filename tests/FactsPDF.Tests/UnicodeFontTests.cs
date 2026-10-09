@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -20,7 +19,7 @@ public sealed class UnicodeFontTests
     }
     private static string Text(string pdf)
     {
-        // Each font has its own CID map. This assertion helper is for single-font cases only.
+        // Single-font inspection helper; independent multi-font extraction is exercised in CI.
         var map = new Dictionary<string, string>();
         foreach (Match block in Regex.Matches(pdf, @"\d+ beginbfchar\s+(.*?)\s+endbfchar", RegexOptions.Singleline))
             foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<([0-9A-F]+)>\s+<([0-9A-F]+)>"))
@@ -36,7 +35,6 @@ public sealed class UnicodeFontTests
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, stream, options));
         Assert.That(stream.Length, Is.Zero); return ex!;
     }
-
     [TestCase(false, false)] [TestCase(false, true)] [TestCase(true, false)]
     public void ReadsCmapsAndActualAdvances(bool format12, bool ranged4)
     {
@@ -59,8 +57,7 @@ public sealed class UnicodeFontTests
     public void StreamLoadingLeavesCallerStreamOpenAndHonorsCancellation()
     {
         using var stream = new MemoryStream(FontFixture.Create()); var f = PdfFont.LoadTrueType(stream);
-        Assert.That(stream.CanRead, Is.True); Assert.That(f.GlyphFor(65), Is.EqualTo(2));
-        stream.Position = 0;
+        Assert.That(stream.CanRead, Is.True); Assert.That(f.GlyphFor(65), Is.EqualTo(2)); stream.Position = 0;
         Assert.Throws<OperationCanceledException>(() => PdfFont.LoadTrueType(stream, cancellationToken: new CancellationToken(true)));
         Assert.That(stream.Position, Is.Zero);
     }
@@ -72,10 +69,11 @@ public sealed class UnicodeFontTests
         using var stream = new MemoryStream(data);
         Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(stream, 16))!.Code, Is.EqualTo("FPDF1503"));
     }
-    [TestCase(2)] [TestCase(512)]
-    public void ProhibitsRestrictedAndBitmapOnlyEmbedding(int fsType)
+    // Preview-only (4) needs read-only document handling, which this increment deliberately does not promise.
+    [TestCase(2)] [TestCase(4)] [TestCase(512)]
+    public void ProhibitsUnsupportedEmbeddingPermissions(int fsType)
         => Assert.That(Assert.Throws<FactsPdfException>(() => Font(fsType: (ushort)fsType))!.Code, Is.EqualTo("FPDF1505"));
-    [TestCase(0)] [TestCase(4)] [TestCase(8)] [TestCase(256)]
+    [TestCase(0)] [TestCase(8)] [TestCase(256)]
     public void AcceptsFullEmbeddingPermissions(int fsType)
         => Assert.That(Font(fsType: (ushort)fsType).GlyphFor(65), Is.EqualTo(2));
     [TestCase("OTTO")] [TestCase("ttcf")] [TestCase("wOFF")] [TestCase("wOF2")]
@@ -102,8 +100,7 @@ public sealed class UnicodeFontTests
     [Test]
     public void RejectsUnorderedOrOutOfRangeCmap12Groups()
     {
-        var data = FontFixture.Create(); var map = FontFixture.Table(data, "cmap") + 12;
-        FontFixture.U32(data, map + 16, 0x110000);
+        var data = FontFixture.Create(); var map = FontFixture.Table(data, "cmap") + 12; FontFixture.U32(data, map + 16, 0x110000);
         Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
@@ -115,14 +112,10 @@ public sealed class UnicodeFontTests
     [Test]
     public void ChineseAndSupplementaryScalarsRoundTripThroughToUnicode()
     {
-        const string text = "A中文𠀀B";
-        var result = Render("<p>" + text + "</p>");
-        Assert.That(Text(result.Pdf), Is.EqualTo(text));
-        Assert.That(result.Pdf, Does.Contain("D840DC00"));
-        Assert.That(result.Pdf, Does.Contain("/Subtype /Type0"));
-        Assert.That(result.Pdf, Does.Contain("/Subtype /CIDFontType2"));
-        Assert.That(result.Pdf, Does.Contain("/Encoding /Identity-H"));
-        Assert.That(result.Pdf, Does.Contain("/CIDToGIDMap"));
+        const string text = "A中文𠀀B"; var result = Render("<p>" + text + "</p>");
+        Assert.That(Text(result.Pdf), Is.EqualTo(text)); Assert.That(result.Pdf, Does.Contain("D840DC00"));
+        Assert.That(result.Pdf, Does.Contain("/Subtype /Type0")); Assert.That(result.Pdf, Does.Contain("/Subtype /CIDFontType2"));
+        Assert.That(result.Pdf, Does.Contain("/Encoding /Identity-H")); Assert.That(result.Pdf, Does.Contain("/CIDToGIDMap"));
         Assert.That(result.Pdf, Does.Contain("/FontFile2"));
     }
     [Test]
@@ -148,15 +141,13 @@ public sealed class UnicodeFontTests
     public void CommonChinesePunctuationStaysWithItsNeighbor()
     {
         var pdf = Render("<p>中文中（文）中文，中。</p>", new PdfOptions { Fonts = [Font()], PageWidth = 72, Margin = 12 }).Pdf;
-        var text = Text(pdf); Assert.That(text, Is.EqualTo("中文中（文）中文，中。"));
+        Assert.That(Text(pdf), Is.EqualTo("中文中（文）中文，中。"));
         var map = new Dictionary<string, string>();
         foreach (Match block in Regex.Matches(pdf, @"\d+ beginbfchar\s+(.*?)\s+endbfchar", RegexOptions.Singleline))
             foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<([0-9A-F]+)>\s+<([0-9A-F]+)>")) map[m.Groups[1].Value] = Encoding.BigEndianUnicode.GetString(System.Convert.FromHexString(m.Groups[2].Value));
         foreach (Match run in Regex.Matches(pdf, @"<([0-9A-F]+)> Tj"))
         {
-            var s = run.Groups[1].Value;
-            Assert.That(map[s[..4]], Is.Not.AnyOf("）", "，", "。"));
-            Assert.That(map[s[^4..]], Is.Not.EqualTo("（"));
+            var s = run.Groups[1].Value; Assert.That(map[s[..4]], Is.Not.AnyOf("）", "，", "。")); Assert.That(map[s[^4..]], Is.Not.EqualTo("（"));
         }
     }
     [Test]
@@ -169,17 +160,19 @@ public sealed class UnicodeFontTests
     [Test]
     public void OrderedFallbackEmbedsOnlyUsedFontsOnce()
     {
-        var f = Font(latinOnly: true); var cjk = Font();
-        var pdf = Render("<p>A中文B</p><p>中文</p>", new PdfOptions { Fonts = [f, cjk, cjk] }).Pdf;
-        Assert.That(Regex.Matches(pdf, @"/Subtype /Type0\b").Count, Is.EqualTo(2));
-        Assert.That(pdf, Does.Contain("/F2 12 Tf"));
+        var f = Font(latinOnly: true); var cjk = Font(); var pdf = Render("<p>A中文B</p><p>中文</p>", new PdfOptions { Fonts = [f, cjk, cjk] }).Pdf;
+        Assert.That(Regex.Matches(pdf, @"/Subtype /Type0\b").Count, Is.EqualTo(2)); Assert.That(pdf, Does.Contain("/F2 12 Tf"));
     }
     [Test]
     public void MissingGlyphFailsWithoutOutput()
         => Assert.That(Failure("<p>中文</p>", new PdfOptions { Fonts = [Font(latinOnly: true)] }).Code, Is.EqualTo("FPDF1504"));
-    [TestCase("\ud800")] [TestCase("\udc00")]
-    public void InvalidUtf16FailsWithoutReplacement(string text)
-        => Assert.That(Failure("<p>" + text + "</p>", new PdfOptions { Fonts = [Font()] }).Code, Is.EqualTo("FPDF1304"));
+    // Construct invalid code units at runtime: custom-attribute UTF-8 serialization cannot preserve lone surrogates.
+    [TestCase(0xd800)] [TestCase(0xdc00)]
+    public void InvalidUtf16FailsWithoutReplacement(int codeUnit)
+    {
+        var text = new string((char)codeUnit, 1); Assert.That(char.IsSurrogate(text[0]), Is.True);
+        Assert.That(Failure("<p>" + text + "</p>", new PdfOptions { Fonts = [Font()] }).Code, Is.EqualTo("FPDF1304"));
+    }
     [TestCase("A\u0301")] [TestCase("中\ufe00")] [TestCase("العربية")] [TestCase("\u200d")]
     public void ShapingAndBidiRequirementsFailExplicitly(string text)
         => Assert.That(Failure("<p>" + text + "</p>", new PdfOptions { Fonts = [Font()] }).Code, Is.EqualTo("FPDF1305"));
@@ -206,11 +199,9 @@ public sealed class UnicodeFontTests
     public void BinaryFontStreamsKeepCorrectXrefOffsets()
     {
         var result = Render("<p>中文</p>");
-        var xref = Regex.Match(result.Pdf, @"xref\n0 (\d+)\n0000000000 65535 f \n((?:\d{10} 00000 n \n)+)");
-        Assert.That(xref.Success, Is.True);
+        var xref = Regex.Match(result.Pdf, @"xref\n0 (\d+)\n0000000000 65535 f \n((?:\d{10} 00000 n \n)+)"); Assert.That(xref.Success, Is.True);
         var offsets = Regex.Matches(xref.Groups[2].Value, @"(\d{10}) 00000 n");
-        for (var i = 0; i < offsets.Count; i++)
-            Assert.That(result.Pdf[int.Parse(offsets[i].Groups[1].Value, CultureInfo.InvariantCulture)..], Does.StartWith($"{i + 1} 0 obj\n"));
+        for (var i = 0; i < offsets.Count; i++) Assert.That(result.Pdf[int.Parse(offsets[i].Groups[1].Value, CultureInfo.InvariantCulture)..], Does.StartWith($"{i + 1} 0 obj\n"));
     }
     [Test]
     public void CliLoadsAnExplicitFontAndProtectsItsSource()
@@ -221,8 +212,7 @@ public sealed class UnicodeFontTests
             var path = Path.Combine(dir, "test.ttf"); var data = FontFixture.Create(); File.WriteAllBytes(path, data);
             using var input = new MemoryStream(Encoding.UTF8.GetBytes("<p>中文</p>")); using var output = new MemoryStream(); using var error = new StringWriter();
             Assert.That(CliApplication.Run(["-", "-", "--font", path], input, output, error), Is.Zero, error.ToString());
-            Assert.That(Text(Encoding.Latin1.GetString(output.ToArray())), Is.EqualTo("中文"));
-            input.Position = 0;
+            Assert.That(Text(Encoding.Latin1.GetString(output.ToArray())), Is.EqualTo("中文")); input.Position = 0;
             Assert.That(CliApplication.Run(["-", path, "--font", path, "--overwrite"], input, output, error), Is.EqualTo(2));
             Assert.That(File.ReadAllBytes(path), Is.EqualTo(data));
         }
@@ -232,7 +222,6 @@ public sealed class UnicodeFontTests
     public void CliMissingFontArgumentIsAUsageError()
     {
         using var input = new MemoryStream(); using var output = new MemoryStream(); using var error = new StringWriter();
-        Assert.That(CliApplication.Run(["-", "-", "--font"], input, output, error), Is.EqualTo(2));
-        Assert.That(output.Length, Is.Zero);
+        Assert.That(CliApplication.Run(["-", "-", "--font"], input, output, error), Is.EqualTo(2)); Assert.That(output.Length, Is.Zero);
     }
 }
