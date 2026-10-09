@@ -19,7 +19,7 @@ for other uses or negotiated licensing requirements.
 
 **Source-available; not MIT and not an OSI-approved open-source license.**
 
-The [FactsPDF Community License 1.0](LICENSE.md) permits free use for:
+The [FactsPDF Community License 1.1](LICENSE.md) permits free use for:
 
 - Individuals and entities with Group annual gross revenue **at most
   USD 1,000,000**, including proprietary commercial use.
@@ -30,6 +30,25 @@ The complete license defines consolidation, measurement periods, the 90-day
 transition after loss of eligibility, notices, and downstream execution rights.
 Receiving an ordinary generated PDF does not itself require an engine license.
 FactsML's separate MIT license does not apply to FactsPDF.
+
+### Changes to FactsPDF must be shared
+
+**When you distribute or put a modified FactsPDF engine into operational use,
+you must publicly release the engine changes and corresponding build materials
+under the same FactsPDF Community License 1.1.** This includes internal use and
+SaaS, not only selling or distributing a modified library. Pure controlled
+development and testing can remain private until a publication trigger occurs.
+
+An independent proprietary application that merely calls FactsPDF does not
+have to be published because of this rule. Customer data, credentials, HTML/CSS
+templates, and generated PDFs are not covered merely through use of the engine.
+The open-source-project exemption has its own application-source requirements.
+
+A public fork or a complete patch set against an available exact upstream
+version is sufficient; an upstream PR is optional. Source must be available
+without payment, login, or an NDA, and retained for at least three years after
+last use or distribution of the modified version. See sections 4.1-4.5 of
+[LICENSE.md](LICENSE.md) for the controlling scope, triggers, and conditions.
 
 ### Commercial License
 
@@ -43,6 +62,12 @@ and OEM or embedded redistribution. Covered entities, deployment and downstream
 rights, versions, duration, pricing, and any support or service levels must be
 expressly agreed; none is automatically included or unlimited.
 
+**Paying for a Commercial License does not automatically permit private engine
+modifications.** The standard commercial agreement must expressly retain the
+modification-publication requirement. It licenses the agreed commercial use,
+not a right to hide changes to FactsPDF. These policy statements do not amend
+an existing separately agreed contract.
+
 **[Enquire about a Commercial License](COMMERCIAL.md#contact-and-safe-handling).**
 Commercial-licensing enquiries are welcome now. Issuing paid licenses and
 accepting orders remain subject to the authorization and review requirements in
@@ -51,11 +76,12 @@ accepting orders remain subject to the authorization and review requirements in
 
 Read the [licensing guide and examples](LICENSING.md),
 [commercial licensing details](COMMERCIAL.md), and
-[contribution policy](CONTRIBUTING.md). Commercial use outside the Community
-terms requires a separate accepted agreement; no commercial contract or price
-is created by this README. Purchasing a Commercial License does not by itself
-include technical support, an SLA, or updates unless the agreement says so.
+[contribution policy](CONTRIBUTING.md). No commercial contract or price is
+created by this README. Technical support, an SLA, updates, and private-fork
+rights are not implied by the words "Commercial License".
 
 The initial licensing text has not been reviewed by retained legal counsel.
 Maintainers must complete the [licensing release gates](docs/licensing-review.md)
 before software-package release or accepting a paid license order.
+[License history](docs/license-history.md) records earlier terms; version 1.1
+does not retroactively change version 1.0 grants.
