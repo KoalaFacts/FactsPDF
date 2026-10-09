@@ -1,6 +1,6 @@
 # FactsPDF
 
-A browser-free HTML and CSS to PDF engine written in C#.
+A browser-free HTML and CSS to PDF engine, designed for cross-language integration.
 
 > **Status: early development.** This repository currently establishes the
 > project and its licensing policy. It does not yet contain a released engine
@@ -10,6 +10,16 @@ FactsPDF is a KoalaFacts project. The intended input is standard HTML and CSS;
 no separate FactsML language is required. Ahead-of-time compilation,
 cross-platform operation, fast startup, and low resource use are engineering
 goals, not measured capabilities at this stage.
+
+## Integration goals
+
+The public integration model is not tied to the engine's implementation
+language. The roadmap targets .NET/NuGet, JavaScript and TypeScript/npm, Rust,
+Go, Python, a CLI, and WebAssembly. Language bindings should reuse one shared
+rendering core rather than implement separate layout and PDF engines.
+
+These are planned integration paths, not released or verified support. Each
+language and deployment target will need its own implementation and validation.
 
 ## Licensing: Community and Commercial
 
