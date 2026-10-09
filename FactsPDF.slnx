@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/FactsPDF/FactsPDF.csproj" />
+  <Project Path="tests/FactsPDF.Tests/FactsPDF.Tests.csproj" />
+</Solution>
