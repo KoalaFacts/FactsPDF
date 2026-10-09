@@ -22,12 +22,14 @@ No unverified language/platform/performance claims. Do not publish packages or m
 
 ## Tasks
 
-- [ ] Add API and NUnit behavioral tests; run the intentionally non-rendering baseline and record failures.
-- [ ] Implement HTML reading and inline styling with strict supported-feature diagnostics.
-- [ ] Implement bounded word/line layout, page fragmentation and Courier PDF serialization.
-- [ ] Run all tests; correct implementation failures and add regression tests for discovered defects.
-- [ ] Add CLI and cross-platform/Native AOT checks, including an independently checked two-page sample.
-- [ ] Verify the package contains the exact license file without publishing it.
-- [ ] Document actual support, commands and evidence; open/update a reviewable PR.
+- [x] Add API and NUnit behavioral tests; run the intentionally non-rendering baseline and record failures.
+- [x] Implement HTML reading and inline styling with strict supported-feature diagnostics.
+- [x] Implement bounded word/line layout, page fragmentation and Courier PDF serialization.
+- [x] Run all tests; correct implementation failures and add regression tests for discovered defects.
+- [x] Add CLI and cross-platform/Native AOT checks, including an independently checked two-page sample.
+- [x] Verify the package contains the exact license file without publishing it.
+- [x] Document actual support, commands and evidence; open/update a reviewable PR.
 
 Keep proof of test commands and CI results in the PR. A configured workflow is not a passing workflow.
+
+Evidence is recorded in ../../development-ledger.md. This marks the narrow development slice, not full HTML/CSS or Unicode support; the PR remains a draft awaiting review.
