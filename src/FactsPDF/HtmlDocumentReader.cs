@@ -21,7 +21,7 @@ internal static class HtmlDocumentReader
         }
         void Add(string text, TextStyle style, bool lineBreak = false)
         {
-            if (current is null && !lineBreak && string.IsNullOrWhiteSpace(text)) return;
+            if (current is null && !lineBreak && text.All(HtmlTokens.Space)) return;
             current ??= new Paragraph(stack[^1].Style);
             current.Runs.Add(new(text, style, lineBreak));
         }
@@ -31,7 +31,13 @@ internal static class HtmlDocumentReader
             cancellation.ThrowIfCancellationRequested();
             if (token.Kind == HtmlTokenKind.Text)
             {
-                if (stack.Any(f => f.Name is "head" or "title")) continue;
+                if (stack[^1].Name == "title") continue;
+                if (stack[^1].Name == "head")
+                {
+                    if (!token.Value.All(HtmlTokens.Space))
+                        throw new FactsPdfException("FPDF1101", "Non-metadata text inside head is not supported.", token.Offset);
+                    continue;
+                }
                 Add(HtmlTokens.Decode(token.Value, token.Offset), stack[^1].Style);
                 continue;
             }
@@ -57,6 +63,8 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
             if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta")))
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
+            if (name == "head" && stack[^1].Name is not ("html" or "#root"))
+                throw new FactsPdfException("FPDF1101", "head must be at document level.", token.Offset);
             if (name is "title" or "meta" && stack[^1].Name != "head")
                 throw new FactsPdfException("FPDF1101", "title/meta must be inside head.", token.Offset);
 

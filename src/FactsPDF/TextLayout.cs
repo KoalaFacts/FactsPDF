@@ -28,7 +28,7 @@ internal static class TextLayout
         {
             cancellation.ThrowIfCancellationRequested();
             var lines = Wrap(paragraph, availableWidth, cancellation);
-            if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakAfter; continue; }
+            if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
             if ((breakNext || paragraph.Style.BreakBefore) && y > o.Margin) NewPage();
             breakNext = false;
             var gap = Math.Max(after, paragraph.Style.MarginBefore);

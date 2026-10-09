@@ -1,8 +1,104 @@
+using System.Text;
+
 namespace FactsPDF.CommandLine;
 
+/// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    // Intentional red baseline for CLI behavior; replaced in the following implementation.
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite]\n" +
+        "Experimental ASCII/inline-CSS renderer. '-' reads stdin or writes binary PDF to stdout.\n";
+
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
-        CancellationToken cancellationToken = default) => 0;
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(error);
+        string? temporary = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (args.Length == 1 && args[0] is "--help" or "-h")
+            { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
+            var paths = new List<string>();
+            var overwrite = false;
+            foreach (var arg in args)
+            {
+                if (arg == "--overwrite" && !overwrite) overwrite = true;
+                else if (arg.StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException("Unknown or repeated option.");
+                else paths.Add(arg);
+            }
+            if (paths.Count != 2) throw new ArgumentException("Specify input and output paths.");
+            var source = paths[0] == "-" ? null : Path.GetFullPath(paths[0]);
+            var destination = paths[1] == "-" ? null : Path.GetFullPath(paths[1]);
+            if (source is not null && destination is not null && string.Equals(source, destination,
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                throw new ArgumentException("Input and output must be different files.");
+            if (destination is not null && File.Exists(destination) && !overwrite)
+                throw new IOException("Destination exists. Use --overwrite to replace it after a successful conversion.");
+
+            var options = new PdfOptions();
+            string html;
+            if (source is null) html = ReadInput(input, options.MaxInputCharacters, cancellationToken);
+            else
+            {
+                using var file = File.OpenRead(source);
+                html = ReadInput(file, options.MaxInputCharacters, cancellationToken);
+            }
+            PdfConversionResult result;
+            if (destination is null) result = PdfConverter.Convert(html, output, options, cancellationToken);
+            else
+            {
+                // A sibling file avoids a cross-volume move. No existing file is opened for writing.
+                temporary = Path.Combine(Path.GetDirectoryName(destination)!, $".factspdf-{Guid.NewGuid():N}.tmp");
+                using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    result = PdfConverter.Convert(html, file, options, cancellationToken);
+                    file.Flush(flushToDisk: true);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                File.Move(temporary, destination, overwrite);
+                temporary = null;
+            }
+            error.WriteLine($"Wrote {result.PageCount} page(s), {result.BytesWritten} bytes.");
+            return 0;
+        }
+        catch (OperationCanceledException) { error.WriteLine("Conversion cancelled."); return 130; }
+        catch (FactsPdfException ex) { error.WriteLine(ex.Message); return 3; }
+        catch (DecoderFallbackException) { error.WriteLine("Input must be valid UTF-8."); return 3; }
+        catch (ArgumentException ex) { error.WriteLine(ex.Message); error.Write(Usage); return 2; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        { error.WriteLine(ex.Message); return 4; }
+        finally
+        {
+            if (temporary is not null)
+            {
+                try { File.Delete(temporary); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { error.WriteLine("Could not remove temporary file: " + temporary); }
+            }
+        }
+    }
+
+    private static string ReadInput(Stream input, int limit, CancellationToken cancellation)
+    {
+        using var reader = new StreamReader(input, new UTF8Encoding(false, true),
+            detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
+        var text = new StringBuilder();
+        var buffer = new char[4096];
+        var first = true;
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var count = reader.Read(buffer, 0, buffer.Length);
+            if (count == 0) break;
+            var start = first && buffer[0] == '\uFEFF' ? 1 : 0;
+            first = false;
+            if (text.Length + count - start > limit)
+                throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
+            text.Append(buffer, start, count - start);
+        }
+        return text.ToString();
+    }
 }
