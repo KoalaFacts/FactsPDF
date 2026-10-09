@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AssemblyName>factspdf</AssemblyName>
+    <AssemblyName>FactsPDF.Cli</AssemblyName>
     <IsAotCompatible>true</IsAotCompatible>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
