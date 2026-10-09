@@ -136,8 +136,26 @@ public sealed class ConversionTests
         finally { CultureInfo.CurrentCulture = original; }
     }
 
+    // These positive contracts replace the former rejection cases for now-supported features.
+    [Test]
+    public void EmbeddedStylesheetRendersTextWithItsDeclaredColor()
+    {
+        var (result, pdf) = Render("<style>p{color:red}</style><p>A</p>");
+        Assert.That(result.PageCount, Is.EqualTo(1));
+        Assert.That(Text(pdf), Is.EqualTo("A"));
+        Assert.That(pdf, Is.EqualTo(Render("<p style='color:red'>A</p>").Pdf));
+    }
+
+    [Test]
+    public void ImportantInlineFontSizeProducesTheExpectedPdf()
+    {
+        var (result, pdf) = Render("<p style='font-size:12pt !important'>A</p>");
+        Assert.That(result.PageCount, Is.EqualTo(1));
+        Assert.That(Text(pdf), Is.EqualTo("A"));
+        Assert.That(pdf, Is.EqualTo(Render("<p style='font-size:12pt'>A</p>").Pdf));
+    }
+
     [TestCase("<script>alert(1)</script>", "FPDF1102")]
-    [TestCase("<style>p{color:red}</style>", "FPDF1102")]
     [TestCase("<img src='https://example.invalid/image.png'>", "FPDF1102")]
     [TestCase("<table><tr><td>A</td></tr></table>", "FPDF1102")]
     [TestCase("<svg></svg>", "FPDF1102")]
@@ -148,7 +166,6 @@ public sealed class ConversionTests
     [TestCase("<p style='font-size:NaNpt'>A</p>", "FPDF1202")]
     [TestCase("<p style='line-height:0'>A</p>", "FPDF1202")]
     [TestCase("<p style='color:potato'>A</p>", "FPDF1202")]
-    [TestCase("<p style='font-size:12pt !important'>A</p>", "FPDF1202")]
     [TestCase("<p>\u4e2d\u6587</p>", "FPDF1301")]
     [TestCase("<div><span>A</div>", "FPDF1101")]
     [TestCase("<p title='unfinished>A</p>", "FPDF1101")]

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>FactsPDF stylesheet verification</title></head>
+<body style="font-size:12pt;line-height:1.5;color:#222">
+<section>
+<h1 style="font-size:26pt;color:#1d4568;margin-bottom:14pt">FactsPDF</h1>
+<p style="font-size:16pt;margin-bottom:9pt">CSS 样式表与选择器 / Stylesheets and selectors</p>
+<p style="margin-bottom:9pt">同一个文档，统一的样式。中文与 English 可以自动换行，并保留可复制的文字。</p>
+<h2 style="font-size:18pt;color:#1d4568;margin-top:14pt;margin-bottom:8pt">共享样式 / Shared styles</h2>
+<p style="margin-bottom:9pt">这一段包含<span style="color:#008000">绿色文字</span>和<span style="font-size:18pt">更大的文字</span>。字号、行高和颜色来自样式表，不必在每个标签上重复填写。</p>
+<p style="color:#555;margin-bottom:9pt">Class selectors apply shared styling. Tag selectors set paragraph spacing and heading sizes.</p>
+<p style="color:#1d4568;margin-bottom:9pt">Important declaration: this line uses the blue heading color, overriding both the ID rule and normal inline color.</p>
+<h2 style="font-size:18pt;color:#1d4568;margin-top:14pt;margin-bottom:8pt">继承 / Inheritance</h2>
+<p style="margin-bottom:9pt">正文继承父元素的字号与行高，子元素可以通过自己的声明覆盖继承值。中文文字可以自动换行，字体与文字输出可以复制。中文文字可以自动换行，字体与文字输出可以复制。</p>
+<p style="color:#008000;margin-bottom:9pt">This paragraph is styled by a later style element in the same document.</p>
+<h2 style="font-size:18pt;color:#1d4568;margin-top:14pt;margin-bottom:8pt;break-before:page">第二页 / Page two</h2>
+<p style="font-size:16pt;margin-bottom:9pt">同一份 HTML，清晰的样式规则。</p>
+<p style="margin-bottom:9pt">字体加载、中文换行与字体子集化仍使用同一个核心。样式表仅改变样式来源，不改变文字内容。</p>
+<p style="margin-bottom:9pt">Matching checks: .report &gt; p.lead, .report .accent, p span.big, and #priority.</p>
+<p style="color:#555;margin-bottom:9pt">The stylesheet version is compared with a separately hand-authored inline version. Their generated PDF bytes and rendered pages must agree.</p>
+<p style="text-align:right;margin-bottom:9pt">FactsPDF — HTML + CSS, no browser.</p>
+</section>
+</body>
+</html>
