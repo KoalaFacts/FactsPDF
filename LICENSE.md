@@ -1,12 +1,13 @@
 # FactsPDF Community License
 
-Version 1.0 - 9 October 2026
+Version 1.1 - 9 October 2026
 
 Copyright (c) 2026 the FactsPDF authors and other identified copyright holders.
 
 **This is a custom source-available license, not MIT, Apache-2.0, or an
 OSI-approved open-source license. Free use is conditional on the eligibility
-rules below. Other use requires a separate commercial license.**
+rules below. Other use requires a separate commercial license. Covered
+modifications must be published under this license as required by section 4.**
 
 ## 1. Scope, parties, and acceptance
 
@@ -45,7 +46,8 @@ at least one of the following categories covers Your actual use.
 Your Group's Annual Gross Revenue, determined under section 3, is **less than
 or equal to USD 1,000,000**. Exactly USD 1,000,000 qualifies. This category
 permits both proprietary and open-source applications and paid products or
-services. It does not require You to publish Your application source code.
+services. It does not require You to publish Your independent application source
+code. Changes to the Software itself remain subject to sections 4.1-4.5.
 
 A person's own non-business use qualifies with zero business revenue. Work for
 an employer or client is assessed for that employer or client, not against the
@@ -164,7 +166,134 @@ FactsPDF code copied into another package, renamed, translated, statically
 linked, or delivered through a wrapper remains subject to its applicable
 license. You may separately license Your original additions only insofar as
 You hold the rights and do not purport to remove these conditions from the
-Software. Compatibility with any other license must be checked separately.
+Software. Covered Modifications must satisfy sections 4.1-4.5 even if placed in
+new files or packages. Compatibility with any other license must be checked
+separately.
+
+### 4.1 Covered Modifications, not the entire application
+
+"Covered Modifications" means additions, deletions, fixes, adaptations, or other
+changes to the Software, including its source, engine-specific build scripts,
+and accompanying tests or documentation. It includes new files containing or
+derived from Software code and engine-specific code added as part of a modified
+version of the Software. Moving, renaming, translating, splitting, or wrapping
+modified Software does not remove it from this definition.
+
+An independently written application, integration, plugin, or binding that
+merely calls the Software through an interface and contains no copied or adapted
+Software code is not a Covered Modification solely for that reason. Merely
+linking an unmodified engine, including static linking, or sharing a process or
+repository does not bring independent application code into this definition.
+Modified engine code inside a combined executable remains covered. HTML, CSS,
+templates, business logic, customer data, and generated PDFs are not covered
+merely because they are processed by or supplied to the Software. Section 2.3's
+separate conditions for claiming the open-source-project exemption still apply.
+
+### 4.2 When publication is required
+
+As a condition of permission to use a modified version under this license, You
+must publish its Covered Modifications and the corresponding source materials
+specified in section 4.3 no later than the first of:
+
+- Distributing, selling, licensing, or otherwise providing that modified version
+  in source or compiled form to another person or organization, except solely
+  to controlled development contractors as described below.
+- Deploying or executing that modified version for real operational use, even
+  wholly inside Your organization and even without distributing a copy.
+- Making a service using that modified version available to users, including
+  SaaS, APIs, hosted conversion services, and services provided without charge.
+
+"Operational use" includes using the modified engine for actual business,
+charitable, public, or personal document work, rather than solely to develop,
+test, or evaluate the modification in a controlled development environment.
+Private work in progress used only for that development, testing, or evaluation
+need not be published until one of the events above. Employees and contractors
+working solely within that controlled activity do not trigger publication by
+receiving a development copy; they must not use it independently, distribute it
+onward, or provide operational output or services. Ordinary operations are not
+made development activity merely by calling them a pilot or test. This limited
+development exception creates no free evaluation entitlement for an otherwise
+ineligible user. An abandoned, never-triggered experiment need not be published.
+
+Each subsequently used or distributed modified version must have its own
+corresponding source available by the same deadline. Internal-only deployment,
+an unchanged external API, or the fact that customers receive only PDFs does
+not excuse a modified engine's publication requirement.
+
+### 4.3 What to publish, where, and for how long
+
+Publish the preferred editable form of all Covered Modifications, including
+engine-specific source and build or generation scripts, associated changed
+tests, dependency and toolchain identifiers, and instructions reasonably needed
+to reproduce and build the modified engine. Identify the exact upstream
+version or commit and the changes made. A public full source tree is sufficient;
+a complete patch set is also sufficient when the exact base source is publicly
+and reliably available without charge. If it ceases to be available, You must
+also provide the base material You are authorized to redistribute. Compiled,
+minified, obfuscated, encrypted, or incomplete source is not a substitute for
+the preferred editable source and necessary build materials.
+
+Publish the materials on a stable public repository or download location,
+without a fee, account requirement, NDA, access approval, or additional use
+restrictions beyond this license and separately applicable third-party terms.
+Identify the modified version and its source URL in accompanying documentation
+or legal notices; for a hosted service, make that notice reasonably discoverable
+in the service's documentation or legal-notices page. Publication of financial,
+customer, or personal information is not required. No notice or source URL
+inside generated PDFs is required.
+
+Keep each triggered version's source publicly available for as long as You use
+or distribute that version and for at least three years after Your last such
+use or distribution. A successor hosting location is acceptable if the source
+remains reasonably discoverable. Take reasonable steps to restore access
+promptly after an unintended hosting interruption. These retention duties,
+and grants already made to compliant downstream recipients, are not withdrawn
+merely because You later stop using FactsPDF or lose eligibility.
+
+You must offer Your Covered Modifications and original corresponding source
+materials to all recipients under this same FactsPDF Community License 1.1,
+with no additional restrictions on those rights. Preserve all applicable
+notices and identify each relevant copyright holder. Separately licensed
+third-party materials retain their own license; identify them and do not assert
+rights You lack. If necessary source cannot lawfully be supplied on the required
+terms, You do not have permission under this license to put that modification
+into a use that triggers this section.
+
+### 4.4 Exclusions and source-handling boundaries
+
+Publication does not require Your independent application's full source,
+private business data, credentials, signing or deployment keys, unrelated
+infrastructure, or customer documents. Exclude secrets and use placeholders or
+synthetic fixtures where appropriate. Supply the actual engine changes and
+engine build materials; do not use the exclusions to omit functionality or
+conceal a change inside a nominally private file. Separate engine work from
+confidential application work before a triggering use. A generally available
+unmodified compiler, SDK, operating system, or independent dependency need not
+be republished; specify the required version and any separately applicable
+access or license requirements. A custom tool needed to regenerate or build
+Your engine changes is not exempt merely because it is called a build tool.
+
+A public fork or complete publicly accessible patch set can meet these terms.
+A pull request to the upstream project is welcome but not compulsory, and
+acceptance or merger by the maintainers is not a condition of compliance.
+Publication alone neither assigns copyright nor gives maintainers additional
+commercial sublicensing rights; section 9 and CONTRIBUTING.md still apply.
+
+### 4.5 Eligibility and commercial arrangements remain separate
+
+Source publication does not replace eligibility, notices, payment obligations
+under a valid commercial agreement, or downstream licensing requirements. Merely
+publishing engine changes does not qualify a larger proprietary application for
+the open-source-project exemption. Public availability under this custom license
+must not be described as release of the Software under MIT, GPL, AGPL, or an
+OSI-approved open-source license.
+
+Payment, a license key, or the label "Commercial License" does not by itself
+waive the modification-publication requirement. The standard commercial
+licensing policy retains this requirement as stated in section 8 and
+COMMERCIAL.md; an independently agreed commercial contract must expressly state
+its terms. This version does not retroactively amend an earlier grant or an
+existing commercial contract.
 
 ## 5. Losing eligibility
 
@@ -212,7 +341,8 @@ finished PDF is not receiving the Software.
 
 You may distribute the Software, including modified versions, under this
 unchanged license as part of authorized Community use, provided recipients
-receive its notices and conditions. You may not grant an unrestricted
+receive its notices and conditions and Covered Modifications satisfy sections
+4.1-4.5. You may not grant an unrestricted
 sublicense to the Licensors' code. An OEM, white-label, SDK redistribution, or
 hosted-service arrangement that needs rights beyond these provisions requires
 a written commercial agreement specifying those rights. Such uses are not
@@ -253,6 +383,14 @@ customer deployments, redistribution, support, or indemnity. Merely requesting
 a quote, receiving a key, submitting an issue, or seeing an invoice does not
 supply missing agreed terms. A valid commercial agreement takes precedence
 only for the parties, materials, use, and terms it expressly covers.
+
+The standard Commercial License must expressly incorporate the modification-
+publication and corresponding-source requirements in sections 4.1-4.5. It
+authorizes its agreed commercial uses; it does not automatically authorize
+private engine modifications. Silence about disclosure, payment, support
+entitlements, or an ordinary redistribution grant is not a waiver. These are
+requirements for the commercial agreement to record, not a commercial contract
+created by this file or a retroactive change to an existing agreement.
 
 Commercial authorization for jointly owned or contributed material requires
 authority from all relevant rights holders. Project-maintainer status alone
@@ -301,7 +439,9 @@ by law or another valid license. A copy retained solely as a required legal
 record must not be used operationally. Independent downstream grants to users
 who continue to comply are not terminated solely by an upstream user's breach.
 Ownership, output rights, applicable liability provisions, and provisions
-needed to interpret past conduct survive as appropriate.
+needed to interpret past conduct survive as appropriate. Source publication and
+retention obligations already triggered under section 4 survive for the stated
+period; no operational-use right is extended by that survival.
 
 ## 12. Stable terms, interpretation, and contact
 
@@ -310,6 +450,13 @@ website edits, README changes, or license versions do not retroactively change
 that copy's terms. Later versions of the Software may be offered under different
 terms; obtaining them does not silently amend an existing commercial agreement.
 Eligibility remains an ongoing condition under the applicable version.
+
+Version 1.1 introduces the modification-publication requirements. Version 1.0 is
+preserved in the repository history as recorded in docs/license-history.md;
+it is not an alternative licensing option for new material offered only under
+version 1.1. Rights already granted on earlier material remain governed by their actual
+grant. Copying an old license file onto newly obtained material does not select
+a different license for it.
 
 If a provision is unenforceable, it is severed only to the extent lawful; other
 provisions continue where they can operate without it. No greater rights are
