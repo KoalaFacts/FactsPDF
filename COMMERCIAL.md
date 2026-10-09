@@ -1,12 +1,51 @@
-# Commercial licensing process
+# FactsPDF Commercial License
 
-**This document is not a commercial license, a completed contract, a quote,
-or authorization to use FactsPDF outside [LICENSE.md](LICENSE.md).**
+**Commercial licenses are available by arrangement.** This is FactsPDF's paid
+licensing path for uses outside Community eligibility and for expressly agreed
+commercial requirements. Enquiries are welcome now; issuing paid licenses and
+accepting orders require completion of the checks below.
+
+**This document describes the commercial licensing policy and process. It is
+not a commercial license, a completed contract, a quote, or authorization to use
+FactsPDF outside [LICENSE.md](LICENSE.md).**
+
+## Who it is for
 
 Commercial use is not synonymous with paid licensing: eligible small entities
 can use Community terms for paid products. A commercial agreement is required
 when the actual use does not qualify or needs rights beyond the Community
 grant, such as an arrangement covering otherwise ineligible downstream users.
+An eligible Community user may also enquire about a commercial arrangement.
+
+Agreements can address proprietary applications, SaaS, native or WebAssembly
+deployments, OEM integration, and embedded redistribution. Each grant must
+identify the covered parties and rights; merely naming these scenarios does
+not promise unlimited deployments or a standard package containing all of them.
+
+## Engine modifications must remain publicly available
+
+The standard Commercial License must expressly incorporate the public-source
+requirements in sections 4.1-4.5 of [LICENSE.md](LICENSE.md). Covered engine
+changes and necessary source/build materials must be published under FactsPDF
+Community License 1.1 before distribution or operational use, including internal
+use and hosted services. The controlled development/testing exception, public
+access conditions, notice requirements, and three-year retention period also
+apply. These clauses must be part of the accepted commercial agreement, not
+left only in a marketing summary.
+
+Payment, a license key, support arrangements, or permission to redistribute the
+engine does not automatically waive this requirement. A Commercial License
+licenses the commercial activity within its agreed scope; it is not an implied
+right to keep modified engine code private. Silence is not a private-fork grant.
+Do not amend an already agreed contract by pointing at a later website edit.
+
+Independent proprietary applications, ordinary API integrations, customer data,
+credentials, templates, and generated PDFs are not forced public merely because
+they use FactsPDF. The publication requirement concerns the engine changes,
+not unrelated customer intellectual property. Public availability does not
+assign the modification author's copyright or automatically give the project
+commercial sublicensing rights over that author's work; see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Before authorization can be issued
 
@@ -26,20 +65,26 @@ The completed agreement must expressly state:
 5. Price, currency, taxes, payment terms, and any lawful refund arrangements.
 6. Whether embedded runtime, OEM, redistribution, browser WASM, or downstream
    customer rights are included, and exactly who they cover.
-7. Support and service levels, warranties, liability, any indemnity, mandatory
+7. The engine-modification publication duties, required source-license terms,
+   publication triggers, retention period, and independent-application boundary.
+8. Support and service levels, warranties, liability, any indemnity, mandatory
    consumer protections, and governing law/dispute arrangements.
-8. An explicit record of acceptance and any transition or treatment of prior use.
+9. An explicit record of acceptance and any transition or treatment of prior use.
 
 Neither annual subscription nor perpetual commercial use has been selected in
 this repository. No price, automatic renewal, unlimited deployment, warranty,
-indemnity, or service-level obligation is created by these process notes.
+indemnity, private-modification entitlement, or service-level obligation is
+created by these process notes. Technical support, an SLA, and updates apply
+only if expressly included in the accepted agreement.
+
 No commercial order should be accepted until the agreement and authorization
 chain are complete and reviewed. A license key implements an agreed entitlement;
-it is not a substitute for defining that entitlement.
+it is not a substitute for defining that entitlement. Complete the
+[licensing release gates](docs/licensing-review.md) before commercial activation.
 
 ## Contact and safe handling
 
-For initial enquiries, open a licensing question in the
+For initial Commercial License enquiries, open a licensing question in the
 [repository issue tracker](https://github.com/KoalaFacts/FactsPDF/issues).
 Request a private channel before providing financial records, legal identities,
 addresses, contracts, or payment details. Do not put confidential details or
