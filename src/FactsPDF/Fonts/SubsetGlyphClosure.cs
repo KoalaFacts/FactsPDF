@@ -51,6 +51,7 @@ internal sealed class SubsetGlyphClosure
             token.ThrowIfCancellationRequested(); Check(at + 4 <= glyph.Length, "Truncated composite component.");
             flags = U16(glyph, at); var child = U16(glyph, at + 2);
             Check((flags & 0xe010) == 0, "Reserved composite flags are unsupported.");
+            Check(result.Count > 0 || (flags & 2) != 0, "The first composite component must use XY positioning.");
             var scales = flags & (8 | 64 | 128); Check(scales is 0 or 8 or 64 or 128, "Conflicting composite transforms.");
             Check((flags & 0x1800) != 0x1800, "Conflicting composite offset flags.");
             result.Add(new(at + 2, child));

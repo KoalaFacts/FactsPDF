@@ -4,15 +4,17 @@ A browser-free HTML and CSS to PDF engine, designed for cross-language integrati
 
 > **Status: experimental renderer.** This development branch contains a limited
 > text-rendering core and CLI, not a production release. Read the
-> [HTML/CSS support guide](docs/development.md) and the
-> [font and Unicode guide](docs/unicode-fonts.md) before using it.
+> [HTML/CSS support guide](docs/development.md), the
+> [font and Unicode guide](docs/unicode-fonts.md) and the
+> [font-subsetting guide](docs/font-subsetting.md) before using it.
 
 FactsPDF is a KoalaFacts project. The intended input is standard HTML and CSS;
 no separate FactsML language is required. The core connects parsing, inline
 styling, font metrics, line wrapping, pagination and PDF output without a browser
 or third-party runtime parser/font/layout/PDF library. High throughput, fast
-startup and low resource use remain engineering goals; comparative performance
-has not been established.
+startup and low resource use remain engineering goals. Initial full-versus-subset
+measurements are recorded with explicit scope and limitations; no general
+performance guarantee or competitor comparison is claimed.
 
 ## Try the development slice
 
@@ -30,22 +32,34 @@ static TrueType fonts. Repeat `--font` for an ordered fallback chain:
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/unicode-document.html unicode-document.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf
 ```
 
+Opt in to native font subsetting with `--subset-fonts` (or `PdfOptions.SubsetFonts`):
+
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/subset-document.html subset.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
+```
+
+Full embedding remains the default. Subsetting retains used glyphs plus composite
+components, preserves text mappings, and falls back to full embedding when the
+font prohibits subsetting. See [implementation boundaries and resource-baseline
+methodology](docs/font-subsetting.md). No fonts are bundled.
+
 The current subset includes paragraphs/headings/inline spans, basic inline CSS,
 wrapping and pagination. Explicit fonts enable real glyph advances, horizontal
 Chinese text, basic punctuation-aware wrapping, font fallback and searchable
 PDF text with embedded fonts. Without fonts, the original ASCII/Courier mode
 remains available. Unsupported elements, styles, glyphs and shaping requirements
 fail explicitly. This is not full HTML5, stylesheet CSS or Unicode typography.
-Font subsetting, complex shaping/RTL and automatic font discovery are not yet
-implemented. No stable API or published package is claimed.
+Complex shaping/RTL and automatic font discovery are not yet implemented.
+No stable API or published package is claimed.
 
 CI runs tests on Windows, Linux and macOS and builds/runs a Linux x64 Native AOT
-CLI. Independent tools inspect generated PDFs, including a real Chinese-font
-fixture. Local NuGet packing checks the exact license, runtime dependencies and
-absence of bundled font files, without publishing. See the
-[first-renderer evidence](docs/development-ledger.md) and
-[Unicode increment ledger](docs/unicode-development-ledger.md) for tested commits
-and runs; workflow configuration alone is not evidence for an untested commit.
+CLI. Independent tools inspect generated PDFs, including real Chinese-font and
+full/subset pixel-equivalence fixtures. Local NuGet packing checks the exact
+license, runtime dependencies and absence of bundled font files, without
+publishing. See the [first-renderer evidence](docs/development-ledger.md),
+[Unicode increment ledger](docs/unicode-development-ledger.md) and
+[subsetting ledger](docs/subsetting-ledger.md) for tested commits and runs;
+workflow configuration alone is not evidence for an untested commit.
 
 ## Integration goals
 
