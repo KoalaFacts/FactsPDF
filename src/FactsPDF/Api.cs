@@ -17,6 +17,10 @@ public sealed record PdfOptions
     public int MaxTotalFontBytes { get; init; } = 67_108_864;
     /// <summary>Opt in to glyph subsetting where the supplied font permits it; otherwise embed fully.</summary>
     public bool SubsetFonts { get; init; }
+    public int MaxCssCharacters { get; init; } = 262_144;
+    public int MaxCssSelectors { get; init; } = 4_096;
+    public int MaxCssDeclarations { get; init; } = 32_768;
+    public int MaxCssMatchOperations { get; init; } = 5_000_000;
 }
 
 public sealed record PdfConversionResult(int PageCount, long BytesWritten);
