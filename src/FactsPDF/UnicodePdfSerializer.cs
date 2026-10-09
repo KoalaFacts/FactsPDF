@@ -68,7 +68,8 @@ internal static class UnicodePdfSerializer
         }
         try
         {
-            Write("%PDF-1.7\n%FactsPDF\n"); Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+            Write("%PDF-1.7\n"); output.Write(new byte[] { 0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a });
+            Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
             var firstPage = 3 + fonts.Count * 6;
             Obj(2, $"<< /Type /Pages /Count {pages.Count.ToString(CultureInfo.InvariantCulture)} /Kids [" + string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => (firstPage + 2 * i).ToString(CultureInfo.InvariantCulture) + " 0 R")) + "] >>");
             foreach (var use in fonts)

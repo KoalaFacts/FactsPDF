@@ -28,7 +28,7 @@ public sealed class PdfFont
         data = ownedBytes;
         var sfnt = new SfntDirectory(data);
         var head = sfnt.Table("head", 54); var hhea = sfnt.Table("hhea", 36); var maxp = sfnt.Table("maxp", 32);
-        Need(U32(head, 12) == 0x5f0f3cf5 && U16(head, 18) is >= 16 and <= 16384 && S16(head, 52) == 0, "Invalid head metrics.");
+        Need(U32(head, 0) == 0x00010000 && U32(head, 12) == 0x5f0f3cf5 && U16(head, 18) is >= 16 and <= 16384 && S16(head, 52) == 0, "Invalid head version or metrics.");
         Need(U32(maxp, 0) == 0x00010000 && U32(hhea, 0) == 0x00010000 && S16(hhea, 32) == 0, "Invalid TrueType metrics version.");
         var glyphs = U16(maxp, 4); var metrics = U16(hhea, 34);
         Need(glyphs > 0 && metrics > 0 && metrics <= glyphs, "Invalid glyph/metric count.");
@@ -40,6 +40,8 @@ public sealed class PdfFont
         advances = new ushort[glyphs];
         for (var i = 0; i < glyphs; i++) advances[i] = U16(hmtx, Math.Min(i, metrics - 1) * 4);
         var os2 = sfnt.Table("OS/2", 68); var version = U16(os2, 0); var embedding = U16(os2, 8);
+        var requiredLength = version switch { 0 => 68, 1 => 86, 2 or 3 or 4 => 96, 5 => 100, _ => int.MaxValue };
+        Need(os2.Length >= requiredLength, "Unsupported OS/2 version or truncated version-specific fields.");
         // Preview-and-print requires read-only document handling that this renderer does not implement.
         // Conservatively decline restricted, preview-only, bitmap-only and unknown permission bits.
         if ((embedding & 0x000e) is not (0 or 8) || (embedding & ~0x010e) != 0)
