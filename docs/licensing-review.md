@@ -14,6 +14,15 @@ that a license eliminates all legal risk.
   intended sales jurisdictions. Review free-category definitions, Group revenue,
   financial-year boundaries, the 90-day transition, downstream execution, and
   open-source-license compatibility against the intended business model.
+- [ ] Review the 1.1 modification-publication terms: engine/application scope,
+  internal and hosted operational-use triggers, the controlled development
+  exception, source/build requirements, public access, three-year retention,
+  third-party rights, privacy/security implications, and practical enforcement.
+  These are custom terms, not a claim of MPL/GPL/AGPL equivalence or OSI approval.
+- [ ] Ensure the actual standard commercial agreement expressly incorporates
+  the engine-source publication obligations; payment or a license key is not a
+  waiver. Do not assume changing a README amends an existing paid agreement.
+  Verify inbound commercial rights separately from public source availability.
 - [ ] Review acceptance mechanics, termination, warranty and liability provisions,
   mandatory consumer protections, and unfair-contract-term obligations. A broad
   disclaimer or a savings clause alone does not guarantee compliance.
@@ -45,6 +54,12 @@ or provide the text of the custom FactsPDF license.
 
 - [OSI Open Source Definition](https://opensource.org/osd): source availability
   alone does not satisfy the open-source definition.
+- [Mozilla MPL 2.0 FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/): distinguishes
+  covered source from other files and permits private internal modifications.
+  FactsPDF's internal operational-use disclosure rule is different.
+- [GNU license FAQ](https://www.gnu.org/licenses/gpl-faq.en.html): explains
+  private changes and source availability under GNU licenses; FactsPDF does
+  not adopt those licenses or claim identical publication triggers.
 - [GitHub: licensing a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository):
   public-repository behavior and the importance of an explicit license.
 - [GitHub Open Source Guides: legal considerations](https://opensource.guide/legal/):
