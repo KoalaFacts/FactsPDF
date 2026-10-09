@@ -3,7 +3,7 @@ using System.Text;
 
 namespace FactsPDF;
 
-internal enum HtmlTokenKind { Text, Start, End }
+internal enum HtmlTokenKind { Text, Start, End, StyleText }
 internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
     bool SelfClosing, int Offset);
 
@@ -98,6 +98,23 @@ internal static class HtmlTokens
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
             yield return new(HtmlTokenKind.Start, name, attrs, selfClosing, start);
+            if (name == "style" && !selfClosing)
+            {
+                // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
+                // The HTML end delimiter still wins even when it appears inside a CSS quote/comment.
+                var end = i;
+                while (true)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    end = html.IndexOf("</style", end, StringComparison.OrdinalIgnoreCase);
+                    if (end < 0) throw Invalid("Unclosed style element.", start);
+                    var after = end + 7;
+                    if (after < html.Length && (Space(html[after]) || html[after] is '>' or '/')) break;
+                    end = after;
+                }
+                yield return new(HtmlTokenKind.StyleText, html[i..end], null, false, i);
+                i = end;
+            }
         }
     }
 
