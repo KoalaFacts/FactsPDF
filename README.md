@@ -3,20 +3,19 @@
 A browser-free HTML and CSS to PDF engine, designed for cross-language integration.
 
 > **Status: experimental renderer.** This development branch contains a limited
-> text-rendering core and CLI, not a production release. Read the
-> [HTML/CSS support guide](docs/development.md), the
-> [font and Unicode guide](docs/unicode-fonts.md) and the
-> [font-subsetting guide](docs/font-subsetting.md) before using it.
+> document-text core and CLI, not a production release. Start with the
+> [development guide](docs/development.md), [CSS support](docs/css-stylesheets.md),
+> [Unicode/fonts](docs/unicode-fonts.md) and [font subsetting](docs/font-subsetting.md).
 
-FactsPDF is a KoalaFacts project. The intended input is standard HTML and CSS;
-no separate FactsML language is required. The core connects parsing, inline
-styling, font metrics, line wrapping, pagination and PDF output without a browser
-or third-party runtime parser/font/layout/PDF library. High throughput, fast
-startup and low resource use remain engineering goals. Initial full-versus-subset
-measurements are recorded with explicit scope and limitations; no general
-performance guarantee or competitor comparison is claimed.
+FactsPDF is a KoalaFacts project. Input is standard HTML and a documented CSS
+subset; no separate markup language is required. The shared core connects HTML
+parsing, stylesheet/inline cascade, font metrics, wrapping, pagination and PDF
+output without a browser or third-party runtime parser/font/layout/PDF library.
+High throughput, fast startup and low resource use remain engineering goals.
+Published development measurements identify their scope and limitations; no
+general performance guarantee or competitor comparison is claimed.
 
-## Try the development slice
+## Try the development build
 
 From a source checkout with the .NET 10 SDK:
 
@@ -25,52 +24,71 @@ dotnet test FactsPDF.slnx -c Release
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html first-document.pdf
 ```
 
-For Chinese and simple Unicode text, supply your own appropriately licensed
-static TrueType fonts. Repeat `--font` for an ordered fallback chain:
+For the bilingual stylesheet example, supply your own appropriately licensed,
+trusted static TrueType files and optionally enable native font subsetting:
 
 ```sh
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/unicode-document.html unicode-document.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html stylesheet.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
 ```
 
-Opt in to native font subsetting with `--subset-fonts` (or `PdfOptions.SubsetFonts`):
+No additional switch is needed for embedded stylesheets. `--font` may repeat in
+fallback order. Without fonts, the ASCII/Courier mode remains. Full embedding is
+the default; `--subset-fonts` or `PdfOptions.SubsetFonts` keeps needed glyphs and
+composite components where permitted. No-subsetting fonts remain fully embedded.
+No font files are bundled.
 
-```sh
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/subset-document.html subset.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
+## Stylesheets and selectors
+
+Templates can now share styles instead of repeating every inline declaration:
+
+```html
+<style>
+  body { font-size: 12pt; line-height: 1.5; }
+  h1, h2 { color: #1d4568; }
+  .report > p.lead { font-size: 16pt; }
+  .report .accent { color: #008000; }
+  p.next { break-before: page; }
+</style>
+<body>
+  <section class="report">
+    <h1>FactsPDF</h1>
+    <p class="lead">Hello, world.</p>
+    <p>A paragraph with <span class="accent">shared styling</span>.</p>
+  </section>
+</body>
 ```
 
-Full embedding remains the default. Subsetting retains used glyphs plus composite
-components, preserves text mappings, and falls back to full embedding when the
-font prohibits subsetting. See [implementation boundaries and resource-baseline
-methodology](docs/font-subsetting.md). No fonts are bundled.
+Supported selector forms include type, universal, class, ID, compound, comma
+groups, descendant and child combinators. The bounded author cascade handles
+per-property specificity/source order, inline rules, `!important`, inheritance,
+`inherit`, `initial` and `unset`. Later style elements can affect earlier content.
 
-The current subset includes paragraphs/headings/inline spans, basic inline CSS,
-wrapping and pagination. Explicit fonts enable real glyph advances, horizontal
-Chinese text, basic punctuation-aware wrapping, font fallback and searchable
-PDF text with embedded fonts. Without fonts, the original ASCII/Courier mode
-remains available. Unsupported elements, styles, glyphs and shaping requirements
-fail explicitly. This is not full HTML5, stylesheet CSS or Unicode typography.
-Complex shaping/RTL and automatic font discovery are not yet implemented.
-No stable API or published package is claimed.
+This is a strict documented subset, not full HTML5/CSS or browser error recovery.
+The existing eight style properties and text layout remain the scope; selectors
+do not add width/padding/borders/backgrounds, tables/images or flex/grid. External
+stylesheets, at-rules and other selector classes remain unsupported. Full Unicode
+shaping/RTL, CSS font selection and automatic font discovery are not implemented.
+Unsupported input fails explicitly rather than silently changing the output.
+See [exact values, budgets and diagnostics](docs/css-stylesheets.md).
 
-CI runs tests on Windows, Linux and macOS and builds/runs a Linux x64 Native AOT
-CLI. Independent tools inspect generated PDFs, including real Chinese-font and
-full/subset pixel-equivalence fixtures. Local NuGet packing checks the exact
-license, runtime dependencies and absence of bundled font files, without
-publishing. See the [first-renderer evidence](docs/development-ledger.md),
-[Unicode increment ledger](docs/unicode-development-ledger.md) and
-[subsetting ledger](docs/subsetting-ledger.md) for tested commits and runs;
-workflow configuration alone is not evidence for an untested commit.
+## Verification and integration goals
 
-## Integration goals
+CI tests Windows, Linux and macOS, and builds/runs an actual Linux x64 Native AOT
+CLI. Independent inspectors check ASCII/Unicode output, real-font subsetting,
+and stylesheet-versus-handwritten-inline equivalence. The latter requires equal
+PDF bytes, text and rendered page pixels for the bilingual fixture. NuGet packing
+is local license/dependency inspection only, not a registry release.
 
-The public integration model is not tied to the engine's implementation
-language. The current development entry points are the library API and CLI.
-The roadmap targets .NET/NuGet distribution, JavaScript and TypeScript/npm,
-Rust, Go, Python and WebAssembly. Language bindings should reuse one shared
-rendering core rather than implement separate layout and PDF engines.
+See the [CSS execution record](docs/css-development-ledger.md) and previous
+[first-renderer](docs/development-ledger.md), [Unicode](docs/unicode-development-ledger.md)
+and [subsetting](docs/subsetting-ledger.md) ledgers. A configured workflow is not
+proof for an untested commit, and fixture equivalence is not full conformance.
 
-WASM and non-.NET language bindings are not implemented or verified. Additional
-platform/AOT combinations need their own implementation and validation.
+Public integration is not tied to the implementation language. Current entry
+points are the library API and CLI. The roadmap includes .NET/NuGet distribution,
+JavaScript/TypeScript/npm, Rust, Go, Python and WebAssembly sharing one rendering
+core. WASM, non-.NET bindings and additional platform/AOT combinations are not
+yet implemented or verified. No stable API or published package is claimed.
 
 ## Licensing: Community and Commercial
 
