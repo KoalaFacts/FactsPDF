@@ -38,7 +38,7 @@ internal static class TextLayout
         {
             cancellation.ThrowIfCancellationRequested();
             if (step is BeginBlock begin) { pendingPadding += begin.PaddingTop; continue; }
-            if (step is EndBlock end) { pendingPadding += end.PaddingBottom; continue; }
+            if (step is EndBlock closing) { pendingPadding += closing.PaddingBottom; continue; }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
