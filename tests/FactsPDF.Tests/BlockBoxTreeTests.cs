@@ -80,15 +80,32 @@ public sealed class BlockBoxTreeTests
     }
 
     [Test]
-    public void AnonymousParagraphInheritsContainingBlockInsteadOfInitialSpanStyle()
+    public void AnonymousParagraphKeepsLegacyFirstInlineLayoutStyleWithIndependentBlockStyle()
     {
         var div = Box(Tree("<div style='font-size:14pt'><span style='font-size:20pt'>X</span> Y</div>")
             .Children.Single());
         var leaf = Text(div.Children.Single());
         Assert.That(leaf.IsAnonymous, Is.True);
-        Assert.That(leaf.Paragraph.Style.FontSize, Is.EqualTo(14));
+        Assert.That(div.Style.FontSize, Is.EqualTo(14), "The retained block has the proper parent style.");
+        Assert.That(leaf.Paragraph.Style.FontSize, Is.EqualTo(20),
+            "The existing text renderer retains the first inline style until block-aware layout is implemented.");
         Assert.That(leaf.Paragraph.Runs[0].Style.FontSize, Is.EqualTo(20));
         Assert.That(leaf.Paragraph.Runs[1].Style.FontSize, Is.EqualTo(14));
+    }
+
+    [Test]
+    public void TreeLayoutDoesNotChangeExistingAlignmentOfSpanLedAnonymousText()
+    {
+        const string html = "<div><span style='text-align:right'>A</span>B</div>";
+        var options = new PdfOptions();
+        var outer = Box(Tree(html, options).Children.Single());
+        var anonymous = Text(outer.Children.Single());
+        Assert.That(outer.Style.Alignment, Is.EqualTo(TextAlignment.Left));
+        Assert.That(anonymous.Paragraph.Style.Alignment, Is.EqualTo(TextAlignment.Right),
+            "This structural milestone must retain the old PDF output for inline-led text.");
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
+            options, default);
+        Assert.That(pages[0].Runs[0].X, Is.GreaterThan(options.Margin + 100));
     }
 
     [Test]
