@@ -28,9 +28,12 @@ internal static class TextLayout
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
         var y = o.Margin; var after = 0d; var breakNext = false;
-        // Ending padding belongs to the preceding box/page. Starting padding
-        // belongs to the following box and must move with its first text line.
-        var pendingTopPadding = 0d; var pendingBottomPadding = 0d;
+        // Retain the origin of pending top padding. Only still-open boxes may
+        // carry that leading padding with their first text line to a new page.
+        // The top padding of a closed empty box becomes trailing spacing.
+        var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
+        var opened = new Stack<(double Top, int ContentEpoch)>();
+        var contentEpoch = 0;
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -40,8 +43,26 @@ internal static class TextLayout
         foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (step is BeginBlock begin) { pendingTopPadding += begin.PaddingTop; continue; }
-            if (step is EndBlock closing) { pendingBottomPadding += closing.PaddingBottom; continue; }
+            if (step is BeginBlock begin)
+            {
+                opened.Push((begin.PaddingTop, contentEpoch));
+                pendingTopPadding += begin.PaddingTop;
+                continue;
+            }
+            if (step is EndBlock closing)
+            {
+                var (top, openedAtEpoch) = opened.Pop();
+                if (openedAtEpoch == contentEpoch)
+                {
+                    // No laid-out text has consumed this box's top padding.
+                    // Since the box is now closed, it cannot move with later
+                    // content across an explicit/overflow page boundary.
+                    pendingTopPadding = Math.Max(0, pendingTopPadding - top);
+                    pendingClosedPadding += top;
+                }
+                pendingClosedPadding += closing.PaddingBottom;
+                continue;
+            }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
@@ -51,10 +72,10 @@ internal static class TextLayout
                 if (y > o.Margin) NewPage();
                 // Never carry a preceding box's bottom padding past an
                 // explicit page break. Keep the next box's top padding.
-                pendingBottomPadding = 0;
+                pendingClosedPadding = 0;
             }
             breakNext = false;
-            var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingBottomPadding;
+            var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingClosedPadding;
             if (y + gap + lines[0].Height > bottom && y > o.Margin)
             {
                 NewPage();
@@ -66,7 +87,8 @@ internal static class TextLayout
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
             y += gap;
             pendingTopPadding = 0;
-            pendingBottomPadding = 0;
+            pendingClosedPadding = 0;
+            contentEpoch++;
             foreach (var line in lines)
             {
                 cancellation.ThrowIfCancellationRequested();
