@@ -215,6 +215,53 @@ public sealed class BoxFragmentationTests
     }
 
     [Test]
+    public void AlreadyConsumedAncestorTopPaddingDoesNotRepeatOnNextPage()
+    {
+        var page = Small with { PageHeight = 100 };
+        const string html = "<div style='background-color:red;padding-top:20pt'>" +
+            "<div style='padding:20pt 0'></div><p>B</p></div>";
+        var pages = Layout(html, page);
+        var standalone = Layout("<p>B</p>", page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single().IsFirstFragment, Is.True);
+        Assert.That(pages[1].PaintBoxes.Single().IsLastFragment, Is.True);
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(standalone[0].Runs.Single().Baseline).Within(0.00001),
+            "The parent already consumed its first-page top padding before a padded child.");
+    }
+
+    [Test]
+    public void ThinFirstFragmentClipsOversizedHorizontalBorderToPageBounds()
+    {
+        var style = new BoxStyle
+        {
+            BorderTop = new BorderEdge(10, true, new Rgb(1, 0, 0)),
+            BorderBottom = new BorderEdge(10, true, new Rgb(0, 1, 0)),
+            BorderLeft = new BorderEdge(2, true, new Rgb(0, 0, 1))
+        };
+        var first = new PaintedBox(20, 75, 100, 5, style, new Rgb(0, 0, 0), 0,
+            IsFirstFragment: true, IsLastFragment: false);
+        var last = new PaintedBox(20, 20, 100, 4, style, new Rgb(0, 0, 0), 0,
+            IsFirstFragment: false, IsLastFragment: true);
+        string Painted(PaintedBox box)
+        {
+            var content = new StringBuilder();
+            PdfPaintSerializer.Append(content, [box], 100, 10000, default);
+            return content.ToString();
+        }
+        var a = Painted(first);
+        var b = Painted(last);
+        Assert.That(a, Does.Contain("20 20 100 5 re f Q"),
+            "First page border must stop at the fragment's bottom edge.");
+        Assert.That(b, Does.Contain("20 76 100 4 re f Q"),
+            "Last page border must begin at the fragment's top edge.");
+        Assert.That(a, Does.Not.Contain("100 10 re f Q"));
+        Assert.That(b, Does.Not.Contain("100 10 re f Q"));
+        Assert.That(first.CommandCount, Is.EqualTo(1));
+        Assert.That(last.CommandCount, Is.EqualTo(1));
+    }
+
+    [Test]
     public void TwoPageUnicodePdfKeepsEmbeddedFontAndAllPagePaint()
     {
         var options = Small with
