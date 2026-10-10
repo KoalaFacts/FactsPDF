@@ -1,6 +1,10 @@
 namespace FactsPDF;
 
-internal enum CssProperty { FontSize, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter }
+internal enum CssProperty
+{
+    FontSize, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter,
+    Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft
+}
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
 internal static class CssDeclarations
@@ -27,5 +31,35 @@ internal static class CssDeclarations
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }
-    private static FactsPdfException Invalid(string message, int offset) => new("FPDF1202", message, offset);
+    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width;
+
+    internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration)
+    {
+        var property = declaration.Property;
+        if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
+        if (declaration.Value is "inherit" or "initial" or "unset")
+        {
+            var from = declaration.Value == "inherit" ? parent : new BoxStyle();
+            return property switch
+            {
+                CssProperty.Width => current with { Width = from.Width },
+                CssProperty.PaddingTop => current with { PaddingTop = from.PaddingTop },
+                CssProperty.PaddingRight => current with { PaddingRight = from.PaddingRight },
+                CssProperty.PaddingBottom => current with { PaddingBottom = from.PaddingBottom },
+                CssProperty.PaddingLeft => current with { PaddingLeft = from.PaddingLeft },
+                _ => throw new InvalidOperationException("Unrecognized box property.")
+            };
+        }
+        if (property == CssProperty.Width)
+            return current with { Width = CssBoxValues.Width(declaration.Value, declaration.Offset) };
+        var length = CssBoxValues.Length(declaration.Value, declaration.Offset);
+        return property switch
+        {
+            CssProperty.PaddingTop => current with { PaddingTop = length },
+            CssProperty.PaddingRight => current with { PaddingRight = length },
+            CssProperty.PaddingBottom => current with { PaddingBottom = length },
+            CssProperty.PaddingLeft => current with { PaddingLeft = length },
+            _ => throw new InvalidOperationException("Unrecognized box property.")
+        };
+    }
 }

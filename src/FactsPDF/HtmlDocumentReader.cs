@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal static class HtmlDocumentReader
 {
-    private sealed record Frame(string Name, TextStyle Style, BlockNode? Box);
+    private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box);
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html";
 
@@ -16,7 +16,7 @@ internal static class HtmlDocumentReader
         // Compile every source before computing styles: a later style block can affect earlier content.
         var sheets = CssStylesheets.Collect(html, options, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
-        var stack = new List<Frame> { new("#root", root, null) };
+        var stack = new List<Frame> { new("#root", root, new BoxStyle(), null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
         var result = new DocumentRoot();
         Paragraph? current = null;
@@ -110,6 +110,8 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "title/meta must be inside head.", token.Offset);
 
             var parent = stack[^1].Style;
+            var parentBox = stack[^1].BoxStyle;
+            var boxStyle = new BoxStyle();
             var style = parent with { MarginBefore = 0, MarginAfter = ParagraphTag(name) ? 8 : 0,
                 BreakBefore = false, BreakAfter = false };
             if (name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6')
@@ -130,7 +132,9 @@ internal static class HtmlDocumentReader
             if (name == "meta") continue;
             path.Add(CssElement.From(token));
             if (name is not ("head" or "title"))
-                style = sheets.Compute(style, parent, root, path, ParagraphTag(name), token.Offset, allowStyling: name != "br");
+                (style, boxStyle) = sheets.Compute(style, parent, root, parentBox, path,
+                    ParagraphTag(name), ParagraphTag(name) || name is "body" or "div" or "section" or "article",
+                    token.Offset, allowStyling: name != "br");
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
@@ -140,10 +144,10 @@ internal static class HtmlDocumentReader
             BlockNode? box = null;
             if (ParagraphTag(name) || name is "body" or "div" or "section" or "article")
             {
-                box = new BlockNode(name, style, token.Offset);
+                box = new BlockNode(name, style, boxStyle, token.Offset);
                 CurrentChildren().Add(box);
             }
-            stack.Add(new(name, style, box));
+            stack.Add(new(name, style, boxStyle, box));
             if (ParagraphTag(name))
             {
                 current = new Paragraph(style);

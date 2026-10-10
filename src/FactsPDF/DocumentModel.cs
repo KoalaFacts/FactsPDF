@@ -15,11 +15,25 @@ internal sealed class LayoutPage
     public List<PlacedText> Runs { get; } = [];
 }
 
-// Structural box tree only. Box geometry, painting, pagination fragments and
-// additional CSS properties intentionally belong to a later feature.
+// M5 retained the structural box tree; M6 adds independently computed
+// width/padding. Painting and paginated box fragments remain future features.
+internal readonly record struct CssLength(double Value, bool IsPercent = false)
+{
+    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;
+}
+
+// Specified values are retained until the containing block's content width is known.
+// All properties in BoxStyle are non-inherited by default.
+internal sealed record BoxStyle(
+    CssLength? Width = null,
+    CssLength PaddingTop = default,
+    CssLength PaddingRight = default,
+    CssLength PaddingBottom = default,
+    CssLength PaddingLeft = default);
+
 internal abstract record BlockChild;
 
-internal sealed record BlockNode(string Name, TextStyle Style, int SourceOffset) : BlockChild
+internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChild
 {
     public List<BlockChild> Children { get; } = [];
 }

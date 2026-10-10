@@ -48,6 +48,43 @@ internal static class CssSyntaxAdapter
         {
             budget.Token.ThrowIfCancellationRequested();
             var name = node.Name.ToLowerInvariant();
+            if (name == "padding")
+            {
+                // CSS box shorthands expand into independently cascading longhands.
+                // Charge all four derived declarations to the existing work budget.
+                var tokens = new List<CssTokenComponent>(4);
+                var separated = true;
+                foreach (var value in node.Values)
+                {
+                    if (value is CssTokenComponent whitespace && whitespace.Token.Kind == CssSyntaxTokenKind.Whitespace)
+                    { separated = true; continue; }
+                    if (value is not CssTokenComponent term || (tokens.Count > 0 && !separated))
+                        throw new FactsPdfException("FPDF1202", "Padding values must be whitespace-separated lengths.", value.Span.Start);
+                    tokens.Add(term);
+                    separated = false;
+                }
+                if (tokens.Count is < 1 or > 4)
+                    throw new FactsPdfException("FPDF1202", "Padding takes one to four lengths.", node.Span.Start);
+                var values = tokens.Select(t => TokenValue(t.Token)).ToArray();
+                if (values.Length != 1 || values[0] is not ("inherit" or "initial" or "unset"))
+                    foreach (var value in values) _ = CssBoxValues.Length(value, node.Span.Start);
+                var expanded = values.Length switch
+                {
+                    1 => new[] { values[0], values[0], values[0], values[0] },
+                    2 => new[] { values[0], values[1], values[0], values[1] },
+                    3 => new[] { values[0], values[1], values[2], values[1] },
+                    _ => values
+                };
+                var properties = new[] { CssProperty.PaddingTop, CssProperty.PaddingRight,
+                    CssProperty.PaddingBottom, CssProperty.PaddingLeft };
+                for (var i = 0; i < 4; i++)
+                {
+                    var order = budget.Declaration(tokens[Math.Min(i, tokens.Count - 1)].Token.Span.Start);
+                    output.Add(new(properties[i], name, expanded[i], node.Important, order, node.Span.Start));
+                }
+                continue;
+            }
+
             var property = name switch
             {
                 "font-size" => CssProperty.FontSize,
@@ -58,30 +95,46 @@ internal static class CssSyntaxAdapter
                 "margin-bottom" => CssProperty.MarginBottom,
                 "break-before" => CssProperty.BreakBefore,
                 "break-after" => CssProperty.BreakAfter,
+                "width" => CssProperty.Width,
+                "padding-top" => CssProperty.PaddingTop,
+                "padding-right" => CssProperty.PaddingRight,
+                "padding-bottom" => CssProperty.PaddingBottom,
+                "padding-left" => CssProperty.PaddingLeft,
                 _ => throw new FactsPdfException("FPDF1201", $"CSS property '{name}' is not supported.", node.Span.Start)
             };
             var meaningful = node.Values.Where(x => x is not CssTokenComponent t ||
                 t.Token.Kind != CssSyntaxTokenKind.Whitespace).ToArray();
             if (meaningful.Length != 1 || meaningful[0] is not CssTokenComponent component)
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
-            var token = component.Token;
-            var value = token.Kind switch
+            var valueText = TokenValue(component.Token);
+            if (valueText is not ("inherit" or "initial" or "unset"))
             {
-                CssSyntaxTokenKind.Ident => token.Value,
-                CssSyntaxTokenKind.Number => token.Value,
-                CssSyntaxTokenKind.Dimension => token.Value + token.Unit,
-                CssSyntaxTokenKind.Percentage => token.Value + "%",
-                CssSyntaxTokenKind.Hash => "#" + token.Value,
-                _ => throw new FactsPdfException("FPDF1202", "CSS value is not supported.", token.Span.Start)
-            };
-            value = value.ToLowerInvariant();
-            if (value is not ("inherit" or "initial" or "unset"))
-                _ = InlineCss.Apply(ValidationStyle, name + ":" + value,
-                    paragraph: true, inline: false, token.Span.Start);
-            var order = budget.Declaration(node.Span.Start);
-            output.Add(new(property, name, value, node.Important, order, token.Span.Start));
+                if (property == CssProperty.Width)
+                    _ = CssBoxValues.Width(valueText, component.Token.Span.Start);
+                else if (CssDeclarations.IsBoxProperty(property))
+                    _ = CssBoxValues.Length(valueText, component.Token.Span.Start);
+                else
+                    _ = InlineCss.Apply(ValidationStyle, name + ":" + valueText,
+                        paragraph: true, inline: false, component.Token.Span.Start);
+            }
+            var declarationOrder = budget.Declaration(node.Span.Start);
+            output.Add(new(property, name, valueText, node.Important, declarationOrder, component.Token.Span.Start));
         }
         return output.ToArray();
+    }
+
+    private static string TokenValue(CssSyntaxToken token)
+    {
+        var value = token.Kind switch
+        {
+            CssSyntaxTokenKind.Ident => token.Value,
+            CssSyntaxTokenKind.Number => token.Value,
+            CssSyntaxTokenKind.Dimension => token.Value + token.Unit,
+            CssSyntaxTokenKind.Percentage => token.Value + "%",
+            CssSyntaxTokenKind.Hash => "#" + token.Value,
+            _ => throw new FactsPdfException("FPDF1202", "CSS value is not supported.", token.Span.Start)
+        };
+        return value.ToLowerInvariant();
     }
 
     internal static CssSelector[] CompileSelectors(
