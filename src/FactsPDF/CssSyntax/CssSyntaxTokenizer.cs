@@ -1,6 +1,8 @@
+using System.Text;
+
 namespace FactsPDF.CssSyntax;
 
-/// <summary>CSS Syntax Level 3 tokenizer. Numeric and delimiter subset; other token families follow in TDD increments.</summary>
+/// <summary>Incremental standards-based CSS tokenizer; URL/string token families follow next.</summary>
 internal static class CssSyntaxTokenizer
 {
     internal static IReadOnlyList<CssSyntaxToken> Tokenize(CssSourceText source, CssSyntaxLimits limits)
@@ -45,6 +47,24 @@ internal static class CssSyntaxTokenizer
                 Add(CssSyntaxTokenKind.Whitespace, start, i, " ");
                 continue;
             }
+            if (text[i] == '#' && i + 1 < text.Length &&
+                (IsNameChar(text[i + 1]) || IsValidEscape(text, i + 1)))
+            {
+                var start = i++;
+                var isId = StartsIdentifier(text, i);
+                var name = ConsumeName(text, ref i);
+                result.Add(new CssSyntaxToken(
+                    CssSyntaxTokenKind.Hash, name, text[start..i],
+                    source.Span(start, i - start), false, isId));
+                continue;
+            }
+            if (text[i] == '@' && StartsIdentifier(text, i + 1))
+            {
+                var start = i++;
+                var name = ConsumeName(text, ref i);
+                Add(CssSyntaxTokenKind.AtKeyword, start, i, name);
+                continue;
+            }
             if (StartsNumber(text, i))
             {
                 var start = i;
@@ -72,13 +92,24 @@ internal static class CssSyntaxTokenizer
                 {
                     i++; Add(CssSyntaxTokenKind.Percentage, start, i, numeric, integer);
                 }
-                else if (i < text.Length && (char.IsAsciiLetter(text[i]) || text[i] is '_' or '-'))
+                else if (StartsIdentifier(text, i))
                 {
-                    var unitStart = i++;
-                    while (i < text.Length && (char.IsAsciiLetterOrDigit(text[i]) || text[i] is '_' or '-')) i++;
-                    Add(CssSyntaxTokenKind.Dimension, start, i, numeric, integer, text[unitStart..i]);
+                    var unit = ConsumeName(text, ref i);
+                    Add(CssSyntaxTokenKind.Dimension, start, i, numeric, integer, unit);
                 }
                 else Add(CssSyntaxTokenKind.Number, start, i, numeric, integer);
+                continue;
+            }
+            if (StartsIdentifier(text, i))
+            {
+                var start = i;
+                var ident = ConsumeName(text, ref i);
+                if (i < text.Length && text[i] == '(')
+                {
+                    i++;
+                    Add(CssSyntaxTokenKind.Function, start, i, ident);
+                }
+                else Add(CssSyntaxTokenKind.Ident, start, i, ident);
                 continue;
             }
 
@@ -102,6 +133,65 @@ internal static class CssSyntaxTokenizer
             CssSyntaxTokenKind.Eof, "", "",
             source.Span(text.Length, 0)));
         return result;
+    }
+
+    private static bool IsNameStart(char c)
+        => char.IsAsciiLetter(c) || c == '_' || c >= 0x0080;
+
+    private static bool IsNameChar(char c)
+        => IsNameStart(c) || char.IsAsciiDigit(c) || c == '-';
+
+    private static bool IsValidEscape(string text, int at)
+        => at < text.Length && text[at] == '\\' &&
+           (at + 1 == text.Length || text[at + 1] != '\n');
+
+    private static bool StartsIdentifier(string text, int at)
+    {
+        if (at >= text.Length) return false;
+        if (text[at] == '-')
+        {
+            if (at + 1 >= text.Length) return false;
+            var next = text[at + 1];
+            return IsNameStart(next) || next == '-' || IsValidEscape(text, at + 1);
+        }
+        return IsNameStart(text[at]) || IsValidEscape(text, at);
+    }
+
+    private static string ConsumeName(string text, ref int at)
+    {
+        var builder = new StringBuilder();
+        while (at < text.Length)
+        {
+            if (IsNameChar(text[at]))
+            {
+                builder.Append(text[at++]);
+            }
+            else if (IsValidEscape(text, at))
+            {
+                builder.Append(ConsumeEscape(text, ref at));
+            }
+            else break;
+        }
+        return builder.ToString();
+    }
+
+    private static string ConsumeEscape(string text, ref int at)
+    {
+        at++; // consume reverse solidus
+        if (at >= text.Length) return "\uFFFD";
+        if (!char.IsAsciiHexDigit(text[at])) return text[at++].ToString();
+
+        var scalar = 0;
+        var length = 0;
+        while (at < text.Length && length < 6 && char.IsAsciiHexDigit(text[at]))
+        {
+            var c = text[at++];
+            scalar = scalar * 16 + (c is >= '0' and <= '9' ? c - '0'
+                : c is >= 'a' and <= 'f' ? c - 'a' + 10 : c - 'A' + 10);
+            length++;
+        }
+        if (at < text.Length && text[at] is ' ' or '\t' or '\n') at++;
+        return scalar == 0 || !Rune.IsValid(scalar) ? "\uFFFD" : char.ConvertFromUtf32(scalar);
     }
 
     private static bool StartsNumber(string text, int at)
