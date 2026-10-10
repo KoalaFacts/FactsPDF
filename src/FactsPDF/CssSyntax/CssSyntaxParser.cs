@@ -89,7 +89,7 @@ internal static class CssSyntaxParser
                 { Take(); continue; }
                 if (Current.Kind == CssSyntaxTokenKind.AtKeyword)
                 {
-                    var at = ReadAtRule();
+                    var at = ReadAtRule(nested: !inline);
                     if (inline) Error("CSS at-rule is not a declaration.", at.Span);
                     else result.Add(at);
                     continue;
@@ -137,7 +137,7 @@ internal static class CssSyntaxParser
             return false;
         }
 
-        private CssAtRuleNode ReadAtRule()
+        private CssAtRuleNode ReadAtRule(bool nested = false)
         {
             var beginning = Take();
             var prelude = new List<CssSyntaxComponent>();
@@ -146,6 +146,10 @@ internal static class CssSyntaxParser
             {
                 limits.Cancellation.ThrowIfCancellationRequested();
                 if (Current.Kind == CssSyntaxTokenKind.Semicolon) { Take(); break; }
+                // In a block's contents a bare '}' terminates the containing
+                // block; the nested at-rule must return without consuming it.
+                // At stylesheet level the same token is part of the prelude.
+                if (nested && Current.Kind == CssSyntaxTokenKind.CloseBrace) break;
                 if (Current.Kind == CssSyntaxTokenKind.OpenBrace)
                 {
                     var open = Take();
