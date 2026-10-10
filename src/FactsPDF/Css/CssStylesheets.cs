@@ -80,7 +80,8 @@ internal sealed class CssStylesheets
     private CssSyntaxResult ParseSource(string css, int offset, bool declarationsOnly,
         IReadOnlyList<int>? originalOffsets = null)
     {
-        CssSyntaxAdapter.EnforceStrictUnclosedComments(css, offset);
+        // The standard tokenizer records malformed comments with original
+        // UTF-16 spans, including decoded HTML style-attribute origins.
         try
         {
             var source = CssSourceText.Create(css, offset, syntaxLimits, originalOffsets);

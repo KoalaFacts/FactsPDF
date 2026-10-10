@@ -253,7 +253,7 @@ def main():
         "passed": sum(x["passed"] for x in categories.values()),
         "failed": len(mismatches),
         "families": categories,
-        "mismatches": mismatches[:40],
+        "mismatches": mismatches,
         "note": "CSSOM discards invalid declarations and performs property validation; AST preserves syntactically valid unknown properties. Only directly comparable projections are used. Detailed failures remain in this artifact."
     }
     dest = target / "browser-differential.json"

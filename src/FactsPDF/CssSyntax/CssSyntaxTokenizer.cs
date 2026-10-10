@@ -19,13 +19,13 @@ internal static class CssSyntaxTokenizer
         var diagnostics = new List<CssSyntaxDiagnostic>();
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
-            bool integer = false, string? unit = null)
+            bool integer = false, string? unit = null, bool terminated = true)
         {
             limits.Cancellation.ThrowIfCancellationRequested();
             var raw = text[start..end];
             result.Add(new CssSyntaxToken(
                 kind, value ?? raw, raw, source.Span(start, end - start),
-                integer, false, unit));
+                integer, false, unit, terminated));
         }
 
         for (var i = 0; i < text.Length;)
@@ -62,7 +62,7 @@ internal static class CssSyntaxTokenizer
             {
                 var start = i;
                 var parsed = ConsumeString(text, ref i, limits.Cancellation);
-                Add(parsed.Kind, start, i, parsed.Value);
+                Add(parsed.Kind, start, i, parsed.Value, terminated: parsed.Terminated);
                 continue;
             }
             if (text[i] == '#' && i + 1 < text.Length &&
@@ -70,7 +70,7 @@ internal static class CssSyntaxTokenizer
             {
                 var start = i++;
                 var isId = StartsIdentifier(text, i);
-                var name = ConsumeName(text, ref i);
+                var name = ConsumeName(text, ref i, limits.Cancellation);
                 result.Add(new CssSyntaxToken(
                     CssSyntaxTokenKind.Hash, name, text[start..i],
                     source.Span(start, i - start), false, isId));
@@ -79,7 +79,7 @@ internal static class CssSyntaxTokenizer
             if (text[i] == '@' && StartsIdentifier(text, i + 1))
             {
                 var start = i++;
-                var name = ConsumeName(text, ref i);
+                var name = ConsumeName(text, ref i, limits.Cancellation);
                 Add(CssSyntaxTokenKind.AtKeyword, start, i, name);
                 continue;
             }
@@ -112,7 +112,7 @@ internal static class CssSyntaxTokenizer
                 }
                 else if (StartsIdentifier(text, i))
                 {
-                    var unit = ConsumeName(text, ref i);
+                    var unit = ConsumeName(text, ref i, limits.Cancellation);
                     Add(CssSyntaxTokenKind.Dimension, start, i, numeric, integer, unit);
                 }
                 else Add(CssSyntaxTokenKind.Number, start, i, numeric, integer);
@@ -121,7 +121,7 @@ internal static class CssSyntaxTokenizer
             if (StartsIdentifier(text, i))
             {
                 var start = i;
-                var ident = ConsumeName(text, ref i);
+                var ident = ConsumeName(text, ref i, limits.Cancellation);
                 if (i < text.Length && text[i] == '(')
                 {
                     i++;
@@ -131,7 +131,7 @@ internal static class CssSyntaxTokenizer
                         !(lookahead < text.Length && text[lookahead] is '\'' or '"'))
                     {
                         var parsed = ConsumeUrl(text, ref i, limits.Cancellation);
-                        Add(parsed.Kind, start, i, parsed.Value);
+                        Add(parsed.Kind, start, i, parsed.Value, terminated: parsed.Terminated);
                     }
                     else Add(CssSyntaxTokenKind.Function, start, i, ident);
                 }
@@ -163,7 +163,7 @@ internal static class CssSyntaxTokenizer
 
     private static bool IsWhitespace(char ch) => ch is ' ' or '\t' or '\n';
 
-    private static (CssSyntaxTokenKind Kind, string Value) ConsumeString(
+    private static (CssSyntaxTokenKind Kind, string Value, bool Terminated) ConsumeString(
         string text, ref int at, CancellationToken cancellation)
     {
         var quote = text[at++];
@@ -175,9 +175,9 @@ internal static class CssSyntaxTokenizer
             if (c == quote)
             {
                 at++;
-                return (CssSyntaxTokenKind.String, value.ToString());
+                return (CssSyntaxTokenKind.String, value.ToString(), true);
             }
-            if (c == '\n') return (CssSyntaxTokenKind.BadString, value.ToString());
+            if (c == '\n') return (CssSyntaxTokenKind.BadString, value.ToString(), false);
             if (c == '\\')
             {
                 if (at + 1 < text.Length && text[at + 1] == '\n') { at += 2; continue; }
@@ -186,10 +186,10 @@ internal static class CssSyntaxTokenizer
             value.Append(c);
             at++;
         }
-        return (CssSyntaxTokenKind.String, value.ToString());
+        return (CssSyntaxTokenKind.String, value.ToString(), false);
     }
 
-    private static (CssSyntaxTokenKind Kind, string Value) ConsumeUrl(
+    private static (CssSyntaxTokenKind Kind, string Value, bool Terminated) ConsumeUrl(
         string text, ref int at, CancellationToken cancellation)
     {
         while (at < text.Length && IsWhitespace(text[at])) at++;
@@ -198,29 +198,29 @@ internal static class CssSyntaxTokenizer
         {
             if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();
             var c = text[at];
-            if (c == ')') { at++; return (CssSyntaxTokenKind.Url, value.ToString()); }
+            if (c == ')') { at++; return (CssSyntaxTokenKind.Url, value.ToString(), true); }
             if (IsWhitespace(c))
             {
                 while (at < text.Length && IsWhitespace(text[at])) at++;
-                if (at == text.Length) return (CssSyntaxTokenKind.Url, value.ToString());
-                if (text[at] == ')') { at++; return (CssSyntaxTokenKind.Url, value.ToString()); }
+                if (at == text.Length) return (CssSyntaxTokenKind.Url, value.ToString(), false);
+                if (text[at] == ')') { at++; return (CssSyntaxTokenKind.Url, value.ToString(), true); }
                 ConsumeBadUrlRemnants(text, ref at, cancellation);
-                return (CssSyntaxTokenKind.BadUrl, value.ToString());
+                return (CssSyntaxTokenKind.BadUrl, value.ToString(), false);
             }
             if (c is '"' or '\'' or '(' || IsNonPrintable(c))
             {
                 ConsumeBadUrlRemnants(text, ref at, cancellation);
-                return (CssSyntaxTokenKind.BadUrl, value.ToString());
+                return (CssSyntaxTokenKind.BadUrl, value.ToString(), false);
             }
             if (c == '\\')
             {
                 if (IsValidEscape(text, at)) { value.Append(ConsumeEscape(text, ref at)); continue; }
                 ConsumeBadUrlRemnants(text, ref at, cancellation);
-                return (CssSyntaxTokenKind.BadUrl, value.ToString());
+                return (CssSyntaxTokenKind.BadUrl, value.ToString(), false);
             }
             value.Append(c); at++;
         }
-        return (CssSyntaxTokenKind.Url, value.ToString());
+        return (CssSyntaxTokenKind.Url, value.ToString(), false);
     }
 
     private static void ConsumeBadUrlRemnants(string text, ref int at, CancellationToken cancellation)
@@ -279,11 +279,12 @@ internal static class CssSyntaxTokenizer
         return IsNameStartAt(text, at) || IsValidEscape(text, at);
     }
 
-    private static string ConsumeName(string text, ref int at)
+    private static string ConsumeName(string text, ref int at, CancellationToken cancellation)
     {
         var builder = new StringBuilder();
         while (at < text.Length)
         {
+            if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();
             if (IsNameCharAt(text, at))
             {
                 if (char.IsHighSurrogate(text[at]) && at + 1 < text.Length &&

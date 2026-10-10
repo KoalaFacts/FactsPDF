@@ -22,12 +22,12 @@ internal enum CssSyntaxTokenKind
     Ident, Function, AtKeyword, Hash, String, BadString, Url, BadUrl,
     Delim, Number, Percentage, Dimension, Whitespace, Cdo, Cdc,
     Colon, Semicolon, Comma, OpenSquare, CloseSquare,
-    OpenParen, CloseParen, OpenBrace, CloseBrace, Eof
+    OpenParen, CloseParen, OpenBrace, CloseBrace, UnicodeRange, Eof
 }
 
 internal readonly record struct CssSyntaxToken(
     CssSyntaxTokenKind Kind, string Value, string Raw, CssSourceSpan Span,
-    bool IsInteger = false, bool HashIsId = false, string? Unit = null);
+    bool IsInteger = false, bool HashIsId = false, string? Unit = null, bool Terminated = true);
 
 /// <summary>Standard tokens and independent lexical recovery diagnostics.</summary>
 internal sealed record CssSyntaxTokenizationResult(
