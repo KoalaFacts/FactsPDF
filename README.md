@@ -2,24 +2,47 @@
 
 A browser-free HTML and CSS to PDF engine, designed for cross-language integration.
 
-> **Status: early development.** This repository currently establishes the
-> project and its licensing policy. It does not yet contain a released engine
-> or verified performance/platform support.
+> **Status: experimental first renderer.** This development branch contains a
+> limited text-rendering core and CLI, not a production release. See the
+> [support matrix and development guide](docs/development.md) before using it.
 
 FactsPDF is a KoalaFacts project. The intended input is standard HTML and CSS;
-no separate FactsML language is required. Ahead-of-time compilation,
-cross-platform operation, fast startup, and low resource use are engineering
-goals, not measured capabilities at this stage.
+no separate FactsML language is required. The first slice connects parsing,
+inline styling, line wrapping, pagination and PDF output without a browser or
+third-party runtime parser/layout/PDF library. High throughput, fast startup
+and low resource use remain engineering goals; comparative performance has not
+been established.
+
+## Try the development slice
+
+From a source checkout with the .NET 10 SDK:
+
+```sh
+dotnet test FactsPDF.slnx -c Release
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html first-document.pdf
+```
+
+The current subset is **ASCII/Courier text, paragraphs/headings/inline spans,
+basic inline CSS and pagination**. Unsupported elements, styles and characters
+fail explicitly. It is not full HTML5, stylesheet CSS or Unicode support.
+No stable API or published package is claimed.
+
+CI runs tests on Windows, Linux and macOS and builds/runs a Linux x64 Native AOT
+CLI. A synthetic two-page PDF is inspected with independent tools. Local NuGet
+packing checks the exact license and runtime dependencies, without publishing.
+See [execution evidence](docs/development-ledger.md) for tested commits and runs;
+workflow configuration alone is not evidence for an untested commit.
 
 ## Integration goals
 
 The public integration model is not tied to the engine's implementation
-language. The roadmap targets .NET/NuGet, JavaScript and TypeScript/npm, Rust,
-Go, Python, a CLI, and WebAssembly. Language bindings should reuse one shared
+language. The current development entry points are the library API and CLI.
+The roadmap targets .NET/NuGet distribution, JavaScript and TypeScript/npm,
+Rust, Go, Python and WebAssembly. Language bindings should reuse one shared
 rendering core rather than implement separate layout and PDF engines.
 
-These are planned integration paths, not released or verified support. Each
-language and deployment target will need its own implementation and validation.
+WASM and non-.NET language bindings are not implemented or verified. Additional
+platform/AOT combinations need their own implementation and validation.
 
 ## Licensing: Community and Commercial
 

@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+.vs/
+.worktrees/
+*.user
+
+__pycache__/
+*.pyc
