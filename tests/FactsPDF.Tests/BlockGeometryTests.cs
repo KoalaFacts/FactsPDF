@@ -258,6 +258,51 @@ public sealed class BlockGeometryTests
     }
 
     [Test]
+    public void ClosedEmptyBoxTopPaddingDoesNotLeakAcrossBreakBefore()
+    {
+        var pages = Layout("<p>A</p><div style='padding-top:30pt'></div>" +
+            "<p style='break-before:page'>B</p>");
+        var fresh = Layout("<p>B</p>");
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001),
+            "A closed empty box must not carry its top padding onto the next page.");
+    }
+
+    [Test]
+    public void ClosedEmptyBoxTopPaddingDoesNotLeakAfterOverflowPageBreak()
+    {
+        var small = Page with { PageHeight = 100 };
+        var pages = Layout("<p>A</p><div style='padding-top:45pt'></div><p>B</p>", small);
+        var fresh = Layout("<p>B</p>", small);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001));
+    }
+
+    [Test]
+    public void StillOpenParentTopPaddingMovesWithFirstTextPastEmptyChild()
+    {
+        var pages = Layout("<p>A</p><div style='padding-top:10pt'>" +
+            "<div style='padding-top:30pt'></div><p style='break-before:page'>B</p></div>");
+        var fresh = Layout("<div style='padding-top:10pt'><p>B</p></div>");
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001),
+            "An open parent has not consumed its leading padding before its first text.");
+    }
+
+    [Test]
+    public void ClosedEmptyBoxStillConsumesPaddingBetweenSiblingsOnSamePage()
+    {
+        var original = Layout("<p>A</p><p>B</p>")[0].Runs;
+        var padded = Layout("<p>A</p><div style='padding-top:20pt;padding-bottom:10pt'></div>" +
+            "<p>B</p>")[0].Runs;
+        Assert.That(padded[0].Baseline - padded[1].Baseline,
+            Is.EqualTo(original[0].Baseline - original[1].Baseline + 30).Within(0.00001));
+    }
+
+    [Test]
     public void CancelledTreeLayoutAndMaxPagesRetainExistingGuardrails()
     {
         const string html = "<div style='width:180pt;padding:10pt'><p>A</p><p style='break-before:page'>B</p></div>";
