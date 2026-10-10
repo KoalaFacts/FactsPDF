@@ -70,10 +70,14 @@ documented rendering subset, not full HTML5/CSS or browser layout compatibility.
 See the [CSS Syntax Core guide](docs/css-syntax-core.md),
 [measured compatibility scope](docs/css-syntax-compatibility.md) and
 [independent-review / browser-differential gates](docs/css-syntax-quality-gates.md).
-The existing eight style properties and text layout remain the scope; selectors
-do not add width/padding/borders/backgrounds, tables/images or flex/grid. External
-stylesheets, at-rules and other selector classes remain unsupported. Full Unicode
-shaping/RTL, CSS font selection and automatic font discovery are not implemented.
+The current controlled CSS subset also supports real block `width`, four-sided
+`padding`, solid borders, `background-color`, and **paginated box fragments**:
+continued backgrounds/side edges are sliced across pages, while only the first
+and final fragments paint the top and bottom borders. See the
+[M8 Box Fragmentation guide](docs/box-fragmentation.md) for precise grammar,
+geometry, limits and independent PDF/Chrome evidence. Tables, images, flex/grid,
+external stylesheets, at-rules and additional selector classes remain unsupported.
+Full Unicode shaping/RTL, CSS font selection and automatic font discovery are not implemented.
 Unsupported input fails explicitly rather than silently changing the output.
 See [exact values, budgets and diagnostics](docs/css-stylesheets.md).
 

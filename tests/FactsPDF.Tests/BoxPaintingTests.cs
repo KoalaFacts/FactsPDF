@@ -156,12 +156,25 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
-    public void DecoratedBoxSpanningTwoPagesFailsUntilM8()
+    public void DecoratedBoxSpanningTwoPagesProducesSlicedFragments()
     {
-        Failure("<div style='background-color:blue'>" +
-            "<p>First</p><p style='break-before:page'>Second</p></div>", "FPDF1302");
-        Failure("<section style='border:1pt solid red'>" +
-            "<p>First</p><p style='break-before:page'>Second</p></section>", "FPDF1302");
+        foreach (var html in new[]
+        {
+            "<div style='background-color:blue'>" +
+                "<p>First</p><p style='break-before:page'>Second</p></div>",
+            "<section style='border:1pt solid red'>" +
+                "<p>First</p><p style='break-before:page'>Second</p></section>"
+        })
+        {
+            var pages = TextLayout.Layout(
+                HtmlDocumentReader.ReadTree(html, Options, default), Options, default);
+            Assert.That(pages, Has.Count.EqualTo(2));
+            Assert.That(pages[0].PaintBoxes.Single().IsFirstFragment, Is.True);
+            Assert.That(pages[0].PaintBoxes.Single().IsLastFragment, Is.False);
+            Assert.That(pages[1].PaintBoxes.Single().IsFirstFragment, Is.False);
+            Assert.That(pages[1].PaintBoxes.Single().IsLastFragment, Is.True);
+            Assert.That(Render(html).Result.PageCount, Is.EqualTo(2));
+        }
     }
 
     [Test]
@@ -454,10 +467,18 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
-    public void PaintedEmptyDescendantStillMakesParentSpanMultiplePages()
+    public void PaintedEmptyDescendantAndFollowingBreakProduceAncestorFragments()
     {
-        Failure("<div style='background-color:red'><div style='background-color:blue;" +
-            "padding:10pt'></div><p style='break-before:page'>B</p></div>", "FPDF1302");
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<div style='background-color:red'><div style='background-color:blue;" +
+            "padding:10pt'></div><p style='break-before:page'>B</p></div>",
+            Options, default), Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single(box => box.Style.BackgroundColor == new Rgb(1, 0, 0))
+            .IsFirstFragment, Is.True);
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(pages[1].PaintBoxes.Single().IsLastFragment, Is.True);
     }
 
     [Test]

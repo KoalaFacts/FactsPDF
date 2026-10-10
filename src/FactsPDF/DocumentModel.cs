@@ -17,16 +17,24 @@ internal sealed class LayoutPage
 }
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
-    BoxStyle Style, Rgb TextColor, int Order)
+    BoxStyle Style, Rgb TextColor, int Order,
+    bool IsFirstFragment = true, bool IsLastFragment = true)
 {
+    // A page fragment can be shorter than its specified border. Use the same
+    // clipped geometry for serialization and display-command accounting.
+    internal double TopBorderHeight => IsFirstFragment
+        ? Math.Min(Math.Max(0, Height), Style.BorderTop.EffectiveWidth) : 0;
+    internal double BottomBorderHeight => IsLastFragment
+        ? Math.Min(Math.Max(0, Height), Style.BorderBottom.EffectiveWidth) : 0;
+
     // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
     // An empty background or vertical edge of a zero-height box costs 0.
     public int CommandCount
     {
         get
         {
-            var top = Style.BorderTop.EffectiveWidth;
-            var bottom = Style.BorderBottom.EffectiveWidth;
+            var top = TopBorderHeight;
+            var bottom = BottomBorderHeight;
             var middleHeight = Math.Max(0, Height - top - bottom);
             return (Width > 0 && Height > 0 && Style.BackgroundColor.HasValue ? 1 : 0)
                 + (Width > 0 && top > 0 ? 1 : 0)
@@ -37,8 +45,8 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     }
 }
 
-// M5 retains tree structure, M6 resolves width/padding; M7 adds simple
-// one-page border/background decoration. Page fragments remain M8.
+// M5 retains the box tree; M6 computes geometry; M7 paints single-page
+// borders/backgrounds; M8 slices continued decorations across page fragments.
 internal readonly record struct CssLength(double Value, bool IsPercent = false)
 {
     internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;

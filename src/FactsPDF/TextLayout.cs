@@ -14,7 +14,7 @@ internal static class TextLayout
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
-        bool HasParagraphDescendant = false);
+        bool HasParagraphDescendant = false, bool TopConsumed = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -32,9 +32,9 @@ internal static class TextLayout
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
         var y = o.Margin; var after = 0d; var breakNext = false;
-        // Retain the origin of pending top padding. Only still-open boxes may
-        // carry that leading padding with their first text line to a new page.
-        // The top padding of a closed empty box becomes trailing spacing.
+        // Retain pending top padding only for still-open blocks. Closed empty
+        // predecessors contribute trailing spacing; a spanning box receives
+        // page-local decoration slices rather than repeating its top padding.
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
         var opened = new List<OpenBlock>();
         var contentEpoch = 0; var paintOrder = 0;
@@ -51,17 +51,34 @@ internal static class TextLayout
 
         void MoveUnconsumedBlocksToNewPage()
         {
-            // Only a box without existing text OR painted descendants may
-            // move whole. Anything already painted on the previous page must
-            // fail as a spanning decorated box, until M8 fragmentation.
+            // Recompute leading space from its owning scopes, not the old
+            // page's aggregate. A continued painted box (and consumed scopes
+            // within it) has already used its top padding on the first page.
+            // A genuinely new child still moves with its own leading space.
             var leading = 0d;
+            var continuedPaint = false;
             for (var i = 0; i < opened.Count; i++)
             {
                 var scope = opened[i];
-                if (scope.ContentEpoch != contentEpoch || scope.HasOccupiedDescendant) continue;
+                var hasText = scope.ContentEpoch != contentEpoch;
+                var retainOrigin = scope.HasOccupiedDescendant &&
+                    (scope.Style.HasPaint || continuedPaint);
+                if (scope.Style.HasPaint && (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
+                    continuedPaint = true;
+                if (hasText || scope.TopConsumed) continue;
+                if (retainOrigin)
+                {
+                    // Remember consumption even if this page contains only
+                    // an empty paragraph: EndBlock must not re-add this top.
+                    opened[i] = scope with { TopConsumed = true };
+                    continue;
+                }
+                // Preserve M6's first-text leading-space behavior for purely
+                // unpainted scopes outside any continuing painted ancestor.
                 opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
                 leading += scope.Top;
             }
+            pendingTopPadding = leading;
         }
         foreach (var step in steps)
         {
@@ -101,32 +118,57 @@ internal static class TextLayout
                 var emittedPaint = false;
                 if (scope.Style.HasPaint)
                 {
-                    if (scope.StartPage != pages.Count - 1)
-                        throw new FactsPdfException("FPDF1302",
-                            "Decorated boxes spanning pages require M8 fragmentation.", scope.SourceOffset);
-                    // The element's own paragraph margin is excluded from its
-                    // border-box, but the last child's bottom margin belongs
-                    // inside a decorated containing block.
+                    // Paragraph margins are outside their own border box,
+                    // while the last child's bottom margin is within a
+                    // containing block's content height.
                     var childBottomMargin = !scope.IsParagraph &&
                         (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
                         ? after : 0d;
-                    var finish = Math.Max(scope.StartY + scope.Top,
+                    var finalPage = pages.Count - 1;
+                    // The first page's border-box origin and the last page's
+                    // cursor use different page-local coordinate systems.
+                    // Never use the first-page starting Y as a lower bound
+                    // for the *last* fragment when this block spans pages.
+                    var minimumEnd = scope.StartPage == finalPage
+                        ? scope.StartY + scope.Top : o.Margin;
+                    var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom;
                     if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
-                        scope.StartY < o.Margin - 0.000001 || scope.Width < 0)
+                        scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
+                        scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
-                            "Decorated box cannot fit on one page; fragmentation is not supported until M8.",
-                            scope.SourceOffset);
-                    var painted = new PaintedBox(scope.X, scope.StartY, scope.Width,
-                        Math.Max(0, finish - scope.StartY), scope.Style, scope.TextColor, scope.Order);
-                    pages[^1].PaintBoxes.Add(painted);
-                    emittedPaint = painted.CommandCount > 0;
+                            "Decorated box fragment exceeds the usable page area.", scope.SourceOffset);
+
+                    // The existing M7 single-page path retains exactly the
+                    // same rectangle geometry and PDF bytes. Spanning boxes
+                    // instead produce one bounded, page-local slice on each
+                    // occupied page. No top/bottom padding or border is
+                    // duplicated on continuation pages.
+                    for (var pageIndex = scope.StartPage; pageIndex <= finalPage; pageIndex++)
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        var isFirst = pageIndex == scope.StartPage;
+                        var isLast = pageIndex == finalPage;
+                        var fragmentTop = isFirst ? scope.StartY : o.Margin;
+                        var fragmentEnd = isLast ? finish : bottom;
+                        var height = Math.Max(0, fragmentEnd - fragmentTop);
+                        if (fragmentEnd < fragmentTop - 0.000001 ||
+                            fragmentTop < o.Margin - 0.000001 ||
+                            fragmentEnd > bottom + 0.000001)
+                            throw new FactsPdfException("FPDF1302",
+                                "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
+                        var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
+                            scope.Style, scope.TextColor, scope.Order,
+                            IsFirstFragment: isFirst, IsLastFragment: isLast);
+                        pages[pageIndex].PaintBoxes.Add(painted);
+                        emittedPaint |= painted.CommandCount > 0;
+                    }
                 }
-                if (scope.ContentEpoch == contentEpoch)
+                if (scope.ContentEpoch == contentEpoch && !scope.TopConsumed)
                 {
-                    // No laid-out text has consumed this box's top padding.
-                    // Since it is now closed, this is trailing spacing.
+                    // No laid-out text or retained first fragment consumed
+                    // this top padding. Closure now makes it trailing space.
                     pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
                     pendingClosedPadding += scope.Top;
                 }

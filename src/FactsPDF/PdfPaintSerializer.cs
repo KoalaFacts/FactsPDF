@@ -26,9 +26,12 @@ internal static class PdfPaintSerializer
             if (s.BackgroundColor.HasValue)
                 Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes);
 
-            var top = s.BorderTop.EffectiveWidth;
+            // Slice does not repeat horizontal borders on intermediate pages.
+            // Short first/last fragments clip the border to their own bounds;
+            // these exact heights are also used by PaintedBox.CommandCount.
+            var top = box.TopBorderHeight;
             var right = s.BorderRight.EffectiveWidth;
-            var bottom = s.BorderBottom.EffectiveWidth;
+            var bottom = box.BottomBorderHeight;
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
                 Rect(output, s.BorderTop.Color ?? box.TextColor, x, y, width, top, pageHeight, maxOutputBytes);

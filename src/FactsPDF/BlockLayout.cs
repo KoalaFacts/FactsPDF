@@ -9,7 +9,7 @@ internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, dou
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
 /// percentages (even vertical padding) use the parent content-box width.
-/// M7 adds single-page paint to M6 geometry; page fragmentation remains M8.
+/// M8 adds per-page box fragments with sliced background and side borders.
 /// </summary>
 internal static class BlockLayout
 {

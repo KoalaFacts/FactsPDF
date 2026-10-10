@@ -27,20 +27,26 @@ public sealed class BoxPaintingIndependentReviewTests
     }
 
     [Test]
-    public void UnpaintedPaddedChildStillAnchorsDecoratedAncestorBeforeOverflow()
+    public void UnpaintedPaddedChildRetainsOriginalFragmentWhenAncestorOverflows()
     {
         var small = Page with { PageHeight = 100 };
-        Fails("<div style='background-color:red'>" +
-            "<div style='padding:25pt 0'></div><p>B</p></div>", "FPDF1302", small);
+        var pages = Layout("<div style='background-color:red'>" +
+            "<div style='padding:25pt 0'></div><p>B</p></div>", small);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single().IsFirstFragment, Is.True);
+        Assert.That(pages[1].PaintBoxes.Single().IsLastFragment, Is.True);
     }
 
     [Test]
-    public void NestedUnpaintedEmptyPaddingCannotMigrateParentToNextPage()
+    public void NestedUnpaintedEmptyPaddingKeepsAncestorFirstPageFragment()
     {
         var small = Page with { PageHeight = 100 };
-        Fails("<section style='background-color:blue'><div>" +
+        var pages = Layout("<section style='background-color:blue'><div>" +
             "<div style='padding-top:25pt;padding-bottom:25pt'></div></div>" +
-            "<p style='break-before:page'>B</p></section>", "FPDF1302", small);
+            "<p style='break-before:page'>B</p></section>", small);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single().IsFirstFragment, Is.True);
+        Assert.That(pages[1].PaintBoxes.Single().IsLastFragment, Is.True);
     }
 
     [Test]
