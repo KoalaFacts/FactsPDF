@@ -176,6 +176,45 @@ public sealed class BoxFragmentationTests
     }
 
     [Test]
+    public void LastFragmentUsesFinalPageCursorNotItsFirstPageStartingY()
+    {
+        // A decorated box begins late on page 1 but has very little content
+        // on page 2. Reusing the first-page startY as a minimum on page 2
+        // erroneously extends its last background well below the last line.
+        const string html = "<p>Lead1</p><p>Lead2</p><p>Lead3</p>" +
+            "<section style='background-color:red;padding-top:5pt;padding-bottom:10pt'>" +
+            "<p style='margin-bottom:0pt'>Inside</p>" +
+            "<p style='break-before:page;margin-bottom:0pt'>End</p></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        var first = pages[0].PaintBoxes.Single();
+        var last = pages[1].PaintBoxes.Single();
+        Assert.That(first.Top, Is.GreaterThan(80));
+        Assert.That(last.Top, Is.EqualTo(Small.Margin).Within(0.00001));
+        Assert.That(last.Top + last.Height, Is.LessThan(70),
+            "The last paint edge must be based only on the final page's text and bottom padding.");
+        Assert.That(last.IsFirstFragment, Is.False);
+        Assert.That(last.IsLastFragment, Is.True);
+    }
+
+    [Test]
+    public void NestedFinalFragmentsDoNotInheritFirstPageVerticalMinima()
+    {
+        const string html = "<p>Lead1</p><p>Lead2</p><p>Lead3</p>" +
+            "<section style='background-color:red;padding:3pt'>" +
+            "<article style='background-color:blue;padding:3pt'>" +
+            "<p style='margin-bottom:0pt'>Inside</p>" +
+            "<p style='break-before:page;margin-bottom:0pt'>End</p>" +
+            "</article></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        var final = pages[1].PaintBoxes.OrderBy(x => x.Order).ToArray();
+        Assert.That(final, Has.Length.EqualTo(2));
+        Assert.That(final[0].Top + final[0].Height, Is.LessThan(70));
+        Assert.That(final[1].Top + final[1].Height, Is.LessThan(70));
+    }
+
+    [Test]
     public void TwoPageUnicodePdfKeepsEmbeddedFontAndAllPagePaint()
     {
         var options = Small with
