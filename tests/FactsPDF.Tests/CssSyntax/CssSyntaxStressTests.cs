@@ -28,6 +28,19 @@ public sealed class CssSyntaxStressTests
     }
 
     [Test]
+    public void TopLevelUnmatchedBraceRemainsInInvalidQualifiedRulePrelude()
+    {
+        // At stylesheet level CSS Syntax consumes a stray '}' as part of the
+        // next qualified prelude, rather than discarding it and accepting q.
+        var parsed = Parse("p{color:red}}q{color:blue}");
+        Assert.That(parsed.Rules, Has.Count.EqualTo(2));
+        var next = (CssQualifiedRuleNode)parsed.Rules[1];
+        var first = (CssTokenComponent)next.Prelude[0];
+        Assert.That(first.Token.Kind, Is.EqualTo(CssSyntaxTokenKind.CloseBrace));
+        Assert.That(parsed.Diagnostics, Is.Not.Empty);
+    }
+
+    [Test]
     public void NestedAtRuleWithOwnBlockLeavesNextDeclarationInParent()
     {
         var parsed = Parse("p{@future test{q{color:red}}color:blue}h1{color:green}");
