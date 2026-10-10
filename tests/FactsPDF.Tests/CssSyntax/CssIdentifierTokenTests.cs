@@ -53,7 +53,7 @@ public sealed class CssIdentifierTokenTests
     [Test]
     public void InvalidEscapesBecomeReplacementCharactersNotUnpairedSurrogates()
     {
-        var tokens = Tokens("\\110000 \\000000");
+        var tokens = Tokens("\\110000  \\000000");
         Assert.That(tokens.Select(t => t.Value), Is.EqualTo(new[] { "\uFFFD", "\uFFFD" }));
         Assert.That(tokens.All(t => t.Kind == CssSyntaxTokenKind.Ident), Is.True);
     }
