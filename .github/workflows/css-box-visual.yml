@@ -1,0 +1,45 @@
+name: FactsPDF box model Chrome visual oracles
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  box-model-reference:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install independent browser PDF/image reference tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-dejavu-core fonts-droid-fallback python3-pil
+          command -v google-chrome || command -v chromium
+      - name: Test box-model oracle contract
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_css_box_visual_cases.py' -v
+      - name: Publish actual FactsPDF Native AOT CLI
+        run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/box-visual-native
+      - name: Generate Chrome-only baseline and prove explicit StrictPdf unsupported errors
+        run: /usr/bin/python3 scripts/css_box_visual_oracle.py --mode reference --native artifacts/box-visual-native/FactsPDF.Cli --output artifacts/box-visual
+      - name: Summarize box-model support gap
+        if: always()
+        run: |
+          if test -f artifacts/box-visual/summary.md; then
+            cat artifacts/box-visual/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Retain public Chrome box-model pages and report only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: css-box-model-chrome-reference
+          path: |
+            artifacts/box-visual/report.json
+            artifacts/box-visual/summary.md
+            artifacts/box-visual/*/*.png
+          if-no-files-found: warn
+          retention-days: 14
