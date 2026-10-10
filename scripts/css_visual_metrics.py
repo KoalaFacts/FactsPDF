@@ -59,6 +59,24 @@ def compare(chrome, factspdf):
     max_channel, delta = _max_channel_difference(left, right)
     count = left.width * left.height
     changed = max_channel.point(lambda value: 255 if value > 16 else 0).histogram()[255]
+    bounds_left, bounds_right = _ink_bbox(left), _ink_bbox(right)
+    if bounds_left is None and bounds_right is None:
+        ink_union = None
+    elif bounds_left is None or bounds_right is None:
+        ink_union = bounds_left or bounds_right
+    else:
+        ink_union = [
+            min(bounds_left[0], bounds_right[0]), min(bounds_left[1], bounds_right[1]),
+            max(bounds_left[2], bounds_right[2]), max(bounds_left[3], bounds_right[3])
+        ]
+    if ink_union is None:
+        ink_fraction, ink_mean = None, None
+    else:
+        box = tuple(ink_union)
+        area = (box[2] - box[0]) * (box[3] - box[1])
+        ink_mask = max_channel.crop(box).point(lambda value: 255 if value > 16 else 0)
+        ink_fraction = round(ink_mask.histogram()[255] / area, 7)
+        ink_mean = round(sum(ImageStat.Stat(delta.crop(box)).mean) / 3, 5)
     return {
         "width_px": left.width,
         "height_px": left.height,
@@ -67,8 +85,11 @@ def compare(chrome, factspdf):
         "change_fraction_over_16": round(changed / count, 7),
         "rgb_mean_abs_error": round(sum(ImageStat.Stat(delta).mean) / 3, 5),
         "max_channel_error": max_channel.getextrema()[1],
-        "chrome_ink_bbox": _ink_bbox(left),
-        "factspdf_ink_bbox": _ink_bbox(right),
+        "chrome_ink_bbox": bounds_left,
+        "factspdf_ink_bbox": bounds_right,
+        "ink_union_bbox": ink_union,
+        "ink_union_change_fraction_over_16": ink_fraction,
+        "ink_union_rgb_mean_abs_error": ink_mean,
     }
 
 
@@ -104,12 +125,32 @@ def save_visuals(chrome, factspdf, directory, prefix):
         x = gap + i * (preview_width + gap)
         painter.text((x, 7), caption, fill="#202020")
         sheet.paste(thumb, (x, top))
+    leftbox, rightbox = _ink_bbox(left), _ink_bbox(right)
+    available = [bbox for bbox in (leftbox, rightbox) if bbox is not None]
+    if available:
+        box = (max(0, min(q[0] for q in available) - 18),
+               max(0, min(q[1] for q in available) - 18),
+               min(left.width, max(q[2] for q in available) + 18),
+               min(left.height, max(q[3] for q in available) + 18))
+    else:
+        box = (0, 0, left.width, left.height)
+    details = (left.crop(box), right.crop(box), heatmap.crop(box))
+    cw, ch = details[0].size
+    detail = Image.new("RGB", (cw * 3 + gap * 4, ch + top + 2 * gap), "white")
+    detail_draw = ImageDraw.Draw(detail)
+    for i, (caption, crop) in enumerate(zip(
+        ("CHROME DETAIL", "FACTSPDF DETAIL", "DIFFERENCE (INK REGION)"), details
+    )):
+        x = gap + i * (cw + gap)
+        detail_draw.text((x, 7), caption, fill="#202020")
+        detail.paste(crop, (x, top))
     images = {
         "chrome": left,
         "factspdf": right,
         "overlay": overlay,
         "difference": heatmap,
         "comparison": sheet,
+        "detail": detail,
     }
     files = {}
     for key, image in images.items():
