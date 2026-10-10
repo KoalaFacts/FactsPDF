@@ -127,7 +127,7 @@ public sealed class CssIndependentReviewTests
     public void MismatchedCloserInsideAnotherComponentBlockIsPreserved()
     {
         var syntax = Inline("x:[)]");
-        Assert.That(syntax.Diagnostics, Is.Empty);
+        Assert.That(syntax.Diagnostics, Is.Not.Empty, "Mismatched close token must be preserved AND diagnosed.");
         var block = syntax.Declarations.Single().Values.OfType<CssBlockComponent>().Single();
         Assert.That(block.Opening, Is.EqualTo(CssSyntaxTokenKind.OpenSquare));
         Assert.That(block.Values, Has.Count.EqualTo(1));
