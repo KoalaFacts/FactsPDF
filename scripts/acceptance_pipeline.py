@@ -109,6 +109,13 @@ def _stored_reference(review: dict, repo_root: Path) -> None:
     files += [(directory/f'page-{i}.png',h) for i,h in enumerate(review['page_image_sha256'],1)]
     if any(not p.is_file() or digest(p.read_bytes())!=h for p,h in files):
         raise ValueError('Stored reference artifact does not match the human review')
+    for file,expected in files:
+        relative=file.relative_to(repo_root.resolve()).as_posix()
+        if file.is_symlink():raise ValueError('Reference artifacts must be committed regular files')
+        recorded=subprocess.run(['git','-C',str(repo_root.resolve()),'cat-file','blob','HEAD:'+relative],
+                                capture_output=True,timeout=10)
+        if recorded.returncode != 0 or digest(recorded.stdout) != expected:
+            raise ValueError('Reference artifact is not durably committed in HEAD: '+relative)
 
 
 def execute(mode: str, manifest_path: Path, cli: Path, host: Path, fonts: list[Path], reviews_path: Path,

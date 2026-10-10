@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 from acceptance_corpus import digest, inside, load_manifest, write_json
 from acceptance_run import run_process
@@ -26,13 +27,15 @@ def check_text(text: str, case: dict) -> None:
         raise ValueError('Missing, duplicated or reordered synthetic record IDs')
 
 
-def check_boxes(xml: bytes, margin: float) -> list[dict]:
+def check_boxes(xml: bytes, margin: float, size_tolerance: float = 0.01) -> list[dict]:
     pages = []
     for page in ET.fromstring(xml).iter():
         if page.tag.rsplit('}',1)[-1] != 'page': continue
         width = float(page.attrib['width']); height = float(page.attrib['height'])
         if not all(math.isfinite(v) and v > 0 for v in (width,height)):
             raise ValueError('Invalid page dimensions')
+        if abs(width-595.28)>size_tolerance or abs(height-841.89)>size_tolerance:
+            raise ValueError(f'Physical page dimensions differ from the 595.28x841.89pt contract: {(width,height)}')
         boxes = []
         for word in page.iter():
             if word.tag.rsplit('}',1)[-1] != 'word': continue
@@ -49,14 +52,14 @@ def check_boxes(xml: bytes, margin: float) -> list[dict]:
 
 def classify_page_bounds(xml: bytes, margin: float, reference: bool) -> tuple[list[dict], str | None]:
     try:
-        return check_boxes(xml,margin),None
+        return check_boxes(xml,margin,0.5 if reference else 0.01),None
     except ValueError as ex:
         if not reference: raise
         # The independently printed browser is a comparison, not the system
         # under test. Retain a browser content-margin discrepancy as a failed
         # observation while still requiring all ink within the physical page.
         # FactsPDF keeps the original stricter content-margin gate.
-        return check_boxes(xml,0),str(ex)
+        return check_boxes(xml,0,0.5),str(ex)
 
 
 def tool(argv: list[str], output: Path) -> bytes:
@@ -155,6 +158,18 @@ def chrome_reference(source: Path, case: dict, fonts: list[Path], environment: d
     return result
 
 
+def checkout_source_sha() -> str:
+    result=subprocess.run(['git','rev-parse','HEAD'],capture_output=True,text=True,check=True,timeout=10)
+    source=result.stdout.strip()
+    if not re.fullmatch(r'[a-f0-9]{40}',source):raise ValueError('Invalid actual checkout source')
+    return source
+
+
+def validate_run_output(row: dict, evidence: dict) -> None:
+    if row.get('pdf_sha256') != evidence.get('pdf_sha256') or row.get('pdf_bytes') != evidence.get('pdf_bytes'):
+        raise ValueError('Inspected PDF differs from its recorded execution hash/length')
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode',choices=['capture','verify']); p.add_argument('--manifest',type=Path,required=True)
@@ -162,6 +177,8 @@ def main():
     p.add_argument('--reviews',type=Path)
     a=p.parse_args(); m=load_manifest(a.manifest)
     env=json.loads((a.runs/'environment.json').read_text())
+    if env.get('source_sha') != checkout_source_sha():
+        raise ValueError('Recorded source does not match the actual checkout')
     records=json.loads((a.runs/'runs.json').read_text())['runs']
     from acceptance_pipeline import review_map, check_entrypoints, _stored_reference
     document={'schema_version':1,'reviews':[]} if not a.reviews else json.loads(a.reviews.read_text())
@@ -186,6 +203,7 @@ def main():
         for row in [r for r in records if r['case_id']==case['id']]:
             if row['status']!='candidate': raise ValueError('Cannot inspect a failed render')
             evidence=inspect_pdf(Path(row['pdf_path']),case,env,a.output/case['id']/row['entrypoint'])
+            validate_run_output(row,evidence)
             if a.mode=='verify':
                 ref=reviews[case['id']];validate_reference(ref,case,env)
                 _stored_reference(ref,Path.cwd());compare_evidence(ref,evidence,case)

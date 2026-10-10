@@ -63,8 +63,8 @@ class ReviewRegressionTests(unittest.TestCase):
             write_json(root/'reviews.json',{'schema_version':1,'reviews':[reviewed]})
             argv=['acceptance_inspect.py','verify','--manifest',str(root/'corpus/manifest.json'),
                   '--runs',str(runs),'--reviews',str(root/'reviews.json'),'--output',str(root/'out')]
-            candidate={**reviewed,'checks_passed':True}
-            with patch('sys.argv',argv),patch.object(inspector,'inspect_pdf',return_value=candidate):
+            candidate={**reviewed,'checks_passed':True,'pdf_bytes':100}
+            with patch('sys.argv',argv),patch.object(inspector,'checkout_source_sha',return_value=env['source_sha']),patch.object(inspector,'inspect_pdf',return_value=candidate):
                 with self.assertRaisesRegex(ValueError,'reference|missing'):
                     inspector.main()
 
