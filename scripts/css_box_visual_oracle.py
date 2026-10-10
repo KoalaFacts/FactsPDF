@@ -370,6 +370,22 @@ def run_case(case: BoxCase, *, browser: str, cli: Path, output: Path,
             })
         return result
 
+    if mode == "m7" and case.name == "fragmentation":
+        stderr = execution.stderr.decode("utf-8", errors="replace")
+        if execution.returncode != 3 or "FPDF1302" not in stderr or pdf.exists():
+            raise AssertionError(
+                f"M7 must explicitly reject painted multi-page boxes before output; "
+                f"exit={execution.returncode}, stderr={stderr[-700:]}")
+        for number, path in enumerate(browser_rasters, 1):
+            reference = target_dir / f"page-{number:02}-chrome-reference.png"
+            shutil.copyfile(path, reference)
+            result["page_differences"].append({
+                "number": number, "status": "M8_FRAGMENTATION_DEFERRED",
+                "chrome_image": str(reference.relative_to(output))
+            })
+        result["status"] = "M8-fragmentation-deferred"
+        return result
+
     if execution.returncode:
         raise AssertionError(
             f"{case.name}: model compare mode requires real FactsPDF support; "
@@ -427,6 +443,14 @@ def make_summary(record: dict) -> str:
             "**Reference mode does NOT run a paired cross-engine comparison.**",
             "StrictPdf must explicitly reject unsupported box properties without creating a PDF.",
         ])
+    elif record["mode"] == "m7":
+        text.extend([
+            "",
+            "**M7 genuinely compares four single-page Chrome/FactsPDF PDFs** for",
+            "extracted text, visible colored fills, independent border geometry,",
+            "and raster differences. The three-page fragment remains an explicit",
+            "M8 unsupported-result gate (FPDF1302/no PDF), NOT a comparison.",
+        ])
     else:
         text.extend([
             "",
@@ -447,7 +471,7 @@ def make_summary(record: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["reference", "compare"], required=True)
+    parser.add_argument("--mode", choices=["reference", "m7", "compare"], required=True)
     parser.add_argument("--native", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
@@ -483,11 +507,11 @@ def main():
         "chrome_only_print_color_css": CHROME_PRINT_COLOR.strip(),
         "chrome_only_base_normalization_css": BROWSER_NORMALIZATION.strip(),
         "note": (
-            "Only Chrome reference PDFs are rendered in 'reference' mode; "
-            "the current FactsPDF renderer is intentionally unimplemented for box CSS, "
-            "and must return FPDF1201. In 'compare' mode only, both PDFs are required, "
-            "tested for identical extracted text and pages, and rendered into pixel "
-            "and ink-region maps. No global similarity percentage claimed."),
+            "Reference mode is an historic unsupported-feature gate. M7 validates "
+            "four real single-page painted PDFs against independent Chrome pages "
+            "and explicitly rejects three-page painting (M8). Compare mode "
+            "requires all five native PDFs, including true sliced fragments. "
+            "No global similarity percentage is implied."),
         "cases": [],
         "errors": []
     }
@@ -519,8 +543,9 @@ def main():
             "see report.json for exact case and cause.")
     if len(record["cases"]) != len(CASES):
         raise AssertionError("A box-model fixture was omitted")
-    print("All box-model Chrome reference checks passed; "
-          "FactsPDF box-model comparison remains future work.", flush=True)
+    print(f"All box-model {args.mode} checks passed; "
+          "M7 is limited to single-page painting." if args.mode == "m7" else
+          "All Chrome reference/comparison checks passed.", flush=True)
 
 
 if __name__ == "__main__":
