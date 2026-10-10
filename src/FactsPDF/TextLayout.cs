@@ -300,14 +300,30 @@ internal static class TextLayout
                 for (var start = 0; start < line.Glyphs.Count;)
                 {
                     ChargeDisplayCommands(1);
-                    var first = line.Glyphs[start]; var text = new StringBuilder(); var width = 0d; var end = start;
+                    var first = line.Glyphs[start]; var width = 0d; var end = start; var utf16Length = 0;
                     while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
                     {
+                        if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
                         var glyph = line.Glyphs[end++];
-                        if (glyph.Scalar <= 65535) text.Append((char)glyph.Scalar); else text.Append(char.ConvertFromUtf32(glyph.Scalar));
+                        utf16Length = checked(utf16Length + (glyph.Scalar <= 65535 ? 1 : 2));
                         width += glyph.Width;
                     }
-                    pages[^1].Runs.Add(new(text.ToString(), x, baseline, first.Style, first.Font));
+                    // The callback runs synchronously while this line is still
+                    // borrowed. The completed string owns its characters and
+                    // never retains the line buffer. Rune writes surrogate
+                    // pairs directly, without an intermediate string per scalar.
+                    var text = string.Create(utf16Length,
+                        (Glyphs: line.Glyphs, Start: start, End: end, Cancellation: cancellation),
+                        static (destination, state) =>
+                        {
+                            var offset = 0;
+                            for (var i = state.Start; i < state.End; i++)
+                            {
+                                if ((i & 255) == 0) state.Cancellation.ThrowIfCancellationRequested();
+                                offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
+                            }
+                        });
+                    pages[^1].Runs.Add(new(text, x, baseline, first.Style, first.Font));
                     x += width; start = end;
                 }
                 y += line.Height;
