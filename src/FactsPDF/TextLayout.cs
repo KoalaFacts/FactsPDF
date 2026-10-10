@@ -12,9 +12,9 @@ internal static class TextLayout
     }
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
 
-    // Geometry and pagination remain paragraph based in this structural
-    // milestone. Traverse the nested tree lazily so PDF conversion does not
-    // discard its box topology into a second flattened document model.
+    // M6 resolves content widths and X positions from the nested tree, while
+    // glyphs and pagination remain text-based. Traverse lazily without flattening
+    // the box hierarchy into a second global paragraph list.
     public static List<LayoutPage> Layout(DocumentRoot document, PdfOptions o, CancellationToken cancellation)
         => LayoutCore(BlockLayout.Steps(document, o, cancellation), o, cancellation);
 

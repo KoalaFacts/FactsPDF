@@ -15,8 +15,8 @@ internal sealed class LayoutPage
     public List<PlacedText> Runs { get; } = [];
 }
 
-// Structural box tree only. Box geometry, painting, pagination fragments and
-// additional CSS properties intentionally belong to a later feature.
+// M5 retained the structural box tree; M6 adds independently computed
+// width/padding. Painting and paginated box fragments remain future features.
 internal readonly record struct CssLength(double Value, bool IsPercent = false)
 {
     internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;
