@@ -144,6 +144,27 @@ internal static class TextLayout
                     var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom;
+                    if (displayCommands == o.MaxDisplayCommands)
+                    {
+                        // With no allowance left, a definitely nonzero paint
+                        // command must fail before later geometry validation.
+                        // Reuse actual clipped/zero-area accounting rather
+                        // than treating HasPaint alone as a command. At most
+                        // three shapes exist: first, last and a middle slice.
+                        void CheckFragment(double top, double end, bool first, bool last)
+                        {
+                            var candidate = new PaintedBox(scope.X, top, scope.Width,
+                                Math.Max(0, end - top), scope.Style, scope.TextColor, scope.Order,
+                                IsFirstFragment: first, IsLastFragment: last);
+                            ChargeDisplayCommands(candidate.CommandCount, scope.SourceOffset);
+                        }
+                        CheckFragment(scope.StartY, scope.StartPage == finalPage ? finish : bottom,
+                            true, scope.StartPage == finalPage);
+                        if (scope.StartPage < finalPage)
+                            CheckFragment(o.Margin, finish, false, true);
+                        if (finalPage - scope.StartPage > 1)
+                            CheckFragment(o.Margin, bottom, false, false);
+                    }
                     if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
                         scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
