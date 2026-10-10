@@ -63,7 +63,13 @@ groups, descendant and child combinators. The bounded author cascade handles
 per-property specificity/source order, inline rules, `!important`, inheritance,
 `inherit`, `initial` and `unset`. Later style elements can affect earlier content.
 
-This is a strict documented subset, not full HTML5/CSS or browser error recovery.
+The syntax pipeline now parses standards-based CSS token, block, declaration
+and at-rule structures with recoverable diagnostics. **StrictPdf still rejects
+unsupported semantics and recovered syntax errors**, so this remains a strict
+documented rendering subset, not full HTML5/CSS or browser layout compatibility.
+See the [CSS Syntax Core guide](docs/css-syntax-core.md),
+[measured compatibility scope](docs/css-syntax-compatibility.md) and
+[independent-review / browser-differential gates](docs/css-syntax-quality-gates.md).
 The existing eight style properties and text layout remain the scope; selectors
 do not add width/padding/borders/backgrounds, tables/images or flex/grid. External
 stylesheets, at-rules and other selector classes remain unsupported. Full Unicode

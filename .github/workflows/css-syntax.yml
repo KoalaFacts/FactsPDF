@@ -1,0 +1,38 @@
+name: FactsPDF CSS Syntax evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  selected-syntax-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Selected CSS syntax behavior assertions
+        run: |
+          mkdir -p artifacts/css-syntax
+          dotnet test tests/FactsPDF.Tests/FactsPDF.Tests.csproj -c Release --filter "TestCategory=CssSyntaxConformance" --logger "trx;LogFileName=css-syntax.trx" --results-directory artifacts/css-syntax
+          python3 scripts/verify_css_syntax.py artifacts/css-syntax/css-syntax.trx artifacts/css-syntax/conformance.json
+      - name: Native AOT syntax-only performance baseline
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev
+          dotnet publish benchmarks/FactsPDF.CssSyntax.Benchmarks/FactsPDF.CssSyntax.Benchmarks.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/css-syntax/native
+          artifacts/css-syntax/native/FactsPDF.CssSyntax.Benchmarks > artifacts/css-syntax/benchmark.json
+          python3 scripts/verify_css_syntax_benchmark.py artifacts/css-syntax/benchmark.json
+      - name: Retain selected-case and performance baseline JSON only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: css-syntax-evidence
+          path: |
+            artifacts/css-syntax/conformance.json
+            artifacts/css-syntax/benchmark.json
+          if-no-files-found: error
+          retention-days: 14

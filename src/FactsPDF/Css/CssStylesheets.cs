@@ -1,3 +1,5 @@
+using FactsPDF.CssSyntax;
+
 namespace FactsPDF;
 
 /// <summary>Per-conversion compiled rules. No static mutable cache, network access or public DOM dependency.</summary>
@@ -20,12 +22,14 @@ internal sealed class CssStylesheets
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
     private readonly Winner?[] winners = new Winner?[8];
     private readonly CssBudget budget;
+    private readonly CssSyntaxLimits syntaxLimits;
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         budget = new(options, token);
+        syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, token);
     }
     internal static CssStylesheets Collect(string html, PdfOptions options, CancellationToken token)
     {
@@ -36,7 +40,7 @@ internal sealed class CssStylesheets
             if (item.Kind == HtmlTokenKind.StyleText)
             {
                 sheet.budget.Characters(item.Value.Length, item.Offset);
-                sheet.ParseRules(CssTokens.Read(item.Value, item.Offset, token));
+                sheet.ParseRules(sheet.ParseSource(item.Value, item.Offset, declarationsOnly: false).Rules);
             }
             else if (item.Kind == HtmlTokenKind.Start)
             {
@@ -44,8 +48,11 @@ internal sealed class CssStylesheets
                 if (item.Value == "style") ValidateStyleElement(item);
                 else if (item.Attributes!.TryGetValue("style", out var css))
                 {
-                    sheet.budget.Characters(css.Length, item.Offset); var i = 0;
-                    sheet.inline.Add(item.Offset, CssDeclarations.Parse(CssTokens.Read(css, item.Offset, token), ref i, false, sheet.budget));
+                    sheet.budget.Characters(css.Length, item.Offset);
+                    var origins = item.AttributeSourceOffsets is not null &&
+                        item.AttributeSourceOffsets.TryGetValue("style", out var found) ? found : null;
+                    var declarations = sheet.ParseSource(css, item.Offset, declarationsOnly: true, origins).Declarations;
+                    sheet.inline.Add(item.Offset, CssSyntaxAdapter.CompileKnownDeclarations(declarations, sheet.budget));
                 }
             }
         }
@@ -70,27 +77,52 @@ internal sealed class CssStylesheets
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
     }
-    private void ParseRules(List<CssToken> tokens)
+    private CssSyntaxResult ParseSource(string css, int offset, bool declarationsOnly,
+        IReadOnlyList<int>? originalOffsets = null)
     {
-        var i = 0;
-        while (tokens[i].Kind != CssTokenKind.End)
+        // The standard tokenizer records malformed comments with original
+        // UTF-16 spans, including decoded HTML style-attribute origins.
+        try
+        {
+            var source = CssSourceText.Create(css, offset, syntaxLimits, originalOffsets);
+            var result = declarationsOnly
+                ? CssSyntaxParser.ParseDeclarations(source, syntaxLimits)
+                : CssSyntaxParser.ParseStylesheet(source, syntaxLimits);
+            CssSyntaxAdapter.ThrowIfRecovered(result);
+            return result;
+        }
+        catch (CssSyntaxLimitException error)
+        {
+            throw new FactsPdfException("FPDF1205", error.Message, error.Span.Start);
+        }
+    }
+
+    private void ParseRules(IReadOnlyList<CssRuleNode> rules)
+    {
+        foreach (var rule in rules)
         {
             budget.Token.ThrowIfCancellationRequested();
-            if (tokens[i].Is("@")) throw new FactsPdfException("FPDF1204", "CSS at-rules and imports are not supported.", tokens[i].Offset);
-            var selectors = new List<CssSelector> { CssSelector.Parse(tokens, ref i, budget) };
-            while (tokens[i].Is(",")) { i++; selectors.Add(CssSelector.Parse(tokens, ref i, budget)); }
-            if (!tokens[i].Is("{")) throw CssTokens.Invalid("Expected a CSS declaration block.", tokens[i].Offset);
-            i++; var declarations = CssDeclarations.Parse(tokens, ref i, true, budget);
+            if (rule is CssAtRuleNode)
+                throw new FactsPdfException("FPDF1204", "CSS at-rules and imports are not supported.", rule.Span.Start);
+            if (rule is not CssQualifiedRuleNode qualified)
+                throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", rule.Span.Start);
+            var selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start);
+            if (qualified.Contents.Any(x => x is not CssDeclarationNode))
+                throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", rule.Span.Start);
+            var declarations = CssSyntaxAdapter.CompileKnownDeclarations(
+                qualified.Contents.OfType<CssDeclarationNode>().ToArray(), budget);
             foreach (var selector in selectors)
             {
-                var rule = new Rule(selector, declarations); var last = selector.Rightmost;
-                if (last.Ids.Length > 0) Add(ids, last.Ids[0], rule);
-                else if (last.Classes.Length > 0) Add(classes, last.Classes[0], rule);
-                else if (last.Type is not null) Add(types, last.Type, rule);
-                else universal.Add(rule);
+                var entry = new Rule(selector, declarations);
+                var last = selector.Rightmost;
+                if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
+                else if (last.Classes.Length > 0) Add(classes, last.Classes[0], entry);
+                else if (last.Type is not null) Add(types, last.Type, entry);
+                else universal.Add(entry);
             }
         }
     }
+
     private static void Add(Dictionary<string, List<Rule>> index, string key, Rule rule)
     { if (!index.TryGetValue(key, out var list)) index.Add(key, list = []); list.Add(rule); }
 

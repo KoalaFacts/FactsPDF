@@ -1,0 +1,41 @@
+name: FactsPDF CSS browser differential
+on:
+  pull_request:
+    paths:
+      - 'src/FactsPDF/Css/**'
+      - 'src/FactsPDF/CssSyntax/**'
+      - 'src/FactsPDF/HtmlTokens.cs'
+      - 'src/FactsPDF/AssemblyInfo.cs'
+      - 'tests/FactsPDF.SyntaxProbe/**'
+      - 'scripts/css_syntax_browser_differential.py'
+      - '.github/workflows/css-browser-differential.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chrome-cssom:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare independent browser oracle
+        run: |
+          command -v google-chrome || command -v chromium
+          (google-chrome --version || chromium --version)
+      - name: Build test-only FactsPDF syntax projection
+        run: dotnet build tests/FactsPDF.SyntaxProbe/FactsPDF.SyntaxProbe.csproj -c Release
+      - name: Compare expanded WPT patterns against real Chromium CSSOM
+        run: python3 scripts/css_syntax_browser_differential.py tests/FactsPDF.SyntaxProbe/bin/Release/net10.0/FactsPDF.SyntaxProbe.dll artifacts/css-browser
+      - name: Retain scoped differential result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: css-browser-differential-evidence
+          path: artifacts/css-browser/browser-differential.json
+          if-no-files-found: warn
+          retention-days: 14
