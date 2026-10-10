@@ -15,6 +15,7 @@ class VisualMetricTests(unittest.TestCase):
         self.assertEqual(result["pixels_changed_over_16"], 0)
         self.assertEqual(result["change_fraction_over_16"], 0.0)
         self.assertEqual(result["rgb_mean_abs_error"], 0.0)
+        self.assertEqual(result["ink_union_change_fraction_over_16"], 0.0)
         self.assertEqual(result["chrome_ink_bbox"], [3, 3, 4, 4])
         self.assertEqual(result["factspdf_ink_bbox"], [3, 3, 4, 4])
 
@@ -26,6 +27,7 @@ class VisualMetricTests(unittest.TestCase):
         self.assertEqual(result["pixels_changed_over_16"], 1)
         self.assertAlmostEqual(result["change_fraction_over_16"], 1 / 16)
         self.assertGreater(result["rgb_mean_abs_error"], 0)
+        self.assertEqual(result["ink_union_change_fraction_over_16"], 1.0)
 
     def test_color_only_difference_is_detected_without_grayscale_masking(self):
         a = Image.new("RGB", (2, 2), (0, 0, 0))
@@ -63,7 +65,8 @@ class VisualMetricTests(unittest.TestCase):
         b.putpixel((1, 2), (0, 0, 0))
         with tempfile.TemporaryDirectory() as temp:
             result = save_visuals(a, b, Path(temp), "01")
-            self.assertEqual(len(result), 5)
+            self.assertEqual(len(result), 6)
+            self.assertIn("detail", result)
             for path in result.values():
                 self.assertTrue(Path(path).is_file(), path)
                 with Image.open(path) as pic:
