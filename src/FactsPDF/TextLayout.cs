@@ -355,29 +355,53 @@ internal static class TextLayout
             }
             return new(scalar, style, value.Font, value.Width);
         }
-        var glyphs = new List<Glyph>();
-        foreach (var run in paragraph.Runs)
+        IEnumerable<Glyph> ReadGlyphs()
         {
-            cancellation.ThrowIfCancellationRequested();
-            if (run.IsBreak)
-            {
-                if (glyphs.Count > 0 && glyphs[^1].Scalar == 32) glyphs.RemoveAt(glyphs.Count - 1);
-                glyphs.Add(new(10, run.Style, null, 0)); continue;
-            }
-            for (var i = 0; i < run.Text.Length;)
+            Glyph? pendingSpace = null;
+            var afterText = false;
+            foreach (var run in paragraph.Runs)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (Rune.DecodeFromUtf16(run.Text.AsSpan(i), out var rune, out var consumed) != OperationStatus.Done)
-                    throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
-                i += consumed; var scalar = rune.Value;
-                if (scalar <= 127 && HtmlTokens.Space((char)scalar))
+                if (run.IsBreak)
                 {
-                    if (glyphs.Count > 0 && glyphs[^1].Scalar is not (32 or 10)) glyphs.Add(Resolve(32, run.Style));
+                    pendingSpace = null;
+                    afterText = false;
+                    yield return new Glyph(10, run.Style, null, 0);
+                    continue;
                 }
-                else glyphs.Add(Resolve(scalar, run.Style));
+                for (var i = 0; i < run.Text.Length;)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (Rune.DecodeFromUtf16(run.Text.AsSpan(i), out var rune, out var consumed) != OperationStatus.Done)
+                        throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
+                    i += consumed;
+                    var scalar = rune.Value;
+                    if (scalar <= 127 && HtmlTokens.Space((char)scalar))
+                    {
+                        // Resolve at the original point even when a later
+                        // break/end removes this space. Its font diagnostic
+                        // and the first whitespace run's style are preserved.
+                        if (afterText && !pendingSpace.HasValue)
+                            pendingSpace = Resolve(32, run.Style);
+                    }
+                    else
+                    {
+                        if (pendingSpace.HasValue)
+                        {
+                            yield return pendingSpace.Value;
+                            pendingSpace = null;
+                        }
+                        yield return Resolve(scalar, run.Style);
+                        afterText = true;
+                    }
+                }
             }
         }
-        if (glyphs.Count > 0 && glyphs[^1].Scalar == 32) glyphs.RemoveAt(glyphs.Count - 1);
+        // Preserve the established diagnostic order: validate all paragraph
+        // scalars before any width error. Replay from immutable input using
+        // the existing resolution cache, rather than retaining a full copy.
+        foreach (var _ in ReadGlyphs()) { }
+
         var lines = new List<Line>(); var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
         // CSS Inline Layout: a specified (non-normal) line-height uses the
         // metrics of the *first available font*, even if fallback fonts draw
@@ -407,18 +431,35 @@ internal static class TextLayout
             lines.Add(new(current, width, height, ascent, descent));
             current = []; width = 0; space = null;
         }
-        for (var i = 0; i < glyphs.Count;)
+        // Only one unbreakable segment is scratch storage. Completed lines
+        // remain retained as before; this is not whole-document streaming.
+        var word = new List<Glyph>();
+        using var cursor = ReadGlyphs().GetEnumerator();
+        var hasGlyph = cursor.MoveNext();
+        while (hasGlyph)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (glyphs[i].Scalar == 10) { Flush(true); i++; continue; }
-            if (glyphs[i].Scalar == 32) { space = glyphs[i++]; continue; }
-            var end = i + 1; var wordWidth = glyphs[i].Width;
-            while (end < glyphs.Count && glyphs[end].Scalar is not (32 or 10) && !CanBreak(glyphs[end - 1].Scalar, glyphs[end].Scalar)) wordWidth += glyphs[end++].Width;
-            if (wordWidth > available + 0.000001) throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
+            if (cursor.Current.Scalar == 10) { Flush(true); hasGlyph = cursor.MoveNext(); continue; }
+            if (cursor.Current.Scalar == 32) { space = cursor.Current; hasGlyph = cursor.MoveNext(); continue; }
+            word.Clear();
+            var wordWidth = 0d;
+            int previous;
+            do
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var glyph = cursor.Current;
+                word.Add(glyph);
+                wordWidth += glyph.Width;
+                if (wordWidth > available + 0.000001)
+                    throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
+                previous = glyph.Scalar;
+                hasGlyph = cursor.MoveNext();
+            }
+            while (hasGlyph && cursor.Current.Scalar is not (32 or 10) && !CanBreak(previous, cursor.Current.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
             if (width + gap + wordWidth > available + 0.000001) { Flush(false); gap = 0; }
             if (gap > 0) { current.Add(space!.Value); width += gap; }
-            while (i < end) current.Add(glyphs[i++]);
+            current.AddRange(word);
             width += wordWidth; space = null;
         }
         Flush(false); return lines;
