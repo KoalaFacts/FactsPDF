@@ -3,7 +3,10 @@ namespace FactsPDF;
 internal enum CssProperty
 {
     FontSize, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter,
-    Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft
+    Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
+    BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
+    BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
+    BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -37,29 +40,55 @@ internal static class CssDeclarations
     {
         var property = declaration.Property;
         if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
-        if (declaration.Value is "inherit" or "initial" or "unset")
+        var value = declaration.Value;
+        var wide = value is "inherit" or "initial" or "unset";
+        var from = value == "inherit" ? parent : new BoxStyle();
+
+        if (property == CssProperty.Width)
+            return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset) };
+        if (property >= CssProperty.PaddingTop && property <= CssProperty.PaddingLeft)
         {
-            var from = declaration.Value == "inherit" ? parent : new BoxStyle();
+            var length = wide ? default : CssBoxValues.Length(value, declaration.Offset);
             return property switch
             {
-                CssProperty.Width => current with { Width = from.Width },
-                CssProperty.PaddingTop => current with { PaddingTop = from.PaddingTop },
-                CssProperty.PaddingRight => current with { PaddingRight = from.PaddingRight },
-                CssProperty.PaddingBottom => current with { PaddingBottom = from.PaddingBottom },
-                CssProperty.PaddingLeft => current with { PaddingLeft = from.PaddingLeft },
-                _ => throw new InvalidOperationException("Unrecognized box property.")
+                CssProperty.PaddingTop => current with { PaddingTop = wide ? from.PaddingTop : length },
+                CssProperty.PaddingRight => current with { PaddingRight = wide ? from.PaddingRight : length },
+                CssProperty.PaddingBottom => current with { PaddingBottom = wide ? from.PaddingBottom : length },
+                CssProperty.PaddingLeft => current with { PaddingLeft = wide ? from.PaddingLeft : length },
+                _ => throw new InvalidOperationException()
             };
         }
-        if (property == CssProperty.Width)
-            return current with { Width = CssBoxValues.Width(declaration.Value, declaration.Offset) };
-        var length = CssBoxValues.Length(declaration.Value, declaration.Offset);
-        return property switch
+        if (property == CssProperty.BackgroundColor)
+            return current with { BackgroundColor = wide ? from.BackgroundColor :
+                CssPaintValues.Background(value, declaration.Offset) };
+
+        var index = (int)property - (int)CssProperty.BorderTopWidth;
+        var side = index % 4;
+        var component = index / 4;
+        BorderEdge old = side switch
         {
-            CssProperty.PaddingTop => current with { PaddingTop = length },
-            CssProperty.PaddingRight => current with { PaddingRight = length },
-            CssProperty.PaddingBottom => current with { PaddingBottom = length },
-            CssProperty.PaddingLeft => current with { PaddingLeft = length },
-            _ => throw new InvalidOperationException("Unrecognized box property.")
+            0 => current.BorderTop, 1 => current.BorderRight, 2 => current.BorderBottom,
+            3 => current.BorderLeft, _ => throw new InvalidOperationException()
+        };
+        BorderEdge inherited = side switch
+        {
+            0 => from.BorderTop, 1 => from.BorderRight, 2 => from.BorderBottom,
+            3 => from.BorderLeft, _ => throw new InvalidOperationException()
+        };
+        var changed = component switch
+        {
+            0 => old with { Width = wide ? inherited.Width : CssPaintValues.BorderWidth(value, declaration.Offset) },
+            1 => old with { Solid = wide ? inherited.Solid : CssPaintValues.BorderStyle(value, declaration.Offset) },
+            2 => old with { Color = wide ? inherited.Color : CssPaintValues.BorderColor(value, declaration.Offset) },
+            _ => throw new InvalidOperationException("Unrecognized border property.")
+        };
+        return side switch
+        {
+            0 => current with { BorderTop = changed },
+            1 => current with { BorderRight = changed },
+            2 => current with { BorderBottom = changed },
+            3 => current with { BorderLeft = changed },
+            _ => throw new InvalidOperationException()
         };
     }
 }
