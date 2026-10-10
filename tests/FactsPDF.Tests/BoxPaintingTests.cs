@@ -272,7 +272,7 @@ public sealed class BoxPaintingTests
     public void PaintedBoxFirstLineCanMoveToNextPageWithoutFragmenting()
     {
         var shortPage = Options with { PageHeight = 100 };
-        var html = "<p>A</p><div style='background-color:red;padding-top:50pt'>B</div>";
+        var html = "<p>A</p><div style='background-color:red;padding-top:30pt'>B</div>";
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, shortPage, default),
             shortPage, default);
         Assert.That(pages, Has.Count.EqualTo(2));
