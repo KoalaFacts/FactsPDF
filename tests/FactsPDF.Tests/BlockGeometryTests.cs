@@ -198,6 +198,18 @@ public sealed class BlockGeometryTests
     }
 
     [Test]
+    public void ActualAsciiPdfSerializesNestedTextXCoordinate()
+    {
+        const string html = "<section style='width:200pt;padding:10pt'><p>AB</p></section>";
+        using var output = new MemoryStream();
+        var result = PdfConverter.Convert(html, output, Page);
+        var pdf = Encoding.ASCII.GetString(output.ToArray());
+        Assert.That(result.PageCount, Is.EqualTo(1));
+        Assert.That(pdf, Does.Contain("1 0 0 1 30 "));
+        Assert.That(pdf, Does.Contain("Tm <4142> Tj"));
+    }
+
+    [Test]
     public void CancelledTreeLayoutAndMaxPagesRetainExistingGuardrails()
     {
         const string html = "<div style='width:180pt;padding:10pt'><p>A</p><p style='break-before:page'>B</p></div>";
