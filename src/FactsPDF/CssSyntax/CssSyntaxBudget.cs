@@ -1,12 +1,39 @@
 namespace FactsPDF.CssSyntax;
 
-/// <summary>Per-parse node and depth limits. Compiling TDD stub.</summary>
-internal sealed class CssSyntaxBudget(CssSyntaxLimits limits)
+/// <summary>Cooperative, per-parse component node and nesting limits.</summary>
+internal sealed class CssSyntaxBudget
 {
-    private readonly CssSyntaxLimits limits = limits;
+    private readonly CssSyntaxLimits limits;
+    private int nodeCount;
+    private int depth;
+
+    internal CssSyntaxBudget(CssSyntaxLimits limits)
+    {
+        ArgumentNullException.ThrowIfNull(limits);
+        if (limits.MaxCharacters < 1 || limits.MaxNodes < 1 || limits.MaxDepth < 1)
+            throw new ArgumentOutOfRangeException(nameof(limits), "All CSS syntax budgets must be positive.");
+        this.limits = limits;
+    }
+
     internal void Node(CssSourceSpan span)
-        => throw new NotImplementedException("TDD baseline: CSS node accounting is not implemented; limit = " + limits.MaxNodes + ".");
+    {
+        limits.Cancellation.ThrowIfCancellationRequested();
+        if (nodeCount >= limits.MaxNodes)
+            throw new CssSyntaxLimitException("CSS syntax node count exceeds MaxNodes.", span);
+        nodeCount++;
+    }
+
     internal void Enter(CssSourceSpan span)
-        => throw new NotImplementedException("TDD baseline: CSS depth accounting is not implemented; limit = " + limits.MaxDepth + ".");
-    internal void Leave() { }
+    {
+        limits.Cancellation.ThrowIfCancellationRequested();
+        if (depth >= limits.MaxDepth)
+            throw new CssSyntaxLimitException("CSS syntax nesting exceeds MaxDepth.", span);
+        depth++;
+    }
+
+    internal void Leave()
+    {
+        if (depth == 0) throw new InvalidOperationException("Unbalanced CSS syntax nesting.");
+        depth--;
+    }
 }
