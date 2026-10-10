@@ -467,10 +467,18 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
-    public void PaintedEmptyDescendantStillMakesParentSpanMultiplePages()
+    public void PaintedEmptyDescendantAndFollowingBreakProduceAncestorFragments()
     {
-        Failure("<div style='background-color:red'><div style='background-color:blue;" +
-            "padding:10pt'></div><p style='break-before:page'>B</p></div>", "FPDF1302");
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<div style='background-color:red'><div style='background-color:blue;" +
+            "padding:10pt'></div><p style='break-before:page'>B</p></div>",
+            Options, default), Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single(box => box.Style.BackgroundColor == new Rgb(1, 0, 0))
+            .IsFirstFragment, Is.True);
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(pages[1].PaintBoxes.Single().IsLastFragment, Is.True);
     }
 
     [Test]

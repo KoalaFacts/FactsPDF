@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Pinned box-model Chrome visual oracles for the next FactsPDF layout milestone.
 
-Reference mode, used until FactsPDF implements the selected box-model CSS,
-generates real Chrome PDFs and verifies StrictPdf rejects the unsupported CSS.
-Comparison mode is a separate, explicit opt-in for the future renderer branch.
+Compare mode validates all five fixtures against real FactsPDF Native AOT PDFs,
+including three independently rasterized pages of CSS sliced box decoration.
+Historical reference and M7-only modes are retained for diagnostic purposes.
 Neither mode calls a network URL or imports an external browser into FactsPDF.
 """
 import argparse
