@@ -40,11 +40,23 @@ def check_boxes(xml: bytes, margin: float) -> list[dict]:
             if not all(math.isfinite(v) for v in (x0,y0,x1,y1)):
                 raise ValueError('Nonfinite word geometry')
             if not (margin-0.5 <= x0 <= x1 <= width-margin+0.5 and margin-0.5 <= y0 <= y1 <= height-margin+0.5):
-                raise ValueError('Text extends outside the usable page rectangle')
+                raise ValueError(f'Text outside {margin}pt margin on page {len(pages)+1}: {word.text!r} bbox={(x0,y0,x1,y1)} page={(width,height)}')
             boxes.append({'text': ''.join(word.itertext()), 'x0':x0,'y0':y0,'x1':x1,'y1':y1})
         pages.append({'width':width,'height':height,'words':boxes})
     if not pages: raise ValueError('No PDF pages found by the independent inspector')
     return pages
+
+
+def classify_page_bounds(xml: bytes, margin: float, reference: bool) -> tuple[list[dict], str | None]:
+    try:
+        return check_boxes(xml,margin),None
+    except ValueError as ex:
+        if not reference: raise
+        # The independently printed browser is a comparison, not the system
+        # under test. Retain a browser content-margin discrepancy as a failed
+        # observation while still requiring all ink within the physical page.
+        # FactsPDF keeps the original stricter content-margin gate.
+        return check_boxes(xml,0),str(ex)
 
 
 def tool(argv: list[str], output: Path) -> bytes:
@@ -55,7 +67,7 @@ def tool(argv: list[str], output: Path) -> bytes:
     return Path(p['stdout_path']).read_bytes()
 
 
-def inspect_pdf(pdf: Path, case: dict, environment: dict, out_dir: Path) -> dict:
+def inspect_pdf(pdf: Path, case: dict, environment: dict, out_dir: Path, *, reference=False) -> dict:
     if not pdf.is_file() or not pdf.read_bytes().startswith(b'%PDF-'):
         raise ValueError('Missing or invalid PDF signature')
     out_dir.mkdir(parents=True, exist_ok=False)
@@ -67,7 +79,7 @@ def inspect_pdf(pdf: Path, case: dict, environment: dict, out_dir: Path) -> dict
     text = tool(['pdftotext','-raw',str(pdf),'-'],out_dir/'text').decode('utf-8', errors='strict')
     check_text(text,case)
     bbox = tool(['pdftotext','-bbox-layout',str(pdf),'-'],out_dir/'bbox')
-    geometry = check_boxes(bbox,36)
+    geometry, margin_observation = classify_page_bounds(bbox,36,reference)
     if len(geometry) != pages: raise ValueError('Independent inspectors disagree on page count')
     tool(['pdftoppm','-r','120','-png',str(pdf),str(out_dir/'page')],out_dir/'raster')
     images = sorted(out_dir.glob('page-*.png'),key=lambda p:int(p.stem.split('-')[-1]))
@@ -78,7 +90,8 @@ def inspect_pdf(pdf: Path, case: dict, environment: dict, out_dir: Path) -> dict
               'source_sha':environment.get('source_sha'), 'font_inputs':environment['fonts'],
               'pdf_sha256':digest(pdf.read_bytes()),'pdf_bytes':pdf.stat().st_size,'pages':pages,
               'text_sha256':digest(text.encode()),'page_image_sha256':[digest(p.read_bytes()) for p in images],
-              'checks_passed':True,'checks':{'qpdf':True,'source_text':True,'record_order':True,'page_bounds':True,'all_pages_rasterized':True},
+              'checks_passed':margin_observation is None,'reference_margin_observation':margin_observation,
+              'checks':{'qpdf':True,'source_text':True,'record_order':True,'page_bounds':margin_observation is None,'physical_page_bounds':True,'all_pages_rasterized':True},
               'review_status':'pending-review'}
     write_json(out_dir/'inspection.json',result)
     return result
@@ -91,6 +104,8 @@ def validate_reference(review: dict, case: dict, environment: dict) -> None:
         raise ValueError('Review provenance is incomplete')
     if not str(review['review_url']).startswith('https://'):
         raise ValueError('Review source must be traceable')
+    if review.get('source_sha') != environment.get('source_sha'):
+        raise ValueError('Human reference approval names a different source commit')
     if review.get('case_id') != case['id'] or review.get('input_sha256') != case['input_sha256']:
         raise ValueError('Review is for a different input')
     if review.get('environment_id') != environment['environment_id'] or review.get('font_inputs') != environment['fonts']:
@@ -123,8 +138,6 @@ def chrome_reference(source: Path, case: dict, fonts: list[Path], environment: d
     out_dir.mkdir(parents=True,exist_ok=False)
     faces = ''.join('@font-face{font-family:Acceptance'+str(i)+';src:url("'+p.resolve().as_uri()+'");font-weight:normal;}' for i,p in enumerate(fonts))
     family = ','.join('Acceptance'+str(i) for i in range(len(fonts))) or 'Courier'
-    # Explicitly documented print-only normalization: no browser furniture,
-    # same page/margins and supplied fonts, no synthetic heading bold.
     css = faces + '@page{size:595.28pt 841.89pt;margin:36pt}html,body{margin:0;padding:0}body{font-family:'+family+'}h1,h2{font-weight:normal}*{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;font-kerning:none!important;font-variant-ligatures:none!important}'
     original = source.read_text(encoding='utf-8')
     normalized = original.replace('</head>','<style>'+css+'</style></head>')
@@ -135,7 +148,7 @@ def chrome_reference(source: Path, case: dict, fonts: list[Path], environment: d
             '--no-pdf-header-footer','--allow-file-access-from-files','--user-data-dir='+str((out_dir/'profile').resolve()),
             '--print-to-pdf='+str(pdf.resolve()),html.resolve().as_uri()]
     tool(args,out_dir/'print')
-    result = inspect_pdf(pdf,case,environment,out_dir/'inspection')
+    result = inspect_pdf(pdf,case,environment,out_dir/'inspection',reference=True)
     result.update(original_input_sha256=digest(source.read_bytes()), normalized_input_sha256=digest(html.read_bytes()),
                   role='independent-print-reference-not-the-FactsPDF-output')
     write_json(out_dir/'comparison-source.json',result)
@@ -150,8 +163,6 @@ def main():
     a=p.parse_args(); m=load_manifest(a.manifest)
     env=json.loads((a.runs/'environment.json').read_text())
     records=json.loads((a.runs/'runs.json').read_text())['runs']
-    # The standalone inspector must not approve a partial run collection.
-    # Import here to keep lower-level inspection independent of orchestration.
     from acceptance_pipeline import review_map, check_entrypoints, _stored_reference
     document={'schema_version':1,'reviews':[]} if not a.reviews else json.loads(a.reviews.read_text())
     reviews=review_map(document,m,required=a.mode=='verify')

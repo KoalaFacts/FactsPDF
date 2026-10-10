@@ -115,9 +115,15 @@ def run_case(case: dict, entrypoint: str, executable: Path, font_paths: list[Pat
     unchanged = pdf.is_file() and pdf.read_bytes() == b'keep'
     row['output_unchanged'] = unchanged if case['kind'] == 'negative' else None
     has_pdf = pdf.is_file() and pdf.read_bytes().startswith(b'%PDF-')
-    if proc['returncode'] == 0 and has_pdf:
+    if proc['returncode'] == 0 and case['kind'] == 'negative':
+        # A successful conversion violates the negative contract even when
+        # the deliberately prefilled caller stream begins with keep%PDF.
+        row['status'] = 'unexpected-success'
+        if pdf.is_file():
+            row.update(pdf_path=str(pdf), pdf_sha256=digest(pdf.read_bytes()), pdf_bytes=pdf.stat().st_size)
+    elif proc['returncode'] == 0 and has_pdf:
         row.update(pdf_path=str(pdf), pdf_sha256=digest(pdf.read_bytes()), pdf_bytes=pdf.stat().st_size)
-        row['status'] = 'unexpected-success' if case['kind'] == 'negative' else 'candidate'
+        row['status'] = 'candidate'
     elif proc['returncode'] == 0:
         row['error'] = 'Success exit without a PDF'
     elif case['kind'] in {'negative', 'target'}:

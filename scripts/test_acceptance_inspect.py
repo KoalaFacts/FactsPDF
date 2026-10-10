@@ -10,7 +10,7 @@ class InspectionTests(unittest.TestCase):
         except ModuleNotFoundError: self.fail('Task 3 acceptance_inspect is not implemented')
         self.case = {'id':'B-test','kind':'baseline','input_sha256':'a'*64, 'requirements':['records'],
                      'records':['R0001','R0002'], 'checks': {'text_blocks':['Report','R0001 A B 中文。','R0002 Done.']}}
-        self.environment = {'environment_id':'b'*64, 'fonts':[]}
+        self.environment = {'source_sha':'c'*40, 'environment_id':'b'*64, 'fonts':[]}
 
     def test_missing_or_reordered_record_fails(self):
         good = 'Report\nR0001 A B 中文。\nR0002 Done.\n'

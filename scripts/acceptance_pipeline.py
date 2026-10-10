@@ -57,6 +57,7 @@ def public_copy(source: Path, destination: Path, relative: str) -> Path:
 
 
 def report_markdown(summary: dict, cases: list[dict]) -> str:
+    observations=''.join('- '+c['case_id']+': '+c['chrome_margin_observation']+'\n' for c in cases if c.get('chrome_margin_observation'))
     return ('# FactsPDF document acceptance — candidate review pack\n\n'
             f"Source: `{summary['source_sha']}`\n\n"
             f"Independently checked baseline cases: {summary.get('baseline_independently_checked',0)}/{summary['baseline_total']}. "
@@ -67,6 +68,7 @@ def report_markdown(summary: dict, cases: list[dict]) -> str:
             'Developer Preview 1 is NOT complete. Performance budgets and fixed reference hardware are NOT approved.\n\n'
             '| Case | Status | Independent native pages | Chrome pages |\n|---|---|---:|---:|\n'+
             ''.join(f"| {c['case_id']} | {c['status']} | {c.get('pages','—')} | {c.get('chrome_pages','—')} |\n" for c in cases)+
+            '\n## Browser reference observations (NOT approved)\n\n'+(observations or 'None recorded.\n')+
             '\nNext gate: inspect every native/Chrome page, then approve or correct the reference; '
             'lists, real bold, images, tables and page furniture remain unmet product targets.\n')
 
@@ -79,11 +81,20 @@ def compare_images(native: Path, chrome: Path, public: Path, ident: str) -> dict
     for index,(a,b) in enumerate(zip(left,right),1):
         with Image.open(a) as aa, Image.open(b) as bb:
             im=aa.convert('RGB'); other=bb.convert('RGB')
+            original_native=list(im.size); original_chrome=list(other.size)
+            padding='none'
             if im.size!=other.size:
-                metrics.append({'page':index,'same_dimensions':False,'native':im.size,'chrome':other.size});continue
+                if abs(im.width-other.width)>1 or abs(im.height-other.height)>1:
+                    metrics.append({'page':index,'same_dimensions':False,'native':original_native,'chrome':original_chrome});continue
+                size=(max(im.width,other.width),max(im.height,other.height))
+                native_canvas=Image.new('RGB',size,'white');native_canvas.paste(im,(0,0))
+                chrome_canvas=Image.new('RGB',size,'white');chrome_canvas.paste(other,(0,0))
+                im,other=native_canvas,chrome_canvas
+                padding='white-right-bottom-only-no-registration'
             diff=ImageChops.difference(im,other)
-            metrics.append({'page':index,'same_dimensions':True,'mean_absolute_pixel_difference':sum(ImageStat.Stat(diff).mean)/3})
-            # Unregistered images: no alignment shifts or forgiving global pass threshold.
+            metrics.append({'page':index,'same_dimensions':original_native==original_chrome,
+                'native':original_native,'chrome':original_chrome,'padding_policy':padding,
+                'mean_absolute_pixel_difference':sum(ImageStat.Stat(diff).mean)/3})
             folder=public/ident;folder.mkdir(parents=True,exist_ok=True)
             Image.blend(im,other,0.5).save(folder/f'overlay-page-{index}.png')
             diff.save(folder/f'difference-page-{index}.png')
@@ -149,7 +160,6 @@ def execute(mode: str, manifest_path: Path, cli: Path, host: Path, fonts: list[P
             if evidence is None:evidence=item
             elif any(evidence[k]!=item[k] for k in ('pdf_sha256','text_sha256','pages','page_image_sha256')):
                 raise ValueError('Entrypoint inspection mismatch')
-        # Preserve already inspected native evidence even if the independent browser fails.
         public_copy(Path(native['pdf_path']),public,case['id']+'/native.pdf')
         for name in ('text.txt','geometry.json','inspection.json'):
             public_copy(output/'inspection'/case['id']/'cli'/name,public,case['id']+'/'+name)
@@ -172,10 +182,11 @@ def execute(mode: str, manifest_path: Path, cli: Path, host: Path, fonts: list[P
             for image in directory.glob('page-*.png'):public_copy(image,public,case['id']+'/'+prefix+image.name)
         comparison=compare_images(folder,chrome,public,case['id'])
         comparison['native_checks']=evidence['checks'];comparison['chrome_checks']=reference['checks']
+        comparison['chrome_margin_observation']=reference.get('reference_margin_observation')
+        row['chrome_margin_observation']=reference.get('reference_margin_observation')
         comparison['chrome_original_input_sha256']=reference['original_input_sha256']
         comparison['chrome_normalized_input_sha256']=reference['normalized_input_sha256']
         write_json(public/case['id']/'comparison.json',comparison)
-    # Separate binary-stdout and pre-cancelled public-API probes. No invented CLI quota flags.
     b00=next(c for c in manifest['cases'] if c['id']=='B00')
     base={**b00,'_root':manifest_path.parent,'_source_sha':source,'_environment_id':environment['environment_id'],'_build_mode':'linux-x64-native-aot'}
     stdout=run_case({**base,'_stdout':True},'cli',cli,[],output/'binary-stdout',120)
