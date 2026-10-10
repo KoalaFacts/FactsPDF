@@ -70,13 +70,20 @@ def compare(chrome, factspdf):
             max(bounds_left[2], bounds_right[2]), max(bounds_left[3], bounds_right[3])
         ]
     if ink_union is None:
-        ink_fraction, ink_mean = None, None
+        ink_fraction, ink_mean, ink_area = None, None, 0
     else:
-        box = tuple(ink_union)
-        area = (box[2] - box[0]) * (box[3] - box[1])
-        ink_mask = max_channel.crop(box).point(lambda value: 255 if value > 16 else 0)
-        ink_fraction = round(ink_mask.histogram()[255] / area, 7)
-        ink_mean = round(sum(ImageStat.Stat(delta.crop(box)).mean) / 3, 5)
+        # Actual union of both occupied rectangles, not their enclosing box.
+        mask = Image.new("L", left.size, 0)
+        brush = ImageDraw.Draw(mask)
+        for bbox in (bounds_left, bounds_right):
+            if bbox is not None:
+                brush.rectangle((bbox[0], bbox[1], bbox[2] - 1, bbox[3] - 1),
+                                fill=255)
+        ink_area = mask.histogram()[255]
+        changed_mask = max_channel.point(lambda value: 255 if value > 16 else 0)
+        ink_changed = ImageChops.multiply(changed_mask, mask).histogram()[255]
+        ink_fraction = round(ink_changed / ink_area, 7) if ink_area else None
+        ink_mean = round(sum(ImageStat.Stat(delta, mask).mean) / 3, 5) if ink_area else None
     return {
         "width_px": left.width,
         "height_px": left.height,
@@ -87,7 +94,8 @@ def compare(chrome, factspdf):
         "max_channel_error": max_channel.getextrema()[1],
         "chrome_ink_bbox": bounds_left,
         "factspdf_ink_bbox": bounds_right,
-        "ink_union_bbox": ink_union,
+        "ink_enclosing_bbox": ink_union,
+        "ink_union_pixel_area": ink_area,
         "ink_union_change_fraction_over_16": ink_fraction,
         "ink_union_rgb_mean_abs_error": ink_mean,
     }
