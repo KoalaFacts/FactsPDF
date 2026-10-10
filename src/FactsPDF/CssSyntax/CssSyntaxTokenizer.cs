@@ -2,16 +2,21 @@ using System.Text;
 
 namespace FactsPDF.CssSyntax;
 
-/// <summary>Incremental standards-based CSS tokenizer; URL/string token families follow next.</summary>
+/// <summary>CSS Syntax tokenizer with Unicode identifiers and recovery diagnostics.</summary>
 internal static class CssSyntaxTokenizer
 {
     internal static IReadOnlyList<CssSyntaxToken> Tokenize(CssSourceText source, CssSyntaxLimits limits)
+        => TokenizeWithDiagnostics(source, limits).Tokens;
+
+    internal static CssSyntaxTokenizationResult TokenizeWithDiagnostics(
+        CssSourceText source, CssSyntaxLimits limits)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(limits);
         limits.Cancellation.ThrowIfCancellationRequested();
         var text = source.Normalized;
         var result = new List<CssSyntaxToken>();
+        var diagnostics = new List<CssSyntaxDiagnostic>();
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
             bool integer = false, string? unit = null)
@@ -29,7 +34,13 @@ internal static class CssSyntaxTokenizer
             if (i + 1 < text.Length && text[i] == '/' && text[i + 1] == '*')
             {
                 var close = text.IndexOf("*/", i + 2, StringComparison.Ordinal);
-                i = close < 0 ? text.Length : close + 2;
+                if (close < 0)
+                {
+                    diagnostics.Add(new("CSS_SYNTAX", "Unterminated CSS comment.",
+                        source.Span(i, text.Length - i), "eof"));
+                    i = text.Length;
+                }
+                else i = close + 2;
                 continue;
             }
             if (text.AsSpan(i).StartsWith("<!--", StringComparison.Ordinal))
@@ -55,7 +66,7 @@ internal static class CssSyntaxTokenizer
                 continue;
             }
             if (text[i] == '#' && i + 1 < text.Length &&
-                (IsNameChar(text[i + 1]) || IsValidEscape(text, i + 1)))
+                (IsNameCharAt(text, i + 1) || IsValidEscape(text, i + 1)))
             {
                 var start = i++;
                 var isId = StartsIdentifier(text, i);
@@ -147,7 +158,7 @@ internal static class CssSyntaxTokenizer
         result.Add(new CssSyntaxToken(
             CssSyntaxTokenKind.Eof, "", "",
             source.Span(text.Length, 0)));
-        return result;
+        return new CssSyntaxTokenizationResult(result.ToArray(), diagnostics.ToArray());
     }
 
     private static bool IsWhitespace(char ch) => ch is ' ' or '\t' or '\n';
@@ -226,11 +237,31 @@ internal static class CssSyntaxTokenizer
     private static bool IsNonPrintable(char c)
         => c <= '\u0008' || c == '\u000B' || c is >= '\u000E' and <= '\u001F' || c == '\u007F';
 
-    private static bool IsNameStart(char c)
-        => char.IsAsciiLetter(c) || c == '_' || c >= 0x0080;
+    // 2026 CSS Syntax Level 3's restricted non-ASCII ident-code-point
+    // ranges. In particular bidi controls U+202E, U+2060, U+0080 and
+    // soft hyphen U+00AD are NOT unescaped identifier constituents.
+    private static bool IsNonAsciiIdent(int cp)
+        => cp == 0x00B7 ||
+           cp is >= 0x00C0 and <= 0x00D6 or >= 0x00D8 and <= 0x00F6
+              or >= 0x00F8 and <= 0x037D or >= 0x037F and <= 0x1FFF
+              or >= 0x200C and <= 0x200D or >= 0x203F and <= 0x2040
+              or >= 0x2070 and <= 0x218F or >= 0x2C00 and <= 0x2FEF
+              or >= 0x3001 and <= 0xD7FF or >= 0xF900 and <= 0xFDCF
+              or >= 0xFDF0 and <= 0xFFFD or >= 0x10000 and <= 0x10FFFF;
 
-    private static bool IsNameChar(char c)
-        => IsNameStart(c) || char.IsAsciiDigit(c) || c == '-';
+    private static bool IsNameStartAt(string text, int at)
+    {
+        if (at >= text.Length) return false;
+        var c = text[at];
+        if (char.IsHighSurrogate(c) && at + 1 < text.Length &&
+            char.IsLowSurrogate(text[at + 1]))
+            return IsNonAsciiIdent(char.ConvertToUtf32(c, text[at + 1]));
+        return char.IsAsciiLetter(c) || c == '_' || IsNonAsciiIdent(c);
+    }
+
+    private static bool IsNameCharAt(string text, int at)
+        => IsNameStartAt(text, at) ||
+           at < text.Length && (char.IsAsciiDigit(text[at]) || text[at] == '-');
 
     private static bool IsValidEscape(string text, int at)
         => at < text.Length && text[at] == '\\' &&
@@ -242,10 +273,10 @@ internal static class CssSyntaxTokenizer
         if (text[at] == '-')
         {
             if (at + 1 >= text.Length) return false;
-            var next = text[at + 1];
-            return IsNameStart(next) || next == '-' || IsValidEscape(text, at + 1);
+            return IsNameStartAt(text, at + 1) || text[at + 1] == '-' ||
+                   IsValidEscape(text, at + 1);
         }
-        return IsNameStart(text[at]) || IsValidEscape(text, at);
+        return IsNameStartAt(text, at) || IsValidEscape(text, at);
     }
 
     private static string ConsumeName(string text, ref int at)
@@ -253,9 +284,15 @@ internal static class CssSyntaxTokenizer
         var builder = new StringBuilder();
         while (at < text.Length)
         {
-            if (IsNameChar(text[at]))
+            if (IsNameCharAt(text, at))
             {
-                builder.Append(text[at++]);
+                if (char.IsHighSurrogate(text[at]) && at + 1 < text.Length &&
+                    char.IsLowSurrogate(text[at + 1]))
+                {
+                    builder.Append(text, at, 2);
+                    at += 2;
+                }
+                else builder.Append(text[at++]);
             }
             else if (IsValidEscape(text, at))
             {
