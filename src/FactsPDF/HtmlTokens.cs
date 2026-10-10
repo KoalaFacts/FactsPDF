@@ -5,7 +5,7 @@ namespace FactsPDF;
 
 internal enum HtmlTokenKind { Text, Start, End, StyleText }
 internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
-    bool SelfClosing, int Offset);
+    bool SelfClosing, int Offset, Dictionary<string, int[]>? AttributeSourceOffsets = null);
 
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
 internal static class HtmlTokens
@@ -55,6 +55,7 @@ internal static class HtmlTokens
                 continue;
             }
             var attrs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, int[]>? attributeOffsets = null;
             var selfClosing = false;
             while (i < html.Length && html[i] != '>')
             {
@@ -67,6 +68,7 @@ internal static class HtmlTokens
                 var attribute = html[attrStart..i].ToLowerInvariant();
                 SkipSpace(html, ref i);
                 var value = "";
+                var rawValueStart = attrStart;
                 if (i < html.Length && html[i] == '=')
                 {
                     i++;
@@ -75,6 +77,7 @@ internal static class HtmlTokens
                     if (html[i] is '\'' or '"')
                     {
                         var quote = html[i++];
+                        rawValueStart = i;
                         var end = html.IndexOf(quote, i);
                         if (end < 0) throw Invalid("Unterminated quoted attribute.", attrStart);
                         value = html[i..end];
@@ -83,6 +86,7 @@ internal static class HtmlTokens
                     else
                     {
                         var valueStart = i;
+                        rawValueStart = valueStart;
                         while (i < html.Length && !Space(html[i]) && html[i] != '>')
                         {
                             if (html[i] is '<' or '\'' or '"' or '=' or '`') throw Invalid("Invalid unquoted attribute.", i);
@@ -92,12 +96,19 @@ internal static class HtmlTokens
                         value = html[valueStart..i];
                     }
                 }
-                if (!attrs.TryAdd(attribute, Decode(value, attrStart))) throw Invalid("Duplicate attribute.", attrStart);
+                if (attribute == "style")
+                {
+                    var (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
+                    if (!attrs.TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
+                    (attributeOffsets ??= new(StringComparer.OrdinalIgnoreCase))[attribute] = offsets;
+                }
+                else if (!attrs.TryAdd(attribute, Decode(value, attrStart)))
+                    throw Invalid("Duplicate attribute.", attrStart);
                 SkipSpace(html, ref i);
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
-            yield return new(HtmlTokenKind.Start, name, attrs, selfClosing, start);
+            yield return new(HtmlTokenKind.Start, name, attrs, selfClosing, start, attributeOffsets);
             if (name == "style" && !selfClosing)
             {
                 // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
@@ -116,6 +127,35 @@ internal static class HtmlTokens
                 i = end;
             }
         }
+    }
+
+    /// <summary>Decode one style attribute while retaining original HTML boundaries for CSS diagnostics.</summary>
+    private static (string Decoded, int[] OriginalOffsets) DecodeWithOriginOffsets(string raw, int rawStart)
+    {
+        var decoded = Decode(raw, rawStart);
+        var positions = new int[decoded.Length + 1];
+        var input = 0; var output = 0;
+        while (input < raw.Length)
+        {
+            if (raw[input] == '&' && input + 1 < raw.Length &&
+                (char.IsAsciiLetterOrDigit(raw[input + 1]) || raw[input + 1] == '#'))
+            {
+                var end = raw.IndexOf(';', input + 1);
+                if (end >= 0 && end - input <= 33)
+                {
+                    var entity = Decode(raw[input..(end + 1)], rawStart + input);
+                    for (var j = 0; j < entity.Length; j++)
+                        positions[output++] = rawStart + input;
+                    input = end + 1;
+                    continue;
+                }
+            }
+            positions[output++] = rawStart + input;
+            input++;
+        }
+        if (output != decoded.Length) throw new InvalidOperationException("HTML attribute decode offset map is inconsistent.");
+        positions[output] = rawStart + input;
+        return (decoded, positions);
     }
 
     public static string Decode(string text, int offset)

@@ -49,7 +49,9 @@ internal sealed class CssStylesheets
                 else if (item.Attributes!.TryGetValue("style", out var css))
                 {
                     sheet.budget.Characters(css.Length, item.Offset);
-                    var declarations = sheet.ParseSource(css, item.Offset, declarationsOnly: true).Declarations;
+                    var origins = item.AttributeSourceOffsets is not null &&
+                        item.AttributeSourceOffsets.TryGetValue("style", out var found) ? found : null;
+                    var declarations = sheet.ParseSource(css, item.Offset, declarationsOnly: true, origins).Declarations;
                     sheet.inline.Add(item.Offset, CssSyntaxAdapter.CompileKnownDeclarations(declarations, sheet.budget));
                 }
             }
@@ -75,12 +77,13 @@ internal sealed class CssStylesheets
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
     }
-    private CssSyntaxResult ParseSource(string css, int offset, bool declarationsOnly)
+    private CssSyntaxResult ParseSource(string css, int offset, bool declarationsOnly,
+        IReadOnlyList<int>? originalOffsets = null)
     {
         CssSyntaxAdapter.EnforceStrictUnclosedComments(css, offset);
         try
         {
-            var source = CssSourceText.Create(css, offset, syntaxLimits);
+            var source = CssSourceText.Create(css, offset, syntaxLimits, originalOffsets);
             var result = declarationsOnly
                 ? CssSyntaxParser.ParseDeclarations(source, syntaxLimits)
                 : CssSyntaxParser.ParseStylesheet(source, syntaxLimits);

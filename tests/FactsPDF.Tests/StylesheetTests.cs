@@ -154,9 +154,13 @@ public sealed class StylesheetTests
         Assert.That(Pdf(sheet), Is.EqualTo(Pdf(inline)));
     }
 
+    [Test]
+    public void ValidEscapedCssClassSelectorIsRecognizedAfterSyntaxUpgrade()
+        => Assert.That(Read(".\\78{color:red}", "<p class=x>A</p>")[0].Style.Color, Is.EqualTo(Red));
+
     [TestCase("p:hover{color:red}", "FPDF1203")] [TestCase("[id=x]{color:red}", "FPDF1203")]
     [TestCase("p+p{color:red}", "FPDF1203")] [TestCase("p~p{color:red}", "FPDF1203")]
-    [TestCase(".\\78{color:red}", "FPDF1203")] [TestCase("p, {color:red}", "FPDF1203")]
+     [TestCase("p, {color:red}", "FPDF1203")]
     [TestCase("p/**/span{color:red}", "FPDF1203")] [TestCase("p > > span{color:red}", "FPDF1203")]
     [TestCase("p{color:re/**/d}", "FPDF1202")] [TestCase("p{font-size:12 pt}", "FPDF1202")]
     [TestCase("p{color:red !oops}", "FPDF1202")] [TestCase("p{color:red", "FPDF1203")]
