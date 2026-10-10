@@ -14,7 +14,7 @@ internal static class TextLayout
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
-        bool HasParagraphDescendant = false);
+        bool HasParagraphDescendant = false, bool TopConsumed = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -51,17 +51,34 @@ internal static class TextLayout
 
         void MoveUnconsumedBlocksToNewPage()
         {
-            // Only a box without earlier consumed text or descendant geometry
-            // can move intact to a new page. Other open boxes retain their
-            // first-page origin and will emit continuations when closed.
+            // Recompute leading space from its owning scopes, not the old
+            // page's aggregate. A continued painted box (and consumed scopes
+            // within it) has already used its top padding on the first page.
+            // A genuinely new child still moves with its own leading space.
             var leading = 0d;
+            var continuedPaint = false;
             for (var i = 0; i < opened.Count; i++)
             {
                 var scope = opened[i];
-                if (scope.ContentEpoch != contentEpoch || scope.HasOccupiedDescendant) continue;
+                var hasText = scope.ContentEpoch != contentEpoch;
+                var retainOrigin = scope.HasOccupiedDescendant &&
+                    (scope.Style.HasPaint || continuedPaint);
+                if (scope.Style.HasPaint && (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
+                    continuedPaint = true;
+                if (hasText || scope.TopConsumed) continue;
+                if (retainOrigin)
+                {
+                    // Remember consumption even if this page contains only
+                    // an empty paragraph: EndBlock must not re-add this top.
+                    opened[i] = scope with { TopConsumed = true };
+                    continue;
+                }
+                // Preserve M6's first-text leading-space behavior for purely
+                // unpainted scopes outside any continuing painted ancestor.
                 opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
                 leading += scope.Top;
             }
+            pendingTopPadding = leading;
         }
         foreach (var step in steps)
         {
@@ -148,10 +165,10 @@ internal static class TextLayout
                         emittedPaint |= painted.CommandCount > 0;
                     }
                 }
-                if (scope.ContentEpoch == contentEpoch)
+                if (scope.ContentEpoch == contentEpoch && !scope.TopConsumed)
                 {
-                    // No laid-out text has consumed this box's top padding.
-                    // Since it is now closed, this is trailing spacing.
+                    // No laid-out text or retained first fragment consumed
+                    // this top padding. Closure now makes it trailing space.
                     pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
                     pendingClosedPadding += scope.Top;
                 }
