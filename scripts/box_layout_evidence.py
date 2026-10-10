@@ -94,7 +94,7 @@ def build_report(baseline: dict, candidate: dict, source_sha: str,
         }
     return {
         'baseline_sha': baseline_sha, 'source_sha': source_sha, 'harness_sha256': harness_sha256,
-        'measurement_scope': 'Same harness and runner; fresh process per workload/revision. Twenty warm conversion samples; current-thread managed allocations exclude native allocations. Process-lifetime peak working set includes setup, warmups, hashing and reporting. No cold-start or statistical performance claim; no speed threshold.',
+        'measurement_scope': 'Same harness and runner; fresh process per workload/revision. Twenty warm conversion samples; current-thread managed allocations exclude native allocations. Peak working set covers process lifetime up to the reading, including setup, warmups, samples and untimed proof/hash work; it is not isolated conversion memory or a measurement of later reporting. No cold-start or statistical performance claim; no speed threshold.',
         'cases': cases, 'errors': [],
     }
 
