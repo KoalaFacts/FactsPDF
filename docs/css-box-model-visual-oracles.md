@@ -1,14 +1,14 @@
-# FactsPDF: Browser Visual Oracles for the Planned CSS Box Model
+# FactsPDF: Browser Visual Oracles for the CSS Box Model
 
-**State:** Chrome reference suite implemented and verified. FactsPDF box-model rendering remains **unimplemented** at this stage. Do not interpret a green reference job as successful cross-engine rendering.
+**Current M8 state:** The original Chrome-only reference suite is now a real five-fixture **cross-engine comparison**: independent Chrome PDFs and real FactsPDF Linux x64 Native AOT PDFs must both succeed, including a **three-page `box-decoration-break: slice`** case with backgrounds, continuous side borders and non-repeated horizontal edges. The CI default is `--mode compare`; legacy `--mode reference` and `--mode m7` remain only for historical/diagnostic runs. See [M8 Box Fragmentation](box-fragmentation.md).
 
 **Upstream:** CSS syntax implementation [PR #7](https://github.com/KoalaFacts/FactsPDF/pull/7), existing Chrome/FactsPDF PDF visual harness [PR #8](https://github.com/KoalaFacts/FactsPDF/pull/8), Block Box Tree architectural design [PR #5](https://github.com/KoalaFacts/FactsPDF/pull/5).
-**This suite:** [PR #10](https://github.com/KoalaFacts/FactsPDF/pull/10), `test/box-model-visual-oracles`. The test PR stays unmerged pending upstream integration and review.
+**Suite origin:** [PR #10](https://github.com/KoalaFacts/FactsPDF/pull/10), `test/box-model-visual-oracles`; the original reference-only wording below is a historical record and is no longer the current support/CI status.
 
-## Two-stage execution (do not confuse them)
+## Historical stage contracts (now superseded by M8 full comparison)
 
-1. **Today — `--mode reference`:** Render five controlled HTML/CSS templates to real **Chrome print-to-PDF**. Validate qpdf integrity, page geometry, extractable Unicode text against HTML, text inside page, exact colored paint probes, relative nested backgrounds, and first/middle/last page-fragment border behavior. Then run the real FactsPDF Linux x64 **Native AOT** CLI on the original HTML, **require FPDF1201** and prove that no output PDF was written. This is the CI default now.
-2. **After box-model implementation — `--mode compare`:** Reuse exactly the same five fixtures, run both PDFs with installed explicit fonts, and require qpdf validity, identical extracted text, expected page count and independent Poppler rasters. Generate Chrome/FactsPDF page images, overlay, red heat map and a zoomed ink-detail image; report unregistered whole-page and ink-region changed-pixel metrics. A hard renderer failure or missing/extra page fails. Do **not** set a global pixel-similarity threshold without reviewed per-feature baselines and typography allowances.
+1. **Original — `--mode reference` (historical):** Render five controlled HTML/CSS templates to real **Chrome print-to-PDF**. Validate qpdf integrity, page geometry, extractable Unicode text against HTML, text inside page, exact colored paint probes, relative nested backgrounds, and first/middle/last page-fragment border behavior. Then run the real FactsPDF Linux x64 **Native AOT** CLI on the original HTML, **require FPDF1201** and prove that no output PDF was written. This was the early CI default and is no longer the current workflow.
+2. **Implemented by M8 — `--mode compare`:** Reuse exactly the same five fixtures, run both PDFs with installed explicit fonts, and require qpdf validity, identical extracted text, expected page count and independent Poppler rasters. Generate Chrome/FactsPDF page images, overlay, red heat map and a zoomed ink-detail image; report unregistered whole-page and ink-region changed-pixel metrics. A hard renderer failure or missing/extra page fails. Do **not** set a global pixel-similarity threshold without reviewed per-feature baselines and typography allowances.
 
 The CSS declarations in the **original** HTML fixtures are limited to the planned PR #5 scope: `width`, `padding`, `border`, `background-color`, existing `font-size`, `line-height`, text `color`, paragraph margins and explicit page breaks. No image, table, Flex/Grid, positioning, `@page`, border radius, text shaping or extra JavaScript is required.
 
@@ -49,10 +49,10 @@ On Linux with .NET 10 SDK/Native AOT compiler, Chrome, qpdf, Poppler, Python 3 w
 ```bash
 /usr/bin/python3 -m unittest discover -s scripts -p 'test_css_box_visual_cases.py' -v
 dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/box-visual-native
-/usr/bin/python3 scripts/css_box_visual_oracle.py --mode reference --native artifacts/box-visual-native/FactsPDF.Cli --output artifacts/box-visual
+/usr/bin/python3 scripts/css_box_visual_oracle.py --mode compare --native artifacts/box-visual-native/FactsPDF.Cli --output artifacts/box-visual
 ```
 
-Once code genuinely supports this HTML/CSS, switch **only** the mode to `--mode compare` and include both PDF image outputs in the CI artifacts. **Remove the reference-mode StrictPdf expected-error gate in that implementation milestone**; do not keep pretending unsupported output is success after implementing the box model.
+M8 uses `--mode compare` in `.github/workflows/css-box-visual.yml` and uploads rendered overlays/difference views plus the comparison report. This stage cannot pass without real Native AOT geometry and painted borders on all three fragment pages. Historical `--mode reference` is not a valid M8 acceptance gate.
 
 The full test command and browser report are reproducible in `.github/workflows/css-box-visual.yml`. The first test-only commit in PR #10 intentionally failed because its oracle helper had not been implemented, then passed when the helper was added. A subsequent red/green loop added stricter color-distance and three-page slice-geometry checks.
 
