@@ -26,7 +26,10 @@ internal static class HtmlDocumentReader
         List<BlockChild> CurrentChildren()
         {
             for (var i = stack.Count - 1; i >= 0; i--)
-                if (stack[i].Box is not null) return stack[i].Box.Children;
+            {
+                var box = stack[i].Box;
+                if (box is not null) return box.Children;
+            }
             return result.Children;
         }
 
@@ -35,7 +38,10 @@ internal static class HtmlDocumentReader
             // The anonymous paragraph belongs to its nearest block, not to
             // whichever inline span happens to precede the first text run.
             for (var i = stack.Count - 1; i >= 0; i--)
-                if (stack[i].Box is not null) return stack[i].Box.Style;
+            {
+                var box = stack[i].Box;
+                if (box is not null) return box.Style;
+            }
             for (var i = stack.Count - 1; i >= 0; i--)
                 if (stack[i].Name is "html" or "#root") return stack[i].Style;
             return root;
