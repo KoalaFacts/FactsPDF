@@ -67,6 +67,20 @@ internal static class TextLayout
             cancellation.ThrowIfCancellationRequested();
             if (step is BeginBlock begin)
             {
+                // A previous break-after must precede a painted successor
+                // even when that successor contains no text paragraph.
+                // Unpainted containers continue deferring the break to their
+                // first text leaf, preserving existing paragraph-only behavior.
+                if (breakNext && begin.Style.HasPaint)
+                {
+                    if (CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                    }
+                    pendingClosedPadding = 0;
+                    breakNext = false;
+                }
                 var start = y + pendingTopPadding + pendingClosedPadding + after;
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
