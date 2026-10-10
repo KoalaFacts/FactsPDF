@@ -210,6 +210,42 @@ public sealed class BlockGeometryTests
     }
 
     [Test]
+    public void ClosedBoxBottomPaddingDoesNotLeakAcrossAnExplicitPageBreak()
+    {
+        var options = Page;
+        var pages = Layout("<div style='padding-bottom:40pt'>" +
+            "<p style='break-after:page'>A</p></div><p>B</p>", options);
+        var fresh = Layout("<p>B</p>", options);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001),
+            "Bottom padding belongs to the closed box on the previous page.");
+    }
+
+    [Test]
+    public void PreviousBoxBottomPaddingDoesNotLeakAfterOverflowPageBreak()
+    {
+        var options = Page with { PageHeight = 100 };
+        var pages = Layout("<div style='padding-bottom:45pt'><p>A</p></div>" +
+            "<p>B</p>", options);
+        var fresh = Layout("<p>B</p>", options);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001));
+    }
+
+    [Test]
+    public void NextBoxTopPaddingIsPreservedAfterExplicitPageBreak()
+    {
+        var pages = Layout("<p style='break-after:page'>A</p>" +
+            "<div style='padding-top:20pt'>B</div>");
+        var fresh = Layout("<div style='padding-top:20pt'>B</div>");
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001));
+    }
+
+    [Test]
     public void CancelledTreeLayoutAndMaxPagesRetainExistingGuardrails()
     {
         const string html = "<div style='width:180pt;padding:10pt'><p>A</p><p style='break-before:page'>B</p></div>";
