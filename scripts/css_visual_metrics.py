@@ -26,6 +26,31 @@ def _max_channel_difference(first, second):
     return ImageChops.lighter(ImageChops.lighter(channels[0], channels[1]), channels[2]), delta
 
 
+
+def align_raster_canvases(chrome, factspdf):
+    """Pad a <=1px paper-rounding discrepancy; never translate or rescale ink.
+
+    Chrome quantizes the A4 media-box width to PDF units (e.g. 594.96pt)
+    while FactsPDF uses 595.28pt. At 120 DPI this can produce a single
+    column difference. Padding at the original top-left origin makes all
+    ink coordinates comparable without any geometric registration.
+    """
+    dimensions = {
+        "chrome_original_pixels": list(chrome.size),
+        "factspdf_original_pixels": list(factspdf.size),
+    }
+    if abs(chrome.width - factspdf.width) > 1 or abs(chrome.height - factspdf.height) > 1:
+        raise ValueError("Page geometry differs by >1 pixel; cannot mask a real size mismatch.")
+    width, height = max(chrome.width, factspdf.width), max(chrome.height, factspdf.height)
+    def canvas(image):
+        rendered = Image.new("RGB", (width, height), "white")
+        rendered.paste(_rgb(image), (0, 0))
+        return rendered
+    dimensions["common_canvas_pixels"] = [width, height]
+    dimensions["operation"] = "white origin-padding only; no rescale or registration"
+    return canvas(chrome), canvas(factspdf), dimensions
+
+
 def compare(chrome, factspdf):
     """Unregistered, exact-page-coordinate metrics; NEVER resize for scoring."""
     if chrome.size != factspdf.size:
