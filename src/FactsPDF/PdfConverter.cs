@@ -27,8 +27,8 @@ public static class PdfConverter
         if (html.Length > options.MaxInputCharacters)
             throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
 
-        var paragraphs = HtmlDocumentReader.Read(html, options, cancellationToken);
-        var pages = TextLayout.Layout(paragraphs, options, cancellationToken);
+        var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
+        var pages = TextLayout.Layout(document, options, cancellationToken);
         using var pdf = options.Fonts.Count > 0 && pages.Any(p => p.Runs.Count > 0)
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);
