@@ -55,10 +55,11 @@ internal static class CssSyntaxAdapter
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
 
-            void Emit(CssProperty target, string value)
+            void Emit(CssProperty target, string value, int offset = -1)
             {
                 var order = budget.Declaration(node.Span.Start);
-                output.Add(new(target, name, value, node.Important, order, node.Span.Start));
+                output.Add(new(target, name, value, node.Important, order,
+                    offset < 0 ? node.Span.Start : offset));
             }
             if (name is "padding" or "border-width" or "border-style" or "border-color")
             {
@@ -127,8 +128,10 @@ internal static class CssSyntaxAdapter
             if (terms.Count != 1)
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
             var token = terms[0];
-            if (!Wide(token)) ValidateComponent(name, token, node.Span.Start);
-            Emit(property, token);
+            var tokenOffset = node.Values.OfType<CssTokenComponent>()
+                .First(x => x.Token.Kind != CssSyntaxTokenKind.Whitespace).Token.Span.Start;
+            if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
+            Emit(property, token, tokenOffset);
         }
         return output.ToArray();
     }
