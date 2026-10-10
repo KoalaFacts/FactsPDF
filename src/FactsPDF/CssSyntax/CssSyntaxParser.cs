@@ -56,10 +56,9 @@ internal static class CssSyntaxParser
                 if (Current.Kind is CssSyntaxTokenKind.Whitespace or CssSyntaxTokenKind.Semicolon
                     or CssSyntaxTokenKind.Cdo or CssSyntaxTokenKind.Cdc)
                 { Take(); continue; }
-                if (Current.Kind == CssSyntaxTokenKind.CloseBrace)
-                {
-                    Error("Unexpected closing CSS block.", Take().Span); continue;
-                }
+                // A top-level stray '}' starts an invalid qualified-rule
+                // prelude. Do not discard it and accidentally accept the next
+                // selector as if the stray token had never existed.
                 CssRuleNode? rule = Current.Kind == CssSyntaxTokenKind.AtKeyword
                     ? ReadAtRule() : ReadQualifiedRule();
                 if (rule is not null) rules.Add(rule);
@@ -111,7 +110,7 @@ internal static class CssSyntaxParser
                 }
                 else
                 {
-                    var nested = ReadQualifiedRule();
+                    var nested = ReadQualifiedRule(nested: true);
                     if (nested is not null) result.Add(nested);
                 }
             }
@@ -169,7 +168,7 @@ internal static class CssSyntaxParser
             return new(beginning.Value, prelude.ToArray(), contents, Range(beginning.Span.Start));
         }
 
-        private CssQualifiedRuleNode? ReadQualifiedRule()
+        private CssQualifiedRuleNode? ReadQualifiedRule(bool nested = false)
         {
             var beginning = Current;
             var prelude = new List<CssSyntaxComponent>();
@@ -178,8 +177,10 @@ internal static class CssSyntaxParser
                 limits.Cancellation.ThrowIfCancellationRequested();
                 if (Current.Kind == CssSyntaxTokenKind.CloseBrace)
                 {
-                    Error("Qualified rule has no opening block.", beginning.Span);
-                    return null;
+                    Error("Unexpected closing brace in a qualified rule.", Current.Span);
+                    if (nested) return null; // parent block consumes its own closer
+                    prelude.Add(ReadComponent()); // top-level: invalid selector prelude
+                    continue;
                 }
                 prelude.Add(ReadComponent());
             }
