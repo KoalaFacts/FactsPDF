@@ -27,7 +27,10 @@ internal static class TextLayout
     {
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
-        var y = o.Margin; var after = 0d; var breakNext = false; var pendingPadding = 0d;
+        var y = o.Margin; var after = 0d; var breakNext = false;
+        // Ending padding belongs to the preceding box/page. Starting padding
+        // belongs to the following box and must move with its first text line.
+        var pendingTopPadding = 0d; var pendingBottomPadding = 0d;
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -37,26 +40,33 @@ internal static class TextLayout
         foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (step is BeginBlock begin) { pendingPadding += begin.PaddingTop; continue; }
-            if (step is EndBlock closing) { pendingPadding += closing.PaddingBottom; continue; }
+            if (step is BeginBlock begin) { pendingTopPadding += begin.PaddingTop; continue; }
+            if (step is EndBlock closing) { pendingBottomPadding += closing.PaddingBottom; continue; }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
             if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
-            if ((breakNext || paragraph.Style.BreakBefore) && y > o.Margin) NewPage();
+            if (breakNext || paragraph.Style.BreakBefore)
+            {
+                if (y > o.Margin) NewPage();
+                // Never carry a preceding box's bottom padding past an
+                // explicit page break. Keep the next box's top padding.
+                pendingBottomPadding = 0;
+            }
             breakNext = false;
-            var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingPadding;
+            var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingBottomPadding;
             if (y + gap + lines[0].Height > bottom && y > o.Margin)
             {
                 NewPage();
-                // Preserve pending box padding on the new page; drop the legacy
-                // adjoining paragraph margin exactly as pre-M6 pagination does.
-                gap = pendingPadding;
+                // Paragraph margin and trailing padding belong to the previous
+                // page; only the new box's leading padding travels with text.
+                gap = pendingTopPadding;
             }
             if (gap + lines[0].Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
             y += gap;
-            pendingPadding = 0;
+            pendingTopPadding = 0;
+            pendingBottomPadding = 0;
             foreach (var line in lines)
             {
                 cancellation.ThrowIfCancellationRequested();
