@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>FactsPDF stylesheet verification</title>
+<style type="text/css" media="print">
+  /* Shared document styling. This comment includes <fake> &notAnEntity;. */
+  body { font-size: 12pt; line-height: 1.5; color: #222; }
+  h1, h2 { color: #1d4568; }
+  h1 { font-size: 26pt; margin-bottom: 14pt; }
+  h2 { font-size: 18pt; margin-top: 14pt; margin-bottom: 8pt; }
+  p { margin-bottom: 9pt; }
+  .report > p.lead { font-size: 16pt; }
+  .report .accent { color: #008000; }
+  p span.big { font-size: 18pt; }
+  p.note { color: #555; }
+  #priority { color: red; }
+  .override { color: #1d4568 !important; }
+  .next { break-before: page; }
+  p.aligned { text-align: right; }
+</style>
+</head>
+<body>
+<section class="report">
+<h1>FactsPDF</h1>
+<p class="lead">CSS 样式表与选择器 / Stylesheets and selectors</p>
+<p>同一个文档，统一的样式。中文与 English 可以自动换行，并保留可复制的文字。</p>
+<h2>共享样式 / Shared styles</h2>
+<p>这一段包含<span class="accent">绿色文字</span>和<span class="big">更大的文字</span>。字号、行高和颜色均由样式表管理。</p>
+<p class="note">Class selectors apply shared styling. Tag selectors set paragraph spacing and heading sizes.</p>
+<p id="priority" class="override" style="color:#555">Important declaration: this line uses the blue heading color, overriding both the ID rule and normal inline color.</p>
+<h2>继承 / Inheritance</h2>
+<p>正文继承父元素的字号与行高，子元素可以通过自己的声明覆盖继承值。中文文字可以自动换行，字体与文字输出可以复制。中文文字可以自动换行，字体与文字输出可以复制。</p>
+<p class="late">This paragraph is styled by a later style element in the same document.</p>
+<h2 class="next">第二页 / Page two</h2>
+<p class="lead">同一份 HTML，清晰的样式规则。</p>
+<p>字体加载、中文换行与字体子集化仍使用同一个核心。样式表仅改变样式来源，不改变文字内容。</p>
+<p>Matching checks: .report &gt; p.lead, .report .accent, p span.big, and #priority.</p>
+<p class="note">The stylesheet version is compared with a separately hand-authored inline version. Their generated PDF bytes and rendered pages must agree.</p>
+<p class="aligned">FactsPDF — HTML + CSS, no browser.</p>
+</section>
+<style>
+  .late { color: #008000; }
+</style>
+</body>
+</html>

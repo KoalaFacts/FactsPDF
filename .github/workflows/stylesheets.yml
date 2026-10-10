@@ -1,0 +1,40 @@
+name: FactsPDF stylesheet evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: factspdf-stylesheets-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  stylesheet-equivalence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FACTSPDF_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install native compiler, independent inspectors and trusted fixture fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-dejavu-core fonts-droid-fallback
+      - name: Compile the actual Native AOT CLI
+        run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/native-css
+      - name: Compare stylesheet and handwritten inline PDF output
+        run: python3 scripts/verify_stylesheets.py artifacts/native-css/FactsPDF.Cli
+      - name: Retain public PDF, previews and verification record only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stylesheet-evidence
+          path: |
+            artifacts/stylesheets/stylesheet-document.pdf
+            artifacts/stylesheets/stylesheet-document-1.png
+            artifacts/stylesheets/stylesheet-document-2.png
+            artifacts/stylesheets/verification.json
+          if-no-files-found: error
+          retention-days: 14
