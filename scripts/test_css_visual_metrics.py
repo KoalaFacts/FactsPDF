@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from PIL import Image
-from css_visual_metrics import compare, save_visuals
+from css_visual_metrics import compare, save_visuals, align_raster_canvases
 
 
 class VisualMetricTests(unittest.TestCase):
@@ -36,6 +36,25 @@ class VisualMetricTests(unittest.TestCase):
     def test_different_dimensions_are_never_compared_by_resizing(self):
         with self.assertRaises(ValueError):
             compare(Image.new("RGB", (2, 3), "white"), Image.new("RGB", (3, 2), "white"))
+
+    def test_one_pixel_pdf_paper_rounding_is_padded_without_resampling(self):
+        a = Image.new("RGB", (6, 8), "white")
+        b = Image.new("RGB", (7, 8), "white")
+        a.putpixel((3, 3), (0, 0, 0))
+        b.putpixel((3, 3), (0, 0, 0))
+        aa, bb, note = align_raster_canvases(a, b)
+        self.assertEqual(aa.size, (7, 8))
+        self.assertEqual(bb.size, (7, 8))
+        self.assertEqual(aa.getpixel((3, 3)), (0, 0, 0))
+        self.assertEqual(aa.getpixel((6, 3)), (255, 255, 255))
+        self.assertEqual(note["chrome_original_pixels"], [6, 8])
+        self.assertEqual(note["factspdf_original_pixels"], [7, 8])
+        self.assertEqual(compare(aa, bb)["pixels_changed_over_16"], 0)
+
+    def test_more_than_one_pixel_difference_is_not_hidden_by_padding(self):
+        with self.assertRaises(ValueError):
+            align_raster_canvases(Image.new("RGB", (4, 6), "white"),
+                                  Image.new("RGB", (6, 6), "white"))
 
     def test_comparison_artifacts_are_real_images(self):
         a = Image.new("RGB", (12, 16), "white")
