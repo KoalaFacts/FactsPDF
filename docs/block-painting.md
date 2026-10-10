@@ -19,10 +19,14 @@ M7 implements painted **single-page** nested blocks on the retained M5 tree and 
 
 Backgrounds are painted before four separately colored solid edges. Ancestors paint before children; paint commands as a whole precede text for deterministic backgrounds behind searchable words. Unpainted documents are serialized through the same original path with no graphics commands, preserving representative legacy PDF bytes.
 
-`PdfOptions.MaxDisplayCommands` (default 200,000) bounds text and primitive rectangle operations across all pages; overflow fails `FPDF1401` before caller-stream writes.
+`PdfOptions.MaxDisplayCommands` (default 200,000) bounds **actually emitted** text and primitive rectangle operations across all pages; zero-height/zero-width rectangles are not charged. Overflow fails `FPDF1401` before caller-stream writes.
 
 ## Explicit M8 boundary
 This increment does **not** claim CSS Fragmentation Level 3. A decorated box that occupies more than one page, or extends beyond the printable vertical area, throws `FPDF1302` **before any output bytes**. Existing unpainted multi-page text remains supported. A single-page painted box close to the page bottom is not automatically moved intact to the next page in this increment; avoid designs that require break-inside avoidance until M8.
+
+Paragraph margins are **outside** backgrounds and borders, including the default `p` bottom margin and explicitly empty paragraphs. A painted paragraph with `break-before:page` (or following a sibling `break-after:page`) may start on the new page intact. Similarly, when the first text line forces a new page, the box's unconsumed top padding travels with it; a box with text already laid out on a prior page still fails `FPDF1302` rather than claiming M8 fragmentation.
+
+CSS validation preserves the original source position of **each shorthand component** (including later invalid border colors/padding terms), not merely the start of the shorthand declaration.
 
 The five pre-existing Chrome/PDF oracles now support `--mode m7`: independently compare the **four single-page** original HTML templates against real Native-AOT FactsPDF PDFs, including actual fills, four colored borders, asymmetric padding and nested 70% width. The three-page box remains an explicitly verified `FPDF1302`/no-output case, *not* a fake cross-engine pass. `--mode compare` remains reserved for M8 when real fragmentation is implemented.
 
