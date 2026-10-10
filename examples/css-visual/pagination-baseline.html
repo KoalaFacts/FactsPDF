@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Visual baseline - explicit page break</title>
+<style>
+body { font-size:12pt; line-height:1.3; color:#222222; }
+h1, h2 { font-size:18pt; margin-top:0pt; margin-bottom:0pt; color:#1d4568; }
+p { margin-top:0pt; margin-bottom:0pt; }
+.newpage { break-before:page; }
+.note { color:#008000; }
+</style></head><body>
+<h1>Page one marker</h1>
+<p>First page content: FactsPDF and Chromium visual baseline.</p>
+<p class="note">A green line tests selector-based styling.</p>
+<h2 class="newpage">Page two marker</h2>
+<p>Second page content: text remains searchable and visible.</p>
+<p>Comparison uses a matching fixed paper size and page margins.</p>
+</body></html>

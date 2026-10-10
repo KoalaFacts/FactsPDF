@@ -1,0 +1,38 @@
+name: FactsPDF Chrome-PDF visual differential
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cross-engine-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install native AOT, trusted font packages and independent PDF/image inspectors
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-dejavu-core fonts-droid-fallback python3-pil
+          command -v google-chrome || command -v chromium
+      - name: Prove independent visual metric unit tests
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_css_visual_metrics.py' -v
+      - name: Publish real Native AOT FactsPDF CLI
+        run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/css-visual-native
+      - name: Compare controlled HTML/CSS PDF pages with Chrome PDF pages
+        run: /usr/bin/python3 scripts/css_visual_differential.py artifacts/css-visual-native/FactsPDF.Cli artifacts/css-visual
+      - name: Upload public page previews, overlays, heatmaps and scoped metrics only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: css-visual-differential
+          path: |
+            artifacts/css-visual/report.json
+            artifacts/css-visual/*/*.png
+          if-no-files-found: warn
+          retention-days: 14
