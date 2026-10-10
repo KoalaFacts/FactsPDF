@@ -28,3 +28,8 @@ internal enum CssSyntaxTokenKind
 internal readonly record struct CssSyntaxToken(
     CssSyntaxTokenKind Kind, string Value, string Raw, CssSourceSpan Span,
     bool IsInteger = false, bool HashIsId = false, string? Unit = null);
+
+/// <summary>Standard tokens and independent lexical recovery diagnostics.</summary>
+internal sealed record CssSyntaxTokenizationResult(
+    IReadOnlyList<CssSyntaxToken> Tokens,
+    IReadOnlyList<CssSyntaxDiagnostic> Diagnostics);
