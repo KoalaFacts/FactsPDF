@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from PIL import Image
 
-from css_box_visual_oracle import CASES, count_color_pixels, validate_unsupported, validate_reference_pages
+from css_box_visual_oracle import CASES, count_color_pixels, validate_unsupported, validate_reference_pages, validate_fragment_edges, color_extent
 
 
 class BoxVisualContractTests(unittest.TestCase):
@@ -35,6 +35,45 @@ class BoxVisualContractTests(unittest.TestCase):
         self.assertEqual(count_color_pixels(image, "#cee8fb", tolerance=0), 20)
         self.assertEqual(count_color_pixels(image, "#cee8fb", tolerance=8), 20)
         self.assertEqual(count_color_pixels(image, "#aa2233", tolerance=16), 0)
+
+    def test_near_white_rgb_does_not_count_as_solid_background(self):
+        white = Image.new("RGB", (10, 10), "white")
+        self.assertEqual(count_color_pixels(white, "#f1f4f6"), 0)
+
+    def test_nested_color_extents_can_measure_child_inset(self):
+        image = Image.new("RGB", (60, 60), "white")
+        for y in range(5, 45):
+            for x in range(5, 55):
+                image.putpixel((x, y), (219, 238, 250))
+        for y in range(10, 35):
+            for x in range(13, 40):
+                image.putpixel((x, y), (228, 199, 106))
+        outer = color_extent(image, "#dbeefa")
+        inner = color_extent(image, "#e4c76a")
+        self.assertEqual(outer, [5, 5, 55, 45])
+        self.assertEqual(inner, [13, 10, 40, 35])
+        self.assertLess(outer[0], inner[0])
+        self.assertLess(inner[2], outer[2])
+
+    def test_first_middle_last_fragment_top_and_bottom_slicing(self):
+        from PIL import ImageDraw
+        pages = [Image.new("RGB", (65, 70), "white") for _ in range(3)]
+        for img in pages:
+            brush = ImageDraw.Draw(img)
+            brush.rectangle((4, 0, 6, 69), fill="#1d4568")
+            brush.rectangle((58, 0, 60, 69), fill="#1d4568")
+        ImageDraw.Draw(pages[0]).rectangle((4, 0, 60, 3), fill="#1d4568")
+        ImageDraw.Draw(pages[2]).rectangle((4, 65, 60, 69), fill="#1d4568")
+        with tempfile.TemporaryDirectory() as temp:
+            rasters = []
+            for i, image in enumerate(pages):
+                path = Path(temp) / f"page-{i+1}.png"
+                image.save(path)
+                rasters.append(path)
+            verified = validate_fragment_edges(rasters, "#1d4568", min_row_pixels=30)
+            self.assertGreater(verified["first_top_rows"], 0)
+            self.assertEqual(verified["middle_horizontal_rows"], 0)
+            self.assertGreater(verified["last_bottom_rows"], 0)
 
     def test_reference_validation_checks_every_page_and_expected_color(self):
         case = CASES[0]
