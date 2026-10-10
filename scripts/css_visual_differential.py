@@ -151,6 +151,60 @@ def print_chrome(browser, source_html, pdf, profile):
     return sha256(wrapper)
 
 
+def source_sha():
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path:
+        try:
+            event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+            candidate = event.get("pull_request", {}).get("head", {}).get("sha")
+            if candidate:
+                return candidate
+        except (OSError, ValueError, AttributeError):
+            pass
+    return run("git", "rev-parse", "HEAD").decode().strip()
+
+
+def markdown_summary(report):
+    lines = [
+        "# FactsPDF / Chrome PDF visual differential",
+        "",
+        f"Source feature SHA: \`{report['source_sha']}\`  |  "
+        f"Chrome: {report['browser']}  |  DPI: {report['dpi']}",
+        "",
+        "| Fixture | Pages | Whole-page changed pixels | Ink-region changed pixels (per-page average) | RGB MAE / 255 |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for case in report["cases"]:
+        agg = case.get("aggregate")
+        if agg is None:
+            lines.append(f"| {case['id']} | — | — | — | ERROR |")
+            continue
+        ink = [p["metrics"]["ink_union_change_fraction_over_16"]
+               for p in case["pages"]]
+        ink_mean = sum(ink) / len(ink)
+        lines.append(
+            f"| {case['id']} | {len(case['pages'])} | "
+            f"{agg['changed_pixel_fraction_over_16'] * 100:.3f}% | "
+            f"{ink_mean * 100:.3f}% | {agg['rgb_mean_abs_error']:.3f} |")
+    lines.extend([
+        "",
+        "**This is NOT a browser CSS conformance percentage.** "
+        "Visual pixels are scored on unchanged page coordinates; Chrome uses "
+        "documented browser-only @page/font/heading resets.",
+        "Paper quantization differences of at most one raster pixel are "
+        "right/bottom white-padded without image rescaling or registration.",
+        "Full-page metrics contain whitespace; ink-region metrics cover the "
+        "union of visibly occupied page areas and should be reviewed alongside "
+        "the detail heatmap images.",
+        "",
+        f"Hard-check errors: {len(report['errors'])}. "
+        "Chrome/FactsPDF extracted Unicode text, page counts, page "
+        "bounds and qpdf syntax are individually tested.",
+        "",
+    ])
+    return "\n".join(lines)
+
+
 def main():
     if len(sys.argv) != 3:
         raise SystemExit("Usage: css_visual_differential.py <native-FactsPDF-Cli> <output-dir>")
@@ -167,7 +221,8 @@ def main():
 
     report = {
         "tool": "FactsPDF Chrome PDF visual differential",
-        "source_sha": run("git", "rev-parse", "HEAD").decode().strip(),
+        "source_sha": source_sha(),
+        "checkout_sha": run("git", "rev-parse", "HEAD").decode().strip(),
         "browser": run(browser, "--version").decode().strip(),
         "dpi": DPI,
         "reference_pdf_page_points": [WIDTH_PT, HEIGHT_PT],
@@ -186,15 +241,16 @@ def main():
         ),
         "visual_metric_policy": (
             "Purely diagnostic: unregistered exact-coordinate RGB MAE, pixels with "
-            "maximum per-channel delta >16, image overlays, ink extents. "
+            "maximum per-channel delta >16, both whole-page and text-ink-union "
+            "fractions, image overlays, enlarged ink detail views, ink extents. "
             "No arbitrary similarity threshold used to claim browser parity."
         ),
         "checks": {
-            "browser_and_native_pdfs_structurally_valid": True,
-            "source_text_preserved_in_both": True,
-            "same_page_count_as_fixture": True,
-            "text_geometry_inside_pages": True,
-            "all_page_rasters_produced": True,
+            "browser_and_native_pdfs_structurally_valid": False,
+            "source_text_preserved_in_both": False,
+            "same_page_count_as_fixture": False,
+            "text_geometry_inside_pages": False,
+            "all_page_rasters_produced": False,
         },
         "cases": [],
         "errors": [],
@@ -274,6 +330,9 @@ def main():
                     case["aggregate"] = {
                         "changed_pixel_fraction_over_16": round(
                             total_changed / total_pixels, 7),
+                        "mean_page_ink_union_change_fraction_over_16": round(
+                            sum(p["metrics"]["ink_union_change_fraction_over_16"]
+                                for p in case["pages"]) / len(case["pages"]), 7),
                         "rgb_mean_abs_error": round(
                             total_absolute_error / total_pixels, 5),
                         "total_compared_pixels": total_pixels
@@ -286,9 +345,16 @@ def main():
                     case["error"] = str(exc)
                     report["errors"].append({"case": name, "message": str(exc)})
     finally:
+        success = len(report["errors"]) == 0 and all(
+            len(case.get("pages", [])) == case["expected_pages"]
+            for case in report["cases"]) and len(report["cases"]) == len(FIXTURES)
+        for key in report["checks"]:
+            report["checks"][key] = success
         (output / "report.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8")
+        (output / "summary.md").write_text(
+            markdown_summary(report), encoding="utf-8")
     if report["errors"]:
         raise AssertionError(
             f"Visual-differential hard checks failed for {len(report['errors'])} cases. "
