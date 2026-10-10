@@ -17,7 +17,25 @@ internal sealed class LayoutPage
 }
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
-    BoxStyle Style, Rgb TextColor, int Order);
+    BoxStyle Style, Rgb TextColor, int Order)
+{
+    // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
+    // An empty background or vertical edge of a zero-height box costs 0.
+    public int CommandCount
+    {
+        get
+        {
+            var top = Style.BorderTop.EffectiveWidth;
+            var bottom = Style.BorderBottom.EffectiveWidth;
+            var middleHeight = Math.Max(0, Height - top - bottom);
+            return (Width > 0 && Height > 0 && Style.BackgroundColor.HasValue ? 1 : 0)
+                + (Width > 0 && top > 0 ? 1 : 0)
+                + (Width > 0 && bottom > 0 ? 1 : 0)
+                + (middleHeight > 0 && Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+                + (middleHeight > 0 && Style.BorderRight.EffectiveWidth > 0 ? 1 : 0);
+        }
+    }
+}
 
 // M5 retains tree structure, M6 resolves width/padding; M7 adds simple
 // one-page border/background decoration. Page fragments remain M8.
@@ -49,9 +67,6 @@ internal sealed record BoxStyle(
     public bool HasPaint => BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
-    public int PaintCommandCount => (BackgroundColor.HasValue ? 1 : 0) +
-        (BorderTop.EffectiveWidth > 0 ? 1 : 0) + (BorderRight.EffectiveWidth > 0 ? 1 : 0) +
-        (BorderBottom.EffectiveWidth > 0 ? 1 : 0) + (BorderLeft.EffectiveWidth > 0 ? 1 : 0);
 }
 
 internal abstract record BlockChild;

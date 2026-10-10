@@ -52,6 +52,8 @@ internal static class CssSyntaxAdapter
             // functions or multiple tokens.
             var property = Property(name, node.Span.Start);
             var terms = Terms(node);
+            var valueTokens = node.Values.OfType<CssTokenComponent>()
+                .Where(x => x.Token.Kind != CssSyntaxTokenKind.Whitespace).ToArray();
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
 
@@ -66,7 +68,8 @@ internal static class CssSyntaxAdapter
                 if (terms.Count > 4) throw new FactsPdfException("FPDF1202", "Box shorthand takes one to four values.", node.Span.Start);
                 var parts = terms.ToArray();
                 if (!(parts.Length == 1 && Wide(parts[0])))
-                    foreach (var v in parts) ValidateComponent(name, v, node.Span.Start);
+                    for (var i = 0; i < parts.Length; i++)
+                        ValidateComponent(name, parts[i], valueTokens[i].Token.Span.Start);
                 var sides = ExpandFour(parts);
                 CssProperty[] properties = name switch
                 {
@@ -88,23 +91,25 @@ internal static class CssSyntaxAdapter
                 else
                 {
                     bool hasWidth = false, hasStyle = false, hasColor = false;
-                    foreach (var word in words)
+                    for (var i = 0; i < words.Length; i++)
                     {
-                        if (Wide(word)) throw new FactsPdfException("FPDF1202", "CSS-wide keyword must be the only shorthand value.", node.Span.Start);
+                        var word = words[i];
+                        var offset = valueTokens[i].Token.Span.Start;
+                        if (Wide(word)) throw new FactsPdfException("FPDF1202", "CSS-wide keyword must be the only shorthand value.", offset);
                         if (CssPaintValues.TryBorderWidth(word, out _))
                         {
-                            if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", node.Span.Start);
+                            if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
                             width = word; hasWidth = true;
                         }
                         else if (word is "solid" or "none")
                         {
-                            if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", node.Span.Start);
+                            if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", offset);
                             style = word; hasStyle = true;
                         }
                         else
                         {
-                            _ = CssPaintValues.BorderColor(word, node.Span.Start);
-                            if (hasColor) throw new FactsPdfException("FPDF1202", "Duplicate border color.", node.Span.Start);
+                            _ = CssPaintValues.BorderColor(word, offset);
+                            if (hasColor) throw new FactsPdfException("FPDF1202", "Duplicate border color.", offset);
                             color = word; hasColor = true;
                         }
                     }
@@ -128,8 +133,7 @@ internal static class CssSyntaxAdapter
             if (terms.Count != 1)
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
             var token = terms[0];
-            var tokenOffset = node.Values.OfType<CssTokenComponent>()
-                .First(x => x.Token.Kind != CssSyntaxTokenKind.Whitespace).Token.Span.Start;
+            var tokenOffset = valueTokens[0].Token.Span.Start;
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
         }

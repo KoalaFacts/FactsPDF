@@ -35,7 +35,7 @@ internal static class TextLayout
         // carry that leading padding with their first text line to a new page.
         // The top padding of a closed empty box becomes trailing spacing.
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
-        var opened = new Stack<OpenBlock>();
+        var opened = new List<OpenBlock>();
         var contentEpoch = 0; var paintOrder = 0;
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
@@ -43,13 +43,30 @@ internal static class TextLayout
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
             pages.Add(new()); y = o.Margin; after = 0;
         }
+        void MoveUnconsumedBlocksToNewPage()
+        {
+            // Only a block that has not yet laid out its first line may move
+            // intact. Blocks with previous text must fail at EndBlock (M8).
+            var leading = 0d;
+            for (var i = 0; i < opened.Count; i++)
+            {
+                var scope = opened[i];
+                if (scope.ContentEpoch != contentEpoch) continue;
+                opened[i] = scope with
+                {
+                    StartPage = pages.Count - 1,
+                    StartY = o.Margin + leading
+                };
+                leading += scope.Top;
+            }
+        }
         foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
             if (step is BeginBlock begin)
             {
                 var start = y + pendingTopPadding + pendingClosedPadding + after;
-                opened.Push(new(begin.PaddingTop, contentEpoch, begin.Style,
+                opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
                     pages.Count - 1, start, paintOrder++));
                 pendingTopPadding += begin.PaddingTop;
@@ -57,14 +74,17 @@ internal static class TextLayout
             }
             if (step is EndBlock closing)
             {
-                var scope = opened.Pop();
+                var scope = opened[^1];
+                opened.RemoveAt(opened.Count - 1);
                 if (scope.Style.HasPaint)
                 {
                     if (scope.StartPage != pages.Count - 1)
                         throw new FactsPdfException("FPDF1302",
                             "Decorated boxes spanning pages require M8 fragmentation.", scope.SourceOffset);
+                    // Paragraph bottom margins (including the default 8pt on p)
+                    // lie outside this box and must never be painted.
                     var finish = Math.Max(scope.StartY + scope.Top,
-                        y + pendingTopPadding + pendingClosedPadding + after);
+                        y + pendingTopPadding + pendingClosedPadding);
                     finish += closing.PaddingBottom;
                     if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0)
@@ -90,7 +110,11 @@ internal static class TextLayout
             if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
             if (breakNext || paragraph.Style.BreakBefore)
             {
-                if (y > o.Margin) NewPage();
+                if (y > o.Margin)
+                {
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
+                }
                 // Never carry a preceding box's bottom padding past an
                 // explicit page break. Keep the next box's top padding.
                 pendingClosedPadding = 0;
@@ -100,6 +124,7 @@ internal static class TextLayout
             if (y + gap + lines[0].Height > bottom && y > o.Margin)
             {
                 NewPage();
+                MoveUnconsumedBlocksToNewPage();
                 // Paragraph margin and trailing padding belong to the previous
                 // page; only the new box's leading padding travels with text.
                 gap = pendingTopPadding;
