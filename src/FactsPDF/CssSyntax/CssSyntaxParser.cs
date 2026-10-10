@@ -24,7 +24,9 @@ internal static class CssSyntaxParser
             limits.Cancellation.ThrowIfCancellationRequested();
             this.limits = limits;
             budget = new CssSyntaxBudget(limits);
-            tokens = CssSyntaxTokenizer.Tokenize(source, limits);
+            var lexical = CssSyntaxTokenizer.TokenizeWithDiagnostics(source, limits);
+            tokens = lexical.Tokens;
+            diagnostics.AddRange(lexical.Diagnostics);
         }
 
         private CssSyntaxToken Current => tokens[position];
@@ -53,7 +55,7 @@ internal static class CssSyntaxParser
             while (!End)
             {
                 limits.Cancellation.ThrowIfCancellationRequested();
-                if (Current.Kind is CssSyntaxTokenKind.Whitespace or CssSyntaxTokenKind.Semicolon
+                if (Current.Kind is CssSyntaxTokenKind.Whitespace
                     or CssSyntaxTokenKind.Cdo or CssSyntaxTokenKind.Cdc)
                 { Take(); continue; }
                 // A top-level stray '}' starts an invalid qualified-rule
@@ -105,8 +107,12 @@ internal static class CssSyntaxParser
                 }
                 if (inline)
                 {
-                    var invalid = ReadQualifiedRule();
-                    Error("Qualified CSS rules cannot occur in a style attribute.", invalid?.Span ?? Current.Span);
+                    // Invalid declaration recovery is bounded by the next
+                    // *top-level semicolon*. A qualified-rule recovery here
+                    // would consume later perfectly valid declarations.
+                    var bad = Current.Span;
+                    RecoverBadDeclaration();
+                    Error("Invalid CSS style-attribute declaration.", bad, "semicolon");
                 }
                 else
                 {
@@ -119,6 +125,17 @@ internal static class CssSyntaxParser
 
         private bool HasOpeningBlockBeforeTerminator()
         {
+            // The CSS Nesting ambiguity rule permits a declaration whose
+            // value starts with a single {} component block.
+            var cursor = position + 1;
+            while (cursor < tokens.Count && Whitespace(tokens[cursor])) cursor++;
+            if (cursor < tokens.Count && tokens[cursor].Kind == CssSyntaxTokenKind.Colon)
+            {
+                cursor++;
+                while (cursor < tokens.Count && Whitespace(tokens[cursor])) cursor++;
+                if (cursor < tokens.Count && tokens[cursor].Kind == CssSyntaxTokenKind.OpenBrace)
+                    return false;
+            }
             var nesting = 0;
             for (var at = position; at < tokens.Count; at++)
             {
@@ -141,6 +158,7 @@ internal static class CssSyntaxParser
             var beginning = Take();
             var prelude = new List<CssSyntaxComponent>();
             IReadOnlyList<CssSyntaxContent>? contents = null;
+            IReadOnlyList<CssSyntaxComponent>? rawBlock = null;
             while (!End)
             {
                 limits.Cancellation.ThrowIfCancellationRequested();
@@ -155,7 +173,26 @@ internal static class CssSyntaxParser
                     budget.Enter(open.Span);
                     try
                     {
-                        contents = ReadBlockContents().ToArray();
+                        // Syntax Level 3 defines unknown at-rule blocks as
+                        // generic sequences of component values. Only for
+                        // familiar grouping rules do we additionally expose
+                        // parsed declarations/nested rules to test adapters.
+                        if (beginning.Value.Equals("media", StringComparison.OrdinalIgnoreCase) ||
+                            beginning.Value.Equals("supports", StringComparison.OrdinalIgnoreCase) ||
+                            beginning.Value.Equals("container", StringComparison.OrdinalIgnoreCase) ||
+                            beginning.Value.Equals("layer", StringComparison.OrdinalIgnoreCase) ||
+                            beginning.Value.Equals("scope", StringComparison.OrdinalIgnoreCase))
+                            contents = ReadBlockContents().ToArray();
+                        else
+                        {
+                            var components = new List<CssSyntaxComponent>();
+                            while (!End && Current.Kind != CssSyntaxTokenKind.CloseBrace)
+                            {
+                                limits.Cancellation.ThrowIfCancellationRequested();
+                                components.Add(ReadComponent());
+                            }
+                            rawBlock = components.ToArray();
+                        }
                         if (Current.Kind == CssSyntaxTokenKind.CloseBrace) Take();
                         else Error("Unclosed CSS at-rule block.", open.Span, "eof");
                     }
@@ -165,7 +202,7 @@ internal static class CssSyntaxParser
                 prelude.Add(ReadComponent());
             }
             budget.Node(beginning.Span);
-            return new(beginning.Value, prelude.ToArray(), contents, Range(beginning.Span.Start));
+            return new(beginning.Value, prelude.ToArray(), contents, Range(beginning.Span.Start), rawBlock);
         }
 
         private CssQualifiedRuleNode? ReadQualifiedRule(bool nested = false)
@@ -181,6 +218,12 @@ internal static class CssSyntaxParser
                     if (nested) return null; // parent block consumes its own closer
                     prelude.Add(ReadComponent()); // top-level: invalid selector prelude
                     continue;
+                }
+                if (nested && Current.Kind == CssSyntaxTokenKind.Semicolon)
+                {
+                    Error("Invalid nested qualified-rule prelude.", beginning.Span, "semicolon");
+                    Take();
+                    return null;
                 }
                 prelude.Add(ReadComponent());
             }
@@ -283,12 +326,9 @@ internal static class CssSyntaxParser
                 while (!End && Current.Kind != closing)
                 {
                     limits.Cancellation.ThrowIfCancellationRequested();
-                    if (Current.Kind is CssSyntaxTokenKind.CloseParen or CssSyntaxTokenKind.CloseSquare
-                        or CssSyntaxTokenKind.CloseBrace)
-                    {
-                        Error("Unexpected closing delimiter in CSS component.", Take().Span);
-                        continue;
-                    }
+                    // Nonmatching closing tokens are ordinary component
+                    // values here; only the matching delimiter closes
+                    // this function/block (CSS Syntax consume simple block).
                     values.Add(ReadComponent());
                 }
                 if (Current.Kind == closing) Take();
