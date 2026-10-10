@@ -168,7 +168,7 @@ def markdown_summary(report):
     lines = [
         "# FactsPDF / Chrome PDF visual differential",
         "",
-        f"Source feature SHA: \`{report['source_sha']}\`  |  "
+        f"Source feature SHA: `{report['source_sha']}`  |  "
         f"Chrome: {report['browser']}  |  DPI: {report['dpi']}",
         "",
         "| Fixture | Pages | Whole-page changed pixels | Ink-region changed pixels (per-page average) | RGB MAE / 255 |",
