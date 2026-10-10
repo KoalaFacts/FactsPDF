@@ -47,10 +47,10 @@ public sealed class CssIndependentReviewTests
     }
 
     [Test]
-    public void UnknownAtRulePreservesArbitraryRawBlockWithoutBogusSyntaxError()
+    public void UnknownAtRulePreservesRawTokensAndDiagnosesInvalidBlockContents()
     {
         var syntax = Sheet("@future { 1 }");
-        Assert.That(syntax.Diagnostics, Is.Empty);
+        Assert.That(syntax.Diagnostics, Is.Not.Empty);
         Assert.That(syntax.Rules, Has.Count.EqualTo(1));
         var rule = (CssAtRuleNode)syntax.Rules[0];
         Assert.That(rule.Name, Is.EqualTo("future"));

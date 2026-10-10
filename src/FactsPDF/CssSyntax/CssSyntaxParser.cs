@@ -100,7 +100,7 @@ internal static class CssSyntaxParser
                     var customProperty = Current.Value.StartsWith("--", StringComparison.Ordinal);
                     if (customProperty || !HasOpeningBlockBeforeTerminator())
                     {
-                        var declaration = ReadDeclaration();
+                        var declaration = ReadDeclaration(nested: !inline);
                         if (declaration is not null) result.Add(declaration);
                         continue;
                     }
@@ -173,26 +173,13 @@ internal static class CssSyntaxParser
                     budget.Enter(open.Span);
                     try
                     {
-                        // Syntax Level 3 defines unknown at-rule blocks as
-                        // generic sequences of component values. Only for
-                        // familiar grouping rules do we additionally expose
-                        // parsed declarations/nested rules to test adapters.
-                        if (beginning.Value.Equals("media", StringComparison.OrdinalIgnoreCase) ||
-                            beginning.Value.Equals("supports", StringComparison.OrdinalIgnoreCase) ||
-                            beginning.Value.Equals("container", StringComparison.OrdinalIgnoreCase) ||
-                            beginning.Value.Equals("layer", StringComparison.OrdinalIgnoreCase) ||
-                            beginning.Value.Equals("scope", StringComparison.OrdinalIgnoreCase))
-                            contents = ReadBlockContents().ToArray();
-                        else
-                        {
-                            var components = new List<CssSyntaxComponent>();
-                            while (!End && Current.Kind != CssSyntaxTokenKind.CloseBrace)
-                            {
-                                limits.Cancellation.ThrowIfCancellationRequested();
-                                components.Add(ReadComponent());
-                            }
-                            rawBlock = components.ToArray();
-                        }
+                        // All at-rules use CSS Syntax consume-a-block; validity
+                        // of an unknown rule belongs to the semantic adapter.
+                        // Preserve a raw token view as diagnostic provenance.
+                        var beginningOfBlock = position;
+                        contents = ReadBlockContents().ToArray();
+                        rawBlock = tokens.Skip(beginningOfBlock).Take(position - beginningOfBlock)
+                            .Select(x => (CssSyntaxComponent)new CssTokenComponent(x)).ToArray();
                         if (Current.Kind == CssSyntaxTokenKind.CloseBrace) Take();
                         else Error("Unclosed CSS at-rule block.", open.Span, "eof");
                     }
@@ -246,7 +233,7 @@ internal static class CssSyntaxParser
             return new(prelude.ToArray(), contents, Range(beginning.Span.Start));
         }
 
-        private CssDeclarationNode? ReadDeclaration()
+        private CssDeclarationNode? ReadDeclaration(bool nested)
         {
             var beginning = Take();
             SkipSpace();
@@ -257,16 +244,91 @@ internal static class CssSyntaxParser
                 return null;
             }
             Take(); // colon
+            SkipSpace(); // CSS Syntax discards whitespace after the colon
             var values = new List<CssSyntaxComponent>();
-            while (!End && Current.Kind is not (CssSyntaxTokenKind.Semicolon or CssSyntaxTokenKind.CloseBrace))
+            while (!End && Current.Kind != CssSyntaxTokenKind.Semicolon &&
+                   !(nested && Current.Kind == CssSyntaxTokenKind.CloseBrace))
             {
                 limits.Cancellation.ThrowIfCancellationRequested();
+                // An unmatched '}' in a standalone style declaration remains
+                // part of the component list and is separately diagnosed.
                 values.Add(ReadComponent());
             }
             if (Current.Kind == CssSyntaxTokenKind.Semicolon) Take();
             var important = ExtractImportant(values);
+            if (!beginning.Value.StartsWith("--", StringComparison.Ordinal))
+            {
+                var meaningful = values.Where(v => !IsWhitespace(v)).ToArray();
+                if (meaningful.Any(v => v is CssBlockComponent b &&
+                    b.Opening == CssSyntaxTokenKind.OpenBrace) &&
+                    (meaningful.Length != 1 || meaningful[0] is not CssBlockComponent))
+                {
+                    Error("A CSS brace block must be the entire non-custom declaration value.",
+                        beginning.Span, "semicolon");
+                    return null;
+                }
+            }
+            if (beginning.Value.Equals("unicode-range", StringComparison.OrdinalIgnoreCase))
+                RetokenizeUnicodeRanges(values);
             budget.Node(beginning.Span);
             return new(beginning.Value, values.ToArray(), important, Range(beginning.Span.Start));
+        }
+
+        private static void RetokenizeUnicodeRanges(List<CssSyntaxComponent> values)
+        {
+            // Contextual unicode-range grammar is not emitted by the ordinary
+            // tokenizer. Reinterpret comma-separated descriptor segments
+            // only when the entire range token satisfies the restricted form.
+            if (values.Count == 0) return;
+            var rewritten = new List<CssSyntaxComponent>();
+            for (var i = 0; i < values.Count;)
+            {
+                var first = i;
+                while (i < values.Count &&
+                       !(values[i] is CssTokenComponent c &&
+                         c.Token.Kind == CssSyntaxTokenKind.Comma)) i++;
+                var segment = values.Skip(first).Take(i - first)
+                    .Where(v => !IsWhitespace(v)).ToArray();
+                var str = string.Concat(segment.OfType<CssTokenComponent>()
+                    .Select(t => t.Token.Raw));
+                if (segment.Length > 0 && segment.All(v => v is CssTokenComponent) &&
+                    ValidUnicodeRange(str))
+                {
+                    var begin = segment[0].Span.Start;
+                    var last = segment[^1].Span;
+                    var source = new CssSourceSpan(begin, last.Start + last.Length - begin);
+                    rewritten.Add(new CssTokenComponent(
+                        new CssSyntaxToken(CssSyntaxTokenKind.UnicodeRange, str, str, source)));
+                }
+                else rewritten.AddRange(values.Skip(first).Take(i - first));
+                if (i < values.Count) rewritten.Add(values[i++]);
+            }
+            values.Clear();
+            values.AddRange(rewritten);
+        }
+
+        private static bool ValidUnicodeRange(string raw)
+        {
+            if (raw.Length < 3 || raw[0] is not ('U' or 'u') || raw[1] != '+')
+                return false;
+            var value = raw.AsSpan(2);
+            var hyphen = value.IndexOf('-');
+            if (hyphen >= 0)
+            {
+                var start = value[..hyphen];
+                var end = value[(hyphen + 1)..];
+                return start.Length is >= 1 and <= 6 &&
+                       end.Length is >= 1 and <= 6 &&
+                       HexOnly(start) && HexOnly(end);
+            }
+            return value.Length is >= 1 and <= 6 &&
+                   value.ToString().All(c => char.IsAsciiHexDigit(c) || c == '?');
+        }
+
+        private static bool HexOnly(ReadOnlySpan<char> value)
+        {
+            foreach (var c in value) if (!char.IsAsciiHexDigit(c)) return false;
+            return true;
         }
 
         private void RecoverBadDeclaration()
@@ -303,12 +365,13 @@ internal static class CssSyntaxParser
             budget.Node(token.Span);
             if (token.Kind is CssSyntaxTokenKind.BadString or CssSyntaxTokenKind.BadUrl)
                 Error("Malformed CSS string or URL.", token.Span, "token");
-            if (token.Kind == CssSyntaxTokenKind.String && token.Raw.Length > 0 &&
-                token.Raw[0] is '\'' or '"' && token.Raw[^1] != token.Raw[0])
+            if (!token.Terminated && token.Kind == CssSyntaxTokenKind.String)
                 Error("Unclosed CSS string.", token.Span, "eof");
-            if (token.Kind == CssSyntaxTokenKind.Url &&
-                !token.Raw.EndsWith(')'))
+            if (!token.Terminated && token.Kind == CssSyntaxTokenKind.Url)
                 Error("Unclosed CSS URL.", token.Span, "eof");
+            if (token.Kind is CssSyntaxTokenKind.CloseParen or CssSyntaxTokenKind.CloseSquare
+                or CssSyntaxTokenKind.CloseBrace)
+                Error("Unexpected unmatched CSS closing delimiter.", token.Span, "token");
             if (token.Kind is not (CssSyntaxTokenKind.Function or CssSyntaxTokenKind.OpenBrace
                 or CssSyntaxTokenKind.OpenParen or CssSyntaxTokenKind.OpenSquare))
                 return new CssTokenComponent(token);
