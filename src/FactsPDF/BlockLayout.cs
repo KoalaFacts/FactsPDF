@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal abstract record BlockLayoutStep;
 internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
-    double OuterWidth, Rgb TextColor, int SourceOffset) : BlockLayoutStep;
+    double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth) : BlockLayoutStep;
 
@@ -56,7 +56,8 @@ internal static class BlockLayout
                         throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", node.SourceOffset);
                     inner = Math.Max(0, inner);
                     yield return new BeginBlock(top + bTop, style, frame.X,
-                        inner + left + right + bLeft + bRight, node.Style.Color, node.SourceOffset);
+                        inner + left + right + bLeft + bRight, node.Style.Color, node.SourceOffset,
+                        node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6");
                     frames.Push(new(node.Children, 0, frame.X + bLeft + left, inner, bottom + bBottom, false));
                     break;
                 }

@@ -13,7 +13,7 @@ internal static class TextLayout
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
-        double StartY, int Order);
+        double StartY, int Order, bool IsParagraph, bool HasPaintedDescendant = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -43,20 +43,22 @@ internal static class TextLayout
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
             pages.Add(new()); y = o.Margin; after = 0;
         }
+        bool CurrentPageOccupied() => y > o.Margin + 0.000001
+            || pendingClosedPadding > 0
+            || pages[^1].Runs.Count > 0
+            || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
+
         void MoveUnconsumedBlocksToNewPage()
         {
-            // Only a block that has not yet laid out its first line may move
-            // intact. Blocks with previous text must fail at EndBlock (M8).
+            // Only a box without existing text OR painted descendants may
+            // move whole. Anything already painted on the previous page must
+            // fail as a spanning decorated box, until M8 fragmentation.
             var leading = 0d;
             for (var i = 0; i < opened.Count; i++)
             {
                 var scope = opened[i];
-                if (scope.ContentEpoch != contentEpoch) continue;
-                opened[i] = scope with
-                {
-                    StartPage = pages.Count - 1,
-                    StartY = o.Margin + leading
-                };
+                if (scope.ContentEpoch != contentEpoch || scope.HasPaintedDescendant) continue;
+                opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
                 leading += scope.Top;
             }
         }
@@ -68,7 +70,7 @@ internal static class TextLayout
                 var start = y + pendingTopPadding + pendingClosedPadding + after;
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
-                    pages.Count - 1, start, paintOrder++));
+                    pages.Count - 1, start, paintOrder++, begin.IsParagraph));
                 pendingTopPadding += begin.PaddingTop;
                 continue;
             }
@@ -81,18 +83,25 @@ internal static class TextLayout
                     if (scope.StartPage != pages.Count - 1)
                         throw new FactsPdfException("FPDF1302",
                             "Decorated boxes spanning pages require M8 fragmentation.", scope.SourceOffset);
-                    // Paragraph bottom margins (including the default 8pt on p)
-                    // lie outside this box and must never be painted.
+                    // The element's own paragraph margin is excluded from its
+                    // border-box, but the last child's bottom margin belongs
+                    // inside a decorated containing block.
+                    var childBottomMargin = !scope.IsParagraph && scope.ContentEpoch != contentEpoch
+                        ? after : 0d;
                     var finish = Math.Max(scope.StartY + scope.Top,
-                        y + pendingTopPadding + pendingClosedPadding);
+                        y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom;
                     if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0)
                         throw new FactsPdfException("FPDF1302",
                             "Decorated box cannot fit on one page; fragmentation is not supported until M8.",
                             scope.SourceOffset);
-                    pages[^1].PaintBoxes.Add(new(scope.X, scope.StartY, scope.Width,
-                        Math.Max(0, finish - scope.StartY), scope.Style, scope.TextColor, scope.Order));
+                    var painted = new PaintedBox(scope.X, scope.StartY, scope.Width,
+                        Math.Max(0, finish - scope.StartY), scope.Style, scope.TextColor, scope.Order);
+                    pages[^1].PaintBoxes.Add(painted);
+                    if (painted.CommandCount > 0)
+                        for (var i = 0; i < opened.Count; i++)
+                            opened[i] = opened[i] with { HasPaintedDescendant = true };
                 }
                 if (scope.ContentEpoch == contentEpoch)
                 {
@@ -107,10 +116,38 @@ internal static class TextLayout
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
-            if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
+            if (lines.Count == 0)
+            {
+                // Empty painted/padded paragraphs still occupy box geometry
+                // and can request page breaks, even without glyphs.
+                if (paragraph.Style.BreakBefore)
+                {
+                    if (CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                    }
+                    pendingClosedPadding = 0;
+                }
+                if (opened.Count > 0 && opened[^1].IsParagraph &&
+                    opened[^1].ContentEpoch == contentEpoch &&
+                    (opened[^1].Style.HasPaint || opened[^1].Top > 0))
+                {
+                    var before = Math.Max(after, paragraph.Style.MarginBefore);
+                    opened[^1] = opened[^1] with
+                    {
+                        StartY = opened[^1].StartY + Math.Max(0, before - after)
+                    };
+                    pendingClosedPadding += before;
+                    after = paragraph.Style.MarginAfter;
+                }
+                else after = Math.Max(after, paragraph.Style.MarginAfter);
+                breakNext |= paragraph.Style.BreakAfter;
+                continue;
+            }
             if (breakNext || paragraph.Style.BreakBefore)
             {
-                if (y > o.Margin)
+                if (CurrentPageOccupied())
                 {
                     NewPage();
                     MoveUnconsumedBlocksToNewPage();
@@ -121,7 +158,7 @@ internal static class TextLayout
             }
             breakNext = false;
             var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingClosedPadding;
-            if (y + gap + lines[0].Height > bottom && y > o.Margin)
+            if (y + gap + lines[0].Height > bottom && CurrentPageOccupied())
             {
                 NewPage();
                 MoveUnconsumedBlocksToNewPage();
@@ -131,6 +168,9 @@ internal static class TextLayout
             }
             if (gap + lines[0].Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
+            if (opened.Count > 0 && opened[^1].IsParagraph &&
+                opened[^1].ContentEpoch == contentEpoch)
+                opened[^1] = opened[^1] with { StartY = y + gap - opened[^1].Top };
             y += gap;
             pendingTopPadding = 0;
             pendingClosedPadding = 0;
