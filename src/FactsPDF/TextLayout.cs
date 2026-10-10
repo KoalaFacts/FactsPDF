@@ -1,24 +1,25 @@
+using System.Buffers;
+using System.Globalization;
 using System.Text;
 
 namespace FactsPDF;
 
 internal static class TextLayout
 {
-    private readonly record struct Glyph(char Value, TextStyle Style)
+    private readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000)
     {
-        public double Width => Style.FontSize * 0.6; // Standard Courier: 600/1000 em per glyph.
+        public double Width => Style.FontSize * Width1000 / 1000;
+        public double Ascent => Style.FontSize * (Font?.Ascent1000 ?? 800) / 1000;
+        public double Descent => Style.FontSize * -(Font?.Descent1000 ?? -200) / 1000;
     }
-    private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double MaxFontSize);
+    private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
 
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
     {
         var pages = new List<LayoutPage> { new() };
-        var y = o.Margin;
-        var after = 0d;
-        var breakNext = false;
-        var availableWidth = o.PageWidth - 2 * o.Margin;
-        var bottom = o.PageHeight - o.Margin;
-
+        var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
+        var y = o.Margin; var after = 0d; var breakNext = false;
+        var availableWidth = o.PageWidth - 2 * o.Margin; var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
@@ -27,7 +28,7 @@ internal static class TextLayout
         foreach (var paragraph in paragraphs)
         {
             cancellation.ThrowIfCancellationRequested();
-            var lines = Wrap(paragraph, availableWidth, cancellation);
+            var lines = Wrap(paragraph, availableWidth, o.Fonts, resolved, cancellation);
             if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
             if ((breakNext || paragraph.Style.BreakBefore) && y > o.Margin) NewPage();
             breakNext = false;
@@ -43,84 +44,121 @@ internal static class TextLayout
                 if (y + line.Height > bottom + 0.000001) NewPage();
                 var x = o.Margin + (paragraph.Style.Alignment switch
                 { TextAlignment.Center => (availableWidth - line.Width) / 2, TextAlignment.Right => availableWidth - line.Width, _ => 0 });
-                var baseline = o.PageHeight - y - (line.Height - line.MaxFontSize) / 2 - 0.8 * line.MaxFontSize;
-                var start = 0;
-                while (start < line.Glyphs.Count)
+                var baseline = o.PageHeight - y - (line.Height - line.Ascent - line.Descent) / 2 - line.Ascent;
+                for (var start = 0; start < line.Glyphs.Count;)
                 {
-                    var style = line.Glyphs[start].Style;
-                    var text = new StringBuilder();
-                    var width = 0d;
-                    var end = start;
-                    while (end < line.Glyphs.Count && line.Glyphs[end].Style == style)
-                    { text.Append(line.Glyphs[end].Value); width += line.Glyphs[end].Width; end++; }
-                    pages[^1].Runs.Add(new(text.ToString(), x, baseline, style));
-                    x += width;
-                    start = end;
+                    var first = line.Glyphs[start]; var text = new StringBuilder(); var width = 0d; var end = start;
+                    while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
+                    {
+                        var glyph = line.Glyphs[end++];
+                        if (glyph.Scalar <= 65535) text.Append((char)glyph.Scalar); else text.Append(char.ConvertFromUtf32(glyph.Scalar));
+                        width += glyph.Width;
+                    }
+                    pages[^1].Runs.Add(new(text.ToString(), x, baseline, first.Style, first.Font));
+                    x += width; start = end;
                 }
                 y += line.Height;
             }
-            after = paragraph.Style.MarginAfter;
-            breakNext = paragraph.Style.BreakAfter;
+            after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
         }
         return pages;
     }
 
-    private static List<Line> Wrap(Paragraph paragraph, double available, CancellationToken cancellation)
+    private static List<Line> Wrap(Paragraph paragraph, double available, IReadOnlyList<PdfFont> fonts,
+        Dictionary<int, (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
     {
+        Glyph Resolve(int scalar, TextStyle style)
+        {
+            if (!resolved.TryGetValue(scalar, out var value))
+            {
+                if (fonts.Count == 0)
+                {
+                    if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.");
+                    value = (null, 600);
+                }
+                else
+                {
+                    CheckSimpleScalar(scalar);
+                    PdfFont? chosen = null; ushort glyph = 0;
+                    foreach (var font in fonts) { glyph = font.GlyphFor(scalar); if (glyph != 0) { chosen = font; break; } }
+                    if (chosen is null) throw new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.");
+                    value = (chosen, chosen.Width1000(glyph));
+                }
+                resolved.Add(scalar, value);
+            }
+            return new(scalar, style, value.Font, value.Width);
+        }
         var glyphs = new List<Glyph>();
         foreach (var run in paragraph.Runs)
         {
             cancellation.ThrowIfCancellationRequested();
             if (run.IsBreak)
             {
-                if (glyphs.Count > 0 && glyphs[^1].Value == ' ') glyphs.RemoveAt(glyphs.Count - 1);
-                glyphs.Add(new('\n', run.Style));
-                continue;
+                if (glyphs.Count > 0 && glyphs[^1].Scalar == 32) glyphs.RemoveAt(glyphs.Count - 1);
+                glyphs.Add(new(10, run.Style, null, 0)); continue;
             }
-            for (var i = 0; i < run.Text.Length; i++)
+            for (var i = 0; i < run.Text.Length;)
             {
-                if ((i & 4095) == 0) cancellation.ThrowIfCancellationRequested();
-                var ch = run.Text[i];
-                if (HtmlTokens.Space(ch))
+                cancellation.ThrowIfCancellationRequested();
+                if (Rune.DecodeFromUtf16(run.Text.AsSpan(i), out var rune, out var consumed) != OperationStatus.Done)
+                    throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
+                i += consumed; var scalar = rune.Value;
+                if (scalar <= 127 && HtmlTokens.Space((char)scalar))
                 {
-                    if (glyphs.Count > 0 && glyphs[^1].Value is not (' ' or '\n')) glyphs.Add(new(' ', run.Style));
+                    if (glyphs.Count > 0 && glyphs[^1].Scalar is not (32 or 10)) glyphs.Add(Resolve(32, run.Style));
                 }
-                else if (ch is >= ' ' and <= '~') glyphs.Add(new(ch, run.Style));
-                else throw new FactsPdfException("FPDF1301", $"U+{(int)ch:X4} needs Unicode/font support, which is not implemented in this slice.");
+                else glyphs.Add(Resolve(scalar, run.Style));
             }
         }
-        if (glyphs.Count > 0 && glyphs[^1].Value == ' ') glyphs.RemoveAt(glyphs.Count - 1);
-        var lines = new List<Line>();
-        var current = new List<Glyph>();
-        var width = 0d;
-        Glyph? space = null;
+        if (glyphs.Count > 0 && glyphs[^1].Scalar == 32) glyphs.RemoveAt(glyphs.Count - 1);
+        var lines = new List<Line>(); var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
         void Flush(bool force)
         {
             if (current.Count == 0 && !force) return;
-            var fontSize = paragraph.Style.FontSize;
-            var height = fontSize * paragraph.Style.LineHeight;
+            var size = paragraph.Style.FontSize;
+            var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
+            var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
+            var height = size * paragraph.Style.LineHeight;
             foreach (var glyph in current)
-            { fontSize = Math.Max(fontSize, glyph.Style.FontSize); height = Math.Max(height, glyph.Style.FontSize * glyph.Style.LineHeight); }
-            lines.Add(new(current, width, height, fontSize));
-            current = []; width = 0; space = null;
+            { ascent = Math.Max(ascent, glyph.Ascent); descent = Math.Max(descent, glyph.Descent); height = Math.Max(height, glyph.Style.FontSize * glyph.Style.LineHeight); }
+            height = Math.Max(height, ascent + descent);
+            lines.Add(new(current, width, height, ascent, descent)); current = []; width = 0; space = null;
         }
         for (var i = 0; i < glyphs.Count;)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (glyphs[i].Value == '\n') { Flush(true); i++; continue; }
-            if (glyphs[i].Value == ' ') { space = glyphs[i++]; continue; }
-            var end = i;
-            var wordWidth = 0d;
-            while (end < glyphs.Count && glyphs[end].Value is not (' ' or '\n')) wordWidth += glyphs[end++].Width;
-            if (wordWidth > available + 0.000001) throw new FactsPdfException("FPDF1302", "An unbreakable word exceeds the usable page width.");
+            if (glyphs[i].Scalar == 10) { Flush(true); i++; continue; }
+            if (glyphs[i].Scalar == 32) { space = glyphs[i++]; continue; }
+            var end = i + 1; var wordWidth = glyphs[i].Width;
+            while (end < glyphs.Count && glyphs[end].Scalar is not (32 or 10) && !CanBreak(glyphs[end - 1].Scalar, glyphs[end].Scalar)) wordWidth += glyphs[end++].Width;
+            if (wordWidth > available + 0.000001) throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
             if (width + gap + wordWidth > available + 0.000001) { Flush(false); gap = 0; }
             if (gap > 0) { current.Add(space!.Value); width += gap; }
             while (i < end) current.Add(glyphs[i++]);
-            width += wordWidth;
-            space = null;
+            width += wordWidth; space = null;
         }
-        Flush(false);
-        return lines;
+        Flush(false); return lines;
+    }
+
+    private static void CheckSimpleScalar(int scalar)
+    {
+        var category = Rune.GetUnicodeCategory(new Rune(scalar));
+        var simpleRange = scalar is >= 32 and <= 0x052f or >= 0x1e00 and <= 0x1fff or >= 0x2000 and <= 0x2bff
+            or >= 0x3000 and <= 0x30ff or >= 0x3400 and <= 0x9fff or >= 0xac00 and <= 0xd7a3
+            or >= 0xf900 and <= 0xfaff or >= 0xff00 and <= 0xffef or >= 0x20000 and <= 0x323af;
+        if (!simpleRange || category is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark
+            or UnicodeCategory.EnclosingMark or UnicodeCategory.Format or UnicodeCategory.Control
+            or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator or UnicodeCategory.OtherNotAssigned)
+            throw new FactsPdfException("FPDF1305", $"U+{scalar:X4} needs text processing outside this simple horizontal Unicode subset (shaping/bidi/sequence support is not implemented).");
+    }
+    private static bool Cjk(int scalar) => scalar is >= 0x3000 and <= 0x30ff or >= 0x3400 and <= 0x9fff
+        or >= 0xac00 and <= 0xd7a3 or >= 0xf900 and <= 0xfaff or >= 0xff01 and <= 0xff65 or >= 0x20000 and <= 0x323af;
+    private static bool CanBreak(int previous, int next)
+    {
+        if (previous == 160 || next == 160) return false;
+        const string opening = "（〔［｛〈《「『【〖〘〚‘“([{", closing = "、。，．？！：；）》」』】〕］｝〗〙〛’”!?;:.,)]}";
+        if (previous <= 65535 && opening.Contains((char)previous) || next <= 65535 && closing.Contains((char)next)) return false;
+        return Cjk(previous) || Cjk(next);
     }
 }

@@ -34,16 +34,32 @@ jobs:
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '10.0.x'
-      - name: Install native compiler and independent PDF inspection tools
-        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev poppler-utils
+      - name: Install native compiler and independent verification tools
+        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-fonttools
       - name: Publish a real Native AOT executable
         run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/native
-      - name: Run native CLI and independently inspect generated PDF
+      - name: Verify original ASCII output
         run: |
           file artifacts/native/FactsPDF.Cli
           artifacts/native/FactsPDF.Cli examples/first-document.html artifacts/first-document.pdf
-          python3 scripts/verify_sample.py artifacts/first-document.pdf --emit-base64
+          python3 scripts/verify_sample.py artifacts/first-document.pdf
+      - name: Verify actual Chinese fonts, searchable text and rendered pages
+        run: |
+          dpkg-query -W fonts-droid-fallback fonts-dejavu-core python3-fonttools
+          test -f /usr/share/doc/fonts-droid-fallback/copyright
+          /usr/bin/python3 scripts/verify_unicode.py artifacts/native/FactsPDF.Cli
       - name: Build package for license inspection only, without publishing
         run: |
           dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
           python3 scripts/verify_package.py
+          python3 -c "import glob,zipfile; p=glob.glob('artifacts/packages/*.nupkg'); assert p; assert all(not n.lower().endswith(('.ttf','.otf','.ttc','.woff','.woff2')) for f in p for n in zipfile.ZipFile(f).namelist()); print('No font files packaged.')"
+      - name: Retain only the public verification PDF and rendered page previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unicode-document-preview
+          path: |
+            artifacts/unicode-document.pdf
+            artifacts/unicode-document-1.png
+            artifacts/unicode-document-2.png
+          if-no-files-found: error
+          retention-days: 7

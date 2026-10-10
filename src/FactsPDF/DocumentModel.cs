@@ -9,7 +9,7 @@ internal sealed record Paragraph(TextStyle Style)
 {
     public List<TextRun> Runs { get; } = [];
 }
-internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style);
+internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null);
 internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];

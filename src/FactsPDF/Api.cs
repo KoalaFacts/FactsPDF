@@ -12,6 +12,9 @@ public sealed record PdfOptions
     public int MaxDepth { get; init; } = 128;
     public int MaxPages { get; init; } = 1_000;
     public int MaxOutputBytes { get; init; } = 16_777_216;
+    /// <summary>Ordered explicit font fallback chain. Empty retains ASCII/Courier.</summary>
+    public IReadOnlyList<PdfFont> Fonts { get; init; } = Array.Empty<PdfFont>();
+    public int MaxTotalFontBytes { get; init; } = 67_108_864;
 }
 
 public sealed record PdfConversionResult(int PageCount, long BytesWritten);
