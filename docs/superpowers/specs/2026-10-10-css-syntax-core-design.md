@@ -47,7 +47,7 @@ Syntax **never** needs an HTML node, target page size, network resource or PDF s
 
 ## 3. Input contract and source locations
 
-Entry points: \`ParseStylesheet\` (for \`<style>\` content), \`ParseDeclarations\` (for \`style="..."\`), and direct \`Tokenize\` for tests/internal diagnostics. Accept a managed string or read-only character span and explicit options/cancellation; do not open files or fetch URLs.
+Entry points: \`ParseStylesheet\` (for \`<style>\` content), \`ParseDeclarations\` (for \`style="..."\`, using the specification's block-content/declaration parsing rules without accepting arbitrary style rules as declarations), and direct \`Tokenize\` for tests/internal diagnostics. Accept a managed string or read-only character span and explicit options/cancellation; do not open files or fetch URLs.
 
 - The HTML tokenizer continues to decide when an HTML \`</style>\` RAWTEXT end tag occurs, including within CSS comments/strings. The CSS parser **must not** search the surrounding HTML or reinterpret HTML entities. The HTML attribute tokenizer's decoded \`style\` value is the declaration-list input.
 - Work with Unicode scalar values, but report \`SourceSpan\` (start/length in **original UTF-16 code units**, absolute HTML offsets provided by the adapter). CRLF/CR/FF preprocess to LF; NUL and lone surrogates preprocess to U+FFFD. Preserve a mapping to original positions when normalization changes length; line/column are derived on demand.
@@ -58,7 +58,7 @@ Entry points: \`ParseStylesheet\` (for \`<style>\` content), \`ParseDeclarations
 
 Tokenization must implement the specification's consume-token, identifier/number, escape, string, URL and comment handling, not a custom handful of CSS regular expressions.
 
-At minimum support the normative token families: identifiers, functions, at-keywords, hashes (including ID-type flag), strings and bad-strings, URLs and bad-URLs, numeric/integer number, percentage, dimensions and unit identifiers, Unicode ranges where applicable to the chosen Syntax level, whitespace, delim, colon/semicolon/comma, match/prefix/suffix/substring operators, CDO/CDC, opening/closing parentheses/brackets/braces, EOF, and other tokens defined by the pinned specification.
+At minimum support the normative token families: identifiers, functions, at-keywords, hashes (including ID-type flag), strings and bad-strings, URLs and bad-URLs, numeric/integer number, percentage, dimension tokens and their units, whitespace, delim, colon/semicolon/comma, match/prefix/suffix/substring operators, CDO/CDC, opening/closing parentheses/brackets/braces, EOF, and other tokens defined by the pinned specification.
 
 Numerical token values use invariant parsing with finite/safe representation and retain the original lexeme for exact diagnostics. A valid CSS number token can use a sign, decimal point and exponent. Distinguish \`12px\`, \`12%\`, \`-0.5\` and \`1e3\` before any property validation. Reject impossible numeric conversion in the **semantic value** layer, not by erasing the syntax token.
 
@@ -126,7 +126,7 @@ Do not rewrite or replace \`HtmlTokens\` or the HTML5 tree model as part of this
 
 Preserve current \`MaxCssCharacters\` (262,144), \`MaxCssSelectors\` (4,096), \`MaxCssDeclarations\` (32,768), \`MaxCssMatchOperations\` (5,000,000), \`MaxElements\` and HTML depth budgets.
 
-Add internal, bounded \`MaxCssSyntaxNodes\` default 131,072 and \`MaxCssSyntaxDepth\` default 64, validating these independently of author CSS. Token consumption work must be proportional to input size plus a documented bounded grammar-traversal factor. Node limits count nested component values, declarations and rule nodes, including recovered/unsupported constructs; do not let unknown at-rules evade budgets.
+Add optional, bounded \`PdfOptions.MaxCssSyntaxNodes\` (default 131,072) and \`PdfOptions.MaxCssSyntaxDepth\` (default 64); validate both even when a stylesheet is empty, and carry the values into the syntax module through a minimal parser-options record. Token consumption work must be proportional to input size plus a documented bounded grammar-traversal factor. Node limits count nested component values, declarations and rule nodes, including recovered/unsupported constructs; do not let unknown at-rules evade budgets.
 
 No external style fetching, file imports, \`@import\` network access, JS execution, arbitrary code eval, global shared mutable parser state, or user-supplied regex. Cache only immutable **per-document** results if useful; any cross-document cache needs a later explicit invalidation/eviction design and memory measurements. Re-entrant concurrent conversions should not leak styles or diagnostics. Include maliciously nested input, escape floods, huge numbers, unterminated constructs and cancellation in tests. Do not claim the core sanitizes hostile HTML/fonts or enforces a global memory ceiling.
 
