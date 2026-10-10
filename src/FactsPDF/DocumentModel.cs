@@ -14,3 +14,19 @@ internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];
 }
+
+// Structural box tree only. Box geometry, painting, pagination fragments and
+// additional CSS properties intentionally belong to a later feature.
+internal abstract record BlockChild;
+
+internal sealed record BlockNode(string Name, TextStyle Style, int SourceOffset) : BlockChild
+{
+    public List<BlockChild> Children { get; } = [];
+}
+
+internal sealed record ParagraphNode(Paragraph Paragraph, bool IsAnonymous) : BlockChild;
+
+internal sealed class DocumentRoot
+{
+    public List<BlockChild> Children { get; } = [];
+}

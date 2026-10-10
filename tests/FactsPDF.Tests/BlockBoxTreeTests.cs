@@ -1,0 +1,239 @@
+using NUnit.Framework;
+
+namespace FactsPDF.Tests;
+
+/// <summary>
+/// Block Box Tree structure without expanding the rendered CSS subset.
+/// These tests name observable tree and PDF contracts, not future box paint.
+/// </summary>
+[TestFixture]
+public sealed class BlockBoxTreeTests
+{
+    private static DocumentRoot Tree(string html, PdfOptions? options = null,
+        CancellationToken cancellation = default)
+        => HtmlDocumentReader.ReadTree(html, options ?? new(), cancellation);
+
+    private static BlockNode Box(BlockChild node) => (BlockNode)node;
+    private static ParagraphNode Text(BlockChild node) => (ParagraphNode)node;
+    private static string Content(ParagraphNode leaf)
+        => string.Concat(leaf.Paragraph.Runs.Where(r => !r.IsBreak).Select(r => r.Text));
+
+    [Test]
+    public void NestedBlockHierarchyFollowsActualHtmlContainers()
+    {
+        var root = Tree("<!doctype html><html><head><title>hidden</title></head>" +
+            "<body><section><article><div><p>A</p></div></article></section></body></html>");
+        var body = Box(root.Children.Single());
+        Assert.That(body.Name, Is.EqualTo("body"));
+        var section = Box(body.Children.Single());
+        Assert.That(section.Name, Is.EqualTo("section"));
+        var article = Box(section.Children.Single());
+        Assert.That(article.Name, Is.EqualTo("article"));
+        var div = Box(article.Children.Single());
+        Assert.That(div.Name, Is.EqualTo("div"));
+        var paragraph = Box(div.Children.Single());
+        Assert.That(paragraph.Name, Is.EqualTo("p"));
+        Assert.That(paragraph.Children, Has.Count.EqualTo(1));
+        Assert.That(Text(paragraph.Children[0]).IsAnonymous, Is.False);
+        Assert.That(Content(Text(paragraph.Children[0])), Is.EqualTo("A"));
+        Assert.That(root.Children.OfType<BlockNode>().Any(n => n.Name == "html"), Is.False);
+    }
+
+    [Test]
+    public void DirectTextBeforeAndAfterNestedBlockStaysInSourceOrder()
+    {
+        var root = Tree("<div>before <span style='color:red'>inline</span>" +
+            "<section><p>middle</p></section>after</div>");
+        var div = Box(root.Children.Single());
+        Assert.That(div.Children, Has.Count.EqualTo(3));
+        var before = Text(div.Children[0]);
+        Assert.That(before.IsAnonymous, Is.True);
+        Assert.That(Content(before), Is.EqualTo("before inline"));
+        Assert.That(before.Paragraph.Runs, Has.Count.EqualTo(2));
+        Assert.That(before.Paragraph.Runs[1].Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
+        var middle = Box(div.Children[1]);
+        Assert.That(middle.Name, Is.EqualTo("section"));
+        Assert.That(Box(middle.Children.Single()).Name, Is.EqualTo("p"));
+        Assert.That(Content(Text(div.Children[2])), Is.EqualTo("after"));
+        Assert.That(Text(div.Children[2]).IsAnonymous, Is.True);
+    }
+
+    [Test]
+    public void WhitespaceBetweenBlocksDoesNotCreatePhantomParagraphs()
+    {
+        var div = Box(Tree("<div>\n  <p>A</p> \n  <p>B</p>\n</div>").Children.Single());
+        Assert.That(div.Children, Has.Count.EqualTo(2));
+        Assert.That(div.Children, Is.All.TypeOf<BlockNode>());
+        Assert.That(div.Children.Cast<BlockNode>().Select(b => b.Name),
+            Is.EqualTo(new[] { "p", "p" }));
+    }
+
+    [Test]
+    public void EmptyExplicitParagraphIsRetainedButNoGhostAnonymousTextAppears()
+    {
+        var body = Box(Tree("<body> \n <p></p> \n <p>A</p> </body>").Children.Single());
+        Assert.That(body.Children, Has.Count.EqualTo(2));
+        var empty = Box(body.Children[0]);
+        Assert.That(empty.Children, Has.Count.EqualTo(1));
+        Assert.That(Text(empty.Children[0]).IsAnonymous, Is.False);
+        Assert.That(Text(empty.Children[0]).Paragraph.Runs, Is.Empty);
+    }
+
+    [Test]
+    public void AnonymousParagraphKeepsLegacyFirstInlineLayoutStyleWithIndependentBlockStyle()
+    {
+        var div = Box(Tree("<div style='font-size:14pt'><span style='font-size:20pt'>X</span> Y</div>")
+            .Children.Single());
+        var leaf = Text(div.Children.Single());
+        Assert.That(leaf.IsAnonymous, Is.True);
+        Assert.That(div.Style.FontSize, Is.EqualTo(14), "The retained block has the proper parent style.");
+        Assert.That(leaf.Paragraph.Style.FontSize, Is.EqualTo(20),
+            "The existing text renderer retains the first inline style until block-aware layout is implemented.");
+        Assert.That(leaf.Paragraph.Runs[0].Style.FontSize, Is.EqualTo(20));
+        Assert.That(leaf.Paragraph.Runs[1].Style.FontSize, Is.EqualTo(14));
+    }
+
+    [Test]
+    public void TreeLayoutDoesNotChangeExistingAlignmentOfSpanLedAnonymousText()
+    {
+        const string html = "<div><span style='text-align:right'>A</span>B</div>";
+        var options = new PdfOptions();
+        var outer = Box(Tree(html, options).Children.Single());
+        var anonymous = Text(outer.Children.Single());
+        Assert.That(outer.Style.Alignment, Is.EqualTo(TextAlignment.Left));
+        Assert.That(anonymous.Paragraph.Style.Alignment, Is.EqualTo(TextAlignment.Right),
+            "This structural milestone must retain the old PDF output for inline-led text.");
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
+            options, default);
+        Assert.That(pages[0].Runs[0].X, Is.GreaterThan(options.Margin + 100));
+    }
+
+    [Test]
+    public void OmittedParagraphEndTagsProduceSiblingBoxesUnderBody()
+    {
+        var root = Tree("<html><body><p>A<p>B</body></html>");
+        var body = Box(root.Children.Single());
+        Assert.That(body.Children, Has.Count.EqualTo(2));
+        Assert.That(body.Children.Select(n => Box(n).Name),
+            Is.EqualTo(new[] { "p", "p" }));
+        Assert.That(Content(Text(Box(body.Children[0]).Children.Single())), Is.EqualTo("A"));
+        Assert.That(Content(Text(Box(body.Children[1]).Children.Single())), Is.EqualTo("B"));
+    }
+
+    [Test]
+    public void ContainerTextBeforeAndAfterNestedContainerPreservesThreeLeaves()
+    {
+        var div = Box(Tree("<div>A<div>B</div>C</div>").Children.Single());
+        Assert.That(div.Children, Has.Count.EqualTo(3));
+        Assert.That(Content(Text(div.Children[0])), Is.EqualTo("A"));
+        Assert.That(Content(Text(Box(div.Children[1]).Children.Single())), Is.EqualTo("B"));
+        Assert.That(Content(Text(div.Children[2])), Is.EqualTo("C"));
+    }
+
+    [Test]
+    public void LateCssRulesStillStyleNestedParagraphThroughRealAncestorPath()
+    {
+        var root = Tree("<body><section class='outer'><article><p>nested</p></article></section></body>" +
+            "<style>.outer > article p{color:red}</style>");
+        var body = Box(root.Children.Single());
+        var p = Box(Box(Box(body.Children.Single()).Children.Single()).Children.Single());
+        Assert.That(p.Name, Is.EqualTo("p"));
+        Assert.That(Text(p.Children.Single()).Paragraph.Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
+    }
+
+    [Test]
+    public void BrRemainsInlineBreakNotBlockNode()
+    {
+        var para = Box(Tree("<p>A<br>B</p>").Children.Single());
+        Assert.That(para.Children, Has.Count.EqualTo(1));
+        var leaf = Text(para.Children.Single());
+        Assert.That(leaf.Paragraph.Runs.Count(r => r.IsBreak), Is.EqualTo(1));
+        Assert.That(Content(leaf), Is.EqualTo("AB"));
+    }
+
+    [Test]
+    public void InvalidBlockInsideSpanStillFailsWithOriginalCode()
+    {
+        var ex = Assert.Throws<FactsPdfException>(() =>
+            Tree("<div><span><p>bad</p></span></div>"));
+        Assert.That(ex!.Code, Is.EqualTo("FPDF1101"));
+    }
+
+    [Test]
+    public void DeeplyNestedBlocksRespectConfiguredDepthBudget()
+    {
+        var html = "<div><section><article><p>A</p></article></section></div>";
+        var ex = Assert.Throws<FactsPdfException>(() =>
+            Tree(html, new PdfOptions { MaxDepth = 3 }));
+        Assert.That(ex!.Code, Is.EqualTo("FPDF1003"));
+    }
+
+    [Test]
+    public void TreeLayoutMatchesExistingParagraphLayoutForNestedTextAndBreaks()
+    {
+        const string html = "<style>section p{color:blue}</style>" +
+            "<body><section>Before <span style='color:red'>inline</span>" +
+            "<p style='break-before:page'>Second page</p>" +
+            "<article><p>After</p></article>tail</section></body>";
+        var options = new PdfOptions();
+        var treePages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
+            options, default);
+        var legacyPages = TextLayout.Layout(HtmlDocumentReader.Read(html, options, default),
+            options, default);
+        Assert.That(treePages.Count, Is.EqualTo(2));
+        Assert.That(treePages.Count, Is.EqualTo(legacyPages.Count));
+        for (var page = 0; page < legacyPages.Count; page++)
+            Assert.That(treePages[page].Runs, Is.EqualTo(legacyPages[page].Runs),
+                "PDF placement and styles must not change during structure-only refactor.");
+    }
+
+    [Test]
+    public void TreeLayoutPreservesEmptyParagraphBreakAndNoGhostPages()
+    {
+        const string html = "<div><p>One</p><p style='break-before:page'></p>" +
+            "<section><p>Two</p></section></div>";
+        var options = new PdfOptions();
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
+            options, default);
+        Assert.That(pages.Count, Is.EqualTo(2));
+        Assert.That(string.Concat(pages[0].Runs.Select(run => run.Text)), Is.EqualTo("One"));
+        Assert.That(string.Concat(pages[1].Runs.Select(run => run.Text)), Is.EqualTo("Two"));
+    }
+
+    [Test]
+    public void RealAsciiPdfBytesMatchTheExistingFlatLayoutSerializer()
+    {
+        const string html = "<style>div p{color:red}</style>" +
+            "<body><div>Before<p>Colored</p><section><h2>Heading</h2>" +
+            "<p>End</p></section>Trailing</div></body>";
+        var options = new PdfOptions();
+        var oldPages = TextLayout.Layout(HtmlDocumentReader.Read(html, options, default),
+            options, default);
+        using var oldPdf = PdfSerializer.Build(oldPages, options, default);
+        using var actual = new MemoryStream();
+        var result = PdfConverter.Convert(html, actual, options);
+        Assert.That(result.BytesWritten, Is.EqualTo(actual.Length));
+        Assert.That(actual.ToArray(), Is.EqualTo(oldPdf.ToArray()),
+            "Tree-based PDF output must remain byte-for-byte equal to the existing renderer.");
+    }
+
+    [Test]
+    public void TreeLayoutHonorsPageLimitAndCancellationWithoutPartialOutput()
+    {
+        const string html = "<div><p>A</p><section><p style='break-before:page'>B</p>" +
+            "</section></div>";
+        var options = new PdfOptions { MaxPages = 1 };
+        var tree = HtmlDocumentReader.ReadTree(html, options, default);
+        var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout(tree, options, default));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1303"));
+        Assert.Throws<OperationCanceledException>(() =>
+            TextLayout.Layout(tree, new PdfOptions(), new CancellationToken(true)));
+    }
+
+    [Test]
+    public void PreCancelledTreeReadDoesNotProducePartialResult()
+    {
+        Assert.Throws<OperationCanceledException>(() =>
+            Tree("<div><p>text</p></div>", cancellation: new CancellationToken(true)));
+    }
+}

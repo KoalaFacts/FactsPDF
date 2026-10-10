@@ -2,31 +2,57 @@ namespace FactsPDF;
 
 internal static class HtmlDocumentReader
 {
-    private sealed record Frame(string Name, TextStyle Style);
+    private sealed record Frame(string Name, TextStyle Style, BlockNode? Box);
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html";
 
+    // Keep the old internal paragraph view for existing editor/tests; actual
+    // conversions now receive a structured document via ReadTree.
     public static List<Paragraph> Read(string html, PdfOptions options, CancellationToken cancellation)
+        => BlockTreeTraversal.Paragraphs(ReadTree(html, options, cancellation), cancellation).ToList();
+
+    internal static DocumentRoot ReadTree(string html, PdfOptions options, CancellationToken cancellation)
     {
         // Compile every source before computing styles: a later style block can affect earlier content.
         var sheets = CssStylesheets.Collect(html, options, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
-        var stack = new List<Frame> { new("#root", root) };
+        var stack = new List<Frame> { new("#root", root, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
-        var result = new List<Paragraph>();
+        var result = new DocumentRoot();
         Paragraph? current = null;
+        var anonymous = false;
         var elements = 0; var insideStyle = false;
+
+        List<BlockChild> CurrentChildren()
+        {
+            for (var i = stack.Count - 1; i >= 0; i--)
+            {
+                var box = stack[i].Box;
+                if (box is not null) return box.Children;
+            }
+            return result.Children;
+        }
 
         void Flush()
         {
-            if (current is not null) result.Add(current);
+            if (current is not null)
+                CurrentChildren().Add(new ParagraphNode(current, anonymous));
             current = null;
+            anonymous = false;
         }
         void Pop() { stack.RemoveAt(stack.Count - 1); path.RemoveAt(path.Count - 1); }
         void Add(string text, TextStyle style, bool lineBreak = false)
         {
             if (current is null && !lineBreak && text.All(HtmlTokens.Space)) return;
-            current ??= new Paragraph(stack[^1].Style);
+            if (current is null)
+            {
+                // Preserve the existing text-layout paragraph style for a
+                // first-inline-run span (including text-align). The retained
+                // BlockNode.Style separately stores the actual containing-box
+                // computed style for future block-aware layout.
+                current = new Paragraph(stack[^1].Style);
+                anonymous = true;
+            }
             current.Runs.Add(new(text, style, lineBreak));
         }
 
@@ -109,12 +135,29 @@ internal static class HtmlDocumentReader
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             if (ParagraphTag(name) || Container(name)) Flush();
-            stack.Add(new(name, style));
-            if (ParagraphTag(name)) current = new Paragraph(style);
+            // `html`, head/title metadata and spans remain structural
+            // inheritance/style contexts, never painted block boxes.
+            BlockNode? box = null;
+            if (ParagraphTag(name) || name is "body" or "div" or "section" or "article")
+            {
+                box = new BlockNode(name, style, token.Offset);
+                CurrentChildren().Add(box);
+            }
+            stack.Add(new(name, style, box));
+            if (ParagraphTag(name))
+            {
+                current = new Paragraph(style);
+                anonymous = false;
+            }
         }
         // HTML permits omitted p/body/html end tags; other unclosed elements are rejected here.
-        while (stack.Count > 1 && stack[^1].Name is "p" or "body" or "html") Pop();
+        while (stack.Count > 1 && stack[^1].Name is "p" or "body" or "html")
+        {
+            Flush(); // attach under the correct parent BEFORE popping
+            Pop();
+        }
         if (stack.Count > 1) throw new FactsPdfException("FPDF1101", $"Unclosed element '{stack[^1].Name}'.", html.Length);
-        Flush(); return result;
+        Flush();
+        return result;
     }
 }

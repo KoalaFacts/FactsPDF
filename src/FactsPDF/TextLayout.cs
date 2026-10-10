@@ -12,7 +12,17 @@ internal static class TextLayout
     }
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
 
+    // Geometry and pagination remain paragraph based in this structural
+    // milestone. Traverse the nested tree lazily so PDF conversion does not
+    // discard its box topology into a second flattened document model.
+    public static List<LayoutPage> Layout(DocumentRoot document, PdfOptions o, CancellationToken cancellation)
+        => LayoutCore(BlockTreeTraversal.Paragraphs(document, cancellation), o, cancellation);
+
+    // Compatibility path for existing font/layout tests.
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
+        => LayoutCore(paragraphs, o, cancellation);
+
+    private static List<LayoutPage> LayoutCore(IEnumerable<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
     {
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
