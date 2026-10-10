@@ -176,6 +176,72 @@ public sealed class BoxFragmentationTests
     }
 
     [Test]
+    public void TwoPageUnicodePdfKeepsEmbeddedFontAndAllPagePaint()
+    {
+        var options = Small with
+        {
+            Fonts = [PdfFont.LoadTrueType(FontFixture.Create())]
+        };
+        const string html = "<section style='background-color:#cee8fb;border:2pt solid blue'>" +
+            "<p>A中文B</p><p style='break-before:page'>中文B</p></section>";
+        var (result, bytes) = Render(html, options);
+        var pdf = Encoding.Latin1.GetString(bytes);
+        Assert.That(result.PageCount, Is.EqualTo(2));
+        Assert.That(pdf, Does.Contain("/ToUnicode"));
+        Assert.That(pdf, Does.Contain("/Subtype /Type0"));
+        Assert.That(pdf.Split(" re f Q", StringSplitOptions.None).Length - 1,
+            Is.GreaterThanOrEqualTo(6));
+    }
+
+    [Test]
+    public void RepeatedDecorationConsumesExactDisplayCommandBudget()
+    {
+        // First: background + top + 2 sides = 4;
+        // middle: background + 2 sides = 3;
+        // last: background + bottom + 2 sides = 4;
+        // plus three single text runs = 14 commands total.
+        var (result, _) = Render(ThreePages, Small with { MaxDisplayCommands = 14 });
+        Assert.That(result.PageCount, Is.EqualTo(3));
+        FailsWithoutWriting(ThreePages, "FPDF1401",
+            Small with { MaxDisplayCommands = 13 });
+    }
+
+    [Test]
+    public void TransparentBorderlessSpanningBoxProducesNoGraphics()
+    {
+        var baseHtml = "<section><p>One</p><p style='break-before:page'>Two</p></section>";
+        var invisible = "<section style='background-color:transparent;border:0 solid red'>" +
+            "<p>One</p><p style='break-before:page'>Two</p></section>";
+        var (a, pdfA) = Render(baseHtml);
+        var (b, pdfB) = Render(invisible);
+        Assert.That(a.PageCount, Is.EqualTo(2));
+        Assert.That(b.PageCount, Is.EqualTo(2));
+        Assert.That(pdfB, Is.EqualTo(pdfA),
+            "Explicitly invisible CSS must not materialize decoration fragments.");
+    }
+
+    [Test]
+    public void PageFragmentsRetainNestedSourceOrderOnEveryPage()
+    {
+        var pages = Layout("<section style='background-color:red;padding:5pt'>" +
+            "<div style='background-color:blue'><p>A</p>" +
+            "<p style='break-before:page'>B</p></div></section>");
+        Assert.That(pages, Has.Count.EqualTo(2));
+        foreach (var page in pages)
+        {
+            var paint = page.PaintBoxes.OrderBy(box => box.Order).ToArray();
+            Assert.That(paint, Has.Length.EqualTo(2));
+            Assert.That(paint[0].Style.BackgroundColor, Is.EqualTo(new Rgb(1, 0, 0)));
+            Assert.That(paint[1].Style.BackgroundColor, Is.EqualTo(new Rgb(0, 0, 1)));
+        }
+    }
+
+    [Test]
+    public void FragmentedBoxOutputLimitFailsBeforeCallerWrite()
+        => FailsWithoutWriting(ThreePages, "FPDF1401",
+            Small with { MaxOutputBytes = 300 });
+
+    [Test]
     public void MaxPagesStillRejectsBeforeCallerStreamWrites()
         => FailsWithoutWriting(ThreePages, "FPDF1303", Small with { MaxPages = 2 });
 
