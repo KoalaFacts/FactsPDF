@@ -57,15 +57,26 @@ public sealed class BoundedGlyphWrappingTests
         Assert.That(Encoding.ASCII.GetString(actual), Does.Contain("1 0 0 rg"));
     }
 
-    [TestCase("中文", "FPDF1301")]
-    [TestCase("\uD800", "FPDF1304")]
-    public void LaterGlyphValidationStillPrecedesAnEarlierWidthError(string suffix, string code)
+    [Test]
+    public void LaterGlyphValidationStillPrecedesAnEarlierWidthError()
     {
         var paragraph = new Paragraph(Style);
-        paragraph.Runs.Add(new TextRun(new string('A', 100) + " " + suffix, Style));
+        paragraph.Runs.Add(new TextRun(new string('A', 100) + " 中文", Style));
         var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout([paragraph], Page, default));
-        Assert.That(error!.Code, Is.EqualTo(code),
+        Assert.That(error!.Code, Is.EqualTo("FPDF1301"),
             "Removing temporary storage must not change the established paragraph diagnostic order.");
+    }
+
+    [TestCase(0xD800)]
+    [TestCase(0xDC00)]
+    public void LaterInvalidUtf16StillPrecedesAnEarlierWidthError(int surrogate)
+    {
+        // String-valued attribute metadata cannot reliably carry an unpaired
+        // surrogate; construct the actual invalid input inside the test.
+        var paragraph = new Paragraph(Style);
+        paragraph.Runs.Add(new TextRun(new string('A', 100) + " " + (char)surrogate, Style));
+        var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout([paragraph], Page, default));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1304"));
     }
 
     [Test]
