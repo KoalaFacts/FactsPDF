@@ -10,7 +10,9 @@ internal static class TextLayout
     {
         public double Width => Style.FontSize * Width1000 / 1000;
     }
-    private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
+    // Glyph storage is borrowed until the next MoveNext. LayoutCore copies
+    // every placed text run before advancing; no Line escapes this class.
+    private readonly record struct Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
@@ -225,8 +227,8 @@ internal static class TextLayout
             // without emitting text commands and must retain that behavior.
             if (displayCommands == o.MaxDisplayCommands && HasTextContent(paragraph, cancellation))
                 ChargeDisplayCommands(1);
-            var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
-            if (lines.Count == 0)
+            using var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation).GetEnumerator();
+            if (!lines.MoveNext())
             {
                 // Empty painted/padded paragraphs still occupy box geometry
                 // and can request page breaks, even without glyphs.
@@ -268,7 +270,7 @@ internal static class TextLayout
             }
             breakNext = false;
             var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingClosedPadding;
-            if (y + gap + lines[0].Height > bottom && CurrentPageOccupied())
+            if (y + gap + lines.Current.Height > bottom && CurrentPageOccupied())
             {
                 NewPage();
                 MoveUnconsumedBlocksToNewPage();
@@ -276,7 +278,7 @@ internal static class TextLayout
                 // page; only the new box's leading padding travels with text.
                 gap = pendingTopPadding;
             }
-            if (gap + lines[0].Height > bottom - o.Margin)
+            if (gap + lines.Current.Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
             if (opened.Count > 0 && opened[^1].IsParagraph &&
                 opened[^1].ContentEpoch == contentEpoch)
@@ -285,9 +287,10 @@ internal static class TextLayout
             pendingTopPadding = 0;
             pendingClosedPadding = 0;
             contentEpoch++;
-            foreach (var line in lines)
+            do
             {
                 cancellation.ThrowIfCancellationRequested();
+                var line = lines.Current;
                 if (line.Height > bottom - o.Margin) throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.");
                 if (y + line.Height > bottom + 0.000001) NewPage();
                 var x = item.ContentX + (paragraph.Style.Alignment switch
@@ -309,6 +312,7 @@ internal static class TextLayout
                 }
                 y += line.Height;
             }
+            while (lines.MoveNext());
             after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
         }
         return pages;
@@ -331,7 +335,7 @@ internal static class TextLayout
         return false;
     }
 
-    private static List<Line> Wrap(Paragraph paragraph, double available, IReadOnlyList<PdfFont> fonts,
+    private static IEnumerable<Line> Wrap(Paragraph paragraph, double available, IReadOnlyList<PdfFont> fonts,
         Dictionary<int, (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
     {
         Glyph Resolve(int scalar, TextStyle style)
@@ -397,12 +401,31 @@ internal static class TextLayout
                 }
             }
         }
-        // Preserve the established diagnostic order: validate all paragraph
-        // scalars before any width error. Replay from immutable input using
-        // the existing resolution cache, rather than retaining a full copy.
-        foreach (var _ in ReadGlyphs()) { }
+        // Resolve the complete paragraph before reporting width errors, and
+        // validate every word before yielding a line to pagination. Recording
+        // a width failure (rather than throwing immediately) keeps the legacy
+        // glyph -> width -> layout/budget error order without retaining lines.
+        var segmentWidth = 0d;
+        var previousScalar = -1;
+        var tooWide = false;
+        foreach (var glyph in ReadGlyphs())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (glyph.Scalar is 32 or 10)
+            {
+                segmentWidth = 0;
+                previousScalar = -1;
+                continue;
+            }
+            segmentWidth = previousScalar < 0 || CanBreak(previousScalar, glyph.Scalar)
+                ? glyph.Width : segmentWidth + glyph.Width;
+            tooWide |= segmentWidth > available + 0.000001;
+            previousScalar = glyph.Scalar;
+        }
+        if (tooWide)
+            throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
 
-        var lines = new List<Line>(); var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
+        var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
         // CSS Inline Layout: a specified (non-normal) line-height uses the
         // metrics of the *first available font*, even if fallback fonts draw
         // some glyphs. Each inline style contributes its own leading-adjusted
@@ -417,29 +440,37 @@ internal static class TextLayout
             var leading = (size * style.LineHeight - ascent - descent) / 2;
             return (ascent + leading, descent + leading);
         }
-        void Flush(bool force)
+        Line CurrentLine()
         {
-            if (current.Count == 0 && !force) return;
-            var (ascent, descent) = Metrics(paragraph.Style); // line box strut
+            var (ascent, descent) = Metrics(paragraph.Style);
             foreach (var glyph in current)
             {
                 var (glyphAscent, glyphDescent) = Metrics(glyph.Style);
                 ascent = Math.Max(ascent, glyphAscent);
                 descent = Math.Max(descent, glyphDescent);
             }
-            var height = ascent + descent;
-            lines.Add(new(current, width, height, ascent, descent));
-            current = []; width = 0; space = null;
+            return new(current, width, ascent + descent, ascent, descent);
         }
-        // Only one unbreakable segment is scratch storage. Completed lines
-        // remain retained as before; this is not whole-document streaming.
+        void ResetLine()
+        {
+            current.Clear(); width = 0; space = null;
+        }
+        // The consumer finishes a borrowed line before MoveNext clears it.
+        // Retained page strings/paint and the PDF buffer are unchanged: this
+        // is line-at-a-time wrapping, not a streaming document serializer.
         var word = new List<Glyph>();
         using var cursor = ReadGlyphs().GetEnumerator();
         var hasGlyph = cursor.MoveNext();
         while (hasGlyph)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (cursor.Current.Scalar == 10) { Flush(true); hasGlyph = cursor.MoveNext(); continue; }
+            if (cursor.Current.Scalar == 10)
+            {
+                yield return CurrentLine();
+                ResetLine();
+                hasGlyph = cursor.MoveNext();
+                continue;
+            }
             if (cursor.Current.Scalar == 32) { space = cursor.Current; hasGlyph = cursor.MoveNext(); continue; }
             word.Clear();
             var wordWidth = 0d;
@@ -457,12 +488,20 @@ internal static class TextLayout
             }
             while (hasGlyph && cursor.Current.Scalar is not (32 or 10) && !CanBreak(previous, cursor.Current.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
-            if (width + gap + wordWidth > available + 0.000001) { Flush(false); gap = 0; }
+            if (width + gap + wordWidth > available + 0.000001)
+            {
+                if (current.Count > 0)
+                {
+                    yield return CurrentLine();
+                    ResetLine();
+                }
+                gap = 0;
+            }
             if (gap > 0) { current.Add(space!.Value); width += gap; }
             current.AddRange(word);
             width += wordWidth; space = null;
         }
-        Flush(false); return lines;
+        if (current.Count > 0) yield return CurrentLine();
     }
 
     private static void CheckSimpleScalar(int scalar)
