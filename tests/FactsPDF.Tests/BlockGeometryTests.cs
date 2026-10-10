@@ -223,6 +223,18 @@ public sealed class BlockGeometryTests
     }
 
     [Test]
+    public void ClosedBoxBottomPaddingDoesNotLeakAcrossBreakBefore()
+    {
+        var pages = Layout("<div style='padding-bottom:30pt'>A</div>" +
+            "<p style='break-before:page'>B</p>");
+        var fresh = Layout("<p>B</p>");
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001),
+            "A page break must not carry the earlier box's padding-bottom into B.");
+    }
+
+    [Test]
     public void PreviousBoxBottomPaddingDoesNotLeakAfterOverflowPageBreak()
     {
         var options = Page with { PageHeight = 100 };

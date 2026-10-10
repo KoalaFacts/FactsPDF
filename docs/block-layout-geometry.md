@@ -15,7 +15,7 @@ At the root, horizontal available width is `PageWidth - 2 * Margin`. Each block 
 
 `BlockLayout.Steps()` iteratively traverses actual blocks without creating a global list of paragraphs. It yields block begin/end vertical padding and text leaves carrying content X and content width. `TextLayout` still handles the existing glyph widths, wrapping, line-box height, paragraph margins and page placement, now with the leaf's own width and X. The existing legacy list-based test overload shares the same layout logic.
 
-Vertical padding is advanced in document order. If it and the first line cannot fit on the current page, the pending top padding moves with the first line to the next page. This milestone does **not** implement box-fragment boundaries across pages or paint the padding; a cumulative pad/line requirement exceeding an entire usable page fails rather than faking a fragment.
+Vertical padding is advanced in document order. If it and the first line cannot fit on the current page, the **next box's top padding** moves with the first line to the next page, while the **previous box's bottom padding** stays on the preceding page rather than contaminating the next line's baseline. The same separation applies to explicit `break-before` and `break-after`. This milestone does **not** implement box-fragment boundaries across pages or paint the padding; a cumulative leading-pad/line requirement exceeding an entire usable page fails rather than faking a fragment.
 
 ## Boundaries
 
