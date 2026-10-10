@@ -15,7 +15,7 @@ At the root, horizontal available width is `PageWidth - 2 * Margin`. Each block 
 
 `BlockLayout.Steps()` iteratively traverses actual blocks without creating a global list of paragraphs. It yields block begin/end vertical padding and text leaves carrying content X and content width. `TextLayout` still handles the existing glyph widths, wrapping, line-box height, paragraph margins and page placement, now with the leaf's own width and X. The existing legacy list-based test overload shares the same layout logic.
 
-Vertical padding is advanced in document order. If it and the first line cannot fit on the current page, the **next box's top padding** moves with the first line to the next page, while the **previous box's bottom padding** stays on the preceding page rather than contaminating the next line's baseline. The same separation applies to explicit `break-before` and `break-after`. This milestone does **not** implement box-fragment boundaries across pages or paint the padding; a cumulative leading-pad/line requirement exceeding an entire usable page fails rather than faking a fragment.
+Vertical padding is advanced in document order. The layout engine tracks pending top padding by its **still-open block origin**: only an open ancestor's unconsumed top padding follows that ancestor's first laid-out line to a new page. When an empty block closes without producing a line, its top padding is reclassified as preceding/trailing spacing, alongside its bottom padding; neither may move to the next page after `break-before`, `break-after` or natural overflow. On the same page, both continue contributing to normal vertical spacing. This avoids phantom indentation from previously closed empty boxes. This milestone does **not** implement box-fragment boundaries across pages or paint the padding; a cumulative leading-pad/line requirement exceeding an entire usable page fails rather than faking a fragment.
 
 ## Boundaries
 
@@ -27,4 +27,4 @@ No external browser/font/runtime dependency, native library, public API, license
 
 `BlockGeometryTests` cover nested percentage widths, percentage vertical padding relative to parent width, inherited vs non-inherited box values, stylesheet vs inline important ordering, unit parsing, wrapping, empty boxes, vertical spacing and explicit page breaks, source offsets, overflow rejection, cancellation, budget limits and locale invariance. All inherited NUnit, stylesheet, ASCII/CJK PDF and Native AOT evidence workflows must stay green.
 
-PR: [#12](https://github.com/KoalaFacts/FactsPDF/pull/12). A merge requires a separate approval after current-head verification.
+PR: [#12](https://github.com/KoalaFacts/FactsPDF/pull/12). The user separately authorized independent review and merge on 2026-10-10; merge still requires current-head CI and resolved independent review findings. No package publication is authorized.
