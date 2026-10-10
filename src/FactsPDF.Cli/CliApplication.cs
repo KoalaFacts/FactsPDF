@@ -5,8 +5,9 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--font path.ttf ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--font path.ttf ...]\n" +
         "Experimental inline-CSS renderer. Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
+        "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "Repeat --font for an ordered fallback chain (at most eight). '-' reads stdin or writes binary PDF to stdout.\n";
 
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
@@ -19,11 +20,12 @@ public static class CliApplication
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (args.Length == 1 && args[0] is "--help" or "-h") { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
-            var paths = new List<string>(); var fontPaths = new List<string>(); var overwrite = false;
+            var paths = new List<string>(); var fontPaths = new List<string>(); var overwrite = false; var subsetFonts = false;
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
                 if (arg == "--overwrite" && !overwrite) overwrite = true;
+                else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
                 else if (arg == "--font")
                 {
                     if (++i >= args.Length || string.IsNullOrWhiteSpace(args[i]) || args[i] == "-" || args[i].StartsWith("--", StringComparison.Ordinal))
@@ -44,7 +46,7 @@ public static class CliApplication
             if (destination is not null && File.Exists(destination) && !overwrite)
                 throw new IOException("Destination exists. Use --overwrite to replace it after a successful conversion.");
 
-            var options = new PdfOptions(); var fonts = new List<PdfFont>(); long totalFontBytes = 0;
+            var options = new PdfOptions { SubsetFonts = subsetFonts }; var fonts = new List<PdfFont>(); long totalFontBytes = 0;
             foreach (var path in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();

@@ -1,0 +1,42 @@
+name: FactsPDF subsetting evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: factspdf-subsetting-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  subset-equivalence-and-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FACTSPDF_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install independent inspectors and original test fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-fonttools time
+      - name: Compile native CLI and separate measurement harness
+        run: |
+          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/native-subset
+          dotnet publish benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/native-benchmark
+      - name: Compare real-font rendering, glyphs and preliminary resource measurements
+        run: /usr/bin/python3 scripts/verify_subsetting.py artifacts/native-subset/FactsPDF.Cli artifacts/native-benchmark/FactsPDF.Benchmarks
+      - name: Retain public PDF, previews and measurements only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: font-subsetting-evidence
+          path: |
+            artifacts/subsetting/subset-document.pdf
+            artifacts/subsetting/subset-document-1.png
+            artifacts/subsetting/subset-document-2.png
+            artifacts/subsetting/measurements.json
+          if-no-files-found: error
+          retention-days: 14

@@ -14,6 +14,8 @@ public sealed class PdfFont
     public string PostScriptName { get; }
     public int ByteLength => data.Length;
     internal ReadOnlySpan<byte> Data => data;
+    internal SfntDirectory Directory { get; }
+    internal bool AllowsSubsetting => (U16(Directory.Table("OS/2", 10), 8) & 256) == 0;
     internal double Ascent1000 { get; }
     internal double Descent1000 { get; }
     internal double CapHeight1000 { get; }
@@ -26,7 +28,7 @@ public sealed class PdfFont
     private PdfFont(byte[] ownedBytes, CancellationToken cancellation)
     {
         data = ownedBytes;
-        var sfnt = new SfntDirectory(data);
+        var sfnt = Directory = new SfntDirectory(data);
         var head = sfnt.Table("head", 54); var hhea = sfnt.Table("hhea", 36); var maxp = sfnt.Table("maxp", 32);
         Need(U32(head, 0) == 0x00010000 && U32(head, 12) == 0x5f0f3cf5 && U16(head, 18) is >= 16 and <= 16384 && S16(head, 52) == 0, "Invalid head version or metrics.");
         Need(U32(maxp, 0) == 0x00010000 && U32(hhea, 0) == 0x00010000 && S16(hhea, 32) == 0, "Invalid TrueType metrics version.");

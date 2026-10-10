@@ -75,20 +75,28 @@ internal static class UnicodePdfSerializer
             foreach (var use in fonts)
             {
                 cancellation.ThrowIfCancellationRequested(); var id = use.ObjectId; var font = use.Font;
-                Obj(id, FormattableString.Invariant($"<< /Type /Font /Subtype /Type0 /BaseFont /{font.PostScriptName} /Encoding /Identity-H /DescendantFonts [{id + 1} 0 R] /ToUnicode {id + 4} 0 R >>"));
+                var subset = o.SubsetFonts && font.AllowsSubsetting
+                    ? TrueTypeSubsetter.Create(font, use.Characters.Select(c => c.Scalar).ToArray(), cancellation) : null;
+                var name = subset?.PostScriptName ?? font.PostScriptName;
+                ReadOnlySpan<byte> embeddedData = subset is null ? font.Data : subset.Bytes.AsSpan();
+                Obj(id, FormattableString.Invariant($"<< /Type /Font /Subtype /Type0 /BaseFont /{name} /Encoding /Identity-H /DescendantFonts [{id + 1} 0 R] /ToUnicode {id + 4} 0 R >>"));
                 var widths = string.Join(" ", use.Characters.Select(c => N(c.Width)));
-                Obj(id + 1, FormattableString.Invariant($"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{font.PostScriptName} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor {id + 2} 0 R /CIDToGIDMap {id + 5} 0 R /DW 1000 /W [1 [{widths}]] >>"));
-                Obj(id + 2, FormattableString.Invariant($"<< /Type /FontDescriptor /FontName /{font.PostScriptName} /Flags 4 /FontBBox [{N(font.XMin1000)} {N(font.YMin1000)} {N(font.XMax1000)} {N(font.YMax1000)}] /ItalicAngle {N(font.ItalicAngle)} /Ascent {N(font.Ascent1000)} /Descent {N(font.Descent1000)} /CapHeight {N(font.CapHeight1000)} /StemV 80 /FontFile2 {id + 3} 0 R >>"));
+                Obj(id + 1, FormattableString.Invariant($"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor {id + 2} 0 R /CIDToGIDMap {id + 5} 0 R /DW 1000 /W [1 [{widths}]] >>"));
+                Obj(id + 2, FormattableString.Invariant($"<< /Type /FontDescriptor /FontName /{name} /Flags 4 /FontBBox [{N(font.XMin1000)} {N(font.YMin1000)} {N(font.XMax1000)} {N(font.YMax1000)}] /ItalicAngle {N(font.ItalicAngle)} /Ascent {N(font.Ascent1000)} /Descent {N(font.Descent1000)} /CapHeight {N(font.CapHeight1000)} /StemV 80 /FontFile2 {id + 3} 0 R >>"));
                 using (var compressed = new LimitedBuffer(o.MaxOutputBytes, cancellation))
                 {
                     using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
-                        for (var at = 0; at < font.ByteLength; at += Math.Min(16384, font.ByteLength - at))
-                        { cancellation.ThrowIfCancellationRequested(); zlib.Write(font.Data.Slice(at, Math.Min(16384, font.ByteLength - at))); }
-                    StreamObject(id + 3, compressed.GetBuffer().AsSpan(0, checked((int)compressed.Length)), " /Filter /FlateDecode /Length1 " + font.ByteLength.ToString(CultureInfo.InvariantCulture));
+                        for (var at = 0; at < embeddedData.Length; at += Math.Min(16384, embeddedData.Length - at))
+                        { cancellation.ThrowIfCancellationRequested(); zlib.Write(embeddedData.Slice(at, Math.Min(16384, embeddedData.Length - at))); }
+                    StreamObject(id + 3, compressed.GetBuffer().AsSpan(0, checked((int)compressed.Length)), " /Filter /FlateDecode /Length1 " + embeddedData.Length.ToString(CultureInfo.InvariantCulture));
                 }
                 StreamObject(id + 4, Encoding.ASCII.GetBytes(ToUnicode(use)));
                 var map = new byte[(use.Characters.Count + 1) * 2];
-                for (var i = 0; i < use.Characters.Count; i++) BinaryPrimitives.WriteUInt16BigEndian(map.AsSpan((i + 1) * 2, 2), use.Characters[i].Glyph);
+                for (var i = 0; i < use.Characters.Count; i++)
+                {
+                    var oldGlyph = use.Characters[i].Glyph;
+                    BinaryPrimitives.WriteUInt16BigEndian(map.AsSpan((i + 1) * 2, 2), subset is null ? oldGlyph : subset.GlyphMap[oldGlyph]);
+                }
                 StreamObject(id + 5, map);
             }
             var resources = string.Join(" ", fonts.Select(f => "/" + f.Resource + " " + f.ObjectId.ToString(CultureInfo.InvariantCulture) + " 0 R"));

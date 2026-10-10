@@ -15,6 +15,8 @@ public sealed record PdfOptions
     /// <summary>Ordered explicit font fallback chain. Empty retains ASCII/Courier.</summary>
     public IReadOnlyList<PdfFont> Fonts { get; init; } = Array.Empty<PdfFont>();
     public int MaxTotalFontBytes { get; init; } = 67_108_864;
+    /// <summary>Opt in to glyph subsetting where the supplied font permits it; otherwise embed fully.</summary>
+    public bool SubsetFonts { get; init; }
 }
 
 public sealed record PdfConversionResult(int PageCount, long BytesWritten);
