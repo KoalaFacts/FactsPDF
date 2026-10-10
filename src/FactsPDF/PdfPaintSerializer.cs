@@ -26,11 +26,12 @@ internal static class PdfPaintSerializer
             if (s.BackgroundColor.HasValue)
                 Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes);
 
-            // CSS fragmentation default is slice: intermediate fragments
-            // continue side borders/background, never top/bottom borders.
-            var top = box.IsFirstFragment ? s.BorderTop.EffectiveWidth : 0;
+            // Slice does not repeat horizontal borders on intermediate pages.
+            // Short first/last fragments clip the border to their own bounds;
+            // these exact heights are also used by PaintedBox.CommandCount.
+            var top = box.TopBorderHeight;
             var right = s.BorderRight.EffectiveWidth;
-            var bottom = box.IsLastFragment ? s.BorderBottom.EffectiveWidth : 0;
+            var bottom = box.BottomBorderHeight;
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
                 Rect(output, s.BorderTop.Color ?? box.TextColor, x, y, width, top, pageHeight, maxOutputBytes);
