@@ -51,7 +51,7 @@ CASES = (
         "Four-value asymmetric outer padding with independent nested inset"),
     BoxCase(
         "nested", Path("examples/css-visual/box-nested.html"), 1,
-        (("#dbeefa", 1000), ("#f8efd9", 1000), ("#ffeddd", 500)),
+        (("#dbeefa", 1000), ("#e4c76a", 1000), ("#ffb27d", 500)),
         ("Outer container",),
         "True nested sections, content widths, 70% child width and colored layers"),
     BoxCase(
@@ -73,7 +73,7 @@ CHROME_PRINT_COLOR = """
 </style>
 """
 
-def count_color_pixels(image: Image.Image, hex_color: str, tolerance: int = 16) -> int:
+def count_color_pixels(image: Image.Image, hex_color: str, tolerance: int = 6) -> int:
     """Count near-exact filled pixels, a reproducible non-OCR visual oracle."""
     if not (len(hex_color) == 7 and hex_color.startswith("#")):
         raise ValueError("Color oracle must use #rrggbb")
@@ -84,6 +84,59 @@ def count_color_pixels(image: Image.Image, hex_color: str, tolerance: int = 16) 
                if all(abs(pixel[index] - rgb[index]) <= tolerance for index in range(3)))
 
 
+
+def color_extent(image: Image.Image, hex_color: str, tolerance: int = 6):
+    """Report a solid paint's original-coordinate bounding rectangle."""
+    color = tuple(int(hex_color[n:n + 2], 16) for n in (1, 3, 5))
+    pixels = image.convert("RGB")
+    x0, y0, x1, y1 = pixels.width, pixels.height, -1, -1
+    values = pixels.load()
+    for y in range(pixels.height):
+        for x in range(pixels.width):
+            pixel = values[x, y]
+            if all(abs(pixel[index] - color[index]) <= tolerance for index in range(3)):
+                x0, y0 = min(x0, x), min(y0, y)
+                x1, y1 = max(x1, x), max(y1, y)
+    return None if x1 < x0 else [x0, y0, x1 + 1, y1 + 1]
+
+
+def validate_fragment_edges(raster_paths: list[Path], hex_color: str,
+                            min_row_pixels: int = 300):
+    """Assert CSS box-decoration-break:slice on three real print fragments.
+
+    The first fragment has a full-width top border, the middle has only
+    continuous side borders, and the last has the full-width bottom edge.
+    Thin vertical side borders do not count as wide horizontal border rows.
+    """
+    if len(raster_paths) != 3:
+        raise AssertionError("Expected exactly three fragment pages")
+    color = tuple(int(hex_color[n:n + 2], 16) for n in (1, 3, 5))
+    hits = []
+    for path in raster_paths:
+        with Image.open(path) as img:
+            rgb = img.convert("RGB")
+            px = rgb.load()
+            rows = 0
+            for y in range(rgb.height):
+                observed = 0
+                for x in range(rgb.width):
+                    pixel = px[x, y]
+                    if all(abs(pixel[k] - color[k]) <= 6 for k in range(3)):
+                        observed += 1
+                if observed >= min_row_pixels:
+                    rows += 1
+            hits.append(rows)
+    if not (hits[0] > 0 and hits[1] == 0 and hits[2] > 0):
+        raise AssertionError(
+            f"Expected sliced first/middle/last border rows (>0, 0, >0), got {hits}")
+    return {
+        "first_top_rows": hits[0],
+        "middle_horizontal_rows": hits[1],
+        "last_bottom_rows": hits[2],
+        "classification": "box-decoration-break slice (first top, middle sides, last bottom)",
+        "wide_row_minimum_pixels": min_row_pixels,
+    }
+
 def validate_reference_pages(case: BoxCase, raster_paths: list[Path]):
     """Assert real colored browser fragments, not blank or color-suppressed PDFs."""
     if len(raster_paths) != case.expected_pages:
@@ -93,6 +146,7 @@ def validate_reference_pages(case: BoxCase, raster_paths: list[Path]):
     for page_no, raster in enumerate(raster_paths, 1):
         with Image.open(raster) as img:
             samples = {}
+            bounds = {}
             for hex_code, minimum in case.expected_colors:
                 observed = count_color_pixels(img, hex_code)
                 if observed < minimum:
@@ -100,8 +154,23 @@ def validate_reference_pages(case: BoxCase, raster_paths: list[Path]):
                         f"{case.name} page {page_no}: color {hex_code} has {observed} pixels; "
                         f"requires {minimum}. Browser print background may be suppressed.")
                 samples[hex_code] = observed
+                bounds[hex_code] = color_extent(img, hex_code)
+            if case.name in ("padding", "nested"):
+                keys = ("#e4e5e7", "#abd9e7") if case.name == "padding" else ("#dbeefa", "#e4c76a", "#ffb27d")
+                previous = None
+                for key in keys:
+                    bbox = bounds[key]
+                    if bbox is None:
+                        raise AssertionError(f"{case.name}: {key} missing bounding box")
+                    if previous and not (
+                        bbox[0] > previous[0] and bbox[1] > previous[1] and
+                        bbox[2] < previous[2] and bbox[3] < previous[3]):
+                        raise AssertionError(
+                            f"{case.name}: nested painted bbox {bbox} must inset into {previous}")
+                    previous = bbox
             pages.append({"number": page_no, "width_px": img.width,
-                          "height_px": img.height, "color_pixels": samples})
+                          "height_px": img.height, "color_pixels": samples,
+                          "color_bounds": bounds})
     return {"pages": len(pages), "page_probes": pages}
 
 
@@ -167,6 +236,9 @@ def run_case(case: BoxCase, *, browser: str, cli: Path, output: Path,
     browser_rasters = images_for_pdf(chrome_pdf, case_work / "chrome-raster")
     probe = validate_reference_pages(case, browser_rasters)
     result["page_reference_probes"] = probe["page_probes"]
+    if case.name == "fragmentation":
+        result["sliced_edges"] = validate_fragment_edges(
+            browser_rasters, "#1d4568")
     result["chrome_paper_points"] = [cw, ch]
     target_dir = output / case.name
     target_dir.mkdir(parents=True, exist_ok=True)
