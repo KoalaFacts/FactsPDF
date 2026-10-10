@@ -310,6 +310,90 @@ public sealed class BoxPaintingTests
         Assert.That(pdf, Does.Not.Contain(" re f Q"));
     }
 
+
+    [Test]
+    public void DecoratedParagraphTopMarginStaysOutsidePaintedRectangle()
+    {
+        PaintedBox Measure(string margin) => TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<p style='margin-top:" + margin + ";margin-bottom:0pt;background-color:red'>A</p>",
+            Options, default), Options, default)[0].PaintBoxes.Single();
+        var a = Measure("0pt");
+        var b = Measure("40pt");
+        Assert.That(b.Top - a.Top, Is.EqualTo(40).Within(0.00001));
+        Assert.That(b.Height, Is.EqualTo(a.Height).Within(0.00001),
+            "Top margin moves the painted box without increasing its height.");
+    }
+
+    [Test]
+    public void ParentStartsBeforeChildMarginWhilePaintedParagraphStartsAfterIt()
+    {
+        const string html = "<div style='background-color:blue'><p style='margin-top:40pt;" +
+            "margin-bottom:0pt;background-color:red'>A</p></div>";
+        var boxes = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+            Options, default)[0].PaintBoxes.OrderBy(b => b.Order).ToArray();
+        Assert.That(boxes, Has.Length.EqualTo(2));
+        Assert.That(boxes[0].Top, Is.EqualTo(Options.Margin).Within(0.00001));
+        Assert.That(boxes[1].Top - boxes[0].Top, Is.EqualTo(40).Within(0.00001));
+    }
+
+    [Test]
+    public void EmptyPaintedParagraphBreakAfterForcesNextPage()
+    {
+        const string html = "<p style='background-color:red;padding:10pt;break-after:page'></p><p>B</p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+            Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("B"));
+        Assert.That(Render(html).Result.PageCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void EmptyPaintedParagraphBreakBeforeMovesItsOwnBox()
+    {
+        const string html = "<p>A</p><p style='background-color:red;padding:10pt;break-before:page'></p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+            Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Is.Empty);
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(pages[1].PaintBoxes[0].Top, Is.EqualTo(Options.Margin).Within(0.00001));
+    }
+
+    [Test]
+    public void PaintOnlyFollowingBreakAfterStartsOnNewPage()
+    {
+        const string html = "<p style='break-after:page'>A</p>" +
+            "<div style='background-color:red;padding:10pt'></div>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+            Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Is.Empty);
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void ParentPaintIncludesFinalChildBottomMargin()
+    {
+        double Height(int margin) => TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<div style='background-color:red;padding-bottom:10pt'>" +
+            "<p style='margin-bottom:" + margin + "pt'>A</p></div>", Options, default),
+            Options, default)[0].PaintBoxes.Single().Height;
+        Assert.That(Height(40) - Height(0), Is.EqualTo(40).Within(0.00001));
+    }
+
+    [Test]
+    public void EmptyPaintedBoxOccupyingPageAllowsFollowingTextToMoveToNextPage()
+    {
+        var shortPage = Options with { PageHeight = 100 };
+        const string html = "<div style='background-color:red;padding:25pt 0'></div><p>B</p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, shortPage, default),
+            shortPage, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single().Height, Is.EqualTo(50).Within(0.00001));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("B"));
+    }
+
     [Test]
     public void PaintingIsLocaleIndependent()
     {
