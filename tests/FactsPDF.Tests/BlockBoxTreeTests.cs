@@ -152,6 +152,68 @@ public sealed class BlockBoxTreeTests
     }
 
     [Test]
+    public void TreeLayoutMatchesExistingParagraphLayoutForNestedTextAndBreaks()
+    {
+        const string html = "<style>section p{color:blue}</style>" +
+            "<body><section>Before <span style='color:red'>inline</span>" +
+            "<p style='break-before:page'>Second page</p>" +
+            "<article><p>After</p></article>tail</section></body>";
+        var options = new PdfOptions();
+        var treePages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
+            options, default);
+        var legacyPages = TextLayout.Layout(HtmlDocumentReader.Read(html, options, default),
+            options, default);
+        Assert.That(treePages.Count, Is.EqualTo(2));
+        Assert.That(treePages.Count, Is.EqualTo(legacyPages.Count));
+        for (var page = 0; page < legacyPages.Count; page++)
+            Assert.That(treePages[page].Runs, Is.EqualTo(legacyPages[page].Runs),
+                "PDF placement and styles must not change during structure-only refactor.");
+    }
+
+    [Test]
+    public void TreeLayoutPreservesEmptyParagraphBreakAndNoGhostPages()
+    {
+        const string html = "<div><p>One</p><p style='break-before:page'></p>" +
+            "<section><p>Two</p></section></div>";
+        var options = new PdfOptions();
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
+            options, default);
+        Assert.That(pages.Count, Is.EqualTo(2));
+        Assert.That(string.Concat(pages[0].Runs.Select(run => run.Text)), Is.EqualTo("One"));
+        Assert.That(string.Concat(pages[1].Runs.Select(run => run.Text)), Is.EqualTo("Two"));
+    }
+
+    [Test]
+    public void RealAsciiPdfBytesMatchTheExistingFlatLayoutSerializer()
+    {
+        const string html = "<style>div p{color:red}</style>" +
+            "<body><div>Before<p>Colored</p><section><h2>Heading</h2>" +
+            "<p>End</p></section>Trailing</div></body>";
+        var options = new PdfOptions();
+        var oldPages = TextLayout.Layout(HtmlDocumentReader.Read(html, options, default),
+            options, default);
+        using var oldPdf = PdfSerializer.Build(oldPages, options, default);
+        using var actual = new MemoryStream();
+        var result = PdfConverter.Convert(html, actual, options);
+        Assert.That(result.BytesWritten, Is.EqualTo(actual.Length));
+        Assert.That(actual.ToArray(), Is.EqualTo(oldPdf.ToArray()),
+            "Tree-based PDF output must remain byte-for-byte equal to the existing renderer.");
+    }
+
+    [Test]
+    public void TreeLayoutHonorsPageLimitAndCancellationWithoutPartialOutput()
+    {
+        const string html = "<div><p>A</p><section><p style='break-before:page'>B</p>" +
+            "</section></div>";
+        var options = new PdfOptions { MaxPages = 1 };
+        var tree = HtmlDocumentReader.ReadTree(html, options, default);
+        var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout(tree, options, default));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1303"));
+        Assert.Throws<OperationCanceledException>(() =>
+            TextLayout.Layout(tree, new PdfOptions(), new CancellationToken(true)));
+    }
+
+    [Test]
     public void PreCancelledTreeReadDoesNotProducePartialResult()
     {
         Assert.Throws<OperationCanceledException>(() =>
