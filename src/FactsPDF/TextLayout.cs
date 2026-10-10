@@ -107,10 +107,16 @@ internal static class TextLayout
                     var childBottomMargin = !scope.IsParagraph &&
                         (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
                         ? after : 0d;
-                    var finish = Math.Max(scope.StartY + scope.Top,
+                    var finalPage = pages.Count - 1;
+                    // The first page's border-box origin and the last page's
+                    // cursor use different page-local coordinate systems.
+                    // Never use the first-page starting Y as a lower bound
+                    // for the *last* fragment when this block spans pages.
+                    var minimumEnd = scope.StartPage == finalPage
+                        ? scope.StartY + scope.Top : o.Margin;
+                    var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom;
-                    var finalPage = pages.Count - 1;
                     if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
                         scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
