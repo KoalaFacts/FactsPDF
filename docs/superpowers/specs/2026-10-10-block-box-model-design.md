@@ -63,7 +63,7 @@ Extend the existing **strict** lexer/declaration processor to accept multiple to
 | `width` | `auto`, nonnegative `pt`, `px`, `%`, unitless `0` | `auto` |
 | `padding` | one to four `pt`/`px`/`%`/`0` values | all sides 0 |
 | `padding-top/right/bottom/left` | same single length | 0 |
-| `border` | ordinary solid/none border shorthand with optional width/color | style `none` by default |
+| `border` | up to three order-insensitive terms: optional width, `solid`/`none`, optional color; duplicate or unknown terms fail | style `none` by default |
 | `border-top/right/bottom/left` | supported side-specific shorthand | style `none` |
 | `border-width`, `border-style`, `border-color` | one to four side values | medium / none / currentColor |
 | `border-{side}-width/style/color` | a single supported value | medium / none / currentColor |
@@ -77,7 +77,7 @@ Reject unsupported `box-sizing`, `min/max-width`, `margin-left/right`, `backgrou
 
 ## 5. Width and horizontal placement
 
-DocumentRoot content rectangle = A4 (or configured page width) minus the existing symmetric `PdfOptions.Margin`. All x/y/width values used by layout are PDF points; 1 CSS px = 0.75 pt.
+DocumentRoot content rectangle = A4 (or configured page width) minus the existing symmetric `PdfOptions.Margin`. All x/y/width values used by layout are PDF points; 1 CSS px = 0.75 pt. A `body` background paints only the body's laid-out block fragment area inside page margins; full-page canvas background propagation/bleed is intentionally not implemented.
 
 For each block, resolve its containing block's **content width** `C`. Percent `width` and percent **padding on every side (including top/bottom)** refer to `C` per CSS 2.1, not to the page or parent's height. The declared `width` is **content-box width**:
 - `auto` = `C - left/right padding - effective left/right borders` (clamped only for exact round-off; a negative value is an error).
@@ -95,7 +95,7 @@ Preserve existing vertical paragraph margins using the maximum of nonnegative ad
 
 One document may span many pages. Record a **box fragment** for each page that intersects painted box geometry, with absolute page-space bounds, nesting depth, first/last flags and ordered display operations:
 - First fragment paints top border and top padding; last fragment paints bottom border and bottom padding; intermediate fragments do not repeat those vertical edges/paddings.
-- Background fills the visible rectangle on **each** fragment, including split content; side borders are painted down **each** fragment. Border corners are square, no clipping-radius support.
+- Background fills the visible rectangle on **each** fragment, including split content; side borders are painted down **each** fragment. Between its first and last page, a spanning container's fragment extends through the page's usable vertical content area, not through the physical page margins. Border corners are square, no clipping-radius support.
 - Before laying the first content line of a box, if its first-fragment top border/padding plus that line cannot fit in the page's remaining usable vertical space, advance to the next page. An indivisible top/line/bottom requirement larger than an entire page is a clear layout error. Avoid phantom decoration-only pages and trailing blank pages.
 - Explicit `break-before/after:page` remains effective for paragraphs/headings. Nested boxes must not obscure or duplicate these breaks.
 - Empty boxes whose decoration alone exceeds the usable page height fail rather than loop or truncate. Boxes with long content fragment and respect `MaxPages`.
@@ -113,7 +113,7 @@ Keep PDF object numbering/xref/stream lengths correct and both text encodings se
 
 ## 8. Safety, memory and error handling
 
-No global mutable CSS/layout state. Preserve cancellation checks during parsing, recursive layout, pagination, display-list creation and serialization. Bound node count and recursion with existing element/depth limits; derive/introduce a finite display-command budget to prevent unbounded decoration work (document the numerical default before implementation).
+No global mutable CSS/layout state. Preserve cancellation checks during parsing, recursive layout, pagination, display-list creation and serialization. Bound node count and recursion with existing element/depth limits. Add `PdfOptions.MaxDisplayCommands` (default **200,000**), counting text and drawing commands across all pages; reject on overflow with a documented diagnostic before writing.
 
 Preserve fail-before-write semantics for malformed CSS, unsupported values, excessive dimensions, content that cannot fit and page/output limits. Output I/O failure on arbitrary caller streams remains non-rollbackable. Existing CLI temporary-file safety applies. Parsing CSS must avoid quadratic explosion from expanding or matching shorthands; charge generated longhands against declaration/work budgets.
 
