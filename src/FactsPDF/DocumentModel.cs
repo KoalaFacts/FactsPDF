@@ -17,7 +17,8 @@ internal sealed class LayoutPage
 }
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
-    BoxStyle Style, Rgb TextColor, int Order)
+    BoxStyle Style, Rgb TextColor, int Order,
+    bool IsFirstFragment = true, bool IsLastFragment = true)
 {
     // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
     // An empty background or vertical edge of a zero-height box costs 0.
@@ -25,8 +26,8 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     {
         get
         {
-            var top = Style.BorderTop.EffectiveWidth;
-            var bottom = Style.BorderBottom.EffectiveWidth;
+            var top = IsFirstFragment ? Style.BorderTop.EffectiveWidth : 0;
+            var bottom = IsLastFragment ? Style.BorderBottom.EffectiveWidth : 0;
             var middleHeight = Math.Max(0, Height - top - bottom);
             return (Width > 0 && Height > 0 && Style.BackgroundColor.HasValue ? 1 : 0)
                 + (Width > 0 && top > 0 ? 1 : 0)
@@ -37,8 +38,8 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     }
 }
 
-// M5 retains tree structure, M6 resolves width/padding; M7 adds simple
-// one-page border/background decoration. Page fragments remain M8.
+// M5 retains the box tree; M6 computes geometry; M7 paints single-page
+// borders/backgrounds; M8 slices continued decorations across page fragments.
 internal readonly record struct CssLength(double Value, bool IsPercent = false)
 {
     internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;

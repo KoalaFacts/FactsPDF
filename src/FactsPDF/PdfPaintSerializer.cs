@@ -26,9 +26,11 @@ internal static class PdfPaintSerializer
             if (s.BackgroundColor.HasValue)
                 Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes);
 
-            var top = s.BorderTop.EffectiveWidth;
+            // CSS fragmentation default is slice: intermediate fragments
+            // continue side borders/background, never top/bottom borders.
+            var top = box.IsFirstFragment ? s.BorderTop.EffectiveWidth : 0;
             var right = s.BorderRight.EffectiveWidth;
-            var bottom = s.BorderBottom.EffectiveWidth;
+            var bottom = box.IsLastFragment ? s.BorderBottom.EffectiveWidth : 0;
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
                 Rect(output, s.BorderTop.Color ?? box.TextColor, x, y, width, top, pageHeight, maxOutputBytes);
