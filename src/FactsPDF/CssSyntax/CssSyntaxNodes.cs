@@ -16,7 +16,8 @@ internal sealed record CssQualifiedRuleNode(
     IReadOnlyList<CssSyntaxContent> Contents, CssSourceSpan Span) : CssRuleNode(Span);
 internal sealed record CssAtRuleNode(
     string Name, IReadOnlyList<CssSyntaxComponent> Prelude,
-    IReadOnlyList<CssSyntaxContent>? Contents, CssSourceSpan Span) : CssRuleNode(Span);
+    IReadOnlyList<CssSyntaxContent>? Contents, CssSourceSpan Span,
+    IReadOnlyList<CssSyntaxComponent>? RawBlock = null) : CssRuleNode(Span);
 internal sealed record CssDeclarationNode(
     string Name, IReadOnlyList<CssSyntaxComponent> Values,
     bool Important, CssSourceSpan Span) : CssSyntaxContent(Span);
