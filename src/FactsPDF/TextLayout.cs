@@ -198,6 +198,12 @@ internal static class TextLayout
             }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
+            // Do not allocate the next paragraph's glyph/line lists after an
+            // earlier paragraph or box has used the exact command allowance.
+            // Blank/whitespace/break-only paragraphs can still affect geometry
+            // without emitting text commands and must retain that behavior.
+            if (displayCommands == o.MaxDisplayCommands && HasTextContent(paragraph, cancellation))
+                ChargeDisplayCommands(1);
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
             if (lines.Count == 0)
             {
@@ -285,6 +291,23 @@ internal static class TextLayout
             after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
         }
         return pages;
+    }
+
+    private static bool HasTextContent(Paragraph paragraph, CancellationToken cancellation)
+    {
+        // Match Wrap's HTML whitespace and explicit-break rules without
+        // resolving glyphs or building any temporary text representation.
+        foreach (var run in paragraph.Runs)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (run.IsBreak) continue;
+            foreach (var character in run.Text)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (!HtmlTokens.Space(character)) return true;
+            }
+        }
+        return false;
     }
 
     private static List<Line> Wrap(Paragraph paragraph, double available, IReadOnlyList<PdfFont> fonts,
