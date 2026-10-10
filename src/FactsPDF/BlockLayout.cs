@@ -1,14 +1,15 @@
 namespace FactsPDF;
 
 internal abstract record BlockLayoutStep;
-internal sealed record BeginBlock(double PaddingTop) : BlockLayoutStep;
+internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
+    double OuterWidth, Rgb TextColor, int SourceOffset) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
 /// percentages (even vertical padding) use the parent content-box width.
-/// Painting and page box fragments are deliberately outside M6.
+/// M7 adds single-page paint to M6 geometry; page fragmentation remains M8.
 /// </summary>
 internal static class BlockLayout
 {
@@ -45,13 +46,18 @@ internal static class BlockLayout
                     var right = Resolve(style.PaddingRight);
                     var top = Resolve(style.PaddingTop);
                     var bottom = Resolve(style.PaddingBottom);
+                    var bLeft = style.BorderLeft.EffectiveWidth;
+                    var bRight = style.BorderRight.EffectiveWidth;
+                    var bTop = style.BorderTop.EffectiveWidth;
+                    var bBottom = style.BorderBottom.EffectiveWidth;
                     var inner = style.Width.HasValue
-                        ? Resolve(style.Width.Value) : frame.ContentWidth - left - right;
-                    if (inner < -0.000001 || inner + left + right > frame.ContentWidth + 0.000001)
+                        ? Resolve(style.Width.Value) : frame.ContentWidth - left - right - bLeft - bRight;
+                    if (inner < -0.000001 || inner + left + right + bLeft + bRight > frame.ContentWidth + 0.000001)
                         throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", node.SourceOffset);
                     inner = Math.Max(0, inner);
-                    yield return new BeginBlock(top);
-                    frames.Push(new(node.Children, 0, frame.X + left, inner, bottom, false));
+                    yield return new BeginBlock(top + bTop, style, frame.X,
+                        inner + left + right + bLeft + bRight, node.Style.Color, node.SourceOffset);
+                    frames.Push(new(node.Children, 0, frame.X + bLeft + left, inner, bottom + bBottom, false));
                     break;
                 }
                 default:

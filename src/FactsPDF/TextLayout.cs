@@ -11,6 +11,9 @@ internal static class TextLayout
         public double Width => Style.FontSize * Width1000 / 1000;
     }
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
+    private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
+        double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
+        double StartY, int Order);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -32,8 +35,8 @@ internal static class TextLayout
         // carry that leading padding with their first text line to a new page.
         // The top padding of a closed empty box becomes trailing spacing.
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
-        var opened = new Stack<(double Top, int ContentEpoch)>();
-        var contentEpoch = 0;
+        var opened = new Stack<OpenBlock>();
+        var contentEpoch = 0; var paintOrder = 0;
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -45,20 +48,38 @@ internal static class TextLayout
             cancellation.ThrowIfCancellationRequested();
             if (step is BeginBlock begin)
             {
-                opened.Push((begin.PaddingTop, contentEpoch));
+                var start = y + pendingTopPadding + pendingClosedPadding + after;
+                opened.Push(new(begin.PaddingTop, contentEpoch, begin.Style,
+                    begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
+                    pages.Count - 1, start, paintOrder++));
                 pendingTopPadding += begin.PaddingTop;
                 continue;
             }
             if (step is EndBlock closing)
             {
-                var (top, openedAtEpoch) = opened.Pop();
-                if (openedAtEpoch == contentEpoch)
+                var scope = opened.Pop();
+                if (scope.Style.HasPaint)
+                {
+                    if (scope.StartPage != pages.Count - 1)
+                        throw new FactsPdfException("FPDF1302",
+                            "Decorated boxes spanning pages require M8 fragmentation.", scope.SourceOffset);
+                    var finish = Math.Max(scope.StartY + scope.Top,
+                        y + pendingTopPadding + pendingClosedPadding + after);
+                    finish += closing.PaddingBottom;
+                    if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
+                        scope.StartY < o.Margin - 0.000001 || scope.Width < 0)
+                        throw new FactsPdfException("FPDF1302",
+                            "Decorated box cannot fit on one page; fragmentation is not supported until M8.",
+                            scope.SourceOffset);
+                    pages[^1].PaintBoxes.Add(new(scope.X, scope.StartY, scope.Width,
+                        Math.Max(0, finish - scope.StartY), scope.Style, scope.TextColor, scope.Order));
+                }
+                if (scope.ContentEpoch == contentEpoch)
                 {
                     // No laid-out text has consumed this box's top padding.
-                    // Since the box is now closed, it cannot move with later
-                    // content across an explicit/overflow page boundary.
-                    pendingTopPadding = Math.Max(0, pendingTopPadding - top);
-                    pendingClosedPadding += top;
+                    // Since it is now closed, this is trailing spacing.
+                    pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
+                    pendingClosedPadding += scope.Top;
                 }
                 pendingClosedPadding += closing.PaddingBottom;
                 continue;

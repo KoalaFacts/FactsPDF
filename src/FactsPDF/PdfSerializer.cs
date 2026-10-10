@@ -38,6 +38,7 @@ internal static class PdfSerializer
             {
                 cancellation.ThrowIfCancellationRequested();
                 var contents = new StringBuilder();
+                PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, cancellation);
                 foreach (var run in pages[i].Runs)
                 {
                     var color = run.Style.Color;
