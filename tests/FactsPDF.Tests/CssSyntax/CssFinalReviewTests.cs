@@ -25,7 +25,7 @@ public sealed class CssFinalReviewTests
         var rule = (CssAtRuleNode)parsed.Rules.Single();
         Assert.That(rule.Contents, Is.Not.Null);
         Assert.That(rule.Contents!.OfType<CssDeclarationNode>().Select(x => x.Name), Is.EqualTo(new[] { "color" }));
-        Assert.That(rule.Contents.OfType<CssQualifiedRuleNode>().Count(), Is.EqualTo(1));
+        Assert.That(rule.Contents!.OfType<CssQualifiedRuleNode>().Count(), Is.EqualTo(1));
     }
 
     [Test]
@@ -93,6 +93,6 @@ public sealed class CssFinalReviewTests
         var parsed = ParseDeclarations("unicode-range:U+00A0-00FF");
         Assert.That(parsed.Diagnostics, Is.Empty);
         Assert.That(parsed.Declarations.Single().Values.OfType<CssTokenComponent>()
-            .Any(x => x.Token.Kind == CssSyntaxTokenKind.UnicodeRange), Is.True);
+            .Any(x => x.Token.Kind.ToString() == "UnicodeRange"), Is.True);
     }
 }
