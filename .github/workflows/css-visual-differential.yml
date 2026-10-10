@@ -21,7 +21,7 @@ jobs:
           sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-dejavu-core fonts-droid-fallback python3-pil
           command -v google-chrome || command -v chromium
       - name: Prove independent visual metric unit tests
-        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_css_visual_metrics.py' -v
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_css_visual*.py' -v
       - name: Publish real Native AOT FactsPDF CLI
         run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/css-visual-native
       - name: Compare controlled HTML/CSS PDF pages with Chrome PDF pages
