@@ -225,6 +225,92 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
+    public void EmptyPaintedParagraphDoesNotPaintItsDefaultBottomMargin()
+    {
+        var (_, pdf) = Render("<p style='background-color:red'></p>");
+        Assert.That(pdf, Does.Not.Contain(" re f Q"),
+            "An empty paragraph has no border-box height; its margin is not paint.");
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<p style='background-color:red'></p>", Options, default), Options, default);
+        Assert.That(pages[0].PaintBoxes.Single().Height, Is.Zero);
+    }
+
+    [Test]
+    public void ParagraphBottomMarginDoesNotChangeItsOwnBackgroundHeight()
+    {
+        var noMargin = TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<p style='background-color:red;margin-bottom:0pt'>A</p>", Options, default),
+            Options, default)[0].PaintBoxes.Single();
+        var withMargin = TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<p style='background-color:red;margin-bottom:70pt'>A</p>", Options, default),
+            Options, default)[0].PaintBoxes.Single();
+        Assert.That(withMargin.Height, Is.EqualTo(noMargin.Height).Within(0.00001));
+    }
+
+    [Test]
+    public void PaintedParagraphBreakBeforeMovesEntireBoxToNewPage()
+    {
+        const string html = "<p>A</p><p style='break-before:page;background-color:red'>B</p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default), Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Is.Empty);
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(Render(html).Result.PageCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void PaintedParagraphAfterBreakAfterRendersOnNewPage()
+    {
+        const string html = "<p style='break-after:page'>A</p>" +
+            "<p style='background-color:blue'>B</p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default), Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void PaintedBoxFirstLineCanMoveToNextPageWithoutFragmenting()
+    {
+        var shortPage = Options with { PageHeight = 100 };
+        var html = "<p>A</p><div style='background-color:red;padding-top:50pt'>B</div>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, shortPage, default),
+            shortPage, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+    }
+
+    [TestCase("border:1pt solid potato", "potato")]
+    [TestCase("border-color:red blue potato", "potato")]
+    [TestCase("padding:1pt 2pt potato", "potato")]
+    [TestCase("border-top:1pt solid potato", "potato")]
+    public void ShorthandDiagnosticUsesInvalidValueTokenSourceOffset(string css, string token)
+    {
+        var html = "<div style='" + css + "'>A</div>";
+        var error = Failure(html, "FPDF1202");
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(token, StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void ZeroAreaPaintDoesNotConsumeDisplayCommandBudget()
+    {
+        var opt = Options with { MaxDisplayCommands = 1 };
+        var html = "<div style='background-color:red'></div>" +
+            "<div style='background-color:blue'></div>";
+        var (_, pdf) = Render(html, opt);
+        Assert.That(pdf, Does.Not.Contain(" re f Q"));
+    }
+
+    [Test]
+    public void EmptyBorderVerticalEdgesDoNotConsumeDisplayBudget()
+    {
+        var opt = Options with { MaxDisplayCommands = 1 };
+        var html = "<div style='border-left:1pt solid red'></div>" +
+            "<div style='border-right:2pt solid blue'></div>";
+        var (_, pdf) = Render(html, opt);
+        Assert.That(pdf, Does.Not.Contain(" re f Q"));
+    }
+
+    [Test]
     public void PaintingIsLocaleIndependent()
     {
         var culture = CultureInfo.CurrentCulture;
