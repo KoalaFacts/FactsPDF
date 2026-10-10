@@ -23,6 +23,8 @@ public sealed record PdfOptions
     public int MaxCssMatchOperations { get; init; } = 5_000_000;
     public int MaxCssSyntaxNodes { get; init; } = 131_072;
     public int MaxCssSyntaxDepth { get; init; } = 64;
+    /// <summary>Upper bound of text and primitive box paint operations, all pages.</summary>
+    public int MaxDisplayCommands { get; init; } = 200_000;
 }
 
 public sealed record PdfConversionResult(int PageCount, long BytesWritten);

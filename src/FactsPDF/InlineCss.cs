@@ -72,7 +72,7 @@ internal static class InlineCss
         "page" => true, "auto" => false, _ => throw Invalid("Only auto/page breaks are supported.", offset)
     };
 
-    private static Rgb Color(string value, int offset)
+    internal static Rgb Color(string value, int offset)
     {
         value = value switch
         {

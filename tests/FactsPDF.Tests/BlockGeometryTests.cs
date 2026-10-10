@@ -126,7 +126,10 @@ public sealed class BlockGeometryTests
         Fails("<div><span style='width:10pt'>A</span></div>", "FPDF1201");
         Fails("<html style='padding:1pt'><body><p>A</p></body></html>", "FPDF1201");
         Fails("<style>span{padding:1pt}</style><span>A</span>", "FPDF1201");
-        Fails("<div style='border:1pt solid red'>A</div>", "FPDF1201");
+        var painted = Box(HtmlDocumentReader.ReadTree(
+            "<div style='border:1pt solid red'>A</div>", Page, default).Children.Single());
+        Assert.That(painted.BoxStyle.BorderTop.EffectiveWidth, Is.EqualTo(1),
+            "M7 explicitly enables border on block elements.");
     }
 
     [Test]

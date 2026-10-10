@@ -24,8 +24,8 @@ jobs:
         run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_css_box_visual_cases.py' -v
       - name: Publish actual FactsPDF Native AOT CLI
         run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/box-visual-native
-      - name: Generate Chrome-only baseline and prove explicit StrictPdf unsupported errors
-        run: /usr/bin/python3 scripts/css_box_visual_oracle.py --mode reference --native artifacts/box-visual-native/FactsPDF.Cli --output artifacts/box-visual
+      - name: Verify four real single-page painted PDFs against Chrome and gate M8 fragmentation
+        run: /usr/bin/python3 scripts/css_box_visual_oracle.py --mode m7 --native artifacts/box-visual-native/FactsPDF.Cli --output artifacts/box-visual
       - name: Summarize box-model support gap
         if: always()
         run: |

@@ -29,6 +29,15 @@ public static class PdfConverter
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
         var pages = TextLayout.Layout(document, options, cancellationToken);
+        long displayCommands = 0;
+        foreach (var page in pages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            displayCommands += page.Runs.Count;
+            foreach (var box in page.PaintBoxes) displayCommands += box.CommandCount;
+            if (displayCommands > options.MaxDisplayCommands)
+                throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
+        }
         using var pdf = options.Fonts.Count > 0 && pages.Any(p => p.Runs.Count > 0)
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);
@@ -48,7 +57,7 @@ public static class PdfConverter
         if (!double.IsFinite(o.PageHeight) || o.PageHeight is < 72 or > 14_400) throw new ArgumentOutOfRangeException(nameof(o.PageHeight));
         if (!double.IsFinite(o.Margin) || o.Margin < 0 || 2 * o.Margin >= Math.Min(o.PageWidth, o.PageHeight)) throw new ArgumentOutOfRangeException(nameof(o.Margin));
         if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144) throw new ArgumentOutOfRangeException(nameof(o.FontSize));
-        if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1)
+        if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxDisplayCommands < 1)
             throw new ArgumentOutOfRangeException(nameof(o), "All resource limits must be positive.");
     }
 }

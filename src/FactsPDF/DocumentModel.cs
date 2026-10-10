@@ -13,10 +13,32 @@ internal sealed record PlacedText(string Text, double X, double Baseline, TextSt
 internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];
+    public List<PaintedBox> PaintBoxes { get; } = [];
 }
 
-// M5 retained the structural box tree; M6 adds independently computed
-// width/padding. Painting and paginated box fragments remain future features.
+internal sealed record PaintedBox(double X, double Top, double Width, double Height,
+    BoxStyle Style, Rgb TextColor, int Order)
+{
+    // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
+    // An empty background or vertical edge of a zero-height box costs 0.
+    public int CommandCount
+    {
+        get
+        {
+            var top = Style.BorderTop.EffectiveWidth;
+            var bottom = Style.BorderBottom.EffectiveWidth;
+            var middleHeight = Math.Max(0, Height - top - bottom);
+            return (Width > 0 && Height > 0 && Style.BackgroundColor.HasValue ? 1 : 0)
+                + (Width > 0 && top > 0 ? 1 : 0)
+                + (Width > 0 && bottom > 0 ? 1 : 0)
+                + (middleHeight > 0 && Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+                + (middleHeight > 0 && Style.BorderRight.EffectiveWidth > 0 ? 1 : 0);
+        }
+    }
+}
+
+// M5 retains tree structure, M6 resolves width/padding; M7 adds simple
+// one-page border/background decoration. Page fragments remain M8.
 internal readonly record struct CssLength(double Value, bool IsPercent = false)
 {
     internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;
@@ -24,12 +46,28 @@ internal readonly record struct CssLength(double Value, bool IsPercent = false)
 
 // Specified values are retained until the containing block's content width is known.
 // All properties in BoxStyle are non-inherited by default.
+internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
+{
+    internal static BorderEdge Initial => new(2.25, false, null); // CSS medium=3px
+    internal double EffectiveWidth => Solid ? Width : 0;
+}
+
 internal sealed record BoxStyle(
     CssLength? Width = null,
     CssLength PaddingTop = default,
     CssLength PaddingRight = default,
     CssLength PaddingBottom = default,
-    CssLength PaddingLeft = default);
+    CssLength PaddingLeft = default)
+{
+    public Rgb? BackgroundColor { get; init; } // null: transparent
+    public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
+    public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
+    public BorderEdge BorderBottom { get; init; } = BorderEdge.Initial;
+    public BorderEdge BorderLeft { get; init; } = BorderEdge.Initial;
+    public bool HasPaint => BackgroundColor.HasValue ||
+        BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
+        BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
+}
 
 internal abstract record BlockChild;
 

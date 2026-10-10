@@ -11,6 +11,10 @@ internal static class TextLayout
         public double Width => Style.FontSize * Width1000 / 1000;
     }
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
+    private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
+        double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
+        double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
+        bool HasParagraphDescendant = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -32,59 +36,171 @@ internal static class TextLayout
         // carry that leading padding with their first text line to a new page.
         // The top padding of a closed empty box becomes trailing spacing.
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
-        var opened = new Stack<(double Top, int ContentEpoch)>();
-        var contentEpoch = 0;
+        var opened = new List<OpenBlock>();
+        var contentEpoch = 0; var paintOrder = 0;
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
             pages.Add(new()); y = o.Margin; after = 0;
         }
+        bool CurrentPageOccupied() => y > o.Margin + 0.000001
+            || pendingClosedPadding > 0
+            || pages[^1].Runs.Count > 0
+            || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
+
+        void MoveUnconsumedBlocksToNewPage()
+        {
+            // Only a box without existing text OR painted descendants may
+            // move whole. Anything already painted on the previous page must
+            // fail as a spanning decorated box, until M8 fragmentation.
+            var leading = 0d;
+            for (var i = 0; i < opened.Count; i++)
+            {
+                var scope = opened[i];
+                if (scope.ContentEpoch != contentEpoch || scope.HasOccupiedDescendant) continue;
+                opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
+                leading += scope.Top;
+            }
+        }
         foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
             if (step is BeginBlock begin)
             {
-                opened.Push((begin.PaddingTop, contentEpoch));
+                // A previous break-after must precede a painted successor
+                // even when that successor contains no text paragraph.
+                // Unpainted containers continue deferring the break to their
+                // first text leaf, preserving existing paragraph-only behavior.
+                if (breakNext && begin.Style.HasPaint)
+                {
+                    if (CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                    }
+                    pendingClosedPadding = 0;
+                    breakNext = false;
+                }
+                // Even an empty paragraph has a bottom margin that belongs to
+                // its containing block's content height, not its own border.
+                if (begin.IsParagraph)
+                    for (var i = 0; i < opened.Count; i++)
+                        opened[i] = opened[i] with { HasParagraphDescendant = true };
+                var start = y + pendingTopPadding + pendingClosedPadding + after;
+                opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
+                    begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
+                    pages.Count - 1, start, paintOrder++, begin.IsParagraph));
                 pendingTopPadding += begin.PaddingTop;
                 continue;
             }
             if (step is EndBlock closing)
             {
-                var (top, openedAtEpoch) = opened.Pop();
-                if (openedAtEpoch == contentEpoch)
+                var scope = opened[^1];
+                opened.RemoveAt(opened.Count - 1);
+                var emittedPaint = false;
+                if (scope.Style.HasPaint)
+                {
+                    if (scope.StartPage != pages.Count - 1)
+                        throw new FactsPdfException("FPDF1302",
+                            "Decorated boxes spanning pages require M8 fragmentation.", scope.SourceOffset);
+                    // The element's own paragraph margin is excluded from its
+                    // border-box, but the last child's bottom margin belongs
+                    // inside a decorated containing block.
+                    var childBottomMargin = !scope.IsParagraph &&
+                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
+                        ? after : 0d;
+                    var finish = Math.Max(scope.StartY + scope.Top,
+                        y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
+                    finish += closing.PaddingBottom;
+                    if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
+                        scope.StartY < o.Margin - 0.000001 || scope.Width < 0)
+                        throw new FactsPdfException("FPDF1302",
+                            "Decorated box cannot fit on one page; fragmentation is not supported until M8.",
+                            scope.SourceOffset);
+                    var painted = new PaintedBox(scope.X, scope.StartY, scope.Width,
+                        Math.Max(0, finish - scope.StartY), scope.Style, scope.TextColor, scope.Order);
+                    pages[^1].PaintBoxes.Add(painted);
+                    emittedPaint = painted.CommandCount > 0;
+                }
+                if (scope.ContentEpoch == contentEpoch)
                 {
                     // No laid-out text has consumed this box's top padding.
-                    // Since the box is now closed, it cannot move with later
-                    // content across an explicit/overflow page boundary.
-                    pendingTopPadding = Math.Max(0, pendingTopPadding - top);
-                    pendingClosedPadding += top;
+                    // Since it is now closed, this is trailing spacing.
+                    pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
+                    pendingClosedPadding += scope.Top;
                 }
                 pendingClosedPadding += closing.PaddingBottom;
+                // An unpainted empty child can still consume page geometry
+                // through padding, borders or margins. If it has already
+                // occupied space on a page, a painted ancestor cannot be
+                // moved intact to another page before its first text line.
+                var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
+                    scope.Top > 0 || closing.PaddingBottom > 0 ||
+                    (scope.IsParagraph && after > 0);
+                if (occupiesSpace)
+                    for (var i = 0; i < opened.Count; i++)
+                        opened[i] = opened[i] with { HasOccupiedDescendant = true };
                 continue;
             }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
-            if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
+            if (lines.Count == 0)
+            {
+                // Empty painted/padded paragraphs still occupy box geometry
+                // and can request page breaks, even without glyphs.
+                if (paragraph.Style.BreakBefore)
+                {
+                    if (CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                    }
+                    pendingClosedPadding = 0;
+                }
+                if (opened.Count > 0 && opened[^1].IsParagraph &&
+                    opened[^1].ContentEpoch == contentEpoch &&
+                    (opened[^1].Style.HasPaint || opened[^1].Top > 0))
+                {
+                    var before = Math.Max(after, paragraph.Style.MarginBefore);
+                    opened[^1] = opened[^1] with
+                    {
+                        StartY = opened[^1].StartY + Math.Max(0, before - after)
+                    };
+                    pendingClosedPadding += before;
+                    after = paragraph.Style.MarginAfter;
+                }
+                else after = Math.Max(after, paragraph.Style.MarginAfter);
+                breakNext |= paragraph.Style.BreakAfter;
+                continue;
+            }
             if (breakNext || paragraph.Style.BreakBefore)
             {
-                if (y > o.Margin) NewPage();
+                if (CurrentPageOccupied())
+                {
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
+                }
                 // Never carry a preceding box's bottom padding past an
                 // explicit page break. Keep the next box's top padding.
                 pendingClosedPadding = 0;
             }
             breakNext = false;
             var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingClosedPadding;
-            if (y + gap + lines[0].Height > bottom && y > o.Margin)
+            if (y + gap + lines[0].Height > bottom && CurrentPageOccupied())
             {
                 NewPage();
+                MoveUnconsumedBlocksToNewPage();
                 // Paragraph margin and trailing padding belong to the previous
                 // page; only the new box's leading padding travels with text.
                 gap = pendingTopPadding;
             }
             if (gap + lines[0].Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
+            if (opened.Count > 0 && opened[^1].IsParagraph &&
+                opened[^1].ContentEpoch == contentEpoch)
+                opened[^1] = opened[^1] with { StartY = y + gap - opened[^1].Top };
             y += gap;
             pendingTopPadding = 0;
             pendingClosedPadding = 0;
