@@ -38,6 +38,16 @@ internal static class TextLayout
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
         var opened = new List<OpenBlock>();
         var contentEpoch = 0; var paintOrder = 0;
+        var displayCommands = 0;
+        void ChargeDisplayCommands(int count, int sourceOffset = -1)
+        {
+            // Charge before retaining output, across all pages and both layout
+            // entry points. Subtraction avoids overflowing at an int.MaxValue
+            // limit; zero-area fragments retain their existing zero cost.
+            if (count > o.MaxDisplayCommands - displayCommands)
+                throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.", sourceOffset);
+            displayCommands += count;
+        }
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -134,6 +144,27 @@ internal static class TextLayout
                     var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom;
+                    if (displayCommands == o.MaxDisplayCommands)
+                    {
+                        // With no allowance left, a definitely nonzero paint
+                        // command must fail before later geometry validation.
+                        // Reuse actual clipped/zero-area accounting rather
+                        // than treating HasPaint alone as a command. At most
+                        // three shapes exist: first, last and a middle slice.
+                        void CheckFragment(double top, double end, bool first, bool last)
+                        {
+                            var candidate = new PaintedBox(scope.X, top, scope.Width,
+                                Math.Max(0, end - top), scope.Style, scope.TextColor, scope.Order,
+                                IsFirstFragment: first, IsLastFragment: last);
+                            ChargeDisplayCommands(candidate.CommandCount, scope.SourceOffset);
+                        }
+                        CheckFragment(scope.StartY, scope.StartPage == finalPage ? finish : bottom,
+                            true, scope.StartPage == finalPage);
+                        if (scope.StartPage < finalPage)
+                            CheckFragment(o.Margin, finish, false, true);
+                        if (finalPage - scope.StartPage > 1)
+                            CheckFragment(o.Margin, bottom, false, false);
+                    }
                     if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
                         scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
@@ -161,6 +192,7 @@ internal static class TextLayout
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
                             scope.Style, scope.TextColor, scope.Order,
                             IsFirstFragment: isFirst, IsLastFragment: isLast);
+                        ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
                         pages[pageIndex].PaintBoxes.Add(painted);
                         emittedPaint |= painted.CommandCount > 0;
                     }
@@ -187,6 +219,12 @@ internal static class TextLayout
             }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
+            // Do not allocate the next paragraph's glyph/line lists after an
+            // earlier paragraph or box has used the exact command allowance.
+            // Blank/whitespace/break-only paragraphs can still affect geometry
+            // without emitting text commands and must retain that behavior.
+            if (displayCommands == o.MaxDisplayCommands && HasTextContent(paragraph, cancellation))
+                ChargeDisplayCommands(1);
             var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
             if (lines.Count == 0)
             {
@@ -258,6 +296,7 @@ internal static class TextLayout
                 var baseline = o.PageHeight - y - line.Ascent;
                 for (var start = 0; start < line.Glyphs.Count;)
                 {
+                    ChargeDisplayCommands(1);
                     var first = line.Glyphs[start]; var text = new StringBuilder(); var width = 0d; var end = start;
                     while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
                     {
@@ -273,6 +312,23 @@ internal static class TextLayout
             after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
         }
         return pages;
+    }
+
+    private static bool HasTextContent(Paragraph paragraph, CancellationToken cancellation)
+    {
+        // Match Wrap's HTML whitespace and explicit-break rules without
+        // resolving glyphs or building any temporary text representation.
+        foreach (var run in paragraph.Runs)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (run.IsBreak) continue;
+            foreach (var character in run.Text)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (!HtmlTokens.Space(character)) return true;
+            }
+        }
+        return false;
     }
 
     private static List<Line> Wrap(Paragraph paragraph, double available, IReadOnlyList<PdfFont> fonts,

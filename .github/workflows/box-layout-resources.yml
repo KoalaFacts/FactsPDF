@@ -1,0 +1,65 @@
+name: FactsPDF M9 box layout resource evidence
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  same-harness-m8-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASELINE_SHA: 9b9ad5b04c3cc89a18f620b346589381b693695b
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: current
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: 9b9ad5b04c3cc89a18f620b346589381b693695b
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install native compiler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Test measurement contract and prepare deterministic inputs
+        run: |
+          python3 -m unittest discover -s current/scripts -p 'test_box_layout_evidence.py' -v
+          python3 current/scripts/box_layout_evidence.py generate artifacts/box-resources/inputs
+      - name: Pin revisions and use identical measurement harnesses
+        run: |
+          test "$(git -C baseline rev-parse HEAD)" = "$BASELINE_SHA"
+          echo "SOURCE_SHA=$(git -C current rev-parse HEAD)" >> "$GITHUB_ENV"
+          cp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
+          cmp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
+          cmp current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj baseline/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj
+          HARNESS_SHA=$(cat current/benchmarks/FactsPDF.Benchmarks/Program.cs current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj | sha256sum | cut -d' ' -f1)
+          echo "HARNESS_SHA=$HARNESS_SHA" >> "$GITHUB_ENV"
+      - name: Compile same Native AOT harness against both engines
+        run: |
+          dotnet publish baseline/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj -c Release -r linux-x64 -p:PublishAot=true -o "$GITHUB_WORKSPACE/artifacts/native-baseline"
+          dotnet publish current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj -c Release -r linux-x64 -p:PublishAot=true -o "$GITHUB_WORKSPACE/artifacts/native-candidate"
+      - name: Measure both revisions and require byte-for-byte parity
+        run: |
+          mkdir -p artifacts/box-resources/baseline artifacts/box-resources/candidate
+          for name in plain nested fragmented; do
+            artifacts/native-baseline/FactsPDF.Benchmarks full "artifacts/box-resources/inputs/$name.html" > "artifacts/box-resources/baseline/$name.json"
+            artifacts/native-candidate/FactsPDF.Benchmarks full "artifacts/box-resources/inputs/$name.html" > "artifacts/box-resources/candidate/$name.json"
+          done
+          python3 current/scripts/box_layout_evidence.py compare artifacts/box-resources/baseline artifacts/box-resources/candidate "$SOURCE_SHA" "$BASELINE_SHA" "$HARNESS_SHA" artifacts/box-resources/report.json
+      - name: Retain raw evidence without binaries or font files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: m9-box-layout-evidence
+          path: artifacts/box-resources/
+          if-no-files-found: error
+          retention-days: 14
