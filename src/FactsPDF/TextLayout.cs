@@ -38,6 +38,16 @@ internal static class TextLayout
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
         var opened = new List<OpenBlock>();
         var contentEpoch = 0; var paintOrder = 0;
+        var displayCommands = 0;
+        void ChargeDisplayCommands(int count, int sourceOffset = -1)
+        {
+            // Charge before retaining output, across all pages and both layout
+            // entry points. Subtraction avoids overflowing at an int.MaxValue
+            // limit; zero-area fragments retain their existing zero cost.
+            if (count > o.MaxDisplayCommands - displayCommands)
+                throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.", sourceOffset);
+            displayCommands += count;
+        }
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -161,6 +171,7 @@ internal static class TextLayout
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
                             scope.Style, scope.TextColor, scope.Order,
                             IsFirstFragment: isFirst, IsLastFragment: isLast);
+                        ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
                         pages[pageIndex].PaintBoxes.Add(painted);
                         emittedPaint |= painted.CommandCount > 0;
                     }
@@ -258,6 +269,7 @@ internal static class TextLayout
                 var baseline = o.PageHeight - y - line.Ascent;
                 for (var start = 0; start < line.Glyphs.Count;)
                 {
+                    ChargeDisplayCommands(1);
                     var first = line.Glyphs[start]; var text = new StringBuilder(); var width = 0d; var end = start;
                     while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
                     {
