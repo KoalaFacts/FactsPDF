@@ -21,7 +21,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 
 from PIL import Image
-from css_visual_metrics import compare, save_visuals
+from css_visual_metrics import compare, save_visuals, align_raster_canvases
 
 DPI = 120
 WIDTH_PT, HEIGHT_PT, MARGIN_PT = 595.28, 841.89, 36.0
@@ -255,8 +255,8 @@ def main():
                         zip(chrome_images, factspdf_images), start=1
                     ):
                         with Image.open(cpath) as cimage, Image.open(fpath) as fimage:
-                            left = cimage.convert("RGB")
-                            right = fimage.convert("RGB")
+                            left, right, geometry_note = align_raster_canvases(
+                                cimage, fimage)
                             metrics = compare(left, right)
                             if metrics["chrome_ink_bbox"] is None or metrics["factspdf_ink_bbox"] is None:
                                 raise AssertionError("Blank page in a nonempty visual fixture")
@@ -267,6 +267,7 @@ def main():
                                                  metrics["pixel_count"])
                         case["pages"].append({
                             "number": index, "metrics": metrics,
+                            "raster_alignment": geometry_note,
                             "images": {key: str(Path(filename).relative_to(output))
                                        for key, filename in files.items()}
                         })
