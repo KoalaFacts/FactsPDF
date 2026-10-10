@@ -395,6 +395,72 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
+    public void ParagraphTopMarginIsOutsideItsPaintedBorderBox()
+    {
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(
+            "<p style='margin-top:40pt;background-color:red'>A</p>", Options, default),
+            Options, default);
+        Assert.That(pages[0].PaintBoxes.Single().Top, Is.EqualTo(60).Within(0.00001),
+            "The painted top must be below the paragraph's 40pt top margin.");
+    }
+
+    [Test]
+    public void BreakAfterOnPaintOnlyParagraphCreatesAnotherPage()
+    {
+        const string html = "<p style='background-color:red;padding:10pt;break-after:page'></p><p>B</p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+            Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("B"));
+    }
+
+    [Test]
+    public void BreakBeforeOnEmptyPaintedParagraphMovesBoxItself()
+    {
+        const string html = "<p>A</p><p style='background-color:red;" +
+            "padding:10pt;break-before:page'></p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+            Options, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Is.Empty);
+        Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void ParentBackgroundIncludesLastChildBottomMargin()
+    {
+        static double Height(string css)
+        {
+            var html = "<div style='background-color:red;padding-bottom:10pt'>" +
+                "<p style='margin-bottom:" + css + "'>A</p></div>";
+            var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
+                Options, default);
+            return pages[0].PaintBoxes.Single().Height;
+        }
+        Assert.That(Height("40pt") - Height("0pt"), Is.EqualTo(40).Within(0.00001));
+    }
+
+    [Test]
+    public void PaintOnlyBoxOccupiesPageForFollowingNormalOverflow()
+    {
+        var small = Options with { PageHeight = 100 };
+        var html = "<div style='background-color:red;padding:25pt 0'></div><p>B</p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, small, default),
+            small, default);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes, Has.Count.EqualTo(1));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("B"));
+    }
+
+    [Test]
+    public void PaintedEmptyDescendantStillMakesParentSpanMultiplePages()
+    {
+        Failure("<div style='background-color:red'><div style='background-color:blue;" +
+            "padding:10pt'></div><p style='break-before:page'>B</p></div>", "FPDF1302");
+    }
+
+    [Test]
     public void PaintingIsLocaleIndependent()
     {
         var culture = CultureInfo.CurrentCulture;
