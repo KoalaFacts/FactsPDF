@@ -47,6 +47,13 @@ internal static class CssSyntaxTokenizer
                 Add(CssSyntaxTokenKind.Whitespace, start, i, " ");
                 continue;
             }
+            if (text[i] is '\'' or '"')
+            {
+                var start = i;
+                var parsed = ConsumeString(text, ref i, limits.Cancellation);
+                Add(parsed.Kind, start, i, parsed.Value);
+                continue;
+            }
             if (text[i] == '#' && i + 1 < text.Length &&
                 (IsNameChar(text[i + 1]) || IsValidEscape(text, i + 1)))
             {
@@ -107,7 +114,15 @@ internal static class CssSyntaxTokenizer
                 if (i < text.Length && text[i] == '(')
                 {
                     i++;
-                    Add(CssSyntaxTokenKind.Function, start, i, ident);
+                    var lookahead = i;
+                    while (lookahead < text.Length && IsWhitespace(text[lookahead])) lookahead++;
+                    if (ident.Equals("url", StringComparison.OrdinalIgnoreCase) &&
+                        !(lookahead < text.Length && text[lookahead] is '\'' or '"'))
+                    {
+                        var parsed = ConsumeUrl(text, ref i, limits.Cancellation);
+                        Add(parsed.Kind, start, i, parsed.Value);
+                    }
+                    else Add(CssSyntaxTokenKind.Function, start, i, ident);
                 }
                 else Add(CssSyntaxTokenKind.Ident, start, i, ident);
                 continue;
@@ -134,6 +149,82 @@ internal static class CssSyntaxTokenizer
             source.Span(text.Length, 0)));
         return result;
     }
+
+    private static bool IsWhitespace(char ch) => ch is ' ' or '\t' or '\n';
+
+    private static (CssSyntaxTokenKind Kind, string Value) ConsumeString(
+        string text, ref int at, CancellationToken cancellation)
+    {
+        var quote = text[at++];
+        var value = new StringBuilder();
+        while (at < text.Length)
+        {
+            if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();
+            var c = text[at];
+            if (c == quote)
+            {
+                at++;
+                return (CssSyntaxTokenKind.String, value.ToString());
+            }
+            if (c == '\n') return (CssSyntaxTokenKind.BadString, value.ToString());
+            if (c == '\\')
+            {
+                if (at + 1 < text.Length && text[at + 1] == '\n') { at += 2; continue; }
+                if (IsValidEscape(text, at)) { value.Append(ConsumeEscape(text, ref at)); continue; }
+            }
+            value.Append(c);
+            at++;
+        }
+        return (CssSyntaxTokenKind.String, value.ToString());
+    }
+
+    private static (CssSyntaxTokenKind Kind, string Value) ConsumeUrl(
+        string text, ref int at, CancellationToken cancellation)
+    {
+        while (at < text.Length && IsWhitespace(text[at])) at++;
+        var value = new StringBuilder();
+        while (at < text.Length)
+        {
+            if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();
+            var c = text[at];
+            if (c == ')') { at++; return (CssSyntaxTokenKind.Url, value.ToString()); }
+            if (IsWhitespace(c))
+            {
+                while (at < text.Length && IsWhitespace(text[at])) at++;
+                if (at == text.Length) return (CssSyntaxTokenKind.Url, value.ToString());
+                if (text[at] == ')') { at++; return (CssSyntaxTokenKind.Url, value.ToString()); }
+                ConsumeBadUrlRemnants(text, ref at, cancellation);
+                return (CssSyntaxTokenKind.BadUrl, value.ToString());
+            }
+            if (c is '"' or '\'' or '(' || IsNonPrintable(c))
+            {
+                ConsumeBadUrlRemnants(text, ref at, cancellation);
+                return (CssSyntaxTokenKind.BadUrl, value.ToString());
+            }
+            if (c == '\\')
+            {
+                if (IsValidEscape(text, at)) { value.Append(ConsumeEscape(text, ref at)); continue; }
+                ConsumeBadUrlRemnants(text, ref at, cancellation);
+                return (CssSyntaxTokenKind.BadUrl, value.ToString());
+            }
+            value.Append(c); at++;
+        }
+        return (CssSyntaxTokenKind.Url, value.ToString());
+    }
+
+    private static void ConsumeBadUrlRemnants(string text, ref int at, CancellationToken cancellation)
+    {
+        while (at < text.Length)
+        {
+            if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();
+            if (text[at] == ')') { at++; return; }
+            if (IsValidEscape(text, at)) { _ = ConsumeEscape(text, ref at); continue; }
+            at++;
+        }
+    }
+
+    private static bool IsNonPrintable(char c)
+        => c <= '\u0008' || c == '\u000B' || c is >= '\u000E' and <= '\u001F' || c == '\u007F';
 
     private static bool IsNameStart(char c)
         => char.IsAsciiLetter(c) || c == '_' || c >= 0x0080;
