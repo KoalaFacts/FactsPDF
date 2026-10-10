@@ -1,6 +1,6 @@
 # FactsPDF M5 — Block Box Tree and Basic CSS Box Model
 
-**Status:** Design for review (not an implementation or a release)
+**Status:** Design for review (not an implementation or a release). **BLOCKED by PR #6:** the standards-based CSS Syntax Core must be implemented, validated and integrated before box-model implementation. This document specifies layout behavior; its old-parser integration instructions are superseded by the CSS Syntax Core adapter contract.
 **Design approved in conversation:** Approach A, retain actual block nesting; 2026-10-10.
 **Repository base:** `KoalaFacts/FactsPDF` `main`, commit `8c303bda7a0fe1875f5376839a4bc7f4ebf8dc6e`.
 **Scope:** `width`, `padding`, `border`, `background-color`; existing text, stylesheet, Unicode and font-subsetting behavior must remain intact.
@@ -13,11 +13,11 @@ FactsPDF must render useful document panels, cards and sections—not just style
 - No new runtime HTML/CSS/PDF/font engine dependency, automatic filesystem/network access, JavaScript execution or dynamic-code requirement. Keep Native AOT compatibility.
 - Existing `PdfConverter.Convert`, `PdfOptions`, CLI arguments, licenses and commercial/community policy unchanged except additive resource-limit options if justified by tests.
 - Previously supported unboxed documents remain semantically and visually compatible, including CSS selector specificity, text extraction, pagination and explicit font behavior.
-- Unknown or malformed CSS, unsupported nesting and impossible geometry fail *before* any output bytes are copied. Do not pretend full browser CSS/HTML compatibility.
+- The syntax core recovers CSS parse errors per its specification; the current default **StrictPdf renderer** rejects recovered syntax errors and unsupported layout declarations *before* any output bytes. Unsupported nesting and impossible geometry also fail before output. Do not pretend full browser CSS/HTML compatibility.
 
 ## 2. Existing architecture and reason for Approach A
 
-Currently `HtmlDocumentReader.Read` flattens `div`/`section`/`article` into `List<Paragraph>`; `DocumentModel` contains `TextStyle`, `Paragraph` and `PlacedText`; `TextLayout.Layout` flows a flat paragraph list; `PdfSerializer` and `UnicodePdfSerializer` emit text only. `CssStylesheets` computes per-element styles, and `CssDeclarations.Parse` currently expects a single value token.
+Currently `HtmlDocumentReader.Read` flattens `div`/`section`/`article` into `List<Paragraph>`; `DocumentModel` contains `TextStyle`, `Paragraph` and `PlacedText`; `TextLayout.Layout` flows a flat paragraph list; `PdfSerializer` and `UnicodePdfSerializer` emit text only. `CssStylesheets` computes per-element styles, and the existing `CssDeclarations.Parse` expects a single value token. **By the time this design is implemented, PR #6's new CSS Syntax Core and semantic adapter replace that narrow parsing contract.**
 
 An alternative paragraph-only decoration patch is rejected. It cannot preserve container backgrounds, nested padding, true content widths or cross-page borders and would be replaced again for tables/images.
 
@@ -56,7 +56,7 @@ Separate units have single responsibilities: CSS parsing/cascade, structural HTM
 
 ## 4. CSS property grammar and cascade
 
-Extend the existing **strict** lexer/declaration processor to accept multiple tokens, primarily for four-value padding and border shorthands, while retaining CSS source offsets, comments, declaration/source order and `!important` handling. Do **not** start accepting arbitrary CSS functions or unknown properties.
+Extend **semantic property decoders** to consume component-value lists from the standards-based CSS Syntax Core (PR #6), primarily for four-value padding and border shorthands. Keep source offsets, comments, declaration/source order and `!important` handling. Syntax parsing may represent functions/unknown properties; the StrictPdf semantic adapter must reject those it cannot interpret instead of accepting unsupported visual behavior.
 
 | Property | Supported first increment | Initial/computed behavior |
 | --- | --- | --- |
@@ -121,7 +121,7 @@ No claim of full hostile-input sandboxing, pixel-perfect browser fidelity or pro
 
 ## 9. Implementation component boundaries
 
-1. `CssDeclarations`/`InlineCss`/`CssStylesheets`: token/value grammar, longhand expansion, computed `BlockStyle` and text style; existing specificity and work budget reused.
+1. **CSS Syntax Core (PR #6 prerequisite)** supplies typed component values; `CssDeclarations`/`InlineCss`/`CssStylesheets` consume them to expand box-model longhands and compute `BlockStyle` alongside text styles, retaining existing specificity and work budgets.
 2. `HtmlDocumentReader`/`DocumentModel`: replace flattened paragraphs with explicit block tree and anonymous runs while preserving selector ancestor paths and omission behavior.
 3. `BlockLayout`: geometry, percentage resolution, flow and pagination into bounded `BoxFragment` records.
 4. `PageContentPainter` and serializers: rectangle fills, solid edges and text drawing for both ASCII/Unicode.
