@@ -20,9 +20,11 @@ internal static class CssBoxValues
         { number = value[..^2]; scale = 0.75; percent = false; }
         else if (value.EndsWith('%'))
         { number = value[..^1]; scale = 1; percent = true; }
+        else if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var zero) && zero == 0)
+            return new CssLength(0);
         else throw new FactsPdfException("FPDF1202", "Width and padding require pt, px, %, or unitless zero.", offset);
 
-        if (!double.TryParse(number, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+        if (!double.TryParse(number, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var parsed) || !double.IsFinite(parsed))
             throw new FactsPdfException("FPDF1202", "Box length must be a finite decimal.", offset);
         var length = parsed * scale;

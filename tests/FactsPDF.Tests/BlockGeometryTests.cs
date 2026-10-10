@@ -147,6 +147,56 @@ public sealed class BlockGeometryTests
         finally { CultureInfo.CurrentCulture = culture; }
     }
 
+
+    [Test]
+    public void BoxLengthsAcceptCssZeroDecimalsAndPixelUnits()
+    {
+        var runs = Layout("<div style='width:80px;padding-left:8px;padding-right:0.0'>A</div>")[0].Runs;
+        Assert.That(runs.Single().X, Is.EqualTo(26).Within(0.00001));
+        var empty = Layout("<div style='width:-0'></div><p>B</p>")[0].Runs;
+        Assert.That(empty.Single().Text, Is.EqualTo("B"));
+    }
+
+    [Test]
+    public void PaddingDoesNotImplicitlyInheritAndExplicitShorthandInheritDoes()
+    {
+        const string html = "<div style='padding:1pt 20pt'><div>A</div>" +
+            "<div style='padding:inherit'>B</div></div>";
+        var runs = Layout(html)[0].Runs;
+        Assert.That(runs.Select(x => x.X), Is.EqualTo(new[] { 40d, 60d }));
+    }
+
+    [Test]
+    public void PaddingDoesNotProduceAStandaloneBlankPageAtTheEnd()
+    {
+        var pages = Layout("<div>A</div><div style='padding-bottom:450pt'></div>");
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(pages[0].Runs.Select(x => x.Text), Is.EqualTo(new[] { "A" }));
+    }
+
+    [Test]
+    public void TopPaddingMovesWithTheFirstTextLineWhenAPageBreakIsRequired()
+    {
+        const string html = "<p>A</p><div style='padding-top:240pt'>B</div>";
+        var small = Page with { PageHeight = 300 };
+        var pages = Layout(html, small);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("A"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("B"));
+        Assert.That(pages[1].Runs.Single().Baseline, Is.LessThan(60));
+    }
+
+    [Test]
+    public void InheritedExplicitWidthRetainsParentSpecifiedContentWidth()
+    {
+        var root = HtmlDocumentReader.ReadTree(
+            "<div style='width:120pt'><div style='width:inherit'>A</div></div>", Page, default);
+        var child = Box(Box(root.Children.Single()).Children.Single());
+        Assert.That(child.BoxStyle.Width!.Value.Value, Is.EqualTo(120));
+        Assert.That(Layout("<div style='width:120pt'><div style='width:inherit'>A</div></div>")[0].Runs.Single().X,
+            Is.EqualTo(20));
+    }
+
     [Test]
     public void CancelledTreeLayoutAndMaxPagesRetainExistingGuardrails()
     {
