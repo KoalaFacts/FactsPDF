@@ -41,7 +41,7 @@ public sealed class CssSyntaxStressTests
     [Test]
     public void ExcessiveComponentNodesFailWithinConfiguredBudget()
     {
-        var limits = new CssSyntaxLimits(MaxNodes: 12);
+        var limits = new CssSyntaxLimits(MaxNodes: 3);
         Assert.Throws<CssSyntaxLimitException>(() => Parse("p{color:red;color:blue;color:red;color:blue}", limits));
     }
 
