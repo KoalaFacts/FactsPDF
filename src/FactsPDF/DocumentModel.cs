@@ -20,14 +20,21 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     BoxStyle Style, Rgb TextColor, int Order,
     bool IsFirstFragment = true, bool IsLastFragment = true)
 {
+    // A page fragment can be shorter than its specified border. Use the same
+    // clipped geometry for serialization and display-command accounting.
+    internal double TopBorderHeight => IsFirstFragment
+        ? Math.Min(Math.Max(0, Height), Style.BorderTop.EffectiveWidth) : 0;
+    internal double BottomBorderHeight => IsLastFragment
+        ? Math.Min(Math.Max(0, Height), Style.BorderBottom.EffectiveWidth) : 0;
+
     // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
     // An empty background or vertical edge of a zero-height box costs 0.
     public int CommandCount
     {
         get
         {
-            var top = IsFirstFragment ? Style.BorderTop.EffectiveWidth : 0;
-            var bottom = IsLastFragment ? Style.BorderBottom.EffectiveWidth : 0;
+            var top = TopBorderHeight;
+            var bottom = BottomBorderHeight;
             var middleHeight = Math.Max(0, Height - top - bottom);
             return (Width > 0 && Height > 0 && Style.BackgroundColor.HasValue ? 1 : 0)
                 + (Width > 0 && top > 0 ? 1 : 0)
