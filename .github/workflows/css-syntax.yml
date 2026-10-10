@@ -1,0 +1,30 @@
+name: FactsPDF CSS Syntax evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  selected-syntax-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Selected CSS syntax behavior assertions
+        run: |
+          mkdir -p artifacts/css-syntax
+          dotnet test tests/FactsPDF.Tests/FactsPDF.Tests.csproj -c Release --filter "TestCategory=CssSyntaxConformance" --logger "trx;LogFileName=css-syntax.trx" --results-directory artifacts/css-syntax
+          python3 scripts/verify_css_syntax.py artifacts/css-syntax/css-syntax.trx artifacts/css-syntax/conformance.json
+      - name: Retain only selected-case coverage JSON
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: css-syntax-conformance
+          path: artifacts/css-syntax/conformance.json
+          if-no-files-found: error
+          retention-days: 14
