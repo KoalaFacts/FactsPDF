@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[8];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.PaddingLeft + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -126,8 +126,9 @@ internal sealed class CssStylesheets
     private static void Add(Dictionary<string, List<Rule>> index, string key, Rule rule)
     { if (!index.TryGetValue(key, out var list)) index.Add(key, list = []); list.Add(rule); }
 
-    internal TextStyle Compute(TextStyle defaults, TextStyle parent, TextStyle initial, IReadOnlyList<CssElement> path,
-        bool paragraph, int elementOffset, bool allowStyling = true)
+    internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, TextStyle parent, TextStyle initial,
+        BoxStyle parentBox, IReadOnlyList<CssElement> path,
+        bool paragraph, bool block, int elementOffset, bool allowStyling = true)
     {
         Array.Clear(winners); var element = path[^1];
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
@@ -137,6 +138,8 @@ internal sealed class CssStylesheets
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.BreakBefore or CssProperty.BreakAfter)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
+            if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
+                throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;
         }
@@ -155,8 +158,15 @@ internal sealed class CssStylesheets
         foreach (var name in element.Classes) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
         var style = defaults;
+        var box = new BoxStyle();
         foreach (var winner in winners)
-            if (winner.HasValue) style = CssDeclarations.Apply(style, parent, initial, winner.Value.Declaration, paragraph);
-        return style;
+        {
+            if (!winner.HasValue) continue;
+            var declaration = winner.Value.Declaration;
+            if (CssDeclarations.IsBoxProperty(declaration.Property))
+                box = CssDeclarations.ApplyBox(box, parentBox, declaration);
+            else style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph);
+        }
+        return (style, box);
     }
 }

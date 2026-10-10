@@ -16,42 +16,55 @@ internal static class TextLayout
     // milestone. Traverse the nested tree lazily so PDF conversion does not
     // discard its box topology into a second flattened document model.
     public static List<LayoutPage> Layout(DocumentRoot document, PdfOptions o, CancellationToken cancellation)
-        => LayoutCore(BlockTreeTraversal.Paragraphs(document, cancellation), o, cancellation);
+        => LayoutCore(BlockLayout.Steps(document, o, cancellation), o, cancellation);
 
     // Compatibility path for existing font/layout tests.
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
-        => LayoutCore(paragraphs, o, cancellation);
+        => LayoutCore(paragraphs.Select(p => (BlockLayoutStep)new LayoutParagraph(p, o.Margin,
+            o.PageWidth - 2 * o.Margin)), o, cancellation);
 
-    private static List<LayoutPage> LayoutCore(IEnumerable<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
+    private static List<LayoutPage> LayoutCore(IEnumerable<BlockLayoutStep> steps, PdfOptions o, CancellationToken cancellation)
     {
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
-        var y = o.Margin; var after = 0d; var breakNext = false;
-        var availableWidth = o.PageWidth - 2 * o.Margin; var bottom = o.PageHeight - o.Margin;
+        var y = o.Margin; var after = 0d; var breakNext = false; var pendingPadding = 0d;
+        var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
             pages.Add(new()); y = o.Margin; after = 0;
         }
-        foreach (var paragraph in paragraphs)
+        foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
-            var lines = Wrap(paragraph, availableWidth, o.Fonts, resolved, cancellation);
+            if (step is BeginBlock begin) { pendingPadding += begin.PaddingTop; continue; }
+            if (step is EndBlock end) { pendingPadding += end.PaddingBottom; continue; }
+            var item = (LayoutParagraph)step;
+            var paragraph = item.Paragraph;
+            var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation);
             if (lines.Count == 0) { after = Math.Max(after, paragraph.Style.MarginAfter); breakNext |= paragraph.Style.BreakBefore || paragraph.Style.BreakAfter; continue; }
             if ((breakNext || paragraph.Style.BreakBefore) && y > o.Margin) NewPage();
             breakNext = false;
-            var gap = Math.Max(after, paragraph.Style.MarginBefore);
-            if (y + gap + lines[0].Height > bottom && y > o.Margin) { NewPage(); gap = 0; }
+            var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingPadding;
+            if (y + gap + lines[0].Height > bottom && y > o.Margin)
+            {
+                NewPage();
+                // Preserve pending box padding on the new page; drop the legacy
+                // adjoining paragraph margin exactly as pre-M6 pagination does.
+                gap = pendingPadding;
+            }
             if (gap + lines[0].Height > bottom - o.Margin)
-                throw new FactsPdfException("FPDF1302", "Paragraph margin and first line cannot fit on a page.");
+                throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
             y += gap;
+            pendingPadding = 0;
             foreach (var line in lines)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (line.Height > bottom - o.Margin) throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.");
                 if (y + line.Height > bottom + 0.000001) NewPage();
-                var x = o.Margin + (paragraph.Style.Alignment switch
-                { TextAlignment.Center => (availableWidth - line.Width) / 2, TextAlignment.Right => availableWidth - line.Width, _ => 0 });
+                var x = item.ContentX + (paragraph.Style.Alignment switch
+                { TextAlignment.Center => (item.ContentWidth - line.Width) / 2,
+                  TextAlignment.Right => item.ContentWidth - line.Width, _ => 0 });
                 var baseline = o.PageHeight - y - line.Ascent;
                 for (var start = 0; start < line.Glyphs.Count;)
                 {
