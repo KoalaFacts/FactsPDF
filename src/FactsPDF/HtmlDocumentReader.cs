@@ -33,20 +33,6 @@ internal static class HtmlDocumentReader
             return result.Children;
         }
 
-        TextStyle AnonymousStyle()
-        {
-            // The anonymous paragraph belongs to its nearest block, not to
-            // whichever inline span happens to precede the first text run.
-            for (var i = stack.Count - 1; i >= 0; i--)
-            {
-                var box = stack[i].Box;
-                if (box is not null) return box.Style;
-            }
-            for (var i = stack.Count - 1; i >= 0; i--)
-                if (stack[i].Name is "html" or "#root") return stack[i].Style;
-            return root;
-        }
-
         void Flush()
         {
             if (current is not null)
@@ -60,7 +46,11 @@ internal static class HtmlDocumentReader
             if (current is null && !lineBreak && text.All(HtmlTokens.Space)) return;
             if (current is null)
             {
-                current = new Paragraph(AnonymousStyle());
+                // Preserve the existing text-layout paragraph style for a
+                // first-inline-run span (including text-align). The retained
+                // BlockNode.Style separately stores the actual containing-box
+                // computed style for future block-aware layout.
+                current = new Paragraph(stack[^1].Style);
                 anonymous = true;
             }
             current.Runs.Add(new(text, style, lineBreak));
