@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 
 from PIL import Image
+import PIL
 from css_visual_metrics import align_raster_canvases, compare, save_visuals
 from css_visual_differential import (
     LATIN, CJK, DPI, WIDTH_PT, HEIGHT_PT, MARGIN_PT, BROWSER_NORMALIZATION,
@@ -70,6 +71,8 @@ CHROME_PRINT_COLOR = """
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  * { font-variant-ligatures: none !important;
+      font-feature-settings: "kern" 0, "liga" 0, "clig" 0 !important; }
 </style>
 """
 
@@ -100,6 +103,89 @@ def color_extent(image: Image.Image, hex_color: str, tolerance: int = 6):
     return None if x1 < x0 else [x0, y0, x1 + 1, y1 + 1]
 
 
+
+def validate_border_sides(image: Image.Image, dpi: int = 120,
+                          dimension_tolerance: float = 3.0):
+    """Check that colors form their DECLARED edges with correct thickness."""
+    bounds = {
+        "top": color_extent(image, "#aa2233"),
+        "right": color_extent(image, "#1d4568"),
+        "bottom": color_extent(image, "#008000"),
+        "left": color_extent(image, "#a0601c"),
+    }
+    if any(b is None for b in bounds.values()):
+        raise AssertionError("Missing one or more independent border-side colors")
+    top, right, bottom, left = (bounds[k] for k in ("top", "right", "bottom", "left"))
+    if not (top[1] <= min(left[1], right[1]) and
+            bottom[3] >= max(left[3], right[3]) and
+            left[0] <= top[0] and right[2] >= top[2]):
+        raise AssertionError(f"Border colors appear on the wrong sides: {bounds}")
+    def thick(box, side):
+        return box[3] - box[1] if side in ("top", "bottom") else box[2] - box[0]
+    declared = {"top": 6, "right": 5, "bottom": 4, "left": 7}
+    for side, box in bounds.items():
+        expected = declared[side] * dpi / 72
+        if abs(thick(box, side) - expected) > dimension_tolerance:
+            raise AssertionError(f"{side} border thickness does not match declared CSS: {box}")
+        if side in ("top", "bottom"):
+            if (box[2] - box[0]) <= 5 * (box[3] - box[1]):
+                raise AssertionError(f"{side} must be a horizontal border")
+        elif (box[3] - box[1]) <= 4 * (box[2] - box[0]):
+            raise AssertionError(f"{side} must be a vertical border")
+    return {"orientation": "correct", "side_bounds": bounds,
+            "declared_widths_pt": declared, "dpi": dpi}
+
+
+def validate_padding_geometry(image: Image.Image, dpi: int = 120):
+    """Assert all four TRBL offsets, not just some nested containment."""
+    outer = color_extent(image, "#e4e5e7")
+    inner = color_extent(image, "#abd9e7")
+    if outer is None or inner is None:
+        raise AssertionError("Both solid padding backgrounds must be visible")
+    insets = [inner[0] - outer[0], inner[1] - outer[1],
+              outer[2] - inner[2], outer[3] - inner[3]]
+    # The outer padding TRBL is 12pt 28pt 24pt 36pt.
+    expected = [36 * dpi / 72, 12 * dpi / 72,
+                28 * dpi / 72, 24 * dpi / 72]
+    if any(abs(actual - target) > 3 for actual, target in zip(insets, expected)):
+        raise AssertionError(f"Padding geometry does not match CSS TRBL: {insets} vs {expected}")
+    return {"insets_px": insets, "css_padding_trbl_pt": [12, 28, 24, 36],
+            "outer_bbox": outer, "inner_bbox": inner}
+
+
+def validate_nested_percent_width(image: Image.Image, dpi: int = 120):
+    """Measure content-box % width after deducting declared padding/borders."""
+    outer = color_extent(image, "#dbeefa")
+    inner = color_extent(image, "#e4c76a")
+    leaf = color_extent(image, "#ffb27d")
+    if outer is None or inner is None or leaf is None:
+        raise AssertionError("Every nested background must have a painted area")
+    if not (outer[0] < inner[0] < leaf[0] and
+            leaf[2] < inner[2] < outer[2] and
+            outer[1] < inner[1] < leaf[1] and
+            leaf[3] < inner[3] < outer[3]):
+        raise AssertionError("Nested boxes must be strictly inset")
+    pt = dpi / 72
+    parent_content = (outer[2] - outer[0]) - (2 * 12 + 2 * 2) * pt
+    child_content = (inner[2] - inner[0]) - (2 * 16 + 2 * 2) * pt
+    if parent_content <= 0 or child_content <= 0:
+        raise AssertionError("Content box dimensions must be positive")
+    ratio = child_content / parent_content
+    if abs(ratio - 0.70) > 0.03:
+        raise AssertionError(f"width:70% child measured as {ratio:.4f}")
+    return {"content_width_ratio": round(ratio, 6),
+            "declared_child_width_percent": 70,
+            "outer_bbox": outer, "inner_bbox": inner, "leaf_bbox": leaf}
+
+
+def validate_native_box_visual(case: BoxCase, raster_paths: list[Path]):
+    """In compare mode, native PDF must actually paint supported box CSS."""
+    probe = validate_reference_pages(case, raster_paths)
+    if case.name == "fragmentation":
+        probe["sliced_edges"] = validate_fragment_edges(raster_paths, "#1d4568")
+    return probe
+
+
 def validate_fragment_edges(raster_paths: list[Path], hex_color: str,
                             min_row_pixels: int = 300):
     """Assert CSS box-decoration-break:slice on three real print fragments.
@@ -111,28 +197,41 @@ def validate_fragment_edges(raster_paths: list[Path], hex_color: str,
     if len(raster_paths) != 3:
         raise AssertionError("Expected exactly three fragment pages")
     color = tuple(int(hex_color[n:n + 2], 16) for n in (1, 3, 5))
-    hits = []
+    wide_rows = []
+    ink_edges = []
     for path in raster_paths:
         with Image.open(path) as img:
             rgb = img.convert("RGB")
             px = rgb.load()
-            rows = 0
+            rows = []
+            ymin, ymax = rgb.height, -1
             for y in range(rgb.height):
                 observed = 0
                 for x in range(rgb.width):
                     pixel = px[x, y]
                     if all(abs(pixel[k] - color[k]) <= 6 for k in range(3)):
                         observed += 1
+                if observed:
+                    ymin, ymax = min(ymin, y), max(ymax, y)
                 if observed >= min_row_pixels:
-                    rows += 1
-            hits.append(rows)
-    if not (hits[0] > 0 and hits[1] == 0 and hits[2] > 0):
+                    rows.append(y)
+            wide_rows.append(rows)
+            ink_edges.append((ymin, ymax))
+    tolerance = 10  # 4pt border at 120DPI plus antialiasing
+    first, middle, last = wide_rows
+    if not (first and not middle and last):
         raise AssertionError(
-            f"Expected sliced first/middle/last border rows (>0, 0, >0), got {hits}")
+            f"Expected sliced first/middle/last border rows (>0, 0, >0), got {list(map(len,wide_rows))}")
+    if any(y > ink_edges[0][0] + tolerance for y in first):
+        raise AssertionError(f"First fragment has a false bottom/opposite edge: {first}")
+    if any(y < ink_edges[2][1] - tolerance for y in last):
+        raise AssertionError(f"Last fragment has a false top/opposite edge: {last}")
     return {
-        "first_top_rows": hits[0],
-        "middle_horizontal_rows": hits[1],
-        "last_bottom_rows": hits[2],
+        "first_top_rows": len(first),
+        "middle_horizontal_rows": len(middle),
+        "last_bottom_rows": len(last),
+        "horizontal_border_positions": wide_rows,
+        "side_border_vertical_extents": ink_edges,
         "classification": "box-decoration-break slice (first top, middle sides, last bottom)",
         "wide_row_minimum_pixels": min_row_pixels,
     }
@@ -168,9 +267,16 @@ def validate_reference_pages(case: BoxCase, raster_paths: list[Path]):
                         raise AssertionError(
                             f"{case.name}: nested painted bbox {bbox} must inset into {previous}")
                     previous = bbox
+            geometry = None
+            if case.name == "border":
+                geometry = validate_border_sides(img)
+            elif case.name == "padding":
+                geometry = validate_padding_geometry(img)
+            elif case.name == "nested":
+                geometry = validate_nested_percent_width(img)
             pages.append({"number": page_no, "width_px": img.width,
                           "height_px": img.height, "color_pixels": samples,
-                          "color_bounds": bounds})
+                          "color_bounds": bounds, "geometry": geometry})
     return {"pages": len(pages), "page_probes": pages}
 
 
@@ -283,6 +389,8 @@ def run_case(case: BoxCase, *, browser: str, cli: Path, output: Path,
     if len(native_rasters) != len(browser_rasters):
         raise AssertionError("PDF raster page count does not match")
     result["factspdf_paper_points"] = [fw, fh]
+    result["native_paint_verification"] = validate_native_box_visual(
+        case, native_rasters)
     for number, (cpath, fpath) in enumerate(zip(browser_rasters, native_rasters), 1):
         with Image.open(cpath) as cimg, Image.open(fpath) as fimg:
             chrome, native, alignment = align_raster_canvases(cimg, fimg)
@@ -313,12 +421,20 @@ def make_summary(record: dict) -> str:
         text.append(
             f"| {case['name']} | {len(probes)} | "
             f"{sum(len(p['color_pixels']) for p in probes)} | {case.get('status') or 'ERROR'} |")
+    if record["mode"] == "reference":
+        text.extend([
+            "",
+            "**Reference mode does NOT run a paired cross-engine comparison.**",
+            "StrictPdf must explicitly reject unsupported box properties without creating a PDF.",
+        ])
+    else:
+        text.extend([
+            "",
+            "**Compare mode requires real paired Chrome/FactsPDF PDFs**, matching"
+            " text and page counts, plus native box-paint and fragmentation probes.",
+            "Pixel difference values remain diagnostics, not universal CSS conformance.",
+        ])
     text.extend([
-        "",
-        "**Reference mode does NOT run a passing cross-engine visual comparison.**",
-        "StrictPdf must explicitly reject unsupported width/padding/border/background "
-        "properties without creating a PDF. The future compare mode generates both "
-        "PDFs and full/ink region visual diffs for exactly the same fixture input.",
         "",
         f"Hard failures: {len(record['errors'])}. No font files, PDFs or executable "
         "programs are included in the upload; only public reference PNGs and this report.",
@@ -350,7 +466,16 @@ def main():
         "mode": args.mode,
         "css_scope": "background-color, border, padding, width%, nesting, 3-page sliced box",
         "source_head": source_sha(),
+        "checkout_sha": run("git", "rev-parse", "HEAD").decode().strip(),
         "chrome": run(browser, "--version").decode().strip(),
+        "tool_versions": {
+            "pdftoppm": subprocess.run(["pdftoppm", "-v"], capture_output=True,
+                                       text=True, timeout=15).stderr.strip().splitlines()[0],
+            "pdftotext": subprocess.run(["pdftotext", "-v"], capture_output=True,
+                                        text=True, timeout=15).stderr.strip().splitlines()[0],
+            "pillow": PIL.__version__,
+            "qpdf": run("qpdf", "--version").decode().splitlines()[0],
+        },
         "raster_dpi": DPI,
         "expected_paper_pt": [WIDTH_PT, HEIGHT_PT],
         "margin_pt": MARGIN_PT,
