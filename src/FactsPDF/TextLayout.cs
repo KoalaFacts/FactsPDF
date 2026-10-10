@@ -13,7 +13,8 @@ internal static class TextLayout
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
-        double StartY, int Order, bool IsParagraph, bool HasPaintedDescendant = false);
+        double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
+        bool HasParagraphDescendant = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -57,7 +58,7 @@ internal static class TextLayout
             for (var i = 0; i < opened.Count; i++)
             {
                 var scope = opened[i];
-                if (scope.ContentEpoch != contentEpoch || scope.HasPaintedDescendant) continue;
+                if (scope.ContentEpoch != contentEpoch || scope.HasOccupiedDescendant) continue;
                 opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
                 leading += scope.Top;
             }
@@ -81,6 +82,11 @@ internal static class TextLayout
                     pendingClosedPadding = 0;
                     breakNext = false;
                 }
+                // Even an empty paragraph has a bottom margin that belongs to
+                // its containing block's content height, not its own border.
+                if (begin.IsParagraph)
+                    for (var i = 0; i < opened.Count; i++)
+                        opened[i] = opened[i] with { HasParagraphDescendant = true };
                 var start = y + pendingTopPadding + pendingClosedPadding + after;
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
@@ -92,6 +98,7 @@ internal static class TextLayout
             {
                 var scope = opened[^1];
                 opened.RemoveAt(opened.Count - 1);
+                var emittedPaint = false;
                 if (scope.Style.HasPaint)
                 {
                     if (scope.StartPage != pages.Count - 1)
@@ -100,7 +107,8 @@ internal static class TextLayout
                     // The element's own paragraph margin is excluded from its
                     // border-box, but the last child's bottom margin belongs
                     // inside a decorated containing block.
-                    var childBottomMargin = !scope.IsParagraph && scope.ContentEpoch != contentEpoch
+                    var childBottomMargin = !scope.IsParagraph &&
+                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
                         ? after : 0d;
                     var finish = Math.Max(scope.StartY + scope.Top,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
@@ -113,9 +121,7 @@ internal static class TextLayout
                     var painted = new PaintedBox(scope.X, scope.StartY, scope.Width,
                         Math.Max(0, finish - scope.StartY), scope.Style, scope.TextColor, scope.Order);
                     pages[^1].PaintBoxes.Add(painted);
-                    if (painted.CommandCount > 0)
-                        for (var i = 0; i < opened.Count; i++)
-                            opened[i] = opened[i] with { HasPaintedDescendant = true };
+                    emittedPaint = painted.CommandCount > 0;
                 }
                 if (scope.ContentEpoch == contentEpoch)
                 {
@@ -125,6 +131,16 @@ internal static class TextLayout
                     pendingClosedPadding += scope.Top;
                 }
                 pendingClosedPadding += closing.PaddingBottom;
+                // An unpainted empty child can still consume page geometry
+                // through padding, borders or margins. If it has already
+                // occupied space on a page, a painted ancestor cannot be
+                // moved intact to another page before its first text line.
+                var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
+                    scope.Top > 0 || closing.PaddingBottom > 0 ||
+                    (scope.IsParagraph && after > 0);
+                if (occupiesSpace)
+                    for (var i = 0; i < opened.Count; i++)
+                        opened[i] = opened[i] with { HasOccupiedDescendant = true };
                 continue;
             }
             var item = (LayoutParagraph)step;
