@@ -1,0 +1,63 @@
+name: FactsPDF document acceptance candidate evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: factspdf-document-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  candidate-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FACTSPDF_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install explicit verification tools and trusted fixture fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev qpdf poppler-utils python3-pil fonts-dejavu-core fonts-droid-fallback
+      - name: Test new acceptance machinery without network or real fonts
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_acceptance_*.py' -v
+      - name: Generate deterministic candidate corpus (not approved references)
+        run: |
+          /usr/bin/python3 scripts/acceptance_corpus.py generate artifacts/acceptance-inputs
+          /usr/bin/python3 scripts/acceptance_corpus.py validate artifacts/acceptance-inputs/manifest.json
+      - name: Build actual Native AOT CLI and public-API acceptance host
+        run: |
+          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/acceptance-cli
+          dotnet publish tools/FactsPDF.Acceptance/FactsPDF.Acceptance.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/acceptance-host
+      - name: Capture real candidates and raw performance evidence; no human approval implied
+        run: |
+          /usr/bin/python3 scripts/acceptance_run.py capture \
+            --manifest artifacts/acceptance-inputs/manifest.json \
+            --native-cli artifacts/acceptance-cli/FactsPDF.Cli \
+            --api-host artifacts/acceptance-host/FactsPDF.Acceptance \
+            --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
+            --reviews docs/acceptance/reference-reviews.json \
+            --measure --output artifacts/document-acceptance
+      - name: Publish exact incomplete-state summary
+        if: always()
+        run: |
+          if test -f artifacts/document-acceptance/public/report.md; then
+            cat artifacts/document-acceptance/public/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Candidate evidence failed before completion. No reviewed baseline or preview approval.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Retain only the explicit public evidence allowlist
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: document-acceptance-candidates
+          path: artifacts/document-acceptance/public/
+          if-no-files-found: error
+          retention-days: 14
