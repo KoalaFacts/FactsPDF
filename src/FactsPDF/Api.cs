@@ -21,6 +21,8 @@ public sealed record PdfOptions
     public int MaxCssSelectors { get; init; } = 4_096;
     public int MaxCssDeclarations { get; init; } = 32_768;
     public int MaxCssMatchOperations { get; init; } = 5_000_000;
+    public int MaxCssSyntaxNodes { get; init; } = 131_072;
+    public int MaxCssSyntaxDepth { get; init; } = 64;
 }
 
 public sealed record PdfConversionResult(int PageCount, long BytesWritten);
