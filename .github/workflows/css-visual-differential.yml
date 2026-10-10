@@ -26,6 +26,12 @@ jobs:
         run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/css-visual-native
       - name: Compare controlled HTML/CSS PDF pages with Chrome PDF pages
         run: /usr/bin/python3 scripts/css_visual_differential.py artifacts/css-visual-native/FactsPDF.Cli artifacts/css-visual
+      - name: Show per-fixture visual-difference summary in GitHub Actions
+        if: always()
+        run: |
+          if test -f artifacts/css-visual/summary.md; then
+            cat artifacts/css-visual/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload public page previews, overlays, heatmaps and scoped metrics only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -33,6 +39,7 @@ jobs:
           name: css-visual-differential
           path: |
             artifacts/css-visual/report.json
+            artifacts/css-visual/summary.md
             artifacts/css-visual/*/*.png
           if-no-files-found: warn
           retention-days: 14
