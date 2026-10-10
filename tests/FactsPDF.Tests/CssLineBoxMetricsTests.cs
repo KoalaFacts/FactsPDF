@@ -79,6 +79,7 @@ public sealed class CssLineBoxMetricsTests
         var runs = TextLayout.Layout(paragraphs, options, CancellationToken.None)[0].Runs;
         Assert.That(runs, Has.Count.EqualTo(3));
         Assert.That(runs[0].Baseline, Is.EqualTo(runs[1].Baseline).Within(0.0001));
-        Assert.That(runs[0].Baseline - runs[2].Baseline, Is.GreaterThan(24));
+        Assert.That(runs[0].Baseline - runs[2].Baseline, Is.GreaterThan(15.6),
+            "Larger inline text should expand the line above the 12pt strut.");
     }
 }

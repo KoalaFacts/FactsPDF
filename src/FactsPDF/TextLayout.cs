@@ -9,8 +9,6 @@ internal static class TextLayout
     private readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000)
     {
         public double Width => Style.FontSize * Width1000 / 1000;
-        public double Ascent => Style.FontSize * (Font?.Ascent1000 ?? 800) / 1000;
-        public double Descent => Style.FontSize * -(Font?.Descent1000 ?? -200) / 1000;
     }
     private sealed record Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
 
@@ -44,7 +42,7 @@ internal static class TextLayout
                 if (y + line.Height > bottom + 0.000001) NewPage();
                 var x = o.Margin + (paragraph.Style.Alignment switch
                 { TextAlignment.Center => (availableWidth - line.Width) / 2, TextAlignment.Right => availableWidth - line.Width, _ => 0 });
-                var baseline = o.PageHeight - y - (line.Height - line.Ascent - line.Descent) / 2 - line.Ascent;
+                var baseline = o.PageHeight - y - line.Ascent;
                 for (var start = 0; start < line.Glyphs.Count;)
                 {
                     var first = line.Glyphs[start]; var text = new StringBuilder(); var width = 0d; var end = start;
@@ -112,17 +110,33 @@ internal static class TextLayout
         }
         if (glyphs.Count > 0 && glyphs[^1].Scalar == 32) glyphs.RemoveAt(glyphs.Count - 1);
         var lines = new List<Line>(); var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
+        // CSS Inline Layout: a specified (non-normal) line-height uses the
+        // metrics of the *first available font*, even if fallback fonts draw
+        // some glyphs. Each inline style contributes its own leading-adjusted
+        // ascent/descent; the parent's invisible strut is always present.
+        // Using glyph fallback hhea metrics here incorrectly moves all text
+        // baselines on mixed Latin/CJK lines and inflates explicit line-height.
+        (double Ascent, double Descent) Metrics(TextStyle style)
+        {
+            var size = style.FontSize;
+            var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
+            var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
+            var leading = (size * style.LineHeight - ascent - descent) / 2;
+            return (ascent + leading, descent + leading);
+        }
         void Flush(bool force)
         {
             if (current.Count == 0 && !force) return;
-            var size = paragraph.Style.FontSize;
-            var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
-            var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
-            var height = size * paragraph.Style.LineHeight;
+            var (ascent, descent) = Metrics(paragraph.Style); // line box strut
             foreach (var glyph in current)
-            { ascent = Math.Max(ascent, glyph.Ascent); descent = Math.Max(descent, glyph.Descent); height = Math.Max(height, glyph.Style.FontSize * glyph.Style.LineHeight); }
-            height = Math.Max(height, ascent + descent);
-            lines.Add(new(current, width, height, ascent, descent)); current = []; width = 0; space = null;
+            {
+                var (glyphAscent, glyphDescent) = Metrics(glyph.Style);
+                ascent = Math.Max(ascent, glyphAscent);
+                descent = Math.Max(descent, glyphDescent);
+            }
+            var height = ascent + descent;
+            lines.Add(new(current, width, height, ascent, descent));
+            current = []; width = 0; space = null;
         }
         for (var i = 0; i < glyphs.Count;)
         {
