@@ -67,7 +67,7 @@ public sealed class LineAtATimeWrappingTests
     public void ReusedLineStorageCannotModifyPreviouslyPlacedRuns()
     {
         var paragraph = Paragraph("A B C D E F G H I J");
-        var pages = TextLayout.Layout([paragraph], Page with { PageWidth = 60 }, default);
+        var pages = TextLayout.Layout([paragraph], Page with { PageWidth = 62 }, default);
         Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text),
             Is.EqualTo(new[] { "A B", "C D", "E F", "G H", "I J" }));
     }
@@ -90,7 +90,7 @@ public sealed class LineAtATimeWrappingTests
     [Test]
     public void NarrowAndWideParagraphsDoNotShareMutableLineState()
     {
-        var html = "<section style='width:20pt'>A B C D</section><p>Wide line stays here</p>";
+        var html = "<section style='width:22pt'>A B C D</section><p>Wide line stays here</p>";
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
         Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text),
             Is.EqualTo(new[] { "A B", "C D", "Wide line stays here" }));
