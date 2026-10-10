@@ -28,6 +28,9 @@ def check_text(text: str, case: dict) -> None:
 
 
 def check_boxes(xml: bytes, margin: float, size_tolerance: float = 0.01) -> list[dict]:
+    # Physical paper edges have no coordinate allowance; only content-margin
+    # measurements retain the existing font/bbox tolerance.
+    allowance = 0.0 if margin == 0 else 0.5
     pages = []
     for page in ET.fromstring(xml).iter():
         if page.tag.rsplit('}',1)[-1] != 'page': continue
@@ -42,7 +45,7 @@ def check_boxes(xml: bytes, margin: float, size_tolerance: float = 0.01) -> list
             x0,y0,x1,y1 = (float(word.attrib[k]) for k in ('xMin','yMin','xMax','yMax'))
             if not all(math.isfinite(v) for v in (x0,y0,x1,y1)):
                 raise ValueError('Nonfinite word geometry')
-            if not (margin-0.5 <= x0 <= x1 <= width-margin+0.5 and margin-0.5 <= y0 <= y1 <= height-margin+0.5):
+            if not (margin-allowance <= x0 <= x1 <= width-margin+allowance and margin-allowance <= y0 <= y1 <= height-margin+allowance):
                 raise ValueError(f'Text outside {margin}pt margin on page {len(pages)+1}: {word.text!r} bbox={(x0,y0,x1,y1)} page={(width,height)}')
             boxes.append({'text': ''.join(word.itertext()), 'x0':x0,'y0':y0,'x1':x1,'y1':y1})
         pages.append({'width':width,'height':height,'words':boxes})
