@@ -4,7 +4,10 @@ import unittest
 from pathlib import Path
 from PIL import Image
 
-from css_box_visual_oracle import CASES, count_color_pixels, validate_unsupported, validate_reference_pages, validate_fragment_edges, color_extent
+from css_box_visual_oracle import (CASES, count_color_pixels, validate_unsupported,
+    validate_reference_pages, validate_fragment_edges, color_extent,
+    validate_border_sides, validate_padding_geometry, validate_nested_percent_width,
+    make_summary, validate_native_box_visual)
 
 
 class BoxVisualContractTests(unittest.TestCase):
@@ -74,6 +77,89 @@ class BoxVisualContractTests(unittest.TestCase):
             self.assertGreater(verified["first_top_rows"], 0)
             self.assertEqual(verified["middle_horizontal_rows"], 0)
             self.assertGreater(verified["last_bottom_rows"], 0)
+
+    def test_painted_border_sides_are_positioned_and_have_declared_thickness(self):
+        from PIL import ImageDraw
+        image = Image.new("RGB", (180, 100), "white")
+        paint = ImageDraw.Draw(image)
+        paint.rectangle((10, 8, 160, 74), fill="#f1f4f6")
+        paint.rectangle((10, 8, 160, 17), fill="#aa2233")
+        paint.rectangle((153, 18, 160, 73), fill="#1d4568")
+        paint.rectangle((10, 68, 160, 73), fill="#008000")
+        paint.rectangle((10, 18, 20, 73), fill="#a0601c")
+        geometry = validate_border_sides(image, dpi=120, dimension_tolerance=4)
+        self.assertEqual(geometry["orientation"], "correct")
+        # Swapped side colors must not be accepted as equivalent.
+        wrong = Image.new("RGB", (180, 100), "white")
+        wrong_paint = ImageDraw.Draw(wrong)
+        wrong_paint.rectangle((10, 8, 160, 74), fill="#f1f4f6")
+        wrong_paint.rectangle((10, 8, 160, 17), fill="#aa2233")
+        wrong_paint.rectangle((153, 18, 160, 73), fill="#a0601c")
+        wrong_paint.rectangle((10, 68, 160, 73), fill="#008000")
+        wrong_paint.rectangle((10, 18, 20, 73), fill="#1d4568")
+        with self.assertRaises(AssertionError):
+            validate_border_sides(wrong, dpi=120, dimension_tolerance=4)
+
+    def test_padding_must_match_declared_asymmetric_geometry(self):
+        image = Image.new("RGB", (1000, 240), "white")
+        from PIL import ImageDraw
+        d = ImageDraw.Draw(image)
+        d.rectangle((60, 60, 899, 198), fill="#e4e5e7")
+        d.rectangle((120, 80, 853, 158), fill="#abd9e7")
+        dims = validate_padding_geometry(image, dpi=120)
+        self.assertEqual(dims["insets_px"], [60, 20, 46, 40])
+        wrong = image.copy()
+        d = ImageDraw.Draw(wrong)
+        d.rectangle((120, 80, 853, 158), fill="#e4e5e7")
+        d.rectangle((65, 65, 894, 193), fill="#abd9e7")
+        with self.assertRaises(AssertionError):
+            validate_padding_geometry(wrong, dpi=120)
+
+    def test_nested_child_content_width_is_seventy_percent(self):
+        image = Image.new("RGB", (1000, 350), "white")
+        from PIL import ImageDraw
+        d = ImageDraw.Draw(image)
+        d.rectangle((62, 62, 929, 280), fill="#dbeefa")
+        d.rectangle((85, 124, 716, 231), fill="#e4c76a")
+        d.rectangle((111, 166, 690, 215), fill="#ffb27d")
+        result = validate_nested_percent_width(image, dpi=120)
+        self.assertAlmostEqual(result["content_width_ratio"], 0.7, delta=0.03)
+
+    def test_fragment_edge_location_must_reject_extra_opposite_edge(self):
+        from PIL import ImageDraw
+        pages = [Image.new("RGB", (65, 70), "white") for _ in range(3)]
+        for img in pages:
+            p = ImageDraw.Draw(img)
+            p.rectangle((4, 0, 6, 69), fill="#1d4568")
+            p.rectangle((58, 0, 60, 69), fill="#1d4568")
+        ImageDraw.Draw(pages[0]).rectangle((4, 0, 60, 3), fill="#1d4568")
+        ImageDraw.Draw(pages[0]).rectangle((4, 65, 60, 69), fill="#1d4568")
+        ImageDraw.Draw(pages[2]).rectangle((4, 65, 60, 69), fill="#1d4568")
+        with tempfile.TemporaryDirectory() as temp:
+            raster_paths = []
+            for i, img in enumerate(pages):
+                path = Path(temp) / f"fragment-{i+1}.png"
+                img.save(path)
+                raster_paths.append(path)
+            with self.assertRaises(AssertionError):
+                validate_fragment_edges(raster_paths, "#1d4568", min_row_pixels=30)
+
+    def test_comparison_stage_rejects_blank_native_box_paint(self):
+        with tempfile.TemporaryDirectory() as temp:
+            blank = Path(temp) / "blank.png"
+            Image.new("RGB", (200, 200), "white").save(blank)
+            with self.assertRaises(AssertionError):
+                validate_native_box_visual(CASES[0], [blank])
+
+    def test_summary_changes_by_reference_or_compare_mode(self):
+        case = {"name": "background", "expected_pages": 1,
+                "page_reference_probes": [{"color_pixels": {"#cee8fb": 2000}}],
+                "status": "compared"}
+        ref = make_summary({"mode": "reference", "cases": [case], "errors": []})
+        cmp = make_summary({"mode": "compare", "cases": [case], "errors": []})
+        self.assertIn("StrictPdf", ref)
+        self.assertNotIn("must explicitly reject", cmp)
+        self.assertIn("paired", cmp.lower())
 
     def test_reference_validation_checks_every_page_and_expected_color(self):
         case = CASES[0]
