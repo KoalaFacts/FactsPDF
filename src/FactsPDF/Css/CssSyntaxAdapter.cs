@@ -59,9 +59,9 @@ internal static class CssSyntaxAdapter
 
             void Emit(CssProperty target, string value, int offset = -1)
             {
-                var order = budget.Declaration(node.Span.Start);
-                output.Add(new(target, name, value, node.Important, order,
-                    offset < 0 ? node.Span.Start : offset));
+                var sourceOffset = offset < 0 ? node.Span.Start : offset;
+                var order = budget.Declaration(sourceOffset);
+                output.Add(new(target, name, value, node.Important, order, sourceOffset));
             }
             if (name is "padding" or "border-width" or "border-style" or "border-color")
             {
@@ -78,7 +78,19 @@ internal static class CssSyntaxAdapter
                     "border-style" => [CssProperty.BorderTopStyle, CssProperty.BorderRightStyle, CssProperty.BorderBottomStyle, CssProperty.BorderLeftStyle],
                     _ => [CssProperty.BorderTopColor, CssProperty.BorderRightColor, CssProperty.BorderBottomColor, CssProperty.BorderLeftColor]
                 };
-                for (var i = 0; i < 4; i++) Emit(properties[i], sides[i]);
+                for (var i = 0; i < 4; i++)
+                {
+                    // Expand in TRBL order but charge a generated longhand
+                    // against the CSS token from which that side originated.
+                    var sourceIndex = parts.Length switch
+                    {
+                        1 => 0,
+                        2 => i % 2,
+                        3 => i == 3 ? 1 : i,
+                        _ => i
+                    };
+                    Emit(properties[i], sides[i], valueTokens[sourceIndex].Token.Span.Start);
+                }
                 continue;
             }
             if (name is "border" or "border-top" or "border-right" or "border-bottom" or "border-left")
@@ -86,6 +98,10 @@ internal static class CssSyntaxAdapter
                 if (terms.Count > 3) throw new FactsPdfException("FPDF1202", "Border shorthand takes up to three terms.", node.Span.Start);
                 var words = terms.ToArray();
                 string width = "medium", style = "none", color = "currentcolor";
+                var initialOffset = valueTokens[0].Token.Span.Start;
+                var widthOffset = initialOffset;
+                var styleOffset = initialOffset;
+                var colorOffset = initialOffset;
                 if (words.Length == 1 && Wide(words[0]))
                     width = style = color = words[0];
                 else
@@ -99,18 +115,18 @@ internal static class CssSyntaxAdapter
                         if (CssPaintValues.TryBorderWidth(word, out _))
                         {
                             if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
-                            width = word; hasWidth = true;
+                            width = word; hasWidth = true; widthOffset = offset;
                         }
                         else if (word is "solid" or "none")
                         {
                             if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", offset);
-                            style = word; hasStyle = true;
+                            style = word; hasStyle = true; styleOffset = offset;
                         }
                         else
                         {
                             _ = CssPaintValues.BorderColor(word, offset);
                             if (hasColor) throw new FactsPdfException("FPDF1202", "Duplicate border color.", offset);
-                            color = word; hasColor = true;
+                            color = word; hasColor = true; colorOffset = offset;
                         }
                     }
                 }
@@ -124,9 +140,9 @@ internal static class CssSyntaxAdapter
                 };
                 foreach (var edge in edges)
                 {
-                    Emit((CssProperty)((int)CssProperty.BorderTopWidth + edge), width);
-                    Emit((CssProperty)((int)CssProperty.BorderTopStyle + edge), style);
-                    Emit((CssProperty)((int)CssProperty.BorderTopColor + edge), color);
+                    Emit((CssProperty)((int)CssProperty.BorderTopWidth + edge), width, widthOffset);
+                    Emit((CssProperty)((int)CssProperty.BorderTopStyle + edge), style, styleOffset);
+                    Emit((CssProperty)((int)CssProperty.BorderTopColor + edge), color, colorOffset);
                 }
                 continue;
             }
