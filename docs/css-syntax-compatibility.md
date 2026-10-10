@@ -48,6 +48,24 @@ document corpus.
 | Existing eight supported properties | Parses | Computes and renders |
 | PDF width/padding/border/background | Parse as unknown valid declarations | Not implemented; planned after parser stabilization |
 
+
+## Independent Chrome CSSOM differential (additional selected scope)
+
+Beyond the 12 WPT-inspired NUnit assertions, the \`css-browser-differential.yml\`
+workflow executes **213** separately generated browser-versus-FactsPDF
+structure comparisons. A deterministic corpus is generated from
+\`scripts/css_syntax_browser_differential.py\`; **103 cases** have
+documented patterns/references from the pinned WPT revision and **110**
+are generated supplements. On Google Chrome 154.0.8037.97, the reviewed
+fixture reported **213 passed, 0 mismatches**.
+
+The comparison covers rule structure, declaration names, priority and
+selected recovery continuity. It does **not** compare full browser CSSOM
+serialization, property validation, values, computed styles, PDF layout or
+visual parity. The \`@codex review\` independent review initially returned
+7 P2 comments; the resolved-test evidence and ongoing final review gate
+are tracked in [quality gates](css-syntax-quality-gates.md).
+
 ## Resource measurements
 
 The `FactsPDF.CssSyntax.Benchmarks` binary runs as a real Linux x64 Native
