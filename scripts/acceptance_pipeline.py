@@ -120,6 +120,8 @@ def execute(mode: str, manifest_path: Path, cli: Path, host: Path, fonts: list[P
         raise ValueError('This acceptance run requires the real Native AOT public API host')
     environment['host_runtime']=runtime
     write_json(output/'environment.json',environment)
+    public_copy(output/'environment.json',public,'environment.json')
+    write_json(public/'summary.json',{'source_sha':source,'status':'incomplete-capture','work_package_complete':False,'preview_ready':False})
     all_runs=[];case_results=[];checked=0;native_rows={}
     for original in manifest['cases']:
         case={**original,'_root':manifest_path.parent,'_source_sha':source,
@@ -128,7 +130,11 @@ def execute(mode: str, manifest_path: Path, cli: Path, host: Path, fonts: list[P
             case_results.append({'case_id':case['id'],'status':'blocked-design'});continue
         selected=fonts if case['font_roles'] else []
         rows=[run_case(case,ep,cli if ep=='cli' else host,selected,output/'runs',120) for ep in case['entrypoints']]
-        all_runs+=rows;check_entrypoints(case,rows)
+        all_runs+=rows
+        print('Captured '+case['id']+': '+', '.join(r['entrypoint']+'='+r['status'] for r in rows),flush=True)
+        write_json(output/'runs.json',{'source_sha':source,'runs':all_runs,'status':'incomplete-capture'})
+        public_copy(output/'runs.json',public,'runs.json')
+        check_entrypoints(case,rows)
         if case['kind']=='negative':
             if any(r['status']!='expected-error' for r in rows):raise ValueError('Negative boundary failed: '+case['id']+' '+str(rows))
             case_results.append({'case_id':case['id'],'status':'expected-error'});continue
@@ -143,6 +149,12 @@ def execute(mode: str, manifest_path: Path, cli: Path, host: Path, fonts: list[P
             if evidence is None:evidence=item
             elif any(evidence[k]!=item[k] for k in ('pdf_sha256','text_sha256','pages','page_image_sha256')):
                 raise ValueError('Entrypoint inspection mismatch')
+        # Preserve already inspected native evidence even if the independent browser fails.
+        public_copy(Path(native['pdf_path']),public,case['id']+'/native.pdf')
+        for name in ('text.txt','geometry.json','inspection.json'):
+            public_copy(output/'inspection'/case['id']/'cli'/name,public,case['id']+'/'+name)
+        for image in (output/'inspection'/case['id']/'cli').glob('page-*.png'):
+            public_copy(image,public,case['id']+'/'+image.name)
         reference=chrome_reference(inside(manifest_path.parent,case['input_path']),case,selected,environment,output/'chrome'/case['id'])
         row={'case_id':case['id'],'status':'pending-review','pages':evidence['pages'],'chrome_pages':reference['pages'],
              'inspection_passed':True,'evidence_sha256':digest(json.dumps(evidence,sort_keys=True).encode())}

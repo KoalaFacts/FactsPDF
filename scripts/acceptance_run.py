@@ -141,7 +141,7 @@ def capture_environment(executables: dict[str, Path], font_paths: list[Path]) ->
         except (OSError, ValueError, subprocess.SubprocessError): return None
     tools = {name: version([name, flag]) for name,flag in
              [('qpdf','--version'),('pdfinfo','-v'),('pdftotext','-v'),('pdftoppm','-v'),('chromium','--version')]}
-    chrome = shutil.which('chromium') or shutil.which('google-chrome') or shutil.which('chromium-browser')
+    chrome = shutil.which('google-chrome') or shutil.which('chromium') or shutil.which('chromium-browser')
     tools['chromium'] = version([chrome,'--version']) if chrome else None
     runtime = version(['dotnet', '--version'])
     fonts = [{'name': f.name, 'sha256': digest(f.read_bytes()), 'bytes': f.stat().st_size} for f in font_paths]

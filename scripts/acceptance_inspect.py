@@ -51,7 +51,7 @@ def tool(argv: list[str], output: Path) -> bytes:
     p = run_process(argv, output, 120)
     if p['returncode'] != 0 or p['timed_out'] or p['error']:
         detail = Path(p['stderr_path']).read_text(encoding='utf-8', errors='replace')[:3000]
-        raise RuntimeError(f'{Path(argv[0]).name} failed independent inspection: {detail}')
+        raise RuntimeError(f'{Path(argv[0]).name} failed independent inspection (exit={p["returncode"]}, timeout={p["timed_out"]}): {detail}')
     return Path(p['stdout_path']).read_bytes()
 
 
@@ -118,19 +118,20 @@ def compare_evidence(reference: dict, candidate: dict, case: dict) -> dict:
 
 
 def chrome_reference(source: Path, case: dict, fonts: list[Path], environment: dict, out_dir: Path) -> dict:
-    chrome = shutil.which('chromium') or shutil.which('google-chrome') or shutil.which('chromium-browser')
+    chrome = shutil.which('google-chrome') or shutil.which('chromium') or shutil.which('chromium-browser')
     if not chrome: raise RuntimeError('Independent Chrome executable missing')
     out_dir.mkdir(parents=True,exist_ok=False)
     faces = ''.join('@font-face{font-family:Acceptance'+str(i)+';src:url("'+p.resolve().as_uri()+'");font-weight:normal;}' for i,p in enumerate(fonts))
     family = ','.join('Acceptance'+str(i) for i in range(len(fonts))) or 'Courier'
     # Explicitly documented print-only normalization: no browser furniture,
     # same page/margins and supplied fonts, no synthetic heading bold.
-    css = faces + '@page{size:595.28pt 841.89pt;margin:36pt}html,body{margin:0;padding:0}body{font-family:'+family+'}h1,h2{font-weight:normal}'
+    css = faces + '@page{size:595.28pt 841.89pt;margin:36pt}html,body{margin:0;padding:0}body{font-family:'+family+'}h1,h2{font-weight:normal}*{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;font-kerning:none!important;font-variant-ligatures:none!important}'
     original = source.read_text(encoding='utf-8')
     normalized = original.replace('</head>','<style>'+css+'</style></head>')
     html = out_dir/'chrome-input.html'; html.write_text(normalized,encoding='utf-8')
     pdf = out_dir/'chrome.pdf'
-    args = [chrome,'--headless','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking',
+    args = [chrome,'--headless=new','--disable-gpu','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking',
+            '--disable-extensions','--no-first-run','--no-default-browser-check',
             '--no-pdf-header-footer','--allow-file-access-from-files','--user-data-dir='+str((out_dir/'profile').resolve()),
             '--print-to-pdf='+str(pdf.resolve()),html.resolve().as_uri()]
     tool(args,out_dir/'print')
@@ -149,7 +150,25 @@ def main():
     a=p.parse_args(); m=load_manifest(a.manifest)
     env=json.loads((a.runs/'environment.json').read_text())
     records=json.loads((a.runs/'runs.json').read_text())['runs']
-    reviews={} if not a.reviews else {r['case_id']:r for r in json.loads(a.reviews.read_text())['reviews']}
+    # The standalone inspector must not approve a partial run collection.
+    # Import here to keep lower-level inspection independent of orchestration.
+    from acceptance_pipeline import review_map, check_entrypoints, _stored_reference
+    document={'schema_version':1,'reviews':[]} if not a.reviews else json.loads(a.reviews.read_text())
+    reviews=review_map(document,m,required=a.mode=='verify')
+    known={c['id']:c for c in m['cases']}; seen=set()
+    for row in records:
+        key=(row.get('case_id'),row.get('entrypoint'))
+        if key in seen or key[0] not in known or key[1] not in known[key[0]]['entrypoints']:
+            raise ValueError('Unknown, repeated or inapplicable inspection record')
+        seen.add(key); case=known[key[0]]
+        expected_fonts=[{'name':f['name'],'sha256':f['sha256']} for f in env['fonts']] if case['font_roles'] else []
+        if (row.get('source_sha') != env.get('source_sha') or
+            row.get('environment_id') != env['environment_id'] or
+            row.get('input_sha256') != case['input_sha256'] or row.get('font_inputs') != expected_fonts):
+            raise ValueError('Inspection record provenance differs from its input/environment')
+    for case in m['cases']:
+        if case['kind']=='baseline':
+            check_entrypoints(case,[r for r in records if r['case_id']==case['id']])
     results=[]
     for case in m['cases']:
         if case['kind']!='baseline':continue
@@ -157,7 +176,8 @@ def main():
             if row['status']!='candidate': raise ValueError('Cannot inspect a failed render')
             evidence=inspect_pdf(Path(row['pdf_path']),case,env,a.output/case['id']/row['entrypoint'])
             if a.mode=='verify':
-                ref=reviews.get(case['id'],{});validate_reference(ref,case,env);compare_evidence(ref,evidence,case)
+                ref=reviews[case['id']];validate_reference(ref,case,env)
+                _stored_reference(ref,Path.cwd());compare_evidence(ref,evidence,case)
             results.append(evidence)
     if not results:raise ValueError('No candidate baseline outputs')
     write_json(a.output/'inspection-summary.json',{'mode':a.mode,'results':results,'review_status':'pending-review' if a.mode=='capture' else 'approved'})
