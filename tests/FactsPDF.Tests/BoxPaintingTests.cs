@@ -193,6 +193,38 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
+    public void EmbeddedUnicodeFontUsesTheSamePaintCommandsAsAscii()
+    {
+        var fonts = new PdfOptions { PageWidth = 300, PageHeight = 500, Margin = 20,
+            Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        using var output = new MemoryStream();
+        PdfConverter.Convert("<div style='background-color:#cee8fb;" +
+            "border:2pt solid red;padding:10pt'><p>A中文B</p></div>", output, fonts);
+        var pdf = Encoding.Latin1.GetString(output.ToArray());
+        Assert.That(pdf, Does.Contain("/ToUnicode"));
+        Assert.That(pdf, Does.Contain("/Subtype /Type0"));
+        Assert.That(pdf, Does.Contain(" re f Q"));
+        Assert.That(pdf.IndexOf(" re f Q", StringComparison.Ordinal),
+            Is.LessThan(pdf.IndexOf(" Tj ET", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void TransparentOrZeroWidthPaintProducesByteIdenticalLegacyOutput()
+    {
+        var baseline = Render("<div>A</div>").Pdf;
+        var explicitlyInvisible = Render(
+            "<div style='background-color:transparent;border:0 solid red'>A</div>").Pdf;
+        Assert.That(explicitlyInvisible, Is.EqualTo(baseline));
+    }
+
+    [Test]
+    public void BorderShorthandExpansionChargesTwelveDeclarations()
+    {
+        Failure("<div style='border:1pt solid red'>A</div>", "FPDF1205",
+            Options with { MaxCssDeclarations = 11 });
+    }
+
+    [Test]
     public void PaintingIsLocaleIndependent()
     {
         var culture = CultureInfo.CurrentCulture;
