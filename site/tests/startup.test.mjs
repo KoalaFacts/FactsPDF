@@ -114,3 +114,10 @@ test('copied feature link matches the displayed canonical URL without borrowed q
   assert.equal(new URL(copied).search,'');
   assert.match(new URL(copied).hash,/feature=/);
 });
+
+test('English filter accessible names follow the displayed locale', async t => {
+  const window=await loadSite(t);
+  window.document.querySelector('.language').click();await settled();
+  assert.deepEqual([...window.document.querySelectorAll('.toolbar select')].map(node=>node.getAttribute('aria-label')),
+    ['Category filter','Support status filter','Introduction milestone filter']);
+});

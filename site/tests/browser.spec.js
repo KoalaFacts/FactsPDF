@@ -137,3 +137,33 @@ test('closing a directly loaded detail stays on the lookup page',async({page})=>
   expect(new URL(page.url()).pathname).toBe(base);
   expect(page.url()).not.toContain('feature=');
 });
+
+test('English filters expose translated accessible names',async({page})=>{
+  await page.goto(base);await page.getByRole('button',{name:'English',exact:true}).click();
+  for(const name of ['Category filter','Support status filter','Introduction milestone filter']){
+    await expect(page.getByRole('combobox',{name,exact:true})).toBeVisible();
+  }
+});
+
+test('literal all search survives refresh and detail history',async({page})=>{
+  await page.goto(base);await page.getByRole('searchbox').fill('all');
+  await expect(page).toHaveURL(/#q=all$/);
+  const count=await page.locator('.results-heading h2 span').textContent();
+  expect(Number(count)).toBeGreaterThan(0);
+  await page.reload();await expect(page.getByRole('searchbox')).toHaveValue('all');
+  await expect(page.locator('.results-heading h2 span')).toHaveText(count);
+  await page.locator('.feature-button').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('searchbox')).toHaveValue('all');
+  await expect(page).toHaveURL(/#q=all$/);
+});
+
+test('uppercase identifier search works in a Turkish browser context',async({browser})=>{
+  const context=await browser.newContext({locale:'tr-TR'});
+  try{
+    const page=await context.newPage();await page.goto('http://127.0.0.1:4173'+base);
+    await page.getByRole('searchbox').fill('WIDTH');
+    await expect(page.getByRole('button',{name:'width',exact:true})).toBeVisible();
+  }finally{await context.close();}
+});
