@@ -156,14 +156,14 @@ def generate_corpus(root: Path) -> list[dict]:
          'Final note 结束说明', 'No missing text, no clipped content. 不缺字，不截断。']
     panel = '<section class="panel"><h2>' + b[4] + '</h2><p>' + b[5] + '</p></section>'
     add('B01', 'baseline', b, ['text-unicode', 'nested-panel'],
-        '<h1>'+b[0]+'</h1><p>'+b[1]+'</p><h2>'+b[2]+'</h2><p>'+b[3]+'</p>'+panel+'<h2>'+b[6]+'</h2><p>'+b[7]+'</p>')
+        '<h1>'+b[0]+'</h1><p>'+b[1]+'</p><h2>'+b[2]+'</h2><p>'+b[3]+'</p>'+panel+'<h2 style="padding-top:8pt">'+b[6]+'</h2><p>'+b[7]+'</p>')
     for count in (10, 30, 100):
         blocks = [f'Record report 记录报告 - {count}'] + [r['text'] for r in records[:count]] + ['End of records. 记录结束。']
         add(f'B02-{count}', 'baseline', blocks, ['record-order', 'text-unicode'], records_ids=[r['id'] for r in records[:count]])
     b = ['Continued panel 跨页面板', 'First section 第一部分', 'The container continues. 容器将延续到下一页。',
          'Second section 第二部分', 'No repeated or missing content. 内容不应重复或缺失。',
          'Third section 第三部分', 'The bottom border ends here. 下边框在这里结束。']
-    add('B03', 'baseline', b, ['fragmentation', 'text-unicode'], '<section class="panel"><h1>'+b[0]+'</h1><h2>'+b[1]+'</h2><p>'+b[2]+'</p><h2 class="next">'+b[3]+'</h2><p>'+b[4]+'</p><h2 class="next">'+b[5]+'</h2><p>'+b[6]+'</p></section>')
+    add('B03', 'baseline', b, ['fragmentation', 'text-unicode'], '<section class="panel"><h1>'+b[0]+'</h1><h2>'+b[1]+'</h2><p>'+b[2]+'</p><h2 class="next" style="padding-top:10pt">'+b[3]+'</h2><p>'+b[4]+'</p><h2 class="next" style="padding-top:10pt">'+b[5]+'</h2><p>'+b[6]+'</p></section>')
     add('N-wide', 'negative', [], ['output-protection'], '<p>'+'X'*500+'</p>', expected_code='FPDF1302')
     add('N-pages', 'negative', [], ['page-budget'], '<p>One</p><p class="next">Two</p>', expected_code='FPDF1303', api_only=True, max_pages=1)
     for tag, scalar in [('high', 0xD800), ('low', 0xDC00)]:

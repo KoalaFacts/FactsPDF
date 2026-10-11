@@ -45,6 +45,8 @@ jobs:
             --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
             --reviews docs/acceptance/reference-reviews.json \
             --measure --output artifacts/document-acceptance
+      - name: Check candidate reading space and original slice borders
+        run: /usr/bin/python3 scripts/acceptance_reading_space.py artifacts/document-acceptance/public artifacts/document-acceptance/public/reading-space.json
       - name: Publish exact incomplete-state summary
         if: always()
         run: |

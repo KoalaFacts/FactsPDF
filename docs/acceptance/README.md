@@ -26,6 +26,31 @@ Supply your own trusted, appropriately licensed static TrueType files when not u
 
 `artifacts/document-acceptance/public/report.md` is the entry point. Each B-case directory includes the real native PDF, independent Chrome PDF, every page's rendered PNG, text, geometry and comparison record. Chrome uses the same physical page size, margins and explicit fonts, normal heading weight and disabled browser furniture. It is not used to create the FactsPDF output. Unregistered full-page differences are evidence, not a global pixel tolerance. Page-count differences are reported and require review; there is no claim of exact browser typography parity.
 
+### Candidate reading space (still pending human review)
+
+B01 explicitly gives the Final note heading `padding-top:8pt` after the panel.
+B03 gives each of its two explicitly page-broken headings `padding-top:10pt`.
+This is content-owned reading space: the outer section retains its 10pt padding,
+1pt border and default slice behavior. Its first/middle/last horizontal edges
+remain top/none/bottom. The shared `.next` rule and the engine are unchanged.
+
+After capture, run:
+
+```sh
+python3 scripts/acceptance_reading_space.py artifacts/document-acceptance/public artifacts/document-acceptance/public/reading-space.json
+```
+
+This independently re-rasterizes native and Chrome B01/B03 PDFs and measures
+Poppler word boxes. It requires at least 6pt from B01's rasterized panel bottom
+to the following heading's word box, and at least 8pt from the 36pt content top
+to both B03 continuation headings. These are new minimum reading-space guards,
+not relaxed page-boundary tolerances or human-approved exact references. CSS
+spacing and glyph/bbox positions differ; the report retains actual coordinates.
+B01 must stay one page and B03 three, with the original sliced edge assertions.
+`--renderer native` is an explicit partial local diagnostic, never a claim that
+Chrome was inspected. CI requires both. All other text, boundary, record-order,
+CLI/API and negative-case checks remain in the complete capture.
+
 The generator is the version-controlled source of synthetic templates and data. It emits exact byte/hash manifests into a fresh artifact directory; these candidates are not yet frozen reference files. After review the accepted inputs/output references must be retained durably in the repository, not solely in a 14-day Actions artifact. Generation never edits `reference-reviews.json`. This bootstrap arrangement avoids committing fabricated reference hashes before inspection.
 
 ## State model and approval
