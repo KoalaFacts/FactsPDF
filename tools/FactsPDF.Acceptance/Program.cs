@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -27,7 +28,9 @@ internal static class Program
     }
     internal static Dictionary<string, object?> RuntimeInfo() => new()
     {
-        ["source_sha"] = Environment.GetEnvironmentVariable("FACTSPDF_SOURCE_SHA"),
+        // SDK-generated assembly metadata is fixed at compilation, not caller environment.
+        ["source_sha"] = typeof(Program).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+').Last(),
         ["framework"] = RuntimeInformation.FrameworkDescription,
         ["architecture"] = RuntimeInformation.ProcessArchitecture.ToString(),
         ["dynamic_code_supported"] = RuntimeFeature.IsDynamicCodeSupported,

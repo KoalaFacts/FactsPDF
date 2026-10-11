@@ -10,8 +10,7 @@ Use the repository's .NET 10 SDK. On Linux install the same independent inspecto
 python3 -m unittest discover -s scripts -p 'test_acceptance_*.py' -v
 python3 scripts/acceptance_corpus.py generate artifacts/acceptance-inputs
 python3 scripts/acceptance_corpus.py validate artifacts/acceptance-inputs/manifest.json
-dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/acceptance-cli
-dotnet publish tools/FactsPDF.Acceptance/FactsPDF.Acceptance.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/acceptance-host
+python3 scripts/acceptance_build.py --cli-output artifacts/acceptance-cli --host-output artifacts/acceptance-host
 export FACTSPDF_SOURCE_SHA=$(git rev-parse HEAD)
 python3 scripts/acceptance_run.py capture --manifest artifacts/acceptance-inputs/manifest.json \
   --native-cli artifacts/acceptance-cli/FactsPDF.Cli \
@@ -23,6 +22,15 @@ python3 scripts/acceptance_run.py capture --manifest artifacts/acceptance-inputs
 ```
 
 Supply your own trusted, appropriately licensed static TrueType files when not using the CI fixtures. CI explicitly installs `fonts-dejavu-core` and `fonts-droid-fallback`; consult their installed copyright/license notices and the upstream DejaVu/Droid notices before using them. Font files are never committed or distributed in the review package. Their order, names and SHA-256 fingerprints are recorded. No font discovery or network loading occurs inside FactsPDF. Chrome alone uses file URLs for these explicit resources as independent print normalization.
+
+Build from a clean committed checkout into fresh directories. The builder runs
+both real `dotnet publish` commands, verifies the host's compiled source SHA and
+Native AOT status, and writes identical build receipts binding both executable
+hashes to that source. Capture rejects absent/mixed receipts, another source or
+replaced executable bytes. The receipt is included in `environment.json`.
+It is a trusted-workspace build record, not cryptographic attestation against a
+malicious builder. The host's source identity comes from compiled assembly
+metadata; changing `FACTSPDF_SOURCE_SHA` cannot relabel its build.
 
 `artifacts/document-acceptance/public/report.md` is the entry point. Each B-case directory includes the real native PDF, independent Chrome PDF, every page's rendered PNG, text, geometry and comparison record. Chrome uses the same physical page size, margins and explicit fonts, normal heading weight and disabled browser furniture. It is not used to create the FactsPDF output. Unregistered full-page differences are evidence, not a global pixel tolerance. Page-count differences are reported and require review; there is no claim of exact browser typography parity.
 

@@ -33,8 +33,7 @@ jobs:
           /usr/bin/python3 scripts/acceptance_corpus.py validate artifacts/acceptance-inputs/manifest.json
       - name: Build actual Native AOT CLI and public-API acceptance host
         run: |
-          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/acceptance-cli
-          dotnet publish tools/FactsPDF.Acceptance/FactsPDF.Acceptance.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/acceptance-host
+          /usr/bin/python3 scripts/acceptance_build.py --cli-output artifacts/acceptance-cli --host-output artifacts/acceptance-host
       - name: Capture real candidates and raw performance evidence; no human approval implied
         run: |
           /usr/bin/python3 scripts/acceptance_run.py capture \

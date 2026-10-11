@@ -139,6 +139,8 @@ def run_case(case: dict, entrypoint: str, executable: Path, font_paths: list[Pat
 
 
 def capture_environment(executables: dict[str, Path], font_paths: list[Path]) -> dict:
+    from acceptance_build import validate_build_provenance
+    build = validate_build_provenance(executables, os.environ.get('FACTSPDF_SOURCE_SHA'))
     def version(args):
         try:
             p = subprocess.run(args, capture_output=True, timeout=15)
@@ -165,7 +167,8 @@ def capture_environment(executables: dict[str, Path], font_paths: list[Path]) ->
                         'shared_ci': os.environ.get('GITHUB_ACTIONS') == 'true'},
             'executables': {name: {'name': path.name, 'sha256': digest(path.read_bytes())} for name,path in executables.items()},
             'font_source': 'Explicit caller inputs; CI uses fonts-dejavu-core and fonts-droid-fallback. See docs/acceptance/README.md for notices.',
-            'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'), 'engine_baseline_sha': BASELINE_SHA}
+            'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'), 'engine_baseline_sha': BASELINE_SHA,
+            'build_provenance': build}
 
 
 if __name__ == '__main__':
