@@ -38,12 +38,19 @@ function Tracker(data){
   function change(patch,reset=true){route({...route.peek(),...(reset?{page:1}:{}),...patch});}
   function clear(){route({q:'',category:'all',status:'all',milestone:'all',feature:'',page:1});}
   function notice(message){toast(message);clearTimeout(timer);timer=setTimeout(()=>toast(''),3500);}
-  function close(){change({feature:''},false);previousFocus?.focus();}
+  function close(){
+    if(history.state?.factsPdfDetail)history.back();
+    else change({feature:''},false);
+    previousFocus?.focus();
+  }
   function open(id,event){
     previousFocus=event?.currentTarget||document.activeElement;
     const next={...route.peek(),feature:id};
     const url=location.pathname+location.search+routeHash(next);
-    if(url!==location.pathname+location.search+location.hash)history.pushState(null,'',url);
+    if(url!==location.pathname+location.search+location.hash){
+      if(route.peek().feature)history.replaceState(history.state,'',url);
+      else history.pushState({factsPdfDetail:true},'',url);
+    }
     route(next);
   }
   function exportCsv(){
@@ -56,7 +63,7 @@ function Tracker(data){
     watch(()=>{
       const current=route();
       const url=location.pathname+location.search+routeHash(current);
-      if(url!==location.pathname+location.search+location.hash)history.replaceState(null,'',url);
+      if(url!==location.pathname+location.search+location.hash)history.replaceState(history.state,'',url);
       queueMicrotask(()=>{
         if(current.feature&&!dialog.open){dialog.showModal();dialog.querySelector('.close')?.focus();}
         else if(!current.feature&&dialog.open)dialog.close();
@@ -129,7 +136,7 @@ function Tracker(data){
       </div>
       <footer><span>FactsPDF · ${()=>t('工程能力查询，不是发布承诺','Engineering inventory, not a release promise')}</span><span>Purity.js · npm <code>@purityjs/core</code> · <span class="mono">${__SITE_COMMIT__.slice(0,8)}</span></span></footer>
     </div>
-    <dialog id="feature-dialog" aria-labelledby="detail-title" @cancel=${e=>{e.preventDefault();close();}} @click=${e=>{if(e.target===e.currentTarget)close();}}>${()=>selected()?detail(selected()):null}</dialog>
+    <dialog id="feature-dialog" aria-labelledby="detail-title" @cancel=${e=>{e.preventDefault();close();}} @click=${e=>{if(e.target===e.currentTarget)close();}}>${each(()=>selected()?[selected()]:[],item=>detail(item()),item=>item.id)}</dialog>
     <div class="toast" role="status" aria-live="polite">${()=>toast()}</div>
   `;
 }

@@ -26,6 +26,9 @@ async function loadSite(t) {
   });
   t.after(() => dom.window.close());
   const { window } = dom;
+  const errors=[];
+  window.console.error=(...args)=>errors.push(args.map(String).join(' '));
+  t.after(()=>assert.deepEqual(errors, [], 'no reactive rendering errors'));
   window.fetch = async () => ({ ok: true, json: async () => dataset });
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   window.HTMLDialogElement.prototype.close = function () { this.open = false; };
@@ -71,4 +74,20 @@ test('source JSON download is reachable outside the mobile-hidden sidebar', asyn
     .find(node => !node.closest('.sidebar'));
   assert.ok(link, 'source JSON download must remain in the main controls');
   assert.equal(link.getAttribute('href'), '/FactsPDF/data/compatibility.json');
+});
+
+test('closing a clicked detail returns to its list history entry', async t => {
+  const window = await loadSite(t);
+  window.document.querySelector('.feature-button').click();
+  await settled();
+  const featureHash = window.location.hash;
+  const changed = new Promise(resolve => window.addEventListener('hashchange', resolve, { once: true }));
+  window.document.querySelector('dialog .close').click();
+  // replaceState does not navigate, so bound the wait to expose the old bug.
+  await Promise.race([changed, new Promise(resolve => setTimeout(resolve, 100))]);
+  assert.equal(window.location.hash.includes('feature='), false);
+  const forward = new Promise(resolve => window.addEventListener('hashchange', resolve, { once: true }));
+  window.history.forward();
+  await Promise.race([forward, new Promise(resolve => setTimeout(resolve, 100))]);
+  assert.equal(window.location.hash, featureHash, 'Forward must reopen the detail that close navigated back from');
 });

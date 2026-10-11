@@ -104,3 +104,36 @@ test('mobile source JSON download remains visible and byte-identical',async({pag
   expect(await readFile(await download.path())).toEqual(await readFile(new URL('../data/compatibility.json',import.meta.url)));
   await page.screenshot({path:'test-results/compatibility-mobile.png',fullPage:true});
 });
+
+for(const closeWith of ['Escape','button','backdrop']){
+  test(`closing clicked details with ${closeWith} restores the list entry`,async({page})=>{
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+    await page.goto(base);
+    await page.getByRole('searchbox').fill('border-style');
+    const listUrl=page.url();
+    await page.getByRole('button',{name:'border-style',exact:true}).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const featureUrl=page.url();
+    if(closeWith==='Escape')await page.keyboard.press('Escape');
+    else if(closeWith==='button')await page.getByRole('button',{name:'关闭详情 / Close details'}).click();
+    else await page.mouse.click(2,2);
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page).toHaveURL(listUrl);
+    await page.goForward();
+    await expect(page).toHaveURL(featureUrl);
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.locator('#detail-title')).toHaveText('border-style');
+    expect(errors).toEqual([]);
+  });
+}
+
+test('closing a directly loaded detail stays on the lookup page',async({page})=>{
+  await page.goto(base+'#feature=css.width');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('searchbox')).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe(base);
+  expect(page.url()).not.toContain('feature=');
+});
