@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash, pageSlice, csv } from '../src/model.mjs';
@@ -52,4 +53,23 @@ test('CSV neutralizes spreadsheet formulas and quotes multi-line values', () => 
   const output=csv([f]);
   assert(output.includes("'=HYPERLINK"));assert(output.includes('"a,b\nc"'));
   assert(output.includes(dataset.commit));
+});
+
+// Use a real ICU locale in a child process, not a patched String method.
+test('ASCII identifier searches are case-insensitive with Turkish defaults', () => {
+  const moduleUrl=new URL('../src/model.mjs',import.meta.url).href;
+  const script=`import {filterFeatures} from ${JSON.stringify(moduleUrl)}; console.log(JSON.stringify({locale:Intl.DateTimeFormat().resolvedOptions().locale,hits:filterFeatures([{id:'css.width',feature:'width'}],{q:'WIDTH'}).length}));`;
+  const result=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',env:{...process.env,LANG:'tr_TR.UTF-8',LC_ALL:'tr_TR.UTF-8'}}));
+  assert.match(result.locale,/^tr/);
+  assert.equal(result.hits,1);
+});
+test('unknown milestone matches null, omitted and empty values consistently', () => {
+  const base={...dataset.features[0]};delete base.introduced_milestone;
+  const rows=[base,{...base,introduced_milestone:null},{...base,introduced_milestone:''},{...base,introduced_milestone:'M6'}];
+  assert.deepEqual(filterFeatures(rows,{milestone:'unknown'}),rows.slice(0,3));
+});
+test('literal all query survives route serialization while enum sentinels remain omitted', () => {
+  const route={q:'all',category:'all',status:'all',milestone:'all',feature:'',page:1};
+  assert.equal(routeHash(route),'#q=all');
+  assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });

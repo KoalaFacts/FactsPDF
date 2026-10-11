@@ -28,14 +28,14 @@ export function counts(features) {
   return tally;
 }
 export function filterFeatures(features, filters={}) {
-  const words=(filters.q??'').trim().toLocaleLowerCase().split(/\s+/u).filter(Boolean);
+  const words=(filters.q??'').trim().toLowerCase().split(/\s+/u).filter(Boolean);
   return features.filter(f=>{
     if(filters.category && filters.category!=='all' && filters.category!==f.category)return false;
     if(filters.status && filters.status!=='all' && filters.status!==f.status)return false;
     if(filters.milestone && filters.milestone!=='all') {
-      if(filters.milestone==='unknown' ? f.introduced_milestone!==null : f.introduced_milestone!==filters.milestone)return false;
+      if(filters.milestone==='unknown' ? Boolean(f.introduced_milestone) : f.introduced_milestone!==filters.milestone)return false;
     }
-    const hay=[f.id,f.feature,f.scope,f.limitations,f.applicability,f.stage,f.planning_bucket,f.failure_code].join(' ').toLocaleLowerCase();
+    const hay=[f.id,f.feature,f.scope,f.limitations,f.applicability,f.stage,f.planning_bucket,f.failure_code].join(' ').toLowerCase();
     return words.every(word=>hay.includes(word));
   });
 }
@@ -55,7 +55,8 @@ export function parseRoute(hash, dataset) {
 }
 export function routeHash(s) {
   const p=new URLSearchParams();
-  for(const key of ['q','category','status','milestone','feature'])if(s[key]&&s[key]!=='all')p.set(key,s[key]);
+  for(const key of ['q','feature'])if(s[key])p.set(key,s[key]);
+  for(const key of ['category','status','milestone'])if(s[key]&&s[key]!=='all')p.set(key,s[key]);
   if(s.page>1)p.set('page',String(s.page));
   return p.size?`#${p}`:'';
 }
