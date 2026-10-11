@@ -73,3 +73,29 @@ test('desktop review capture',async({page})=>{
   await page.getByRole('button',{name:'width',exact:true}).click();
   await page.screenshot({path:'test-results/compatibility-detail.png'});
 });
+
+test('detail Back and Forward restore the filtered list and dialog',async({page})=>{
+  await page.goto(base);
+  await page.getByRole('searchbox').fill('border-style');
+  await page.getByRole('button',{name:'border-style',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('searchbox')).toHaveValue('border-style');
+  await page.goForward();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('#detail-title')).toHaveText('border-style');
+});
+
+test('mobile source JSON download remains visible and byte-identical',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(base);
+  const link=page.getByRole('link',{name:'下载原始 JSON'});
+  await expect(link).toBeVisible();
+  const pending=page.waitForEvent('download');await link.click();
+  const download=await pending;
+  expect(download.suggestedFilename()).toBe('FactsPDF-compatibility.json');
+  const {readFile}=await import('node:fs/promises');
+  expect(await readFile(await download.path())).toEqual(await readFile(new URL('../data/compatibility.json',import.meta.url)));
+  await page.screenshot({path:'test-results/compatibility-mobile.png',fullPage:true});
+});

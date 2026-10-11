@@ -39,7 +39,13 @@ function Tracker(data){
   function clear(){route({q:'',category:'all',status:'all',milestone:'all',feature:'',page:1});}
   function notice(message){toast(message);clearTimeout(timer);timer=setTimeout(()=>toast(''),3500);}
   function close(){change({feature:''},false);previousFocus?.focus();}
-  function open(id,event){previousFocus=event?.currentTarget||document.activeElement;change({feature:id},false);}
+  function open(id,event){
+    previousFocus=event?.currentTarget||document.activeElement;
+    const next={...route.peek(),feature:id};
+    const url=location.pathname+location.search+routeHash(next);
+    if(url!==location.pathname+location.search+location.hash)history.pushState(null,'',url);
+    route(next);
+  }
   function exportCsv(){
     const url=URL.createObjectURL(new Blob([csv(filtered())],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=`FactsPDF-${data.commit.slice(0,8)}-filtered.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -90,6 +96,9 @@ function Tracker(data){
         <div class="share"><button @click=${copy}>${()=>t('复制此项链接','Copy feature link')}</button><input aria-label="Feature link" readonly .value=${()=>location.origin+location.pathname+routeHash(route())} /></div>
       </div>`;
   }
+  // Purity 0.3.4 emits a text placeholder for a lone tbody expression.
+  // Adjacent empty interpolation forces comment slots, which the HTML table
+  // parser keeps inside tbody instead of foster-parenting before the table.
   return html`
     <a class="skip-link" href="#results" @click=${e=>{e.preventDefault();document.querySelector('#results')?.focus();}}>${()=>t('跳到结果','Skip to results')}</a>
     <header class="topbar"><a class="brand" href=${import.meta.env.BASE_URL}><span class="mark">F</span><span>FactsPDF <small>COMPATIBILITY</small></span></a><nav><span class="early">${()=>t('早期工程 · 非发布清单','Early engineering · not a release')}</span><button class="language" @click=${()=>locale(locale()==='zh'?'en':'zh')}>${()=>locale()==='zh'?'English':'中文'}</button><a class="repo" href="https://github.com/KoalaFacts/FactsPDF" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav></header>
@@ -104,14 +113,14 @@ function Tracker(data){
         <aside class="sidebar"><h2>${()=>t('能力分类','Browse capabilities')}</h2><button class=${()=>route().category==='all'?'category selected':'category'} @click=${()=>change({category:'all'})}><span>${()=>t('全部能力','All capabilities')}</span><b>${data.features.length}</b></button>
           ${Object.entries(data.categories).map(([c,n])=>html`<button class=${()=>route().category===c?'category selected':'category'} @click=${()=>change({category:c})}><span>${()=>catText(c)}</span><b>${n}</b></button>`)}
           <section class="scope-note"><h3>${()=>t('不要混淆','Keep these separate')}</h3><p>${()=>t('语法可解析 ≠ 能正确渲染','Parsable syntax ≠ rendered support')}</p><p>${()=>t('文档文字语言 ≠ 编程语言接入','Writing system ≠ language binding')}</p><p>${()=>t('计划实现 ≠ 已经支持','Planned ≠ supported')}</p></section>
-          <a class="download-link" href=${`${import.meta.env.BASE_URL}data/compatibility.json`} download="FactsPDF-compatibility.json">${()=>t('下载原始 JSON','Download source JSON')} ↓</a>
         </aside>
         <main id="results" tabindex="-1">
           <div class="searchbox"><span aria-hidden="true">⌕</span><input id="query" type="search" role="searchbox" aria-label="Search compatibility" placeholder=${()=>t('搜索元素、属性、取值或限制…','Search elements, properties, values or limitations…')} .value=${()=>route().q} @input=${e=>change({q:e.target.value})} /><kbd>/</kbd></div>
           <div class="toolbar"><label><span>${()=>t('类别','Category')}</span><select aria-label="类别筛选" .value=${()=>route().category} @change=${e=>change({category:e.target.value})}><option value="all">${()=>t('全部类别','All categories')}</option>${Object.keys(data.categories).map(c=>html`<option value=${c}>${()=>catText(c)}</option>`)}</select></label><label><span>${()=>t('支持状态','Status')}</span><select aria-label="支持状态筛选" .value=${()=>route().status} @change=${e=>change({status:e.target.value})}><option value="all">${()=>t('全部状态','All statuses')}</option>${STATUSES.map(s=>html`<option value=${s}>${()=>statusText[locale()][s]}</option>`)}</select></label><label><span>${()=>t('引入阶段','Introduced')}</span><select aria-label="引入阶段筛选" .value=${()=>route().milestone} @change=${e=>change({milestone:e.target.value})}><option value="all">${()=>t('全部阶段','All milestones')}</option>${milestones.map(m=>html`<option value=${m}>${m}</option>`)}<option value="unknown">${()=>t('首见待核验','Not established')}</option></select></label><button class="reset" @click=${clear}>${()=>t('清除筛选','Clear filters')}</button></div>
+          <a class="download-link" href=${`${import.meta.env.BASE_URL}data/compatibility.json`} download="FactsPDF-compatibility.json">${()=>t('下载原始 JSON','Download source JSON')} ↓</a>
           <div class="results-heading"><h2>${()=>route().category==='all'?t('全部能力', 'All capabilities'):catText(route().category)} <span>${()=>filtered().length}</span></h2><button class="export" @click=${exportCsv}>${()=>t('导出筛选结果 CSV','Export filtered CSV')} ↓</button></div>
           <div class="table-wrap"><table><caption class="visually-hidden">FactsPDF compatibility with scoped status and audit evidence</caption><thead><tr><th>${()=>t('元素 / 能力','Feature')}</th><th>${()=>t('当前支持','Support')}</th><th>${()=>t('范围与限制','Scope & limitations')}</th><th>${()=>t('引入阶段','Since')}</th></tr></thead><tbody>
-            ${each(()=>pagination().items,item=>html`<tr><td><button class="feature-button" @click=${e=>open(item().id,e)}>${()=>item().feature}</button><small>${()=>catText(item().category)}</small></td><td><span class=${()=>`badge ${item().status}`}>${()=>statusText[locale()][item().status]}</span></td><td><p class="scope">${()=>item().scope}</p><p class="limits">${()=>item().limitations}</p></td><td><span class="milestone">${()=>item().introduced_milestone||'—'}</span><small>${()=>item().introduced_milestone?t('阶段，非版本','Not a release'):t('首见待核验','Not established')}</small></td></tr>`,item=>item.id)}
+            ${null}${each(()=>pagination().items,item=>html`<tr><td><button class="feature-button" @click=${e=>open(item().id,e)}>${()=>item().feature}</button><small>${()=>catText(item().category)}</small></td><td><span class=${()=>`badge ${item().status}`}>${()=>statusText[locale()][item().status]}</span></td><td><p class="scope">${()=>item().scope}</p><p class="limits">${()=>item().limitations}</p></td><td><span class="milestone">${()=>item().introduced_milestone||'—'}</span><small>${()=>item().introduced_milestone?t('阶段，非版本','Not a release'):t('首见待核验','Not established')}</small></td></tr>`,item=>item.id)}
           </tbody></table></div>
           ${()=>filtered().length===0?html`<section class="empty" data-testid="empty"><h3>${t('没有匹配记录','No matching records')}</h3><p>${t('未找到不等于支持或不支持，请调整筛选。','No match is not a support claim. Try another filter.')}</p><button @click=${clear}>${t('清除筛选','Clear filters')}</button></section>`:null}
           <div class="pagination"><span aria-live="polite">${()=>`${t('第','Page')} ${pagination().page} / ${pagination().totalPages} · ${filtered().length} ${t('条记录','records')}`}</span><div><button ?disabled=${()=>pagination().page<=1} aria-label=${()=>t('上一页','Previous page')} @click=${()=>change({page:pagination().page-1},false)}>← ${()=>t('上一页','Previous')}</button><button ?disabled=${()=>pagination().page>=pagination().totalPages} aria-label=${()=>t('下一页','Next page')} @click=${()=>change({page:pagination().page+1},false)}>${()=>t('下一页','Next')} →</button></div></div>
