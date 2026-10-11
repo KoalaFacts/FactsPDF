@@ -6,9 +6,9 @@ any future report capability. Base: PR20 `df26256c22857523fb6a4c2978f9e586f8aaba
 main at start: `818da048604d6123ccb928c1a5ef3beba2f14cf6`.
 
 PR20 was subsequently merged by its owner as `e35722bf299adae3a994593f1375ee43ec53ad12`.
-This sample branch is based on that main commit. Its diff contains only the
-sample, this documentation, and the separate verifier/regression tests; the
-approved technical references are unchanged.
+This sample branch is based on that main commit. Its diff contains the sample,
+this documentation, separate capture/verifier/regression scripts, and their
+integration into the existing workflow; approved technical references are unchanged.
 
 The report contains an overview, three actions with responsible roles and dates,
 and 24 distinct records grouped by subject (18 complete, six open). Text includes
