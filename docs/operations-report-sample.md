@@ -48,7 +48,7 @@ old PDFs for a real Chrome print reference.
 
 Review every raster for readable hierarchy, adequate panel/title spacing,
 paragraph continuity, group context, missing glyphs and overlap. Green machine
-checks do not approve the reading experience. Any later text change requires
+checks do not approve the reading experience. Any later text or style change requires
 rerendering and rereview: the template does not promise automatic heading keep,
 widow/orphan handling, repeated headers, footers or page numbers. This fixed
 sample does not establish arbitrary-length report pagination support.

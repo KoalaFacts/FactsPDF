@@ -1,6 +1,7 @@
 """Capture one reading sample with the existing trusted acceptance tools."""
 from __future__ import annotations
 import argparse
+import difflib
 import json
 from pathlib import Path
 import re
@@ -11,7 +12,7 @@ from acceptance_run import capture_environment, run_case
 from acceptance_inspect import chrome_reference
 from acceptance_pipeline import check_entrypoints
 from css_visual_differential import VisibleText
-from verify_operations_report import inspect
+from verify_operations_report import compact, inspect
 
 
 def main():
@@ -49,7 +50,23 @@ def main():
     shutil.copyfile(rows[0]['pdf_path'], public/'native.pdf')
     shutil.copyfile(html, public/'operations-report.html')
     native = inspect(public/'native.pdf', expected, public/'native')
-    chrome = chrome_reference(html, case, args.font, environment, args.output/'browser')
+    try:
+        chrome = chrome_reference(html, case, args.font, environment, args.output/'browser')
+    except Exception:
+        # Preserve actual failed output, without changing or approving it.
+        for name in ('chrome.pdf', 'chrome-input.html'):
+            failed = args.output/'browser'/name
+            if failed.is_file(): shutil.copyfile(failed, public/name)
+        extracted = args.output/'browser/inspection/text/stdout.bin'
+        if extracted.is_file():
+            actual = extracted.read_text(encoding='utf-8')
+            (public/'failed-chrome-text.txt').write_text(actual, encoding='utf-8')
+            wanted, found = compact(expected), compact(actual)
+            for tag, i, j, a, b in difflib.SequenceMatcher(None, wanted, found, autojunk=False).get_opcodes():
+                if tag != 'equal':
+                    print(json.dumps({'difference': tag, 'expected': wanted[max(0,i-40):j+40],
+                                      'actual': found[max(0,a-40):b+40]}, ensure_ascii=False), flush=True)
+        raise
     shutil.copyfile(args.output/'browser/chrome.pdf', public/'chrome.pdf')
     shutil.copyfile(args.output/'browser/chrome-input.html', public/'chrome-input.html')
     # Require the same strict reading-sample bounds; a browser discrepancy is
