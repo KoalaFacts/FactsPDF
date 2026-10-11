@@ -2,7 +2,6 @@
 from __future__ import annotations
 import argparse
 import hashlib
-from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
