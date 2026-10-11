@@ -37,8 +37,13 @@ test('category data, milestone filtering, language and CSV download work',async(
   await expect(page.locator('tbody tr')).toHaveCount(6);
   await page.getByRole('button',{name:'English',exact:true}).click();
   await expect(page.getByRole('searchbox')).toHaveAttribute('placeholder',/Search/);
-  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export filtered CSV',exact:true}).click();
-  expect((await download).suggestedFilename()).toMatch(/\.csv$/);
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export filtered CSV ↓',exact:true}).click();
+  const saved=await download;
+  expect(saved.suggestedFilename()).toMatch(/\.csv$/);
+  const {readFile}=await import('node:fs/promises');
+  const {csv,filterFeatures}=await import('../src/model.mjs');
+  const data=JSON.parse(await readFile(new URL('../data/compatibility.json',import.meta.url)));
+  expect(await readFile(await saved.path(),'utf8')).toBe(csv(filterFeatures(data.features,{category:'CSS属性',milestone:'M6'})));
 });
 test('unknown routes are safe and pagination can go back',async({page})=>{
   await page.goto(base+'#page=10000&feature=not-real');
