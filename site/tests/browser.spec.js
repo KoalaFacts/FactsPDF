@@ -37,8 +37,13 @@ test('category data, milestone filtering, language and CSV download work',async(
   await expect(page.locator('tbody tr')).toHaveCount(6);
   await page.getByRole('button',{name:'English',exact:true}).click();
   await expect(page.getByRole('searchbox')).toHaveAttribute('placeholder',/Search/);
-  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export filtered CSV',exact:true}).click();
-  expect((await download).suggestedFilename()).toMatch(/\.csv$/);
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export filtered CSV ↓',exact:true}).click();
+  const saved=await download;
+  expect(saved.suggestedFilename()).toMatch(/\.csv$/);
+  const {readFile}=await import('node:fs/promises');
+  const {csv,filterFeatures}=await import('../src/model.mjs');
+  const data=JSON.parse(await readFile(new URL('../data/compatibility.json',import.meta.url)));
+  expect(await readFile(await saved.path(),'utf8')).toBe(csv(filterFeatures(data.features,{category:'CSS属性',milestone:'M6'})));
 });
 test('unknown routes are safe and pagination can go back',async({page})=>{
   await page.goto(base+'#page=10000&feature=not-real');
@@ -72,4 +77,63 @@ test('desktop review capture',async({page})=>{
   await page.screenshot({path:'test-results/compatibility-desktop.png',fullPage:true});
   await page.getByRole('button',{name:'width',exact:true}).click();
   await page.screenshot({path:'test-results/compatibility-detail.png'});
+});
+
+test('detail Back and Forward restore the filtered list and dialog',async({page})=>{
+  await page.goto(base);
+  await page.getByRole('searchbox').fill('border-style');
+  await page.getByRole('button',{name:'border-style',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('searchbox')).toHaveValue('border-style');
+  await page.goForward();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('#detail-title')).toHaveText('border-style');
+});
+
+test('mobile source JSON download remains visible and byte-identical',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(base);
+  const link=page.getByRole('link',{name:'下载原始 JSON'});
+  await expect(link).toBeVisible();
+  const pending=page.waitForEvent('download');await link.click();
+  const download=await pending;
+  expect(download.suggestedFilename()).toBe('FactsPDF-compatibility.json');
+  const {readFile}=await import('node:fs/promises');
+  expect(await readFile(await download.path())).toEqual(await readFile(new URL('../data/compatibility.json',import.meta.url)));
+  await page.screenshot({path:'test-results/compatibility-mobile.png',fullPage:true});
+});
+
+for(const closeWith of ['Escape','button','backdrop']){
+  test(`closing clicked details with ${closeWith} restores the list entry`,async({page})=>{
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+    await page.goto(base);
+    await page.getByRole('searchbox').fill('border-style');
+    const listUrl=page.url();
+    await page.getByRole('button',{name:'border-style',exact:true}).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const featureUrl=page.url();
+    if(closeWith==='Escape')await page.keyboard.press('Escape');
+    else if(closeWith==='button')await page.getByRole('button',{name:'关闭详情 / Close details'}).click();
+    else await page.mouse.click(2,2);
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page).toHaveURL(listUrl);
+    await page.goForward();
+    await expect(page).toHaveURL(featureUrl);
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.locator('#detail-title')).toHaveText('border-style');
+    expect(errors).toEqual([]);
+  });
+}
+
+test('closing a directly loaded detail stays on the lookup page',async({page})=>{
+  await page.goto(base+'#feature=css.width');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('searchbox')).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe(base);
+  expect(page.url()).not.toContain('feature=');
 });

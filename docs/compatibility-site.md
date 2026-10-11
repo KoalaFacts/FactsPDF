@@ -19,3 +19,24 @@ To update a feature, edit its stable-ID row in the JSON, including scope, limita
 This first page supports search, category/status/introduction filters, pagination, feature details/evidence, shareable hash links, Chinese/English interface labels, and JSON/CSV download. Audit notes remain in their original language. External links are HTTPS; examples are text, never executed. A subfeature marked full does not make its parent fully supported. No database, account system, server renderer, or complete historical-version matrix is introduced.
 
 The imported snapshot remains byte-identical to the supplied 418-row audit (SHA-256 `c740aa1e2614a9f5f1abee5e64d54f0f64b69bf2d60f8a4a41c7e5b6c7489ffe`). Actual current test and deployment results belong to the PR/workflow logs, not guessed success claims in this guide. The separate report sample PR is not changed or approved by this work.
+
+### Production template regression
+
+The Purity 0.3.4 AOT compiler emits a U+200B text placeholder for a lone
+`tbody` interpolation. HTML table parsing moves this text before the table,
+invalidating the compiled DOM paths and preventing startup. The adjacent empty
+interpolation in `main.js` deliberately selects the compiler's comment-slot
+path; keep it until an upstream compiler fix is verified. It adds no table row.
+
+`npm test` now also builds and mounts the real production bundle in jsdom,
+checking startup, actual filtered row content, detail history creation and the
+source JSON entry outside the mobile-hidden sidebar. These DOM checks do not
+claim layout or native browser coverage. The existing hosted Chromium suite
+also checks Back/Forward and mobile JSON download bytes. Local environments
+with browser policy restrictions should use the DOM/build checks and authorized
+CI rather than work around those restrictions.
+
+The regression tests and application workaround were independently authored
+with AI assistance for this repository; no framework source was copied or
+modified. jsdom is a pinned MIT-licensed development-only dependency and is
+not included in the deployed bundle.
