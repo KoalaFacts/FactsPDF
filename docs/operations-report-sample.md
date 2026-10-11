@@ -9,7 +9,9 @@ The report contains an overview, three actions with responsible roles and dates,
 and 24 distinct records grouped by subject (18 complete, six open). Text includes
 short and multiline Chinese/English paragraphs. A small summary panel and
 section spacing replace the diagnostic fixture's almost empty spanning panels.
-The four subject sections use explicit heading page breaks. Page count is an
+Explicit heading page breaks precede Actions, Activity register, and Register
+continued; the four record subject groups are arranged within the register.
+Page count is an
 observed output, not a requirement or a reason to remove content. Report IDs,
 record ranges and the continued heading are authored content, not automatic
 page furniture. The sample uses no tables, lists, true bold or unsupported CSS.

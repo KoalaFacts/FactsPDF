@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 from acceptance_inspect import check_boxes
-from css_visual_differential import BROWSER_NORMALIZATION, VisibleText
+from css_visual_differential import BROWSER_NORMALIZATION, VisibleText, normalized
 
 
 def digest(path):
@@ -15,7 +15,7 @@ def digest(path):
 
 
 def compact(text):
-    return re.sub(r'\s+', '', text)
+    return normalized(text)
 
 
 def inspect(pdf, expected, output, *, browser=False):
