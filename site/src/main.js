@@ -57,7 +57,8 @@ function Tracker(data){
     const url=URL.createObjectURL(new Blob([csv(filtered())],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=`FactsPDF-${data.commit.slice(0,8)}-filtered.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  async function copy(){try{await navigator.clipboard.writeText(location.href);notice(t('链接已复制','Link copied'));}catch{notice(t('无法访问剪贴板，请复制下方链接','Clipboard unavailable; copy the link below'));}}
+  const featureUrl=()=>location.origin+location.pathname+routeHash(route());
+  async function copy(){try{await navigator.clipboard.writeText(featureUrl());notice(t('链接已复制','Link copied'));}catch{notice(t('无法访问剪贴板，请复制下方链接','Clipboard unavailable; copy the link below'));}}
   onMount(()=>{
     const dialog=document.querySelector('#feature-dialog');
     watch(()=>{
@@ -100,7 +101,7 @@ function Tracker(data){
           ${f.sources.map((source,index)=>html`<a href=${safeUrl(source)} target="_blank" rel="noopener noreferrer">${()=>t('查看来源','Source')} ${index+1} ↗ <span>${new URL(source).pathname.split('/').pop()}</span></a>`)}
           <p class="test-reference">${()=>t('测试定位：','Test reference: ')}${testLink?html`<a href=${testLink} target="_blank" rel="noopener noreferrer">${f.test_reference}</a>`:(f.test_reference||t('未关联独立测试','No individual test linked'))}</p>
         </section>
-        <div class="share"><button @click=${copy}>${()=>t('复制此项链接','Copy feature link')}</button><input aria-label="Feature link" readonly .value=${()=>location.origin+location.pathname+routeHash(route())} /></div>
+        <div class="share"><button @click=${copy}>${()=>t('复制此项链接','Copy feature link')}</button><input aria-label="Feature link" readonly .value=${featureUrl} /></div>
       </div>`;
   }
   // Purity 0.3.4 emits a text placeholder for a lone tbody expression.
@@ -115,7 +116,7 @@ function Tracker(data){
         <div class="stat total"><span class="stat-num" data-total>${data.features.length}</span><span>${()=>t('跟踪记录','Tracked records')}</span></div>
         ${STATUSES.map(s=>html`<button class=${()=>`stat ${s} ${route().status===s?'active':''}`} aria-pressed=${()=>route().status===s?'true':'false'} @click=${()=>change({status:route.peek().status===s?'all':s})}><span class="stat-num">${totals[s]}</span><span><i class=${'dot '+s}></i>${()=>statusText[locale()][s]}</span></button>`)}
       </section>
-      <p class="inventory-note">${()=>t('* 完整支持仅针对该行定义的范围。418 是跟踪记录数，不是标准覆盖率或产品完成率。','* Full means the scope explicitly defined by that row. 418 is an inventory count, not standards coverage or product completion.')}</p>
+      <p class="inventory-note">${()=>t(`* 完整支持仅针对该行定义的范围。${data.features.length} 是跟踪记录数，不是标准覆盖率或产品完成率。`,`* Full means the scope explicitly defined by that row. ${data.features.length} is an inventory count, not standards coverage or product completion.`)}</p>
       <div class="workspace">
         <aside class="sidebar"><h2>${()=>t('能力分类','Browse capabilities')}</h2><button class=${()=>route().category==='all'?'category selected':'category'} @click=${()=>change({category:'all'})}><span>${()=>t('全部能力','All capabilities')}</span><b>${data.features.length}</b></button>
           ${Object.entries(data.categories).map(([c,n])=>html`<button class=${()=>route().category===c?'category selected':'category'} @click=${()=>change({category:c})}><span>${()=>catText(c)}</span><b>${n}</b></button>`)}

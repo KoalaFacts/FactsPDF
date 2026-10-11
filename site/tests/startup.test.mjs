@@ -20,16 +20,16 @@ after(async () => { if (output) await rm(output, { recursive: true, force: true 
 
 // Execute the real production AOT bundle without browser navigation. Layout,
 // native dialogs, downloads and Back/Forward remain covered by Playwright in CI.
-async function loadSite(t) {
+async function loadSite(t, { data=dataset, url='https://example.test/FactsPDF/' } = {}) {
   const dom = new JSDOM('<div id="app"></div>', {
-    url: 'https://example.test/FactsPDF/', runScripts: 'outside-only'
+    url, runScripts: 'outside-only'
   });
   t.after(() => dom.window.close());
   const { window } = dom;
   const errors=[];
   window.console.error=(...args)=>errors.push(args.map(String).join(' '));
   t.after(()=>assert.deepEqual(errors, [], 'no reactive rendering errors'));
-  window.fetch = async () => ({ ok: true, json: async () => dataset });
+  window.fetch = async () => ({ ok: true, json: async () => data });
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   window.eval(bundle);
@@ -90,4 +90,27 @@ test('closing a clicked detail returns to its list history entry', async t => {
   window.history.forward();
   await Promise.race([forward, new Promise(resolve => setTimeout(resolve, 100))]);
   assert.equal(window.location.hash, featureHash, 'Forward must reopen the detail that close navigated back from');
+});
+
+test('inventory note follows loaded record count in both interface languages', async t => {
+  const data=structuredClone(dataset);
+  const extra={...data.features[0],id:'test.extra',parent_id:null};
+  data.features.push(extra);data.categories[extra.category]++;
+  const window=await loadSite(t,{data});
+  assert.equal(window.document.querySelector('[data-total]').textContent,'419');
+  assert.match(window.document.querySelector('.inventory-note').textContent,/419/);
+  window.document.querySelector('.language').click();await settled();
+  assert.match(window.document.querySelector('.inventory-note').textContent,/419 is an inventory count/);
+});
+
+test('copied feature link matches the displayed canonical URL without borrowed query values', async t => {
+  const window=await loadSite(t,{url:'https://example.test/FactsPDF/?tracking=borrowed'});
+  let copied;
+  Object.defineProperty(window.navigator,'clipboard',{value:{writeText:async value=>{copied=value;}}});
+  window.document.querySelector('.feature-button').click();await settled();
+  const shown=window.document.querySelector('input[aria-label="Feature link"]').value;
+  window.document.querySelector('.share button').click();await settled();
+  assert.equal(copied,shown);
+  assert.equal(new URL(copied).search,'');
+  assert.match(new URL(copied).hash,/feature=/);
 });
