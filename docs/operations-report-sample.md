@@ -61,6 +61,27 @@ the Native PDF and its verified evidence can still be reviewed independently.
 
 ## Observed reading review and provenance
 
+### CI coverage
+
+The document-acceptance workflow explicitly runs `test_operations_report.py`
+in addition to the original acceptance tests. After its existing clean-source
+Native AOT build, `capture_operations_report.py` reuses the same CLI/API binaries,
+explicit fonts, build-receipt validation and Chrome capture helper to render this
+exact input. Both PDFs undergo full-text, ordered-ID, qpdf and strict content-bound
+checks, and every page is rasterized. The native and browser page counts are
+reported as observations, not forced to four or to equality.
+
+The separate `operations-report-review` Actions artifact contains Native/Chrome
+PDFs, all page PNGs, source and normalized Chrome input, extracted text/bounds,
+inspection results, executable/font hashes and exact compiled source identity.
+Only its explicit public directory is uploaded; browser profiles, binaries and
+standalone fonts stay outside it. Failed captures keep an incomplete summary;
+they are not approved candidates. The original corpus and its review artifact
+remain separate. Green workflows on the earlier PR head did not cover this
+sample; only a run containing these new steps establishes CI coverage.
+
+### Local evidence
+
 All four actual Native pages were visually reviewed independently. Review found
 and corrected missing English action dates/completion conditions, an ambiguous
 Chinese completion statement, and tight spacing below the summary panel. A
