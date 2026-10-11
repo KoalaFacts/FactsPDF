@@ -1,5 +1,284 @@
 {
   "schema_version": 1,
-  "reviews": [],
-  "status": "pending-user-page-review"
+  "reviews": [
+    {
+      "case_id": "B00",
+      "input_sha256": "661c1feb793be5cfbb04a20e72240292738e6ee13102a2c0848faf347bb8e749",
+      "environment_id": "5f68ed0b08437c9697244a23ed20bb70188b89a4cd6c36a3d6e8b51e611e61ae",
+      "source_sha": "df26256c22857523fb6a4c2978f9e586f8aabadf",
+      "font_inputs": [
+        {
+          "bytes": 759720,
+          "name": "DejaVuSans.ttf",
+          "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+        },
+        {
+          "bytes": 4033420,
+          "name": "DroidSansFallbackFull.ttf",
+          "sha256": "acb6440a713d880a13a21b468ba7cd43f5a2b2934972e51be791c880730777b8"
+        }
+      ],
+      "pdf_sha256": "e59071dee7e2520199c429ca3735fe27145af750b83433adfe82b4887f8e936a",
+      "pdf_bytes": 1004,
+      "pages": 1,
+      "text_sha256": "d9bec3afb4de9c1255a638b2405039de36c1cd57c4a823adff844625306211af",
+      "page_image_sha256": [
+        "ed416135a1a99b0402bea27260154197e3582f9d52be511ff04d2578e512a3ad"
+      ],
+      "approval": "approved",
+      "reviewer_kind": "human",
+      "reviewer": "ldsenow (authenticated user; approval in ChatGPT, recorded by assistant)",
+      "review_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305",
+      "reviewed_at": "2026-10-11T09:18:49Z",
+      "artifact_location": "docs/acceptance/references/B00",
+      "requirements": [
+        "text-basic"
+      ],
+      "source_transition_policy": "reference-files-only-v1",
+      "approval_statement": "现在好了 我们应该收尾合并",
+      "reviewed_presentation": {
+        "file": "FactsPDF_A_Report_Candidates_10pages_df26256.pdf",
+        "sha256": "3236a53ae3ae4da21f0b15edf446cff62a05683a722220a1636060a964e30d18",
+        "first_page": 1,
+        "last_page": 1
+      },
+      "evidence_artifact_id": 11690380968,
+      "evidence_archive_sha256": "9777411fb07eabdd4cf8a96ca088a8e7e6d771cb9f0ff2eaad5ce873bcb479cd"
+    },
+    {
+      "case_id": "B01",
+      "input_sha256": "5a532194547fa39dbe0d2bd656cfa9c06077c855190355a412ac965cc3ad4325",
+      "environment_id": "5f68ed0b08437c9697244a23ed20bb70188b89a4cd6c36a3d6e8b51e611e61ae",
+      "source_sha": "df26256c22857523fb6a4c2978f9e586f8aabadf",
+      "font_inputs": [
+        {
+          "bytes": 759720,
+          "name": "DejaVuSans.ttf",
+          "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+        },
+        {
+          "bytes": 4033420,
+          "name": "DroidSansFallbackFull.ttf",
+          "sha256": "acb6440a713d880a13a21b468ba7cd43f5a2b2934972e51be791c880730777b8"
+        }
+      ],
+      "pdf_sha256": "8d8c9a3072c86fca1150e4fcf64a8d9991b590f7e1ff177de803ec4a790c8183",
+      "pdf_bytes": 24307,
+      "pages": 1,
+      "text_sha256": "e4dedfacd41e2bd605c78178dbccc010895d0ec34d2812b3b37df2ca829fdc3a",
+      "page_image_sha256": [
+        "a3f1609caad3ee197fb9ba87e129936b2d6c9204dfd03b4f4abaadcb1677216e"
+      ],
+      "approval": "approved",
+      "reviewer_kind": "human",
+      "reviewer": "ldsenow (authenticated user; approval in ChatGPT, recorded by assistant)",
+      "review_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305",
+      "reviewed_at": "2026-10-11T09:18:49Z",
+      "artifact_location": "docs/acceptance/references/B01",
+      "requirements": [
+        "text-unicode",
+        "nested-panel"
+      ],
+      "source_transition_policy": "reference-files-only-v1",
+      "approval_statement": "现在好了 我们应该收尾合并",
+      "reviewed_presentation": {
+        "file": "FactsPDF_A_Report_Candidates_10pages_df26256.pdf",
+        "sha256": "3236a53ae3ae4da21f0b15edf446cff62a05683a722220a1636060a964e30d18",
+        "first_page": 2,
+        "last_page": 2
+      },
+      "evidence_artifact_id": 11690380968,
+      "evidence_archive_sha256": "9777411fb07eabdd4cf8a96ca088a8e7e6d771cb9f0ff2eaad5ce873bcb479cd"
+    },
+    {
+      "case_id": "B02-10",
+      "input_sha256": "a77c4214b1349ec097fcb411059d713c7e15e0c57bd9d7cd544e7535ae345475",
+      "environment_id": "5f68ed0b08437c9697244a23ed20bb70188b89a4cd6c36a3d6e8b51e611e61ae",
+      "source_sha": "df26256c22857523fb6a4c2978f9e586f8aabadf",
+      "font_inputs": [
+        {
+          "bytes": 759720,
+          "name": "DejaVuSans.ttf",
+          "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+        },
+        {
+          "bytes": 4033420,
+          "name": "DroidSansFallbackFull.ttf",
+          "sha256": "acb6440a713d880a13a21b468ba7cd43f5a2b2934972e51be791c880730777b8"
+        }
+      ],
+      "pdf_sha256": "a8d9b8a160ec5c04b75d079ccc8734197fa5258cf54b3899cfa52ebfbe8f207c",
+      "pdf_bytes": 21720,
+      "pages": 1,
+      "text_sha256": "1828f5f77b47b5aae5eb0df1f16f2f021d5cfea66c1b224934bdef9f277a210b",
+      "page_image_sha256": [
+        "06a10e6accc9ffd6d9ad82441fdb80b476632c6bc4f0509208b603c445ae5dc3"
+      ],
+      "approval": "approved",
+      "reviewer_kind": "human",
+      "reviewer": "ldsenow (authenticated user; approval in ChatGPT, recorded by assistant)",
+      "review_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305",
+      "reviewed_at": "2026-10-11T09:18:49Z",
+      "artifact_location": "docs/acceptance/references/B02-10",
+      "requirements": [
+        "record-order",
+        "text-unicode"
+      ],
+      "source_transition_policy": "reference-files-only-v1",
+      "approval_statement": "现在好了 我们应该收尾合并",
+      "reviewed_presentation": {
+        "file": "FactsPDF_A_Report_Candidates_10pages_df26256.pdf",
+        "sha256": "3236a53ae3ae4da21f0b15edf446cff62a05683a722220a1636060a964e30d18",
+        "first_page": 3,
+        "last_page": 3
+      },
+      "evidence_artifact_id": 11690380968,
+      "evidence_archive_sha256": "9777411fb07eabdd4cf8a96ca088a8e7e6d771cb9f0ff2eaad5ce873bcb479cd"
+    },
+    {
+      "case_id": "B02-30",
+      "input_sha256": "d610a6605a4e149b8ff1e231bf5af3bf55fceb45c6af50a034884cda033fc010",
+      "environment_id": "5f68ed0b08437c9697244a23ed20bb70188b89a4cd6c36a3d6e8b51e611e61ae",
+      "source_sha": "df26256c22857523fb6a4c2978f9e586f8aabadf",
+      "font_inputs": [
+        {
+          "bytes": 759720,
+          "name": "DejaVuSans.ttf",
+          "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+        },
+        {
+          "bytes": 4033420,
+          "name": "DroidSansFallbackFull.ttf",
+          "sha256": "acb6440a713d880a13a21b468ba7cd43f5a2b2934972e51be791c880730777b8"
+        }
+      ],
+      "pdf_sha256": "fee6ee64eb1789d60c65520b9f125a612f984498a4ed6b6f9a05a278f8963404",
+      "pdf_bytes": 29201,
+      "pages": 1,
+      "text_sha256": "a55f36039c0d02901687fe4d642c6890405f34e8ce1e9e04f89dcd845cbfc614",
+      "page_image_sha256": [
+        "2ac7e0041270fea5f5179e8a4a0b6f0b4d1bbe3eab715f4576712422e81bbd62"
+      ],
+      "approval": "approved",
+      "reviewer_kind": "human",
+      "reviewer": "ldsenow (authenticated user; approval in ChatGPT, recorded by assistant)",
+      "review_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305",
+      "reviewed_at": "2026-10-11T09:18:49Z",
+      "artifact_location": "docs/acceptance/references/B02-30",
+      "requirements": [
+        "record-order",
+        "text-unicode"
+      ],
+      "source_transition_policy": "reference-files-only-v1",
+      "approval_statement": "现在好了 我们应该收尾合并",
+      "reviewed_presentation": {
+        "file": "FactsPDF_A_Report_Candidates_10pages_df26256.pdf",
+        "sha256": "3236a53ae3ae4da21f0b15edf446cff62a05683a722220a1636060a964e30d18",
+        "first_page": 4,
+        "last_page": 4
+      },
+      "evidence_artifact_id": 11690380968,
+      "evidence_archive_sha256": "9777411fb07eabdd4cf8a96ca088a8e7e6d771cb9f0ff2eaad5ce873bcb479cd"
+    },
+    {
+      "case_id": "B02-100",
+      "input_sha256": "38ae753b17cec4927824b4b27649f7e1dde33ba0a7dc5167658c34214004eb09",
+      "environment_id": "5f68ed0b08437c9697244a23ed20bb70188b89a4cd6c36a3d6e8b51e611e61ae",
+      "source_sha": "df26256c22857523fb6a4c2978f9e586f8aabadf",
+      "font_inputs": [
+        {
+          "bytes": 759720,
+          "name": "DejaVuSans.ttf",
+          "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+        },
+        {
+          "bytes": 4033420,
+          "name": "DroidSansFallbackFull.ttf",
+          "sha256": "acb6440a713d880a13a21b468ba7cd43f5a2b2934972e51be791c880730777b8"
+        }
+      ],
+      "pdf_sha256": "d2b335d47c97d151a72634c9a5318fc07f19be677afd0d910f6bfc624a13dae6",
+      "pdf_bytes": 55862,
+      "pages": 3,
+      "text_sha256": "f559c43381c0aa872bbc0d63a2e0216be399292a6fb7c5938d65cb86aa92d7df",
+      "page_image_sha256": [
+        "6dfaaff67f827c598b72b53a061b870de0870f927f90d448d483c0087832fff6",
+        "3b4b62ea5455b1188eaa5cde5777be930367cba360375804530ed74326c0032a",
+        "367f6d65acb016d8c5a17b58b439ea255090f7a953f9d7291c9b92274f93f3ba"
+      ],
+      "approval": "approved",
+      "reviewer_kind": "human",
+      "reviewer": "ldsenow (authenticated user; approval in ChatGPT, recorded by assistant)",
+      "review_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305",
+      "reviewed_at": "2026-10-11T09:18:49Z",
+      "artifact_location": "docs/acceptance/references/B02-100",
+      "requirements": [
+        "record-order",
+        "text-unicode"
+      ],
+      "source_transition_policy": "reference-files-only-v1",
+      "approval_statement": "现在好了 我们应该收尾合并",
+      "reviewed_presentation": {
+        "file": "FactsPDF_A_Report_Candidates_10pages_df26256.pdf",
+        "sha256": "3236a53ae3ae4da21f0b15edf446cff62a05683a722220a1636060a964e30d18",
+        "first_page": 5,
+        "last_page": 7
+      },
+      "evidence_artifact_id": 11690380968,
+      "evidence_archive_sha256": "9777411fb07eabdd4cf8a96ca088a8e7e6d771cb9f0ff2eaad5ce873bcb479cd"
+    },
+    {
+      "case_id": "B03",
+      "input_sha256": "4b5eff7a83823288d9895b6c44e1c460300a2743bba292004264d3a1660a0982",
+      "environment_id": "5f68ed0b08437c9697244a23ed20bb70188b89a4cd6c36a3d6e8b51e611e61ae",
+      "source_sha": "df26256c22857523fb6a4c2978f9e586f8aabadf",
+      "font_inputs": [
+        {
+          "bytes": 759720,
+          "name": "DejaVuSans.ttf",
+          "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+        },
+        {
+          "bytes": 4033420,
+          "name": "DroidSansFallbackFull.ttf",
+          "sha256": "acb6440a713d880a13a21b468ba7cd43f5a2b2934972e51be791c880730777b8"
+        }
+      ],
+      "pdf_sha256": "d198212f858781aaaa80c57ae3dd793b805072482fded4dd0eeaef1b07f586cb",
+      "pdf_bytes": 21259,
+      "pages": 3,
+      "text_sha256": "66c74396f6e46d4a2acb49dd1bd9174f6aefcfa530472b6ee662632c714f0453",
+      "page_image_sha256": [
+        "9a17adf16e2ecc382ecfcab030f5b5e828ad6339ec1fc420d601ab4d1fde5985",
+        "23ee7db32ee4d9c0b6d92513ec8e846c69373926a4081e5429e356247d6b60b1",
+        "f96ac0631eeb1bbcc8ace5d9466c37b9a332ab0bf5ec7fe3af781577d6ff7ea5"
+      ],
+      "approval": "approved",
+      "reviewer_kind": "human",
+      "reviewer": "ldsenow (authenticated user; approval in ChatGPT, recorded by assistant)",
+      "review_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305",
+      "reviewed_at": "2026-10-11T09:18:49Z",
+      "artifact_location": "docs/acceptance/references/B03",
+      "requirements": [
+        "fragmentation",
+        "text-unicode"
+      ],
+      "source_transition_policy": "reference-files-only-v1",
+      "approval_statement": "现在好了 我们应该收尾合并",
+      "reviewed_presentation": {
+        "file": "FactsPDF_A_Report_Candidates_10pages_df26256.pdf",
+        "sha256": "3236a53ae3ae4da21f0b15edf446cff62a05683a722220a1636060a964e30d18",
+        "first_page": 8,
+        "last_page": 10
+      },
+      "evidence_artifact_id": 11690380968,
+      "evidence_archive_sha256": "9777411fb07eabdd4cf8a96ca088a8e7e6d771cb9f0ff2eaad5ce873bcb479cd"
+    }
+  ],
+  "status": "native-page-references-approved",
+  "approval_scope": "Six current-capability baseline cases; not future features, browser reference approval or performance budgets.",
+  "performance_budget_approved": false,
+  "reference_machine_approved": false,
+  "preview_ready": false,
+  "merge_authorization_url": "https://github.com/KoalaFacts/FactsPDF/pull/20#issuecomment-6107516305"
 }

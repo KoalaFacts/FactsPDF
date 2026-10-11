@@ -1,0 +1,9 @@
+FactsPDF 双语简报
+Bilingual report baseline
+Summary 摘要
+This synthetic report checks readable output. 本报告只使用合成数据。
+Review panel 核对面板
+Text and borders must remain visible. 文字与边框应当完整显示。
+Final note 结束说明
+No missing text, no clipped content. 不缺字，不截断。
+

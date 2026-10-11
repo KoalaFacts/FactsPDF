@@ -1,0 +1,13 @@
+Record report 记录报告 - 10
+R0001 - Item 001: verified synthetic record. 合成记录已核对。
+R0002 - Item 002: verified synthetic record. 合成记录已核对。
+R0003 - Item 003: verified synthetic record. 合成记录已核对。
+R0004 - Item 004: verified synthetic record. 合成记录已核对。
+R0005 - Item 005: verified synthetic record. 合成记录已核对。
+R0006 - Item 006: verified synthetic record. 合成记录已核对。
+R0007 - Item 007: verified synthetic record. 合成记录已核对。
+R0008 - Item 008: verified synthetic record. 合成记录已核对。
+R0009 - Item 009: verified synthetic record. 合成记录已核对。
+R0010 - Item 010: verified synthetic record. 合成记录已核对。
+End of records. 记录结束。
+
