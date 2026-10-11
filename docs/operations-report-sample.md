@@ -5,6 +5,11 @@ It does not replace B00–B03, change their gates, freeze references, or impleme
 any future report capability. Base: PR20 `df26256c22857523fb6a4c2978f9e586f8aabadf`;
 main at start: `818da048604d6123ccb928c1a5ef3beba2f14cf6`.
 
+PR20 was subsequently merged by its owner as `e35722bf299adae3a994593f1375ee43ec53ad12`.
+This sample branch is based on that main commit. Its diff contains only the
+sample, this documentation, and the separate verifier/regression tests; the
+approved technical references are unchanged.
+
 The report contains an overview, three actions with responsible roles and dates,
 and 24 distinct records grouped by subject (18 complete, six open). Text includes
 short and multiline Chinese/English paragraphs. A small summary panel and
@@ -53,3 +58,37 @@ sample does not establish arbitrary-length report pagination support.
 The current managed Chromium has `PrintingEnabled:false`. No policy is changed
 or bypassed. A missing Chrome PDF remains an explicit incomplete comparison;
 the Native PDF and its verified evidence can still be reviewed independently.
+
+## Observed reading review and provenance
+
+All four actual Native pages were visually reviewed independently. Review found
+and corrected missing English action dates/completion conditions, an ambiguous
+Chinese completion statement, and tight spacing below the summary panel. A
+separate verifier review caught removal of English word separators; two failing
+regression cases reproduced it before correction, and all three text tests now
+pass. The corrected PDF also passes the stricter real-text comparison.
+
+The unchanged reviewed HTML SHA-256 is
+`f935ff2925167dd00125d0d3e45609f44d7da9fc7ed301ed05b0522d9b745ad4`;
+the reviewed Native PDF SHA-256 is
+`1cb802bc8a758327abd43b5851e29324de52d3122576190fc90a5adc0313521f`
+(97,864 bytes, four A4 pages). The first exact-source verified build of this
+final content/verifier was `a300667220f744847f3bac97bca028e00b721bec`, before
+rebasing this independent branch on the merged main. These are observations,
+not approved references or a promise of browser pixel equality.
+
+The report text is newly authored AI-assisted synthetic content for this task,
+not copied customer or third-party material. The verifier reuses existing
+repository normalization and inspection helpers. Fonts are caller-supplied
+verification inputs, not bundled assets. Repository inbound-rights and release
+gates remain applicable; a draft PR does not satisfy them.
+
+The local image has no `/usr/bin/time`. An authorized attempt to install the
+official `time` package failed because the unprivileged account cannot acquire
+the system dpkg lock. Five existing peak/cleanup acceptance tests remain blocked
+by that missing prerequisite. No assertions, thresholds, replacement supervisor,
+or test skips were introduced. Use the real system GNU time package in a properly
+provisioned environment before treating the full acceptance suite as green.
+Library upload failed before preparation because its tool-discovery request
+could not reach the service; no Library file IDs were created. Neither that
+upload nor policy-blocked Chrome printing is claimed as delivered evidence.
