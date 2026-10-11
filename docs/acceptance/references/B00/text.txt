@@ -1,0 +1,4 @@
+FactsPDF acceptance control
+This report uses only documented text features.
+No customer data or external resources.
+
