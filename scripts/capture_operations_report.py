@@ -76,11 +76,15 @@ def main():
         'input_sha256': case['input_sha256'], 'cli_api_identical': True,
         'native': native, 'chrome': browser, 'chrome_capture': chrome,
         'human_reference_approved': False})
-    write_json(public/'summary.json', {'source_sha': source, 'status': 'checked-candidate',
+    summary = {'source_sha': source, 'status': 'checked-candidate',
+        'input_sha256': case['input_sha256'],
+        'native_pdf_sha256': native['pdf_sha256'], 'chrome_pdf_sha256': browser['pdf_sha256'],
         'native_pages': len(native['pages']), 'chrome_pages': len(browser['pages']),
         'page_counts_equal': len(native['pages']) == len(browser['pages']),
         'human_reference_approved': False,
-        'scope': 'Technical inspection only; inspect every raster before reading approval'})
+        'scope': 'Technical inspection only; inspect every raster before reading approval'}
+    write_json(public/'summary.json', summary)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':

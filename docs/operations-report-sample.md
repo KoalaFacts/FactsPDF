@@ -89,14 +89,22 @@ separate verifier review caught removal of English word separators; two failing
 regression cases reproduced it before correction, and all three text tests now
 pass. The corrected PDF also passes the stricter real-text comparison.
 
-The unchanged reviewed HTML SHA-256 is
+The earlier locally reviewed HTML SHA-256 was
 `f935ff2925167dd00125d0d3e45609f44d7da9fc7ed301ed05b0522d9b745ad4`;
-the reviewed Native PDF SHA-256 is
+the corresponding Native PDF SHA-256 was
 `1cb802bc8a758327abd43b5851e29324de52d3122576190fc90a5adc0313521f`
 (97,864 bytes, four A4 pages). The first exact-source verified build of this
 final content/verifier was `a300667220f744847f3bac97bca028e00b721bec`, before
 rebasing this independent branch on the merged main. These are observations,
 not approved references or a promise of browser pixel equality.
+
+The first real CI Chrome run exposed an ideographic-space mismatch in the
+opening label. A minimal Native input also reproduced U+3000 being extracted
+as ordinary whitespace; Chrome's exact diagnostic confirmed the same mismatch.
+The template now uses a visible middle-dot separator instead. No comparison
+normalization or tolerance was relaxed. This input change requires new renders
+and page review; use the new artifact's source/PDF hashes, not the historical
+hashes above, for its identity.
 
 The report text is newly authored AI-assisted synthetic content for this task,
 not copied customer or third-party material. The verifier reuses existing
