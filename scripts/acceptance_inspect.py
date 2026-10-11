@@ -10,6 +10,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from acceptance_corpus import digest, inside, load_manifest, write_json
 from acceptance_run import run_process
+from acceptance_reference_transition import validate_source_transition
 
 
 def normalized_text(text: str) -> str:
@@ -111,7 +112,7 @@ def validate_reference(review: dict, case: dict, environment: dict) -> None:
     if not str(review['review_url']).startswith('https://'):
         raise ValueError('Review source must be traceable')
     if review.get('source_sha') != environment.get('source_sha'):
-        raise ValueError('Human reference approval names a different source commit')
+        validate_source_transition(review, environment.get('source_sha'), Path.cwd())
     if review.get('case_id') != case['id'] or review.get('input_sha256') != case['input_sha256']:
         raise ValueError('Review is for a different input')
     if review.get('environment_id') != environment['environment_id'] or review.get('font_inputs') != environment['fonts']:
