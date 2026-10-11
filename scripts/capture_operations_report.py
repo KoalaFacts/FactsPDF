@@ -9,10 +9,10 @@ import shutil
 import subprocess
 from acceptance_corpus import digest, write_json
 from acceptance_run import capture_environment, run_case
-from acceptance_inspect import chrome_reference
+from acceptance_inspect import chrome_reference, normalized_text
 from acceptance_pipeline import check_entrypoints
 from css_visual_differential import VisibleText
-from verify_operations_report import compact, inspect
+from verify_operations_report import inspect
 
 
 def main():
@@ -61,7 +61,7 @@ def main():
         if extracted.is_file():
             actual = extracted.read_text(encoding='utf-8')
             (public/'failed-chrome-text.txt').write_text(actual, encoding='utf-8')
-            wanted, found = compact(expected), compact(actual)
+            wanted, found = normalized_text(expected), normalized_text(actual)
             for tag, i, j, a, b in difflib.SequenceMatcher(None, wanted, found, autojunk=False).get_opcodes():
                 if tag != 'equal':
                     print(json.dumps({'difference': tag, 'expected': wanted[max(0,i-40):j+40],
