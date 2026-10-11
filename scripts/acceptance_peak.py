@@ -37,19 +37,27 @@ def parse_usage(text: str) -> int | None:
     return value * 1024 if value else None
 
 
-def _run(argv: list[str], work: Path, timeout: float) -> dict:
+def _run(argv: list[str], work: Path, timeout: float, *, join_worker_group: bool = False) -> dict:
     if not argv or timeout <= 0:
         raise ValueError('A command and a positive timeout are required')
+    # Nested probes may share only a dedicated worker-owned session.
+    # Never place unrelated caller processes in a timeout kill domain.
+    if join_worker_group and (os.getpgrp() != os.getpid() or os.getsid(0) != os.getpid()):
+        raise ValueError('Nested probe requires a dedicated worker-owned session')
     work.mkdir(parents=True, exist_ok=False)
     stdout, stderr = work/'stdout.bin', work/'stderr.txt'
     started = time.perf_counter()
     with stdout.open('wb') as out, stderr.open('wb') as err:
         with subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=err,
-                              start_new_session=True) as child:
+                              start_new_session=not join_worker_group) as child:
             try:
                 child.wait(timeout=timeout)
             except BaseException:
-                try: os.killpg(child.pid, signal.SIGKILL)
+                # A nested per-probe timeout fails the whole disposable worker
+                # as well. The outer launcher reaps it and reports a failed run;
+                # aggregate deadlines can now terminate the exact same group.
+                target_group = os.getpgrp() if join_worker_group else child.pid
+                try: os.killpg(target_group, signal.SIGKILL)
                 except ProcessLookupError: pass
                 child.wait(timeout=5)
                 raise
@@ -62,14 +70,14 @@ def _run(argv: list[str], work: Path, timeout: float) -> dict:
 
 
 def supervised(argv: list[str], work: Path, timeout: float,
-               supervisor: Path = Path('/usr/bin/time')) -> dict:
+               supervisor: Path = Path('/usr/bin/time'), *, join_worker_group: bool = False) -> dict:
     if not sys.platform.startswith('linux') or not supervisor.is_file():
         raise RuntimeError('Explicit Linux GNU time is required; no imputed peak')
     usage = work.resolve()/'usage.txt'
     command = [str(supervisor.resolve()), '-q', '-f', 'peak_rss_kib=%M\nexit_code=%x',
                '-o', str(usage), '--', *[str(x) for x in argv]]
     try:
-        row = _run(command, work, timeout)
+        row = _run(command, work, timeout, join_worker_group=join_worker_group)
     except subprocess.TimeoutExpired as ex:
         raise TimeoutError('Peak probe timed out; its process group was killed/reaped') from ex
     row.update(peak_rss_bytes=parse_usage(usage.read_text(encoding='ascii')),
@@ -118,7 +126,9 @@ def _worker(job: dict, work: Path, supervisor: Path, parent_mib: int, repeats: i
             directory.mkdir(parents=True, exist_ok=False)
             pdf = directory/'result.pdf'
             argv = [str(pdf.resolve()) if x == '{output}' else x for x in task['argv']]
-            row = supervised(argv, directory/'process', 30, supervisor)
+            # Inherit the worker's dedicated session, so its aggregate deadline
+            # cannot leave this supervisor or renderer outside the kill domain.
+            row = supervised(argv, directory/'process', 30, supervisor, join_worker_group=True)
             row.update(parent_mib=parent_mib, sample_index=index, case_id=task['id'])
             if job['kind'] == 'controls':
                 actual = json.loads(Path(row['stdout_path']).read_bytes())
