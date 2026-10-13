@@ -27,6 +27,8 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y clang time zlib1g-dev qpdf poppler-utils python3-pil fonts-dejavu-core fonts-droid-fallback
       - name: Test new acceptance machinery without network or real fonts
         run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_acceptance_*.py' -v
+      - name: Test reading-sample text integrity
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_operations_report.py' -v
       - name: Generate deterministic candidate corpus (not approved references)
         run: |
           /usr/bin/python3 scripts/acceptance_corpus.py generate artifacts/acceptance-inputs
@@ -57,6 +59,22 @@ jobs:
             --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
             --work artifacts/acceptance-peak \
             --output artifacts/document-acceptance/public/peak-calibration.json
+      - name: Capture operations report through Native CLI, public API and real Chrome
+        run: |
+          /usr/bin/python3 scripts/capture_operations_report.py \
+            --cli artifacts/acceptance-cli/FactsPDF.Cli \
+            --host artifacts/acceptance-host/FactsPDF.Acceptance \
+            --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
+            --output artifacts/operations-report
+      - name: Retain operations report review evidence separately
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: operations-report-review
+          path: artifacts/operations-report/public/
+          if-no-files-found: error
+          retention-days: 14
       - name: Publish exact incomplete-state summary
         if: always()
         run: |
