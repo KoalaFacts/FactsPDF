@@ -75,9 +75,22 @@ test('early stdin closure with nonzero exit is reported without an unhandled EPI
 
 test('parallel calls have independent input, output and cancellation state', async () => {
   const inputs = [Buffer.from('first 中文'), Buffer.from('second café')];
-  const results = await Promise.all(inputs.map(input => child('process.stdin.pipe(process.stdout);', { input })));
-  results.forEach((result, i) => assert.deepEqual(result.stdout, inputs[i]));
-  assert.notEqual(results[0].pid, results[1].pid);
+  const controller = new AbortController();
+  const cancelled = child('setInterval(() => {}, 1000);', { signal: controller.signal });
+  const pending = inputs.map(input => child(
+    'const chunks=[]; process.stdin.on("data", b => chunks.push(b)); process.stdin.on("end", () => setTimeout(() => process.stdout.end(Buffer.concat(chunks)), 300));',
+    { input }));
+  const timer = setTimeout(() => controller.abort(), 150);
+  try {
+    const [, results] = await Promise.all([
+      assert.rejects(cancelled, error => reaped(error, 'ABORTED')), Promise.all(pending),
+    ]);
+    results.forEach((result, i) => {
+      assert.equal(result.exitCode, 0);
+      assert.deepEqual(result.stdout, inputs[i]);
+    });
+    assert.notEqual(results[0].pid, results[1].pid);
+  } finally { clearTimeout(timer); }
 });
 
 test('invalid limits fail before starting a process', async () => {
