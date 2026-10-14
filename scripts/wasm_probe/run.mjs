@@ -68,6 +68,7 @@ let browser;
 try {
   // Explicitly preserve sandboxing and the self-XSS warning; no unsafe fallback.
   browser = await chromium.launch({ channel: 'chromium', headless: true, chromiumSandbox: true,
+    args: ['--enable-automation'], // CDP requires this to expose the actual browser command line.
     ignoreDefaultArgs: ['--unsafely-disable-devtools-self-xss-warnings', '--enable-unsafe-swiftshader'], timeout: 20000 });
   report.browser.version = browser.version();
   const browserSession = await browser.newBrowserCDPSession();
