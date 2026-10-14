@@ -1,6 +1,12 @@
-"""Supplemental Linux CLI peak calibration; original cold/warm samples stay intact."""
+"""Supplemental Linux peaks via a locally compiled wait4 supervisor (cc/clang).
+
+GNU time is not required. Original cold/warm samples stay intact. This measures
+kernel process-lifetime RSS after a small native supervisor forks, not engine-only
+memory or a simultaneous process-tree peak. Compilation precedes probe timing.
+"""
 from __future__ import annotations
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -12,9 +18,12 @@ import signal
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 
-PEAK_SCOPE = 'linux-gnu-time-direct-child-lifetime-rss-after-small-supervisor-fork'
+PEAK_SCOPE = 'linux-native-wait4-direct-child-lifetime-rss-after-small-supervisor-fork'
+SUPERVISOR_VERSION = 'FactsPDF wait4 supervisor v1'
+SUPERVISOR_SOURCE = Path(__file__).with_name('acceptance_peak_supervisor.c')
 PARENTS = (0, 192)
 LOADS = (0, 16, 128)
 CALIBRATION_ALLOWANCE = 8 * 1024 * 1024  # Control-method allowance, NOT a product budget.
@@ -32,9 +41,53 @@ def save(path: Path, data: dict) -> None:
 def parse_usage(text: str) -> int | None:
     match = re.fullmatch(r'peak_rss_kib=(0|[1-9][0-9]*)\nexit_code=0\n', text)
     if not match:
-        raise ValueError('Failed, missing or malformed GNU time resource report')
+        raise ValueError('Failed, missing or malformed supervisor resource report')
     value = int(match.group(1))
     return value * 1024 if value else None
+
+
+def _require_linux() -> None:
+    if not sys.platform.startswith('linux'):
+        raise RuntimeError('Linux wait4 is required; no imputed peak')
+
+
+def _require_supervisor(supervisor: Path) -> Path:
+    """Check local prerequisites without creating output or starting processes."""
+    _require_linux()
+    supervisor = supervisor.resolve()
+    if not supervisor.is_file():
+        raise RuntimeError(f'Native supervisor is missing or not a file: {supervisor}; no imputed peak')
+    if not os.access(supervisor, os.X_OK):
+        raise RuntimeError(f'Native supervisor is not executable: {supervisor}; no imputed peak')
+    return supervisor
+
+
+def _require_compiler(compiler: str | None = None) -> str:
+    cc = shutil.which(compiler) if compiler else shutil.which('cc') or shutil.which('clang')
+    if not cc: raise RuntimeError('A native compiler (cc or clang) is required; no imputed peak')
+    return cc
+
+
+def build_supervisor(work: Path, compiler: str | None = None) -> Path:
+    """Build the bounded acceptance helper locally, without installing anything."""
+    _require_linux()
+    cc = _require_compiler(compiler)
+    work.mkdir(parents=True, exist_ok=False)
+    binary = work.resolve()/'rss-supervisor'
+    subprocess.run([cc, '-O2', '-Wall', '-Wextra', '-Werror', str(SUPERVISOR_SOURCE), '-o', str(binary)],
+                   check=True, timeout=30, capture_output=True)
+    return _require_supervisor(binary)
+
+
+@contextmanager
+def _native_supervisor(supervisor: Path | None, compiler: str | None = None):
+    if supervisor is not None:
+        yield _require_supervisor(supervisor)
+    else:
+        _require_linux()
+        cc = _require_compiler(compiler)
+        with tempfile.TemporaryDirectory(prefix='factspdf-peak-') as temp:
+            yield build_supervisor(Path(temp)/'build', cc)
 
 
 def _run(argv: list[str], work: Path, timeout: float, *, join_worker_group: bool = False) -> dict:
@@ -70,21 +123,19 @@ def _run(argv: list[str], work: Path, timeout: float, *, join_worker_group: bool
 
 
 def supervised(argv: list[str], work: Path, timeout: float,
-               supervisor: Path = Path('/usr/bin/time'), *, join_worker_group: bool = False) -> dict:
-    if not sys.platform.startswith('linux') or not supervisor.is_file():
-        raise RuntimeError('Explicit Linux GNU time is required; no imputed peak')
-    usage = work.resolve()/'usage.txt'
-    command = [str(supervisor.resolve()), '-q', '-f', 'peak_rss_kib=%M\nexit_code=%x',
-               '-o', str(usage), '--', *[str(x) for x in argv]]
-    try:
-        row = _run(command, work, timeout, join_worker_group=join_worker_group)
-    except subprocess.TimeoutExpired as ex:
-        raise TimeoutError('Peak probe timed out; its process group was killed/reaped') from ex
-    row.update(peak_rss_bytes=parse_usage(usage.read_text(encoding='ascii')),
-               peak_scope=PEAK_SCOPE, missing_peak_reason=None)
-    if row['peak_rss_bytes'] is None:
-        row['missing_peak_reason'] = 'kernel/GNU-time-reported-zero; not treated as zero memory'
-    return row
+               supervisor: Path | None = None, *, join_worker_group: bool = False) -> dict:
+    with _native_supervisor(supervisor) as binary:
+        usage = work.resolve()/'usage.txt'
+        command = [str(binary), '--usage', str(usage), '--', *[str(x) for x in argv]]
+        try:
+            row = _run(command, work, timeout, join_worker_group=join_worker_group)
+        except subprocess.TimeoutExpired as ex:
+            raise TimeoutError('Peak probe timed out; its process group was killed/reaped') from ex
+        row.update(peak_rss_bytes=parse_usage(usage.read_text(encoding='ascii')),
+                   peak_scope=PEAK_SCOPE, missing_peak_reason=None)
+        if row['peak_rss_bytes'] is None:
+            row['missing_peak_reason'] = 'kernel-wait4-reported-zero; not treated as zero memory'
+        return row
 
 
 def validate_controls(rows: list[dict], repeats: int) -> dict:
@@ -117,6 +168,7 @@ def validate_controls(rows: list[dict], repeats: int) -> dict:
 def _worker(job: dict, work: Path, supervisor: Path, parent_mib: int, repeats: int) -> list[dict]:
     if parent_mib not in PARENTS or not 1 <= repeats <= 5:
         raise ValueError('Invalid bounded calibration job')
+    supervisor = _require_supervisor(supervisor)
     ballast = bytearray(parent_mib*1024*1024)
     for i in range(0, len(ballast), 4096): ballast[i] = 1
     rows = []
@@ -149,6 +201,7 @@ def _worker(job: dict, work: Path, supervisor: Path, parent_mib: int, repeats: i
 
 
 def _workers(job: dict, work: Path, supervisor: Path, repeats: int) -> list[dict]:
+    supervisor = _require_supervisor(supervisor)
     work.mkdir(parents=True, exist_ok=False)
     job_path = work.resolve()/'job.json'
     save(job_path, job)
@@ -156,37 +209,38 @@ def _workers(job: dict, work: Path, supervisor: Path, repeats: int) -> list[dict
     for parent in PARENTS:
         result = _run([sys.executable, str(Path(__file__).resolve()), 'worker',
                        '--job', str(job_path), '--work', str((work/f'load-{parent}').resolve()),
-                       '--supervisor', str(supervisor.resolve()), '--parent-mib', str(parent),
+                       '--supervisor', str(supervisor), '--parent-mib', str(parent),
                        '--repeats', str(repeats)], work/f'launcher-{parent}', 240)
         rows.extend(json.loads(Path(result['stdout_path']).read_bytes()))
     return rows
 
 
 def calibrate(work: Path, repeats: int = 3, compiler: str | None = None,
-              supervisor: Path = Path('/usr/bin/time')) -> dict:
-    if not sys.platform.startswith('linux'):
-        raise RuntimeError('Calibration needs Linux; cannot claim a result on another platform')
-    work.mkdir(parents=True, exist_ok=False)
-    cc = compiler or shutil.which('cc') or shutil.which('clang')
-    if not cc: raise RuntimeError('A native compiler is required for independent controls')
-    version = subprocess.check_output([str(supervisor), '--version'], timeout=10).decode()
-    if 'GNU' not in version: raise ValueError('Explicit GNU time implementation required')
-    source = Path(__file__).resolve().parent.parent/'tools/acceptance-rss-control.c'
-    probe = work.resolve()/'rss-control'
-    subprocess.run([cc, '-O2', '-Wall', '-Wextra', '-Werror', str(source), '-o', str(probe)],
-                   check=True, timeout=30, capture_output=True)
-    job = {'kind': 'controls', 'tasks': [{'id': str(c), 'child_mib': c,
-            'argv': [str(probe), str(c)]} for c in LOADS]}
-    rows = _workers(job, work/'runs', supervisor, repeats)
-    checks = validate_controls(rows, repeats)
-    report = {'schema_version': 1, 'controls_validated': True, 'budget_approved': False,
-              'peak_scope': PEAK_SCOPE, 'supervisor_version': version.splitlines()[0],
-              'supervisor_sha256': fingerprint(supervisor), 'control_source_sha256': fingerprint(source),
-              'control_binary_sha256': fingerprint(probe), 'platform': platform.platform(),
-              'compiler': subprocess.check_output([cc, '--version'], timeout=10).decode().splitlines()[0],
-              'repeats': repeats, 'checks': checks, 'rows': rows}
-    save(work/'controls.json', report)
-    return report
+              supervisor: Path | None = None) -> dict:
+    _require_linux()
+    if supervisor is not None: _require_supervisor(supervisor)
+    cc = _require_compiler(compiler)
+    with _native_supervisor(supervisor, cc) as binary:
+        version = subprocess.check_output([str(binary), '--version'], timeout=10).decode()
+        if version != SUPERVISOR_VERSION + '\n': raise ValueError('Native wait4 supervisor protocol required')
+        work.mkdir(parents=True, exist_ok=False)
+        source = Path(__file__).resolve().parent.parent/'tools/acceptance-rss-control.c'
+        probe = work.resolve()/'rss-control'
+        subprocess.run([cc, '-O2', '-Wall', '-Wextra', '-Werror', str(source), '-o', str(probe)],
+                       check=True, timeout=30, capture_output=True)
+        job = {'kind': 'controls', 'tasks': [{'id': str(c), 'child_mib': c,
+                'argv': [str(probe), str(c)]} for c in LOADS]}
+        rows = _workers(job, work/'runs', binary, repeats)
+        checks = validate_controls(rows, repeats)
+        report = {'schema_version': 1, 'controls_validated': True, 'budget_approved': False,
+                  'peak_scope': PEAK_SCOPE, 'supervisor_version': version.splitlines()[0],
+                  'supervisor_source_sha256': fingerprint(SUPERVISOR_SOURCE),
+                  'supervisor_sha256': fingerprint(binary), 'control_source_sha256': fingerprint(source),
+                  'control_binary_sha256': fingerprint(probe), 'platform': platform.platform(),
+                  'compiler': subprocess.check_output([cc, '--version'], timeout=10).decode().splitlines()[0],
+                  'repeats': repeats, 'checks': checks, 'rows': rows}
+        save(work/'controls.json', report)
+        return report
 
 
 def collect(manifest: Path, capture: Path, cli: Path, host: Path, fonts: list[Path],
@@ -217,8 +271,9 @@ def collect(manifest: Path, capture: Path, cli: Path, host: Path, fonts: list[Pa
         tasks.append({'id': case['id'], 'argv': argv, 'expected_pdf_sha256': evidence['pdf_sha256'],
                       'expected_pages': evidence['pages'], 'input_sha256': case['input_sha256']})
     if len(tasks) != 3: raise ValueError('Exactly three bounded workloads are required')
-    controls = calibrate(work/'controls')
-    rows = _workers({'kind': 'documents', 'tasks': tasks}, work/'documents', Path('/usr/bin/time'), 3)
+    with _native_supervisor(None) as supervisor:
+        controls = calibrate(work/'controls', supervisor=supervisor)
+        rows = _workers({'kind': 'documents', 'tasks': tasks}, work/'documents', supervisor, 3)
     comparisons = []
     for task in tasks:
         group = [r for r in rows if r['case_id'] == task['id']]
@@ -237,7 +292,7 @@ def collect(manifest: Path, capture: Path, cli: Path, host: Path, fonts: list[Pa
               'reference_machine_approved': False, 'original_measurements_changed': False,
               'limitations': ['Process peak includes loader/runtime/fonts, not engine-only allocations.',
                               'Control allowance is not a product memory budget.',
-                              'launcher_elapsed_ms includes GNU time and is not the original cold latency.',
+                              'launcher_elapsed_ms includes the native supervisor, excludes compilation, and is not the original cold latency.',
                               'Kernel RSS accounting and a residual small supervisor floor remain.',
                               'Only the direct executable is calibrated; not a concurrent process-tree peak.']}
     save(output, report)
