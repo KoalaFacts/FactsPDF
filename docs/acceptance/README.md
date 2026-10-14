@@ -75,4 +75,4 @@ Production CLI options are unchanged. Acceptance-host `--limit`, `--max-pages`, 
 
 Process execution uses explicit argument lists and isolated directories. POSIX timeouts kill/reap the process group; unsupported cleanup is an infrastructure error. This is a trusted-workspace test harness, not a general hostile-process sandbox. No user/client data or credentials enter the corpus.
 
-Only this work package is implemented. No new lists/images/tables/font-role APIs, other-language SDKs, Windows AOT release, WASM, licenses or packages are delivered.
+This work package adds no new lists/images/tables/font-role APIs, other-language SDKs, Windows AOT release, WASM, licenses or packages. The separate [B1 Node/CLI probe](../node-cli-probe.md) now exercises the existing CLI from Node without changing these acceptance states or the engine.

@@ -1,4 +1,4 @@
-"""An aggregate deadline must not strand the nested GNU time/renderer session."""
+"""An aggregate deadline must not strand the native supervisor/renderer session."""
 import importlib
 import json
 import os
@@ -26,6 +26,8 @@ class PeakCleanupTests(unittest.TestCase):
         p = importlib.import_module('acceptance_peak')
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
+            self.assertTrue(callable(getattr(p, 'build_supervisor', None)))
+            supervisor = p.build_supervisor(root/'supervisor')
             ready = root / 'pids.json'
             hung = ('import os,json,time;from pathlib import Path;'
                     f'Path({str(ready)!r}).write_text(json.dumps({{"renderer":os.getpid(),'
@@ -40,14 +42,14 @@ class PeakCleanupTests(unittest.TestCase):
             try:
                 with patch.object(p, '_run', side_effect=shortened):
                     with self.assertRaises(subprocess.TimeoutExpired):
-                        p._workers(job, root/'run', Path('/usr/bin/time'), 1)
+                        p._workers(job, root/'run', supervisor, 1)
                 self.assertTrue(ready.is_file(), 'The nested probe must have really started')
                 ids = json.loads(ready.read_text())
                 for _ in range(40):
                     if not any(self.alive(ids[k]) for k in ('renderer', 'supervisor')): break
                     time.sleep(.025)
                 self.assertFalse(self.alive(ids['renderer']), 'Aggregate timeout stranded renderer')
-                self.assertFalse(self.alive(ids['supervisor']), 'Aggregate timeout stranded GNU time')
+                self.assertFalse(self.alive(ids['supervisor']), 'Aggregate timeout stranded supervisor')
             finally:
                 if ids is None and ready.exists(): ids = json.loads(ready.read_text())
                 if ids and any(self.alive(ids[k]) for k in ('renderer', 'supervisor')):
@@ -60,6 +62,8 @@ class PeakCleanupTests(unittest.TestCase):
         p = importlib.import_module('acceptance_peak')
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); ready = root/'pids.json'
+            self.assertTrue(callable(getattr(p, 'build_supervisor', None)))
+            supervisor = p.build_supervisor(root/'supervisor')
             code = ('import os,json,time;from pathlib import Path;'
                     f'Path({str(ready)!r}).write_text(json.dumps({{"renderer":os.getpid(),'
                     '"supervisor":os.getppid(),"group":os.getpgrp()}));time.sleep(60)')
@@ -73,7 +77,7 @@ class PeakCleanupTests(unittest.TestCase):
                 'def bounded(argv,work,timeout,supervisor,**kwargs):\n'
                 '    return original(argv,work,.5,supervisor,**kwargs)\n'
                 'p.supervised=bounded\n'
-                f"p._worker({job!r},Path({str(root/'inner')!r}),Path('/usr/bin/time'),0,1)\n")
+                f"p._worker({job!r},Path({str(root/'inner')!r}),Path({str(supervisor)!r}),0,1)\n")
             ids = None
             try:
                 with self.assertRaises(RuntimeError):
