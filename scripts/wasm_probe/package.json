@@ -1,0 +1,8 @@
+{
+  "name": "factspdf-browser-wasm-probe",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test *.test.mjs", "probe": "node run.mjs" },
+  "devDependencies": { "playwright": "1.64.0" }
+}

@@ -1,0 +1,64 @@
+name: FactsPDF browser WASM probe
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wasm-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser-wasm:
+    # Fail if protected Chromium cannot start; never change sysctl/AppArmor or disable its sandbox.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.100'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install official WASM workload and verification tools
+        run: |
+          dotnet workload install wasm-tools --skip-manifest-update
+          sudo apt-get update -qq
+          sudo apt-get install -y qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback
+          npm ci --ignore-scripts --no-audit --no-fund --prefix scripts/wasm_probe
+          cd scripts/wasm_probe
+          npx playwright install --with-deps chromium
+      - name: Test adapter and explicit resource loading
+        run: |
+          dotnet test FactsPDF.slnx -c Release
+          npm test --prefix scripts/wasm_probe
+      - name: Publish actual non-AOT browser WASM host and CLI
+        run: |
+          mkdir -p artifacts/wasm-evidence
+          dotnet --info > artifacts/wasm-evidence/dotnet-info.txt
+          dotnet workload list > artifacts/wasm-evidence/workloads.txt
+          dotnet publish probes/browser-wasm/FactsPDF.WasmProbe.csproj -c Release -o artifacts/wasm
+          dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
+          dotnet msbuild probes/browser-wasm/FactsPDF.WasmProbe.csproj -p:Configuration=Release -getProperty:NETCoreSdkVersion,RuntimeFrameworkVersion,TargetFramework,RuntimeIdentifier,RunAOTCompilation,WasmBuildNative,WasmEnableThreads,PublishTrimmed,WasmEnableSIMD > artifacts/wasm-evidence/build-properties.json
+      - name: Generate PDFs inside a protected browser and compare with CLI
+        env:
+          FACTSPDF_WASM_ROOT: ${{ github.workspace }}/artifacts/wasm/wwwroot
+          FACTSPDF_WASM_BUILD_INFO: ${{ github.workspace }}/artifacts/wasm-evidence/build-properties.json
+          FACTSPDF_PROBE_OUTPUT: ${{ github.workspace }}/artifacts/wasm-evidence/results
+          FACTSPDF_CLI_DLL: ${{ github.workspace }}/src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll
+          FACTSPDF_PROBE_FONTS: '["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"]'
+        run: |
+          export FACTSPDF_CLI="$(command -v dotnet)"
+          node scripts/wasm_probe/run.mjs
+      - name: Retain measurements and diagnostics, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-wasm-evidence
+          path: |
+            artifacts/wasm-evidence/**/*.json
+            artifacts/wasm-evidence/*.txt
+          if-no-files-found: warn
+          retention-days: 7

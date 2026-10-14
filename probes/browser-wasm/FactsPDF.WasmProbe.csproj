@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <!-- SDK default is non-AOT. Explicit false triggers relinking in SDK 10.0.100. -->
+    <WasmBuildNative>false</WasmBuildNative>
+    <WasmEnableHotReload>false</WasmEnableHotReload>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FactsPDF/FactsPDF.csproj" />
+  </ItemGroup>
+  <Target Name="RequireProbeBuildMode" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(RunAOTCompilation)' == 'true' Or '$(WasmEnableThreads)' == 'true'"
+           Text="B2 measures the single-threaded non-AOT build only." />
+  </Target>
+</Project>
