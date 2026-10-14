@@ -23,3 +23,19 @@ test('cleanup closes a client stalled before completing HTTP headers', async () 
   try { await withDeadline(server.close(), 250, 'Server cleanup'); }
   finally { socket.destroy(); }
 });
+
+test('HEAD logs resource size without claiming any response body was received', async () => {
+  const server = await serveStatic(new Map([['/asset', { bytes: Buffer.from('static'), type: 'text/plain' }]]));
+  try {
+    const head = await fetch(`${server.origin}/asset`, { method: 'HEAD' });
+    assert.equal((await head.arrayBuffer()).byteLength, 0);
+    assert.equal(head.headers.get('content-length'), '6');
+    assert.deepEqual(server.requests[0], { method: 'HEAD', path: '/asset', status: 200, assetBytes: 6 });
+    const get = await fetch(`${server.origin}/asset`);
+    assert.equal((await get.arrayBuffer()).byteLength, 6);
+    assert.equal(server.requests[1].assetBytes, 6);
+    assert.equal(Object.hasOwn(server.requests[1], 'bytes'), false);
+    await fetch(`${server.origin}/missing`, { method: 'HEAD' });
+    assert.equal(server.requests[2].assetBytes, 0);
+  } finally { await server.close(); }
+});

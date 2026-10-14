@@ -46,8 +46,8 @@ Interface: the browser exposes `window.factspdfProbe.convert(html, fontUrls, sub
 
 - [x] Write the browser tests/runner assertions before the host JS: ASCII, bilingual explicit fonts, multi-page layout, missing font, invalid UTF-8, unsupported HTML and sequential recovery.
 - [x] Implement runtime initialization and explicit resource loading. Preserve ordered bytes and reject bad HTTP/UTF-8 before conversion.
-- [ ] Compare each successful actual PDF with CLI bytes, qpdf, pdftotext, page counts, bounding boxes and raster output; record input/font/output hashes.
-- [ ] Record asset bytes/requests, runtime-ready time, first and three subsequent conversion samples, managed heap snapshots and unavailable memory metrics explicitly.
+- [x] Compare each successful actual PDF with CLI bytes, qpdf, pdftotext, page counts, bounding boxes and raster output; record input/font/output hashes.
+- [x] Record asset bytes/requests, runtime-ready time, first and three subsequent conversion samples, managed heap snapshots and unavailable memory metrics explicitly.
 - [x] Try existing official Playwright Chromium with `chromiumSandbox: true`; retain failure evidence if blocked and continue compilation/CI work.
 
 ## Task 3: Protected CI and reviewable handoff
@@ -56,7 +56,17 @@ Files: `.github/workflows/wasm-probe.yml`, `docs/browser-wasm-probe.md`.
 
 - [x] Add a read-only, pinned-action CI job with sandbox explicitly enabled and no host-security adjustments. Install only official SDK/Playwright and distro verification tools.
 - [x] Run applicable local checks and independent whole-branch review; fix substantial findings with regression tests.
-- [ ] Commit and prepare a draft PR for normal CI if authorized tools permit; preserve logs and report actual local and remote outcomes separately.
-- [ ] Keep the PR unmerged and B2 unaccepted until browser evidence exists; stop at B2.
+- [x] Commit and prepare a draft PR for normal CI if authorized tools permit; preserve logs and report actual local and remote outcomes separately.
+- [x] Keep the PR draft and unmerged; B2 acceptance requires explicit user approval of the exact-head remote evidence. Stop at B2.
 
-Progress: local publish and managed/Node tests passed; both local protected browser launches failed. Node-hosted WASM diagnostics pass, but browser comparisons/measurements remain unchecked above until actual protected CI execution.
+Progress: local publish and managed/Node tests passed; both local protected browser launches failed. Protected browser comparisons and measurements passed in CI at f1bdd397338c1d2612b40c0f23e68a249a4e0991 (run 38652979666). The follow-up below requires fresh evidence for its final commit; the earlier run does not validate later edits.
+
+## Follow-up: close the three evidence gaps
+
+The user explicitly requested failed-run resource timings, retained PDFs/rasters for actual visual inspection, and accurate HEAD resource-length logging. These are probe fixes only; non-AOT scope is unchanged. The final commit must repeat local suites and protected CI, with CI checking out that exact PR head. Download and inspect every generated page raster, perform independent review and handle comments. Keep the PR draft and unmerged: replacing the local browser check with remote evidence requires a new explicit approval naming this PR/head; no unrelated project's exception applies.
+
+- [x] Add failing tests for resource timing capture after a verification failure and honest unavailable states; collect timings before browser cleanup with a bounded deadline.
+- [x] Add a real HEAD request regression, rename the asset-length field, and verify HEAD returns no body.
+- [ ] Preserve generated PDFs and 144-DPI PNGs in CI; exercise real protected-browser failure capture through a deliberately failing downstream CLI.
+- [ ] Run complete local checks, independent review and exact-head remote CI; download/hash and view actual page rasters.
+- [ ] Report final SHA, evidence, review disposition and the precise local-browser substitution approval scope; do not merge.

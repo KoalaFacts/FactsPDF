@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
-import { join, relative, isAbsolute, extname } from 'node:path';
+import { join, relative, isAbsolute, extname, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 import { cases, unsupportedHtml } from './fixtures.mjs';
 import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
+import { captureResourceTimings } from './resource_timings.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -59,12 +60,17 @@ const report = { probe: 'B2-browser-wasm', status: 'running', node: process.vers
     uncompressedAssetBytes: assets.filter(a => !/\.(br|gz)$/.test(a.name)).reduce((n, a) => n + a.bytes, 0),
     mode: 'single-threaded non-AOT .NET browser-wasm; SDK runtime defaults, no application AOT' },
   inputs, fonts, browser: { chromiumSandbox: true }, cases: [], errors: [], console: [],
+  resources: null, resourceTimingCapture: { status: 'pending' },
   memoryScope: 'GC.GetTotalMemory(false) snapshots around font parsing and conversion; not allocation totals, JS heap, linear memory, RSS or peak memory',
   unavailableMetrics: ['peak browser/process RSS', 'WASM linear-memory capacity', 'GC peak heap'] };
 report.source.head = (await direct('git', ['rev-parse', 'HEAD'])).stdout.trim();
 report.source.dirty = Boolean((await direct('git', ['status', '--porcelain'])).stdout.trim());
+if (process.env.FACTSPDF_EXPECTED_SHA) {
+  report.source.expectedHead = process.env.FACTSPDF_EXPECTED_SHA;
+  assert.equal(report.source.head, report.source.expectedHead, 'Run must execute the exact expected commit');
+}
 const server = await serveStatic(files);
-let browser;
+let browser, page;
 try {
   // Explicitly preserve sandboxing and the self-XSS warning; no unsafe fallback.
   browser = await chromium.launch({ channel: 'chromium', headless: true, chromiumSandbox: true,
@@ -79,7 +85,7 @@ try {
   const context = await browser.newContext({ serviceWorkers: 'block' });
   await context.route('**/*', route => new URL(route.request().url()).origin === server.origin
     ? route.continue() : route.abort('blockedbyclient'));
-  const page = await context.newPage();
+  page = await context.newPage();
   page.on('console', message => report.console.push({ type: message.type(), text: message.text() }));
   page.on('pageerror', error => report.errors.push(error.message));
   await page.goto(server.origin);
@@ -123,10 +129,10 @@ try {
           ...(item.fonts ? [...fontPaths.flatMap(p => ['--font', p]), '--subset-fonts'] : [])];
         await direct(executable, args, { timeout: 30000 });
         const cliBytes = await readFile(cliPath);
+        const rasterEvidence = await inspectPair(browserPath, cliPath, item);
         assert.deepEqual(bytes, cliBytes, 'Browser WASM PDF differs from same-input CLI PDF');
-        await inspectPair(browserPath, cliPath, item);
         report.cases.push({ name: item.name, bytes: bytes.length, sha256: hash(bytes), cliSha256: hash(cliBytes),
-          pages: item.pages, byteEquality: true, qpdf: 'pass', text: 'pass', boundingBoxes: 'equal', rasterPages: 'equal', samples });
+          pages: item.pages, byteEquality: true, qpdf: 'pass', text: 'pass', boundingBoxes: 'equal', rasterPages: 'equal', rasterEvidence, samples });
       } else assert.equal(samples[attempt].sha256, samples[0].sha256, 'Repeated conversion differs');
     }
   }
@@ -145,9 +151,6 @@ try {
   const recovery = await call('ascii', []);
   assert.equal(recovery.errorCode, null);
   assert.equal(hash(Buffer.from(recovery.pdfBase64, 'base64')), report.cases[0].sha256);
-  report.resources = await page.evaluate(() => performance.getEntriesByType('resource').map(r => ({
-    name: new URL(r.name).pathname, initiatorType: r.initiatorType, durationMs: r.duration,
-    transferSize: r.transferSize, encodedBodySize: r.encodedBodySize, decodedBodySize: r.decodedBodySize })));
   assert.ok(server.requests.some(r => r.path.endsWith('.wasm') && r.status === 200), 'No actual WASM asset fetched');
   assert.deepEqual(report.errors, []);
   report.status = 'browser-contract-passed';
@@ -157,6 +160,18 @@ try {
 } finally {
   report.requests = server.requests;
   // Persist the outcome before cleanup, so a stuck browser cannot erase the evidence.
+  await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
+  const { entries, ...capture } = await captureResourceTimings(page ? () => page.evaluate(() =>
+    performance.getEntriesByType('resource').map(r => ({
+      name: new URL(r.name).pathname, initiatorType: r.initiatorType, durationMs: r.duration,
+      transferSize: r.transferSize, encodedBodySize: r.encodedBodySize, decodedBodySize: r.decodedBodySize,
+    }))) : null);
+  report.resources = entries;
+  report.resourceTimingCapture = capture;
+  if (capture.status !== 'captured' && report.status === 'browser-contract-passed') {
+    report.status = 'failed'; report.failure = `Resource timing evidence unavailable: ${capture.reason}`;
+    process.exitCode = 1;
+  }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   try { await withDeadline(Promise.resolve(browser?.close()), 5000, 'Browser cleanup'); }
   catch (error) { report.cleanupError = String(error); report.status = 'failed'; process.exitCode = 1; }
@@ -168,18 +183,30 @@ try {
 async function inspectPair(browserPath, cliPath, item) {
   const tool = (name, fallback) => process.env[name] ?? fallback;
   const outputs = [];
+  // Retain both renderable outputs even if a later inspector rejects either PDF.
+  for (const path of [browserPath, cliPath])
+    await direct(tool('FACTSPDF_PDFTOPPM', 'pdftoppm'),
+      ['-png', '-r', '144', path, path.replace(/\.pdf$/, '')], { timeout: 30000 });
   for (const path of [browserPath, cliPath]) {
     await direct(tool('FACTSPDF_QPDF', 'qpdf'), ['--check', path], { timeout: 15000 });
     const text = (await direct(tool('FACTSPDF_PDFTOTEXT', 'pdftotext'), ['-raw', path, '-'], { timeout: 15000 })).stdout;
-    assert.equal(normalize(text), item.text);
     const info = (await direct(tool('FACTSPDF_PDFINFO', 'pdfinfo'), [path], { timeout: 15000 })).stdout;
-    assert.match(info, new RegExp(`Pages:\\s+${item.pages}\\b`));
+    const pages = Number(info.match(/Pages:\s+(\d+)/)?.[1]);
+    assert.ok(Number.isInteger(pages) && pages > 0 && pages <= 1000, 'Invalid PDF page count');
     const bbox = (await direct(tool('FACTSPDF_PDFTOTEXT', 'pdftotext'), ['-bbox', path, '-'], { timeout: 15000 })).stdout;
     const prefix = path.replace(/\.pdf$/, '');
-    await direct(tool('FACTSPDF_PDFTOPPM', 'pdftoppm'), ['-r', '72', path, prefix], { timeout: 30000 });
     const pixels = [];
-    for (let page = 1; page <= item.pages; page++) pixels.push(hash(await readFile(`${prefix}-${page}.ppm`)));
-    outputs.push({ bbox, pixels });
+    for (let page = 1; page <= pages; page++) {
+      const file = `${prefix}-${String(page).padStart(String(pages).length, '0')}.png`;
+      pixels.push({ file: basename(file), sha256: hash(await readFile(file)) });
+    }
+    outputs.push({ text, pages, bbox, pixels });
   }
-  assert.deepEqual(outputs[0], outputs[1], 'Text positions or page raster differ');
+  for (const result of outputs) {
+    assert.equal(normalize(result.text), item.text);
+    assert.equal(result.pages, item.pages);
+  }
+  assert.equal(outputs[0].bbox, outputs[1].bbox, 'Text positions differ');
+  assert.deepEqual(outputs[0].pixels.map(p => p.sha256), outputs[1].pixels.map(p => p.sha256), 'Page raster differs');
+  return { format: 'png', dpi: 144, wasm: outputs[0].pixels, cli: outputs[1].pixels };
 }

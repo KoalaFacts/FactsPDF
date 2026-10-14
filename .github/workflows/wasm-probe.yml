@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '10.0.100'
@@ -49,9 +50,11 @@ jobs:
           FACTSPDF_PROBE_OUTPUT: ${{ github.workspace }}/artifacts/wasm-evidence/results
           FACTSPDF_CLI_DLL: ${{ github.workspace }}/src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll
           FACTSPDF_PROBE_FONTS: '["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"]'
+          FACTSPDF_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           export FACTSPDF_CLI="$(command -v dotnet)"
           node scripts/wasm_probe/run.mjs
+          node scripts/wasm_probe/failure_capture.mjs
       - name: Retain measurements and diagnostics, including failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -60,5 +63,7 @@ jobs:
           path: |
             artifacts/wasm-evidence/**/*.json
             artifacts/wasm-evidence/*.txt
+            artifacts/wasm-evidence/**/*.pdf
+            artifacts/wasm-evidence/**/*.png
           if-no-files-found: warn
           retention-days: 7

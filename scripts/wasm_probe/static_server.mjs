@@ -7,9 +7,11 @@ export async function serveStatic(files) {
     const path = new URL(req.url, 'http://localhost').pathname;
     const item = files.get(path);
     const status = !['GET', 'HEAD'].includes(req.method) ? 405 : item ? 200 : 404;
-    requests.push({ method: req.method, path, status, bytes: status === 200 ? item.bytes.length : 0 });
+    const assetBytes = status === 200 ? item.bytes.length : 0;
+    // Resource size, not received/transferred bytes. HEAD never sends a response body.
+    requests.push({ method: req.method, path, status, assetBytes });
     res.writeHead(status, { 'Content-Type': item?.type ?? 'text/plain', 'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff' });
+      'Content-Length': assetBytes, 'X-Content-Type-Options': 'nosniff' });
     res.end(status === 200 && req.method !== 'HEAD' ? item.bytes : undefined);
   });
   await new Promise((resolve, reject) => {
