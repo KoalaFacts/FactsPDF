@@ -18,7 +18,7 @@ eventBus.on('textlayerrendered', ({ pageNumber, error }) => {
 });
 eventBus.on('updatefindmatchescount', ({ matchesCount }) => {
   evidence.matches = matchesCount;
-  document.querySelector('#matches').textContent = `${matchesCount.current} / ${matchesCount.total}`;
+  document.querySelector('#searchMatchCount').textContent = `${matchesCount.current} / ${matchesCount.total}`;
 });
 eventBus.on('updatefindcontrolstate', ({ state, matchesCount, rawQuery }) => {
   evidence.findState = state;
