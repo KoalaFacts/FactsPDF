@@ -204,6 +204,19 @@ public sealed class FontStyleRoleTests
     public void UnsupportedValuesAreRejectedEvenInUnmatchedRules(string css)
         => Fails($"<style>.absent{{{css}}}</style><p>A</p>", AllRoles(), "FPDF1202");
 
+    [TestCase("p")][TestCase(".absent")]
+    public void NumericLookingIdentifiersAreNotWeightNumbers(string selector)
+        => Fails($"<style>{selector}{{font-weight:\\37 00}}</style><p>A</p>", AllRoles(), "FPDF1202");
+
+    [TestCase("4e2", "400")][TestCase("7e+2", "700")][TestCase(".7e3", "700")]
+    [TestCase(@"b\6fld", "700")][TestCase(@"\6e ormal", "400")]
+    public void EquivalentNumberTokensAndEscapedKeywordsAreAccepted(string value, string canonical)
+    {
+        var options = AllRoles();
+        Assert.That(Pdf($"<p style='font-weight:{value}'>A</p>", options),
+            Is.EqualTo(Pdf($"<p style='font-weight:{canonical}'>A</p>", options)));
+    }
+
     [TestCase("b")][TestCase("strong")][TestCase("i")][TestCase("em")]
     public void StyleContainersKeepInlineNestingConstraints(string tag)
         => Fails($"<{tag}><div>A</div></{tag}>", AllRoles(), "FPDF1101");
