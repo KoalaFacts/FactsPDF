@@ -5,10 +5,10 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--font path.ttf ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
         "Experimental inline-CSS renderer. Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
-        "Repeat --font for an ordered fallback chain (at most eight). '-' reads stdin or writes binary PDF to stdout.\n";
+        "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n";
 
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
         CancellationToken cancellationToken = default)
@@ -20,18 +20,19 @@ public static class CliApplication
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (args.Length == 1 && args[0] is "--help" or "-h") { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
-            var paths = new List<string>(); var fontPaths = new List<string>(); var overwrite = false; var subsetFonts = false;
+            var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false;
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
                 if (arg == "--overwrite" && !overwrite) overwrite = true;
                 else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
-                else if (arg == "--font")
+                else if (arg is "--font" or "--font-bold" or "--font-italic" or "--font-bold-italic")
                 {
                     if (++i >= args.Length || string.IsNullOrWhiteSpace(args[i]) || args[i] == "-" || args[i].StartsWith("--", StringComparison.Ordinal))
-                        throw new ArgumentException("--font requires an explicit font file path.");
+                        throw new ArgumentException($"{arg} requires an explicit font file path.");
                     if (fontPaths.Count >= 8) throw new ArgumentException("At most eight font paths are allowed.");
-                    fontPaths.Add(Path.GetFullPath(args[i]));
+                    var role = arg switch { "--font-bold" => 1, "--font-italic" => 2, "--font-bold-italic" => 3, _ => 0 };
+                    fontPaths.Add((role, Path.GetFullPath(args[i])));
                 }
                 else if (arg.StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException("Unknown or repeated option.");
                 else paths.Add(arg);
@@ -41,22 +42,23 @@ public static class CliApplication
             var destination = paths[1] == "-" ? null : Path.GetFullPath(paths[1]);
             var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             if (destination is not null && (source is not null && string.Equals(source, destination, comparison)
-                || fontPaths.Any(path => string.Equals(path, destination, comparison))))
+                || fontPaths.Any(path => string.Equals(path.Path, destination, comparison))))
                 throw new ArgumentException("Output must be different from the input HTML and every supplied font file.");
             if (destination is not null && File.Exists(destination) && !overwrite)
                 throw new IOException("Destination exists. Use --overwrite to replace it after a successful conversion.");
 
-            var options = new PdfOptions { SubsetFonts = subsetFonts }; var fonts = new List<PdfFont>(); long totalFontBytes = 0;
-            foreach (var path in fontPaths)
+            var options = new PdfOptions { SubsetFonts = subsetFonts }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
+            foreach (var (role, path) in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using var fontStream = File.OpenRead(path);
                 var remaining = options.MaxTotalFontBytes - totalFontBytes;
                 if (remaining <= 0) throw new FactsPdfException("FPDF1503", "Fonts exceed MaxTotalFontBytes.");
                 var font = PdfFont.LoadTrueType(fontStream, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), cancellationToken);
-                fonts.Add(font); totalFontBytes += font.ByteLength;
+                fonts[role].Add(font); totalFontBytes += font.ByteLength;
             }
-            options = options with { Fonts = fonts.ToArray() };
+            options = options with { Fonts = fonts[0].ToArray(), BoldFonts = fonts[1].ToArray(),
+                ItalicFonts = fonts[2].ToArray(), BoldItalicFonts = fonts[3].ToArray() };
             string html;
             if (source is null) html = ReadInput(input, options.MaxInputCharacters, cancellationToken);
             else { using var file = File.OpenRead(source); html = ReadInput(file, options.MaxInputCharacters, cancellationToken); }

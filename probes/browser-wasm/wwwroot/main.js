@@ -1,4 +1,4 @@
-import { loadResources } from './resources.mjs';
+import { loadResources, loadStyleResources } from './resources.mjs';
 
 const probe = window.factspdfProbe = { ready: false };
 const started = performance.now();
@@ -19,6 +19,18 @@ try {
       const resourceLoadMs = performance.now() - resourceStart;
       const convertStart = performance.now();
       const result = JSON.parse(adapter.Convert(html, fonts[0] ?? new Uint8Array(), fonts[1] ?? new Uint8Array(), subsetFonts));
+      return { ...result, resourceLoadMs, convertMs: performance.now() - convertStart };
+    } catch (error) {
+      return { pdfBase64: null, pageCount: 0, errorCode: error.code ?? 'B2_HOST_ERROR', errorMessage: String(error) };
+    }
+  };
+  probe.convertStyles = async (inputUrl, fontUrlsByRole = {}, subsetFonts = false) => {
+    try {
+      const resourceStart = performance.now();
+      const { html, fontBytes, fontLengths, fontRoles } = await loadStyleResources(inputUrl, fontUrlsByRole);
+      const resourceLoadMs = performance.now() - resourceStart;
+      const convertStart = performance.now();
+      const result = JSON.parse(adapter.ConvertStyles(html, fontBytes, fontLengths, fontRoles, subsetFonts));
       return { ...result, resourceLoadMs, convertMs: performance.now() - convertStart };
     } catch (error) {
       return { pdfBase64: null, pageCount: 0, errorCode: error.code ?? 'B2_HOST_ERROR', errorMessage: String(error) };
