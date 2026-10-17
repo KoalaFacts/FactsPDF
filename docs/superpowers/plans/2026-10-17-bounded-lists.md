@@ -1,6 +1,6 @@
 # C2 Bounded Lists Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Render decimal and disc lists with at most two nested levels and correct wrapping/pagination in the existing report engine.
 
@@ -36,11 +36,11 @@
 
 **Interfaces:** Consumes existing `HtmlDocumentReader.ReadTree(string, PdfOptions, CancellationToken)`, `BlockNode`, `ParagraphNode`; produces unchanged types containing `ol/ul/li` nodes, only valid trees, and existing source offsets.
 
-- [ ] Write tests `RetainsMixedTwoLevelListAndParagraphOrder`, `OptionalItemEndTagsPreserveNesting`, `EmptyItemsAndListsRetainStructure`, `InvalidListStructureProtectsOutput` (orphan li, direct text/block/style, third level, unclosed inline), `UnsupportedListAttributesProtectOutput` (start/reversed/type/value), `ListsCountTowardsExistingElementAndDepthLimits`. Assert actual nodes/source order and exact `FPDF1101/1103/1002/1003`, unchanged stream bytes/position.
-- [ ] Run `/workspace/.dotnet/dotnet test tests/FactsPDF.Tests -c Release --filter FullyQualifiedName~ListStructureTests`; expected RED because ol/ul/li are rejected as FPDF1102.
-- [ ] Add list/container predicates, direct-child and depth validation, allowed li omission, and existing box-style eligibility in `ReadTree`; keep paragraph-only margin/break applicability. Reject unsupported list attributes through the existing allowlist.
-- [ ] Run the targeted command and the core suite; expected all pass.
-- [ ] Commit `feat: retain strict two-level list structure`.
+- [x] Write tests `RetainsMixedTwoLevelListAndParagraphOrder`, `OptionalItemEndTagsPreserveNesting`, `EmptyItemsAndListsRetainStructure`, `InvalidListStructureProtectsOutput` (orphan li, direct text/block/style, third level, unclosed inline), `UnsupportedListAttributesProtectOutput` (start/reversed/type/value), `ListsCountTowardsExistingElementAndDepthLimits`. Assert actual nodes/source order and exact `FPDF1101/1103/1002/1003`, unchanged stream bytes/position.
+- [x] Run `/workspace/.dotnet/dotnet test tests/FactsPDF.Tests -c Release --filter FullyQualifiedName~ListStructureTests`; expected RED because ol/ul/li are rejected as FPDF1102.
+- [x] Add list/container predicates, direct-child and depth validation, allowed li omission, and existing box-style eligibility in `ReadTree`; keep paragraph-only margin/break applicability. Reject unsupported list attributes through the existing allowlist.
+- [x] Run the targeted command and the core suite; expected all pass.
+- [x] Commit `feat: retain strict two-level list structure`.
 
 ### Task 2: Marker gutter and first-line pagination
 
@@ -48,15 +48,15 @@
 
 **Interfaces:** `ListLayout.Prepare(DocumentRoot, PdfOptions, CancellationToken)` returns a per-layout `ListLayout` holding marker/gutter metadata; do not persist layout-dependent geometry on a reusable parsed tree. `ListLayout.Gutter(BlockNode)` returns double; `ListLayout.Marker(Paragraph)` returns nullable `ListMarker`. `ListMarker` holds nullable decimal Text (null=disc), item TextStyle, measured Width, SourceOffset. `LayoutParagraph` gains optional marker and marker right-edge X. `LayoutPage` gains `List<PlacedDisc> Discs`; `PlacedDisc` holds X center, PDF baseline-space Y center, Radius, Color. `PdfPaintSerializer.AppendDiscs(...)` consumes discs with the same output/cancellation limits.
 
-- [ ] Write hand-computed Courier tests: 12 items at 12pt reserve max(24,21.6+6)=27.6pt; 100 items reserve34.8pt; right edges align; normal continuation X is constant; nested item adds its own gutter. Tests cover mixed font size/role, explicit font missing digits, decimal search text, fontless discs, first-line baseline equality, large marker strut, nested-only/empty items, empty lists, left/center/right and percent/padded boxes.
-- [ ] Write pagination/limits tests: pageheight100 margin20 with a lead paragraph moves marker+first line together; long item spans pages but emits one marker; explicit break inside item preserves subsequent numbers; painted list/item slices retain only first/last edges; command cap exact (number runs/discs included), page/output/width failure protects stream, cancellation, repeated layout of the same tree is deterministic.
-- [ ] Run targeted `ListLayoutTests`; expected RED (missing markers/gutter or absent disc model before implementation).
-- [ ] Implement iterative list metadata preparation and first paragraph binding. Insert marker-only paragraph leaves through a layout view rather than modifying the parsed tree; preserve empty first paragraph style. Measure ordered digits with actual role fallback and invariant decimal formatting. Use reference identity for metadata keys.
-- [ ] Reserve each list gutter only for its direct items in `BlockLayout.Steps`; retain all other widths/padding. Pass marker and fixed gutter right edge to the marked paragraph, including when that paragraph is under ordinary nested blocks.
-- [ ] In `TextLayout`, extend only marked first lines with marker strut, force one line for an empty marked paragraph, perform existing page-fit logic with that combined first-line height, then emit marker once before body runs. Charge each retained numeric run/disc. Keep continuation line heights unchanged and no marker in the compatibility paragraph-only overload.
-- [ ] Add shared four-cubic-curve filled disc painting and converter command recount; leave existing no-disc/no-list serialization byte-for-byte unchanged.
-- [ ] Run targeted tests and `/workspace/.dotnet/dotnet test FactsPDF.slnx -c Release`; expected all pass, including old layout/resource suites. Compare an unchanged fixed ASCII sample against its recorded main PDF bytes.
-- [ ] Commit `feat: lay out bounded list markers across pages`.
+- [x] Write hand-computed Courier tests: 12 items at 12pt reserve max(24,21.6+6)=27.6pt; 100 items reserve34.8pt; right edges align; normal continuation X is constant; nested item adds its own gutter. Tests cover mixed font size/role, explicit font missing digits, decimal search text, fontless discs, first-line baseline equality, large marker strut, nested-only/empty items, empty lists, left/center/right and percent/padded boxes.
+- [x] Write pagination/limits tests: pageheight100 margin20 with a lead paragraph moves marker+first line together; long item spans pages but emits one marker; explicit break inside item preserves subsequent numbers; painted list/item slices retain only first/last edges; command cap exact (number runs/discs included), page/output/width failure protects stream, cancellation, repeated layout of the same tree is deterministic.
+- [x] Run targeted `ListLayoutTests`; expected RED (missing markers/gutter or absent disc model before implementation).
+- [x] Implement iterative list metadata preparation and first paragraph binding. Insert marker-only paragraph leaves through a layout view rather than modifying the parsed tree; preserve empty first paragraph style. Measure ordered digits with actual role fallback and invariant decimal formatting. Use reference identity for metadata keys.
+- [x] Reserve each list gutter only for its direct items in `BlockLayout.Steps`; retain all other widths/padding. Pass marker and fixed gutter right edge to the marked paragraph, including when that paragraph is under ordinary nested blocks.
+- [x] In `TextLayout`, extend only marked first lines with marker strut, force one line for an empty marked paragraph, perform existing page-fit logic with that combined first-line height, then emit marker once before body runs. Charge each retained numeric run/disc. Keep continuation line heights unchanged and no marker in the compatibility paragraph-only overload.
+- [x] Add shared four-cubic-curve filled disc painting and converter command recount; leave existing no-disc/no-list serialization byte-for-byte unchanged.
+- [x] Run targeted tests and `/workspace/.dotnet/dotnet test FactsPDF.slnx -c Release`; expected all pass, including old layout/resource suites. Compare an unchanged fixed ASCII sample against its recorded main PDF bytes.
+- [x] Commit `feat: lay out bounded list markers across pages`.
 
 ### Task 3: Real report, cross-entry evidence and support contract
 
@@ -64,11 +64,11 @@
 
 **Interfaces:** Probe takes normal explicit font paths and output directory, emits direct API PDF and small geometry/error JSON for the same HTML; CLI uses existing font/subset flags. Verification accepts actual managed/native CLI, actual probe output and fixed authored expected text/record IDs; saves exact source/font hashes and measured outcome, never invents page approval.
 
-- [ ] Establish authored text/marker assertions independent of renderer output: IDs C2-001..012 in order once; nested N01..N04 once; restarted R01/R03, empty second item; end sentinel; at least one item crosses a natural page boundary. Verifier tests corrupt IDs/marker counts/geometry to prove meaningful rejection before making evidence green.
-- [ ] Render via .NET API and CLI with existing licensed normal Latin/CJK font bytes; run qpdf, pdftotext bbox, inspect embedded fonts and actual page images. Compare same-input PDFs across API/CLI and newly built Linux AOT; verify numeric marker positions and disc paths without relying only on hashes.
-- [ ] Open every produced report PNG for actual visual review. Record actual page count, no cropped/overlapping marker or continuation, list/item decoration fragments and ordinary text after lists. Do not claim user reference approval.
-- [ ] Add bounded-list cases to existing protected WASM CI using the same core and existing browser sandbox checks; no local browser launch/printing. Test malformed/depth/font/geometry/budget failures and recovery across entrypoints; preserve file/stdout outputs.
-- [ ] Update T-list to a truthful positive contract while preserving the nine-target denominator and unimplemented targets; update compatibility dataset with only observed list changes and documentation of explicit boundaries.
+- [x] Establish authored text/marker assertions independent of renderer output: IDs C2-001..012 in order once; nested N01..N04 once; restarted R01/R03, empty second item; end sentinel; at least one item crosses a natural page boundary. Verifier tests corrupt IDs/marker counts/geometry to prove meaningful rejection before making evidence green.
+- [x] Render via .NET API and CLI with existing licensed normal Latin/CJK font bytes; run qpdf, pdftotext bbox, inspect embedded fonts and actual page images. Compare same-input PDFs across API/CLI and newly built Linux AOT; verify numeric marker positions and disc paths without relying only on hashes.
+- [x] Open every produced report PNG for actual visual review. Record actual page count, no cropped/overlapping marker or continuation, list/item decoration fragments and ordinary text after lists. Do not claim user reference approval.
+- [x] Add bounded-list cases to existing protected WASM CI using the same core and existing browser sandbox checks; no local browser launch/printing. Test malformed/depth/font/geometry/budget failures and recovery across entrypoints; preserve file/stdout outputs.
+- [x] Update T-list to a truthful positive contract while preserving the nine-target denominator and unimplemented targets; update compatibility dataset with only observed list changes and documentation of explicit boundaries.
 - [ ] Run changed verification suites, full core suite and normal PR CI at final head; independently review whole branch, resolve actual findings and all PR comments before existing-authorized normal merge/main checks.
 - [ ] Commit evidence tools/docs and link actual results in PR. No release or Pages settings changes.
 

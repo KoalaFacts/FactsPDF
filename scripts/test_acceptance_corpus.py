@@ -82,6 +82,15 @@ class CorpusTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.c.summarize_results(m, [{'case_id': 'T-list', 'status': 'verified'}])
 
+    def test_list_target_expects_real_success_without_claiming_verified(self):
+        m = self.c.load_manifest(self.path)
+        target = next(x for x in m['cases'] if x['id'] == 'T-list')
+        self.assertEqual(target['initial_status'], 'candidate')
+        self.assertEqual(target['entrypoints']['cli'], {'expected_exit': 0, 'expected_code': None})
+        self.assertEqual(target['entrypoints']['api'], {'expected_exit': 0, 'expected_code': None})
+        self.assertEqual(target['checks']['text_blocks'], ['1. First', 'Nested'])
+        self.assertEqual(sum(x['kind'] == 'target' for x in m['cases']), 9)
+
     def test_changed_input_hash_or_symlink_escape_is_rejected(self):
         m = json.loads(self.path.read_text())
         p = self.root / m['cases'][0]['input_path']

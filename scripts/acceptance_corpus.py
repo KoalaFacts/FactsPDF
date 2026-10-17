@@ -135,7 +135,7 @@ def generate_corpus(root: Path) -> list[dict]:
     def add(ident, kind, blocks, requirement, content=None, records_ids=None, **extra):
         case = {'id': ident, 'kind': kind, 'requirements': requirement,
                 'font_roles': ['latin', 'cjk'] if ident != 'B00' else [],
-                'records': records_ids or [], 'checks': {'text_blocks': blocks} if kind == 'baseline' else {}, **extra}
+                'records': records_ids or [], 'checks': {'text_blocks': blocks} if blocks else {}, **extra}
         if content is None and kind == 'target':
             case.update(input_path=None, input_sha256=None, initial_status='blocked-design')
         else:
@@ -146,7 +146,7 @@ def generate_corpus(root: Path) -> list[dict]:
             file = inside(root, rel); file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text(text, encoding='utf-8')
             case.update(input_path=rel, input_sha256=digest(file.read_bytes()))
-            if kind == 'target': case['initial_status'] = 'unsupported'
+            if kind == 'target': case['initial_status'] = 'unsupported' if case.get('expected_code') else 'candidate'
         cases.append(case)
 
     add('B00', 'baseline', ['FactsPDF acceptance control', 'This report uses only documented text features.', 'No customer data or external resources.'], ['text-basic'])
@@ -172,7 +172,8 @@ def generate_corpus(root: Path) -> list[dict]:
     # runs separately; this probe now checks explicit missing-role behavior.
     add('T-bold', 'target', [], ['real-bold-font'], '<p><strong>Real emphasis</strong></p>',
         expected_code='FPDF1507', probe_scope='missing-explicit-bold-resources')
-    add('T-list', 'target', [], ['list-numbering', 'list-wrap', 'list-nesting'], '<ol><li>First<ul><li>Nested</li></ul></li></ol>', expected_code='FPDF1102')
+    add('T-list', 'target', ['1. First', 'Nested'], ['list-numbering', 'list-wrap', 'list-nesting'],
+        '<ol><li>First<ul><li>Nested</li></ul></li></ol>', probe_scope='positive-list-smoke; full C2 evidence is separate')
     for count in (10, 30, 100):
         add(f'T-table-{count}', 'target', [], ['fixed-columns', 'table-record-order', 'repeat-header'],
             '<table><tr><th>ID</th><th>Text</th></tr>'+''.join('<tr><td>'+r['id']+'</td><td>Synthetic row</td></tr>' for r in records[:count])+'</table>',
@@ -198,7 +199,7 @@ def generate_corpus(root: Path) -> list[dict]:
             case['entrypoints'] = {}
         else:
             entries = ['api'] if case.pop('api_only', False) else ['cli', 'api']
-            case['entrypoints'] = {entry: {'expected_exit': 0 if case['kind'] == 'baseline' else 3,
+            case['entrypoints'] = {entry: {'expected_exit': 3 if case.get('expected_code') else 0,
                                          'expected_code': case.get('expected_code')} for entry in entries}
     m = {'schema_version': 1, 'engine_baseline_sha': BASELINE_SHA, 'page': {'width': 595.28, 'height': 841.89, 'margin': 36}, 'cases': cases}
     write_json(root / 'manifest.json', m)
