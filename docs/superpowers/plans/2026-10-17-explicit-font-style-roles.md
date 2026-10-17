@@ -45,9 +45,9 @@
 
 **Interfaces:** CLI repeated `--font-bold`, `--font-italic`, `--font-bold-italic`. Preserve `--font`/existing exports. New private role export accepts explicit ordered resource data and returns existing PDF/core-error result shape; invalid role config has private B2_INPUT_FONTS, no public SDK contract.
 
-- [ ] Add failing CLI tests for all flags, ordered mixed-family fallback, resource/output-path protection, unknown/missing arguments and sentinels; add private adapter tests preserving old export semantics and no stale output across success/failure/recovery.
-- [ ] Extend explicit-resource loading and map to Task 1 properties without discovery/inference. Keep missing/empty HTTP resource errors separate from missing core role errors.
-- [ ] Run full .NET and probe Node suites; build/publish actual WASM Release host. Persist logs; commit.
+- [x] Add failing CLI tests for all flags, ordered mixed-family fallback, resource/output-path protection, unknown/missing arguments and sentinels; add private adapter tests preserving old export semantics and no stale output across success/failure/recovery.
+- [x] Extend explicit-resource loading and map to Task 1 properties without discovery/inference. Keep missing/empty HTTP resource errors separate from missing core role errors.
+- [x] Run full .NET and probe Node suites; build/publish actual WASM Release host. Persist logs; commit.
 
 ### Task 3: Real evidence and current target status
 

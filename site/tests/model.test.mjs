@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash, pageSlice, csv } from '../src/model.mjs';
 const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', import.meta.url), 'utf8'));
 
-test('all original 418 records and snapshot metadata remain intact', () => {
+test('418 stable records retain provenance with seven reviewed C1 updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, 'e35722bf299adae3a994593f1375ee43ec53ad12');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:87, none:278, unknown:7, na:2 });
+  assert.equal(dataset.commit, '00d55dc5f48779d49945fcc10ccabb6019e57d11');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:94, none:271, unknown:7, na:2 });
 });
 test('missing evidence, unknown status, duplicate IDs, bad parents and categories are rejected', () => {
   const mutators = [d=>d.features[0].status='planned', d=>d.features[1].id=d.features[0].id,
@@ -27,7 +27,7 @@ test('category / status / known milestone combine; plans never become supported'
   assert(result.length > 0);
   assert(result.every(f=>f.category==='CSS属性'&&f.status==='partial'&&f.introduced_milestone==='M6'));
   assert.equal(filterFeatures(dataset.features,{category:'HTML元素',status:'full'}).length,0);
-  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,377);
+  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,370);
 });
 test('source links permit HTTPS only without credentials', () => {
   assert.equal(safeUrl('javascript:alert(1)'),null);
@@ -52,7 +52,7 @@ test('CSV neutralizes spreadsheet formulas and quotes multi-line values', () => 
   const f={...dataset.features[0], feature:'=HYPERLINK("bad")',scope:'a,b\nc'};
   const output=csv([f]);
   assert(output.includes("'=HYPERLINK"));assert(output.includes('"a,b\nc"'));
-  assert(output.includes(dataset.commit));
+  assert(output.includes(f.last_audited_commit));
 });
 
 // Use a real ICU locale in a child process, not a patched String method.

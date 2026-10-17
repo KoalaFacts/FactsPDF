@@ -70,7 +70,7 @@ def report_markdown(summary: dict, cases: list[dict]) -> str:
             ''.join(f"| {c['case_id']} | {c['status']} | {c.get('pages','—')} | {c.get('chrome_pages','—')} |\n" for c in cases)+
             '\n## Browser reference observations (NOT approved)\n\n'+(observations or 'None recorded.\n')+
             '\nNext gate: inspect every native/Chrome page, then approve or correct the reference; '
-            'lists, real bold, images, tables and page furniture remain unmet product targets.\n')
+            'lists, images, tables and page furniture remain unmet product targets; the legacy T-bold probe supplies no bold resources, while positive C1 style evidence is tracked separately.\n')
 
 
 def compare_images(native: Path, chrome: Path, public: Path, ident: str) -> dict:

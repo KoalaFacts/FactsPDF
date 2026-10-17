@@ -10,7 +10,7 @@ From this development branch with the .NET 10 SDK and your own appropriately lic
 dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf
 ```
 
-`--font` may be repeated up to eight times, in fallback priority order. Add `--subset-fonts` to opt in to the engine's own glyph subsetting where permitted; see [the subsetting guide](font-subsetting.md). Full embedding remains the default. The CLI reads only explicit font paths. It rejects an output path equal to the input HTML or a supplied font, including with `--overwrite`. Existing-file protection, temporary-file replacement, stderr diagnostics and UTF-8 input behavior remain in place. This is not a hostile-filesystem sandbox; filesystem aliases and concurrent replacement require a trusted working directory.
+`--font` retains its normal fallback meaning. The [explicit style guide](font-styles.md) adds independent bold, italic and bold-italic chains; all four chains together may contain at most eight declared entries, in fallback priority order. Add `--subset-fonts` to opt in to the engine's own glyph subsetting where permitted; see [the subsetting guide](font-subsetting.md). Full embedding remains the default. The CLI reads only explicit font paths. It rejects an output path equal to the input HTML or a supplied font, including with `--overwrite`. Existing-file protection, temporary-file replacement, stderr diagnostics and UTF-8 input behavior remain in place. This is not a hostile-filesystem sandbox; filesystem aliases and concurrent replacement require a trusted working directory.
 
 Library example (load trusted font files once, reuse the immutable objects):
 
@@ -41,7 +41,7 @@ This illustrates the current .NET binding, not a language-specific product ident
 
 ## Limits, permissions and trust
 
-Default maximums are 32 MiB per font load, eight input-chain entries and 64 MiB of unique supplied font objects per conversion. Input/page/output limits and cooperative cancellation still apply. These are byte/operation limits, not measured peak-process-memory guarantees. Full-font copies, layout data and compression buffers add memory overhead. Subsetting does not eliminate initial full-font loading. Reuse loaded fonts rather than loading them on every request.
+Default maximums are 32 MiB per font load, eight entries across all four style chains and 64 MiB of unique supplied font objects per conversion. Input/page/output limits and cooperative cancellation still apply. These are byte/operation limits, not measured peak-process-memory guarantees. Full-font copies, layout data and compression buffers add memory overhead. Subsetting does not eliminate initial full-font loading. Reuse loaded fonts rather than loading them on every request.
 
 The loader structurally checks sfnt table ranges, overlap, versions/lengths, metrics, Unicode mappings and loca offsets. **It does not fully validate TrueType outline programs, hinting instructions, every table checksum, every optional table or every font license.** Do not treat it as a sanitizer for arbitrary untrusted uploaded fonts. Use trusted, curated fonts and independent validation before production. Subsetting adds bounded composite-graph checks, not complete font-bytecode security.
 
@@ -62,6 +62,7 @@ Collections (TTC/OTC), CFF/CFF2, WOFF/WOFF2, variable/color fonts, CSS `font-fam
 | FPDF1504 | Missing glyph in the explicit fallback chain |
 | FPDF1505 | Embedding permissions unsupported or restricted |
 | FPDF1506 | Malformed or unsupported subsetting structure / composite graph |
+| FPDF1507 | Requested bold, italic or bold-italic chain is missing |
 
 An invalid font-list argument (null, null entry or more than eight entries) is an argument error rather than FPDF1503. Exceptions before final output copying do not write a partial PDF; final-copy I/O failures on arbitrary streams cannot be rolled back.
 

@@ -11,7 +11,7 @@ jobs:
   browser-wasm:
     # Fail if protected Chromium cannot start; never change sysctl/AppArmor or disable its sandbox.
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -27,10 +27,13 @@ jobs:
         run: |
           dotnet workload install wasm-tools --skip-manifest-update
           sudo apt-get update -qq
-          sudo apt-get install -y qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback
+          sudo apt-get install -y qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback python3-fonttools p7zip-full clang zlib1g-dev
           npm ci --ignore-scripts --no-audit --no-fund --prefix scripts/wasm_probe
           cd scripts/wasm_probe
           npx playwright install --with-deps chromium
+      - name: Prepare pinned explicit four-style verification fonts
+        run: |
+          /usr/bin/python3 scripts/font_style_fonts.py --sarasa-root artifacts/private-fonts --download --output artifacts/wasm-evidence/font-manifest.json
       - name: Test adapter and explicit resource loading
         run: |
           dotnet test FactsPDF.slnx -c Release
@@ -42,7 +45,12 @@ jobs:
           dotnet workload list > artifacts/wasm-evidence/workloads.txt
           dotnet publish probes/browser-wasm/FactsPDF.WasmProbe.csproj -c Release -o artifacts/wasm
           dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
+          dotnet build probes/font-styles/FactsPDF.FontStyles.csproj -c Release
+          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/style-native
           dotnet msbuild probes/browser-wasm/FactsPDF.WasmProbe.csproj -p:Configuration=Release -getProperty:NETCoreSdkVersion,RuntimeFrameworkVersion,TargetFramework,RuntimeIdentifier,RunAOTCompilation,WasmBuildNative,WasmEnableThreads,PublishTrimmed,WasmEnableSIMD > artifacts/wasm-evidence/build-properties.json
+      - name: Inspect real style glyphs and direct API / CLI / Native AOT parity
+        run: |
+          /usr/bin/python3 scripts/verify_font_styles.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/font-styles --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/font-styles/bin/Release/net10.0/FactsPDF.FontStyles.dll --native-cli artifacts/style-native/FactsPDF.Cli
       - name: Generate PDFs inside a protected browser and compare with CLI
         env:
           FACTSPDF_WASM_ROOT: ${{ github.workspace }}/artifacts/wasm/wwwroot
@@ -50,6 +58,7 @@ jobs:
           FACTSPDF_PROBE_OUTPUT: ${{ github.workspace }}/artifacts/wasm-evidence/results
           FACTSPDF_CLI_DLL: ${{ github.workspace }}/src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll
           FACTSPDF_PROBE_FONTS: '["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"]'
+          FACTSPDF_STYLE_MANIFEST: ${{ github.workspace }}/artifacts/wasm-evidence/font-manifest.json
           FACTSPDF_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           export FACTSPDF_CLI="$(command -v dotnet)"

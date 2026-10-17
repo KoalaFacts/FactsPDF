@@ -43,11 +43,11 @@ This example uses fontless ASCII mode. Explicit font API examples are in the Uni
 
 | Area | Supported | Not yet supported |
 | --- | --- | --- |
-| Content | p, h1-h6, div, section, article, span, br | Lists, links, bold/italic elements, tables, images, SVG, forms |
+| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br | Lists, links, tables, images, SVG, forms |
 | Document shell | html/body, explicit head/title, UTF-8 meta, HTML5 doctype, comments, embedded style | Full HTML5 tree construction, encoding sniffing and browser recovery |
 | Text | ASCII/Courier fallback; explicit static TrueType fonts, simple horizontal Unicode/Chinese, searchable text and optional glyph subsetting | Complete shaping, bidi/RTL, all-script typography, automatic font discovery |
 | Styles | Inline and embedded declarations; tag/class/id/universal/compound/group/descendant/child selectors, bounded author cascade | External stylesheets, at-rules, other selector classes, variables/functions and full CSS recovery |
-| Text layout | Supported font size/color/line-height/alignment; paragraph margins; nested block widths, four-sided padding, solid border edges and background colors | Arbitrary CSS height, horizontal margins, border-radius, floats/flex/grid and image/table layout |
+| Text layout | Supported font size/weight/style/color/line-height/alignment; paragraph margins; nested block widths, four-sided padding, solid border edges and background colors | Arbitrary CSS height, horizontal margins, border-radius, floats/flex/grid and image/table layout |
 | Pagination | Wrapping; paragraph/heading break-before/break-after auto/page; CSS sliced block decorations across page fragments (background and side borders continue, top/bottom only first/last) | @page, repeated page furniture, widows/orphans, keep-together and full browser fragmentation rules |
 | PDF | PDF 1.7 text/page tree/xref, embedded and compressed font resources, ToUnicode | Tagged PDF, PDF/A/UA conformance, links/bookmarks, signatures/encryption |
 
@@ -68,7 +68,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | FPDF1201-1205 | CSS property/value/syntax/source/budget error |
 | FPDF1301-1305 | Text/font availability, layout/page limit, invalid UTF-16 or unsupported text processing |
 | FPDF1401 | Output-byte or display-command limit |
-| FPDF1501-1506 | Font format, resource, mapping, embedding-permission or subsetting issue |
+| FPDF1501-1507 | Font format, resource, mapping, embedding-permission, subsetting or missing explicit style chain |
 
 Not every integer in a displayed range needs a distinct public API guarantee. Refer to exact guide tables and exception messages. Offsets are supplied where available, with inline CSS anchored to its HTML element; these are development contracts, not complete browser error classification.
 
@@ -86,3 +86,5 @@ That binary targets Linux x64 and still uses platform libraries. Windows/Linux/m
 CI independently inspects real output using qpdf/Poppler and, for subset inspection, fontTools. Those are verification-only tools, not runtime parser/font/PDF dependencies. The stylesheet workflow compares a bilingual stylesheet template against a hand-authored inline equivalent, including exact bytes/text/pixels. Fonts are not committed or uploaded as standalone files. NuGet packing is local inspection only: exact license/README metadata/content and no runtime package dependencies are checked. No registry publication occurs and all licensing release gates remain.
 
 Historical execution evidence is retained in the first-renderer, Unicode, subsetting and CSS ledgers. A green run for one commit is not proof for later changes. Performance observations identify their exact source/corpus/environment; no universal throughput, cold-start or peak-memory guarantee is created by these documents.
+
+Explicit font-weight/font-style selection and independent four-role chains are documented in the [font style guide](font-styles.md).
