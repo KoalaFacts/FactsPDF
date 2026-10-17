@@ -309,7 +309,8 @@ internal static class TextLayout
                 gap = pendingTopPadding;
             }
             if (gap + lines.Current.Height > bottom - o.Margin)
-                throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.");
+                throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
+                    item.Marker?.SourceOffset ?? -1);
             if (opened.Count > 0 && opened[^1].IsParagraph &&
                 opened[^1].ContentEpoch == contentEpoch)
                 opened[^1] = opened[^1] with { StartY = y + gap - opened[^1].Top };

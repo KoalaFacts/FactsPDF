@@ -130,6 +130,23 @@ public sealed class ListLayoutTests
         Assert.That(runs.Single(r => r.Text == "B").Baseline, Is.EqualTo(66).Within(0.000001));
     }
 
+    [TestCase("ol")]
+    [TestCase("ul")]
+    public void OversizedMarkerReportsItemSourceAndProtectsOutput(string tag)
+    {
+        var options = Page with { PageHeight = 100 };
+        var html = $"<{tag}><li style='font-size:72pt'><p style='font-size:12pt'>A</p></li></{tag}>";
+        Assert.That(Layout("<div style='font-size:72pt'><p style='font-size:12pt'>A</p></div>", options), Has.Count.EqualTo(1));
+        using var output = new MemoryStream(); output.Write("sentinel"u8); output.Position = 2;
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, options));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("<li", StringComparison.Ordinal)));
+        Assert.That(output.ToArray(), Is.EqualTo("sentinel"u8.ToArray()));
+        Assert.That(output.Position, Is.EqualTo(2));
+        var ordinary = Assert.Throws<FactsPdfException>(() => Pdf("<p style='font-size:72pt'>A</p>", options));
+        Assert.That(ordinary!.SourceOffset, Is.EqualTo(-1), "No-list diagnostics retain their existing behavior");
+    }
+
     [Test]
     public void EmptyListDoesNotChangeOrdinaryPdfBytes()
         => Assert.That(Pdf("<ul></ul><ol></ol><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
