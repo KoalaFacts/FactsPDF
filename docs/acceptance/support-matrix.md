@@ -17,3 +17,5 @@ Engine comparison baseline: M12 `1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6`. Sour
 | T-jpeg/T-page-furniture/T-heading-keep/T-complete-report | Unimplemented product requirements | blocked-design until real APIs/specs and independent assertions exist |
 
 A green candidate-evidence job means capture and its independent checks completed, **not** that frozen baselines, all nine target cases or the Developer Preview are approved. Reports keep target totals, missing approval, and unapproved performance budgets visible. Missing tools or wrong target diagnostics are errors, not skipped support.
+
+T-bold's next-step [explicit regular/bold role design and acceptance contract](../superpowers/specs/2026-10-17-explicit-bold-font-roles-design.md) is a proposal awaiting review. It does not change the current unsupported probe, claim bold support, or authorize implementation; T-list remains separate.
