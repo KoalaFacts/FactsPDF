@@ -32,6 +32,8 @@ internal static class FontRoles
 
     internal static PdfOptions Snapshot(PdfOptions options)
     {
+        if (options.Fonts is null || options.Fonts.Count > 8)
+            throw new ArgumentException("Supply a non-null font list with at most eight entries.", nameof(options));
         IReadOnlyList<PdfFont>[] chains = [options.Fonts, options.BoldFonts, options.ItalicFonts, options.BoldItalicFonts];
         if (chains.Any(chain => chain is null) || chains.Sum(chain => (long)chain.Count) > 8)
             throw new ArgumentException("Supply non-null font lists with at most eight entries in total.", nameof(options));

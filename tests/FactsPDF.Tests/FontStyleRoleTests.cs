@@ -208,6 +208,10 @@ public sealed class FontStyleRoleTests
     public void NumericLookingIdentifiersAreNotWeightNumbers(string selector)
         => Fails($"<style>{selector}{{font-weight:\\37 00}}</style><p>A</p>", AllRoles(), "FPDF1202");
 
+    [TestCase("p")][TestCase(".absent")]
+    public void EscapedStyleIdentifierCannotIntroduceAnotherDeclaration(string selector)
+        => Fails($"<style>{selector}{{font-style:italic\\3b color\\3a red}}</style><p>A</p>", AllRoles(), "FPDF1202");
+
     [TestCase("4e2", "400")][TestCase("7e+2", "700")][TestCase(".7e3", "700")]
     [TestCase(@"b\6fld", "700")][TestCase(@"\6e ormal", "400")]
     public void EquivalentNumberTokensAndEscapedKeywordsAreAccepted(string value, string canonical)
@@ -248,6 +252,15 @@ public sealed class FontStyleRoleTests
         Assert.Throws<ArgumentException>(() => Pdf("A", options with { BoldFonts = null! }));
         Assert.Throws<ArgumentException>(() => Pdf("A", options with { ItalicFonts = [null!] }));
         Assert.Throws<ArgumentException>(() => Pdf("A", options with { BoldItalicFonts = null! }));
+    }
+
+    [TestCase(false)][TestCase(true)]
+    public void InvalidOriginalFontListKeepsItsExistingArgumentDiagnostic(bool oversized)
+    {
+        var options = new PdfOptions { Fonts = oversized ? Enumerable.Repeat(Font(), 9).ToArray() : null! };
+        var error = Assert.Throws<ArgumentException>(() => Pdf("A", options))!;
+        Assert.That(error.Message, Does.StartWith("Supply a non-null font list with at most eight entries."));
+        Assert.That(error.ParamName, Is.EqualTo("options"));
     }
 
     [Test]

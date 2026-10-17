@@ -161,6 +161,9 @@ internal static class CssSyntaxAdapter
                 else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold"))
                     throw new FactsPdfException("FPDF1202", "font-weight requires normal/bold or a number equal to 400/700.", tokenOffset);
             }
+            if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
+                || !(Wide(token) || token is "normal" or "italic")))
+                throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
         }
