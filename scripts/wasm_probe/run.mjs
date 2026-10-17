@@ -9,6 +9,7 @@ import { cases, unsupportedHtml } from './fixtures.mjs';
 import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
 import { captureResourceTimings } from './resource_timings.mjs';
+import { finishBrowserCleanup } from './cleanup.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -173,11 +174,11 @@ try {
     process.exitCode = 1;
   }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-  try { await withDeadline(Promise.resolve(browser?.close()), 5000, 'Browser cleanup'); }
-  catch (error) { report.cleanupError = String(error); report.status = 'failed'; process.exitCode = 1; }
-  await server.close();
-  await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-  console.log(JSON.stringify({ status: report.status, cases: report.cases.length, report: join(output, 'report.json'), failure: report.failure }));
+  await finishBrowserCleanup(() => browser?.close(), async () => {
+    await server.close();
+    await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
+    console.log(JSON.stringify({ status: report.status, cases: report.cases.length, report: join(output, 'report.json'), failure: report.failure }));
+  }, report);
 }
 
 async function inspectPair(browserPath, cliPath, item) {

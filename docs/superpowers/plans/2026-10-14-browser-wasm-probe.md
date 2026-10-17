@@ -57,16 +57,21 @@ Files: `.github/workflows/wasm-probe.yml`, `docs/browser-wasm-probe.md`.
 - [x] Add a read-only, pinned-action CI job with sandbox explicitly enabled and no host-security adjustments. Install only official SDK/Playwright and distro verification tools.
 - [x] Run applicable local checks and independent whole-branch review; fix substantial findings with regression tests.
 - [x] Commit and prepare a draft PR for normal CI if authorized tools permit; preserve logs and report actual local and remote outcomes separately.
-- [x] Keep the PR draft and unmerged; B2 acceptance requires explicit user approval of the exact-head remote evidence. Stop at B2.
+- [x] Keep scope at B2. Complete local build/tests, exact-head protected browser evidence and review before the authorized PR integration steps.
 
 Progress: local publish and managed/Node tests passed; both local protected browser launches failed. Protected browser comparisons and measurements passed in CI at f1bdd397338c1d2612b40c0f23e68a249a4e0991 (run 38652979666). The follow-up below requires fresh evidence for its final commit; the earlier run does not validate later edits.
 
 ## Follow-up: close the three evidence gaps
 
-The user explicitly requested failed-run resource timings, retained PDFs/rasters for actual visual inspection, and accurate HEAD resource-length logging. These are probe fixes only; non-AOT scope is unchanged. The final commit must repeat local suites and protected CI, with CI checking out that exact PR head. Download and inspect every generated page raster, perform independent review and handle comments. Keep the PR draft and unmerged: replacing the local browser check with remote evidence requires a new explicit approval naming this PR/head; no unrelated project's exception applies.
+The user explicitly requested failed-run resource timings, retained PDFs/rasters for actual visual inspection, and accurate HEAD resource-length logging. These are probe fixes only; non-AOT scope is unchanged. The final commit must repeat local suites and protected CI, with CI checking out that exact PR head. Download and inspect every generated page raster, perform independent review and handle comments. Record local and remote execution locations explicitly. The current standing authorization permits normal PR updates, ready status and merge after local build/tests, CI and review/comment requirements pass; no extra remote-evidence approval gate is imposed.
 
 - [x] Add failing tests for resource timing capture after a verification failure and honest unavailable states; collect timings before browser cleanup with a bounded deadline.
 - [x] Add a real HEAD request regression, rename the asset-length field, and verify HEAD returns no body.
-- [ ] Preserve generated PDFs and 144-DPI PNGs in CI; exercise real protected-browser failure capture through a deliberately failing downstream CLI.
-- [ ] Run complete local checks, independent review and exact-head remote CI; download/hash and view actual page rasters.
-- [ ] Report final SHA, evidence, review disposition and the precise local-browser substitution approval scope; do not merge.
+- [x] Preserve generated PDFs and 144-DPI PNGs in CI; exercise real protected-browser failure capture through a deliberately failing downstream CLI.
+- [x] Run complete local checks, independent review and exact-head remote CI; download/hash and view actual page rasters.
+- [ ] Report the final SHA, separate local/remote evidence and review disposition; complete the authorized PR integration only after all gates pass.
+
+
+## Review follow-up: terminate failed cleanup
+
+The automatic review triggered when PR27 became ready found that a rejected cleanup deadline still left Node alive through Playwright handles. A real child-process regression reproduces the hang; the minimal fix finalizes the report, then exits with code 1 on browser-close rejection or timeout, allowing Playwright's registered exit handler to terminate its browser tree. Preserve the original conversion failure. Rerun local suites, independent review and exact-head protected CI for the new commit before resolving the comment and merging.
