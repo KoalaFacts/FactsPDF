@@ -22,7 +22,8 @@ internal static class TextLayout
     // glyphs and pagination remain text-based. Traverse lazily without flattening
     // the box hierarchy into a second global paragraph list.
     public static List<LayoutPage> Layout(DocumentRoot document, PdfOptions o, CancellationToken cancellation)
-        => LayoutCore(BlockLayout.Steps(document, o, cancellation), o, cancellation);
+        => LayoutCore(BlockLayout.Steps(document, o, cancellation,
+            ListLayout.Prepare(document, o, cancellation)), o, cancellation);
 
     // Compatibility path for existing font/layout tests.
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
@@ -50,6 +51,34 @@ internal static class TextLayout
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.", sourceOffset);
             displayCommands += count;
         }
+        void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1)
+        {
+            for (var start = 0; start < line.Glyphs.Count;)
+            {
+                ChargeDisplayCommands(1, sourceOffset);
+                var first = line.Glyphs[start]; var width = 0d; var end = start; var utf16Length = 0;
+                while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
+                {
+                    if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
+                    var glyph = line.Glyphs[end++];
+                    utf16Length = checked(utf16Length + (glyph.Scalar <= 65535 ? 1 : 2));
+                    width += glyph.Width;
+                }
+                var text = string.Create(utf16Length,
+                    (Glyphs: line.Glyphs, Start: start, End: end, Cancellation: cancellation),
+                    static (destination, state) =>
+                    {
+                        var offset = 0;
+                        for (var i = state.Start; i < state.End; i++)
+                        {
+                            if ((i & 255) == 0) state.Cancellation.ThrowIfCancellationRequested();
+                            offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
+                        }
+                    });
+                pages[^1].Runs.Add(new(text, x, baseline, first.Style, first.Font));
+                x += width; start = end;
+            }
+        }
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -59,6 +88,7 @@ internal static class TextLayout
         bool CurrentPageOccupied() => y > o.Margin + 0.000001
             || pendingClosedPadding > 0
             || pages[^1].Runs.Count > 0
+            || pages[^1].Discs.Count > 0
             || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
 
         void MoveUnconsumedBlocksToNewPage()
@@ -225,9 +255,9 @@ internal static class TextLayout
             // earlier paragraph or box has used the exact command allowance.
             // Blank/whitespace/break-only paragraphs can still affect geometry
             // without emitting text commands and must retain that behavior.
-            if (displayCommands == o.MaxDisplayCommands && HasTextContent(paragraph, cancellation))
-                ChargeDisplayCommands(1);
-            using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation).GetEnumerator();
+            if (displayCommands == o.MaxDisplayCommands && (item.Marker is not null || HasTextContent(paragraph, cancellation)))
+                ChargeDisplayCommands(1, item.Marker?.SourceOffset ?? -1);
+            using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation, item.Marker).GetEnumerator();
             if (!lines.MoveNext())
             {
                 // Empty painted/padded paragraphs still occupy box geometry
@@ -287,6 +317,7 @@ internal static class TextLayout
             pendingTopPadding = 0;
             pendingClosedPadding = 0;
             contentEpoch++;
+            var pendingMarker = item.Marker;
             do
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -297,35 +328,26 @@ internal static class TextLayout
                 { TextAlignment.Center => (item.ContentWidth - line.Width) / 2,
                   TextAlignment.Right => item.ContentWidth - line.Width, _ => 0 });
                 var baseline = o.PageHeight - y - line.Ascent;
-                for (var start = 0; start < line.Glyphs.Count;)
+                if (pendingMarker is { } marker)
                 {
-                    ChargeDisplayCommands(1);
-                    var first = line.Glyphs[start]; var width = 0d; var end = start; var utf16Length = 0;
-                    while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
+                    if (marker.Text is not null)
                     {
-                        if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
-                        var glyph = line.Glyphs[end++];
-                        utf16Length = checked(utf16Length + (glyph.Scalar <= 65535 ? 1 : 2));
-                        width += glyph.Width;
+                        var markerParagraph = new Paragraph(marker.Style, marker.SourceOffset);
+                        markerParagraph.Runs.Add(new(marker.Text, marker.Style, SourceOffset: marker.SourceOffset));
+                        using var markerLines = Wrap(markerParagraph, marker.Width, o, resolved, cancellation).GetEnumerator();
+                        if (!markerLines.MoveNext()) throw new InvalidOperationException("Missing decimal marker line.");
+                        PlaceLine(markerLines.Current, item.MarkerRightX - marker.Width, baseline, marker.SourceOffset);
                     }
-                    // The callback runs synchronously while this line is still
-                    // borrowed. The completed string owns its characters and
-                    // never retains the line buffer. Rune writes surrogate
-                    // pairs directly, without an intermediate string per scalar.
-                    var text = string.Create(utf16Length,
-                        (Glyphs: line.Glyphs, Start: start, End: end, Cancellation: cancellation),
-                        static (destination, state) =>
-                        {
-                            var offset = 0;
-                            for (var i = state.Start; i < state.End; i++)
-                            {
-                                if ((i & 255) == 0) state.Cancellation.ThrowIfCancellationRequested();
-                                offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
-                            }
-                        });
-                    pages[^1].Runs.Add(new(text, x, baseline, first.Style, first.Font));
-                    x += width; start = end;
+                    else
+                    {
+                        ChargeDisplayCommands(1, marker.SourceOffset);
+                        var radius = marker.Width / 2;
+                        pages[^1].Discs.Add(new(item.MarkerRightX - radius,
+                            baseline + 0.3 * marker.Style.FontSize, radius, marker.Style.Color));
+                    }
+                    pendingMarker = null;
                 }
+                PlaceLine(line, x, baseline);
                 y += line.Height;
             }
             while (lines.MoveNext());
@@ -352,7 +374,8 @@ internal static class TextLayout
     }
 
     private static IEnumerable<Line> Wrap(Paragraph paragraph, double available, PdfOptions options,
-        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
+        ListMarker? firstMarker = null)
     {
         Glyph Resolve(int scalar, TextStyle style, int sourceOffset)
         {
@@ -446,6 +469,7 @@ internal static class TextLayout
             throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
 
         var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
+        var firstLine = true;
         // CSS Inline Layout: a specified (non-normal) line-height uses the
         // metrics of the *first available font*, even if fallback fonts draw
         // some glyphs. Each inline style contributes its own leading-adjusted
@@ -464,6 +488,17 @@ internal static class TextLayout
         Line CurrentLine()
         {
             var (ascent, descent) = Metrics(paragraph.Style, paragraph.SourceOffset);
+            if (firstLine && firstMarker is { } marker)
+            {
+                var (markerAscent, markerDescent) = Metrics(marker.Style, marker.SourceOffset);
+                if (marker.Text is null)
+                {
+                    markerAscent = Math.Max(markerAscent, 0.45 * marker.Style.FontSize);
+                    markerDescent = Math.Max(markerDescent, -0.15 * marker.Style.FontSize);
+                }
+                ascent = Math.Max(ascent, markerAscent);
+                descent = Math.Max(descent, markerDescent);
+            }
             foreach (var glyph in current)
             {
                 var (glyphAscent, glyphDescent) = Metrics(glyph.Style, glyph.SourceOffset);
@@ -475,6 +510,7 @@ internal static class TextLayout
         void ResetLine()
         {
             current.Clear(); width = 0; space = null;
+            firstLine = false;
         }
         // The consumer finishes a borrowed line before MoveNext clears it.
         // Retained page strings/paint and the PDF buffer are unchanged: this
@@ -522,7 +558,7 @@ internal static class TextLayout
             current.AddRange(word);
             width += wordWidth; space = null;
         }
-        if (current.Count > 0) yield return CurrentLine();
+        if (current.Count > 0 || firstLine && firstMarker is not null) yield return CurrentLine();
     }
 
     private static void CheckSimpleScalar(int scalar)

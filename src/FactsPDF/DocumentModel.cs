@@ -13,10 +13,12 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
     public List<TextRun> Runs { get; } = [];
 }
 internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null);
+internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color);
 internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];
     public List<PaintedBox> PaintBoxes { get; } = [];
+    public List<PlacedDisc> Discs { get; } = [];
 }
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
@@ -92,4 +94,5 @@ internal sealed record ParagraphNode(Paragraph Paragraph, bool IsAnonymous) : Bl
 internal sealed class DocumentRoot
 {
     public List<BlockChild> Children { get; } = [];
+    public bool HasLists { get; set; }
 }

@@ -121,6 +121,7 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "li must be a direct child of ol/ul, whose only element children are li.", token.Offset);
             if (ListTag(name) && stack.Count(f => ListTag(f.Name)) >= 2)
                 throw new FactsPdfException("FPDF1101", "Lists support at most two nested levels.", token.Offset);
+            if (ListTag(name)) result.HasLists = true;
             if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta")))
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
