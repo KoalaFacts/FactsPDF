@@ -12,18 +12,7 @@ public static class PdfConverter
         options ??= new PdfOptions();
         cancellationToken.ThrowIfCancellationRequested();
         Validate(options);
-        if (options.Fonts is null || options.Fonts.Count > 8) throw new ArgumentException("Supply a non-null font list with at most eight entries.", nameof(options));
-        var fonts = new List<PdfFont>(); long totalFontBytes = 0;
-        // Snapshot the small chain; the immutable fonts may safely be reused by concurrent conversions.
-        foreach (var font in options.Fonts)
-        {
-            if (font is null) throw new ArgumentException("Font entries cannot be null.", nameof(options));
-            if (fonts.Contains(font)) continue;
-            totalFontBytes += font.ByteLength;
-            if (totalFontBytes > options.MaxTotalFontBytes) throw new FactsPdfException("FPDF1503", "Fonts exceed MaxTotalFontBytes.");
-            fonts.Add(font);
-        }
-        options = options with { Fonts = fonts.ToArray() };
+        options = FontRoles.Snapshot(options);
         if (html.Length > options.MaxInputCharacters)
             throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
 
@@ -38,7 +27,7 @@ public static class PdfConverter
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
         }
-        using var pdf = options.Fonts.Count > 0 && pages.Any(p => p.Runs.Count > 0)
+        using var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();

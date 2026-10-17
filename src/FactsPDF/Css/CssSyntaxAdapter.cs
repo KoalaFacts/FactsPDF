@@ -150,6 +150,20 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
             var token = terms[0];
             var tokenOffset = valueTokens[0].Token.Span.Start;
+            if (property == CssProperty.FontWeight)
+            {
+                var syntax = valueTokens[0].Token;
+                if (syntax.Kind == CssSyntaxTokenKind.Number
+                    && double.TryParse(syntax.Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var weight)
+                    && weight is 400 or 700)
+                    token = weight == 400 ? "400" : "700";
+                else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold"))
+                    throw new FactsPdfException("FPDF1202", "font-weight requires normal/bold or a number equal to 400/700.", tokenOffset);
+            }
+            if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
+                || !(Wide(token) || token is "normal" or "italic")))
+                throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
         }
@@ -161,6 +175,7 @@ internal static class CssSyntaxAdapter
     private static CssProperty Property(string name, int offset) => name switch
     {
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
+        "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,

@@ -2,9 +2,11 @@ namespace FactsPDF;
 
 internal static class HtmlDocumentReader
 {
-    private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box);
+    private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html";
+
+    private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em";
 
     // Keep the old internal paragraph view for existing editor/tests; actual
     // conversions now receive a structured document via ReadTree.
@@ -50,10 +52,10 @@ internal static class HtmlDocumentReader
                 // first-inline-run span (including text-align). The retained
                 // BlockNode.Style separately stores the actual containing-box
                 // computed style for future block-aware layout.
-                current = new Paragraph(stack[^1].Style);
+                current = new Paragraph(stack[^1].Style, stack[^1].SourceOffset);
                 anonymous = true;
             }
-            current.Runs.Add(new(text, style, lineBreak));
+            current.Runs.Add(new(text, style, lineBreak, stack[^1].SourceOffset));
         }
 
         foreach (var token in HtmlTokens.Read(html, cancellation))
@@ -86,7 +88,7 @@ internal static class HtmlDocumentReader
                 if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
                 insideStyle = true; continue;
             }
-            if (!(ParagraphTag(name) || Container(name) || name is "span" or "br" or "head" or "title" or "meta"))
+            if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || name is "br" or "head" or "title" or "meta"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -100,7 +102,7 @@ internal static class HtmlDocumentReader
             if (token.SelfClosing && name is not ("br" or "meta"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if ((ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
-            if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || f.Name == "span"))
+            if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name)))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
             if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta")))
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
@@ -114,6 +116,8 @@ internal static class HtmlDocumentReader
             var boxStyle = new BoxStyle();
             var style = parent with { MarginBefore = 0, MarginAfter = ParagraphTag(name) ? 8 : 0,
                 BreakBefore = false, BreakAfter = false };
+            if (name is "b" or "strong") style = style with { Bold = true };
+            if (name is "i" or "em") style = style with { Italic = true };
             if (name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6')
                 style = style with { FontSize = style.FontSize * (name[1] switch
                 { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 }) };
@@ -147,10 +151,10 @@ internal static class HtmlDocumentReader
                 box = new BlockNode(name, style, boxStyle, token.Offset);
                 CurrentChildren().Add(box);
             }
-            stack.Add(new(name, style, boxStyle, box));
+            stack.Add(new(name, style, boxStyle, box, token.Offset));
             if (ParagraphTag(name))
             {
-                current = new Paragraph(style);
+                current = new Paragraph(style, token.Offset);
                 anonymous = false;
             }
         }

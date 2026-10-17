@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer } from 'node:http';
 import { loadResources } from '../../probes/browser-wasm/wwwroot/resources.mjs';
+import * as resources from '../../probes/browser-wasm/wwwroot/resources.mjs';
 
 let server, origin;
 const requests = [];
@@ -45,4 +46,33 @@ test('probe rejects more than two font URLs before any fetch', async () => {
   requests.length = 0;
   await assert.rejects(loadResources(`${origin}/input`, ['a', 'b', 'c']), { code: 'B2_FONT_COUNT' });
   assert.deepEqual(requests, []);
+});
+
+test('style resources retain explicit role and chain ordering without pairing', async () => {
+  assert.equal(typeof resources.loadStyleResources, 'function');
+  const loaded = await resources.loadStyleResources(`${origin}/input`, {
+    italic: [`${origin}/cjk`, `${origin}/latin`], bold: [`${origin}/latin`],
+  });
+  assert.equal(loaded.html, '<p>报告 café</p>');
+  assert.deepEqual([...loaded.fontBytes], [1, 2, 3, 4, 1, 2]);
+  assert.deepEqual([...loaded.fontLengths], [2, 2, 2]);
+  assert.deepEqual([...loaded.fontRoles], [1, 2, 2]);
+});
+
+test('invalid style configuration fails before any resource is fetched', async () => {
+  assert.equal(typeof resources.loadStyleResources, 'function');
+  for (const config of [null, [], { unknown: [] }, { normal: null }, { bold: [''] },
+    { normal: ['x', 'x', 'x'], bold: ['x', 'x', 'x'], italic: ['x', 'x', 'x'] }]) {
+    requests.length = 0;
+    await assert.rejects(resources.loadStyleResources(`${origin}/input`, config), { code: 'B2_INPUT_FONTS' });
+    assert.deepEqual(requests, []);
+  }
+});
+
+test('style resource HTTP and empty errors stay distinct from missing core roles', async () => {
+  assert.equal(typeof resources.loadStyleResources, 'function');
+  await assert.rejects(resources.loadStyleResources(`${origin}/input`, { bold: [`${origin}/missing`] }), { code: 'B2_RESOURCE_HTTP' });
+  await assert.rejects(resources.loadStyleResources(`${origin}/input`, { italic: [`${origin}/empty`] }), { code: 'B2_RESOURCE_EMPTY' });
+  const noFonts = await resources.loadStyleResources(`${origin}/input`, {});
+  assert.equal(noFonts.fontBytes.length, 0);
 });

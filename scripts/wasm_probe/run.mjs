@@ -6,10 +6,13 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import { cases, unsupportedHtml } from './fixtures.mjs';
+import { styleCases, styleErrorCases } from './style_fixtures.mjs';
 import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
 import { captureResourceTimings } from './resource_timings.mjs';
 import { finishBrowserCleanup } from './cleanup.mjs';
+import { addReaderFiles, inspectReader } from './pdf_interaction.mjs';
+import { restrictedFont } from './restricted_font.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -19,6 +22,14 @@ const output = process.env.FACTSPDF_PROBE_OUTPUT;
 const executable = process.env.FACTSPDF_CLI;
 const dll = process.env.FACTSPDF_CLI_DLL;
 const fontPaths = JSON.parse(process.env.FACTSPDF_PROBE_FONTS ?? '[]');
+const styleManifest = process.env.FACTSPDF_STYLE_MANIFEST ? JSON.parse(await readFile(process.env.FACTSPDF_STYLE_MANIFEST, 'utf8')) : null;
+const selectedStyles = styleManifest ? styleCases : [];
+const selectedStyleErrors = styleManifest ? styleErrorCases : [];
+const styleFlags = { normal: '--font', bold: '--font-bold', italic: '--font-italic', boldItalic: '--font-bold-italic' };
+const styleUrls = {};
+const rolePaths = selection => Object.fromEntries(Object.entries(styleManifest.roles)
+  .filter(([role]) => selection !== 'courier' || role === 'italic')
+  .map(([role, paths]) => [role, selection === 'latin-only' ? paths.slice(0, 1) : paths]));
 for (const [name, value] of Object.entries({ FACTSPDF_WASM_ROOT: root, FACTSPDF_PROBE_OUTPUT: output, FACTSPDF_CLI: executable }))
   assert.ok(value && isAbsolute(value), `${name} must be absolute`);
 assert.ok(!dll || isAbsolute(dll), 'FACTSPDF_CLI_DLL must be absolute');
@@ -41,7 +52,7 @@ async function loadDirectory(directory) {
 await loadDirectory(root);
 assert.ok(files.has('/index.html') && assets.some(a => a.name.endsWith('.wasm')), 'Publish the real WASM host first');
 files.set('/', files.get('/index.html'));
-const inputs = [...cases, { name: 'unsupported', html: unsupportedHtml }].map(item => {
+const inputs = [...cases, ...selectedStyles, ...selectedStyleErrors, { name: 'unsupported', html: unsupportedHtml }].map(item => {
   const bytes = Buffer.from(item.html, 'utf8');
   files.set(`/probe-inputs/${item.name}.html`, { bytes, type: 'text/html' });
   return { name: item.name, bytes: bytes.length, sha256: hash(bytes) };
@@ -53,6 +64,26 @@ for (let i = 0; i < fontPaths.length; i++) {
   files.set(`/probe-fonts/${i}.ttf`, { bytes, type: 'font/ttf' });
   fonts.push({ path: fontPaths[i], bytes: bytes.length, sha256: hash(bytes) });
 }
+if (styleManifest) {
+  for (const [role, paths] of Object.entries(styleManifest.roles)) {
+    styleUrls[role] = [];
+    for (const [index, path] of paths.entries()) {
+      assert.ok(isAbsolute(path));
+      const bytes = await readFile(path), url = `/style-fonts/${role}-${index}.ttf`;
+      assert.equal(hash(bytes), styleManifest.fonts.find(f => f.role === role && f.order === index).sha256);
+      files.set(url, { bytes, type: 'font/ttf' }); styleUrls[role].push(url);
+    }
+  }
+  await addReaderFiles(files);
+}
+let restrictedFixture;
+if (styleManifest) {
+  const original = files.get(styleUrls.boldItalic[0]).bytes;
+  const { bytes, ...change } = restrictedFont(original);
+  files.set('/probe-fonts/restricted.ttf', { bytes, type: 'font/ttf' });
+  restrictedFixture = { ...change, originalSha256: hash(original), sha256: hash(bytes),
+    purpose: 'private synthetic negative only; restrictive embedding bit added, never used in successful output' };
+}
 files.set('/probe-fonts/empty.ttf', { bytes: Buffer.alloc(0), type: 'font/ttf' });
 files.set('/probe-fonts/corrupt.ttf', { bytes: Buffer.from([1, 2, 3]), type: 'font/ttf' });
 const report = { probe: 'B2-browser-wasm', status: 'running', node: process.version,
@@ -60,7 +91,7 @@ const report = { probe: 'B2-browser-wasm', status: 'running', node: process.vers
   build: { properties: JSON.parse(await readFile(process.env.FACTSPDF_WASM_BUILD_INFO, 'utf8')), assets,
     uncompressedAssetBytes: assets.filter(a => !/\.(br|gz)$/.test(a.name)).reduce((n, a) => n + a.bytes, 0),
     mode: 'single-threaded non-AOT .NET browser-wasm; SDK runtime defaults, no application AOT' },
-  inputs, fonts, browser: { chromiumSandbox: true }, cases: [], errors: [], console: [],
+  inputs, fonts, styleFonts: styleManifest, restrictedFixture, browser: { chromiumSandbox: true }, cases: [], errors: [], console: [],
   resources: null, resourceTimingCapture: { status: 'pending' },
   memoryScope: 'GC.GetTotalMemory(false) snapshots around font parsing and conversion; not allocation totals, JS heap, linear memory, RSS or peak memory',
   unavailableMetrics: ['peak browser/process RSS', 'WASM linear-memory capacity', 'GC peak heap'] };
@@ -137,6 +168,62 @@ try {
       } else assert.equal(samples[attempt].sha256, samples[0].sha256, 'Repeated conversion differs');
     }
   }
+  const styleCall = (name, roles, subset = true) => withDeadline(page.evaluate(async ({ name, roles, subset }) =>
+    window.factspdfProbe.convertStyles(`/probe-inputs/${name}.html`, roles, subset), { name, roles, subset }),
+    90000, `Browser style conversion ${name}`);
+  let styleRecoveryHash;
+  for (const item of selectedStyles) {
+    assert.ok(Number.isInteger(item.pages), 'Reviewed style fixture page count is required');
+    const selected = rolePaths(item.selection);
+    const urls = Object.fromEntries(Object.entries(selected).map(([role, paths]) => [role, styleUrls[role].slice(0, paths.length)]));
+    for (const subset of item.selection === 'latin-only' ? [true, false] : [true]) {
+      const name = `${item.name}-${subset ? 'subset' : 'full'}`;
+      const result = await styleCall(item.name, urls, subset);
+      assert.equal(result.errorCode, null, JSON.stringify(result));
+      assert.equal(result.pageCount, item.pages);
+      const bytes = Buffer.from(result.pdfBase64, 'base64');
+      const browserPath = join(output, `${name}-wasm.pdf`), cliPath = join(output, `${name}-cli.pdf`);
+      const inputPath = join(output, `${item.name}.html`);
+      await writeFile(browserPath, bytes); await writeFile(inputPath, item.html);
+      const args = [...(dll ? [dll] : []), inputPath, cliPath, '--overwrite',
+        ...Object.entries(selected).flatMap(([role, paths]) => paths.flatMap(path => [styleFlags[role], path])),
+        ...(subset ? ['--subset-fonts'] : [])];
+      await direct(executable, args, { timeout: 90000 });
+      const cliBytes = await readFile(cliPath);
+      const rasterEvidence = await inspectPair(browserPath, cliPath, { ...item, ignoreLayoutWhitespace: true });
+      assert.deepEqual(bytes, cliBytes, 'Four-role browser WASM bytes differ from CLI');
+      const pdfUrl = `/pdf-reader/${name}.pdf`;
+      files.set(pdfUrl, { bytes, type: 'application/pdf' });
+      const viewerInteraction = await inspectReader(context, server.origin, pdfUrl, item, join(output, `${name}-viewer.png`));
+      report.cases.push({ name, bytes: bytes.length, pages: item.pages, sha256: hash(bytes), cliSha256: hash(cliBytes),
+        byteEquality: true, qpdf: 'pass', text: 'pass', boundingBoxes: 'equal', rasterPages: 'equal', rasterEvidence,
+        viewerInteraction,
+        convertMs: result.convertMs, resourceLoadMs: result.resourceLoadMs,
+        managedHeapBeforeBytes: result.managedHeapBeforeBytes, managedHeapAfterBytes: result.managedHeapAfterBytes });
+      if (item.name === 'styles-report') styleRecoveryHash = hash(bytes);
+    }
+  }
+  for (const item of selectedStyleErrors) {
+    const roles = Object.fromEntries(item.roles.map(role => [role, item.latinOnly ? styleUrls[role].slice(0, 1) : styleUrls[role]]));
+    const result = await styleCall(item.name, roles);
+    assert.equal(result.errorCode, item.code, JSON.stringify(result)); assert.equal(result.pdfBase64, null);
+    report.cases.push({ name: item.name, errorCode: result.errorCode, errorMessage: result.errorMessage, noPdf: true });
+  }
+  if (styleManifest) {
+    for (const [url, expected] of [['missing', 'B2_RESOURCE_HTTP'], ['empty', 'B2_RESOURCE_EMPTY'], ['corrupt', 'FPDF1501'], ['restricted', 'FPDF1505']]) {
+      const result = await styleCall('ascii', { boldItalic: [`/probe-fonts/${url}.ttf`] });
+      assert.equal(result.errorCode, expected); assert.equal(result.pdfBase64, null);
+      report.cases.push({ name: `style-resource:${url}`, errorCode: expected, noPdf: true });
+    }
+    const overBudget = await styleCall('styles-report', styleUrls, false);
+    assert.equal(overBudget.errorCode, 'FPDF1401', JSON.stringify(overBudget));
+    assert.equal(overBudget.pdfBase64, null);
+    report.cases.push({ name: 'style-output-budget', errorCode: 'FPDF1401', noPdf: true });
+    const result = await styleCall('styles-report', styleUrls);
+    assert.equal(result.errorCode, null);
+    assert.equal(hash(Buffer.from(result.pdfBase64, 'base64')), styleRecoveryHash);
+    report.cases.push({ name: 'style-recovery', byteEquality: true });
+  }
   for (const [name, fontUrls, expected] of [
     ['bilingual', ['/probe-fonts/missing.ttf'], 'B2_RESOURCE_HTTP'],
     ['ascii', ['/probe-fonts/empty.ttf'], 'B2_RESOURCE_EMPTY'],
@@ -177,7 +264,13 @@ try {
   await finishBrowserCleanup(() => browser?.close(), async () => {
     await server.close();
     await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-    console.log(JSON.stringify({ status: report.status, cases: report.cases.length, report: join(output, 'report.json'), failure: report.failure }));
+    // Keep reviewable provenance and assertions in normal CI logs as well as the
+    // artifact report. Never serialize PDF/font/image bytes into logs.
+    console.log(JSON.stringify({ status: report.status, cases: report.cases.length, report: join(output, 'report.json'),
+      source: report.source, browser: report.browser, runtime: report.runtime, buildProperties: report.build.properties,
+      styleFonts: report.styleFonts?.fonts.map(({ role, order, bytes, sha256 }) => ({ role, order, bytes, sha256 })),
+      styleResults: report.cases.filter(item => item.name.startsWith('style')),
+      failure: report.failure }));
   }, report);
 }
 
@@ -204,7 +297,8 @@ async function inspectPair(browserPath, cliPath, item) {
     outputs.push({ text, pages, bbox, pixels });
   }
   for (const result of outputs) {
-    assert.equal(normalize(result.text), item.text);
+    assert.equal(item.ignoreLayoutWhitespace ? result.text.replace(/\s/gu, '') : normalize(result.text),
+      item.ignoreLayoutWhitespace ? item.text.replace(/\s/gu, '') : item.text);
     assert.equal(result.pages, item.pages);
   }
   assert.equal(outputs[0].bbox, outputs[1].bbox, 'Text positions differ');

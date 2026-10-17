@@ -20,6 +20,11 @@ public static partial class BrowserExports
             ProbeJsonContext.Default.ProbeResult);
 
     [JSExport]
+    public static string ConvertStyles(string html, byte[] fontBytes, int[] fontLengths, int[] fontRoles, bool subsetFonts)
+        => JsonSerializer.Serialize(ProbeConversion.RunStyles(html, fontBytes, fontLengths, fontRoles, subsetFonts),
+            ProbeJsonContext.Default.ProbeResult);
+
+    [JSExport]
     public static bool IsBrowser() => OperatingSystem.IsBrowser();
 }
 

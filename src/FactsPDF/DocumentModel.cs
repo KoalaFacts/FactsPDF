@@ -3,9 +3,12 @@ namespace FactsPDF;
 internal enum TextAlignment { Left, Center, Right }
 internal readonly record struct Rgb(double R, double G, double B);
 internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
-    double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false);
-internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false);
-internal sealed record Paragraph(TextStyle Style)
+    double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
+    bool Bold = false, bool Italic = false);
+// Diagnostic provenance is separate from TextStyle equality: adjacent identical
+// computed styles must still coalesce regardless of their source elements.
+internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
+internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
 {
     public List<TextRun> Runs { get; } = [];
 }

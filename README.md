@@ -174,3 +174,4 @@ Maintainers must complete the [licensing release gates](docs/licensing-review.md
 before software-package release or accepting a paid license order.
 [License history](docs/license-history.md) records earlier terms; version 1.1
 does not retroactively change version 1.0 grants.
+[Explicit font styles](docs/font-styles.md) support normal, bold, italic and bold-italic through independent caller-supplied font chains, including ordered character fallback. No system discovery or synthetic styling is performed.

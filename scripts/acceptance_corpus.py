@@ -168,7 +168,10 @@ def generate_corpus(root: Path) -> list[dict]:
     add('N-pages', 'negative', [], ['page-budget'], '<p>One</p><p class="next">Two</p>', expected_code='FPDF1303', api_only=True, max_pages=1)
     for tag, scalar in [('high', 0xD800), ('low', 0xDC00)]:
         add('N-utf16-'+tag, 'negative', [], ['invalid-utf16'], '<p>runtime-invalid-input</p>', expected_code='FPDF1304', api_only=True, invalid_scalar=scalar)
-    add('T-bold', 'target', [], ['real-bold-font'], '<p><strong>Real emphasis</strong></p>', expected_code='FPDF1102')
+    # This legacy corpus supplies only normal fonts. C1 positive style evidence
+    # runs separately; this probe now checks explicit missing-role behavior.
+    add('T-bold', 'target', [], ['real-bold-font'], '<p><strong>Real emphasis</strong></p>',
+        expected_code='FPDF1507', probe_scope='missing-explicit-bold-resources')
     add('T-list', 'target', [], ['list-numbering', 'list-wrap', 'list-nesting'], '<ol><li>First<ul><li>Nested</li></ul></li></ol>', expected_code='FPDF1102')
     for count in (10, 30, 100):
         add(f'T-table-{count}', 'target', [], ['fixed-columns', 'table-record-order', 'repeat-header'],

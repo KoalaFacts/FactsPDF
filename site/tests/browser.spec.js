@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 const base='/FactsPDF/';
-test('loads original snapshot using local npm-built assets without console failures', async({page})=>{
+test('loads the audited snapshot using local npm-built assets without console failures', async({page})=>{
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await expect(page.getByRole('heading',{name:'Can I render it?'})).toBeVisible();
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('e35722bf',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('00d55dc5',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('filters and detail links survive refresh without inventing versions',async({page})=>{

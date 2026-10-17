@@ -20,7 +20,7 @@ To update a feature, edit its stable-ID row in the JSON, including scope, limita
 
 This first page supports search, category/status/introduction filters, pagination, feature details/evidence, shareable hash links, Chinese/English interface labels, and JSON/CSV download. Audit notes remain in their original language. External links are HTTPS; examples are text, never executed. A subfeature marked full does not make its parent fully supported. No database, account system, server renderer, or complete historical-version matrix is introduced.
 
-The imported snapshot remains byte-identical to the supplied 418-row audit (SHA-256 `c740aa1e2614a9f5f1abee5e64d54f0f64b69bf2d60f8a4a41c7e5b6c7489ffe`). Actual current test and deployment results belong to the PR/workflow logs, not guessed success claims in this guide. The separate report sample PR is not changed or approved by this work.
+The original 418-row audit remains in Git history with SHA-256 `c740aa1e2614a9f5f1abee5e64d54f0f64b69bf2d60f8a4a41c7e5b6c7489ffe`. The intentional C1 update changes seven stable-ID rows (b/strong/i/em, font-weight/font-style, explicit font roles) to partial support based on core revision `00d55dc5f48779d49945fcc10ccabb6019e57d11`. Remaining rows retain their original per-row audit provenance. The current dataset SHA-256 is `64e91b017dbfc595368387433e34dced00c01e73a80e992d44d4924d483aef20`; record counts and the nine product targets are unchanged. Actual current test and deployment results belong to the PR/workflow logs, not guessed success claims in this guide. The separate report sample PR is not changed or approved by this work.
 
 ### Production template regression
 

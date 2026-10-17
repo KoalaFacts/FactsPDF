@@ -64,7 +64,7 @@ Winners are selected independently for each property:
 
 Only actually matching arms of a grouped selector contribute specificity. Repeating a simple selector increases specificity. Duplicate declarations use the last winner at the appropriate importance. This author cascade sits above the renderer's existing defaults; it does not implement user-origin styles, cascade layers, animations or transitions.
 
-Inherited values are the parent's computed values; the parent's importance and selector specificity do not compete with declarations on a child. `inherit`, `initial` and `unset` are supported for the eight properties below. `unset` resolves to inheritance or the initial value, not a lower-priority heading/paragraph default.
+Inherited values are the parent's computed values; the parent's importance and selector specificity do not compete with declarations on a child. `inherit`, `initial` and `unset` are supported for the text properties below. `unset` resolves to inheritance or the initial value, not a lower-priority heading/paragraph default.
 
 Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1.2, black, left alignment, zero margins and automatic breaks. These are explicitly FactsPDF defaults, not a claim of browser initial font/theme behavior. Heading font-size multipliers and the default 8pt paragraph-after gap remain when no author declaration replaces them.
 
@@ -73,15 +73,17 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | Property | Values / applicability |
 | --- | --- |
 | font-size | pt/px lengths, computed range 1-144pt |
+| font-weight | normal/bold or numeric 400/700; explicit role resources required |
+| font-style | normal/italic; explicit role resources required |
 | line-height | Unitless number 1-10 |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px or zero, at most 14400pt |
 | break-before, break-after | Paragraphs/headings only; auto/page |
 
-All eight also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
+These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
-Selectors do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
 
 ## Budgets and diagnostics
 
