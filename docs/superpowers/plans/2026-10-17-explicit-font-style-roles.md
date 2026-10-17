@@ -55,11 +55,11 @@
 
 **Interfaces:** Explicit role-font manifest records source version/hash/order, same inputs in CLI/.NET/WASM, real PDF/PNG/text/bbox/font validation evidence. Existing B2 behavior remains a regression path, not a repeated feasibility investigation.
 
-- [ ] Obtain pinned upstream static four-style glyf fonts and license/provenance; verify formats/embedding flags/total bytes. Do not commit standalone fonts or disguise generated/slanted normal glyphs as style evidence.
-- [ ] Add actual bilingual four-style fixture, wrapping/natural and explicit pagination, missing roles/glyphs/failed output/recovery. Pin expected text independently, record observed geometry and inspect all pages; no automatic user approval of reference pages.
-- [ ] Compare old regular-only output against baseline and full/subset normal/style outputs across CLI/.NET. Verify qpdf, ToUnicode, true font data/advances, no synthesis, exact expected text and raw rendered pages; save viewable artifacts and visually inspect.
-- [ ] Extend same-head protected browser CI and retain actual PDFs/PNGs on success/failure. Update documentation with measured capabilities and limitations, never claim untested platform AOT/variable fonts or nonexistent warnings.
-- [ ] Run full local .NET/Node/Python/site suites/build, actual WASM publish, source checks. Independent whole-branch review, fix important findings with regression tests, then create PR for normal review/CI.
+- [x] Obtain pinned upstream static four-style glyf fonts and license/provenance; verify formats/embedding flags/total bytes. Do not commit standalone fonts or disguise generated/slanted normal glyphs as style evidence.
+- [x] Add actual bilingual four-style fixture, wrapping/natural and explicit pagination, missing roles/glyphs/failed output/recovery. Pin expected text independently, record observed geometry and inspect all pages; no automatic user approval of reference pages.
+- [x] Compare old regular-only output against baseline and full/subset normal/style outputs across CLI/.NET. Verify qpdf, ToUnicode, true font data/advances, no synthesis, exact expected text and raw rendered pages; save viewable artifacts and visually inspect.
+- [x] Extend same-head protected browser CI and retain actual PDFs/PNGs on success/failure. Update documentation with measured capabilities and limitations, never claim untested platform AOT/variable fonts or nonexistent warnings.
+- [x] Run full local .NET/Node/Python/site suites/build, actual WASM publish, source checks. Independent whole-branch review, fix important findings with regression tests, then create PR for normal review/CI.
 - [ ] Ensure exact-head CI passes, reply/resolve all comments, ordinary expected-SHA merge, verify remote main tree and post-merge CI. Do not start the next feature stage.
 
 ## Execution record

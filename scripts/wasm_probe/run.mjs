@@ -11,6 +11,8 @@ import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
 import { captureResourceTimings } from './resource_timings.mjs';
 import { finishBrowserCleanup } from './cleanup.mjs';
+import { addReaderFiles, inspectReader } from './pdf_interaction.mjs';
+import { restrictedFont } from './restricted_font.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -72,6 +74,15 @@ if (styleManifest) {
       files.set(url, { bytes, type: 'font/ttf' }); styleUrls[role].push(url);
     }
   }
+  await addReaderFiles(files);
+}
+let restrictedFixture;
+if (styleManifest) {
+  const original = files.get(styleUrls.boldItalic[0]).bytes;
+  const { bytes, ...change } = restrictedFont(original);
+  files.set('/probe-fonts/restricted.ttf', { bytes, type: 'font/ttf' });
+  restrictedFixture = { ...change, originalSha256: hash(original), sha256: hash(bytes),
+    purpose: 'private synthetic negative only; restrictive embedding bit added, never used in successful output' };
 }
 files.set('/probe-fonts/empty.ttf', { bytes: Buffer.alloc(0), type: 'font/ttf' });
 files.set('/probe-fonts/corrupt.ttf', { bytes: Buffer.from([1, 2, 3]), type: 'font/ttf' });
@@ -80,7 +91,7 @@ const report = { probe: 'B2-browser-wasm', status: 'running', node: process.vers
   build: { properties: JSON.parse(await readFile(process.env.FACTSPDF_WASM_BUILD_INFO, 'utf8')), assets,
     uncompressedAssetBytes: assets.filter(a => !/\.(br|gz)$/.test(a.name)).reduce((n, a) => n + a.bytes, 0),
     mode: 'single-threaded non-AOT .NET browser-wasm; SDK runtime defaults, no application AOT' },
-  inputs, fonts, styleFonts: styleManifest, browser: { chromiumSandbox: true }, cases: [], errors: [], console: [],
+  inputs, fonts, styleFonts: styleManifest, restrictedFixture, browser: { chromiumSandbox: true }, cases: [], errors: [], console: [],
   resources: null, resourceTimingCapture: { status: 'pending' },
   memoryScope: 'GC.GetTotalMemory(false) snapshots around font parsing and conversion; not allocation totals, JS heap, linear memory, RSS or peak memory',
   unavailableMetrics: ['peak browser/process RSS', 'WASM linear-memory capacity', 'GC peak heap'] };
@@ -181,8 +192,12 @@ try {
       const cliBytes = await readFile(cliPath);
       const rasterEvidence = await inspectPair(browserPath, cliPath, { ...item, ignoreLayoutWhitespace: true });
       assert.deepEqual(bytes, cliBytes, 'Four-role browser WASM bytes differ from CLI');
+      const pdfUrl = `/pdf-reader/${name}.pdf`;
+      files.set(pdfUrl, { bytes, type: 'application/pdf' });
+      const viewerInteraction = await inspectReader(context, server.origin, pdfUrl, item, join(output, `${name}-viewer.png`));
       report.cases.push({ name, bytes: bytes.length, pages: item.pages, sha256: hash(bytes), cliSha256: hash(cliBytes),
         byteEquality: true, qpdf: 'pass', text: 'pass', boundingBoxes: 'equal', rasterPages: 'equal', rasterEvidence,
+        viewerInteraction,
         convertMs: result.convertMs, resourceLoadMs: result.resourceLoadMs,
         managedHeapBeforeBytes: result.managedHeapBeforeBytes, managedHeapAfterBytes: result.managedHeapAfterBytes });
       if (item.name === 'styles-report') styleRecoveryHash = hash(bytes);
@@ -195,11 +210,15 @@ try {
     report.cases.push({ name: item.name, errorCode: result.errorCode, errorMessage: result.errorMessage, noPdf: true });
   }
   if (styleManifest) {
-    for (const [url, expected] of [['missing', 'B2_RESOURCE_HTTP'], ['empty', 'B2_RESOURCE_EMPTY'], ['corrupt', 'FPDF1501']]) {
+    for (const [url, expected] of [['missing', 'B2_RESOURCE_HTTP'], ['empty', 'B2_RESOURCE_EMPTY'], ['corrupt', 'FPDF1501'], ['restricted', 'FPDF1505']]) {
       const result = await styleCall('ascii', { boldItalic: [`/probe-fonts/${url}.ttf`] });
       assert.equal(result.errorCode, expected); assert.equal(result.pdfBase64, null);
       report.cases.push({ name: `style-resource:${url}`, errorCode: expected, noPdf: true });
     }
+    const overBudget = await styleCall('styles-report', styleUrls, false);
+    assert.equal(overBudget.errorCode, 'FPDF1401', JSON.stringify(overBudget));
+    assert.equal(overBudget.pdfBase64, null);
+    report.cases.push({ name: 'style-output-budget', errorCode: 'FPDF1401', noPdf: true });
     const result = await styleCall('styles-report', styleUrls);
     assert.equal(result.errorCode, null);
     assert.equal(hash(Buffer.from(result.pdfBase64, 'base64')), styleRecoveryHash);

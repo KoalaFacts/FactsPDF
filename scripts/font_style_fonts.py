@@ -55,6 +55,8 @@ def prepare(root, latin_root, download=False):
         'archiveSha256': ARCHIVE_SHA, 'source': f'https://github.com/be5invis/Sarasa-Gothic/releases/tag/v{VERSION}',
         'license': f'https://github.com/be5invis/Sarasa-Gothic/blob/v{VERSION}/LICENSE',
         'licenseName': 'Sarasa SIL Open Font License 1.1; DejaVu upstream license and distribution copyright',
+        'dejavuSource': 'https://dejavu-fonts.github.io/',
+        'dejavuLicense': 'https://dejavu-fonts.github.io/License.html',
         'scope': 'Explicit original static fonts, never engine synthesis; ordered Latin/CJK chains.'}
     return manifest
 

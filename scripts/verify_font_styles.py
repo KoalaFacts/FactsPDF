@@ -160,40 +160,49 @@ def main():
                 apiRuntimeDynamicCode=api_result['dynamicCodeSupported'])
             previous = result
             evidence['cases'].append({k:v for k,v in result.items() if k != 'bbox'})
+    executables = {'managed-cli': [str(args.dotnet), str(args.cli_dll)]}
+    if args.native_cli: executables['native-aot-cli'] = [str(args.native_cli)]
     evidence['errors'] = []
     for item in fixtures['errors']:
         input_path = args.output / (item['name']+'.html'); input_path.write_text(item['html'])
         selected = {role: manifest['roles'][role][:1] if item.get('latinOnly') else manifest['roles'][role] for role in item['roles']}
         font_args = [arg for role,paths in selected.items() for path in paths for arg in (ROLES[role], path)]
-        for target in ('stdout', 'existing', 'new'):
-            destination = args.output / (item['name']+'-'+target+'.pdf')
-            if target == 'existing': destination.write_bytes(b'keep')
-            elif destination.exists(): destination.unlink()
-            proc = subprocess.run([str(args.dotnet), str(args.cli_dll), str(input_path), '-' if target == 'stdout' else str(destination),
-                '--overwrite', '--subset-fonts', *font_args], capture_output=True, timeout=120)
-            assert proc.returncode == 3 and item['code'].encode() in proc.stderr, proc.stderr
-            assert not proc.stdout, 'Failure emitted partial PDF to stdout'
-            assert destination.read_bytes() == b'keep' if target == 'existing' else not destination.exists()
-            assert not list(args.output.glob('.factspdf-*.tmp')), 'Temporary PDF left after error'
-            if target == 'existing': destination.unlink()
-        evidence['errors'].append({'name': item['name'], 'code': item['code'], 'stdoutEmpty': True,
-            'existingPreserved': True, 'newAbsent': True, 'temporaryFilesAbsent': True})
+        for entrypoint, command in executables.items():
+            for target in ('stdout', 'existing', 'new'):
+                destination = args.output / (item['name']+'-'+entrypoint+'-'+target+'.pdf')
+                if target == 'existing': destination.write_bytes(b'keep')
+                elif destination.exists(): destination.unlink()
+                proc = subprocess.run([*command, str(input_path), '-' if target == 'stdout' else str(destination),
+                    '--overwrite', '--subset-fonts', *font_args], capture_output=True, timeout=120)
+                assert proc.returncode == 3 and item['code'].encode() in proc.stderr, proc.stderr
+                assert not proc.stdout, 'Failure emitted partial PDF to stdout'
+                assert destination.read_bytes() == b'keep' if target == 'existing' else not destination.exists()
+                assert not list(args.output.glob('.factspdf-*.tmp')), 'Temporary PDF left after error'
+                if target == 'existing': destination.unlink()
+            evidence['errors'].append({'name': item['name'], 'entrypoint': entrypoint, 'code': item['code'],
+                'stdoutEmpty': True, 'existingPreserved': True, 'newAbsent': True, 'temporaryFilesAbsent': True})
     # Full original four-CJK embedding exceeds the existing 16 MiB output cap.
     # Keep that boundary; do not enlarge it just to make a sample succeed.
-    full_target = args.output/'full-cjk-budget.pdf'; full_target.write_bytes(b'keep')
     all_font_args = [arg for role,paths in manifest['roles'].items() for path in paths for arg in (ROLES[role], path)]
-    proc = subprocess.run([str(args.dotnet), str(args.cli_dll), str(args.output/'styles-report.html'), str(full_target),
-        '--overwrite', *all_font_args], capture_output=True, timeout=120)
-    assert proc.returncode == 3 and b'FPDF1401' in proc.stderr and not proc.stdout
-    assert full_target.read_bytes() == b'keep'
-    full_target.unlink() # sentinel is not a renderable PDF artifact
-    assert not list(args.output.glob('.factspdf-*.tmp'))
-    evidence['errors'].append({'name': 'full-cjk-output-budget', 'code': 'FPDF1401', 'existingPreserved': True})
-    # Recovery uses the same input/resources after all failure paths.
-    recovered = args.output/'recovered.pdf'
-    run(args.dotnet, args.cli_dll, args.output/'styles-report.html', recovered, '--overwrite', '--subset-fonts', *all_font_args)
-    assert recovered.read_bytes() == (args.output/'styles-report-subset.pdf').read_bytes()
-    evidence['recoveryByteEquality'] = True
+    evidence['recovery'] = []
+    for entrypoint, command in executables.items():
+        for target in ('stdout', 'existing', 'new'):
+            full_target = args.output/('full-cjk-budget-'+entrypoint+'-'+target+'.pdf')
+            if target == 'existing': full_target.write_bytes(b'keep')
+            elif full_target.exists(): full_target.unlink()
+            proc = subprocess.run([*command, str(args.output/'styles-report.html'),
+                '-' if target == 'stdout' else str(full_target), '--overwrite', *all_font_args], capture_output=True, timeout=120)
+            assert proc.returncode == 3 and b'FPDF1401' in proc.stderr and not proc.stdout
+            assert full_target.read_bytes() == b'keep' if target == 'existing' else not full_target.exists()
+            if target == 'existing': full_target.unlink()
+            assert not list(args.output.glob('.factspdf-*.tmp'))
+        evidence['errors'].append({'name': 'full-cjk-output-budget', 'entrypoint': entrypoint,
+            'code': 'FPDF1401', 'stdoutEmpty': True, 'existingPreserved': True, 'newAbsent': True, 'temporaryFilesAbsent': True})
+        # Recovery uses the same input/resources after all failure paths.
+        recovered = args.output/('recovered-'+entrypoint+'.pdf')
+        run(*command, args.output/'styles-report.html', recovered, '--overwrite', '--subset-fonts', *all_font_args)
+        assert recovered.read_bytes() == (args.output/'styles-report-subset.pdf').read_bytes()
+        evidence['recovery'].append({'entrypoint': entrypoint, 'byteEquality': True})
     (args.output/'report.json').write_text(json.dumps(evidence, indent=2, ensure_ascii=False)+'\n')
     print(json.dumps({'cases': [(r['name'],r['mode'],r['pages']) for r in evidence['cases']], 'report': str(args.output/'report.json')}))
 

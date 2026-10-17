@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>PDF search and copy verification</title>
+<link rel="stylesheet" href="/pdf-reader/vendor/web/pdf_viewer.css">
+<style>
+body { margin: 0; font: 16px sans-serif; background: #ddd; }
+header { padding: 10px; background: white; }
+#viewerContainer { position: absolute; inset: 110px 0 0; overflow: auto; }
+#paste { width: 36em; height: 2em; vertical-align: middle; }
+</style>
+<header>
+  <form id="find"><label>Search PDF <input id="query"></label><button>Find</button><output id="matches"></output></form>
+  <label>Paste copied PDF text <textarea id="paste"></textarea></label>
+</header>
+<div id="viewerContainer" tabindex="0"><div id="viewer" class="pdfViewer"></div></div>
+<script type="module" src="/pdf-reader/reader.mjs"></script>
+</html>
