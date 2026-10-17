@@ -10,6 +10,27 @@ namespace FactsPDF;
 /// </summary>
 internal static class PdfPaintSerializer
 {
+    internal static void AppendDiscs(StringBuilder output, IReadOnlyList<PlacedDisc> discs,
+        int maxOutputBytes, CancellationToken cancellation)
+    {
+        foreach (var disc in discs)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var x = disc.X; var y = disc.Y; var r = disc.Radius;
+            if (!double.IsFinite(x + y + r) || r <= 0)
+                throw new InvalidOperationException("Invalid list disc geometry.");
+            // Four cubic arcs; one filled path is one retained display command.
+            var k = r * 0.5522847498307936;
+            var color = disc.Color;
+            output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x + r)} {N(y)} m ");
+            output.Append($"{N(x + r)} {N(y + k)} {N(x + k)} {N(y + r)} {N(x)} {N(y + r)} c ");
+            output.Append($"{N(x - k)} {N(y + r)} {N(x - r)} {N(y + k)} {N(x - r)} {N(y)} c ");
+            output.Append($"{N(x - r)} {N(y - k)} {N(x - k)} {N(y - r)} {N(x)} {N(y - r)} c ");
+            output.Append($"{N(x + k)} {N(y - r)} {N(x + r)} {N(y - k)} {N(x + r)} {N(y)} c f Q\n");
+            if (output.Length > maxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
+        }
+    }
+
     internal static void Append(StringBuilder output, IReadOnlyList<PaintedBox> boxes,
         double pageHeight, int maxOutputBytes, CancellationToken cancellation)
     {

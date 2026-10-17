@@ -4,7 +4,8 @@ internal abstract record BlockLayoutStep;
 internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom) : BlockLayoutStep;
-internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth) : BlockLayoutStep;
+internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
+    ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
@@ -13,11 +14,12 @@ internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, dou
 /// </summary>
 internal static class BlockLayout
 {
-    private readonly record struct Frame(List<BlockChild> Children, int Index, double X,
-        double ContentWidth, double Bottom, bool IsRoot);
+    private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
+        double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
+        double MarkerRightX = 0);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
-        CancellationToken cancellation)
+        CancellationToken cancellation, ListLayout? lists = null)
     {
         ArgumentNullException.ThrowIfNull(root);
         var frames = new Stack<Frame>();
@@ -35,12 +37,19 @@ internal static class BlockLayout
             switch (frame.Children[frame.Index])
             {
                 case ParagraphNode paragraph:
-                    yield return new LayoutParagraph(paragraph.Paragraph, frame.X, frame.ContentWidth);
+                    yield return new LayoutParagraph(paragraph.Paragraph, frame.X, frame.ContentWidth,
+                        lists?.Marker(paragraph.Paragraph), frame.MarkerRightX);
                     break;
                 case BlockNode node:
                 {
                     var style = node.BoxStyle;
-                    var width = frame.ContentWidth;
+                    var gutter = node.Name == "li" ? frame.Gutter : 0;
+                    var x = frame.X + gutter;
+                    var width = frame.ContentWidth - gutter;
+                    if (width < -0.000001)
+                        throw new FactsPdfException("FPDF1302", "List marker gutter exceeds containing content width.", node.SourceOffset);
+                    width = Math.Max(0, width);
+                    var markerRight = node.Name == "li" ? x - frame.MarkerGap : frame.MarkerRightX;
                     double Resolve(CssLength length) => Checked(length.Resolve(width), node.SourceOffset);
                     var left = Resolve(style.PaddingLeft);
                     var right = Resolve(style.PaddingRight);
@@ -51,14 +60,15 @@ internal static class BlockLayout
                     var bTop = style.BorderTop.EffectiveWidth;
                     var bBottom = style.BorderBottom.EffectiveWidth;
                     var inner = style.Width.HasValue
-                        ? Resolve(style.Width.Value) : frame.ContentWidth - left - right - bLeft - bRight;
-                    if (inner < -0.000001 || inner + left + right + bLeft + bRight > frame.ContentWidth + 0.000001)
+                        ? Resolve(style.Width.Value) : width - left - right - bLeft - bRight;
+                    if (inner < -0.000001 || inner + left + right + bLeft + bRight > width + 0.000001)
                         throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", node.SourceOffset);
                     inner = Math.Max(0, inner);
-                    yield return new BeginBlock(top + bTop, style, frame.X,
+                    yield return new BeginBlock(top + bTop, style, x,
                         inner + left + right + bLeft + bRight, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6");
-                    frames.Push(new(node.Children, 0, frame.X + bLeft + left, inner, bottom + bBottom, false));
+                    frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + bLeft + left, inner, bottom + bBottom, false,
+                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight));
                     break;
                 }
                 default:

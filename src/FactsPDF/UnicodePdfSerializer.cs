@@ -112,6 +112,7 @@ internal static class UnicodePdfSerializer
             {
                 cancellation.ThrowIfCancellationRequested(); var content = new StringBuilder();
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
+                PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation);
                 foreach (var run in pages[i].Runs)
                 {
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;

@@ -47,6 +47,13 @@ class PipelineTests(unittest.TestCase):
         rows[1]['pdf_sha256']='c'*64
         with self.assertRaises(ValueError):self.p.check_entrypoints(self.case,rows)
 
+    def test_positive_list_target_requires_matching_successful_entries(self):
+        case=next(c for c in self.manifest['cases'] if c['id']=='T-list')
+        rows=[{**row,'case_id':'T-list'} for row in self.rows()]
+        self.p.check_entrypoints(case,rows)
+        rows[1]['pdf_sha256']='c'*64
+        with self.assertRaises(ValueError):self.p.check_entrypoints(case,rows)
+
     def test_artifact_allowlist_excludes_fonts_binaries_and_secrets(self):
         for name in ('font.ttf','cli.exe','access-token.txt','.env','native.bin','nested/font.otf'):
             with self.assertRaises(ValueError):self.p.public_copy(self.root/name,self.root/'public',name)

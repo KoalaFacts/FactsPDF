@@ -43,7 +43,7 @@ This example uses fontless ASCII mode. Explicit font API examples are in the Uni
 
 | Area | Supported | Not yet supported |
 | --- | --- | --- |
-| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br | Lists, links, tables, images, SVG, forms |
+| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br; bounded ol/ul/li | Links, tables, images, SVG, forms; general list styles/counters |
 | Document shell | html/body, explicit head/title, UTF-8 meta, HTML5 doctype, comments, embedded style | Full HTML5 tree construction, encoding sniffing and browser recovery |
 | Text | ASCII/Courier fallback; explicit static TrueType fonts, simple horizontal Unicode/Chinese, searchable text and optional glyph subsetting | Complete shaping, bidi/RTL, all-script typography, automatic font discovery |
 | Styles | Inline and embedded declarations; tag/class/id/universal/compound/group/descendant/child selectors, bounded author cascade | External stylesheets, at-rules, other selector classes, variables/functions and full CSS recovery |
@@ -88,3 +88,5 @@ CI independently inspects real output using qpdf/Poppler and, for subset inspect
 Historical execution evidence is retained in the first-renderer, Unicode, subsetting and CSS ledgers. A green run for one commit is not proof for later changes. Performance observations identify their exact source/corpus/environment; no universal throughput, cold-start or peak-memory guarantee is created by these documents.
 
 Explicit font-weight/font-style selection and independent four-role chains are documented in the [font style guide](font-styles.md).
+
+Decimal/disc lists, two-level nesting, marker gutters and list pagination limits are documented in the [list guide](lists.md).

@@ -7,7 +7,8 @@ namespace FactsPDF.Tests;
 // No font file is distributed. Real typography is independently tested in CI.
 internal static class FontFixture
 {
-    public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false)
+    public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
+        bool listDigits = false)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -16,6 +17,11 @@ internal static class FontFixture
             [0x4e2d] = 6, [0x6587] = 7, [0xff08] = 8, [0xff09] = 9, [0xff0c] = 10,
             [0x20000] = 11
         };
+        if (listDigits)
+        {
+            for (var scalar = '0'; scalar <= '9'; scalar++) map[scalar] = 2;
+            map['.'] = 4;
+        }
         foreach (var cp in map.Keys.ToArray())
             if ((latinOnly && cp > 255) || (!format12 && cp > 65535)) map.Remove(cp);
         byte[] sub;

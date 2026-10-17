@@ -35,7 +35,7 @@ def check_entrypoints(case: dict, rows: list[dict]) -> None:
     expected=set(case['entrypoints']); found=[r.get('entrypoint') for r in rows]
     if len(found)!=len(set(found)) or set(found)!=expected or any(r.get('case_id')!=case['id'] for r in rows):
         raise ValueError('Missing, duplicate or inapplicable entrypoint result')
-    if case['kind']=='baseline':
+    if case['kind']=='baseline' or all(entry['expected_exit']==0 for entry in case['entrypoints'].values()):
         if any(r.get('status')!='candidate' for r in rows):raise ValueError('Baseline rendering failed')
         if len({(r.get('pdf_sha256'),r.get('pdf_bytes')) for r in rows})!=1:
             raise ValueError('CLI/public API output bytes disagree')
@@ -70,7 +70,8 @@ def report_markdown(summary: dict, cases: list[dict]) -> str:
             ''.join(f"| {c['case_id']} | {c['status']} | {c.get('pages','—')} | {c.get('chrome_pages','—')} |\n" for c in cases)+
             '\n## Browser reference observations (NOT approved)\n\n'+(observations or 'None recorded.\n')+
             '\nNext gate: inspect every native/Chrome page, then approve or correct the reference; '
-            'lists, images, tables and page furniture remain unmet product targets; the legacy T-bold probe supplies no bold resources, while positive C1 style evidence is tracked separately.\n')
+            'images, tables and page furniture remain unmet product targets; T-list is a positive smoke candidate, not complete list verification. '
+            'The legacy T-bold probe supplies no bold resources. Full positive C1 style and C2 list evidence are tracked separately.\n')
 
 
 def compare_images(native: Path, chrome: Path, public: Path, ident: str) -> dict:

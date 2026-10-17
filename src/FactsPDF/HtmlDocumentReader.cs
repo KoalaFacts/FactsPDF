@@ -4,7 +4,9 @@ internal static class HtmlDocumentReader
 {
     private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
-    private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html";
+    private static bool ListTag(string name) => name is "ol" or "ul";
+    private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li";
+    private static bool BoxTag(string name) => ParagraphTag(name) || Container(name) && name != "html";
 
     private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em";
 
@@ -71,12 +73,21 @@ internal static class HtmlDocumentReader
                         throw new FactsPdfException("FPDF1101", "Non-metadata text inside head is not supported.", token.Offset);
                     continue;
                 }
-                Add(HtmlTokens.Decode(token.Value, token.Offset), stack[^1].Style);
+                var decoded = HtmlTokens.Decode(token.Value, token.Offset);
+                if (ListTag(stack[^1].Name))
+                {
+                    if (!decoded.All(HtmlTokens.Space))
+                        throw new FactsPdfException("FPDF1101", "Lists may contain only direct li children and whitespace.", token.Offset);
+                    continue;
+                }
+                Add(decoded, stack[^1].Style);
                 continue;
             }
             var name = token.Value;
             if (name == "style")
             {
+                if (ListTag(stack[^1].Name))
+                    throw new FactsPdfException("FPDF1101", "style cannot be a direct list child.", token.Offset);
                 if (token.Kind == HtmlTokenKind.End)
                 {
                     if (!insideStyle) throw new FactsPdfException("FPDF1101", "Unexpected style end tag.", token.Offset);
@@ -93,6 +104,7 @@ internal static class HtmlDocumentReader
             if (token.Kind == HtmlTokenKind.End)
             {
                 if (stack[^1].Name == "p" && name != "p" && Container(name)) { Flush(); Pop(); }
+                if (ListTag(name) && stack[^1].Name == "li") { Flush(); Pop(); }
                 if (stack.Count == 1 || stack[^1].Name != name)
                     throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{name}'.", token.Offset);
                 if (ParagraphTag(name) || Container(name)) Flush();
@@ -102,8 +114,14 @@ internal static class HtmlDocumentReader
             if (token.SelfClosing && name is not ("br" or "meta"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if ((ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
+            if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
             if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name)))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
+            if (ListTag(stack[^1].Name) && name != "li" || name == "li" && !ListTag(stack[^1].Name))
+                throw new FactsPdfException("FPDF1101", "li must be a direct child of ol/ul, whose only element children are li.", token.Offset);
+            if (ListTag(name) && stack.Count(f => ListTag(f.Name)) >= 2)
+                throw new FactsPdfException("FPDF1101", "Lists support at most two nested levels.", token.Offset);
+            if (ListTag(name)) result.HasLists = true;
             if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta")))
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
@@ -137,7 +155,7 @@ internal static class HtmlDocumentReader
             path.Add(CssElement.From(token));
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, parent, root, parentBox, path,
-                    ParagraphTag(name), ParagraphTag(name) || name is "body" or "div" or "section" or "article",
+                    ParagraphTag(name), BoxTag(name),
                     token.Offset, allowStyling: name != "br");
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
@@ -146,7 +164,7 @@ internal static class HtmlDocumentReader
             // `html`, head/title metadata and spans remain structural
             // inheritance/style contexts, never painted block boxes.
             BlockNode? box = null;
-            if (ParagraphTag(name) || name is "body" or "div" or "section" or "article")
+            if (BoxTag(name))
             {
                 box = new BlockNode(name, style, boxStyle, token.Offset);
                 CurrentChildren().Add(box);

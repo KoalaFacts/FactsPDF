@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import { cases, unsupportedHtml } from './fixtures.mjs';
 import { styleCases, styleErrorCases } from './style_fixtures.mjs';
+import { listAscii, listReport, listErrors } from './list_fixtures.mjs';
 import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
 import { captureResourceTimings } from './resource_timings.mjs';
@@ -25,6 +26,7 @@ const fontPaths = JSON.parse(process.env.FACTSPDF_PROBE_FONTS ?? '[]');
 const styleManifest = process.env.FACTSPDF_STYLE_MANIFEST ? JSON.parse(await readFile(process.env.FACTSPDF_STYLE_MANIFEST, 'utf8')) : null;
 const selectedStyles = styleManifest ? styleCases : [];
 const selectedStyleErrors = styleManifest ? styleErrorCases : [];
+const basicCases = [...cases, listAscii, ...(styleManifest ? [listReport] : [])];
 const styleFlags = { normal: '--font', bold: '--font-bold', italic: '--font-italic', boldItalic: '--font-bold-italic' };
 const styleUrls = {};
 const rolePaths = selection => Object.fromEntries(Object.entries(styleManifest.roles)
@@ -52,7 +54,7 @@ async function loadDirectory(directory) {
 await loadDirectory(root);
 assert.ok(files.has('/index.html') && assets.some(a => a.name.endsWith('.wasm')), 'Publish the real WASM host first');
 files.set('/', files.get('/index.html'));
-const inputs = [...cases, ...selectedStyles, ...selectedStyleErrors, { name: 'unsupported', html: unsupportedHtml }].map(item => {
+const inputs = [...basicCases, ...listErrors, ...selectedStyles, ...selectedStyleErrors, { name: 'unsupported', html: unsupportedHtml }].map(item => {
   const bytes = Buffer.from(item.html, 'utf8');
   files.set(`/probe-inputs/${item.name}.html`, { bytes, type: 'text/html' });
   return { name: item.name, bytes: bytes.length, sha256: hash(bytes) };
@@ -141,8 +143,9 @@ try {
   const call = (name, fontUrls) => withDeadline(page.evaluate(async ({ name, fontUrls }) =>
     window.factspdfProbe.convert(`/probe-inputs/${name}.html`, fontUrls, fontUrls.length > 0), { name, fontUrls }),
     30000, `Browser conversion ${name}`);
-  for (const item of cases) {
-    const fontUrls = item.fonts ? ['/probe-fonts/0.ttf', '/probe-fonts/1.ttf'] : [];
+  for (const item of basicCases) {
+    const chosenPaths = item.fonts === 'style-normal' ? styleManifest.roles.normal : item.fonts ? fontPaths : [];
+    const fontUrls = item.fonts === 'style-normal' ? styleUrls.normal : item.fonts ? ['/probe-fonts/0.ttf', '/probe-fonts/1.ttf'] : [];
     const samples = [];
     for (let attempt = 0; attempt < 4; attempt++) {
       const result = await call(item.name, fontUrls);
@@ -158,16 +161,32 @@ try {
         const inputPath = join(output, `${item.name}.html`);
         await writeFile(browserPath, bytes); await writeFile(inputPath, item.html);
         const args = [...(dll ? [dll] : []), inputPath, cliPath, '--overwrite',
-          ...(item.fonts ? [...fontPaths.flatMap(p => ['--font', p]), '--subset-fonts'] : [])];
+          ...(chosenPaths.length ? [...chosenPaths.flatMap(p => ['--font', p]), '--subset-fonts'] : [])];
         await direct(executable, args, { timeout: 30000 });
         const cliBytes = await readFile(cliPath);
         const rasterEvidence = await inspectPair(browserPath, cliPath, item);
         assert.deepEqual(bytes, cliBytes, 'Browser WASM PDF differs from same-input CLI PDF');
+        let viewerInteraction;
+        if (item.reader) {
+          const pdfUrl = `/pdf-reader/${item.name}.pdf`;
+          files.set(pdfUrl, { bytes, type: 'application/pdf' });
+          viewerInteraction = await inspectReader(context, server.origin, pdfUrl, item, join(output, `${item.name}-viewer.png`));
+        }
         report.cases.push({ name: item.name, bytes: bytes.length, sha256: hash(bytes), cliSha256: hash(cliBytes),
-          pages: item.pages, byteEquality: true, qpdf: 'pass', text: 'pass', boundingBoxes: 'equal', rasterPages: 'equal', rasterEvidence, samples });
+          pages: item.pages, byteEquality: true, qpdf: 'pass', text: 'pass', boundingBoxes: 'equal', rasterPages: 'equal', rasterEvidence, samples, viewerInteraction });
       } else assert.equal(samples[attempt].sha256, samples[0].sha256, 'Repeated conversion differs');
     }
   }
+  for (const item of listErrors) {
+    const result = await call(item.name, []);
+    assert.equal(result.errorCode, item.code, JSON.stringify(result));
+    assert.equal(result.pdfBase64, null);
+    report.cases.push({ name: item.name, errorCode: result.errorCode, noPdf: true });
+  }
+  const listRecovery = await call(listAscii.name, []);
+  assert.equal(listRecovery.errorCode, null);
+  assert.equal(hash(Buffer.from(listRecovery.pdfBase64, 'base64')), report.cases.find(item => item.name === listAscii.name).sha256);
+  report.cases.push({ name: 'lists-recovery', byteEquality: true });
   const styleCall = (name, roles, subset = true) => withDeadline(page.evaluate(async ({ name, roles, subset }) =>
     window.factspdfProbe.convertStyles(`/probe-inputs/${name}.html`, roles, subset), { name, roles, subset }),
     90000, `Browser style conversion ${name}`);
@@ -270,6 +289,7 @@ try {
       source: report.source, browser: report.browser, runtime: report.runtime, buildProperties: report.build.properties,
       styleFonts: report.styleFonts?.fonts.map(({ role, order, bytes, sha256 }) => ({ role, order, bytes, sha256 })),
       styleResults: report.cases.filter(item => item.name.startsWith('style')),
+      listResults: report.cases.filter(item => item.name.startsWith('lists')),
       failure: report.failure }));
   }, report);
 }
