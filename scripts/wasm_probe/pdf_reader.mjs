@@ -20,8 +20,9 @@ eventBus.on('updatefindmatchescount', ({ matchesCount }) => {
   evidence.matches = matchesCount;
   document.querySelector('#matches').textContent = `${matchesCount.current} / ${matchesCount.total}`;
 });
-eventBus.on('updatefindcontrolstate', ({ state, matchesCount }) => {
+eventBus.on('updatefindcontrolstate', ({ state, matchesCount, rawQuery }) => {
   evidence.findState = state;
+  evidence.completedQuery = rawQuery;
   evidence.matches = matchesCount;
 });
 document.querySelector('#find').addEventListener('submit', event => {

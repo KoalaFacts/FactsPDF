@@ -36,19 +36,22 @@ export async function inspectReader(context, origin, url, item, screenshot) {
     for (const query of queries[item.name]) {
       await page.locator('#query').fill(query);
       await page.locator('#find button').click();
-      await page.waitForFunction(() => window.readerEvidence.matches?.total > 0);
+      await page.waitForFunction(query => window.readerEvidence.completedQuery === query &&
+        [0, 2].includes(window.readerEvidence.findState) && window.readerEvidence.matches?.total > 0, query);
       await page.locator('.textLayer .highlight.selected').first().waitFor({ state: 'visible' });
       // Select the rendered search match, including every style span it crosses.
       // Browser copy/paste remains the native keyboard operation, with no clipboard API grant.
-      const selected = await page.evaluate(() => {
+      await page.waitForFunction(query => {
         document.querySelector('#query').blur();
         document.querySelector('#viewerContainer').focus();
         const highlights = [...document.querySelectorAll('.textLayer .highlight.selected')];
+        if (!highlights.length) return false;
         const range = document.createRange();
         range.setStartBefore(highlights[0]); range.setEndAfter(highlights.at(-1));
         const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
-        return selection.toString();
-      });
+        return selection.toString().replace(/\s+/gu, ' ').trim() === query;
+      }, query);
+      const selected = await page.evaluate(() => getSelection().toString());
       assert.equal(compact(selected), query, 'Rendered PDF selection differs from source phrase');
       await page.keyboard.press('Control+c');
       await page.locator('#paste').fill('');
