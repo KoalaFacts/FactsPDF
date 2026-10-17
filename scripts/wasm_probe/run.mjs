@@ -264,7 +264,13 @@ try {
   await finishBrowserCleanup(() => browser?.close(), async () => {
     await server.close();
     await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-    console.log(JSON.stringify({ status: report.status, cases: report.cases.length, report: join(output, 'report.json'), failure: report.failure }));
+    // Keep reviewable provenance and assertions in normal CI logs as well as the
+    // artifact report. Never serialize PDF/font/image bytes into logs.
+    console.log(JSON.stringify({ status: report.status, cases: report.cases.length, report: join(output, 'report.json'),
+      source: report.source, browser: report.browser, runtime: report.runtime, buildProperties: report.build.properties,
+      styleFonts: report.styleFonts?.fonts.map(({ role, order, bytes, sha256 }) => ({ role, order, bytes, sha256 })),
+      styleResults: report.cases.filter(item => item.name.startsWith('style')),
+      failure: report.failure }));
   }, report);
 }
 
