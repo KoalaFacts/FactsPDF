@@ -16,6 +16,18 @@ internal static class InlineCss
             if (value.Length == 0 || value.Contains('!')) throw Invalid("Empty values and !important are not supported.", offset);
             switch (name)
             {
+                case "font-weight":
+                    var weight = value switch { "normal" => 400, "bold" => 700, _ => Number(value, offset) };
+                    if (weight is not (400 or 700)) throw Invalid("font-weight supports only normal/400 and bold/700.", offset);
+                    style = style with { Bold = weight == 700 };
+                    break;
+                case "font-style":
+                    style = style with { Italic = value switch
+                    {
+                        "normal" => false, "italic" => true,
+                        _ => throw Invalid("font-style supports only normal and italic.", offset)
+                    } };
+                    break;
                 case "font-size":
                     var size = Length(value, offset);
                     if (size is < 1 or > 144) throw Invalid("font-size must be between 1pt and 144pt.", offset);

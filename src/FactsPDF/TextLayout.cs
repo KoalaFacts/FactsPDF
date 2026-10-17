@@ -6,7 +6,7 @@ namespace FactsPDF;
 
 internal static class TextLayout
 {
-    private readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000)
+    private readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000, int SourceOffset = -1)
     {
         public double Width => Style.FontSize * Width1000 / 1000;
     }
@@ -32,7 +32,7 @@ internal static class TextLayout
     private static List<LayoutPage> LayoutCore(IEnumerable<BlockLayoutStep> steps, PdfOptions o, CancellationToken cancellation)
     {
         var pages = new List<LayoutPage> { new() };
-        var resolved = new Dictionary<int, (PdfFont? Font, double Width)>();
+        var resolved = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
         var y = o.Margin; var after = 0d; var breakNext = false;
         // Retain pending top padding only for still-open blocks. Closed empty
         // predecessors contribute trailing spacing; a spanning box receives
@@ -227,7 +227,7 @@ internal static class TextLayout
             // without emitting text commands and must retain that behavior.
             if (displayCommands == o.MaxDisplayCommands && HasTextContent(paragraph, cancellation))
                 ChargeDisplayCommands(1);
-            using var lines = Wrap(paragraph, item.ContentWidth, o.Fonts, resolved, cancellation).GetEnumerator();
+            using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation).GetEnumerator();
             if (!lines.MoveNext())
             {
                 // Empty painted/padded paragraphs still occupy box geometry
@@ -351,13 +351,15 @@ internal static class TextLayout
         return false;
     }
 
-    private static IEnumerable<Line> Wrap(Paragraph paragraph, double available, IReadOnlyList<PdfFont> fonts,
-        Dictionary<int, (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+    private static IEnumerable<Line> Wrap(Paragraph paragraph, double available, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
     {
-        Glyph Resolve(int scalar, TextStyle style)
+        Glyph Resolve(int scalar, TextStyle style, int sourceOffset)
         {
-            if (!resolved.TryGetValue(scalar, out var value))
+            var role = FontRoles.Role(style);
+            if (!resolved.TryGetValue((role, scalar), out var value))
             {
+                var fonts = FontRoles.Chain(options, role, sourceOffset);
                 if (fonts.Count == 0)
                 {
                     if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.");
@@ -368,12 +370,14 @@ internal static class TextLayout
                     CheckSimpleScalar(scalar);
                     PdfFont? chosen = null; ushort glyph = 0;
                     foreach (var font in fonts) { glyph = font.GlyphFor(scalar); if (glyph != 0) { chosen = font; break; } }
-                    if (chosen is null) throw new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.");
+                    if (chosen is null) throw role == FontRole.Normal
+                        ? new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.")
+                        : new FactsPdfException("FPDF1504", $"No supplied {FontRoles.Name(role)} font contains U+{scalar:X4}.", sourceOffset);
                     value = (chosen, chosen.Width1000(glyph));
                 }
-                resolved.Add(scalar, value);
+                resolved.Add((role, scalar), value);
             }
-            return new(scalar, style, value.Font, value.Width);
+            return new(scalar, style, value.Font, value.Width, sourceOffset);
         }
         IEnumerable<Glyph> ReadGlyphs()
         {
@@ -386,7 +390,7 @@ internal static class TextLayout
                 {
                     pendingSpace = null;
                     afterText = false;
-                    yield return new Glyph(10, run.Style, null, 0);
+                    yield return new Glyph(10, run.Style, null, 0, run.SourceOffset);
                     continue;
                 }
                 for (var i = 0; i < run.Text.Length;)
@@ -402,7 +406,7 @@ internal static class TextLayout
                         // break/end removes this space. Its font diagnostic
                         // and the first whitespace run's style are preserved.
                         if (afterText && !pendingSpace.HasValue)
-                            pendingSpace = Resolve(32, run.Style);
+                            pendingSpace = Resolve(32, run.Style, run.SourceOffset);
                     }
                     else
                     {
@@ -411,7 +415,7 @@ internal static class TextLayout
                             yield return pendingSpace.Value;
                             pendingSpace = null;
                         }
-                        yield return Resolve(scalar, run.Style);
+                        yield return Resolve(scalar, run.Style, run.SourceOffset);
                         afterText = true;
                     }
                 }
@@ -448,8 +452,9 @@ internal static class TextLayout
         // ascent/descent; the parent's invisible strut is always present.
         // Using glyph fallback hhea metrics here incorrectly moves all text
         // baselines on mixed Latin/CJK lines and inflates explicit line-height.
-        (double Ascent, double Descent) Metrics(TextStyle style)
+        (double Ascent, double Descent) Metrics(TextStyle style, int sourceOffset)
         {
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
             var size = style.FontSize;
             var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
             var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
@@ -458,10 +463,10 @@ internal static class TextLayout
         }
         Line CurrentLine()
         {
-            var (ascent, descent) = Metrics(paragraph.Style);
+            var (ascent, descent) = Metrics(paragraph.Style, paragraph.SourceOffset);
             foreach (var glyph in current)
             {
-                var (glyphAscent, glyphDescent) = Metrics(glyph.Style);
+                var (glyphAscent, glyphDescent) = Metrics(glyph.Style, glyph.SourceOffset);
                 ascent = Math.Max(ascent, glyphAscent);
                 descent = Math.Max(descent, glyphDescent);
             }

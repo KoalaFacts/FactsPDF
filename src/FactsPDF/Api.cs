@@ -14,6 +14,12 @@ public sealed record PdfOptions
     public int MaxOutputBytes { get; init; } = 16_777_216;
     /// <summary>Ordered explicit font fallback chain. Empty retains ASCII/Courier.</summary>
     public IReadOnlyList<PdfFont> Fonts { get; init; } = Array.Empty<PdfFont>();
+    /// <summary>Ordered explicit fallback for bold text. No synthetic weight or cross-style fallback.</summary>
+    public IReadOnlyList<PdfFont> BoldFonts { get; init; } = Array.Empty<PdfFont>();
+    /// <summary>Ordered explicit fallback for italic text. No synthetic slant or cross-style fallback.</summary>
+    public IReadOnlyList<PdfFont> ItalicFonts { get; init; } = Array.Empty<PdfFont>();
+    /// <summary>Ordered explicit fallback for text that is both bold and italic.</summary>
+    public IReadOnlyList<PdfFont> BoldItalicFonts { get; init; } = Array.Empty<PdfFont>();
     public int MaxTotalFontBytes { get; init; } = 67_108_864;
     /// <summary>Opt in to glyph subsetting where the supplied font permits it; otherwise embed fully.</summary>
     public bool SubsetFonts { get; init; }

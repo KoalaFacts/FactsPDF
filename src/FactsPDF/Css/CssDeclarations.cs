@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal enum CssProperty
 {
-    FontSize, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter,
+    FontSize, FontWeight, FontStyle, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter,
     Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
@@ -19,11 +19,13 @@ internal static class CssDeclarations
             throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
         if (declaration.Value is not ("inherit" or "initial" or "unset"))
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
-        var inherited = property is CssProperty.FontSize or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         return property switch
         {
             CssProperty.FontSize => style with { FontSize = source.FontSize },
+            CssProperty.FontWeight => style with { Bold = source.Bold },
+            CssProperty.FontStyle => style with { Italic = source.Italic },
             CssProperty.Color => style with { Color = source.Color },
             CssProperty.LineHeight => style with { LineHeight = source.LineHeight },
             CssProperty.TextAlign => style with { Alignment = source.Alignment },

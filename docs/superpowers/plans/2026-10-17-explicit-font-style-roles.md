@@ -33,11 +33,11 @@
 
 **Interfaces:** Public default-empty `BoldFonts`, `ItalicFonts`, `BoldItalicFonts` on PdfOptions; internal role selection from computed weight/style; existing conversion/font loader signatures unchanged. Missing requested styled chain FPDF1507; missing glyph FPDF1504 identifies role.
 
-- [ ] Add API-availability/default tests and observe missing-property assertions fail against current API, then add the three empty properties.
-- [ ] Add runtime tests using synthetic fonts with distinct names/advances/glyph coverage: style tags/CSS combinations, all roles/cache, no-pairing and no-cross-role fallback, Courier+embedded, struts/source errors, eight/nine entries, total bytes, same-object reuse, nulls, concurrent isolation, old paths. Observe unsupported HTML/CSS/wrong metrics/errors before production changes.
-- [ ] Implement role snapshot/validation, independent weight/style cascade and inline defaults, role-aware fallback/metrics/cache, and minimal mixed Courier serialization. No unrelated font parser or layout rewrite.
-- [ ] Run `dotnet test FactsPDF.slnx -c Release` with local SDK10 env; all tests must pass, and old rejection cases become new positive/missing-role tests rather than being dropped.
-- [ ] Commit the core change with red/green logs and task completion in the ledger.
+- [x] Add API-availability/default tests and observe missing-property assertions fail against current API, then add the three empty properties.
+- [x] Add runtime tests using synthetic fonts with distinct names/advances/glyph coverage: style tags/CSS combinations, all roles/cache, no-pairing and no-cross-role fallback, Courier+embedded, struts/source errors, eight/nine entries, total bytes, same-object reuse, nulls, concurrent isolation, old paths. Observe unsupported HTML/CSS/wrong metrics/errors before production changes.
+- [x] Implement role snapshot/validation, independent weight/style cascade and inline defaults, role-aware fallback/metrics/cache, and minimal mixed Courier serialization. No unrelated font parser or layout rewrite.
+- [x] Run `dotnet test FactsPDF.slnx -c Release` with local SDK10 env; all tests must pass, and old rejection cases become new positive/missing-role tests rather than being dropped.
+- [x] Commit the core change with red/green logs and task completion in the ledger.
 
 ### Task 2: CLI and private WASM adapters
 

@@ -38,12 +38,14 @@ internal static class UnicodePdfSerializer
 
     internal static MemoryStream Build(List<LayoutPage> pages, PdfOptions o, CancellationToken cancellation)
     {
+        var hasCourier = false;
         var fonts = new List<FontUse>(); var byFont = new Dictionary<PdfFont, FontUse>();
         foreach (var page in pages)
             foreach (var run in page.Runs)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var font = run.Font ?? throw new InvalidOperationException("Embedded text has no assigned font.");
+                if (run.Font is null) { hasCourier = true; continue; }
+                var font = run.Font;
                 if (!byFont.TryGetValue(font, out var use)) { use = new FontUse(font, fonts.Count); fonts.Add(use); byFont.Add(font, use); }
                 foreach (var rune in run.Text.EnumerateRunes()) use.Register(rune.Value);
             }
@@ -70,7 +72,8 @@ internal static class UnicodePdfSerializer
         {
             Write("%PDF-1.7\n"); output.Write(new byte[] { 0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a });
             Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
-            var firstPage = 3 + fonts.Count * 6;
+            var courierId = 3 + fonts.Count * 6;
+            var firstPage = courierId + (hasCourier ? 1 : 0);
             Obj(2, $"<< /Type /Pages /Count {pages.Count.ToString(CultureInfo.InvariantCulture)} /Kids [" + string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => (firstPage + 2 * i).ToString(CultureInfo.InvariantCulture) + " 0 R")) + "] >>");
             foreach (var use in fonts)
             {
@@ -100,15 +103,22 @@ internal static class UnicodePdfSerializer
                 StreamObject(id + 5, map);
             }
             var resources = string.Join(" ", fonts.Select(f => "/" + f.Resource + " " + f.ObjectId.ToString(CultureInfo.InvariantCulture) + " 0 R"));
+            if (hasCourier)
+            {
+                Obj(courierId, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
+                resources += " /F0 " + courierId.ToString(CultureInfo.InvariantCulture) + " 0 R";
+            }
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested(); var content = new StringBuilder();
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 foreach (var run in pages[i].Runs)
                 {
-                    var use = byFont[run.Font!]; var color = run.Style.Color;
-                    content.Append($"BT /{use.Resource} {N(run.Style.FontSize)} Tf {N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
-                    foreach (var rune in run.Text.EnumerateRunes()) content.Append(use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));
+                    var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
+                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
+                    foreach (var rune in run.Text.EnumerateRunes())
+                        content.Append(use is null ? rune.Value.ToString("X2", CultureInfo.InvariantCulture)
+                            : use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));
                     content.Append("> Tj ET\n");
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }

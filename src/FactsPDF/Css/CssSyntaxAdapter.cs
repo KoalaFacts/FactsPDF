@@ -161,6 +161,7 @@ internal static class CssSyntaxAdapter
     private static CssProperty Property(string name, int offset) => name switch
     {
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
+        "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
