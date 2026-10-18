@@ -1,14 +1,14 @@
-# D1 bounded JPEG implementation plan (conditional on the new interface decision)
+# D1 bounded JPEG implementation plan (LoadImage scope confirmed)
 
 > **For agentic workers:** execute in this session with `superpowers:executing-plans`; use focused red/green checks and a fresh independent whole-branch review before completion. Do not implement the public interface until the concrete decision in the design is resolved.
 
 **Goal:** An explicitly supplied bounded JPEG appears at the correct size/orientation in a real single-page bilingual PDF through the shared .NET/CLI/Node/WASM core; malformed, unsupported and over-budget resources fail deterministically before output copying.
 
-**Base:** main `d1e9aa31dd54a244145dc3771b7bfa3a4fad3fa3`, isolated branch `feat/bounded-jpeg`. C1/C2 are complete. No AGENTS.md was found in the selected workspace. [Design](../specs/2026-10-18-bounded-jpeg-design.md) is a proposal, not a product support claim. No Pages retry, settings/permission change, release or Library upload belongs to this plan.
+**Base:** main `d1e9aa31dd54a244145dc3771b7bfa3a4fad3fa3`, isolated branch `feat/bounded-jpeg`. C1/C2 are complete. No AGENTS.md was found in the selected workspace. [Design](../specs/2026-10-18-bounded-jpeg-design.md) is confirmed for implementation; actual support still requires the tests and PDF acceptance below. No Pages retry, settings/permission change, release or Library upload belongs to this plan.
 
 **Architecture:** immutable explicit resource loader → bounded marker/Huffman validation → per-conversion resource snapshot → block image leaf → atomic image placement → shared binary DCT XObject writer. Existing no-image conversion remains byte-compatible. Pillow/Poppler/qpdf/pypdf are independent verification tools only; no added runtime dependency.
 
-**Decision before Task 2:** confirm the proposed `PdfImage.LoadJpeg`, `PdfImageLimits`, `PdfOptions.Images` map and CLI `--image name=path`, together with baseline JFIF/upright/block-only/outside-lists first-stage semantics. This is the previously unapproved image public API, not a request to repeat ordinary execution/merge authorization.
+**Decision resolved 2026-10-18 01:50 UTC:** user confirmed the presented scope with “loadimage 比较好”; use content-identified `LoadImage` (baseline JPEG only; other formats explicitly rejected), retaining the proposed `PdfImage.LoadImage`, `PdfImageLimits`, `PdfOptions.Images` map and CLI `--image name=path`, together with baseline JFIF/upright/block-only/outside-lists first-stage semantics. This is the previously unapproved image public API, not a request to repeat ordinary execution/merge authorization.
 
 ## Task 1 — Design, authored resource corpus and independent review
 
@@ -19,19 +19,19 @@ Files: this plan; paired design; `scripts/jpeg_fixtures.py`; `tests/fixtures/jpe
 - [x] Independently decode positive source images; inspect asymmetric chart. Verify dimensions, all file hashes and mutated over-limit headers without decoding those large declarations.
 - [x] Self-review spec/fixture consistency and have an independent design reviewer examine public contract, JPEG correctness, bounded work, compatibility, output and testability. Resolve actual findings; do not label product decision approved from a technical review alone. Two rounds completed: R1–R4 and implementation notes closed; no remaining design blocker.
 - [x] Record exact pending product decision and review evidence in the handoff.
-- [ ] Once the product decision is resolved, update design status with the actual instruction, not an inferred blanket approval.
+- [x] Product decision recorded from the explicit 2026-10-18 instruction: LoadImage, content recognition, the agreed JPEG/block/named-resource/CLI scope.
 - [x] Commit the design/fixtures as their own reviewable change. Do not update supported examples/README to claim image implementation yet.
 
 ## Task 2 — Immutable byte resource and complete bounded baseline scan validation
 
-Create `src/FactsPDF/Images/{PdfImage.cs,PdfImageLimits.cs,JpegReader.cs,JpegEntropyReader.cs}` and `tests/FactsPDF.Tests/{JpegResourceTests.cs,JpegEntropyTests.cs,JpegResourceBoundaryTests.cs}`. Update test project fixture content copying only as needed. Public signatures/defaults exactly as approved in the design; internal `JpegReader.Read(ReadOnlySpan<byte>, PdfImageLimits, CancellationToken)` returns validated pixel/component metadata. Internal entropy reader consumes a single scan using validated fixed-size table/component metadata; it does not own/copy a pixel plane.
+Create `src/FactsPDF/Images/{PdfImage.cs,PdfImageLimits.cs,JpegReader.cs,JpegEntropyReader.cs,JpegExif.cs}` and `tests/FactsPDF.Tests/{JpegResourceTests.cs,JpegEntropyTests.cs,JpegResourceBoundaryTests.cs}`. Update test project fixture content copying only as needed. Public signatures/defaults exactly as approved in the design; internal `JpegReader.Read(ReadOnlySpan<byte>, PdfImageLimits, CancellationToken)` returns validated pixel/component metadata. Internal entropy reader consumes a single scan using validated fixed-size table/component metadata; it does not own/copy a pixel plane.
 
-- [ ] Write externally observable loader tests first: ten positive files and all 25 proposed rejection files, plus immutable span ownership, nonseek/short-read stream, stream left open, length limit+1, option misuse and pre-cancellation. Run the targeted tests and retain actual RED due to missing loader behavior, not unrelated setup failures.
-- [ ] Implement bounded stream/span loading and marker range checks. Read SOF dimensions and check all derived budgets before entering entropy or allocating size-dependent state. Validate supported JFIF, tables, component IDs/sampling, scan references and bounded Exif orientation exactly as the design; reject unsupported forms explicitly.
-- [ ] Add small hand-authored Huffman/entropy tests before implementing that stage: valid DC0/EOB, amplitude extremes, ZRL at legal boundary, invalid run overflow/category/code, truncated amplitude/MCU, FF00, bad padding, missing/extra/out-of-order restarts, first/last partial MCU and early/final EOI. Cover legal short/long FF marker fill before headers/EOI/RST, only-FF-to-EOF and FF…00 distinctions, with cancellation inside long fill traversal. Preserve complete symbol payload in the oversubscribed-prefix fixture. Assert codes and bounded completion without calling the product parser to synthesize expected answers.
-- [ ] Implement fixed table storage/canonical Huffman decoding, expected MCU/block traversal, restart interval/sequence and final padding/EOI checks. Do not substitute SOI/EOI detection or a permissive pixel decoder for the declared validation contract.
-- [ ] Verify exact byte/dimension/pixel/decoded-byte/MCU and fixed metadata/segment boundaries; 64-bit checked arithmetic; cancellation during stream/IFD/scan work. Confirm no IDCT/full pixel allocation and no new package reference.
-- [ ] Run `dotnet test FactsPDF.slnx -c Release --filter 'FullyQualifiedName~Jpeg'`; inspect failures before implementation expansion. Commit loader stage only after meaningful tests pass.
+- [x] Write externally observable loader tests first: ten positive files and all 25 proposed rejection files, plus immutable span ownership, nonseek/short-read stream, stream left open, length limit+1, option misuse and pre-cancellation. Run the targeted tests and retain actual RED due to missing loader behavior, not unrelated setup failures.
+- [x] Implement bounded stream/span loading and marker range checks. Read SOF dimensions and check all derived budgets before entering entropy or allocating size-dependent state. Validate supported JFIF, tables, component IDs/sampling, scan references and bounded Exif orientation exactly as the design; reject unsupported forms explicitly.
+- [x] Add small hand-authored Huffman/entropy tests before implementing that stage: valid DC0/EOB, amplitude extremes, ZRL at legal boundary, invalid run overflow/category/code, truncated amplitude/MCU, FF00, bad padding, missing/extra/out-of-order restarts, first/last partial MCU and early/final EOI. Cover legal short/long FF marker fill before headers/EOI/RST, only-FF-to-EOF and FF…00 distinctions, with cancellation inside long fill traversal. Preserve complete symbol payload in the oversubscribed-prefix fixture. Assert codes and bounded completion without calling the product parser to synthesize expected answers.
+- [x] Implement fixed table storage/canonical Huffman decoding, expected MCU/block traversal, restart interval/sequence and final padding/EOI checks. Do not substitute SOI/EOI detection or a permissive pixel decoder for the declared validation contract.
+- [x] Verify exact byte/dimension/pixel/decoded-byte/MCU and fixed metadata/segment boundaries; 64-bit checked arithmetic; cancellation during stream/IFD/scan work. Confirm no IDCT/full pixel allocation and no new package reference.
+- [x] Run `dotnet test FactsPDF.slnx -c Release --filter 'FullyQualifiedName~Jpeg'`; inspect failures before implementation expansion. Commit loader stage only after meaningful tests pass.
 
 ## Task 3 — Resource map and strict HTML image structure
 
@@ -80,4 +80,4 @@ Create `probes/jpeg/{FactsPDF.Jpeg.csproj,Program.cs}`, `scripts/verify_jpeg.py`
 
 Design-stage evidence is at `/workspace/scratch/factspdf-d1-jpeg`; it is not product acceptance. Keep a progress ledger recording exact commands/results/heads, review rounds and the user's actual API decision. A future parser defect, resource bound gap or independent render failure blocks that stage; report the concrete failing case and fix it before continuing. An unsupported browser capability does not authorize policy bypass.
 
-Current state: Task 1 design/fixtures and two-round independent review are complete; only the specified new public-interface decision remains pending before implementation. Tasks 2–6 remain unexecuted; there is no D1 implementation, test-green claim, PDF output, CI evidence, merge or upload yet.
+Current state: Task 1 design/fixtures and two-round independent review are complete; the specified interface decision is now resolved with LoadImage naming. Tasks 2–6 remain unexecuted; there is no D1 implementation, test-green claim, PDF output, CI evidence, merge or upload yet.

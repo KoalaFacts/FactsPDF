@@ -1,8 +1,8 @@
-# D1：显式 JPEG 资源与最小图文输出契约（待接口决定）
+# D1：显式 JPEG 资源与最小图文输出契约（范围已确认）
 
 日期：2026-10-18。基线：C2 已合并的 main `d1e9aa31dd54a244145dc3771b7bfa3a4fad3fa3`。
 
-状态：设计及真实资源 fixture，不是 JPEG 已支持的声明。用户授权继续 D1 设计、独立复核，并在没有产品决策缺口时接续最小实现。历史范围明确未批准图像公共 API；本稿把这项新接口选择具体化，供父任务/用户决定。尚未修改引擎、CLI、WASM、工作流或支持矩阵，未生成或批准 D1 PDF 参考，未上传资源或截图。
+状态：2026-10-18 01:50 UTC 用户对已列明接口范围回复“loadimage 比较好”，确认该范围并将公共方法命名为 `PdfImage.LoadImage`。按输入字节识别格式，首版仅支持下述 baseline JPEG；其他格式明确报错，无 PNG 实现或自动下载。正常实现、测试、PR 评论处理、CI、转待审及合并均已获连续执行授权。后续段落保留设计时的论证历史；其中待确认状态由本条取代。设计及真实资源 fixture 仍不是 JPEG 已支持的声明。用户授权继续 D1 设计、独立复核，并在没有产品决策缺口时接续最小实现。历史范围明确未批准图像公共 API；本稿把这项新接口选择具体化，供父任务/用户决定。尚未修改引擎、CLI、WASM、工作流或支持矩阵，未生成或批准 D1 PDF 参考，未上传资源或截图。
 
 ## 1. 范围与推荐
 
@@ -34,9 +34,9 @@ public sealed class PdfImage
     public int PixelWidth { get; }
     public int PixelHeight { get; }
     public int ByteLength { get; }
-    public static PdfImage LoadJpeg(ReadOnlySpan<byte> source,
+    public static PdfImage LoadImage(ReadOnlySpan<byte> source,
         PdfImageLimits? limits = null, CancellationToken cancellationToken = default);
-    public static PdfImage LoadJpeg(Stream source,
+    public static PdfImage LoadImage(Stream source,
         PdfImageLimits? limits = null, CancellationToken cancellationToken = default);
 }
 // Additions to PdfOptions (existing defaults and overloads stay compatible):
@@ -55,7 +55,7 @@ public int MaxTotalImageBytes { get; init; } = 33_554_432;
 
 拟议 CLI：`--image chart=/explicit/path/chart.jpg`，可重复最多 16 次。按第一个 `=` 分隔名称和路径，路径中可含后续 `=`；路径相对当前工作目录，不相对 HTML。拒绝重名、空名称/路径、`-` 资源路径、缺参数与超数；名称检查与核心相同。与字体一样，CLI 用流加载并扣除剩余总额度；不先 `ReadAllBytes` 无界读取。禁止输出路径与输入 HTML、任一字体或任一图片路径相同，保留既有路径比较规则、临时文件与覆盖行为，不声称全面阻止符号链接别名。
 
-Node 探针只在现有 `scripts/node_cli_process.mjs` 的通用 shell=false argv 调用中传递显式图片参数，不新增公开 Node 接口。WASM 只扩展私有探针：调用方提供名称和 `Uint8Array`，JS 在打包前先核对数量/名称/单图长度/总额度；.NET 导出再次核对名称数组、打包字节、长度数组的对应关系和总和，再调用同一 `LoadJpeg`。不增加图片 URL/fetch 入口，不复用现有字体宿主的无界 `response.arrayBuffer()` 读法。CI 宿主从固定本地 fixture 提供测试字节，不是新的公开 JS SDK。调用方已经创建的数组和 interop 分配不能由 loader 追溯约束。私有协议形状/名称错误使用 `B2_INPUT_IMAGES`，JS 打包前额度错误用 `B2_RESOURCE_LIMIT`，直接 .NET 协议额度错误仍为 `FPDF1603`；均不返回 PDF。
+Node 探针只在现有 `scripts/node_cli_process.mjs` 的通用 shell=false argv 调用中传递显式图片参数，不新增公开 Node 接口。WASM 只扩展私有探针：调用方提供名称和 `Uint8Array`，JS 在打包前先核对数量/名称/单图长度/总额度；.NET 导出再次核对名称数组、打包字节、长度数组的对应关系和总和，再调用同一 `LoadImage`。不增加图片 URL/fetch 入口，不复用现有字体宿主的无界 `response.arrayBuffer()` 读法。CI 宿主从固定本地 fixture 提供测试字节，不是新的公开 JS SDK。调用方已经创建的数组和 interop 分配不能由 loader 追溯约束。私有协议形状/名称错误使用 `B2_INPUT_IMAGES`，JS 打包前额度错误用 `B2_RESOURCE_LIMIT`，直接 .NET 协议额度错误仍为 `FPDF1603`；均不返回 PDF。
 
 ## 3. 接受的 JPEG 子集
 
@@ -132,11 +132,11 @@ Image XObject：实际 Width/Height、BitsPerComponent=8、DeviceGray 或 Device
 5. qpdf 结构；Poppler 文本/页面边界；pypdf 获取原始 DCT stream 与 fixture SHA 一致；PDF 独立渲染后检查真实像素方向、比例和正文，不只检查 /Width。双语字体复用已有授权 manifest；全部实际页逐页查看，用户参考审批单独保持 pending-review。
 6. 原无图样例字节/旧测试、旧九目标分母及尚未完成项目保持真实。只有新实测通过后才更新 T-image 和支持文档。完整分支独立审查、正常同 head CI/PR 评论、合并后 main 核对；不动 Pages 配置、不发布、不自动上传 Library。
 
-## 7. 唯一需决定的产品接口包
+## 7. 已确认的产品接口包
 
-建议确认上述**显式名称表 + `PdfImage.LoadJpeg`/有界 limits + CLI `--image 名称=路径`**，并接受本次 **baseline JFIF、方向仅 1、块级且列表外** 的首批范围。这是以前未获批准的新图像公共接口/内容语义，不是重复请求常规测试、审查、合并授权。若接受，技术默认额度和内部拆分无需另行逐项审批，按计划继续最小实现；若业务必须支持直接 data URI、相机旋转图、渐进或行内/列表图，应先修订这份具体设计和验收，而不是悄悄扩张实现。
+用户已确认上述显式名称表、有界 limits、CLI `--image 名称=路径`，并指定公共方法使用 **`PdfImage.LoadImage`**。输入按内容识别；首版 baseline JFIF、方向仅 1、块级且列表外的范围保持。其他图片格式明确报 `FPDF1602`，空或截断 JPEG/损坏编码为 `FPDF1601`。此项新图像接口决策已解决，按计划连续实现、测试、审查并通过正常 PR/CI 门槛；不再重复询问。
 
-独立设计审查状态：两轮复核通过，无剩余设计阻塞。首轮三项 P2（重复 src 的既有诊断、Huffman 负例隔离性、入口适用性）及一项 P3（合法 marker fill）均已修订，并完成定向复核；文字投影、Node 实际路径及 WASM 字节入口边界也已补齐。复跑确认 35 个 fixture、10 个正例独立解码通过；这些不是 JPEG 引擎或跨入口通过证据。仅本节的产品接口包仍待决定。实施计划：[2026-10-18-bounded-jpeg.md](../plans/2026-10-18-bounded-jpeg.md)。
+独立设计审查状态：两轮复核通过，无剩余设计阻塞。首轮三项 P2（重复 src 的既有诊断、Huffman 负例隔离性、入口适用性）及一项 P3（合法 marker fill）均已修订，并完成定向复核；文字投影、Node 实际路径及 WASM 字节入口边界也已补齐。复跑确认 35 个 fixture、10 个正例独立解码通过；这些不是 JPEG 引擎或跨入口通过证据。本节的产品接口包随后已按用户 LoadImage 指示确认。实施计划：[2026-10-18-bounded-jpeg.md](../plans/2026-10-18-bounded-jpeg.md)。
 
 ## 来源与标准边界
 
