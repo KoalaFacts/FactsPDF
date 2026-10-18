@@ -48,7 +48,7 @@ export async function inspectImages({ page, context, origin, files, output, exec
     if (item.id === 'D1-report') {
       files.set('/pdf-reader/D1-report.pdf', { bytes, type: 'application/pdf' });
       viewerInteraction = await inspectReader(context, origin, '/pdf-reader/D1-report.pdf',
-        { name: 'D1-report', pages: 1 }, join(output, 'D1-report-viewer.png'));
+        { name: 'D1-report', pages: 1, captureTop: true }, join(output, 'D1-report-viewer.png'));
       reportHash = hash(bytes);
     }
     results.push({ id: item.id, byteEquality: true, ...inspected, viewerInteraction });

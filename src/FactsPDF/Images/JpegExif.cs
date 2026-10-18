@@ -22,6 +22,8 @@ internal static class JpegExif
             if ((i & 63) == 0) cancellation.ThrowIfCancellationRequested();
             var entry = directory.Slice(2 + 12 * i, 12); var tag = U16(entry, little);
             var type = U16(entry[2..], little); var items = U32(entry[4..], little);
+            if (tag == 274)
+                JpegErrors.Need(!orientationSeen && type == 3 && items == 1, "Invalid or duplicate Exif orientation field.");
             var size = type switch { 1 or 2 or 6 or 7 => 1, 3 or 8 => 2, 4 or 9 or 11 => 4, 5 or 10 or 12 => 8, _ => 0 };
             if (size == 0) throw JpegErrors.Unsupported("Unsupported Exif IFD0 field type.");
             var bytes = checked((long)size * items);
@@ -31,7 +33,6 @@ internal static class JpegExif
                 JpegErrors.Need(at <= tiff.Length && bytes <= tiff.Length - (long)at, "Exif field range is outside its segment.");
             }
             if (tag != 274) continue;
-            JpegErrors.Need(!orientationSeen && type == 3 && items == 1, "Invalid or duplicate Exif orientation field.");
             orientationSeen = true; var orientation = U16(entry[8..], little);
             JpegErrors.Need(orientation is >= 1 and <= 8, "Invalid Exif orientation.");
             if (orientation != 1) throw JpegErrors.Unsupported("Image must already be upright; Exif rotation/reflection is unsupported.");

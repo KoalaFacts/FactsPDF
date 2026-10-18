@@ -113,4 +113,18 @@ public sealed class ImageEntryTests
         var aggregate = new byte[33_554_433];
         Assert.That(Wasm(aggregate, [8_388_608, 8_388_608, 8_388_608, 8_388_608, 1], ["a", "b", "c", "d", "e"]).ErrorCode, Is.EqualTo("FPDF1603"));
     }
+
+    [Test]
+    public void CliCountsEveryUnusedAliasAgainstActualTotalCompressedBytes()
+    {
+        // 65,536 blocks, each DC0 +63 AC category10 values: 694 zero bits.
+        // Exact byte alignment, no EOB needed, no decoder/library-generated payload.
+        var bytes = JpegFixture.Gray(new byte[65_536 * 694 / 8], width: 2048, height: 2048, acValues: [10]);
+        var path = FilePath("large-valid.jpg"); File.WriteAllBytes(path, bytes);
+        Assert.That(bytes.Length * 5L, Is.LessThan(33_554_432)); Assert.That(bytes.Length * 6L, Is.GreaterThan(33_554_432));
+        var five = new[] { "-", "-" }.Concat(Enumerable.Range(0, 5).SelectMany(i => new[] { "--image", $"i{i}={path}" })).ToArray();
+        var good = Cli(five, "<p>ASCII</p>"); Assert.That(good.Exit, Is.Zero, good.Error);
+        var bad = Cli([.. five, "--image", "sixth=" + path], "<p>ASCII</p>");
+        Assert.That(bad.Exit, Is.EqualTo(3)); Assert.That(bad.Error, Does.Contain("FPDF1603")); Assert.That(bad.Bytes, Is.Empty);
+    }
 }

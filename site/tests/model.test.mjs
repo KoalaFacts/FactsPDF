@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash, pageSlice, csv } from '../src/model.mjs';
 const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', import.meta.url), 'utf8'));
 
-test('418 stable records retain provenance with three reviewed C2 updates', () => {
+test('418 stable records retain provenance with three bounded D1 updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, 'a172961c471fa12f45a1ac831daad1e2b32d7bcc');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:97, none:268, unknown:7, na:2 });
+  assert.equal(dataset.commit, '5ca3ad5fce178b895b704c6afdec05d56b8b8bb1');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:100, none:265, unknown:7, na:2 });
 });
 test('missing evidence, unknown status, duplicate IDs, bad parents and categories are rejected', () => {
   const mutators = [d=>d.features[0].status='planned', d=>d.features[1].id=d.features[0].id,
@@ -27,7 +27,7 @@ test('category / status / known milestone combine; plans never become supported'
   assert(result.length > 0);
   assert(result.every(f=>f.category==='CSS属性'&&f.status==='partial'&&f.introduced_milestone==='M6'));
   assert.equal(filterFeatures(dataset.features,{category:'HTML元素',status:'full'}).length,0);
-  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,367);
+  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,364);
 });
 test('source links permit HTTPS only without credentials', () => {
   assert.equal(safeUrl('javascript:alert(1)'),null);

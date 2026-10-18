@@ -67,6 +67,7 @@ export async function inspectReader(context, origin, url, item, screenshot) {
       assert.equal(state.pastes, results.length + 1);
       results.push({ query, selected, pasted, matches: state.matches.total, trustedCopyAndPaste: true });
     }
+    if (item.captureTop) await page.locator('#viewerContainer').evaluate(element => element.scrollTo(0, 0));
     await page.screenshot({ path: screenshot });
     assert.deepEqual(errors, []);
     const state = await page.evaluate(() => window.readerEvidence);

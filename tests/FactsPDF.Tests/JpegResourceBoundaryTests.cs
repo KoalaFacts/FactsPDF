@@ -110,6 +110,29 @@ public sealed class JpegResourceBoundaryTests
         Assert.Throws<OperationCanceledException>(() => PdfImage.LoadImage(bytes, limits, cts.Token));
     }
 
+    [Test]
+    public void CancellationActuallyReachesTheLongMarkerFillByteLoop()
+    {
+        // Call the reader on already-owned bytes, avoiding a cancellation during
+        // a loader copy. The incomplete header would report1601 without its
+        // in-loop cancellation check. No wall-clock performance claim is made.
+        var bytes = new byte[32 * 1024 * 1024]; Array.Fill(bytes, (byte)255);
+        bytes[0] = 255; bytes[1] = 216; bytes[^1] = 217;
+        var limits = new PdfImageLimits { MaxBytes = bytes.Length };
+        JpegReader.Read(JpegFixture.Gray([0x3f]), new(), default); // warm reader/JIT
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var cts = new CancellationTokenSource(); cts.CancelAfter(5);
+            var error = Assert.Throws<OperationCanceledException>(() => JpegReader.Read(bytes, limits, cts.Token))!;
+            if (error.StackTrace?.Contains("JpegReader.Byte", StringComparison.Ordinal) == true
+                || error.StackTrace?.Contains("JpegReader.Marker", StringComparison.Ordinal) == true) return;
+            // A descheduled thread can see cancellation at the initial guard.
+            // Retry only that case; it cannot establish fill-loop coverage.
+            Assert.That(error.StackTrace, Does.Contain("JpegReader.Read"));
+        }
+        Assert.Fail("Cancellation never reached the marker-fill byte checkpoint; entry-guard cancellation is insufficient.");
+    }
+
     private sealed class ShortReads(byte[] bytes, CancellationTokenSource? cancellation = null) : MemoryStream(bytes)
     {
         public int BytesRead { get; private set; }
