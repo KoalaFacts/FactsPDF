@@ -25,9 +25,16 @@ export const tableCases = [
 ];
 export const tableAscii = { name: 'tables-points', html: readFileSync(new URL('../../tests/fixtures/tables-e1/points.html', import.meta.url), 'utf8'),
   text: 'ID Category Description R001 Overview One complete row R002 Detail First line Second line', pages: 1, fonts: false, ignoreLayoutWhitespace: true };
+const empty = "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
+export const tableBoundaryCases = [
+  { name: 'tables-invisible-break', html: "<p style='break-after:page'>A</p>" + empty, text: 'A', pages: 1, fonts: false },
+  { name: 'tables-width-boundary', html: "<table style='width:100pt'><colgroup><col style='width:100.001pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", text: 'A', pages: 1, fonts: false },
+];
 const manifest = JSON.parse(readFileSync(new URL('../../tests/fixtures/tables-e1/manifest.json', import.meta.url), 'utf8'));
 export const tableErrors = manifest.cases.filter(item => item.expected.code).map(item => ({
   name: `tables-${item.id}`, html: readFileSync(new URL(`../../tests/fixtures/tables-e1/${item.file}`, import.meta.url), 'utf8'), code: item.expected.code,
 }));
+tableErrors.push({ name: 'tables-invisible-leading', code: 'FPDF1302',
+  html: "<div style='padding-top:10pt;background-color:red'>" + empty + "<table style='font-size:10pt;line-height:2'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>" + Array(38).fill('A').join('<br>') + '</td></tr></tbody></table></div>' });
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
-  console.log(JSON.stringify({ cases: tableCases, ascii: tableAscii, errors: tableErrors }));
+  console.log(JSON.stringify({ cases: tableCases, ascii: tableAscii, boundaries: tableBoundaryCases, errors: tableErrors }));

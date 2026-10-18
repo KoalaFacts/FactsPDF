@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 import { cases, unsupportedHtml } from './fixtures.mjs';
 import { styleCases, styleErrorCases } from './style_fixtures.mjs';
 import { listAscii, listReport, listErrors } from './list_fixtures.mjs';
-import { tableAscii, tableCases, tableErrors } from './table_cases.mjs';
+import { tableAscii, tableCases, tableErrors, tableBoundaryCases } from './table_cases.mjs';
 import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
 import { captureResourceTimings } from './resource_timings.mjs';
@@ -28,7 +28,7 @@ const fontPaths = JSON.parse(process.env.FACTSPDF_PROBE_FONTS ?? '[]');
 const styleManifest = process.env.FACTSPDF_STYLE_MANIFEST ? JSON.parse(await readFile(process.env.FACTSPDF_STYLE_MANIFEST, 'utf8')) : null;
 const selectedStyles = styleManifest ? [...styleCases, ...tableCases] : [];
 const selectedStyleErrors = styleManifest ? styleErrorCases : [];
-const basicCases = [...cases, listAscii, tableAscii, ...(styleManifest ? [listReport] : [])];
+const basicCases = [...cases, listAscii, tableAscii, ...tableBoundaryCases, ...(styleManifest ? [listReport] : [])];
 const styleFlags = { normal: '--font', bold: '--font-bold', italic: '--font-italic', boldItalic: '--font-bold-italic' };
 const styleUrls = {};
 const rolePaths = selection => Object.fromEntries(Object.entries(styleManifest.roles)

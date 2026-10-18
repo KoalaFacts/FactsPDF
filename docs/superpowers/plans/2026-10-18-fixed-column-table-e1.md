@@ -10,6 +10,8 @@
 
 **Spec:** [Approved E1 contract](../specs/2026-10-18-fixed-column-table-e1-design.md).
 
+**Execution record:** The implementation checklist below records the feature work. Final review corrections, exact-head CI and merge state are recorded in [PR #33](https://github.com/KoalaFacts/FactsPDF/pull/33). One fresh whole-branch review found invisible-table pagination and inclusive-width boundary defects; both have reproducing RED→GREEN tests. The obsolete legacy table-target diagnostic was also corrected without promoting E2 targets.
+
 **Approval:** Parent thread `01a1188a-9700-74ff-b75f-6fb3037b100f` supplied the original exchange: assistant message `Sentinel_3e9cdec088888191be74122848231791` at 2026-10-18 04:54:35 UTC offered explicit colgroup/col widths, error on missing/mismatched widths, headers/wrapping/style roles and indivisible single-page placement, with the complete proposal linked; user reply `Sentinel_ee33008619008191b911a380e3431361` at 05:02:34 UTC: “先接受”. The subsequent delegation explicitly authorizes implementation, independent review, normal commits/CI/comment resolution and merge. No repeated design/plan approval is needed.
 
 ## Global constraints
@@ -66,7 +68,7 @@
 - [x] Complete only behavior needed by those tests, then run all core tests. Preserve the prior readiness receipts; promote the11 authored fixtures to actual success/error expectations without changing their HTML hashes or substituting engine-derived geometry.
 - [x] Add one bilingual report with all four roles, explicit borders/backgrounds and wrapping, and one surrounding-content example that forces the entire table to another page. Generate through actual API/CLI/Native; inspect qpdf, extracted text/order, independent geometry, font resources and raster paint. Open every full page and record observations; user page-reference approval stays separate.
 - [x] Add actual table cases to the existing protected WASM CI host, including invalid input and recovery. Do not launch a locally prohibited browser or substitute browser printing.
-- [ ] Update support documentation and examples with exact limits and the distinction between E1 single-page tables and E2 paging. Run final local Release build and full suite; publish a fresh Native AOT executable and verify actual PDFs for the final source.
+- [x] Update support documentation and examples with exact limits and the distinction between E1 single-page tables and E2 paging. Run local Release build and full suite; publish a fresh Native AOT executable and verify actual PDFs. Final review fixes receive the same checks before merge, with receipts linked from PR #33.
 - [ ] Commit and push a draft PR, obtain one fresh independent full-branch review, reproduce/fix findings and handle remote review comments. Convert to ready when reviewable; wait for exact-head CI/review, merge normally after gates, verify final main and preserve all evidence.
 
 ## Verification commands and receipts

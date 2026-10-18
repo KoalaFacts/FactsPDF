@@ -1,6 +1,6 @@
 # E1 proposal: explicit fixed columns in a single-page table
 
-Date: 2026-10-18. Status: **approved and implemented on the feature branch; final review/CI pending**.
+Date: 2026-10-18. Status: **approved and implemented; final verification state is recorded in [PR #33](https://github.com/KoalaFacts/FactsPDF/pull/33)**.
 Approval: user reply “先接受” at 2026-10-18 05:02:34 UTC to the explicit E1 scope and this linked proposal (message `Sentinel_ee33008619008191b911a380e3431361`, replying to `Sentinel_3e9cdec088888191be74122848231791`). See the [implementation plan](../plans/2026-10-18-fixed-column-table-e1.md).
 Implementation baseline: merged D1 `a1a334937869c764b5248fdf729b4596676e88e1`.
 

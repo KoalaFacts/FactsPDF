@@ -16,6 +16,10 @@ byte[] Convert(string input, PdfOptions settings)
 var pdf = Convert(html, options);
 File.WriteAllBytes(args[1], pdf);
 const string simple = "<table style='width:100pt;font-size:10pt;line-height:2'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>A<br>B<br>C<br>D</td></tr></tbody></table>";
+const string empty = "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
+const string breakAfter = "<p style='break-after:page'>A</p>";
+if (!Convert(breakAfter + empty, options with { MaxPages = 1 }).AsSpan().SequenceEqual(Convert(breakAfter, options)))
+    throw new Exception("Invisible table consumed a deferred break");
 var errors = new List<object>();
 foreach (var (name, input, settings, expected) in new[]
 {
@@ -25,6 +29,7 @@ foreach (var (name, input, settings, expected) in new[]
     ("cell-css", simple.Replace("<td>", "<td style='width:100pt'>"), options, "FPDF1201"),
     ("missing-bold", simple.Replace("<tbody>", "<thead><tr><th>A</th></tr></thead><tbody>"), options with { BoldFonts = [] }, "FPDF1507"),
     ("height", simple, options with { PageHeight = 99, Margin = 10 }, "FPDF1302"),
+    ("empty-leading", "<div style='padding-top:1pt;background-color:red'>" + empty + simple + "</div>", options with { PageHeight = 100, Margin = 10 }, "FPDF1302"),
     ("pages", "<p>A</p>" + simple, options with { PageHeight = 100, Margin = 10, MaxPages = 1 }, "FPDF1303"),
     ("commands", simple, options with { MaxDisplayCommands = 3 }, "FPDF1401"),
     ("bytes", html, options with { MaxOutputBytes = pdf.Length - 1 }, "FPDF1401")
@@ -51,5 +56,5 @@ using (var output = new MemoryStream())
 }
 if (!Convert(html, options with { MaxOutputBytes = pdf.Length }).AsSpan().SequenceEqual(pdf)) throw new Exception("Exact output boundary differs");
 if (!Convert(html, options).AsSpan().SequenceEqual(pdf)) throw new Exception("Success/failure/success differs");
-Console.WriteLine(JsonSerializer.Serialize(new { bytes = pdf.Length, errors, exactOutputBoundary = true, recoveryByteEquality = true }));
+Console.WriteLine(JsonSerializer.Serialize(new { bytes = pdf.Length, errors, exactOutputBoundary = true, recoveryByteEquality = true, emptyTablePreservesPagination = true }));
 return 0;

@@ -38,7 +38,12 @@ internal static class TableLayout
                 throw Geometry("Column width must be positive.", column.SourceOffset);
             totalWidth += tracks[i];
         }
-        if (Math.Abs(totalWidth - width) > 0.001)
+        // Allow only floating-point roundoff at the inclusive decimal boundary.
+        // One ULP per track plus the table width covers resolution/summation;
+        // the actual tracks remain unchanged, with no width redistribution.
+        var scale = Math.Max(totalWidth, width);
+        var roundoff = (Math.BitIncrement(scale) - scale) * (tracks.Length + 1);
+        if (Math.Abs(totalWidth - width) > 0.001 + roundoff)
             throw Geometry("Column widths must sum to the table content width within 0.001pt.", table.SourceOffset);
 
         var runs = new List<PlacedText>();

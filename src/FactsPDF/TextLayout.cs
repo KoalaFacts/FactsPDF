@@ -258,6 +258,11 @@ internal static class TextLayout
             {
                 var measured = TableLayout.Measure(table, o, resolved, cancellation,
                     ChargeDisplayCommands, EnsureDisplayCommands);
+                // A validated but invisible table does not occupy page space.
+                // Leave deferred breaks and ancestor decoration for the next
+                // visible content, just as an empty undecorated block does.
+                if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0)
+                    continue;
                 if (breakNext)
                 {
                     if (CurrentPageOccupied())

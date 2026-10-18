@@ -211,10 +211,30 @@ def main():
     fixture_out = out/'fixtures'; fixture_out.mkdir()
     fixtures = verify_fixtures(root, fixture_out, commands, api, args.manifest)
     flags = [v for role,paths in manifest['roles'].items() for path in paths for v in (ROLES[role],path)] + ['--subset-fonts']
-    cases = json.loads(run('node',root/'scripts/wasm_probe/table_cases.mjs'))['cases']
+    authored = json.loads(run('node',root/'scripts/wasm_probe/table_cases.mjs'))
+    cases = authored['cases']
+    boundaries = []
+    for item in [*authored['boundaries'], authored['errors'][-1]]:
+        source = out / (item['name']+'.html'); source.write_text(item['html'])
+        previous = None
+        for name,command in commands.items():
+            pdf = out / f"{item['name']}-{name}.pdf"
+            if 'code' in item:
+                pdf.write_bytes(b'sentinel')
+                result = subprocess.run([str(v) for v in [*command,source,pdf,'--overwrite']], capture_output=True, timeout=30)
+                assert result.returncode == 3 and item['code'].encode() in result.stderr and not result.stdout
+                assert pdf.read_bytes() == b'sentinel'; pdf.unlink()
+            else:
+                run(*command,source,pdf); run(tool('qpdf'),'--check',pdf)
+                assert len(PdfReader(pdf).pages) == item['pages']
+                assert compact(run(tool('pdftotext'),'-raw',pdf,'-').decode()) == compact(item['text'])
+                run(tool('pdftoppm'),'-png','-r','100',pdf,pdf.with_suffix(''))
+                if previous is not None: assert pdf.read_bytes() == previous
+                previous = pdf.read_bytes()
+            boundaries.append({'name': item['name'], 'entry': name, 'outcome': item.get('code','success')})
     evidence = {'sourceHead': run('git','-C',root,'rev-parse','HEAD').decode().strip(),
                 'dirty': bool(run('git','-C',root,'status','--porcelain').strip()), 'fonts': manifest['fonts'],
-                'fixtures': fixtures, 'cases': [], 'browser': 'pending-protected-CI',
+                'fixtures': fixtures, 'boundaryResults': boundaries, 'cases': [], 'browser': 'pending-protected-CI',
                 'visualReview': 'pending-every-page-review', 'referenceApproval': 'pending-user-review'}
     for case in cases:
         source = root/'examples'/f"{case['name']}.html"; pdf = out/f"{case['name']}-api.pdf"
