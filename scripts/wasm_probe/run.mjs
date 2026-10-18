@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 import { cases, unsupportedHtml } from './fixtures.mjs';
 import { styleCases, styleErrorCases } from './style_fixtures.mjs';
 import { listAscii, listReport, listErrors } from './list_fixtures.mjs';
+import { tableAscii, tableCases, tableErrors, tableBoundaryCases } from './table_cases.mjs';
 import { serveStatic } from './static_server.mjs';
 import { withDeadline } from './deadline.mjs';
 import { captureResourceTimings } from './resource_timings.mjs';
@@ -25,9 +26,9 @@ const executable = process.env.FACTSPDF_CLI;
 const dll = process.env.FACTSPDF_CLI_DLL;
 const fontPaths = JSON.parse(process.env.FACTSPDF_PROBE_FONTS ?? '[]');
 const styleManifest = process.env.FACTSPDF_STYLE_MANIFEST ? JSON.parse(await readFile(process.env.FACTSPDF_STYLE_MANIFEST, 'utf8')) : null;
-const selectedStyles = styleManifest ? styleCases : [];
+const selectedStyles = styleManifest ? [...styleCases, ...tableCases] : [];
 const selectedStyleErrors = styleManifest ? styleErrorCases : [];
-const basicCases = [...cases, listAscii, ...(styleManifest ? [listReport] : [])];
+const basicCases = [...cases, listAscii, tableAscii, ...tableBoundaryCases, ...(styleManifest ? [listReport] : [])];
 const styleFlags = { normal: '--font', bold: '--font-bold', italic: '--font-italic', boldItalic: '--font-bold-italic' };
 const styleUrls = {};
 const rolePaths = selection => Object.fromEntries(Object.entries(styleManifest.roles)
@@ -55,7 +56,7 @@ async function loadDirectory(directory) {
 await loadDirectory(root);
 assert.ok(files.has('/index.html') && assets.some(a => a.name.endsWith('.wasm')), 'Publish the real WASM host first');
 files.set('/', files.get('/index.html'));
-const inputs = [...basicCases, ...listErrors, ...selectedStyles, ...selectedStyleErrors, { name: 'unsupported', html: unsupportedHtml }].map(item => {
+const inputs = [...basicCases, ...listErrors, ...tableErrors, ...selectedStyles, ...selectedStyleErrors, { name: 'unsupported', html: unsupportedHtml }].map(item => {
   const bytes = Buffer.from(item.html, 'utf8');
   files.set(`/probe-inputs/${item.name}.html`, { bytes, type: 'text/html' });
   return { name: item.name, bytes: bytes.length, sha256: hash(bytes) };
@@ -178,7 +179,7 @@ try {
       } else assert.equal(samples[attempt].sha256, samples[0].sha256, 'Repeated conversion differs');
     }
   }
-  for (const item of listErrors) {
+  for (const item of [...listErrors, ...tableErrors]) {
     const result = await call(item.name, []);
     assert.equal(result.errorCode, item.code, JSON.stringify(result));
     assert.equal(result.pdfBase64, null);
@@ -188,6 +189,10 @@ try {
   assert.equal(listRecovery.errorCode, null);
   assert.equal(hash(Buffer.from(listRecovery.pdfBase64, 'base64')), report.cases.find(item => item.name === listAscii.name).sha256);
   report.cases.push({ name: 'lists-recovery', byteEquality: true });
+  const tableRecovery = await call(tableAscii.name, []);
+  assert.equal(tableRecovery.errorCode, null);
+  assert.equal(hash(Buffer.from(tableRecovery.pdfBase64, 'base64')), report.cases.find(item => item.name === tableAscii.name).sha256);
+  report.cases.push({ name: 'tables-recovery', byteEquality: true });
   const styleCall = (name, roles, subset = true) => withDeadline(page.evaluate(async ({ name, roles, subset }) =>
     window.factspdfProbe.convertStyles(`/probe-inputs/${name}.html`, roles, subset), { name, roles, subset }),
     90000, `Browser style conversion ${name}`);
@@ -293,6 +298,7 @@ try {
       styleFonts: report.styleFonts?.fonts.map(({ role, order, bytes, sha256 }) => ({ role, order, bytes, sha256 })),
       styleResults: report.cases.filter(item => item.name.startsWith('style')),
       listResults: report.cases.filter(item => item.name.startsWith('lists')),
+      tableResults: report.cases.filter(item => item.name.startsWith('tables')),
       failure: report.failure }));
   }, report);
 }

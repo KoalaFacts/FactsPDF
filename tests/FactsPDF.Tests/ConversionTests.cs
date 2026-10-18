@@ -157,7 +157,7 @@ public sealed class ConversionTests
 
     [TestCase("<script>alert(1)</script>", "FPDF1102")]
     [TestCase("<img src='https://example.invalid/image.png'>", "FPDF1103")]
-    [TestCase("<table><tr><td>A</td></tr></table>", "FPDF1102")]
+    [TestCase("<table><tr><td>A</td></tr></table>", "FPDF1101")]
     [TestCase("<svg></svg>", "FPDF1102")]
     [TestCase("<p onclick='x()'>A</p>", "FPDF1103")]
     [TestCase("<p style='display:flex'>A</p>", "FPDF1201")]

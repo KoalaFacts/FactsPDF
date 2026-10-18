@@ -1,13 +1,12 @@
 {
-  "status": "proposed-not-implemented",
-  "base": "a1a334937869c764b5248fdf729b4596676e88e1",
+  "status": "implemented-e1",
   "cases": [
     {
       "id": "points",
       "file": "points.html",
       "sha256": "442a8ffb0a38b34e36e0507716e55878cc2e19f31dc6fa282c71524557402a8b",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "pages": 1,
         "table_width": 480,
         "column_outer_widths": [
@@ -52,8 +51,8 @@
       "id": "percentages",
       "file": "percentages.html",
       "sha256": "a1f63437e887c952188ce566665040ebf57ade78892352443260fbf747342357",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "pages": 1,
         "table_width": 480,
         "column_outer_widths": [
@@ -98,8 +97,8 @@
       "id": "missing-width",
       "file": "missing-width.html",
       "sha256": "8b011e5ac157bef6495a72ae5c6b2f70ff79da57a963f5dbafa483a3df6dd648",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1302"
       }
     },
@@ -107,8 +106,8 @@
       "id": "sum-mismatch",
       "file": "sum-mismatch.html",
       "sha256": "28086c38cd16e44302cc2bd0266a1c94d850b953fecfd190c4ceeeb45c42ea22",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1302"
       }
     },
@@ -116,8 +115,8 @@
       "id": "cell-count",
       "file": "cell-count.html",
       "sha256": "04ca167dc6df6ba36d7cc6c368773575756f82d2aa44178d39be6c9f57eadfb3",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1101"
       }
     },
@@ -125,8 +124,8 @@
       "id": "colspan",
       "file": "colspan.html",
       "sha256": "67cbed2f606de4a5fddb183ee3dbf29ce5954a537a3b395d6f3b5879505c2210",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1103"
       }
     },
@@ -134,8 +133,8 @@
       "id": "rowspan",
       "file": "rowspan.html",
       "sha256": "7ff722a2ba62d2b367558f6b399c3b1922130da4fcf0c3338d21cf647a20c7af",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1103"
       }
     },
@@ -143,8 +142,8 @@
       "id": "nested-table",
       "file": "nested-table.html",
       "sha256": "85abe45b3686cbb70afc3c5dea73b24c2be3c6fcd704175eb0358dc186e37345",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1101"
       }
     },
@@ -152,8 +151,8 @@
       "id": "missing-body",
       "file": "missing-body.html",
       "sha256": "170507c13262f1bcd87b88a0e8029591d371c9e8947ed10a84d5fc51a33d451a",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1101"
       }
     },
@@ -161,8 +160,8 @@
       "id": "seventeen-columns",
       "file": "seventeen-columns.html",
       "sha256": "5ff7e8e5880b8a3cef3774a6712cdd46e478e707a6dbf06a5bdacd8811b68d06",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1101"
       }
     },
@@ -170,10 +169,11 @@
       "id": "zero-content-width",
       "file": "zero-content-width.html",
       "sha256": "545c999b5400f35d2487f8a9cc82b328d10916d53b4b55a8aa99d1cc5738c092",
-      "current_expected_code": "FPDF1102",
-      "proposed": {
+      "historicalPreparationCode": "FPDF1102",
+      "expected": {
         "code": "FPDF1302"
       }
     }
-  ]
+  ],
+  "historicalPreparationBase": "a1a334937869c764b5248fdf729b4596676e88e1"
 }

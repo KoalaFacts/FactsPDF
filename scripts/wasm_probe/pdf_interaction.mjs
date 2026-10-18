@@ -12,6 +12,8 @@ export async function addReaderFiles(files) {
 
 // Search expectations are authored from the source fixture, never extracted from the PDF.
 const queries = {
+  'tables-report': ['E1-002', '优先 / Priority', 'E1-END'],
+  'tables-page-movement': ['LEAD-24', 'E1-006', 'AFTER-ONE'],
   'D1-report': ['D1-BEFORE', 'D1-AFTER', 'D1-END'],
   'lists-report': ['C2-010', 'C2-N03', '10.'],
   'styles-report': ['operation', '粗斜体 恢复斜体 恢复粗体'],

@@ -106,5 +106,20 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(target['probe_scope'], 'missing-explicit-image-resources; full D1 evidence is separate')
         self.assertEqual(sum(x['kind'] == 'target' for x in m['cases']), 9)
 
+    def test_legacy_table_targets_keep_structural_diagnostic_without_e2_credit(self):
+        m = self.c.load_manifest(self.path)
+        for count in (10, 30, 100):
+            target = next(x for x in m['cases'] if x['id'] == f'T-table-{count}')
+            self.assertEqual(target['initial_status'], 'unsupported')
+            self.assertEqual(target['entrypoints']['cli']['expected_code'], 'FPDF1101')
+            self.assertEqual(target['entrypoints']['api']['expected_code'], 'FPDF1101')
+            self.assertEqual(target['probe_scope'], 'missing-explicit-column-and-section-structure; E1 evidence is separate; repeat-header remains unsupported')
+            self.assertIn('repeat-header', target['requirements'])
+            self.assertEqual(len(target['records']), count)
+            html = (self.root / target['input_path']).read_text()
+            self.assertNotIn('<colgroup>', html)
+            self.assertNotIn('<tbody>', html)
+        self.assertEqual(sum(x['kind'] == 'target' for x in m['cases']), 9)
+
 
 if __name__ == '__main__': unittest.main()
