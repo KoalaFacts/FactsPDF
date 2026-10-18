@@ -27,7 +27,8 @@ jobs:
         run: |
           dotnet workload install wasm-tools --skip-manifest-update
           sudo apt-get update -qq
-          sudo apt-get install -y qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback python3-fonttools p7zip-full clang zlib1g-dev
+          sudo apt-get install -y qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback python3-fonttools python3-pip p7zip-full clang zlib1g-dev
+          /usr/bin/python3 -m pip install --disable-pip-version-check pypdf==6.10.0 Pillow==12.3.0
           npm ci --ignore-scripts --no-audit --no-fund --prefix scripts/wasm_probe
           cd scripts/wasm_probe
           npx playwright install --with-deps chromium
@@ -47,6 +48,7 @@ jobs:
           dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
           dotnet build probes/font-styles/FactsPDF.FontStyles.csproj -c Release
           dotnet build probes/lists/FactsPDF.Lists.csproj -c Release
+          dotnet build probes/images/FactsPDF.Images.csproj -c Release
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/style-native
           dotnet msbuild probes/browser-wasm/FactsPDF.WasmProbe.csproj -p:Configuration=Release -getProperty:NETCoreSdkVersion,RuntimeFrameworkVersion,TargetFramework,RuntimeIdentifier,RunAOTCompilation,WasmBuildNative,WasmEnableThreads,PublishTrimmed,WasmEnableSIMD > artifacts/wasm-evidence/build-properties.json
       - name: Inspect real style glyphs and direct API / CLI / Native AOT parity
@@ -55,6 +57,9 @@ jobs:
       - name: Inspect bounded lists through direct API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_lists.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/lists --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/lists/bin/Release/net10.0/FactsPDF.Lists.dll --native-cli artifacts/style-native/FactsPDF.Cli
+      - name: Inspect JPEG images through API CLI Node and Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_images.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/images --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/images/bin/Release/net10.0/FactsPDF.Images.dll --native-cli artifacts/style-native/FactsPDF.Cli
       - name: Generate PDFs inside a protected browser and compare with CLI
         env:
           FACTSPDF_WASM_ROOT: ${{ github.workspace }}/artifacts/wasm/wwwroot

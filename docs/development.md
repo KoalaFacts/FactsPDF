@@ -2,7 +2,7 @@
 
 **Experimental renderer, not a production release or a complete browser-compatible implementation.** The shared core accepts a documented HTML/CSS subset, performs font-aware text layout/pagination and writes PDF objects directly. Public APIs may change. No extra markup language is required.
 
-The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](unicode-fonts.md), [native font subsetting](font-subsetting.md), and [embedded CSS stylesheets/selectors](css-stylesheets.md). Their detailed constraints apply alongside this guide. Tables and images remain unsupported. The controlled CSS block box model now includes width, four-sided padding, solid borders, background fills and paginated box fragments; see [M8 Box Fragmentation](box-fragmentation.md) for exact limits.
+The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](unicode-fonts.md), [native font subsetting](font-subsetting.md), and [embedded CSS stylesheets/selectors](css-stylesheets.md). Their detailed constraints apply alongside this guide. Tables remain unsupported. Explicit standalone baseline JPEG images use the [image resource API](images.md). The controlled CSS block box model now includes width, four-sided padding, solid borders, background fills and paginated box fragments; see [M8 Box Fragmentation](box-fragmentation.md) for exact limits.
 
 ## Run from source
 
@@ -21,7 +21,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document
 
 Stylesheets need no additional flag. Font paths are placeholders, not included assets. `--font` may repeat up to eight times. `--subset-fonts` is opt-in and respects no-subsetting font permissions; omitting it retains full embedding.
 
-The CLI accepts input/output paths or `-` for stdin/binary stdout. Input must be valid UTF-8, with or without a UTF-8 BOM. Diagnostics go to stderr, not into PDF bytes. Existing output files require `--overwrite`; a sibling temporary file is replaced into place only after successful conversion. Input HTML and explicit font paths cannot be the output path. Use a trusted working directory; filesystem aliases, symlinks and concurrent hostile modifications are not sandboxed.
+The CLI accepts input/output paths or `-` for stdin/binary stdout. Input must be valid UTF-8, with or without a UTF-8 BOM. Diagnostics go to stderr, not into PDF bytes. Existing output files require `--overwrite`; a sibling temporary file is replaced into place only after successful conversion. Input HTML and explicit font/image paths cannot be the output path. Use a trusted working directory; filesystem aliases, symlinks and concurrent hostile modifications are not sandboxed.
 
 Exit codes: 0 success; 2 usage/argument error; 3 input/rendering limitation; 4 I/O/access error; 130 cancellation. Cancellation is cooperative and cannot interrupt a blocked synchronous caller-stream read/write until it returns.
 
@@ -43,13 +43,13 @@ This example uses fontless ASCII mode. Explicit font API examples are in the Uni
 
 | Area | Supported | Not yet supported |
 | --- | --- | --- |
-| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br; bounded ol/ul/li | Links, tables, images, SVG, forms; general list styles/counters |
+| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br; bounded ol/ul/li; explicit standalone JPEG img | Links, tables, inline/list images, PNG, SVG, forms; general list styles/counters |
 | Document shell | html/body, explicit head/title, UTF-8 meta, HTML5 doctype, comments, embedded style | Full HTML5 tree construction, encoding sniffing and browser recovery |
 | Text | ASCII/Courier fallback; explicit static TrueType fonts, simple horizontal Unicode/Chinese, searchable text and optional glyph subsetting | Complete shaping, bidi/RTL, all-script typography, automatic font discovery |
 | Styles | Inline and embedded declarations; tag/class/id/universal/compound/group/descendant/child selectors, bounded author cascade | External stylesheets, at-rules, other selector classes, variables/functions and full CSS recovery |
-| Text layout | Supported font size/weight/style/color/line-height/alignment; paragraph margins; nested block widths, four-sided padding, solid border edges and background colors | Arbitrary CSS height, horizontal margins, border-radius, floats/flex/grid and image/table layout |
+| Text layout | Supported font size/weight/style/color/line-height/alignment; paragraph margins; nested block widths, four-sided padding, solid border edges and background colors | Arbitrary CSS height, horizontal margins, border-radius, floats/flex/grid and general image/table layout |
 | Pagination | Wrapping; paragraph/heading break-before/break-after auto/page; CSS sliced block decorations across page fragments (background and side borders continue, top/bottom only first/last) | @page, repeated page furniture, widows/orphans, keep-together and full browser fragmentation rules |
-| PDF | PDF 1.7 text/page tree/xref, embedded and compressed font resources, ToUnicode | Tagged PDF, PDF/A/UA conformance, links/bookmarks, signatures/encryption |
+| PDF | PDF 1.7 text/page tree/xref, embedded and compressed font resources, ToUnicode, explicit JPEG XObjects | Tagged PDF, PDF/A/UA conformance, links/bookmarks, signatures/encryption |
 
 CSS property/value and applicability rules are in the stylesheet guide. Unsupported inputs fail explicitly rather than silently rendering wrong output. Headings use larger text by default, not synthetic bold. Normal whitespace is collapsed; font-aware CJK wrapping has a limited punctuation rule, not full UAX #14 support. A segment wider than the line is rejected rather than clipped or arbitrarily split.
 
@@ -69,6 +69,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | FPDF1301-1305 | Text/font availability, layout/page limit, invalid UTF-16 or unsupported text processing |
 | FPDF1401 | Output-byte or display-command limit |
 | FPDF1501-1507 | Font format, resource, mapping, embedding-permission, subsetting or missing explicit style chain |
+| FPDF1601-1604 | Image format/support, resource limits or missing explicit binding |
 
 Not every integer in a displayed range needs a distinct public API guarantee. Refer to exact guide tables and exception messages. Offsets are supplied where available, with inline CSS anchored to its HTML element; these are development contracts, not complete browser error classification.
 

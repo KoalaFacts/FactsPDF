@@ -75,7 +75,8 @@ The current controlled CSS subset also supports real block `width`, four-sided
 continued backgrounds/side edges are sliced across pages, while only the first
 and final fragments paint the top and bottom borders. See the
 [M8 Box Fragmentation guide](docs/box-fragmentation.md) for precise grammar,
-geometry, limits and independent PDF/Chrome evidence. Tables, images, flex/grid,
+geometry, limits and independent PDF/Chrome evidence. Explicit standalone baseline
+JPEG blocks are described in the [image resource guide](docs/images.md). Tables, flex/grid,
 external stylesheets, at-rules and additional selector classes remain unsupported.
 Full Unicode shaping/RTL, CSS font selection and automatic font discovery are not implemented.
 Unsupported input fails explicitly rather than silently changing the output.

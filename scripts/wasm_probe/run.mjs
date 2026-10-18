@@ -14,6 +14,7 @@ import { captureResourceTimings } from './resource_timings.mjs';
 import { finishBrowserCleanup } from './cleanup.mjs';
 import { addReaderFiles, inspectReader } from './pdf_interaction.mjs';
 import { restrictedFont } from './restricted_font.mjs';
+import { inspectImages } from './image_cases.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -243,6 +244,8 @@ try {
     assert.equal(hash(Buffer.from(result.pdfBase64, 'base64')), styleRecoveryHash);
     report.cases.push({ name: 'style-recovery', byteEquality: true });
   }
+  if (styleManifest) report.images = await inspectImages({ page, context, origin: server.origin,
+    files, output, executable, dll, styleUrls, fontPaths: styleManifest.roles.normal });
   for (const [name, fontUrls, expected] of [
     ['bilingual', ['/probe-fonts/missing.ttf'], 'B2_RESOURCE_HTTP'],
     ['ascii', ['/probe-fonts/empty.ttf'], 'B2_RESOURCE_EMPTY'],

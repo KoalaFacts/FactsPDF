@@ -25,6 +25,12 @@ public static partial class BrowserExports
             ProbeJsonContext.Default.ProbeResult);
 
     [JSExport]
+    public static string ConvertImages(string html, byte[] fontBytes, int[] fontLengths, int[] fontRoles,
+        byte[] imageBytes, int[] imageLengths, string[] imageNames, bool subsetFonts)
+        => JsonSerializer.Serialize(ProbeConversion.RunImages(html, fontBytes, fontLengths, fontRoles,
+            imageBytes, imageLengths, imageNames, subsetFonts), ProbeJsonContext.Default.ProbeResult);
+
+    [JSExport]
     public static bool IsBrowser() => OperatingSystem.IsBrowser();
 }
 

@@ -178,7 +178,9 @@ def generate_corpus(root: Path) -> list[dict]:
         add(f'T-table-{count}', 'target', [], ['fixed-columns', 'table-record-order', 'repeat-header'],
             '<table><tr><th>ID</th><th>Text</th></tr>'+''.join('<tr><td>'+r['id']+'</td><td>Synthetic row</td></tr>' for r in records[:count])+'</table>',
             records_ids=[r['id'] for r in records[:count]], expected_code='FPDF1102')
-    for ident, req in [('T-jpeg', ['explicit-jpeg-resource']), ('T-page-furniture', ['page-number', 'header-footer']),
+    add('T-jpeg', 'target', [], ['explicit-jpeg-resource'], '<img src="chart">',
+        expected_code='FPDF1604', probe_scope='missing-explicit-image-resources; full D1 evidence is separate')
+    for ident, req in [('T-page-furniture', ['page-number', 'header-footer']),
                        ('T-heading-keep', ['heading-with-paragraph']), ('T-complete-report', ['all-report-capabilities'])]:
         add(ident, 'target', [], req)
     add('N-zero', 'negative', [], ['zero-width'], "<div style='width:0'>X</div>", expected_code='FPDF1302')
