@@ -1,0 +1,296 @@
+{
+  "status": "proposed-contract-not-engine-acceptance",
+  "schema": 1,
+  "origin": "Procedural pixels authored for FactsPDF; no external image assets",
+  "generator": "scripts/jpeg_fixtures.py --generate",
+  "pillow": "12.3.0",
+  "jpeg_codec": "6.2",
+  "libjpeg_turbo": "3.1.4.1",
+  "cases": [
+    {
+      "file": "rgb-444.jpg",
+      "expected_load": "accept",
+      "reason": "8-bit baseline JFIF YCbCr, sampling 444",
+      "byte_length": 8454,
+      "sha256": "2741f01ab4d97a26c9db7e2df0591f7e09739121a1242c7affa3b21d5a7f06bd",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "f28ba4ee17919bca5b2ebf46389c3651978ec3eba933947581d48ec947fd7da9"
+    },
+    {
+      "file": "rgb-422.jpg",
+      "expected_load": "accept",
+      "reason": "8-bit baseline JFIF YCbCr, sampling 422",
+      "byte_length": 7437,
+      "sha256": "8e3611c89f17507dc0319146e240a589ed337398637eb0a58f79487ac6804441",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "43711d6946f0b93f250068864d0a962d61ec5ac41b29238fa35f1372f5de0a84"
+    },
+    {
+      "file": "rgb-420.jpg",
+      "expected_load": "accept",
+      "reason": "8-bit baseline JFIF YCbCr, sampling 420",
+      "byte_length": 6409,
+      "sha256": "e9d20035c8f60ab778cc4bb3c262f0237927762329aa802c9ef37b4abbe5e1c6",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "c92eafd540c345d86d78fa7cb019ff930194c2aefa97a663c019338a8f05033b"
+    },
+    {
+      "file": "gray.jpg",
+      "expected_load": "accept",
+      "reason": "8-bit baseline JFIF grayscale",
+      "byte_length": 496,
+      "sha256": "b7e1c67adb068b6858253cc06e262d88730a9f054d9ea0483abe71f1fa5b481e",
+      "width": 64,
+      "height": 32,
+      "mode": "L",
+      "independent_decoded_sha256": "24cf3c402e3f6460ec645b2a6a17e9eb7471c1127f760055f0cacc835f816086"
+    },
+    {
+      "file": "odd-420.jpg",
+      "expected_load": "accept",
+      "reason": "Partial edge MCUs",
+      "byte_length": 780,
+      "sha256": "bc4206ca85db26299284d9d3efdffffac270da650c7202c30f7f79db60411ba4",
+      "width": 17,
+      "height": 9,
+      "mode": "RGB",
+      "independent_decoded_sha256": "0c9a995c768fdb83882722eca45dbc92477727d05646a24148ecb513acd7797d"
+    },
+    {
+      "file": "restart-420.jpg",
+      "expected_load": "accept",
+      "reason": "DRI=3, ordered restart markers",
+      "byte_length": 6628,
+      "sha256": "36c60e1e9fe3e7f202ed9e3a572e35e7506c63c4b063f0bba25fd0b158aa4627",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "c92eafd540c345d86d78fa7cb019ff930194c2aefa97a663c019338a8f05033b"
+    },
+    {
+      "file": "marker-fill-420.jpg",
+      "expected_load": "accept",
+      "reason": "Legal FF marker fill before DQT, RST0 and EOI",
+      "byte_length": 6650,
+      "sha256": "baa450b0cc59bda245964ddfb4f1b0aeb9324d3712ba3bba4423283bd45c7e6c",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "c92eafd540c345d86d78fa7cb019ff930194c2aefa97a663c019338a8f05033b"
+    },
+    {
+      "file": "exif-upright.jpg",
+      "expected_load": "accept",
+      "reason": "IFD0 orientation=1",
+      "byte_length": 6445,
+      "sha256": "c8b158ec7e61b9f990e6d7c3cbcc701a1dd6d1b87729ba819ee1b83d7733e917",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "c92eafd540c345d86d78fa7cb019ff930194c2aefa97a663c019338a8f05033b"
+    },
+    {
+      "file": "density-300.jpg",
+      "expected_load": "accept",
+      "reason": "Equal JFIF densities do not change 96dpi layout convention",
+      "byte_length": 6409,
+      "sha256": "d740d21ffca0046661d47e19ed5f2bc7f62940e7a819811a7021decaa397f54f",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "c92eafd540c345d86d78fa7cb019ff930194c2aefa97a663c019338a8f05033b"
+    },
+    {
+      "file": "comment.jpg",
+      "expected_load": "accept",
+      "reason": "Bounded comment is opaque metadata",
+      "byte_length": 6442,
+      "sha256": "7a06d2e8e2ae8e9f54d45eba79e4d246306ecc2383d4c09704ceb947243571ed",
+      "width": 320,
+      "height": 160,
+      "mode": "RGB",
+      "independent_decoded_sha256": "c92eafd540c345d86d78fa7cb019ff930194c2aefa97a663c019338a8f05033b"
+    },
+    {
+      "file": "progressive.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "Progressive SOF2 is outside D1",
+      "byte_length": 4899,
+      "sha256": "7b658d268dea5396aaedd4b078a5f9eff5954c411df082fcb4d701a9c554851c"
+    },
+    {
+      "file": "cmyk.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "Four components are outside D1",
+      "byte_length": 13108,
+      "sha256": "8299475565c714b489a23127000587370f4c4d7e7baefb706804c864d36b7a69"
+    },
+    {
+      "file": "exif-rotated.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "Non-upright orientation is rejected, never silently ignored",
+      "byte_length": 6445,
+      "sha256": "10180b4f8eec22280bcc9e3b4a7d8e21da917371b429aea01dd0596710514454"
+    },
+    {
+      "file": "exif-invalid-orientation.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Orientation is outside the Exif 1..8 domain",
+      "byte_length": 6445,
+      "sha256": "129cb7f378982ac8107731eb286b11d858998057268f65df94e1d5135ea16ef3"
+    },
+    {
+      "file": "nonsquare-density.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "JFIF non-square pixels are outside D1",
+      "byte_length": 6409,
+      "sha256": "fd6c3310925cace43cd123d76765fff250ed4a2f18e94877d3a1d8ee79da0416"
+    },
+    {
+      "file": "no-jfif.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "No explicit JFIF color contract",
+      "byte_length": 6391,
+      "sha256": "c5720e11af40e87950bbfe77619370fedc92662bd8066f2662b19f8c023efc41"
+    },
+    {
+      "file": "adobe-transform.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "Adobe APP14 is outside D1 regardless of transform value",
+      "byte_length": 6425,
+      "sha256": "e3670db8726c2ee4290f1e4f143dd619921e713d65afb22058508733225a61b3"
+    },
+    {
+      "file": "icc-marker.jpg",
+      "expected_load": "FPDF1602",
+      "reason": "APP2 ICC marker is rejected without parsing its opaque payload",
+      "byte_length": 6440,
+      "sha256": "419686eb931274d38ee9533f5780fd43e55c72bfcd0573f497206cb142b40630"
+    },
+    {
+      "file": "bad-soi.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Invalid SOI",
+      "byte_length": 6409,
+      "sha256": "e3f5c77b896f35482d6a9fde40ec2b43036d8445f454f00f53cf7d11a784e7ef"
+    },
+    {
+      "file": "truncated-segment.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "DQT payload ends early",
+      "byte_length": 88,
+      "sha256": "dc509b7ebd26f2c078ac9fb391a9ef1eaa8567d55e916f52e970e1f08c85da3d"
+    },
+    {
+      "file": "zero-quantizer.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Zero quantizer",
+      "byte_length": 6409,
+      "sha256": "b433c741bb13f2ac5ac85ff1a2beb7a58be87e840caae74541f130560c6f2b5e"
+    },
+    {
+      "file": "missing-eoi.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Missing EOI",
+      "byte_length": 6407,
+      "sha256": "b8eb0e6de009a3bd7fcc75bfd51d4efde7fd6385f6b0180b1d60851cd7e888fb"
+    },
+    {
+      "file": "truncated-entropy.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Premature EOI despite a complete outer header",
+      "byte_length": 3518,
+      "sha256": "728c22f6a4b9fe19b7a8acf89ffc645b3d3cd5d1d67a320d5f7d1edbe2415edc"
+    },
+    {
+      "file": "trailing-data.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Data after EOI",
+      "byte_length": 6414,
+      "sha256": "468483fece936a3727018993612d88f55c249c52fed2b408dfc05a58e0e22489"
+    },
+    {
+      "file": "zero-width.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Zero frame width",
+      "byte_length": 6409,
+      "sha256": "422d52a99dce64485f50b4955bc880761eb9ae77c4eb71efc070cf2eef101253"
+    },
+    {
+      "file": "over-dimension.jpg",
+      "expected_load": "FPDF1603",
+      "reason": "Dimension limit must win before entropy traversal",
+      "byte_length": 6409,
+      "sha256": "71e2f9fe2a0152dfd918f2e24bd9107928e680d3b21932b32157d1ccfb52f26e"
+    },
+    {
+      "file": "over-pixels.jpg",
+      "expected_load": "FPDF1603",
+      "reason": "Pixel limit must win before entropy traversal",
+      "byte_length": 6409,
+      "sha256": "c701a9e78893dee8888c85e261b5fdde27b6a0279221c4b73b7a2bfa7cfe66a2"
+    },
+    {
+      "file": "duplicate-component.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Duplicate component IDs",
+      "byte_length": 6409,
+      "sha256": "587103f5bbd9d80a4a4480646ff9ca0f60678e16a83a3841d819cc2b25acd7fd"
+    },
+    {
+      "file": "missing-huffman.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "SOS references undefined Huffman tables",
+      "byte_length": 5977,
+      "sha256": "6f83c105e1e0a979e58586277f58a2bd34bfaaa41ecbdf8795369ff6dd057b83"
+    },
+    {
+      "file": "oversubscribed-huffman.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Complete symbol payload but three one-bit codes exceed prefix-tree capacity",
+      "byte_length": 6409,
+      "sha256": "676e9b675e492dcfb129597d60220aa89565d2982c238c8eb62fb7d45141431e"
+    },
+    {
+      "file": "invalid-scan.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Baseline scan must start at spectral selection zero",
+      "byte_length": 6409,
+      "sha256": "d7cf69fe6dee82752a55b646f3298f7ee87a3816fdff413bb0afd32df79125d9"
+    },
+    {
+      "file": "unexpected-restart.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "Restart marker without a DRI interval",
+      "byte_length": 6411,
+      "sha256": "435301fe1e05325bc4e2efb3e2659e6b73278d1922bde7a6433db17e2d35877c"
+    },
+    {
+      "file": "bad-restart-sequence.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "First restart must be RST0",
+      "byte_length": 6628,
+      "sha256": "f8b824599ac8fd2ed399a3c8af1224a8274d647892cc2cf86bd2ac98ec9f3fb3"
+    },
+    {
+      "file": "exif-outside-segment.jpg",
+      "expected_load": "FPDF1601",
+      "reason": "IFD0 offset lies outside APP1",
+      "byte_length": 6445,
+      "sha256": "a7c956b200f2603c0c34b761e6399f66979867b4ec0fa463b901b38f5e543184"
+    },
+    {
+      "file": "over-segments.jpg",
+      "expected_load": "FPDF1603",
+      "reason": "More than 256 length-delimited marker segments",
+      "byte_length": 7694,
+      "sha256": "626dff30538b1fe06ac3892f969b618c2cffb53a5991f29de317da96475caa98"
+    }
+  ]
+}

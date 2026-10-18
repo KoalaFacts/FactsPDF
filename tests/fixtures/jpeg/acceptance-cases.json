@@ -1,0 +1,515 @@
+{
+  "schema": 1,
+  "status": "proposed-contract-not-engine-acceptance",
+  "default_options": {
+    "PageWidth": 595.28,
+    "PageHeight": 841.89,
+    "Margin": 36,
+    "FontSize": 12
+  },
+  "cases": [
+    {
+      "id": "D1-report",
+      "html_file": "report.html",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "fonts": "existing authorized Latin/CJK manifest, subset=true",
+      "expect": {
+        "page_count": 1,
+        "image_content_points": [
+          200,
+          100
+        ],
+        "text_order": [
+          "D1-BEFORE",
+          "D1-AFTER",
+          "D1-END"
+        ],
+        "jpeg_stream_sha_matches": "rgb-420.jpg",
+        "reference_approval": "pending-review"
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-image-only",
+      "html": "<img src=\"chart\" style=\"width:200pt\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "page_count": 1,
+        "image_matrix": [
+          200,
+          0,
+          0,
+          100,
+          36,
+          705.89
+        ],
+        "image_xobject_count": 1
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-gray-natural",
+      "html": "<img src=\"gray\">",
+      "resources": {
+        "gray": "gray.jpg"
+      },
+      "expect": {
+        "page_count": 1,
+        "image_content_points": [
+          48,
+          24
+        ],
+        "color_space": "DeviceGray"
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-resource-reuse",
+      "html": "<img src=\"chart\" style=\"width:80pt\"><img src=\"chart\" style=\"width:80pt\">",
+      "resources": {
+        "chart": "rgb-420.jpg",
+        "unused": "gray.jpg"
+      },
+      "expect": {
+        "page_count": 1,
+        "image_xobject_count": 1,
+        "image_draw_count": 2,
+        "image_content_points": [
+          80,
+          40
+        ]
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-case-sensitive-missing",
+      "html": "<img src=\"Chart\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "code": "FPDF1604",
+        "source_offset": 0,
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-no-implicit-url",
+      "html": "<img src=\"https://example.invalid/chart.jpg\">",
+      "resources": {},
+      "expect": {
+        "code": "FPDF1103",
+        "source_offset": 0,
+        "output_unchanged": true,
+        "network_attempts": 0
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-no-implicit-path",
+      "html": "<img src=\"chart.jpg\">",
+      "resources": {},
+      "expect": {
+        "code": "FPDF1604",
+        "source_offset": 0,
+        "output_unchanged": true,
+        "filesystem_attempts_by_core": 0
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-missing-src",
+      "html": "<img>",
+      "resources": {},
+      "expect": {
+        "code": "FPDF1103",
+        "source_offset": 0,
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-duplicate-src",
+      "html": "<img src=\"chart\" src=\"chart\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ],
+      "expect": {
+        "code": "FPDF1101",
+        "source_offset": 17,
+        "source_token": "src",
+        "output_unchanged": true
+      }
+    },
+    {
+      "id": "D1-inline-refusal",
+      "html": "<p>Before<img src=\"chart\"></p>",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "code": "FPDF1101",
+        "source_offset": 9,
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-list-refusal",
+      "html": "<ul><li><div><img src=\"chart\"></div></li></ul>",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "code": "FPDF1101",
+        "source_offset": 13,
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-html-height-refusal",
+      "html": "<img src=\"chart\" height=\"100\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "code": "FPDF1103",
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-css-height-refusal",
+      "html": "<img src=\"chart\" style=\"height:100pt\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "code": "FPDF1201",
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-width-refusal",
+      "html": "<img src=\"chart\" style=\"width:1000pt\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "expect": {
+        "code": "FPDF1302",
+        "source_offset": 0,
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api",
+        "managed-cli",
+        "native-cli-linux",
+        "node-cli",
+        "wasm-private"
+      ]
+    },
+    {
+      "id": "D1-height-refusal",
+      "html": "<img src=\"chart\" style=\"width:200pt\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "options": {
+        "PageHeight": 100,
+        "Margin": 10
+      },
+      "expect": {
+        "code": "FPDF1302",
+        "source_offset": 0,
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api"
+      ],
+      "not_applicable_reason": {
+        "managed-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "native-cli-linux": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "node-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "wasm-private": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry."
+      }
+    },
+    {
+      "id": "D1-command-refusal",
+      "html": "<img src=\"chart\"><img src=\"chart\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "options": {
+        "MaxDisplayCommands": 1
+      },
+      "expect": {
+        "code": "FPDF1401",
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api"
+      ],
+      "not_applicable_reason": {
+        "managed-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "native-cli-linux": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "node-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "wasm-private": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry."
+      }
+    },
+    {
+      "id": "D1-output-refusal",
+      "html": "<img src=\"chart\">",
+      "resources": {
+        "chart": "rgb-420.jpg"
+      },
+      "options": {
+        "MaxOutputBytes": 1
+      },
+      "expect": {
+        "code": "FPDF1401",
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api"
+      ],
+      "not_applicable_reason": {
+        "managed-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "native-cli-linux": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "node-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "wasm-private": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry."
+      }
+    },
+    {
+      "id": "D1-unused-resource-counts",
+      "html": "<p>ASCII</p>",
+      "resources": {
+        "chart": "rgb-420.jpg",
+        "unused": "gray.jpg"
+      },
+      "options": {
+        "MaxImageResources": 1
+      },
+      "expect": {
+        "code": "FPDF1603",
+        "output_unchanged": true
+      },
+      "applies_to": [
+        "managed-api"
+      ],
+      "not_applicable_reason": {
+        "managed-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "native-cli-linux": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "node-cli": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry.",
+        "wasm-private": "This entry has no public parameter for these PdfOptions; do not invent CLI flags or count an API result as this entry."
+      }
+    }
+  ],
+  "loader_boundary_cases": [
+    {
+      "file": "rgb-420.jpg",
+      "limit": "MaxBytes",
+      "boundary": "file byte_length",
+      "at_boundary": "accept",
+      "boundary_minus_one": "FPDF1603",
+      "applies_to": [
+        "managed-api-loader"
+      ],
+      "not_applicable_reason": "CLI and the private WASM conversion protocol do not expose custom per-image PdfImageLimits."
+    },
+    {
+      "file": "rgb-420.jpg",
+      "limit": "MaxDimension",
+      "boundary": 320,
+      "at_boundary": "accept",
+      "boundary_minus_one": "FPDF1603",
+      "applies_to": [
+        "managed-api-loader"
+      ],
+      "not_applicable_reason": "CLI and the private WASM conversion protocol do not expose custom per-image PdfImageLimits."
+    },
+    {
+      "file": "rgb-420.jpg",
+      "limit": "MaxPixels",
+      "boundary": 51200,
+      "at_boundary": "accept",
+      "boundary_minus_one": "FPDF1603",
+      "applies_to": [
+        "managed-api-loader"
+      ],
+      "not_applicable_reason": "CLI and the private WASM conversion protocol do not expose custom per-image PdfImageLimits."
+    },
+    {
+      "file": "rgb-420.jpg",
+      "limit": "MaxDecodedBytes",
+      "boundary": 153600,
+      "at_boundary": "accept",
+      "boundary_minus_one": "FPDF1603",
+      "applies_to": [
+        "managed-api-loader"
+      ],
+      "not_applicable_reason": "CLI and the private WASM conversion protocol do not expose custom per-image PdfImageLimits."
+    },
+    {
+      "file": "rgb-420.jpg",
+      "limit": "MaxMcuBlocks",
+      "boundary": 1200,
+      "at_boundary": "accept",
+      "boundary_minus_one": "FPDF1603",
+      "applies_to": [
+        "managed-api-loader"
+      ],
+      "not_applicable_reason": "CLI and the private WASM conversion protocol do not expose custom per-image PdfImageLimits."
+    },
+    {
+      "file": "odd-420.jpg",
+      "limit": "MaxMcuBlocks",
+      "boundary": 12,
+      "at_boundary": "accept",
+      "boundary_minus_one": "FPDF1603",
+      "applies_to": [
+        "managed-api-loader"
+      ],
+      "not_applicable_reason": "CLI and the private WASM conversion protocol do not expose custom per-image PdfImageLimits."
+    }
+  ],
+  "default_entry_boundary_recipes": [
+    {
+      "id": "D1-default-image-count",
+      "status": "recipe-to-execute-after-implementation",
+      "recipe": "Bind rgb-420.jpg under 17 distinct valid names; render <p>ASCII</p>. All entries count, including unused aliases.",
+      "expect_by_entry": {
+        "managed-api": {
+          "code": "FPDF1603"
+        },
+        "managed-cli": {
+          "exit_code": 2
+        },
+        "native-cli-linux": {
+          "exit_code": 2
+        },
+        "node-cli": {
+          "exit_code": 2
+        },
+        "wasm-private": {
+          "code": "B2_INPUT_IMAGES"
+        }
+      },
+      "output_unchanged": true
+    },
+    {
+      "id": "D1-default-byte-cap",
+      "status": "recipe-to-execute-after-implementation",
+      "recipe": "Supply one explicit resource with exactly 8388609 bytes: rgb-420.jpg followed by zero padding. The byte guard must reject before JPEG tail parsing. The harness owns this already allocated input.",
+      "expect_by_entry": {
+        "managed-api-loader": {
+          "code": "FPDF1603"
+        },
+        "managed-cli": {
+          "exit_code": 3,
+          "code": "FPDF1603"
+        },
+        "native-cli-linux": {
+          "exit_code": 3,
+          "code": "FPDF1603"
+        },
+        "node-cli": {
+          "exit_code": 3,
+          "code": "FPDF1603"
+        },
+        "wasm-js-packer": {
+          "code": "B2_RESOURCE_LIMIT"
+        },
+        "wasm-direct-private-dotnet": {
+          "code": "FPDF1603"
+        }
+      },
+      "output_unchanged": true
+    }
+  ]
+}
