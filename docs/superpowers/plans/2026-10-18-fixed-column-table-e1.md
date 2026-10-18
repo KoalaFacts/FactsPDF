@@ -48,13 +48,13 @@
 
 **Interfaces:** `TextLines.Wrap(Paragraph, double available, PdfOptions, Dictionary<(FontRole Role,int Scalar),(PdfFont? Font,double Width)>, CancellationToken, ListMarker? firstMarker=null)` retains the existing borrowed-line iterator contract. `TextLines.AppendLine(Line, double x, double baseline, List<PlacedText>, Action<int,int> charge, CancellationToken, int sourceOffset=-1)` charges before retaining each copied run. `LayoutTable(TableNode Node,double X,double AvailableWidth) : BlockLayoutStep`. `TableLayout.Measure(LayoutTable, PdfOptions, shared glyph cache, CancellationToken, Action<int,int>)` returns a measured width/height plus bounded local text runs and paint boxes; it never emits pages or writes output.
 
-- [ ] Add failing layout tests for authored Courier 12pt/18pt lines, tracks80/140/260, padding4, border1, row heights28/28/46 and total102. Test point/px/percent equivalence, default/explicit table widths, cell alignment and separate touching borders.
-- [ ] Test missing/auto/zero column widths, sums outside0.001pt, zero content widths and overwide/tall tables; errors must be FPDF1302 with available source offsets and unchanged destinations.
-- [ ] Test table/header defaults with explicit four-role fixture fonts, fallback and CJK wrapping; missing roles/glyphs retain existing diagnostics. Empty cells retain zero text-line height plus decoration; explicit br uses existing line metrics.
-- [ ] Run the new tests; expect unsupported table layout (feature missing), not compilation errors.
-- [ ] Extract wrapping and line placement verbatim behind the shared helper, then measure tables with bounded retained commands. Compute cell content boxes from track widths, row heights from their tallest wrapped cell and all cell backgrounds/borders to the row height.
-- [ ] Add atomic table placement beside the existing image path, preserving leading/trailing padding, explicit breaks, occupied-page detection, ancestor fragment origins and paint order. Translate already charged runs/boxes once after placement.
-- [ ] Run targeted and full tests, including existing image/list/font/fragmentation cases. Commit the layout slice.
+- [x] Add failing layout tests for authored Courier 12pt/18pt lines, tracks80/140/260, padding4, border1, row heights28/28/46 and total102. Test point/px/percent equivalence, default/explicit table widths, cell alignment and separate touching borders.
+- [x] Test missing/auto/zero column widths, sums outside0.001pt, zero content widths and overwide/tall tables; errors must be FPDF1302 with available source offsets and unchanged destinations.
+- [x] Test table/header defaults with explicit four-role fixture fonts, fallback and CJK wrapping; missing roles/glyphs retain existing diagnostics. Empty cells retain zero text-line height plus decoration; explicit br uses existing line metrics.
+- [x] Run the new tests; expect unsupported table layout (feature missing), not compilation errors.
+- [x] Extract wrapping and line placement verbatim behind the shared helper, then measure tables with bounded retained commands. Compute cell content boxes from track widths, row heights from their tallest wrapped cell and all cell backgrounds/borders to the row height.
+- [x] Add atomic table placement beside the existing image path, preserving leading/trailing padding, explicit breaks, occupied-page detection, ancestor fragment origins and paint order. Translate already charged runs/boxes once after placement.
+- [x] Run targeted and full tests, including existing image/list/font/fragmentation cases. Commit the layout slice.
 
 ## Task 3: limits, combinations and real entry-point evidence
 

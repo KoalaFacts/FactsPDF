@@ -8,6 +8,7 @@ internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, dou
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
 internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, double ContentTop,
     double Width, double Height, double OuterWidth, double OuterHeight) : BlockLayoutStep;
+internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
@@ -38,6 +39,9 @@ internal static class BlockLayout
             frames.Push(frame with { Index = frame.Index + 1 });
             switch (frame.Children[frame.Index])
             {
+                case TableNode table:
+                    yield return new LayoutTable(table, frame.X, frame.ContentWidth);
+                    break;
                 case ImageNode image:
                 {
                     var style = image.BoxStyle;
