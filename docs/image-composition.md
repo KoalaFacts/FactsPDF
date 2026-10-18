@@ -16,7 +16,7 @@ python scripts/verify_image_composition.py \
   --native-cli artifacts/style-native/FactsPDF.Cli
 ```
 
-`--native-cli` is optional for local managed-only inspection. Normal protected CI supplies its freshly published Linux Native AOT executable. The inspector verifies all page counts, image-page resources, original DCT bytes, independently authored 400×200pt image matrices, ordered record IDs, restarted counters, actual PDF font resources for the four roles, Poppler text bounds, qpdf integrity and raster orientation/colors. Reordered real PDF pages must fail inspection. Font bytes are explicitly supplied and are not distributed.
+`--native-cli` is optional for local managed-only inspection. Normal protected CI supplies its freshly published Linux Native AOT executable. The inspector verifies all page counts, image-page resources, original DCT bytes, independently authored 400×200pt image matrices, ordered record IDs, restarted counters, actual PDF font resources for the four roles, Poppler text bounds, qpdf integrity and raster orientation/colors. Reordered real PDF pages and removal of the final-page ordered markers must fail inspection. Font bytes are explicitly supplied and are not distributed.
 
 Nine new `ImageCompositionTests` cover exact page-edge fit, automatic image movement, image-only pages, adjacent/nested lists, inherited font roles, continued ancestor decoration, exact display/output budgets and unchanged destinations on failure. These cases passed against the already merged implementation; no defect was demonstrated and no engine behavior was changed.
 

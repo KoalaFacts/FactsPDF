@@ -27,7 +27,7 @@ CASES = [
      "roles": {"LEAD-01": "DejaVuSans", "AUTO-AFTER": "DejaVuSans-Bold", "AFTER-TWO": "DejaVuSans-Oblique", "AUTO-END": "DejaVuSans-BoldOblique"}},
     {"name": "image-only-middle-page", "pages": 3, "image_page": 2, "image_x": 36,
      "tokens": ["ONLY-BEFORE", "ONLY-AFTER", "ONLY-NESTED", "ONLY-END"],
-     "roles": {"ONLY-BEFORE": "DejaVuSans-Bold", "ONLY-AFTER": "DejaVuSans-Oblique", "ONLY-END": "DejaVuSans-BoldOblique"}},
+     "roles": {"ONLY-BEFORE": "DejaVuSans-Bold", "ONLY-AFTER": "DejaVuSans-Oblique", "ONLY-NESTED": "DejaVuSans", "ONLY-END": "DejaVuSans-BoldOblique"}},
 ]
 
 
@@ -70,6 +70,7 @@ def inspect(path, case, jpeg, raster=True):
     else:
         assert texts[1].strip() == "", "middle page must contain only the image"
         assert "ONLY-BEFORE" in texts[0] and "ONLY-AFTER" in texts[2]
+        assert re.findall(r"(?m)^\s*(\d+)\.", texts[2]) == ["1", "2"], "final-page list counter"
     bbox = ET.fromstring(run(["pdftotext", "-bbox", path, "-"]))
     for index, page in enumerate([e for e in bbox.iter() if e.tag.endswith("page")], 1):
         for word in [e for e in page.iter() if e.tag.endswith("word")]:
@@ -130,7 +131,34 @@ def main():
         except AssertionError: pass
         else: raise AssertionError("Inspector accepted reordered pages")
         mutant.unlink()
+        if case["name"] == "image-only-middle-page":
+            reader = PdfReader(previous); writer = PdfWriter()
+            for page in reader.pages: writer.add_page(page)
+            page = writer.pages[2]
+            content = ContentStream(page.get_contents(), writer)
+            retained, group, removed = [], None, 0
+            for operands, operator in content.operations:
+                if operator == b"BT": group = []
+                if group is None:
+                    retained.append((operands, operator))
+                    continue
+                group.append((operands, operator))
+                if operator == b"ET":
+                    # Authored body starts at 60pt; only the two decimal markers
+                    # have text matrices left of that edge on the final page.
+                    if any(op == b"Tm" and float(values[4]) < 60 for values, op in group): removed += 1
+                    else: retained.extend(group)
+                    group = None
+            assert removed == 2 and group is None, "marker mutant construction"
+            content.operations = retained; page.replace_contents(content)
+            mutant = args.output / "missing-final-page-markers.pdf"
+            with mutant.open("wb") as stream: writer.write(stream)
+            try: inspect(mutant, case, jpeg, raster=False)
+            except AssertionError as error: assert str(error) == "final-page list counter", str(error)
+            else: raise AssertionError("Inspector accepted missing final-page list markers")
+            mutant.unlink()
     evidence["reorderedPageMutantsRejected"] = len(CASES)
+    evidence["missingMarkerMutantsRejected"] = 1
     (args.output / "results.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(json.dumps({"success": True, "cases": len(evidence["cases"])}))
 
