@@ -59,4 +59,6 @@ Cancellation is checked between bounded reads, marker walks, metadata entries, e
 
 `tests/fixtures/jpeg` contains 35 authored JPEGs, a single-page report and explicit per-entry contracts. `probes/images` and `scripts/verify_images.py` exercise direct API/managed CLI/Node/Linux Native AOT; the protected WASM workflow runs the shared .NET engine with supplied bytes. Verification checks raw DCT hashes, authored matrices, image reuse, qpdf, Poppler text/bounds, rendered corner/arrow/bar pixels, and unchanged output on failure. Deliberately removed/duplicated draws, changed geometry and changed image streams must fail inspection. Reference page approval remains separate from successful conversion.
 
+[Multi-page composition samples](image-composition.md) additionally check automatic image movement around ordered/nested lists, image-only middle pages, four explicit font roles and sliced ancestor decoration.
+
 The legacy nine-target denominator is unchanged. T-jpeg now checks missing explicit resources; positive D1 evidence is separate, as for C1 font styles. Tables, page furniture, heading keep and complete-report/release gates remain outstanding. No runtime dependency or standalone font redistribution is introduced.
