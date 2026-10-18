@@ -135,6 +135,9 @@ internal sealed class CssStylesheets
         {
             budget.Work(declaration.Offset);
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
+            if (element.Name == "col" && declaration.Property != CssProperty.Width
+                || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
+                throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.BreakBefore or CssProperty.BreakAfter)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);

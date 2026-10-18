@@ -6,7 +6,8 @@ internal static class HtmlDocumentReader
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li";
-    private static bool BoxTag(string name) => name == "img" || ParagraphTag(name) || Container(name) && name != "html";
+    private static bool BoxTag(string name) => name is "img" or "table" or "col" or "td" or "th"
+        || ParagraphTag(name) || Container(name) && name != "html";
 
     private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em";
 
@@ -24,6 +25,7 @@ internal static class HtmlDocumentReader
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
         var result = new DocumentRoot();
         Paragraph? current = null;
+        TableMarkup? table = null;
         var anonymous = false;
         var elements = 0; var insideStyle = false;
 
@@ -39,7 +41,7 @@ internal static class HtmlDocumentReader
 
         void Flush()
         {
-            if (current is not null)
+            if (current is not null && table?.Cell is null)
                 CurrentChildren().Add(new ParagraphNode(current, anonymous));
             current = null;
             anonymous = false;
@@ -74,10 +76,10 @@ internal static class HtmlDocumentReader
                     continue;
                 }
                 var decoded = HtmlTokens.Decode(token.Value, token.Offset);
-                if (ListTag(stack[^1].Name))
+                if (ListTag(stack[^1].Name) || table is not null && table.Cell is null)
                 {
                     if (!decoded.All(HtmlTokens.Space))
-                        throw new FactsPdfException("FPDF1101", "Lists may contain only direct li children and whitespace.", token.Offset);
+                        throw new FactsPdfException("FPDF1101", "Structural list/table elements cannot contain direct text.", token.Offset);
                     continue;
                 }
                 Add(decoded, stack[^1].Style);
@@ -86,8 +88,8 @@ internal static class HtmlDocumentReader
             var name = token.Value;
             if (name == "style")
             {
-                if (ListTag(stack[^1].Name))
-                    throw new FactsPdfException("FPDF1101", "style cannot be a direct list child.", token.Offset);
+                if (ListTag(stack[^1].Name) || table is not null)
+                    throw new FactsPdfException("FPDF1101", "style cannot be a direct list child or table descendant.", token.Offset);
                 if (token.Kind == HtmlTokenKind.End)
                 {
                     if (!insideStyle) throw new FactsPdfException("FPDF1101", "Unexpected style end tag.", token.Offset);
@@ -99,7 +101,8 @@ internal static class HtmlDocumentReader
                 if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
                 insideStyle = true; continue;
             }
-            if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || name is "img" or "br" or "head" or "title" or "meta"))
+            if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
+                || name is "img" or "br" or "head" or "title" or "meta"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -107,12 +110,24 @@ internal static class HtmlDocumentReader
                 if (ListTag(name) && stack[^1].Name == "li") { Flush(); Pop(); }
                 if (stack.Count == 1 || stack[^1].Name != name)
                     throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{name}'.", token.Offset);
+                if (TableMarkup.IsTag(name))
+                {
+                    if (name is "td" or "th") Flush();
+                    table!.End(name, token.Offset);
+                    if (name == "table") table = null;
+                    Pop(); continue;
+                }
                 if (ParagraphTag(name) || Container(name)) Flush();
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
-            if (token.SelfClosing && name is not ("img" or "br" or "meta"))
+            if (token.SelfClosing && name is not ("img" or "br" or "meta" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
+            if (name == "table" && (table is not null || stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
+                throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
+            if (TableMarkup.IsTag(name) && name != "table" && table is null)
+                throw new FactsPdfException("FPDF1101", "Table structural elements require their explicit table parents.", token.Offset);
+            table?.CheckChild(stack[^1].Name, name, token.Offset);
             if (name == "img" && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
                 throw new FactsPdfException("FPDF1101", "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
             if ((ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
@@ -136,7 +151,7 @@ internal static class HtmlDocumentReader
             var boxStyle = new BoxStyle();
             var style = parent with { MarginBefore = 0, MarginAfter = ParagraphTag(name) ? 8 : 0,
                 BreakBefore = false, BreakAfter = false };
-            if (name is "b" or "strong") style = style with { Bold = true };
+            if (name is "b" or "strong" or "th") style = style with { Bold = true };
             if (name is "i" or "em") style = style with { Italic = true };
             if (name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6')
                 style = style with { FontSize = style.FontSize * (name[1] switch
@@ -163,6 +178,22 @@ internal static class HtmlDocumentReader
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
+            if (name == "table")
+            {
+                Flush();
+                table = new(new TableNode(style, boxStyle, token.Offset));
+                CurrentChildren().Add(table.Node);
+                stack.Add(new(name, style, boxStyle, null, token.Offset));
+                continue;
+            }
+            if (TableMarkup.IsTag(name))
+            {
+                table!.Start(name, style, boxStyle, token.Offset);
+                if (name == "col") { path.RemoveAt(path.Count - 1); continue; }
+                stack.Add(new(name, style, boxStyle, null, token.Offset));
+                if (name is "td" or "th") { current = table.Cell!.Paragraph; anonymous = false; }
+                continue;
+            }
             if (name == "img")
             {
                 if (!token.Attributes.TryGetValue("src", out var resourceName) || !ImageResources.ValidName(resourceName))

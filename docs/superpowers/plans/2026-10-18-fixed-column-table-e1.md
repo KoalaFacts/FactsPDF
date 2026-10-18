@@ -36,11 +36,11 @@
 
 **Interfaces:** `TableNode(TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChild` owns `List<TableColumn> Columns` and `List<TableRow> Rows`; `TableColumn(CssLength? Width, int SourceOffset)`; `TableRow(bool IsHeader, int SourceOffset)` owns cells; `TableCell(Paragraph Paragraph, BoxStyle BoxStyle, int SourceOffset)`. `TableMarkup` owns the current TableNode/row/cell, validates child transitions and completion, and exposes cell content to the existing inline reader. Column widths remain unresolved until layout.
 
-- [ ] Add parsing tests using existing ReadTree/paragraph projection APIs. Valid explicit point/percent tables retain header/body text in order, inline styles and empty cells; assert th bold default and normal override.
-- [ ] Add exact diagnostic/source-offset and unchanged-output tests for missing/reordered/duplicate sections, orphan tags, 17 columns, row-cell mismatch, optional table end tags, invalid placement, colspan/rowspan, forbidden cell content and tag-specific CSS, including matched overridden declarations and CSS preflight priority.
-- [ ] Run `dotnet test FactsPDF.slnx -c Release --filter FullyQualifiedName~TableStructureTests`; expect new valid inputs to fail FPDF1102 and new shape diagnostics to mismatch, proving missing support.
-- [ ] Implement the model and strict markup state machine; reuse the existing style path, element/depth counting and inline text reader. Extend text-only compatibility traversal to table cell paragraphs. Do not expose table structural nodes as ordinary block descendants.
-- [ ] Run targeted tests and the full suite; all must pass. Commit the structure/style slice.
+- [x] Add parsing tests using existing ReadTree/paragraph projection APIs. Valid explicit point/percent tables retain header/body text in order, inline styles and empty cells; assert th bold default and normal override.
+- [x] Add exact diagnostic/source-offset and unchanged-output tests for missing/reordered/duplicate sections, orphan tags, 17 columns, row-cell mismatch, optional table end tags, invalid placement, colspan/rowspan, forbidden cell content and tag-specific CSS, including matched overridden declarations and CSS preflight priority.
+- [x] Run `dotnet test FactsPDF.slnx -c Release --filter FullyQualifiedName~TableStructureTests`; expect new valid inputs to fail FPDF1102 and new shape diagnostics to mismatch, proving missing support.
+- [x] Implement the model and strict markup state machine; reuse the existing style path, element/depth counting and inline text reader. Extend text-only compatibility traversal to table cell paragraphs. Do not expose table structural nodes as ordinary block descendants.
+- [x] Run targeted tests and the full suite; all must pass. Commit the structure/style slice.
 
 ## Task 2: shared text lines and indivisible table layout
 

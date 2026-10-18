@@ -32,6 +32,14 @@ internal static class BlockTreeTraversal
                     break;
                 case ImageNode:
                     break; // The compatibility projection contains text only.
+                case TableNode table:
+                    foreach (var row in table.Rows)
+                        foreach (var cell in row.Cells)
+                        {
+                            cancellation.ThrowIfCancellationRequested();
+                            yield return cell.Paragraph;
+                        }
+                    break;
                 default:
                     throw new InvalidOperationException("Unexpected block tree child.");
             }
