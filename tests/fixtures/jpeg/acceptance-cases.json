@@ -1,6 +1,10 @@
 {
   "schema": 1,
   "status": "proposed-contract-not-engine-acceptance",
+  "assertion_entry_scope": {
+    "source_offset": ["managed-api"],
+    "source_token": "Authored input anchor used to check the offset, not an exposed entry result."
+  },
   "default_options": {
     "PageWidth": 595.28,
     "PageHeight": 841.89,

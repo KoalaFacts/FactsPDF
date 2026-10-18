@@ -121,6 +121,8 @@ Image XObject：实际 Width/Height、BitsPerComponent=8、DeviceGray 或 Device
 
 单页提案 HTML 和运行场景见同目录 `report.html`、`acceptance-cases.json`。图片 320×160、CSS 200pt 给出独立预期 200×100pt（区别于自然尺寸 240×120pt）；四角非对称色块和向上箭头用于检查方向。逐例标明适用入口；四个自定义 PdfOptions 的负例只计 managed API，不假装 CLI/Node/WASM 已有页高或额度参数。跨入口额度验证另外使用真实默认限制的明确 recipe，并保留各层不同的预期诊断。它尚不是可用产品样例，不放入 examples 的已支持示例列表。
 
+同一失败案例的 SourceOffset 断言仅适用于暴露 `FactsPdfException.SourceOffset` 的 managed API（JSON 的 assertion_entry_scope）；CLI 与现有私有 ProbeResult 没有位置字段，只核对它们实际输出的错误码/退出码与无输出行为，不为共享断言添加新的诊断接口。
+
 实现时必须完成以下组，不将 fixture 自检当产品完成：
 
 1. span/非 seek stream、精确上限及 +1、预取消/中途取消、输入副本不变、映射快照/重名/总额度/未用资源及成功→失败→成功。
