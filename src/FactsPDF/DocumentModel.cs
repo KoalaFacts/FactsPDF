@@ -91,6 +91,9 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
 
 internal sealed record ParagraphNode(Paragraph Paragraph, bool IsAnonymous) : BlockChild;
 
+internal sealed record ImageNode(PdfImage Image, TextStyle Style, BoxStyle BoxStyle,
+    int SourceOffset, string? Alt) : BlockChild;
+
 internal sealed class DocumentRoot
 {
     public List<BlockChild> Children { get; } = [];

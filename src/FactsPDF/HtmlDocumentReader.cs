@@ -6,7 +6,7 @@ internal static class HtmlDocumentReader
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li";
-    private static bool BoxTag(string name) => ParagraphTag(name) || Container(name) && name != "html";
+    private static bool BoxTag(string name) => name == "img" || ParagraphTag(name) || Container(name) && name != "html";
 
     private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em";
 
@@ -99,7 +99,7 @@ internal static class HtmlDocumentReader
                 if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
                 insideStyle = true; continue;
             }
-            if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || name is "br" or "head" or "title" or "meta"))
+            if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || name is "img" or "br" or "head" or "title" or "meta"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -111,8 +111,10 @@ internal static class HtmlDocumentReader
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
-            if (token.SelfClosing && name is not ("br" or "meta"))
+            if (token.SelfClosing && name is not ("img" or "br" or "meta"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
+            if (name == "img" && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
+                throw new FactsPdfException("FPDF1101", "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
             if ((ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
             if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
             if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name)))
@@ -148,6 +150,7 @@ internal static class HtmlDocumentReader
                     // Declarations were parsed once during source collection.
                 }
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
+                else if (name == "img" && attribute is "src" or "alt") { }
                 else if (attribute is "id" or "class" or "lang" or "title" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
             }
@@ -160,6 +163,16 @@ internal static class HtmlDocumentReader
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
+            if (name == "img")
+            {
+                if (!token.Attributes.TryGetValue("src", out var resourceName) || !ImageResources.ValidName(resourceName))
+                    throw new FactsPdfException("FPDF1103", "img requires an explicit resource name in src; paths and URLs are unsupported.", token.Offset);
+                if (!options.Images.TryGetValue(resourceName, out var image))
+                    throw new FactsPdfException("FPDF1604", $"Image resource '{resourceName}' was not supplied.", token.Offset);
+                Flush();
+                CurrentChildren().Add(new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt")));
+                path.RemoveAt(path.Count - 1); continue;
+            }
             if (ParagraphTag(name) || Container(name)) Flush();
             // `html`, head/title metadata and spans remain structural
             // inheritance/style contexts, never painted block boxes.

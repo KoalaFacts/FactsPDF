@@ -30,6 +30,8 @@ internal static class BlockTreeTraversal
                 case BlockNode box:
                     pending.Push((box.Children, 0));
                     break;
+                case ImageNode:
+                    break; // The compatibility projection contains text only.
                 default:
                     throw new InvalidOperationException("Unexpected block tree child.");
             }
