@@ -106,8 +106,7 @@ public sealed class JpegResourceBoundaryTests
         var bytes = JpegFixture.Gray(new byte[524288], width: 4096, height: 32768);
         var limits = new PdfImageLimits { MaxDimension = 32768, MaxPixels = 134217728,
             MaxDecodedBytes = 134217728, MaxMcuBlocks = 2097152 };
-        using var cts = new CancellationTokenSource(); cts.CancelAfter(1);
-        Assert.Throws<OperationCanceledException>(() => PdfImage.LoadImage(bytes, limits, cts.Token));
+        CancelDuring(token => PdfImage.LoadImage(bytes, limits, token));
     }
 
     [Test]
@@ -122,17 +121,7 @@ public sealed class JpegResourceBoundaryTests
         JpegReader.Read(JpegFixture.Gray([0x3f]), new(), default); // warm reader/JIT
         for (var attempt = 0; attempt < 4; attempt++)
         {
-            // CancelAfter uses a thread-pool timer, which can remain queued
-            // until after this CPU loop finishes on a busy runner. A ready
-            // dedicated thread keeps cancellation independent of that pool.
-            using var cts = new CancellationTokenSource();
-            using var ready = new ManualResetEventSlim();
-            using var start = new ManualResetEventSlim();
-            var cancelThread = new Thread(() => { ready.Set(); start.Wait(); Thread.Sleep(1); cts.Cancel(); });
-            cancelThread.Start(); ready.Wait(); start.Set();
-            OperationCanceledException error;
-            try { error = Assert.Throws<OperationCanceledException>(() => JpegReader.Read(bytes, limits, cts.Token))!; }
-            finally { cancelThread.Join(); }
+            var error = CancelDuring(token => JpegReader.Read(bytes, limits, token));
             if (error.StackTrace?.Contains("JpegReader.Byte", StringComparison.Ordinal) == true
                 || error.StackTrace?.Contains("JpegReader.Marker", StringComparison.Ordinal) == true) return;
             // A descheduled thread can see cancellation at the initial guard.
@@ -140,6 +129,20 @@ public sealed class JpegResourceBoundaryTests
             Assert.That(error.StackTrace, Does.Contain("JpegReader.Read"));
         }
         Assert.Fail("Cancellation never reached the marker-fill byte checkpoint; entry-guard cancellation is insufficient.");
+    }
+
+    private static OperationCanceledException CancelDuring(Action<CancellationToken> read)
+    {
+        // CancelAfter uses a thread-pool timer, which can remain queued until
+        // after a CPU loop finishes on a busy runner. Both validation tests use
+        // a ready dedicated thread to keep cancellation independent of that pool.
+        using var cts = new CancellationTokenSource();
+        using var ready = new ManualResetEventSlim();
+        using var start = new ManualResetEventSlim();
+        var cancelThread = new Thread(() => { ready.Set(); start.Wait(); Thread.Sleep(1); cts.Cancel(); });
+        cancelThread.Start(); ready.Wait(); start.Set();
+        try { return Assert.Throws<OperationCanceledException>(() => read(cts.Token))!; }
+        finally { cancelThread.Join(); }
     }
 
     private sealed class ShortReads(byte[] bytes, CancellationTokenSource? cancellation = null) : MemoryStream(bytes)
