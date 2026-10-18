@@ -6,4 +6,4 @@ export const cases = [
   { name: 'layout', html: '<html><body><div style="width:120pt;padding:8pt;border:1pt solid #123456;background-color:#eef4fa"><p>Layout probe with enough words to wrap inside the explicit narrow block.</p></div><p style="break-before:page">Second page 报告 café</p></body></html>',
     text: 'Layout probe with enough words to wrap inside the explicit narrow block. Second page 报告 café', pages: 2, fonts: true },
 ];
-export const unsupportedHtml = '<html><body><img src="explicit.jpg"></body></html>';
+export const unsupportedHtml = '<html><body><video></video></body></html>';

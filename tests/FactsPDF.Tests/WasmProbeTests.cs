@@ -23,7 +23,7 @@ public class WasmProbeTests
     }
 
     [TestCase("<p>报告</p>", "FPDF1301")]
-    [TestCase("<img src=\"explicit.jpg\">", "FPDF1102")]
+    [TestCase("<img src=\"explicit.jpg\">", "FPDF1604")]
     public void CoreFailuresReturnDiagnosticWithoutPdf(string html, string code)
     {
         var result = ProbeConversion.Run(html, [], [], false);

@@ -1,0 +1,13 @@
+# D1 JPEG acceptance fixtures
+
+These assets and the authored expectations accompany the [D1 design](../../../docs/superpowers/specs/2026-10-18-bounded-jpeg-design.md). The implemented API is documented in [images](../../../docs/images.md).
+
+All image pixels were authored procedurally for this repository in `scripts/jpeg_fixtures.py`. No external photo, screenshot, user document, or standalone font is included. The colored chart has red/green top corners, blue/yellow bottom corners, an upward arrow and unequal bars to make orientation errors visible. `gray.jpg` is a horizontal grayscale ramp. `odd-420.jpg` exercises partial MCU edges. These repository-authored fixtures follow the repository license; no license terms were changed.
+
+Run `python scripts/jpeg_fixtures.py --check` with Pillow 12.3.0 (fixture-authoring environment JPEG codec compatibility version 6.2, libjpeg-turbo 3.1.4.1). It checks every committed byte hash, decodes the ten positive cases independently, verifies their dimensions/mode/decoded-pixel hash, and records independent decoder behavior for negative cases. It independently checks the complete-symbol/oversubscribed Huffman negative and legal FF fill before DQT/RST/EOI. It deliberately does not decode the over-limit dimension/pixel headers. A tolerant decoder may accept a negative case; that does not make FactsPDF's stricter contract pass or fail.
+
+`--generate` is only for deliberate fixture authoring. It rewrites bytes and the authoring manifest; do not run it to repair a failed comparison. Cross-version decoder differences require examination rather than automatic reference replacement. Pillow is a development/verification tool, not a product dependency.
+
+`manifest.json` contains 35 real byte fixtures and authored loader outcomes. `acceptance-cases.json` separately records 18 authored conversion cases, six exact loader boundaries and two default-limit execution recipes, with actual applicable entries specified. Four custom-options conversion cases and the custom loader limits apply only to the managed API. The 320×160 chart rendered at 200pt must be 200×100pt, intentionally different from its 240×120pt natural size. `report.html` requires the existing explicitly licensed Latin/CJK font manifest and a resource binding `chart -> rgb-420.jpg`; no font binaries are included.
+
+The manifest's decoded hashes describe these source JPEGs under the recorded independent decoder. They are **not** generated PDF reference images or user-approved page baselines. Product PDF evidence is produced separately by `scripts/verify_images.py` and the protected WASM workflow. Loader fixtures alone never establish conversion success, performance or user page approval.

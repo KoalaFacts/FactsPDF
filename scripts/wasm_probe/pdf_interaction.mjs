@@ -12,6 +12,7 @@ export async function addReaderFiles(files) {
 
 // Search expectations are authored from the source fixture, never extracted from the PDF.
 const queries = {
+  'D1-report': ['D1-BEFORE', 'D1-AFTER', 'D1-END'],
   'lists-report': ['C2-010', 'C2-N03', '10.'],
   'styles-report': ['operation', '粗斜体 恢复斜体 恢复粗体'],
   'styles-records': ['Team 通过', 'Approved 备注', 'Note 优先'],
@@ -66,6 +67,7 @@ export async function inspectReader(context, origin, url, item, screenshot) {
       assert.equal(state.pastes, results.length + 1);
       results.push({ query, selected, pasted, matches: state.matches.total, trustedCopyAndPaste: true });
     }
+    if (item.captureTop) await page.locator('#viewerContainer').evaluate(element => element.scrollTo(0, 0));
     await page.screenshot({ path: screenshot });
     assert.deepEqual(errors, []);
     const state = await page.evaluate(() => window.readerEvidence);

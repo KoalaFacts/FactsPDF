@@ -48,6 +48,26 @@ export async function loadStyleResources(inputUrl, fontUrlsByRole) {
     fontRoles: Int32Array.from(entries, entry => entry.role) };
 }
 
+// Private explicit-byte transport. Caller-owned arrays and interop copies are
+// outside the loader's budget; reject their shape/caps before our packed copy.
+export function packImageResources(images) {
+  const invalid = () => Object.assign(new Error('Supply at most 16 uniquely named nonempty Uint8Array images.'), { code: 'B2_INPUT_IMAGES' });
+  if (!Array.isArray(images) || images.length > 16) throw invalid();
+  const names = new Set(); let total = 0;
+  for (const image of images) {
+    if (!image || typeof image.name !== 'string' || image.name.length > 128
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(image.name) || names.has(image.name)
+      || !(image.bytes instanceof Uint8Array) || image.bytes.length === 0) throw invalid();
+    names.add(image.name);
+    if (image.bytes.length > 8_388_608 || image.bytes.length > 33_554_432 - total)
+      throw Object.assign(new Error('Explicit image resources exceed transport byte limits.'), { code: 'B2_RESOURCE_LIMIT' });
+    total += image.bytes.length;
+  }
+  const imageBytes = new Uint8Array(total); let offset = 0;
+  for (const image of images) { imageBytes.set(image.bytes, offset); offset += image.bytes.length; }
+  return { imageBytes, imageLengths: Int32Array.from(images, image => image.bytes.length), imageNames: [...names] };
+}
+
 async function read(url) {
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok)

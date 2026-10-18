@@ -83,7 +83,7 @@ test('malformed UTF-8 fails without PDF bytes', async () => {
 });
 
 test('unsupported HTML reports its diagnostic and preserves an existing output file', async () => {
-  const invalid = Buffer.from('<html><body><img src="explicit.jpg"></body></html>');
+  const invalid = Buffer.from('<html><body><video></video></body></html>');
   const outputPath = join(directory, 'keep.pdf');
   await writeFile(outputPath, 'keep');
   const fileResult = await invoke(invalid, ['--overwrite'], ['-', outputPath]);

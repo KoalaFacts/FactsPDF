@@ -1,4 +1,4 @@
-import { loadResources, loadStyleResources } from './resources.mjs';
+import { loadResources, loadStyleResources, packImageResources } from './resources.mjs';
 
 const probe = window.factspdfProbe = { ready: false };
 const started = performance.now();
@@ -32,6 +32,21 @@ try {
       const convertStart = performance.now();
       const result = JSON.parse(adapter.ConvertStyles(html, fontBytes, fontLengths, fontRoles, subsetFonts));
       return { ...result, resourceLoadMs, convertMs: performance.now() - convertStart };
+    } catch (error) {
+      return { pdfBase64: null, pageCount: 0, errorCode: error.code ?? 'B2_HOST_ERROR', errorMessage: String(error) };
+    }
+  };
+  // Explicit bytes only: this entry performs no image fetch or src resolution.
+  probe.convertPackedImages = (html, fontData, imageData, subsetFonts = true) =>
+    JSON.parse(adapter.ConvertImages(html, fontData.fontBytes ?? new Uint8Array(),
+      fontData.fontLengths ?? new Int32Array(), fontData.fontRoles ?? new Int32Array(),
+      imageData.imageBytes, imageData.imageLengths, imageData.imageNames, subsetFonts));
+  probe.convertImages = (html, fontData = {}, images = [], subsetFonts = true) => {
+    try {
+      const { imageBytes, imageLengths, imageNames } = packImageResources(images);
+      const convertStart = performance.now();
+      const result = probe.convertPackedImages(html, fontData, { imageBytes, imageLengths, imageNames }, subsetFonts);
+      return { ...result, convertMs: performance.now() - convertStart };
     } catch (error) {
       return { pdfBase64: null, pageCount: 0, errorCode: error.code ?? 'B2_HOST_ERROR', errorMessage: String(error) };
     }

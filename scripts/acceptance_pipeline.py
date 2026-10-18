@@ -70,8 +70,8 @@ def report_markdown(summary: dict, cases: list[dict]) -> str:
             ''.join(f"| {c['case_id']} | {c['status']} | {c.get('pages','—')} | {c.get('chrome_pages','—')} |\n" for c in cases)+
             '\n## Browser reference observations (NOT approved)\n\n'+(observations or 'None recorded.\n')+
             '\nNext gate: inspect every native/Chrome page, then approve or correct the reference; '
-            'images, tables and page furniture remain unmet product targets; T-list is a positive smoke candidate, not complete list verification. '
-            'The legacy T-bold probe supplies no bold resources. Full positive C1 style and C2 list evidence are tracked separately.\n')
+            'tables and page furniture remain unmet product targets; T-list is a positive smoke candidate, not complete list verification. '
+            'The legacy T-bold and T-jpeg probes supply no bold/image resources. Full positive C1 style, C2 list and D1 image evidence are tracked separately.\n')
 
 
 def compare_images(native: Path, chrome: Path, public: Path, ident: str) -> dict:

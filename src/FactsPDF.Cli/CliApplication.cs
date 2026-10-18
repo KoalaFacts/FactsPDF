@@ -8,7 +8,8 @@ public static class CliApplication
     private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
         "Experimental inline-CSS renderer. Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
-        "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n";
+        "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
+        "--image name=path supplies an explicit baseline JPEG resource (at most 16; no network downloads). Format is detected from content.\n";
 
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
         CancellationToken cancellationToken = default)
@@ -21,6 +22,7 @@ public static class CliApplication
             cancellationToken.ThrowIfCancellationRequested();
             if (args.Length == 1 && args[0] is "--help" or "-h") { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false;
+            var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
@@ -34,6 +36,17 @@ public static class CliApplication
                     var role = arg switch { "--font-bold" => 1, "--font-italic" => 2, "--font-bold-italic" => 3, _ => 0 };
                     fontPaths.Add((role, Path.GetFullPath(args[i])));
                 }
+                else if (arg == "--image")
+                {
+                    if (++i >= args.Length) throw new ArgumentException("--image requires name=path.");
+                    var equal = args[i].IndexOf('=');
+                    if (equal <= 0) throw new ArgumentException("--image requires name=path.");
+                    var name = args[i][..equal]; var path = args[i][(equal + 1)..];
+                    if (!ImageName(name) || string.IsNullOrWhiteSpace(path) || path == "-" || path.StartsWith("--", StringComparison.Ordinal))
+                        throw new ArgumentException("--image requires a valid explicit name and file path.");
+                    if (imagePaths.Count >= 16 || !imagePaths.TryAdd(name, Path.GetFullPath(path)))
+                        throw new ArgumentException("At most 16 uniquely named images are allowed.");
+                }
                 else if (arg.StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException("Unknown or repeated option.");
                 else paths.Add(arg);
             }
@@ -42,8 +55,9 @@ public static class CliApplication
             var destination = paths[1] == "-" ? null : Path.GetFullPath(paths[1]);
             var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             if (destination is not null && (source is not null && string.Equals(source, destination, comparison)
-                || fontPaths.Any(path => string.Equals(path.Path, destination, comparison))))
-                throw new ArgumentException("Output must be different from the input HTML and every supplied font file.");
+                || fontPaths.Any(path => string.Equals(path.Path, destination, comparison))
+                || imagePaths.Values.Any(path => string.Equals(path, destination, comparison))))
+                throw new ArgumentException("Output must be different from the input HTML and every supplied font or image file.");
             if (destination is not null && File.Exists(destination) && !overwrite)
                 throw new IOException("Destination exists. Use --overwrite to replace it after a successful conversion.");
 
@@ -59,6 +73,17 @@ public static class CliApplication
             }
             options = options with { Fonts = fonts[0].ToArray(), BoldFonts = fonts[1].ToArray(),
                 ItalicFonts = fonts[2].ToArray(), BoldItalicFonts = fonts[3].ToArray() };
+            var images = new Dictionary<string, PdfImage>(StringComparer.Ordinal); var totalImageBytes = 0;
+            foreach (var (name, path) in imagePaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var remaining = options.MaxTotalImageBytes - totalImageBytes;
+                if (remaining <= 0) throw new FactsPdfException("FPDF1603", "Images exceed MaxTotalImageBytes.");
+                using var imageStream = File.OpenRead(path);
+                var image = PdfImage.LoadImage(imageStream, new PdfImageLimits { MaxBytes = Math.Min(8_388_608, remaining) }, cancellationToken);
+                images.Add(name, image); totalImageBytes += image.ByteLength;
+            }
+            if (images.Count > 0) options = options with { Images = images };
             string html;
             if (source is null) html = ReadInput(input, options.MaxInputCharacters, cancellationToken);
             else { using var file = File.OpenRead(source); html = ReadInput(file, options.MaxInputCharacters, cancellationToken); }
@@ -89,6 +114,10 @@ public static class CliApplication
             }
         }
     }
+
+    // Keep CLI parameter errors distinct from the core's resource diagnostics.
+    private static bool ImageName(string name) => name.Length is >= 1 and <= 128 && char.IsAsciiLetterOrDigit(name[0])
+        && name.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-');
 
     private static string ReadInput(Stream input, int limit, CancellationToken cancellation)
     {

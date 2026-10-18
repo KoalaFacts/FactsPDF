@@ -97,5 +97,14 @@ class CorpusTests(unittest.TestCase):
         p.write_text('changed')
         with self.assertRaises(ValueError): self.c.load_manifest(self.path)
 
+    def test_jpeg_legacy_probe_has_defined_resource_diagnostic_without_positive_credit(self):
+        m = self.c.load_manifest(self.path)
+        target = next(x for x in m['cases'] if x['id'] == 'T-jpeg')
+        self.assertIsNotNone(target['input_path'])
+        self.assertEqual(target['entrypoints']['cli']['expected_code'], 'FPDF1604')
+        self.assertEqual(target['entrypoints']['api']['expected_code'], 'FPDF1604')
+        self.assertEqual(target['probe_scope'], 'missing-explicit-image-resources; full D1 evidence is separate')
+        self.assertEqual(sum(x['kind'] == 'target' for x in m['cases']), 9)
+
 
 if __name__ == '__main__': unittest.main()
