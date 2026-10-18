@@ -9,6 +9,8 @@ internal static class PdfSerializer
     {
         var output = new MemoryStream(Math.Min(4096, o.MaxOutputBytes));
         var offsets = new List<long> { 0 };
+        var images = new PdfImageWriter(pages, cancellation);
+        var firstImage = 4 + 2 * pages.Count;
         void Write(string text)
         {
             if (output.Length + text.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
@@ -40,6 +42,7 @@ internal static class PdfSerializer
                 var contents = new StringBuilder();
                 PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation);
+                images.Append(contents, pages[i], o, cancellation);
                 foreach (var run in pages[i].Runs)
                 {
                     var color = run.Style.Color;
@@ -49,8 +52,14 @@ internal static class PdfSerializer
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 var content = contents.ToString();
-                Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >> >> /Contents {5 + 2 * i} 0 R >>");
+                Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {5 + 2 * i} 0 R >>");
                 Object(5 + 2 * i, $"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
+            }
+            for (var i = 0; i < images.Count; i++)
+            {
+                if (firstImage + i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
             var xref = output.Position;
             Write($"xref\n0 {offsets.Count}\n0000000000 65535 f \n");

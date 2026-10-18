@@ -38,6 +38,7 @@ internal static class UnicodePdfSerializer
 
     internal static MemoryStream Build(List<LayoutPage> pages, PdfOptions o, CancellationToken cancellation)
     {
+        var images = new PdfImageWriter(pages, cancellation);
         var hasCourier = false;
         var fonts = new List<FontUse>(); var byFont = new Dictionary<PdfFont, FontUse>();
         foreach (var page in pages)
@@ -74,6 +75,7 @@ internal static class UnicodePdfSerializer
             Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
             var courierId = 3 + fonts.Count * 6;
             var firstPage = courierId + (hasCourier ? 1 : 0);
+            var firstImage = firstPage + 2 * pages.Count;
             Obj(2, $"<< /Type /Pages /Count {pages.Count.ToString(CultureInfo.InvariantCulture)} /Kids [" + string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => (firstPage + 2 * i).ToString(CultureInfo.InvariantCulture) + " 0 R")) + "] >>");
             foreach (var use in fonts)
             {
@@ -113,6 +115,7 @@ internal static class UnicodePdfSerializer
                 cancellation.ThrowIfCancellationRequested(); var content = new StringBuilder();
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation);
+                images.Append(content, pages[i], o, cancellation);
                 foreach (var run in pages[i].Runs)
                 {
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
@@ -123,8 +126,14 @@ internal static class UnicodePdfSerializer
                     content.Append("> Tj ET\n");
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
-                Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >> >> /Contents {firstPage + 2 * i + 1} 0 R >>"));
+                Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R >>"));
                 StreamObject(firstPage + 2 * i + 1, Encoding.ASCII.GetBytes(content.ToString()));
+            }
+            for (var i = 0; i < images.Count; i++)
+            {
+                if (firstImage + i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
             var xref = output.Position;
             Write("xref\n0 " + offsets.Count.ToString(CultureInfo.InvariantCulture) + "\n0000000000 65535 f \n");

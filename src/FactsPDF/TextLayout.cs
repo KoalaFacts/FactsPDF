@@ -89,6 +89,7 @@ internal static class TextLayout
             || pendingClosedPadding > 0
             || pages[^1].Runs.Count > 0
             || pages[^1].Discs.Count > 0
+            || pages[^1].Images.Count > 0
             || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
 
         void MoveUnconsumedBlocksToNewPage()
@@ -247,6 +248,41 @@ internal static class TextLayout
                 if (occupiesSpace)
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { HasOccupiedDescendant = true };
+                continue;
+            }
+            if (step is LayoutImage image)
+            {
+                ChargeDisplayCommands(1, image.Node.SourceOffset);
+                if (breakNext)
+                {
+                    if (CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                    }
+                    pendingClosedPadding = 0;
+                }
+                breakNext = false;
+                var imageGap = after + pendingTopPadding + pendingClosedPadding;
+                if (y + imageGap + image.OuterHeight > bottom + 0.000001 && CurrentPageOccupied())
+                {
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
+                    imageGap = pendingTopPadding;
+                }
+                if (y + imageGap + image.OuterHeight > bottom + 0.000001)
+                    throw new FactsPdfException("FPDF1302", "Image and required leading decoration cannot fit on a page.", image.Node.SourceOffset);
+                y += imageGap;
+                var painted = new PaintedBox(image.X, y, image.OuterWidth, image.OuterHeight,
+                    image.Node.BoxStyle, image.Node.Style.Color, paintOrder++);
+                ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
+                if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
+                pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height));
+                y += image.OuterHeight;
+                pendingTopPadding = pendingClosedPadding = after = 0;
+                contentEpoch++;
+                for (var i = 0; i < opened.Count; i++)
+                    opened[i] = opened[i] with { HasOccupiedDescendant = true };
                 continue;
             }
             var item = (LayoutParagraph)step;

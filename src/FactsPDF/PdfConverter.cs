@@ -23,7 +23,7 @@ public static class PdfConverter
         foreach (var page in pages)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            displayCommands += (long)page.Runs.Count + page.Discs.Count;
+            displayCommands += (long)page.Runs.Count + page.Discs.Count + page.Images.Count;
             foreach (var box in page.PaintBoxes) displayCommands += box.CommandCount;
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");

@@ -14,11 +14,13 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
 }
 internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null);
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color);
+internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
 internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];
     public List<PaintedBox> PaintBoxes { get; } = [];
     public List<PlacedDisc> Discs { get; } = [];
+    public List<PlacedImage> Images { get; } = [];
 }
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,

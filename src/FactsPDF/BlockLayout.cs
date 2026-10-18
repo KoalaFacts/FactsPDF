@@ -6,6 +6,8 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
 internal sealed record EndBlock(double PaddingBottom) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
+internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, double ContentTop,
+    double Width, double Height, double OuterWidth, double OuterHeight) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
@@ -36,6 +38,24 @@ internal static class BlockLayout
             frames.Push(frame with { Index = frame.Index + 1 });
             switch (frame.Children[frame.Index])
             {
+                case ImageNode image:
+                {
+                    var style = image.BoxStyle;
+                    double Resolve(CssLength length) => Checked(length.Resolve(frame.ContentWidth), image.SourceOffset);
+                    var left = Resolve(style.PaddingLeft) + style.BorderLeft.EffectiveWidth;
+                    var right = Resolve(style.PaddingRight) + style.BorderRight.EffectiveWidth;
+                    var top = Resolve(style.PaddingTop) + style.BorderTop.EffectiveWidth;
+                    var bottom = Resolve(style.PaddingBottom) + style.BorderBottom.EffectiveWidth;
+                    var width = style.Width is { } specified ? Resolve(specified) : image.Image.PixelWidth * 0.75;
+                    var height = Checked(width * image.Image.PixelHeight / image.Image.PixelWidth, image.SourceOffset);
+                    var outerWidth = Checked(width + left + right, image.SourceOffset);
+                    var outerHeight = Checked(height + top + bottom, image.SourceOffset);
+                    if (width <= 0 || outerWidth > frame.ContentWidth + 0.000001)
+                        throw new FactsPdfException("FPDF1302", "Image outer width exceeds containing content width or is zero.", image.SourceOffset);
+                    yield return new LayoutImage(image, frame.X, frame.X + left, top,
+                        width, height, outerWidth, outerHeight);
+                    break;
+                }
                 case ParagraphNode paragraph:
                     yield return new LayoutParagraph(paragraph.Paragraph, frame.X, frame.ContentWidth,
                         lists?.Marker(paragraph.Paragraph), frame.MarkerRightX);
