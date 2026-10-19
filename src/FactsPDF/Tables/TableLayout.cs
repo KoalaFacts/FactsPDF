@@ -3,9 +3,13 @@ using static FactsPDF.TextLines;
 namespace FactsPDF;
 
 internal sealed record MeasuredTable(double Width, double Height,
-    List<PlacedText> Runs, List<PaintedBox> PaintBoxes);
+    List<PlacedText> Runs, List<PaintedBox> PaintBoxes,
+    List<MeasuredTableRow> Rows, double Top, double Bottom);
 
-/// <summary>Measure the indivisible table once, retaining only charged output commands.</summary>
+internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader, int SourceOffset,
+    int RunStart, int RunCount, int BoxStart, int BoxCount);
+
+/// <summary>Measure the table once, retaining only charged output commands.</summary>
 internal static class TableLayout
 {
     private readonly record struct Edges(double Left, double Right, double Top, double Bottom);
@@ -48,17 +52,22 @@ internal static class TableLayout
 
         var runs = new List<PlacedText>();
         var boxes = new List<PaintedBox>();
+        var rows = new List<MeasuredTableRow>();
         var top = edges.Top;
         var usableHeight = options.PageHeight - 2 * options.Margin;
         void CheckHeight(double height, int offset)
         {
             if (!double.IsFinite(height) || height > usableHeight + 0.000001)
-                throw Geometry("The whole table exceeds the usable page height.", offset);
+                throw Geometry("A table row exceeds the usable page height.", offset);
         }
-        CheckHeight(top + edges.Bottom, table.SourceOffset);
+        // First and last decoration may belong to different pages.
+        CheckHeight(edges.Top, table.SourceOffset);
+        CheckHeight(edges.Bottom, table.SourceOffset);
         foreach (var row in table.Rows)
         {
             cancellation.ThrowIfCancellationRequested();
+            var runStart = runs.Count;
+            var boxStart = boxes.Count;
             var rowHeight = 0d;
             var x = edges.Left;
             for (var i = 0; i < row.Cells.Count; i++)
@@ -70,7 +79,7 @@ internal static class TableLayout
                 if (contentWidth <= 0)
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
                 var height = cellEdges.Top;
-                CheckHeight(top + height + cellEdges.Bottom + edges.Bottom, cell.SourceOffset);
+                CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
                 // A spent allowance must fail before allocating another cell's
                 // glyph/word buffers, just as it does for ordinary paragraphs.
                 if (HasTextContent(cell.Paragraph, cancellation)) ensure(1, cell.SourceOffset);
@@ -79,7 +88,7 @@ internal static class TableLayout
                     foreach (var line in Wrap(cell.Paragraph, contentWidth, options, resolved, cancellation))
                     {
                         cancellation.ThrowIfCancellationRequested();
-                        CheckHeight(top + height + line.Height + cellEdges.Bottom + edges.Bottom, cell.SourceOffset);
+                        CheckHeight(height + line.Height + cellEdges.Bottom, cell.SourceOffset);
                         var alignedX = x + cellEdges.Left + (cell.Paragraph.Style.Alignment switch
                         {
                             TextAlignment.Center => (contentWidth - line.Width) / 2,
@@ -110,13 +119,20 @@ internal static class TableLayout
                 if (box.CommandCount > 0) boxes.Add(box);
                 x += tracks[i];
             }
+            rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
+                runStart, runs.Count - runStart, boxStart, boxes.Count - boxStart));
             top += rowHeight;
         }
         var outerHeight = top + edges.Bottom;
         var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0);
-        charge(tableBox.CommandCount, table.SourceOffset);
-        if (tableBox.CommandCount > 0) boxes.Insert(0, tableBox);
-        return new(outerWidth, outerHeight, runs, boxes);
+        // Preserve the E1 command order and bytes for every short table.
+        // Long tables charge their actual sliced decorations during placement.
+        if (outerHeight <= usableHeight + 0.000001)
+        {
+            charge(tableBox.CommandCount, table.SourceOffset);
+            if (tableBox.CommandCount > 0) boxes.Insert(0, tableBox);
+        }
+        return new(outerWidth, outerHeight, runs, boxes, rows, edges.Top, edges.Bottom);
     }
 
     private static Edges ResolveEdges(BoxStyle style, double containingWidth, int offset)

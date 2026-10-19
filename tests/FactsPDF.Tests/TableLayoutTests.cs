@@ -123,7 +123,7 @@ public sealed class TableLayoutTests
         Assert.That(pages[1].PaintBoxes.Select(b => b.Top).Min(), Is.EqualTo(10));
         Assert.That(pages[1].PaintBoxes.Select(b => b.Top + b.Height).Max(), Is.EqualTo(112));
         Assert.That(Layout(Fixture("points"), options), Has.Count.EqualTo(1));
-        TableStructureTests.Fails(Fixture("points"), "FPDF1302", options with { PageHeight = 121.99 });
+        Assert.That(Layout(Fixture("points"), options with { PageHeight = 121.99 }), Has.Count.EqualTo(2));
     }
 
     [Test]

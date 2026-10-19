@@ -274,6 +274,71 @@ internal static class TextLayout
                 }
                 breakNext = false;
                 var tableGap = after + pendingTopPadding + pendingClosedPadding;
+                if (measured.Height > bottom - o.Margin + 0.000001)
+                {
+                    var header = measured.Rows[0].IsHeader ? measured.Rows[0] : null;
+                    var rowIndex = header is null ? 0 : 1;
+                    var first = true;
+                    while (rowIndex < measured.Rows.Count)
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        var fragment = TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
+                        if (fragment.EndRow == rowIndex && CurrentPageOccupied())
+                        {
+                            NewPage();
+                            MoveUnconsumedBlocksToNewPage();
+                            tableGap = pendingTopPadding;
+                            fragment = TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
+                        }
+                        if (fragment.EndRow == rowIndex)
+                            throw new FactsPdfException("FPDF1302",
+                                "Table row, repeated header and required decoration cannot fit on a page.",
+                                measured.Rows[rowIndex].SourceOffset);
+                        y += tableGap;
+                        var last = fragment.EndRow == measured.Rows.Count;
+                        var tableBox = new PaintedBox(table.X, y, measured.Width,
+                            last ? fragment.Height : bottom - y, table.Node.BoxStyle, table.Node.Style.Color,
+                            paintOrder++, IsFirstFragment: first, IsLastFragment: last);
+                        ChargeDisplayCommands(tableBox.CommandCount, table.Node.SourceOffset);
+                        if (tableBox.CommandCount > 0) pages[^1].PaintBoxes.Add(tableBox);
+                        var rowTop = y + (first ? measured.Top : 0);
+                        void PlaceRow(MeasuredTableRow row, bool repeat)
+                        {
+                            for (var j = row.RunStart; j < row.RunStart + row.RunCount; j++)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                if (repeat) ChargeDisplayCommands(1, row.SourceOffset);
+                                var run = measured.Runs[j];
+                                pages[^1].Runs.Add(run with { X = table.X + run.X,
+                                    Baseline = o.PageHeight - rowTop + row.Top + run.Baseline });
+                            }
+                            for (var j = row.BoxStart; j < row.BoxStart + row.BoxCount; j++)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                var box = measured.PaintBoxes[j];
+                                if (repeat) ChargeDisplayCommands(box.CommandCount, row.SourceOffset);
+                                pages[^1].PaintBoxes.Add(box with { X = table.X + box.X,
+                                    Top = rowTop + box.Top - row.Top, Order = paintOrder++ });
+                            }
+                            rowTop += row.Height;
+                        }
+                        if (header is not null) PlaceRow(header, !first);
+                        for (; rowIndex < fragment.EndRow; rowIndex++) PlaceRow(measured.Rows[rowIndex], false);
+                        y += fragment.Height;
+                        pendingTopPadding = pendingClosedPadding = after = 0;
+                        contentEpoch++;
+                        for (var i = 0; i < opened.Count; i++)
+                            opened[i] = opened[i] with { HasOccupiedDescendant = true };
+                        first = false;
+                        if (!last)
+                        {
+                            NewPage();
+                            MoveUnconsumedBlocksToNewPage();
+                            tableGap = pendingTopPadding;
+                        }
+                    }
+                    continue;
+                }
                 if (y + tableGap + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
                 {
                     NewPage();
