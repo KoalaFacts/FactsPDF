@@ -34,7 +34,7 @@ Files: `scripts/verify_table_pagination.py`, E2 authored fixtures, `docs/tables.
 - [x] Generate 10/30/100-row and bilingual native PDFs through API, CLI and Native AOT.
 - [x] Assert authored row order, repetitions, geometry, no missing/split rows, deterministic bytes and entry parity; reject mutated PDFs.
 - [x] Inspect every distinct page raster and retain PDF/text/raster/hash reports.
-- [ ] Run E1 regression verification, Release build/tests and independent review. Fix findings with RED→GREEN.
+- [x] Run E1 regression verification, Release build/tests and independent review. Fix findings with RED→GREEN.
 - [ ] Commit, create PR, wait for normal CI and zero unresolved comments, merge under existing authorization and verify main. Stop at E2.
 
 ## Execution record
@@ -47,3 +47,5 @@ Task 1 evidence: baseline 917 pass; RED 9/12 fail on E1 height; GREEN full suite
 Task 2 evidence: six cases / 16 pages, API/CLI/Native bytes identical; qpdf/Poppler geometry and mutation checks pass. E1 inspector passes 24 fixture entries and two examples; five short-table sources compare byte-identical with separately built original main.
 
 Independent review: two P2 findings reproduced externally; 3 zero-row tests RED→GREEN and 2 split-decoration tests RED→GREEN. Final suite 935 pass. No deferred minors. Ruling: zero-height rows bind to adjacent occupied rows, so they cannot create header-only pages or detach bottom decoration; this enforces the no-orphan intent without giving empty rows visual space.
+
+Delivery: engine commit `4a3869c`, PR #34 ready for review, normal exact-head CI pending. Clean-tree final native E2/E1 reruns pass. Three post-fix public-API reproductions produce nine inspected pages with exact page text and qpdf checks.
