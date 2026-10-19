@@ -27,6 +27,9 @@ export const tableAscii = { name: 'tables-points', html: readFileSync(new URL('.
   text: 'ID Category Description R001 Overview One complete row R002 Detail First line Second line', pages: 1, fonts: false, ignoreLayoutWhitespace: true };
 const empty = "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
 export const tableBoundaryCases = [
+  { name: 'tables-e2-100', html: readFileSync(new URL('../../tests/fixtures/tables-e2/rows-100.html', import.meta.url), 'utf8'),
+    text: [26,26,26,22].map((count,page) => 'ID DESCRIPTION ' + Array.from({length:count},(_,i) => `R${String(page*26+i+1).padStart(3,'0')} Record`).join(' ')).join(' '),
+    pages: 4, fonts: false, ignoreLayoutWhitespace: true },
   { name: 'tables-invisible-break', html: "<p style='break-after:page'>A</p>" + empty, text: 'A', pages: 1, fonts: false },
   { name: 'tables-width-boundary', html: "<table style='width:100pt'><colgroup><col style='width:100.001pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", text: 'A', pages: 1, fonts: false },
 ];

@@ -67,6 +67,9 @@ jobs:
       - name: Inspect fixed-column tables through API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_tables.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/tables --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/tables/bin/Release/net10.0/FactsPDF.Tables.dll --native-cli artifacts/style-native/FactsPDF.Cli
+      - name: Inspect E2 whole-row pagination through API CLI and Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_table_pagination.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/table-pagination --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/tables/bin/Release/net10.0/FactsPDF.Tables.dll --native-cli artifacts/style-native/FactsPDF.Cli
       - name: Generate PDFs inside a protected browser and compare with CLI
         env:
           FACTSPDF_WASM_ROOT: ${{ github.workspace }}/artifacts/wasm/wwwroot
