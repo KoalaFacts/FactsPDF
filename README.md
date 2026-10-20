@@ -94,8 +94,11 @@ See [exact values, budgets and diagnostics](docs/css-stylesheets.md).
 
 ## Verification and integration goals
 
-CI tests Windows, Linux and macOS, and builds/runs an actual Linux x64 Native AOT
-CLI. Independent inspectors check ASCII/Unicode output, real-font subsetting,
+CI tests Windows, Linux and macOS, and builds/runs actual Linux x64 and
+[Windows x64 Native AOT CLIs](docs/development.md#native-aot-and-verification).
+The Windows job directly executes an isolated `.exe` and checks two-page ASCII
+output, exact unsupported-input diagnostics, target preservation and recovery.
+Independent inspectors also check ASCII/Unicode output, real-font subsetting,
 and stylesheet-versus-handwritten-inline equivalence. The latter requires equal
 PDF bytes, text and rendered page pixels for the bilingual fixture. NuGet packing
 includes local metadata inspection and an [isolated first-use check](docs/development.md#first-use-from-local-artifacts): an external consumer restores, builds and runs the freshly packed package from an explicit local feed. Nothing is published to a registry.
