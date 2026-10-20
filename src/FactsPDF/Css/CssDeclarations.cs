@@ -32,7 +32,7 @@ internal static class CssDeclarations
             CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore },
             CssProperty.MarginBottom => style with { MarginAfter = source.MarginAfter },
             CssProperty.BreakBefore => style with { BreakBefore = source.BreakBefore },
-            CssProperty.BreakAfter => style with { BreakAfter = source.BreakAfter },
+            CssProperty.BreakAfter => style with { BreakAfter = source.BreakAfter, KeepWithNext = source.KeepWithNext },
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }

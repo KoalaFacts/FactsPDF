@@ -59,7 +59,8 @@ internal static class HtmlDocumentReader
                 current = new Paragraph(stack[^1].Style, stack[^1].SourceOffset);
                 anonymous = true;
             }
-            current.Runs.Add(new(text, style, lineBreak, stack[^1].SourceOffset));
+            // Keep is a block hint, never part of glyph-run coalescing.
+            current.Runs.Add(new(text, style.KeepWithNext ? style with { KeepWithNext = false } : style, lineBreak, stack[^1].SourceOffset));
         }
 
         foreach (var token in HtmlTokens.Read(html, cancellation))
@@ -150,7 +151,7 @@ internal static class HtmlDocumentReader
             var parentBox = stack[^1].BoxStyle;
             var boxStyle = new BoxStyle();
             var style = parent with { MarginBefore = 0, MarginAfter = ParagraphTag(name) ? 8 : 0,
-                BreakBefore = false, BreakAfter = false };
+                BreakBefore = false, BreakAfter = false, KeepWithNext = false };
             if (name is "b" or "strong" or "th") style = style with { Bold = true };
             if (name is "i" or "em") style = style with { Italic = true };
             if (name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6')
