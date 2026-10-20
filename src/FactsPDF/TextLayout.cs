@@ -26,6 +26,7 @@ internal static class TextLayout
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
         var y = o.Margin; var after = 0d; var breakNext = false;
+        var trimNextMargin = false;
         // Retain pending top padding only for still-open blocks. Closed empty
         // predecessors contribute trailing spacing; a spanning box receives
         // page-local decoration slices rather than repeating its top padding.
@@ -61,7 +62,7 @@ internal static class TextLayout
             || pages[^1].Images.Count > 0
             || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
 
-        void MoveUnconsumedBlocksToNewPage()
+        double MoveUnconsumedBlocksToNewPage(bool apply = true)
         {
             // Recompute leading space from its owning scopes, not the old
             // page's aggregate. A continued painted box (and consumed scopes
@@ -82,19 +83,34 @@ internal static class TextLayout
                 {
                     // Remember consumption even if this page contains only
                     // an empty paragraph: EndBlock must not re-add this top.
-                    opened[i] = scope with { TopConsumed = true };
+                    if (apply) opened[i] = scope with { TopConsumed = true };
                     continue;
                 }
                 // Preserve M6's first-text leading-space behavior for purely
                 // unpainted scopes outside any continuing painted ancestor.
-                opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
+                if (apply) opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
                 leading += scope.Top;
             }
-            pendingTopPadding = leading;
+            if (apply) pendingTopPadding = leading;
+            return leading;
         }
         foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (step is LayoutHeadingGroup group)
+            {
+                var first = (BlockNode)group.Children[group.Start];
+                if (!breakNext && !first.Style.BreakBefore && CurrentPageOccupied() &&
+                    HeadingKeep.ShouldMove(group, o, bottom - y, after, pendingTopPadding, pendingClosedPadding,
+                        MoveUnconsumedBlocksToNewPage(apply: false), resolved, EnsureDisplayCommands, cancellation))
+                {
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
+                    pendingClosedPadding = 0;
+                    trimNextMargin = true;
+                }
+                continue;
+            }
             if (step is BeginBlock begin)
             {
                 // A previous break-after must precede a painted successor
@@ -367,6 +383,8 @@ internal static class TextLayout
             }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
+            var marginBefore = trimNextMargin ? 0 : paragraph.Style.MarginBefore;
+            trimNextMargin = false;
             // Do not allocate the next paragraph's glyph/line lists after an
             // earlier paragraph or box has used the exact command allowance.
             // Blank/whitespace/break-only paragraphs can still affect geometry
@@ -391,7 +409,7 @@ internal static class TextLayout
                     opened[^1].ContentEpoch == contentEpoch &&
                     (opened[^1].Style.HasPaint || opened[^1].Top > 0))
                 {
-                    var before = Math.Max(after, paragraph.Style.MarginBefore);
+                    var before = Math.Max(after, marginBefore);
                     opened[^1] = opened[^1] with
                     {
                         StartY = opened[^1].StartY + Math.Max(0, before - after)
@@ -415,7 +433,7 @@ internal static class TextLayout
                 pendingClosedPadding = 0;
             }
             breakNext = false;
-            var gap = Math.Max(after, paragraph.Style.MarginBefore) + pendingTopPadding + pendingClosedPadding;
+            var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;
             if (y + gap + lines.Current.Height > bottom && CurrentPageOccupied())
             {
                 NewPage();

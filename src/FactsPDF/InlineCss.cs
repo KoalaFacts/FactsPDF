@@ -49,7 +49,7 @@ internal static class InlineCss
                 case "margin-top" when paragraph: style = style with { MarginBefore = Margin(value, offset) }; break;
                 case "margin-bottom" when paragraph: style = style with { MarginAfter = Margin(value, offset) }; break;
                 case "break-before" when paragraph: style = style with { BreakBefore = PageBreak(value, offset) }; break;
-                case "break-after" when paragraph: style = style with { BreakAfter = PageBreak(value, offset) }; break;
+                case "break-after" when paragraph: style = style with { BreakAfter = value != "avoid" && PageBreak(value, offset), KeepWithNext = value == "avoid" }; break;
                 default: throw new FactsPdfException("FPDF1201", $"CSS property '{name}' is not supported on this element.", offset);
             }
         }

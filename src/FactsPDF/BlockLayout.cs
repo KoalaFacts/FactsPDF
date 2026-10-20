@@ -8,6 +8,8 @@ internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, dou
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
 internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, double ContentTop,
     double Width, double Height, double OuterWidth, double OuterHeight) : BlockLayoutStep;
+internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, int Start, int End,
+    double ContentWidth) : BlockLayoutStep;
 internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
 
 /// <summary>
@@ -19,7 +21,7 @@ internal static class BlockLayout
 {
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
         double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
-        double MarkerRightX = 0);
+        double MarkerRightX = 0, int KeepUntil = 0);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
         CancellationToken cancellation, ListLayout? lists = null)
@@ -35,6 +37,13 @@ internal static class BlockLayout
             {
                 if (!frame.IsRoot) yield return new EndBlock(frame.Bottom);
                 continue;
+            }
+            if (frame.Index >= frame.KeepUntil && frame.Children[frame.Index] is BlockNode candidate &&
+                HeadingKeep.IsHeading(candidate.Name) && candidate.Style.KeepWithNext)
+            {
+                var (end, valid) = HeadingKeep.Find(frame.Children, frame.Index, cancellation);
+                frame = frame with { KeepUntil = end };
+                if (valid) yield return new LayoutHeadingGroup(frame.Children, frame.Index, end, frame.ContentWidth);
             }
             frames.Push(frame with { Index = frame.Index + 1 });
             switch (frame.Children[frame.Index])
@@ -74,24 +83,11 @@ internal static class BlockLayout
                         throw new FactsPdfException("FPDF1302", "List marker gutter exceeds containing content width.", node.SourceOffset);
                     width = Math.Max(0, width);
                     var markerRight = node.Name == "li" ? x - frame.MarkerGap : frame.MarkerRightX;
-                    double Resolve(CssLength length) => Checked(length.Resolve(width), node.SourceOffset);
-                    var left = Resolve(style.PaddingLeft);
-                    var right = Resolve(style.PaddingRight);
-                    var top = Resolve(style.PaddingTop);
-                    var bottom = Resolve(style.PaddingBottom);
-                    var bLeft = style.BorderLeft.EffectiveWidth;
-                    var bRight = style.BorderRight.EffectiveWidth;
-                    var bTop = style.BorderTop.EffectiveWidth;
-                    var bBottom = style.BorderBottom.EffectiveWidth;
-                    var inner = style.Width.HasValue
-                        ? Resolve(style.Width.Value) : width - left - right - bLeft - bRight;
-                    if (inner < -0.000001 || inner + left + right + bLeft + bRight > width + 0.000001)
-                        throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", node.SourceOffset);
-                    inner = Math.Max(0, inner);
-                    yield return new BeginBlock(top + bTop, style, x,
-                        inner + left + right + bLeft + bRight, node.Style.Color, node.SourceOffset,
+                    var box = ResolveBox(style, width, node.SourceOffset);
+                    yield return new BeginBlock(box.Top, style, x,
+                        box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6");
-                    frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + bLeft + left, inner, bottom + bBottom, false,
+                    frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight));
                     break;
                 }
@@ -99,6 +95,26 @@ internal static class BlockLayout
                     throw new InvalidOperationException("Unexpected block layout child.");
             }
         }
+    }
+
+    internal readonly record struct ResolvedBox(double PaddingLeft, double Top, double Bottom, double Inner, double OuterWidth);
+
+    internal static ResolvedBox ResolveBox(BoxStyle style, double width, int offset)
+    {
+        double Resolve(CssLength length) => Checked(length.Resolve(width), offset);
+        var left = Resolve(style.PaddingLeft);
+        var right = Resolve(style.PaddingRight);
+        var top = Resolve(style.PaddingTop);
+        var bottom = Resolve(style.PaddingBottom);
+        var bLeft = style.BorderLeft.EffectiveWidth;
+        var bRight = style.BorderRight.EffectiveWidth;
+        var bTop = style.BorderTop.EffectiveWidth;
+        var bBottom = style.BorderBottom.EffectiveWidth;
+        var inner = style.Width.HasValue ? Resolve(style.Width.Value) : width - left - right - bLeft - bRight;
+        if (inner < -0.000001 || inner + left + right + bLeft + bRight > width + 0.000001)
+            throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", offset);
+        inner = Math.Max(0, inner);
+        return new(left, top + bTop, bottom + bBottom, inner, inner + left + right + bLeft + bRight);
     }
 
     private static double Checked(double value, int offset)

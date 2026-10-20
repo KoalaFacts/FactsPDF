@@ -79,7 +79,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px or zero, at most 14400pt |
-| break-before, break-after | Paragraphs/headings only; auto/page |
+| break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
