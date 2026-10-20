@@ -24,6 +24,9 @@ dotnet test FactsPDF.slnx -c Release
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html first-document.pdf
 ```
 
+For complete CLI and independent .NET package-consumer commands, see
+[first use from local artifacts](docs/development.md#first-use-from-local-artifacts).
+
 For the bilingual stylesheet example, supply your own appropriately licensed,
 trusted static TrueType files and optionally enable native font subsetting:
 
@@ -95,7 +98,7 @@ CI tests Windows, Linux and macOS, and builds/runs an actual Linux x64 Native AO
 CLI. Independent inspectors check ASCII/Unicode output, real-font subsetting,
 and stylesheet-versus-handwritten-inline equivalence. The latter requires equal
 PDF bytes, text and rendered page pixels for the bilingual fixture. NuGet packing
-is local license/dependency inspection only, not a registry release.
+includes local metadata inspection and an [isolated first-use check](docs/development.md#first-use-from-local-artifacts): an external consumer restores, builds and runs the freshly packed package from an explicit local feed. Nothing is published to a registry.
 
 See the [CSS execution record](docs/css-development-ledger.md) and previous
 [first-renderer](docs/development-ledger.md), [Unicode](docs/unicode-development-ledger.md)
@@ -105,8 +108,11 @@ proof for an untested commit, and fixture equivalence is not full conformance.
 Public integration is not tied to the implementation language. Current entry
 points are the library API and CLI. The roadmap includes .NET/NuGet distribution,
 JavaScript/TypeScript/npm, Rust, Go, Python and WebAssembly sharing one rendering
-core. WASM, non-.NET bindings and additional platform/AOT combinations are not
-yet implemented or verified. No stable API or published package is claimed.
+core. The [Node/CLI subprocess probe](docs/node-cli-probe.md) and
+[browser WASM probe](docs/browser-wasm-probe.md) have executable acceptance
+evidence using that core. They are experimental integration probes, not published
+SDKs. Rust/Go/Python bindings and additional AOT platforms remain planned.
+No stable API or published package is claimed.
 
 ## Licensing: Community and Commercial
 
