@@ -31,6 +31,10 @@ trusted static TrueType files and optionally enable native font subsetting:
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html stylesheet.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
 ```
 
+Add `--page-numbers` (or `PdfOptions.PageNumbers = true`) for centered decimal
+[page numbers](docs/page-numbers.md) within the existing bottom margin. Defaults
+remain unchanged.
+
 No additional switch is needed for embedded stylesheets. `--font` may repeat in
 fallback order. Without fonts, the ASCII/Courier mode remains. Full embedding is
 the default; `--subset-fonts` or `PdfOptions.SubsetFonts` keeps needed glyphs and

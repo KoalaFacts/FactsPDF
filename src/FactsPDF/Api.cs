@@ -7,6 +7,8 @@ public sealed record PdfOptions
     public double PageHeight { get; init; } = 841.89;
     public double Margin { get; init; } = 36;
     public double FontSize { get; init; } = 12;
+    /// <summary>Opt in to centered decimal page numbers in the existing bottom margin, using normal 10pt text.</summary>
+    public bool PageNumbers { get; init; }
     public int MaxInputCharacters { get; init; } = 1_000_000;
     public int MaxElements { get; init; } = 50_000;
     public int MaxDepth { get; init; } = 128;
