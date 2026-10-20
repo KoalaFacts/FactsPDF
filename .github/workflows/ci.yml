@@ -89,3 +89,54 @@ jobs:
             artifacts/unicode-document-2.png
           if-no-files-found: error
           retention-days: 7
+  windows-native-aot:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install independent PDF tools from the official signed MSYS2 repository
+        id: msys2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-poppler
+      - name: Record independent package versions
+        shell: msys2 {0}
+        run: |
+          mkdir -p artifacts
+          pacman -Q mingw-w64-ucrt-x86_64-poppler mingw-w64-ucrt-x86_64-fontconfig > artifacts/windows-aot-tools.txt
+      - name: Publish a real Windows x64 Native AOT executable
+        shell: pwsh
+        run: |
+          dotnet --info | Out-File artifacts/windows-aot-toolchain.txt
+          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r win-x64 -p:PublishAot=true -o artifacts/windows-native 2>&1 | Tee-Object artifacts/windows-aot-publish.log
+          if ($LASTEXITCODE -ne 0) { throw "Windows Native AOT publish failed" }
+      - name: Run the isolated native exe and inspect two-page PDF and error recovery
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          $pythonExe = (Get-Command python).Source
+          $env:PATH = (Join-Path $env:MSYS2_LOCATION 'ucrt64\bin') + ';' + $env:PATH
+          & $pythonExe -m unittest discover -s scripts -p test_windows_aot.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Windows acceptance guard tests failed" }
+          & $pythonExe scripts/verify_windows_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence
+          if ($LASTEXITCODE -ne 0) { throw "Actual Windows Native AOT acceptance failed" }
+      - name: Retain Windows native acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-native-aot-evidence
+          path: |
+            artifacts/windows-aot-evidence/
+            artifacts/windows-aot-publish.log
+            artifacts/windows-aot-toolchain.txt
+            artifacts/windows-aot-tools.txt
+          if-no-files-found: warn
+          retention-days: 7
