@@ -70,7 +70,7 @@ class CorpusTests(unittest.TestCase):
             self.path.write_text(json.dumps(bad))
             with self.assertRaises(ValueError): self.c.load_manifest(self.path)
 
-    def test_target_without_defined_api_is_blocked_design(self):
+    def test_legacy_unbound_target_retains_harness_blocked_design(self):
         m = self.c.load_manifest(self.path)
         target = next(x for x in m['cases'] if x['id'] == 'T-page-furniture')
         self.assertIsNone(target['input_path'])
@@ -113,7 +113,7 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(target['initial_status'], 'unsupported')
             self.assertEqual(target['entrypoints']['cli']['expected_code'], 'FPDF1101')
             self.assertEqual(target['entrypoints']['api']['expected_code'], 'FPDF1101')
-            self.assertEqual(target['probe_scope'], 'missing-explicit-column-and-section-structure; E1 evidence is separate; repeat-header remains unsupported')
+            self.assertEqual(target['probe_scope'], 'missing-explicit-column-and-section-structure; positive E1/E2/F4 evidence is separate')
             self.assertIn('repeat-header', target['requirements'])
             self.assertEqual(len(target['records']), count)
             html = (self.root / target['input_path']).read_text()

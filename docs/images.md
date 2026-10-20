@@ -61,4 +61,4 @@ Cancellation is checked between bounded reads, marker walks, metadata entries, e
 
 [Multi-page composition samples](image-composition.md) additionally check automatic image movement around ordered/nested lists, image-only middle pages, four explicit font roles and sliced ancestor decoration.
 
-The legacy nine-target denominator is unchanged. T-jpeg now checks missing explicit resources; positive D1 evidence is separate, as for C1 font styles. Tables, page furniture, heading keep and complete-report/release gates remain outstanding. No runtime dependency or standalone font redistribution is introduced.
+The legacy nine-target denominator is unchanged. T-jpeg now checks missing explicit resources; positive D1 evidence is separate, as for C1 font styles. Tables, heading keep, page numbers and static page text now have separate implemented evidence; [F4 combined reports](combined-report.md) exercise them together with images. New user reference approval and complete release gates remain outstanding. No runtime dependency or standalone font redistribution is introduced.
