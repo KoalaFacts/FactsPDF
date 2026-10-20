@@ -14,8 +14,10 @@ public static class PdfConverter
         Validate(options);
         options = FontRoles.Snapshot(options);
         options = ImageResources.Snapshot(options, cancellationToken);
-        if (html.Length > options.MaxInputCharacters)
-            throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
+        if ((options.HeaderText?.Length ?? 0) > 1024 || (options.FooterText?.Length ?? 0) > 1024)
+            throw new FactsPdfException("FPDF1001", "Each header/footer field is limited to 1024 UTF-16 units.");
+        if ((long)html.Length + (options.HeaderText?.Length ?? 0) + (options.FooterText?.Length ?? 0) > options.MaxInputCharacters)
+            throw new FactsPdfException("FPDF1001", "HTML and page text exceed MaxInputCharacters.");
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
         var pages = TextLayout.Layout(document, options, cancellationToken);
@@ -28,7 +30,7 @@ public static class PdfConverter
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
         }
-        if (options.PageNumbers) PageNumberLayout.Append(pages, options, displayCommands, cancellationToken);
+        if (options.PageNumbers || options.HeaderText is not null || options.FooterText is not null) PageMarginLayout.Append(pages, options, displayCommands, cancellationToken);
         using var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);

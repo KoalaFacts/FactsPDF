@@ -22,6 +22,8 @@ The fontless 12pt line box needs at least a 16pt bottom margin. Explicit fonts c
 
 Actual page-number text runs count toward `MaxDisplayCommands`, including runs split across fallback fonts. PDF bytes count toward `MaxOutputBytes`; `MaxPages` continues to bound actual body pages. Existing body parsing/layout/font/page/display-budget errors occur before numbering. Page-number errors occur before serialization/output-byte errors. Cancellation and conversion destination guarantees are unchanged: errors before final copying write nothing, while final-copy failures on arbitrary streams cannot be rolled back.
 
-This increment adds no total-page label, custom formatting/start/skip, page-number font/position settings, general page header/footer template, `@page` support or publication capability.
+Static text can now be combined through [HeaderText / FooterText](page-margins.md). A nonempty footer and `PageNumbers` form one centered line, `text | N`; the combined line must fit. Number-only behavior remains unchanged.
+
+The numbering contract adds no total-page label, custom formatting/start/skip, page-number font/position settings, general page header/footer template, `@page` support or publication capability.
 
 The native inspector `scripts/verify_page_numbers.py` compares API/CLI/Native AOT bytes, numbered vs unnumbered body text/coordinates, every page's number/centering/clearance and mutation rejection. The normal CI runs this corpus with explicit fonts. Local verification also compares default output with the original F1 executable and visually inspects page previews and the complete 100-number footer strip set. These are implementation checks, not a claim of user approval for general report page references.

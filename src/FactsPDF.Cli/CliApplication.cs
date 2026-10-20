@@ -5,10 +5,12 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
         "Experimental inline-CSS renderer. Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
+        "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
+        "Text is centered in existing margins; with --page-numbers the footer is text | N. Overflow fails; no wrapping.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
         "--image name=path supplies an explicit baseline JPEG resource (at most 16; no network downloads). Format is detected from content.\n";
 
@@ -23,6 +25,7 @@ public static class CliApplication
             cancellationToken.ThrowIfCancellationRequested();
             if (args.Length == 1 && args[0] is "--help" or "-h") { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
+            string? headerText = null; string? footerText = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
@@ -30,6 +33,16 @@ public static class CliApplication
                 if (arg == "--overwrite" && !overwrite) overwrite = true;
                 else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
                 else if (arg == "--page-numbers" && !pageNumbers) pageNumbers = true;
+                else if (arg == "--header-text" && headerText is null)
+                {
+                    if (++i >= args.Length) throw new ArgumentException("--header-text requires a literal text argument.");
+                    headerText = args[i];
+                }
+                else if (arg == "--footer-text" && footerText is null)
+                {
+                    if (++i >= args.Length) throw new ArgumentException("--footer-text requires a literal text argument.");
+                    footerText = args[i];
+                }
                 else if (arg is "--font" or "--font-bold" or "--font-italic" or "--font-bold-italic")
                 {
                     if (++i >= args.Length || string.IsNullOrWhiteSpace(args[i]) || args[i] == "-" || args[i].StartsWith("--", StringComparison.Ordinal))
@@ -63,7 +76,7 @@ public static class CliApplication
             if (destination is not null && File.Exists(destination) && !overwrite)
                 throw new IOException("Destination exists. Use --overwrite to replace it after a successful conversion.");
 
-            var options = new PdfOptions { SubsetFonts = subsetFonts, PageNumbers = pageNumbers }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
+            var options = new PdfOptions { SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText, FooterText = footerText }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
