@@ -32,7 +32,9 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document
 ```
 
 Add `--page-numbers` (or `PdfOptions.PageNumbers = true`) for centered decimal
-[page numbers](docs/page-numbers.md) within the existing bottom margin. Defaults
+[page numbers](docs/page-numbers.md) within the existing bottom margin. Use
+`--header-text "Report"` / `--footer-text "Internal"` (or `HeaderText` / `FooterText`)
+for bounded [static page headers and footers](docs/page-margins.md). Defaults
 remain unchanged.
 
 No additional switch is needed for embedded stylesheets. `--font` may repeat in

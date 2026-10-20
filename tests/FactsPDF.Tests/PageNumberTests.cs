@@ -130,7 +130,7 @@ public sealed class PageNumberTests
         if(options.PageNumbers)
         {
             long commands=pages.Sum(p => (long)p.Runs.Count+p.Discs.Count+p.Images.Count+p.PaintBoxes.Sum(b=>b.CommandCount));
-            PageNumberLayout.Append(pages,options,commands,default);
+            PageMarginLayout.Append(pages,options,commands,default);
         }
         return pages;
     }
