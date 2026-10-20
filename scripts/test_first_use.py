@@ -65,6 +65,27 @@ class FirstUseTests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, 'text/page order'):
                 self.module.validate_text(actual, wanted)
 
+    def test_runtime_identity_rejects_missing_or_wrong_actual_runtime(self):
+        self.assertTrue(hasattr(self.module, 'validate_runtime'), 'Missing actual consumer runtime check')
+        runtime = dict(version='10.0.0', framework='.NET 10.0.0', os='Linux test host',
+                       rid='linux-x64', architecture='X64', targetFramework='.NETCoreApp,Version=v10.0',
+                       dynamicCodeSupported=True, dynamicCodeCompiled=True)
+        self.module.validate_runtime(runtime, 'net10.0')
+        for field, value in [('version', '11.0.0'), ('targetFramework', '.NETCoreApp,Version=v11.0'),
+                             ('version', ''), ('os', ''), ('rid', ''), ('architecture', ''),
+                             ('framework', ''), ('dynamicCodeSupported', False),
+                             ('dynamicCodeCompiled', 'true')]:
+            bad = dict(runtime); bad[field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(AssertionError):
+                self.module.validate_runtime(bad, 'net10.0')
+        for field in runtime:
+            bad = dict(runtime); del bad[field]
+            with self.subTest(missing=field), self.assertRaises(AssertionError):
+                self.module.validate_runtime(bad, 'net10.0')
+        # An SDK label is not evidence that the consumer ran on that runtime.
+        with self.assertRaises(AssertionError):
+            self.module.validate_runtime({'sdk': '11.0.100-rc.2.26504.105'}, 'net11.0')
+
     def test_staging_does_not_import_existing_build_outputs(self):
         import shutil
         source = self.work / 'source'; shutil.copytree(ROOT / 'examples/first-use', source)
