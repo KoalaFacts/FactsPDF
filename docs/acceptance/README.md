@@ -34,7 +34,7 @@ metadata; changing `FACTSPDF_SOURCE_SHA` cannot relabel its build.
 
 `artifacts/document-acceptance/public/report.md` is the entry point. Each B-case directory includes the real native PDF, independent Chrome PDF, every page's rendered PNG, text, geometry and comparison record. Chrome uses the same physical page size, margins and explicit fonts, normal heading weight and disabled browser furniture. It is not used to create the FactsPDF output. Unregistered full-page differences are evidence, not a global pixel tolerance. Page-count differences are reported and require review; there is no claim of exact browser typography parity.
 
-### Candidate reading space (still pending human review)
+### Reading-space checks and the approved original references
 
 B01 explicitly gives the Final note heading `padding-top:8pt` after the panel.
 B03 gives each of its two explicitly page-broken headings `padding-top:10pt`.
@@ -59,11 +59,11 @@ B01 must stay one page and B03 three, with the original sliced edge assertions.
 Chrome was inspected. CI requires both. All other text, boundary, record-order,
 CLI/API and negative-case checks remain in the complete capture.
 
-The generator is the version-controlled source of synthetic templates and data. It emits exact byte/hash manifests into a fresh artifact directory; these candidates are not yet frozen reference files. After review the accepted inputs/output references must be retained durably in the repository, not solely in a 14-day Actions artifact. Generation never edits `reference-reviews.json`. This bootstrap arrangement avoids committing fabricated reference hashes before inspection.
+The generator is the version-controlled source of synthetic templates and data. It emits exact byte/hash manifests into a fresh artifact directory; fresh captures remain candidates. The six original native baselines were human-approved and their ten pages are retained under `references/`, with provenance in `reference-reviews.json`. A new capture does not inherit that approval; newly accepted references must also be retained durably, not solely in a 14-day Actions artifact. Generation never edits `reference-reviews.json`. This bootstrap arrangement avoids committing fabricated reference hashes before inspection.
 
 ## State model and approval
 
-Six baseline cases test current capabilities. Twelve negative cases test documented diagnostics and preservation of existing output. Nine targets represent missing preview features. Do not add these denominators together as a support percentage. Host-only quotas and malformed UTF-16 are explicitly API-only, not skipped CLI passes. A separate binary-stdout probe, pre-cancelled API probe and two parallel conversions check boundary behavior.
+Six baseline cases test current capabilities. Twelve negative cases test documented diagnostics and preservation of existing output. Nine original targets retain their original denominator. Several capabilities now have separate positive evidence; malformed probes and unbound legacy entries remain incomplete in this harness. See the [support matrix](support-matrix.md) and [F4 combined reports](../combined-report.md). Do not add these denominators together as a support percentage. Host-only quotas and malformed UTF-16 are explicitly API-only, not skipped CLI passes. A separate binary-stdout probe, pre-cancelled API probe and two parallel conversions check boundary behavior.
 
 `capture` leaves `review_status=pending-review` and never changes human approvals. `verify` requires valid exact input/environment/font references, traceable human review and durable artifact hashes. Empty/missing/duplicate reviews or missing entrypoint results fail. `--strict-targets` separately requires all future targets to be verified; currently they are not.
 
