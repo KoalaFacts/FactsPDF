@@ -25,19 +25,75 @@ The CLI accepts input/output paths or `-` for stdin/binary stdout. Input must be
 
 Exit codes: 0 success; 2 usage/argument error; 3 input/rendering limitation; 4 I/O/access error; 130 cancellation. Cancellation is cooperative and cannot interrupt a blocked synchronous caller-stream read/write until it returns.
 
+## First use from local artifacts
+
+The following Bash recipe uses the installed .NET 10 SDK and the current unreleased `0.1.0-dev` package. It builds local artifacts, then uses them from a fresh directory outside the checkout. No NuGet registry publication or credentials are needed. Package restore has one explicit local source and a new package cache; the installed SDK supplies the .NET targeting pack. This is the Linux first-use acceptance path, not a claim about Windows AOT or a published SDK.
+
+From the repository root:
+
+```sh
+dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
+dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
+first_use_dir=$(mktemp -d /tmp/factspdf-first-use.XXXXXX)
+mkdir -p "$first_use_dir/consumer" "$first_use_dir/feed" "$first_use_dir/packages"
+cp examples/first-use/{FirstUse.csproj,Program.cs,NuGet.Config,input.html,unsupported.html,expected-pages.json} "$first_use_dir/consumer/"
+cp global.json "$first_use_dir/"
+cp artifacts/packages/FactsPDF.0.1.0-dev.nupkg "$first_use_dir/feed/"
+cp -R artifacts/first-use-cli "$first_use_dir/cli"
+export DOTNET_CLI_HOME="$first_use_dir/dotnet-home"
+export NUGET_PACKAGES="$first_use_dir/packages"
+export NUGET_HTTP_CACHE_PATH="$first_use_dir/http-cache"
+export DOTNET_GENERATE_ASPNET_CERTIFICATE=false DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+cd "$first_use_dir/consumer"
+dotnet restore FirstUse.csproj --configfile NuGet.Config --packages "$NUGET_PACKAGES" --no-http-cache
+dotnet build FirstUse.csproj -c Release --no-restore
+dotnet bin/Release/net10.0/FirstUse.dll input.html consumer.pdf
+dotnet "$first_use_dir/cli/FactsPDF.Cli.dll" input.html cli.pdf
+cmp consumer.pdf cli.pdf
+```
+
+Open either two-page PDF. The [complete consumer project](../examples/first-use/FirstUse.csproj) explicitly sets its framework and uses an exact `PackageReference`, with no source `ProjectReference`. Its [NuGet.Config](../examples/first-use/NuGet.Config) clears other feeds/fallback folders and maps FactsPDF to `../feed`. `NuGetAudit=false` avoids remote audit access during this local-only restore; it is not a security audit result. The SDK must already be installed; repository pack/publish may restore build tools from its normal trusted sources before the isolated consumer step.
+
+The [consumer program](../examples/first-use/Program.cs) buffers conversion before opening the target. To see the unsupported-input path in the same directory:
+
+```sh
+printf 'keep original bytes' > preserved.pdf
+dotnet bin/Release/net10.0/FirstUse.dll unsupported.html preserved.pdf
+# Expected exit code 3 and FPDF1102 on stderr; preserved.pdf still contains the sentinel.
+cat preserved.pdf
+dotnet "$first_use_dir/cli/FactsPDF.Cli.dll" unsupported.html preserved.pdf --overwrite
+# The CLI also exits 3 and preserves preserved.pdf.
+```
+
+The consumer demonstrates preservation on conversion errors. Its final `File.WriteAllBytes` is not an atomic-replacement policy for arbitrary file I/O failures. The production CLI retains its existing temporary-file/replace behavior. The sample output JSON identifies the loaded FactsPDF assembly as well as the resulting pages and bytes. Fontless ASCII input requires no extra resources. Keep the temporary directory while inspecting outputs; it is a local example, not an installation into your global package cache.
+
+For automated, independent verification, return to the repository root and use a fresh output directory. Install qpdf and Poppler through your normal trusted system tooling; they are verification tools, not renderer dependencies:
+
+```sh
+python3 -m unittest discover -s scripts -p 'test_first_use.py' -v
+python3 scripts/verify_first_use.py \
+  --package artifacts/packages/FactsPDF.0.1.0-dev.nupkg \
+  --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
+  --dotnet "$(command -v dotnet)" --output artifacts/first-use
+```
+
+The verifier creates and removes its own separate temporary workspace and copies only the six source/input files. It allowlists the child process environment, uses an empty MSBuild user extension directory, and rejects repository files in the actual preprocessed import graph. It checks evaluated project properties, actual NuGet assets/source/config/cache paths, cached package SHA-512 and bytes, built and loaded assembly bytes/location, authored full text/page order and bounds, qpdf validity, rasterized pages and consumer/CLI byte equality. Unsupported input must preserve existing/absent targets and produce no PDF stdout. Recovery must reproduce the successful bytes. Reordered real PDFs and altered cached assemblies must fail the relevant checks. `report.json`, the import graph, command logs and PDF/page artifacts record actual results; no visual reference is automatically approved. The normal CI runs this check on the just-packed package and freshly published CLI.
+
 ## Library API
 
-Reference the source project while packages are unreleased:
+After restoring the local package as above, the existing API is:
 
 ```csharp
 using FactsPDF;
-using var output = File.Create("example.pdf");
+using var output = new MemoryStream();
 var result = PdfConverter.Convert(
     "<style>p{color:#008000}</style><h1>Example</h1><p>Hello PDF</p>",
     output, new PdfOptions { Margin = 36 });
+File.WriteAllBytes("example.pdf", output.ToArray());
 ```
 
-This example uses fontless ASCII mode. Explicit font API examples are in the Unicode guide. `Convert` leaves the caller's stream open and does not require a seekable output. It returns page/byte counts. Unsupported input causes no output writes because conversion buffers a bounded PDF before final copying; final-copy I/O failures or cancellation may leave arbitrary output streams partly written. `File.Create` above overwrites an existing file immediately; use your own temporary-file policy or the CLI to protect it.
+This example uses fontless ASCII mode. Explicit font API examples are in the Unicode guide. `Convert` leaves the caller's stream open and does not require a seekable output. It returns page/byte counts. Unsupported input causes no output writes because conversion buffers a bounded PDF before final copying; final-copy I/O failures or cancellation may leave arbitrary output streams partly written. The example opens the destination only after conversion succeeds; use your own temporary-file policy or the CLI if final file replacement must also be protected.
 
 ## Current content and layout scope
 
@@ -82,9 +138,9 @@ dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:P
 artifacts/native/FactsPDF.Cli examples/first-document.html artifacts/first-document.pdf
 ```
 
-That binary targets Linux x64 and still uses platform libraries. Windows/Linux/macOS run tests; this does not mean their entire AOT matrix or WASM is validated. Other language bindings remain planned.
+That binary targets Linux x64 and still uses platform libraries. Windows/Linux/macOS run tests; this does not validate their entire AOT matrix. The separate [browser WASM probe](browser-wasm-probe.md) has protected-browser execution evidence for the shared engine; it is an experimental probe, not a published WASM SDK. The [Node/CLI probe](node-cli-probe.md) similarly validates subprocess integration. Other language bindings remain planned.
 
-CI independently inspects real output using qpdf/Poppler and, for subset inspection, fontTools. Those are verification-only tools, not runtime parser/font/PDF dependencies. The stylesheet workflow compares a bilingual stylesheet template against a hand-authored inline equivalent, including exact bytes/text/pixels. Fonts are not committed or uploaded as standalone files. NuGet packing is local inspection only: exact license/README metadata/content and no runtime package dependencies are checked. No registry publication occurs and all licensing release gates remain.
+CI independently inspects real output using qpdf/Poppler and, for subset inspection, fontTools. Those are verification-only tools, not runtime parser/font/PDF dependencies. The stylesheet workflow compares a bilingual stylesheet template against a hand-authored inline equivalent, including exact bytes/text/pixels. Fonts are not committed or uploaded as standalone files. Local NuGet validation checks exact license/README content and no runtime package dependencies, then actually restores/builds/runs an independent package consumer outside repository build inheritance. The first-use check above records package and runtime provenance. No registry publication occurs and all licensing release gates remain.
 
 Historical execution evidence is retained in the first-renderer, Unicode, subsetting and CSS ledgers. A green run for one commit is not proof for later changes. Performance observations identify their exact source/corpus/environment; no universal throughput, cold-start or peak-memory guarantee is created by these documents.
 
