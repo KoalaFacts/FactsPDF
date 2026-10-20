@@ -89,6 +89,17 @@ def validate_text(actual,expected):
     assert list(map(normalize,pages))==list(map(normalize,expected)),'authored text/page order'
 
 
+def validate_runtime(runtime,target):
+    framework=re.fullmatch(r'net(\d+)\.(\d+)',target)
+    assert framework,'expected consumer target'
+    version='.'.join(framework.groups())
+    assert all(isinstance(runtime.get(k),str) and runtime[k].strip()
+               for k in ('version','framework','os','rid','architecture','targetFramework')),'missing runtime identity'
+    assert re.fullmatch(re.escape(version)+r'\.\d+(?:[-+].+)?',runtime['version']),'actual runtime version'
+    assert runtime['targetFramework']=='.NETCoreApp,Version=v'+version,'actual consumer target'
+    assert runtime.get('dynamicCodeSupported') is True and runtime.get('dynamicCodeCompiled') is True,'managed dynamic-code runtime'
+
+
 def verify_package_bytes(work,package,version,expected_dll):
     cache=work/'packages/factspdf'/version
     assert (cache/f'factspdf.{version}.nupkg').read_bytes()==package.read_bytes(),'cached package bytes'
@@ -183,6 +194,8 @@ def main():
             if name=='consumer':
                 api=json.loads(response.stdout)
                 assert Path(api['assembly']).resolve()==consumer.parent/'FactsPDF.dll','runtime assembly location'
+                assert api.get('assemblyIdentity','').startswith('FactsPDF, Version='),'runtime assembly identity'
+                validate_runtime(api.get('runtime',{}),evaluation['Properties']['TargetFramework'])
                 assert api['pages']==2 and api['bytes']==pdf.stat().st_size,'API conversion metadata'
             else:assert not response.stdout,'CLI PDF went to stdout instead of destination'
             results.append(dict(entry=name,**inspect_pdf(pdf,expected,execute)))

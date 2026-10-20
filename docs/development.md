@@ -66,6 +66,14 @@ dotnet "$first_use_dir/cli/FactsPDF.Cli.dll" unsupported.html preserved.pdf --ov
 # The CLI also exits 3 and preserves preserved.pdf.
 ```
 
+The consumer's JSON records the loaded FactsPDF assembly identity and the actual
+runtime version, framework description, OS, RID, process architecture, target
+framework and dynamic-code support/compilation flags. The verifier checks these
+against this sample's `net10.0` target and retains them separately from the SDK
+version. A newer SDK compiling this sample does not establish execution on a
+newer runtime. The flags describe managed dynamic-code capability; they are not
+a Native AOT, WASM or JIT trace result.
+
 The consumer demonstrates preservation on conversion errors. Its final `File.WriteAllBytes` is not an atomic-replacement policy for arbitrary file I/O failures. The production CLI retains its existing temporary-file/replace behavior. The sample output JSON identifies the loaded FactsPDF assembly as well as the resulting pages and bytes. Fontless ASCII input requires no extra resources. Keep the temporary directory while inspecting outputs; it is a local example, not an installation into your global package cache.
 
 For automated, independent verification, return to the repository root and use a fresh output directory. Install qpdf and Poppler through your normal trusted system tooling; they are verification tools, not renderer dependencies:
