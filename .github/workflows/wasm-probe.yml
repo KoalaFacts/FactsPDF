@@ -47,6 +47,7 @@ jobs:
           dotnet publish probes/browser-wasm/FactsPDF.WasmProbe.csproj -c Release -o artifacts/wasm
           dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
           dotnet build probes/font-styles/FactsPDF.FontStyles.csproj -c Release
+          dotnet build probes/page-numbers/FactsPDF.PageNumbers.csproj -c Release
           dotnet build probes/lists/FactsPDF.Lists.csproj -c Release
           dotnet build probes/images/FactsPDF.Images.csproj -c Release
           dotnet build probes/tables/FactsPDF.Tables.csproj -c Release
@@ -73,6 +74,9 @@ jobs:
       - name: Inspect F1 heading keeps through API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_heading_keep.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/heading-pagination --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/font-styles/bin/Release/net10.0/FactsPDF.FontStyles.dll --native-cli artifacts/style-native/FactsPDF.Cli
+      - name: Inspect F2 page numbers through API CLI and Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_page_numbers.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/page-numbers --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/page-numbers/bin/Release/net10.0/FactsPDF.PageNumbers.dll --native-cli artifacts/style-native/FactsPDF.Cli
       - name: Generate PDFs inside a protected browser and compare with CLI
         env:
           FACTSPDF_WASM_ROOT: ${{ github.workspace }}/artifacts/wasm/wwwroot

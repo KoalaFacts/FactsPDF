@@ -28,6 +28,7 @@ public static class PdfConverter
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
         }
+        if (options.PageNumbers) PageNumberLayout.Append(pages, options, displayCommands, cancellationToken);
         using var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);
