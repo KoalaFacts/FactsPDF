@@ -138,6 +138,38 @@ channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made
 from their committed version/source; release-specific SDK/runtime validation
 and actual registry publication remain separate operations.
 
+### Exact toolchain verification for release preparation
+
+`scripts/verify_release_candidate.py` runs the same fresh, isolated package
+consumption with two additional required arguments: `--expected-sdk` and
+`--expected-runtime`. Both must be explicit three-part stable versions, without
+prerelease/build suffixes, wildcards or defaults. The selected SDK and actual
+managed consumer runtime must match them exactly, including the patch number.
+Both numeric runtime version and full `FrameworkDescription` must match, so an
+RC runtime cannot pass by reporting the same numeric `Environment.Version`.
+Missing or invalid expectations fail before consumption; a mismatch produces no
+successful report. The original `verify_first_use.py` dev behavior is unchanged.
+
+For example, **only to exercise this entrypoint with the existing .NET 10
+toolchain and local dev package**, after the clean pack/publish recipe above:
+
+```bash
+python3 scripts/verify_release_candidate.py \
+  --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
+  --dotnet "$(command -v dotnet)" --output artifacts/exact-toolchain \
+  --expected-sdk 10.0.100 --expected-runtime 10.0.0
+```
+
+For an actual release candidate, obtain the expected versions from the confirmed
+official GA toolchain requirements; do not infer them from the artifact, current
+date or the observed `dotnet --version` output. No .NET 11 versions are defaulted
+or guessed here. Existing clean-source, declared package identity, loaded
+assembly SHA/version, byte checks and real PDF/error cases still apply. The
+report records `toolchainConstraint` alongside the observed SDK/runtime and
+package/source identity and retains `published=false`. This additional constraint
+does not turn a dev package or synthetic fixture into a formal candidate, prove
+official GA availability, cover Native AOT/WASM, or create a publication receipt.
+
 ## Library API
 
 After restoring the local package as above, the existing API is:
