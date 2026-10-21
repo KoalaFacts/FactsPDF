@@ -105,7 +105,9 @@ trusted build artifacts; they are not cryptographic source-to-binary attestation
 The library and CLI use the SDK's default source/resource globs, which do not
 honor Git ignore rules. Acceptance rejects ignored untracked files in those
 project directories (except their top-level `bin`/`obj` build outputs), and ignored
-parent `Directory.Build.*`/`Directory.Packages.props` inputs. This also covers
+parent `Directory.Build.props`, `Directory.Build.targets`, `Directory.Build.rsp`
+and `Directory.Packages.props` inputs. It rejects `assume-unchanged` and
+`skip-worktree` index flags that could hide tracked working-tree changes. This covers
 global ignores and `.git/info/exclude`; it is tied to the current project layout.
 
 The current package remains the local, unreleased `0.1.0-dev` artifact. This

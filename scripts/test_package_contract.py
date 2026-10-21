@@ -129,5 +129,31 @@ class PackageContractTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, 'Ignored project inputs'):
             self.module.current_source(self.root)
 
+    def test_current_source_rejects_index_flags_that_hide_tracked_changes(self):
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'fixture'], check=True)
+        for flag in ['assume-unchanged', 'skip-worktree']:
+            subprocess.run(['git', '-C', str(self.root), 'update-index', '--' + flag, 'README.md'], check=True)
+            (self.root / 'README.md').write_text('hidden tracked change')
+            with self.subTest(flag=flag), self.assertRaisesRegex(AssertionError, 'Hidden tracked inputs'):
+                self.module.current_source(self.root)
+            (self.root / 'README.md').write_bytes(b'expected readme')
+            subprocess.run(['git', '-C', str(self.root), 'update-index', '--no-' + flag, 'README.md'], check=True)
+
+    def test_current_source_rejects_ignored_parent_response_files(self):
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'fixture'], check=True)
+        (self.root / '.git/info/exclude').write_text('Directory.Build.rsp\n')
+        for parent in [self.root, self.root / 'src']:
+            parent.mkdir(exist_ok=True); response = parent / 'Directory.Build.rsp'
+            response.write_text('-p:DefineConstants=HIDDEN_RESPONSE')
+            with self.subTest(parent=parent), self.assertRaisesRegex(AssertionError, 'Ignored project inputs'):
+                self.module.current_source(self.root)
+            response.unlink()
+
 
 if __name__ == '__main__': unittest.main()

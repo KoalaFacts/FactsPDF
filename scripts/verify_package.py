@@ -8,13 +8,16 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 def current_source(root):
+    tracked = subprocess.check_output(['git', 'ls-files', '-v', '-z'], cwd=root).split(b'\0')
+    assert not any(entry[:1].islower() or entry[:1] == b'S' for entry in tracked if entry), 'Hidden tracked inputs: clear assume-unchanged/skip-worktree flags'
     assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], cwd=root).strip(), 'Source checkout must be clean'
     # These two SDK projects include source/resources by glob. Git's ignore rules
     # do not affect those globs. Only their top-level bin/obj are build outputs;
     # a nested ignored bin directory can still contain a real compile input.
     projects = ('src/FactsPDF', 'src/FactsPDF.Cli')
     parent_inputs = tuple(prefix + name for prefix in ('', 'src/')
-                          for name in ('Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props'))
+                          for name in ('Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props',
+                                       'Directory.Build.rsp'))
     ignored = subprocess.check_output(['git', 'ls-files', '--others', '--ignored', '--exclude-standard', '-z',
                                        '--', *projects, *parent_inputs], cwd=root).decode().split('\0')
     inputs = [name for name in ignored if name and not any(
