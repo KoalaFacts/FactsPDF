@@ -9,6 +9,14 @@ using FactsPDF;
 if (args.Length != 2) { Console.Error.WriteLine("Usage: FirstUse input.html output.pdf"); return 2; }
 try
 {
+    // Private acceptance mode: inspect the staged CLI without invoking its entry point.
+    if (args[0] == "--inspect-cli")
+    {
+        var cli = Assembly.LoadFile(Path.GetFullPath(args[1]));
+        Console.WriteLine(JsonSerializer.Serialize(new { assembly = cli.Location,
+            assemblyInformationalVersion = cli.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion }));
+        return 0;
+    }
     using var buffer = new MemoryStream();
     var result = PdfConverter.Convert(File.ReadAllText(args[0]), buffer, new PdfOptions());
     File.WriteAllBytes(args[1], buffer.ToArray());

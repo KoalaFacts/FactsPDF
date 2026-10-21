@@ -185,6 +185,9 @@ def main():
         expected=json.loads((work/'consumer/expected-pages.json').read_text())
         input_path=work/'consumer/input.html';bad=work/'consumer/unsupported.html'
         consumer=work/'consumer/bin/Release/net10.0/FirstUse.dll'
+        cli_identity=json.loads(execute(args.dotnet,consumer,'--inspect-cli',work/'cli'/cli.name).stdout)
+        assert Path(cli_identity['assembly']).resolve()==work/'cli'/cli.name,'inspected CLI assembly location'
+        validate_assembly_source(cli_identity.get('assemblyInformationalVersion'),version,source_head)
         entries={'consumer':[args.dotnet,consumer],'cli':[args.dotnet,work/'cli'/cli.name]}
         results=[];negatives=[];api=None
         for name,command in entries.items():
@@ -228,7 +231,8 @@ def main():
         report=dict(sourceHead=source_head,dirty=False,sdk=sdk,
             package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=metadata['targetFramework'],
                 repository=metadata['repository'],sha256=digest(package.read_bytes()),assemblySha256=digest(assembly)),
-            cliSha256=digest(cli.read_bytes()),inputs={p.name:digest(p.read_bytes()) for p in (work/'consumer').iterdir() if p.is_file()},
+            cliSha256=digest(cli.read_bytes()),cliAssembly=cli_identity,
+            inputs={p.name:digest(p.read_bytes()) for p in (work/'consumer').iterdir() if p.is_file()},
             isolation=dict(workspace=str(work),outsideRepository=True,initialPackageCacheEmpty=True,localFeedOnly=True,
                 explicitConfigOnly=True,repositoryBuildImportsAbsent=True,packageCacheAndRuntimeAssemblyMatch=True,
                 importCount=len(imports),environmentAllowlisted=True,userExtensionsIsolated=True,

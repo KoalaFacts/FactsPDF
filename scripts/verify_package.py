@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 def current_source(root):
-    assert not subprocess.check_output(['git', 'status', '--porcelain'], cwd=root).strip(), 'Source checkout must be clean'
+    assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], cwd=root).strip(), 'Source checkout must be clean'
     return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
 
 
@@ -34,7 +34,9 @@ def validate_package(path, root, version, source):
         assert package.read('README.md') == (root / 'README.md').read_bytes(), 'README missing or incorrect'
         assert not any(node.tag.split('}')[-1] == 'dependency' for node in doc.iter()), 'Runtime package dependencies'
         assert single('group').attrib == {'targetFramework': 'net10.0'}, 'Package target framework'
-        assets = [name for name in names if name.startswith(('lib/', 'ref/', 'runtimes/'))]
+        consumer_folders = ('lib/', 'ref/', 'runtimes/', 'build/', 'buildtransitive/',
+                            'buildmultitargeting/', 'analyzers/', 'contentfiles/', 'content/', 'tools/')
+        assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)]
         assert assets == ['lib/net10.0/FactsPDF.dll'], 'Package consumer assets'
         return dict(id='FactsPDF', version=version, targetFramework='net10.0', repository=repository,
                     assembly=package.read(assets[0]))

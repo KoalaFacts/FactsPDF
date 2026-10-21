@@ -75,6 +75,21 @@ class PackageContractTests(unittest.TestCase):
             with self.subTest(actual=actual), self.assertRaises(AssertionError):
                 self.module.validate_assembly_source(actual, VERSION, SOURCE)
 
+    def test_rejects_additional_nuget_consumer_asset_categories(self):
+        for folder in ['build', 'buildTransitive', 'buildMultiTargeting', 'analyzers', 'contentFiles', 'content', 'tools']:
+            with self.subTest(folder=folder), self.assertRaisesRegex(AssertionError, 'consumer assets'):
+                self.module.validate_package(self.package(extra={folder + '/extra.targets': b'extra'}), self.root, VERSION, SOURCE)
+
+    def test_current_source_cannot_hide_untracked_source_with_git_configuration(self):
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'fixture'], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'config', 'status.showUntrackedFiles', 'no'], check=True)
+        (self.root / 'Extra.cs').write_text('class Extra {}')
+        with self.assertRaisesRegex(AssertionError, 'clean'):
+            self.module.current_source(self.root)
+
     def test_current_source_rejects_uncommitted_source_changes(self):
         self.assertTrue(hasattr(self.module, 'current_source'), 'Missing clean source check')
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
