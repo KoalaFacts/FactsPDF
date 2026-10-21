@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 from xml.etree import ElementTree as ET
-from zipfile import ZipFile
+from verify_package import current_source, validate_package, validate_assembly_source
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -138,12 +138,10 @@ def main():
     for name in ('package','cli-dll','output'):parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--dotnet',default='dotnet');args=parser.parse_args()
     root=Path(__file__).resolve().parents[1];package=args.package.resolve();cli=args.cli_dll.resolve();out=args.output.resolve()
+    source_head=current_source(root)
+    version=ET.parse(root/'Directory.Build.props').findtext('PropertyGroup/Version')
+    metadata=validate_package(package,root,version,source_head);assembly=metadata['assembly']
     out.mkdir(parents=True,exist_ok=False)
-    with ZipFile(package) as archive:
-        nuspecs=[n for n in archive.namelist() if n.endswith('.nuspec')];assert len(nuspecs)==1,'nuspec count'
-        metadata={node.tag.split('}')[-1]:node.text for node in ET.fromstring(archive.read(nuspecs[0])).iter()}
-        assert metadata['id']=='FactsPDF' and 'dependency' not in metadata,'package identity/dependencies'
-        version=metadata['version'];assembly=archive.read('lib/net10.0/FactsPDF.dll')
     assert cli.is_file() and cli.with_suffix('.runtimeconfig.json').is_file() and cli.with_suffix('.deps.json').is_file(),'published CLI files'
     assert (cli.parent/'FactsPDF.dll').read_bytes()==assembly,'published CLI uses the newly packed assembly'
     commands=[]
@@ -187,6 +185,9 @@ def main():
         expected=json.loads((work/'consumer/expected-pages.json').read_text())
         input_path=work/'consumer/input.html';bad=work/'consumer/unsupported.html'
         consumer=work/'consumer/bin/Release/net10.0/FirstUse.dll'
+        cli_identity=json.loads(execute(args.dotnet,consumer,'--inspect-cli',work/'cli'/cli.name).stdout)
+        assert Path(cli_identity['assembly']).resolve()==work/'cli'/cli.name,'inspected CLI assembly location'
+        validate_assembly_source(cli_identity.get('assemblyInformationalVersion'),version,source_head)
         entries={'consumer':[args.dotnet,consumer],'cli':[args.dotnet,work/'cli'/cli.name]}
         results=[];negatives=[];api=None
         for name,command in entries.items():
@@ -195,6 +196,7 @@ def main():
                 api=json.loads(response.stdout)
                 assert Path(api['assembly']).resolve()==consumer.parent/'FactsPDF.dll','runtime assembly location'
                 assert api.get('assemblyIdentity','').startswith('FactsPDF, Version='),'runtime assembly identity'
+                validate_assembly_source(api.get('assemblyInformationalVersion'),version,source_head)
                 validate_runtime(api.get('runtime',{}),evaluation['Properties']['TargetFramework'])
                 assert api['pages']==2 and api['bytes']==pdf.stat().st_size,'API conversion metadata'
             else:assert not response.stdout,'CLI PDF went to stdout instead of destination'
@@ -225,10 +227,12 @@ def main():
         else:raise AssertionError('accepted wrong cached assembly')
         finally:cached.write_bytes(assembly)
         verify_package_bytes(work,package,version,assembly)
-        report=dict(sourceHead=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
-            dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=root).strip()),sdk=sdk,
-            package=dict(name=package.name,version=version,sha256=digest(package.read_bytes()),assemblySha256=digest(assembly)),
-            cliSha256=digest(cli.read_bytes()),inputs={p.name:digest(p.read_bytes()) for p in (work/'consumer').iterdir() if p.is_file()},
+        assert current_source(root)==source_head,'Source changed during verification'
+        report=dict(sourceHead=source_head,dirty=False,sdk=sdk,
+            package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=metadata['targetFramework'],
+                repository=metadata['repository'],sha256=digest(package.read_bytes()),assemblySha256=digest(assembly)),
+            cliSha256=digest(cli.read_bytes()),cliAssembly=cli_identity,
+            inputs={p.name:digest(p.read_bytes()) for p in (work/'consumer').iterdir() if p.is_file()},
             isolation=dict(workspace=str(work),outsideRepository=True,initialPackageCacheEmpty=True,localFeedOnly=True,
                 explicitConfigOnly=True,repositoryBuildImportsAbsent=True,packageCacheAndRuntimeAssemblyMatch=True,
                 importCount=len(imports),environmentAllowlisted=True,userExtensionsIsolated=True,

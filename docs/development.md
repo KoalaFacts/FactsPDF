@@ -32,6 +32,7 @@ The following Bash recipe uses the installed .NET 10 SDK and the current unrelea
 From the repository root:
 
 ```sh
+rm -rf src/FactsPDF/bin src/FactsPDF/obj src/FactsPDF.Cli/bin src/FactsPDF.Cli/obj
 dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
 dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
 first_use_dir=$(mktemp -d /tmp/factspdf-first-use.XXXXXX)
@@ -87,6 +88,45 @@ python3 scripts/verify_first_use.py \
 ```
 
 The verifier creates and removes its own separate temporary workspace and copies only the six source/input files. It allowlists the child process environment, uses an empty MSBuild user extension directory, and rejects repository files in the actual preprocessed import graph. It checks evaluated project properties, actual NuGet assets/source/config/cache paths, cached package SHA-512 and bytes, built and loaded assembly bytes/location, authored full text/page order and bounds, qpdf validity, rasterized pages and consumer/CLI byte equality. Unsupported input must preserve existing/absent targets and produce no PDF stdout. Recovery must reproduce the successful bytes. Reordered real PDFs and altered cached assemblies must fail the relevant checks. `report.json`, the import graph, command logs and PDF/page artifacts record actual results; no visual reference is automatically approved. The normal CI runs this check on the just-packed package and freshly published CLI.
+
+Package acceptance requires a clean checkout, including untracked source even
+when Git's user configuration normally hides it. Both package checks bind the
+`FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
+commit to the current source, require the existing sole `lib/net10.0/FactsPDF.dll`
+asset and empty `net10.0` group directly under `dependencies`, reject additional
+framework dependencies, and compare the packed license/README
+with source. Additional NuGet build, analyzer, content and tool assets, including
+the root `runtime.json` runtime graph, are rejected.
+The consumer also reports the loaded library's informational version and inspects
+the staged CLI assembly without invoking its entry point. Both must equal the
+package version plus `+` and the same commit. A stale package with a matching stale
+CLI fails, as does relabeling its nuspec or mixing a stale CLI with a new library.
+The report retains package source and loaded binary identity separately from the
+verifier's checkout and SDK/runtime. These checks detect accidental stale or mixed
+trusted build artifacts; they are not cryptographic source-to-binary attestation.
+
+The library and CLI use the SDK's default source/resource globs, which do not
+honor Git ignore rules. Acceptance rejects ignored untracked files in those
+project directories (except their top-level `bin`/`obj` build outputs), and ignored
+parent `Directory.Build.props`, `Directory.Build.targets`, `Directory.Build.rsp`
+and `Directory.Packages.props` inputs. It rejects `assume-unchanged` and
+`skip-worktree` index flags that could hide tracked working-tree changes. This covers
+global ignores and `.git/info/exclude`; it is tied to the current project layout.
+The same build configuration filenames are conservatively rejected in every
+ancestor of the checkout, even if a nearer configuration would shadow one.
+
+The recipe and CI remove only the library and CLI's four generated `bin`/`obj`
+directories before restore/build, independently of MSBuild's mutable clean
+manifest. Stale generated compiler inputs such as `AssemblyInfo.cs` are then
+regenerated; PDFs, reports and packages under `artifacts` are retained. This is a
+requirement of the trusted build procedure, not a claim that the verifier proves
+arbitrary supplied binaries were built cleanly or attests all build inputs.
+
+The current package remains the local, unreleased `0.1.0-dev` artifact. This
+verification does not assign a formal release version, create a NuGet publishing
+channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made
+from their committed version/source; release-specific SDK/runtime validation
+and actual registry publication remain separate operations.
 
 ## Library API
 

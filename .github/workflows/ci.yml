@@ -63,11 +63,13 @@ jobs:
           /usr/bin/python3 scripts/verify_unicode.py artifacts/native/FactsPDF.Cli
       - name: Build local package for metadata and first-use verification, without publishing
         run: |
+          rm -rf src/FactsPDF/bin src/FactsPDF/obj src/FactsPDF.Cli/bin src/FactsPDF.Cli/obj
           dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
           python3 scripts/verify_package.py
           python3 -c "import glob,zipfile; p=glob.glob('artifacts/packages/*.nupkg'); assert p; assert all(not n.lower().endswith(('.ttf','.otf','.ttc','.woff','.woff2')) for f in p for n in zipfile.ZipFile(f).namelist()); print('No font files packaged.')"
       - name: Verify clean external CLI and NuGet first use
         run: |
+          python3 -m unittest discover -s scripts -p 'test_package_contract.py' -v
           python3 -m unittest discover -s scripts -p 'test_first_use.py' -v
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
           python3 scripts/verify_first_use.py --package artifacts/packages/FactsPDF.0.1.0-dev.nupkg --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll --dotnet "$(command -v dotnet)" --output artifacts/first-use
