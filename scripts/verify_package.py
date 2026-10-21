@@ -8,6 +8,9 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 def current_source(root):
+    build_configuration = ('Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props', 'Directory.Build.rsp')
+    inherited = [str(parent / name) for parent in root.resolve().parents for name in build_configuration if (parent / name).exists()]
+    assert not inherited, 'Ancestor build configuration: ' + ', '.join(inherited)
     tracked = subprocess.check_output(['git', 'ls-files', '-v', '-z'], cwd=root).split(b'\0')
     assert not any(entry[:1].islower() or entry[:1] == b'S' for entry in tracked if entry), 'Hidden tracked inputs: clear assume-unchanged/skip-worktree flags'
     assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], cwd=root).strip(), 'Source checkout must be clean'
@@ -15,9 +18,7 @@ def current_source(root):
     # do not affect those globs. Only their top-level bin/obj are build outputs;
     # a nested ignored bin directory can still contain a real compile input.
     projects = ('src/FactsPDF', 'src/FactsPDF.Cli')
-    parent_inputs = tuple(prefix + name for prefix in ('', 'src/')
-                          for name in ('Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props',
-                                       'Directory.Build.rsp'))
+    parent_inputs = tuple(prefix + name for prefix in ('', 'src/') for name in build_configuration)
     ignored = subprocess.check_output(['git', 'ls-files', '--others', '--ignored', '--exclude-standard', '-z',
                                        '--', *projects, *parent_inputs], cwd=root).decode().split('\0')
     inputs = [name for name in ignored if name and not any(
@@ -50,7 +51,8 @@ def validate_package(path, root, version, source):
         assert single('group').attrib == {'targetFramework': 'net10.0'}, 'Package target framework'
         consumer_folders = ('lib/', 'ref/', 'runtimes/', 'build/', 'buildtransitive/',
                             'buildmultitargeting/', 'analyzers/', 'contentfiles/', 'content/', 'tools/')
-        assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)]
+        assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)
+                  or name.replace('\\', '/').lower() == 'runtime.json']
         assert assets == ['lib/net10.0/FactsPDF.dll'], 'Package consumer assets'
         return dict(id='FactsPDF', version=version, targetFramework='net10.0', repository=repository,
                     assembly=package.read(assets[0]))

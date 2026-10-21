@@ -79,6 +79,8 @@ class PackageContractTests(unittest.TestCase):
         for folder in ['build', 'buildTransitive', 'buildMultiTargeting', 'analyzers', 'contentFiles', 'content', 'tools']:
             with self.subTest(folder=folder), self.assertRaisesRegex(AssertionError, 'consumer assets'):
                 self.module.validate_package(self.package(extra={folder + '/extra.targets': b'extra'}), self.root, VERSION, SOURCE)
+        with self.assertRaisesRegex(AssertionError, 'consumer assets'):
+            self.module.validate_package(self.package(extra={'runtime.json': b'{"runtimes":{"custom":{"#import":["linux-x64"]}}}'}), self.root, VERSION, SOURCE)
 
     def test_current_source_cannot_hide_untracked_source_with_git_configuration(self):
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
@@ -154,6 +156,19 @@ class PackageContractTests(unittest.TestCase):
             with self.subTest(parent=parent), self.assertRaisesRegex(AssertionError, 'Ignored project inputs'):
                 self.module.current_source(self.root)
             response.unlink()
+
+    def test_current_source_rejects_build_configuration_above_checkout(self):
+        checkout = self.root / 'checkout'; checkout.mkdir(); (checkout / 'source.cs').write_text('class Source {}')
+        subprocess.run(['git', 'init', '-q', str(checkout)], check=True)
+        subprocess.run(['git', '-C', str(checkout), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(checkout), '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'fixture'], check=True)
+        self.module.current_source(checkout)
+        for name in ['Directory.Build.props', 'Directory.Build.targets', 'Directory.Build.rsp', 'Directory.Packages.props']:
+            path = self.root / name; path.write_text('ambient build configuration')
+            with self.subTest(name=name), self.assertRaisesRegex(AssertionError, 'Ancestor build configuration'):
+                self.module.current_source(checkout)
+            path.unlink()
 
 
 if __name__ == '__main__': unittest.main()

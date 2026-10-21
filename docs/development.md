@@ -32,6 +32,7 @@ The following Bash recipe uses the installed .NET 10 SDK and the current unrelea
 From the repository root:
 
 ```sh
+dotnet clean src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
 dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
 dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
 first_use_dir=$(mktemp -d /tmp/factspdf-first-use.XXXXXX)
@@ -93,7 +94,8 @@ when Git's user configuration normally hides it. Both package checks bind the
 `FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
 commit to the current source, require the existing sole `lib/net10.0/FactsPDF.dll`
 asset and dependency-free `net10.0` group, and compare the packed license/README
-with source. Additional NuGet build, analyzer, content and tool assets are rejected.
+with source. Additional NuGet build, analyzer, content and tool assets, including
+the root `runtime.json` runtime graph, are rejected.
 The consumer also reports the loaded library's informational version and inspects
 the staged CLI assembly without invoking its entry point. Both must equal the
 package version plus `+` and the same commit. A stale package with a matching stale
@@ -109,6 +111,14 @@ parent `Directory.Build.props`, `Directory.Build.targets`, `Directory.Build.rsp`
 and `Directory.Packages.props` inputs. It rejects `assume-unchanged` and
 `skip-worktree` index flags that could hide tracked working-tree changes. This covers
 global ignores and `.git/info/exclude`; it is tied to the current project layout.
+The same build configuration filenames are conservatively rejected in every
+ancestor of the checkout, even if a nearer configuration would shadow one.
+
+The recipe and CI clean the CLI and referenced library's known Release outputs
+before packaging, so stale generated compiler inputs such as `AssemblyInfo.cs`
+are regenerated. This is a requirement of the trusted build procedure, not a
+claim that the verifier independently proves arbitrary supplied binaries were
+built cleanly. It does not clear every file in `bin`/`obj` or attest all build inputs.
 
 The current package remains the local, unreleased `0.1.0-dev` artifact. This
 verification does not assign a formal release version, create a NuGet publishing
