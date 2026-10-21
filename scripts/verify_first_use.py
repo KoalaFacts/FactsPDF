@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 from xml.etree import ElementTree as ET
-from verify_package import current_source, validate_package, validate_assembly_source
+from verify_package import current_source, expected_contract, local_package, validate_package, validate_assembly_source
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -21,6 +21,20 @@ def stage_consumer(source,target):
     target.mkdir()
     for name in ('FirstUse.csproj','Program.cs','NuGet.Config','input.html','unsupported.html','expected-pages.json'):
         shutil.copyfile(source/name,target/name)
+
+
+def configure_consumer(project,version,target):
+    # Only the isolated copy is specialized. Expected values come from the
+    # clean repository declaration, never from package metadata or its assets.
+    tree=ET.parse(project)
+    frameworks=tree.findall('PropertyGroup/TargetFramework')
+    references=tree.findall('.//PackageReference')
+    assert len(frameworks)==1 and not tree.findall('.//TargetFrameworks'),'sample single target'
+    assert len(references)==1 and references[0].get('Include')=='FactsPDF','sample package reference'
+    assert not tree.findall('.//ProjectReference'),'sample source project reference'
+    frameworks[0].text=target
+    references[0].set('Version','['+version+']')
+    tree.write(project,encoding='unicode')
 
 
 def build_environment(ambient,work):
@@ -66,7 +80,7 @@ def validate_workspace(work,root):
             if (parent/name).exists():raise ValueError('Unexpected inherited build configuration: '+str(parent/name))
 
 
-def validate_assets(assets,work,version):
+def validate_assets(assets,work,version,target):
     expected=work.resolve();restore=assets['project']['restore']
     paths=lambda values:{Path(v).resolve() for v in values}
     assert paths(assets['packageFolders'])=={expected/'packages'},'package folders'
@@ -75,7 +89,7 @@ def validate_assets(assets,work,version):
     assert paths(restore['configFilePaths'])=={expected/'consumer/NuGet.Config'},'restore config'
     assert Path(restore['projectPath']).resolve()==expected/'consumer/FirstUse.csproj','restore project'
     assert restore['projectStyle']=='PackageReference','project style'
-    assert set(restore['frameworks'])=={'net10.0'},'consumer target framework'
+    assert set(restore['frameworks'])=={target},'consumer target framework'
     assert all(not f.get('projectReferences') for f in restore['frameworks'].values()),'source project reference'
     assert set(assets['libraries'])=={'FactsPDF/'+version},'resolved package identity/version'
     library=assets['libraries']['FactsPDF/'+version]
@@ -100,13 +114,13 @@ def validate_runtime(runtime,target):
     assert runtime.get('dynamicCodeSupported') is True and runtime.get('dynamicCodeCompiled') is True,'managed dynamic-code runtime'
 
 
-def verify_package_bytes(work,package,version,expected_dll):
+def verify_package_bytes(work,package,version,expected_dll,target):
     cache=work/'packages/factspdf'/version
     assert (cache/f'factspdf.{version}.nupkg').read_bytes()==package.read_bytes(),'cached package bytes'
     checksum=base64.b64encode(hashlib.sha512(package.read_bytes()).digest()).decode()
     assert (cache/f'factspdf.{version}.nupkg.sha512').read_text().strip()==checksum,'package SHA512'
-    assert (cache/'lib/net10.0/FactsPDF.dll').read_bytes()==expected_dll,'cached assembly bytes'
-    assert (work/'consumer/bin/Release/net10.0/FactsPDF.dll').read_bytes()==expected_dll,'consumer assembly bytes'
+    assert (cache/'lib'/target/'FactsPDF.dll').read_bytes()==expected_dll,'cached assembly bytes'
+    assert (work/'consumer/bin/Release'/target/'FactsPDF.dll').read_bytes()==expected_dll,'consumer assembly bytes'
 
 
 def inspect_pdf(path,expected,execute,raster=True):
@@ -135,12 +149,14 @@ def inspect_pdf(path,expected,execute,raster=True):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    for name in ('package','cli-dll','output'):parser.add_argument('--'+name,type=Path,required=True)
+    for name in ('cli-dll','output'):parser.add_argument('--'+name,type=Path,required=True)
+    parser.add_argument('--package',type=Path,help='Defaults to the sole declared-version package in artifacts/packages')
     parser.add_argument('--dotnet',default='dotnet');args=parser.parse_args()
-    root=Path(__file__).resolve().parents[1];package=args.package.resolve();cli=args.cli_dll.resolve();out=args.output.resolve()
+    root=Path(__file__).resolve().parents[1];cli=args.cli_dll.resolve();out=args.output.resolve()
     source_head=current_source(root)
-    version=ET.parse(root/'Directory.Build.props').findtext('PropertyGroup/Version')
-    metadata=validate_package(package,root,version,source_head);assembly=metadata['assembly']
+    version,framework=expected_contract(root)
+    package=(args.package or local_package(root,version)).resolve()
+    metadata=validate_package(package,root,version,source_head,framework);assembly=metadata['assembly']
     out.mkdir(parents=True,exist_ok=False)
     assert cli.is_file() and cli.with_suffix('.runtimeconfig.json').is_file() and cli.with_suffix('.deps.json').is_file(),'published CLI files'
     assert (cli.parent/'FactsPDF.dll').read_bytes()==assembly,'published CLI uses the newly packed assembly'
@@ -149,6 +165,7 @@ def main():
         work=Path(temporary).resolve();validate_workspace(work,root)
         for name in ('feed','packages','http-cache','dotnet-home','nuget-scratch','msbuild-user'): (work/name).mkdir()
         stage_consumer(root/'examples/first-use',work/'consumer')
+        configure_consumer(work/'consumer/FirstUse.csproj',version,framework)
         shutil.copy2(root/'global.json',work/'global.json')
         shutil.copy2(package,work/'feed'/package.name)
         shutil.copytree(cli.parent,work/'cli')
@@ -167,11 +184,11 @@ def main():
         assert not any((work/'packages').iterdir()),'package cache must start empty'
         sdk=execute(args.dotnet,'--version').stdout.decode().strip()
         execute(args.dotnet,'restore',project,'--configfile',config,'--packages',work/'packages','--no-http-cache')
-        assets=json.loads((work/'consumer/obj/project.assets.json').read_text());validate_assets(assets,work,version)
+        assets=json.loads((work/'consumer/obj/project.assets.json').read_text());validate_assets(assets,work,version,framework)
         evaluation=json.loads(execute(args.dotnet,'msbuild',project,
             '-getProperty:TargetFramework,DirectoryBuildPropsPath,DirectoryBuildTargetsPath,DirectoryPackagesPropsPath',
             '-getItem:ProjectReference').stdout)
-        assert evaluation['Properties']['TargetFramework']=='net10.0','evaluated framework'
+        assert evaluation['Properties']['TargetFramework']==framework,'evaluated framework'
         assert not any(evaluation['Properties'][k] for k in ('DirectoryBuildPropsPath','DirectoryBuildTargetsPath','DirectoryPackagesPropsPath')),'inherited build properties'
         assert not evaluation['Items']['ProjectReference'],'evaluated project references'
         preprocessed=out/'consumer.preprocessed.xml'
@@ -179,12 +196,12 @@ def main():
         imports=validate_imports(preprocessed.read_text(),root,project)
         (out/'imports.json').write_text(json.dumps(imports,indent=2)+'\n')
         execute(args.dotnet,'build',project,'-c','Release','--no-restore')
-        verify_package_bytes(work,package,version,assembly)
+        verify_package_bytes(work,package,version,assembly,framework)
         for name,data in [('assets.json',assets),('evaluation.json',evaluation)]:
             (out/name).write_text(json.dumps(data,indent=2)+'\n')
         expected=json.loads((work/'consumer/expected-pages.json').read_text())
         input_path=work/'consumer/input.html';bad=work/'consumer/unsupported.html'
-        consumer=work/'consumer/bin/Release/net10.0/FirstUse.dll'
+        consumer=work/'consumer/bin/Release'/framework/'FirstUse.dll'
         cli_identity=json.loads(execute(args.dotnet,consumer,'--inspect-cli',work/'cli'/cli.name).stdout)
         assert Path(cli_identity['assembly']).resolve()==work/'cli'/cli.name,'inspected CLI assembly location'
         validate_assembly_source(cli_identity.get('assemblyInformationalVersion'),version,source_head)
@@ -221,12 +238,12 @@ def main():
         else:raise AssertionError('accepted reordered real PDF')
         reversed_pdf.unlink()
         # Cache provenance checks must reject a different real file, then recover.
-        cached=work/'packages/factspdf'/version/'lib/net10.0/FactsPDF.dll';cached.write_bytes(b'not the packed assembly')
-        try:verify_package_bytes(work,package,version,assembly)
+        cached=work/'packages/factspdf'/version/'lib'/framework/'FactsPDF.dll';cached.write_bytes(b'not the packed assembly')
+        try:verify_package_bytes(work,package,version,assembly,framework)
         except AssertionError as error:assert str(error)=='cached assembly bytes',str(error)
         else:raise AssertionError('accepted wrong cached assembly')
         finally:cached.write_bytes(assembly)
-        verify_package_bytes(work,package,version,assembly)
+        verify_package_bytes(work,package,version,assembly,framework)
         assert current_source(root)==source_head,'Source changed during verification'
         report=dict(sourceHead=source_head,dirty=False,sdk=sdk,
             package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=metadata['targetFramework'],

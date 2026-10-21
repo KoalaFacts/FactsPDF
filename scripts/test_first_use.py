@@ -36,16 +36,16 @@ class FirstUseTests(unittest.TestCase):
                     'frameworks': {'net10.0': {'projectReferences': {}}}}}}
 
     def test_assets_require_only_explicit_feed_config_and_cache(self):
-        valid = self.assets(); self.module.validate_assets(valid, self.work, '0.1.0-dev')
+        valid = self.assets(); self.module.validate_assets(valid, self.work, '0.1.0-dev', 'net10.0')
         changes = [('sources', {'https://api.nuget.org/v3/index.json': {}}),
                    ('configFilePaths', [str(Path.home() / '.nuget/NuGet/NuGet.Config')]),
                    ('packagesPath', str(ROOT / 'artifacts/cache'))]
         for field, value in changes:
             bad = copy.deepcopy(valid); bad['project']['restore'][field] = value
             with self.subTest(field=field), self.assertRaises(AssertionError):
-                self.module.validate_assets(bad, self.work, '0.1.0-dev')
+                self.module.validate_assets(bad, self.work, '0.1.0-dev', 'net10.0')
         bad = copy.deepcopy(valid); bad['packageFolders']['/shared/cache'] = {}
-        with self.assertRaises(AssertionError): self.module.validate_assets(bad, self.work, '0.1.0-dev')
+        with self.assertRaises(AssertionError): self.module.validate_assets(bad, self.work, '0.1.0-dev', 'net10.0')
 
     def test_assets_reject_project_references_extra_packages_and_wrong_version(self):
         for change in ('project', 'package', 'version'):
@@ -54,7 +54,7 @@ class FirstUseTests(unittest.TestCase):
             elif change == 'package': bad['libraries']['Other/1.0.0'] = {'type': 'package'}
             else: bad['libraries']['FactsPDF/0.2.0'] = bad['libraries'].pop('FactsPDF/0.1.0-dev')
             with self.subTest(change=change), self.assertRaises(AssertionError):
-                self.module.validate_assets(bad, self.work, '0.1.0-dev')
+                self.module.validate_assets(bad, self.work, '0.1.0-dev', 'net10.0')
 
     def test_text_checker_preserves_words_and_page_order(self):
         wanted = ['First use\nLocal package', 'Second page\nEND-002']
