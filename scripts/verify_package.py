@@ -27,7 +27,35 @@ def current_source(root):
     return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
 
 
-def validate_package(path, root, version, source):
+def expected_contract(root):
+    """Read the repository's explicit single-target declaration, never the package.
+
+    This is deliberately not an MSBuild evaluator. Ambiguous/conditional or
+    computed declarations need a reviewed verifier update rather than guessing.
+    """
+    doc = ET.parse(root / 'Directory.Build.props').getroot()
+    assert not doc.findall('.//TargetFrameworks'), 'Expected a single target framework'
+    def literal(name, pattern):
+        nodes = doc.findall('.//' + name)
+        assert len(nodes) == 1, 'Expected one declared ' + name
+        node = nodes[0]
+        groups = [group for group in doc.findall('PropertyGroup') if node in list(group)]
+        assert len(groups) == 1 and not groups[0].attrib and not node.attrib, 'Expected unconditional ' + name
+        value = node.text or ''
+        assert re.fullmatch(pattern, value), 'Expected literal ' + name
+        return value
+    return (literal('Version', r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9a-z]+(?:[.-][0-9a-z]+)*)?'),
+            literal('TargetFramework', r'net[1-9][0-9]*\.0'))
+
+
+def local_package(root, version):
+    packages = list((root / 'artifacts/packages').glob('FactsPDF.*.nupkg'))
+    expected = root / 'artifacts/packages' / f'FactsPDF.{version}.nupkg'
+    assert packages == [expected], f'Expected only local package {expected}, got {packages}'
+    return expected
+
+
+def validate_package(path, root, version, source, target):
     assert version and re.fullmatch(r'[0-9a-f]{40}', source), 'Expected package version/source'
     with ZipFile(path) as package:
         names = package.namelist()
@@ -49,7 +77,7 @@ def validate_package(path, root, version, source):
         assert package.read('README.md') == (root / 'README.md').read_bytes(), 'README missing or incorrect'
         assert not any(node.tag.split('}')[-1] == 'dependency' for node in doc.iter()), 'Runtime package dependencies'
         group = single('group')
-        assert group.attrib == {'targetFramework': 'net10.0'}, 'Package target framework'
+        assert group.attrib == {'targetFramework': target}, 'Package target framework'
         assert list(single('dependencies')) == [group] and not list(group), 'Package dependency group'
         assert not any(node.tag.split('}')[-1] in ('frameworkReferences', 'frameworkAssemblies')
                        for node in doc.iter()), 'Framework dependencies'
@@ -57,8 +85,8 @@ def validate_package(path, root, version, source):
                             'buildmultitargeting/', 'analyzers/', 'contentfiles/', 'content/', 'tools/')
         assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)
                   or name.replace('\\', '/').lower() == 'runtime.json']
-        assert assets == ['lib/net10.0/FactsPDF.dll'], 'Package consumer assets'
-        return dict(id='FactsPDF', version=version, targetFramework='net10.0', repository=repository,
+        assert assets == [f'lib/{target}/FactsPDF.dll'], 'Package consumer assets'
+        return dict(id='FactsPDF', version=version, targetFramework=target, repository=repository,
                     assembly=package.read(assets[0]))
 
 
@@ -69,12 +97,10 @@ def validate_assembly_source(actual, version, source):
 def main():
     root = Path(__file__).resolve().parents[1]
     source = current_source(root)
-    version = ET.parse(root / 'Directory.Build.props').findtext('PropertyGroup/Version')
-    packages = list((root / 'artifacts/packages').glob('FactsPDF.*.nupkg'))
-    assert len(packages) == 1, f'Expected exactly one local package, got {packages}'
-    validate_package(packages[0], root, version, source)
+    version, target = expected_contract(root)
+    validate_package(local_package(root, version), root, version, source, target)
     assert current_source(root) == source, 'Source changed during verification'
-    print('Local package identity, version, source, net10.0 assets, license/README and absence of dependencies verified. Nothing was published.')
+    print(f'Local package identity, version, source, {target} assets, license/README and absence of dependencies verified. Nothing was published.')
 
 
 if __name__ == '__main__': main()

@@ -70,9 +70,10 @@ jobs:
       - name: Verify clean external CLI and NuGet first use
         run: |
           python3 -m unittest discover -s scripts -p 'test_package_contract.py' -v
+          python3 -m unittest discover -s scripts -p 'test_declared_package_contract.py' -v
           python3 -m unittest discover -s scripts -p 'test_first_use.py' -v
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
-          python3 scripts/verify_first_use.py --package artifacts/packages/FactsPDF.0.1.0-dev.nupkg --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll --dotnet "$(command -v dotnet)" --output artifacts/first-use
+          python3 scripts/verify_first_use.py --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll --dotnet "$(command -v dotnet)" --output artifacts/first-use
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

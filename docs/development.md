@@ -122,6 +122,16 @@ regenerated; PDFs, reports and packages under `artifacts` are retained. This is 
 requirement of the trusted build procedure, not a claim that the verifier proves
 arbitrary supplied binaries were built cleanly or attests all build inputs.
 
+The automated verifier reads the expected version and single target framework
+from the clean checkout's explicit `Directory.Build.props` declaration, never
+from the package under test. It specializes only the temporary consumer copy
+with that framework and an exact package version. Without `--package`, it
+requires the sole `artifacts/packages/FactsPDF.<declared-version>.nupkg`; stale
+extra packages fail selection. Conditional, computed or multiple declarations
+require a reviewed verifier update. This is a literal declaration reader, not a
+general MSBuild evaluator. Future `net11.0` fixture tests exercise these paths
+without executing .NET 11 or establishing RC/GA compatibility.
+
 The current package remains the local, unreleased `0.1.0-dev` artifact. This
 verification does not assign a formal release version, create a NuGet publishing
 channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made

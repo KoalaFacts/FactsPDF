@@ -40,7 +40,7 @@ class PackageContractTests(unittest.TestCase):
         return path
 
     def test_accepts_bound_package_and_returns_its_provenance(self):
-        result = self.module.validate_package(self.package(), self.root, VERSION, SOURCE)
+        result = self.module.validate_package(self.package(), self.root, VERSION, SOURCE, 'net10.0')
         self.assertEqual(result['id'], 'FactsPDF')
         self.assertEqual(result['repository']['commit'], SOURCE)
         self.assertEqual(result['targetFramework'], 'net10.0')
@@ -53,18 +53,18 @@ class PackageContractTests(unittest.TestCase):
                          ('KoalaFacts/FactsPDF', 'Other/FactsPDF'),
                          ('<version>0.1.0-dev</version>', '<version>0.1.0-dev</version><version>0.2.0</version>')]:
             with self.subTest(replacement=new), self.assertRaises(AssertionError):
-                self.module.validate_package(self.package(lambda s: s.replace(old, new)), self.root, VERSION, SOURCE)
+                self.module.validate_package(self.package(lambda s: s.replace(old, new)), self.root, VERSION, SOURCE, 'net10.0')
 
     def test_requires_empty_dependency_group_and_no_framework_dependencies(self):
         replacement = ('<frameworkReferences><group targetFramework="net10.0">'
                        '<frameworkReference name="Microsoft.AspNetCore.App" /></group></frameworkReferences>')
         with self.assertRaises(AssertionError):
             self.module.validate_package(self.package(lambda s: s.replace(
-                '<dependencies><group targetFramework="net10.0" /></dependencies>', replacement)), self.root, VERSION, SOURCE)
+                '<dependencies><group targetFramework="net10.0" /></dependencies>', replacement)), self.root, VERSION, SOURCE, 'net10.0')
         with self.assertRaises(AssertionError):
             self.module.validate_package(self.package(lambda s: s.replace('</metadata>',
                 '<frameworkAssemblies><frameworkAssembly assemblyName="System.Xml" /></frameworkAssemblies></metadata>')),
-                self.root, VERSION, SOURCE)
+                self.root, VERSION, SOURCE, 'net10.0')
 
     def test_rejects_changed_consumer_assets_dependencies_or_notices(self):
         for old, new in [('net10.0', 'net11.0'),
@@ -72,12 +72,12 @@ class PackageContractTests(unittest.TestCase):
                          ('<readme>README.md</readme>', '<readme>Other.md</readme>'),
                          ('type="file">LICENSE.md', 'type="expression">MIT')]:
             with self.subTest(replacement=new), self.assertRaises(AssertionError):
-                self.module.validate_package(self.package(lambda s: s.replace(old, new)), self.root, VERSION, SOURCE)
+                self.module.validate_package(self.package(lambda s: s.replace(old, new)), self.root, VERSION, SOURCE, 'net10.0')
         for extra in [{'lib/net11.0/FactsPDF.dll': b'extra target'},
                       {'runtimes/linux-x64/native/other.so': b'extra runtime'},
                       {'LICENSE.md': b'changed'}, {'README.md': b'changed'}]:
             with self.subTest(files=list(extra)), self.assertRaises(AssertionError):
-                self.module.validate_package(self.package(extra=extra), self.root, VERSION, SOURCE)
+                self.module.validate_package(self.package(extra=extra), self.root, VERSION, SOURCE, 'net10.0')
 
     def test_rejects_relabelled_assembly_from_another_source(self):
         self.assertTrue(hasattr(self.module, 'validate_assembly_source'), 'Missing loaded binary source check')
@@ -89,9 +89,9 @@ class PackageContractTests(unittest.TestCase):
     def test_rejects_additional_nuget_consumer_asset_categories(self):
         for folder in ['build', 'buildTransitive', 'buildMultiTargeting', 'analyzers', 'contentFiles', 'content', 'tools']:
             with self.subTest(folder=folder), self.assertRaisesRegex(AssertionError, 'consumer assets'):
-                self.module.validate_package(self.package(extra={folder + '/extra.targets': b'extra'}), self.root, VERSION, SOURCE)
+                self.module.validate_package(self.package(extra={folder + '/extra.targets': b'extra'}), self.root, VERSION, SOURCE, 'net10.0')
         with self.assertRaisesRegex(AssertionError, 'consumer assets'):
-            self.module.validate_package(self.package(extra={'runtime.json': b'{"runtimes":{"custom":{"#import":["linux-x64"]}}}'}), self.root, VERSION, SOURCE)
+            self.module.validate_package(self.package(extra={'runtime.json': b'{"runtimes":{"custom":{"#import":["linux-x64"]}}}'}), self.root, VERSION, SOURCE, 'net10.0')
 
     def test_current_source_cannot_hide_untracked_source_with_git_configuration(self):
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
