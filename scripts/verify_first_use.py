@@ -114,6 +114,21 @@ def validate_runtime(runtime,target):
     assert runtime.get('dynamicCodeSupported') is True and runtime.get('dynamicCodeCompiled') is True,'managed dynamic-code runtime'
 
 
+def stable_version(value):
+    if not isinstance(value,str) or not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)',value):
+        raise ValueError('Expected an explicit stable version such as major.minor.patch; no suffixes or floating values')
+    return value
+
+
+def validate_release_toolchain(sdk,runtime,expected_sdk,expected_runtime):
+    stable_version(expected_sdk);stable_version(expected_runtime)
+    assert sdk==expected_sdk,'Release SDK differs from the exact expected version'
+    assert runtime.get('version')==expected_runtime,'Release runtime differs from the exact expected version'
+    # Environment.Version is numeric and can omit RC/preview identity. Require
+    # the independently reported full FrameworkDescription to be stable too.
+    assert runtime.get('framework')=='.NET '+expected_runtime,'Release runtime framework differs from the exact stable version'
+
+
 def verify_package_bytes(work,package,version,expected_dll,target):
     cache=work/'packages/factspdf'/version
     assert (cache/f'factspdf.{version}.nupkg').read_bytes()==package.read_bytes(),'cached package bytes'
@@ -147,11 +162,15 @@ def inspect_pdf(path,expected,execute,raster=True):
     return dict(pdfSha256=digest(path.read_bytes()),bytes=path.stat().st_size,pages=2,textAndBounds=True,qpdf=True,pageImages=images)
 
 
-def main():
+def main(*,strict_toolchain=False):
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('cli-dll','output'):parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--package',type=Path,help='Defaults to the sole declared-version package in artifacts/packages')
-    parser.add_argument('--dotnet',default='dotnet');args=parser.parse_args()
+    parser.add_argument('--dotnet',default='dotnet')
+    if strict_toolchain:
+        parser.add_argument('--expected-sdk',type=stable_version,required=True)
+        parser.add_argument('--expected-runtime',type=stable_version,required=True)
+    args=parser.parse_args()
     root=Path(__file__).resolve().parents[1];cli=args.cli_dll.resolve();out=args.output.resolve()
     source_head=current_source(root)
     version,framework=expected_contract(root)
@@ -183,6 +202,8 @@ def main():
         assert reference.attrib=={'Include':'FactsPDF','Version':'['+version+']'},'sample package version'
         assert not any((work/'packages').iterdir()),'package cache must start empty'
         sdk=execute(args.dotnet,'--version').stdout.decode().strip()
+        if strict_toolchain:
+            assert sdk==args.expected_sdk,'Release SDK differs from the exact expected version'
         execute(args.dotnet,'restore',project,'--configfile',config,'--packages',work/'packages','--no-http-cache')
         assets=json.loads((work/'consumer/obj/project.assets.json').read_text());validate_assets(assets,work,version,framework)
         evaluation=json.loads(execute(args.dotnet,'msbuild',project,
@@ -215,6 +236,8 @@ def main():
                 assert api.get('assemblyIdentity','').startswith('FactsPDF, Version='),'runtime assembly identity'
                 validate_assembly_source(api.get('assemblyInformationalVersion'),version,source_head)
                 validate_runtime(api.get('runtime',{}),evaluation['Properties']['TargetFramework'])
+                if strict_toolchain:
+                    validate_release_toolchain(sdk,api['runtime'],args.expected_sdk,args.expected_runtime)
                 assert api['pages']==2 and api['bytes']==pdf.stat().st_size,'API conversion metadata'
             else:assert not response.stdout,'CLI PDF went to stdout instead of destination'
             results.append(dict(entry=name,**inspect_pdf(pdf,expected,execute)))
@@ -256,6 +279,10 @@ def main():
                 settings=isolated),api=api,cases=results,negativeCases=negatives,
             crossEntryBytesEqual=True,recoveryBytesEqual=True,reorderedPdfRejected=True,wrongCachedAssemblyRejected=True,
             commands=commands,visualReview='pending-engineering-inspection',userReferenceApproval='not requested',published=False)
+        if strict_toolchain:
+            report['toolchainConstraint']=dict(mode='exact-stable',expectedSdk=args.expected_sdk,
+                expectedRuntime=args.expected_runtime,verified=True,
+                scope='SDK and managed consumer runtime; not publication approval or an official GA designation')
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(report=str(out/'report.json'),pages=2,entries=2,isolatedWorkspaceRemoved=True)))
 
