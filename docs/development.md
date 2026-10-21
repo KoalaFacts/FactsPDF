@@ -32,7 +32,7 @@ The following Bash recipe uses the installed .NET 10 SDK and the current unrelea
 From the repository root:
 
 ```sh
-dotnet clean src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
+rm -rf src/FactsPDF/bin src/FactsPDF/obj src/FactsPDF.Cli/bin src/FactsPDF.Cli/obj
 dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
 dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
 first_use_dir=$(mktemp -d /tmp/factspdf-first-use.XXXXXX)
@@ -93,7 +93,8 @@ Package acceptance requires a clean checkout, including untracked source even
 when Git's user configuration normally hides it. Both package checks bind the
 `FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
 commit to the current source, require the existing sole `lib/net10.0/FactsPDF.dll`
-asset and dependency-free `net10.0` group, and compare the packed license/README
+asset and empty `net10.0` group directly under `dependencies`, reject additional
+framework dependencies, and compare the packed license/README
 with source. Additional NuGet build, analyzer, content and tool assets, including
 the root `runtime.json` runtime graph, are rejected.
 The consumer also reports the loaded library's informational version and inspects
@@ -114,11 +115,12 @@ global ignores and `.git/info/exclude`; it is tied to the current project layout
 The same build configuration filenames are conservatively rejected in every
 ancestor of the checkout, even if a nearer configuration would shadow one.
 
-The recipe and CI clean the CLI and referenced library's known Release outputs
-before packaging, so stale generated compiler inputs such as `AssemblyInfo.cs`
-are regenerated. This is a requirement of the trusted build procedure, not a
-claim that the verifier independently proves arbitrary supplied binaries were
-built cleanly. It does not clear every file in `bin`/`obj` or attest all build inputs.
+The recipe and CI remove only the library and CLI's four generated `bin`/`obj`
+directories before restore/build, independently of MSBuild's mutable clean
+manifest. Stale generated compiler inputs such as `AssemblyInfo.cs` are then
+regenerated; PDFs, reports and packages under `artifacts` are retained. This is a
+requirement of the trusted build procedure, not a claim that the verifier proves
+arbitrary supplied binaries were built cleanly or attests all build inputs.
 
 The current package remains the local, unreleased `0.1.0-dev` artifact. This
 verification does not assign a formal release version, create a NuGet publishing

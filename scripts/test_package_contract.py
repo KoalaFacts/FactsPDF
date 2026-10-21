@@ -55,6 +55,17 @@ class PackageContractTests(unittest.TestCase):
             with self.subTest(replacement=new), self.assertRaises(AssertionError):
                 self.module.validate_package(self.package(lambda s: s.replace(old, new)), self.root, VERSION, SOURCE)
 
+    def test_requires_empty_dependency_group_and_no_framework_dependencies(self):
+        replacement = ('<frameworkReferences><group targetFramework="net10.0">'
+                       '<frameworkReference name="Microsoft.AspNetCore.App" /></group></frameworkReferences>')
+        with self.assertRaises(AssertionError):
+            self.module.validate_package(self.package(lambda s: s.replace(
+                '<dependencies><group targetFramework="net10.0" /></dependencies>', replacement)), self.root, VERSION, SOURCE)
+        with self.assertRaises(AssertionError):
+            self.module.validate_package(self.package(lambda s: s.replace('</metadata>',
+                '<frameworkAssemblies><frameworkAssembly assemblyName="System.Xml" /></frameworkAssemblies></metadata>')),
+                self.root, VERSION, SOURCE)
+
     def test_rejects_changed_consumer_assets_dependencies_or_notices(self):
         for old, new in [('net10.0', 'net11.0'),
                          ('<group targetFramework="net10.0" />', '<group targetFramework="net10.0"><dependency id="Other" version="1.0.0" /></group>'),

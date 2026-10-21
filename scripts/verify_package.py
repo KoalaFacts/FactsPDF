@@ -48,7 +48,11 @@ def validate_package(path, root, version, source):
         assert package.read('LICENSE.md') == (root / 'LICENSE.md').read_bytes(), 'License changed during packing'
         assert package.read('README.md') == (root / 'README.md').read_bytes(), 'README missing or incorrect'
         assert not any(node.tag.split('}')[-1] == 'dependency' for node in doc.iter()), 'Runtime package dependencies'
-        assert single('group').attrib == {'targetFramework': 'net10.0'}, 'Package target framework'
+        group = single('group')
+        assert group.attrib == {'targetFramework': 'net10.0'}, 'Package target framework'
+        assert list(single('dependencies')) == [group] and not list(group), 'Package dependency group'
+        assert not any(node.tag.split('}')[-1] in ('frameworkReferences', 'frameworkAssemblies')
+                       for node in doc.iter()), 'Framework dependencies'
         consumer_folders = ('lib/', 'ref/', 'runtimes/', 'build/', 'buildtransitive/',
                             'buildmultitargeting/', 'analyzers/', 'contentfiles/', 'content/', 'tools/')
         assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)
