@@ -88,6 +88,23 @@ python3 scripts/verify_first_use.py \
 
 The verifier creates and removes its own separate temporary workspace and copies only the six source/input files. It allowlists the child process environment, uses an empty MSBuild user extension directory, and rejects repository files in the actual preprocessed import graph. It checks evaluated project properties, actual NuGet assets/source/config/cache paths, cached package SHA-512 and bytes, built and loaded assembly bytes/location, authored full text/page order and bounds, qpdf validity, rasterized pages and consumer/CLI byte equality. Unsupported input must preserve existing/absent targets and produce no PDF stdout. Recovery must reproduce the successful bytes. Reordered real PDFs and altered cached assemblies must fail the relevant checks. `report.json`, the import graph, command logs and PDF/page artifacts record actual results; no visual reference is automatically approved. The normal CI runs this check on the just-packed package and freshly published CLI.
 
+Package acceptance requires a clean checkout. Both package checks bind the
+`FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
+commit to the current source, require the existing sole `lib/net10.0/FactsPDF.dll`
+asset and dependency-free `net10.0` group, and compare the packed license/README
+with source. The consumer also reports the loaded library's informational version;
+it must equal the package version plus `+` and the same commit. A stale package
+with a matching stale CLI fails, as does relabeling its nuspec with a newer commit.
+The report retains package source and loaded binary identity separately from the
+verifier's checkout and SDK/runtime. These checks detect accidental stale or mixed
+trusted build artifacts; they are not cryptographic source-to-binary attestation.
+
+The current package remains the local, unreleased `0.1.0-dev` artifact. This
+verification does not assign a formal release version, create a NuGet publishing
+channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made
+from their committed version/source; release-specific SDK/runtime validation
+and actual registry publication remain separate operations.
+
 ## Library API
 
 After restoring the local package as above, the existing API is:
