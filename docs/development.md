@@ -102,6 +102,12 @@ The report retains package source and loaded binary identity separately from the
 verifier's checkout and SDK/runtime. These checks detect accidental stale or mixed
 trusted build artifacts; they are not cryptographic source-to-binary attestation.
 
+The library and CLI use the SDK's default source/resource globs, which do not
+honor Git ignore rules. Acceptance rejects ignored untracked files in those
+project directories (except their top-level `bin`/`obj` build outputs), and ignored
+parent `Directory.Build.*`/`Directory.Packages.props` inputs. This also covers
+global ignores and `.git/info/exclude`; it is tied to the current project layout.
+
 The current package remains the local, unreleased `0.1.0-dev` artifact. This
 verification does not assign a formal release version, create a NuGet publishing
 channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made

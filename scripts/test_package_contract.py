@@ -102,5 +102,32 @@ class PackageContractTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, 'clean'):
             self.module.current_source(self.root)
 
+    def test_current_source_rejects_ignored_project_inputs_but_allows_build_outputs(self):
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'fixture'], check=True)
+        rules = 'Extra.cs\nDirectory.Build.targets\n**/bin/\n**/obj/\n'
+        info_exclude = self.root / '.git/info/exclude'
+        info_exclude.write_text(rules)
+        for project in ['FactsPDF', 'FactsPDF.Cli']:
+            path = self.root / 'src' / project; path.mkdir(parents=True)
+            for folder in ['bin', 'obj']:
+                output = path / folder; output.mkdir(); (output / 'Generated.cs').write_text('generated output')
+        self.module.current_source(self.root)
+        for name in ['src/FactsPDF/Extra.cs', 'src/FactsPDF.Cli/Extra.cs',
+                     'src/FactsPDF/Nested/bin/Extra.cs', 'src/Directory.Build.targets']:
+            path = self.root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text('ignored build input')
+            with self.subTest(name=name), self.assertRaisesRegex(AssertionError, 'Ignored project inputs'):
+                self.module.current_source(self.root)
+            path.unlink()
+        info_exclude.write_text('')
+        global_ignore = self.root / '.git/global-ignore'; global_ignore.write_text(rules)
+        subprocess.run(['git', '-C', str(self.root), 'config', 'core.excludesFile', str(global_ignore)], check=True)
+        self.module.current_source(self.root)
+        (self.root / 'src/FactsPDF/Extra.cs').write_text('globally ignored compile input')
+        with self.assertRaisesRegex(AssertionError, 'Ignored project inputs'):
+            self.module.current_source(self.root)
+
 
 if __name__ == '__main__': unittest.main()
