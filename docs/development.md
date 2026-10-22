@@ -170,6 +170,33 @@ package/source identity and retains `published=false`. This additional constrain
 does not turn a dev package or synthetic fixture into a formal candidate, prove
 official GA availability, cover Native AOT/WASM, or create a publication receipt.
 
+### Explicit consumer target for compatibility preparation
+
+Both first-use entrypoints accept `--consumer-tfm net11.0` to target only the
+temporary external consumer at .NET 11 while verifying the existing `net10.0`
+package. Omitting the option keeps the consumer on the library's declared TFM.
+The package version, assets, source SHA and cached/loaded DLL bytes still have
+to match the trusted repository contract; the option does not retarget the
+library or alter the checked-in example.
+
+The verifier checks the evaluated consumer target, preserves its generated
+`consumer.runtimeconfig.json`, and checks that its TFM and Microsoft.NETCore.App
+request agree with the actual consumer's target, numeric runtime version and
+`FrameworkDescription`. The actual runtime must be in the selected target's
+family and at least the requested patch; a newer SDK alone is insufficient.
+Strict release verification additionally retains its exact stable SDK/runtime
+requirements. Reports distinguish `package.targetFramework` from
+`consumerTargetFramework` and retain the runtimeconfig bytes/hash and raw process
+outputs. Synthetic .NET 11 fixtures are verifier tests, not RC execution evidence.
+
+For a real .NET 11 run, a suitable official toolchain must already be installed
+and selectable under the repository's `global.json`, which is copied into the
+isolated workspace. This option neither downloads an SDK nor overrides SDK
+selection or roll-forward policy. The staged CLI remains on its original target
+and also needs its runtime installed. The current SDK 10 configuration can
+exercise the new option with `--consumer-tfm net10.0`; it cannot establish .NET 11
+compatibility. Native AOT and WASM remain separate acceptance paths.
+
 ## Library API
 
 After restoring the local package as above, the existing API is:

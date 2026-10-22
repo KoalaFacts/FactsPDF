@@ -25,7 +25,7 @@ def stage_consumer(source,target):
 
 def configure_consumer(project,version,target):
     # Only the isolated copy is specialized. Expected values come from the
-    # clean repository declaration, never from package metadata or its assets.
+    # clean repository declaration or explicit consumer target, never the package.
     tree=ET.parse(project)
     frameworks=tree.findall('PropertyGroup/TargetFramework')
     references=tree.findall('.//PackageReference')
@@ -114,6 +114,31 @@ def validate_runtime(runtime,target):
     assert runtime.get('dynamicCodeSupported') is True and runtime.get('dynamicCodeCompiled') is True,'managed dynamic-code runtime'
 
 
+def consumer_tfm(value):
+    if not isinstance(value,str) or not re.fullmatch(r'net[1-9][0-9]*\.0',value):
+        raise ValueError('Expected an explicit consumer TFM such as net10.0 or net11.0')
+    return value
+
+
+def validate_consumer_execution(runtime,target,config):
+    """Bind the generated host request and live identity to the selected consumer."""
+    consumer_tfm(target)
+    options=config.get('runtimeOptions',{})
+    assert options.get('tfm')==target,'runtimeconfig consumer target'
+    assert 'frameworks' not in options and 'includedFrameworks' not in options,'runtimeconfig framework-dependent consumer'
+    framework=options.get('framework',{})
+    assert framework.get('name')=='Microsoft.NETCore.App','runtimeconfig framework name'
+    requested=framework.get('version','')
+    pattern=re.escape(target[3:])+r'\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?'
+    assert isinstance(requested,str) and re.fullmatch(pattern,requested),'runtimeconfig framework version'
+    validate_runtime(runtime,target)
+    # Environment.Version may omit RC identity; FrameworkDescription must still
+    # name the same runtime version, with any RC/build suffix retained in evidence.
+    assert re.fullmatch(r'\.NET '+re.escape(runtime['version'])+r'(?:[-+][0-9A-Za-z.-]+)?',runtime['framework']),'actual runtime framework description'
+    numeric=lambda value:tuple(map(int,re.split(r'[-+]',value)[0].split('.')))
+    assert numeric(runtime['version'])>=numeric(requested),'actual runtime below runtimeconfig request'
+
+
 def stable_version(value):
     if not isinstance(value,str) or not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)',value):
         raise ValueError('Expected an explicit stable version such as major.minor.patch; no suffixes or floating values')
@@ -129,13 +154,13 @@ def validate_release_toolchain(sdk,runtime,expected_sdk,expected_runtime):
     assert runtime.get('framework')=='.NET '+expected_runtime,'Release runtime framework differs from the exact stable version'
 
 
-def verify_package_bytes(work,package,version,expected_dll,target):
+def verify_package_bytes(work,package,version,expected_dll,target,consumer_target=None):
     cache=work/'packages/factspdf'/version
     assert (cache/f'factspdf.{version}.nupkg').read_bytes()==package.read_bytes(),'cached package bytes'
     checksum=base64.b64encode(hashlib.sha512(package.read_bytes()).digest()).decode()
     assert (cache/f'factspdf.{version}.nupkg.sha512').read_text().strip()==checksum,'package SHA512'
     assert (cache/'lib'/target/'FactsPDF.dll').read_bytes()==expected_dll,'cached assembly bytes'
-    assert (work/'consumer/bin/Release'/target/'FactsPDF.dll').read_bytes()==expected_dll,'consumer assembly bytes'
+    assert (work/'consumer/bin/Release'/(consumer_target or target)/'FactsPDF.dll').read_bytes()==expected_dll,'consumer assembly bytes'
 
 
 def inspect_pdf(path,expected,execute,raster=True):
@@ -167,6 +192,7 @@ def main(*,strict_toolchain=False):
     for name in ('cli-dll','output'):parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--package',type=Path,help='Defaults to the sole declared-version package in artifacts/packages')
     parser.add_argument('--dotnet',default='dotnet')
+    parser.add_argument('--consumer-tfm',type=consumer_tfm,help='Explicit consumer target; defaults to the declared library TFM')
     if strict_toolchain:
         parser.add_argument('--expected-sdk',type=stable_version,required=True)
         parser.add_argument('--expected-runtime',type=stable_version,required=True)
@@ -174,6 +200,7 @@ def main(*,strict_toolchain=False):
     root=Path(__file__).resolve().parents[1];cli=args.cli_dll.resolve();out=args.output.resolve()
     source_head=current_source(root)
     version,framework=expected_contract(root)
+    consumer_target=args.consumer_tfm or framework
     package=(args.package or local_package(root,version)).resolve()
     metadata=validate_package(package,root,version,source_head,framework);assembly=metadata['assembly']
     out.mkdir(parents=True,exist_ok=False)
@@ -184,7 +211,7 @@ def main(*,strict_toolchain=False):
         work=Path(temporary).resolve();validate_workspace(work,root)
         for name in ('feed','packages','http-cache','dotnet-home','nuget-scratch','msbuild-user'): (work/name).mkdir()
         stage_consumer(root/'examples/first-use',work/'consumer')
-        configure_consumer(work/'consumer/FirstUse.csproj',version,framework)
+        configure_consumer(work/'consumer/FirstUse.csproj',version,consumer_target)
         shutil.copy2(root/'global.json',work/'global.json')
         shutil.copy2(package,work/'feed'/package.name)
         shutil.copytree(cli.parent,work/'cli')
@@ -205,11 +232,11 @@ def main(*,strict_toolchain=False):
         if strict_toolchain:
             assert sdk==args.expected_sdk,'Release SDK differs from the exact expected version'
         execute(args.dotnet,'restore',project,'--configfile',config,'--packages',work/'packages','--no-http-cache')
-        assets=json.loads((work/'consumer/obj/project.assets.json').read_text());validate_assets(assets,work,version,framework)
+        assets=json.loads((work/'consumer/obj/project.assets.json').read_text());validate_assets(assets,work,version,consumer_target)
         evaluation=json.loads(execute(args.dotnet,'msbuild',project,
             '-getProperty:TargetFramework,DirectoryBuildPropsPath,DirectoryBuildTargetsPath,DirectoryPackagesPropsPath',
             '-getItem:ProjectReference').stdout)
-        assert evaluation['Properties']['TargetFramework']==framework,'evaluated framework'
+        assert evaluation['Properties']['TargetFramework']==consumer_target,'evaluated framework'
         assert not any(evaluation['Properties'][k] for k in ('DirectoryBuildPropsPath','DirectoryBuildTargetsPath','DirectoryPackagesPropsPath')),'inherited build properties'
         assert not evaluation['Items']['ProjectReference'],'evaluated project references'
         preprocessed=out/'consumer.preprocessed.xml'
@@ -217,12 +244,15 @@ def main(*,strict_toolchain=False):
         imports=validate_imports(preprocessed.read_text(),root,project)
         (out/'imports.json').write_text(json.dumps(imports,indent=2)+'\n')
         execute(args.dotnet,'build',project,'-c','Release','--no-restore')
-        verify_package_bytes(work,package,version,assembly,framework)
+        verify_package_bytes(work,package,version,assembly,framework,consumer_target)
         for name,data in [('assets.json',assets),('evaluation.json',evaluation)]:
             (out/name).write_text(json.dumps(data,indent=2)+'\n')
         expected=json.loads((work/'consumer/expected-pages.json').read_text())
         input_path=work/'consumer/input.html';bad=work/'consumer/unsupported.html'
-        consumer=work/'consumer/bin/Release'/framework/'FirstUse.dll'
+        consumer=work/'consumer/bin/Release'/consumer_target/'FirstUse.dll'
+        runtimeconfig=consumer.with_suffix('.runtimeconfig.json').read_bytes()
+        runtimeconfig_data=json.loads(runtimeconfig)
+        (out/'consumer.runtimeconfig.json').write_bytes(runtimeconfig)
         cli_identity=json.loads(execute(args.dotnet,consumer,'--inspect-cli',work/'cli'/cli.name).stdout)
         assert Path(cli_identity['assembly']).resolve()==work/'cli'/cli.name,'inspected CLI assembly location'
         validate_assembly_source(cli_identity.get('assemblyInformationalVersion'),version,source_head)
@@ -235,7 +265,7 @@ def main(*,strict_toolchain=False):
                 assert Path(api['assembly']).resolve()==consumer.parent/'FactsPDF.dll','runtime assembly location'
                 assert api.get('assemblyIdentity','').startswith('FactsPDF, Version='),'runtime assembly identity'
                 validate_assembly_source(api.get('assemblyInformationalVersion'),version,source_head)
-                validate_runtime(api.get('runtime',{}),evaluation['Properties']['TargetFramework'])
+                validate_consumer_execution(api.get('runtime',{}),consumer_target,runtimeconfig_data)
                 if strict_toolchain:
                     validate_release_toolchain(sdk,api['runtime'],args.expected_sdk,args.expected_runtime)
                 assert api['pages']==2 and api['bytes']==pdf.stat().st_size,'API conversion metadata'
@@ -262,13 +292,15 @@ def main(*,strict_toolchain=False):
         reversed_pdf.unlink()
         # Cache provenance checks must reject a different real file, then recover.
         cached=work/'packages/factspdf'/version/'lib'/framework/'FactsPDF.dll';cached.write_bytes(b'not the packed assembly')
-        try:verify_package_bytes(work,package,version,assembly,framework)
+        try:verify_package_bytes(work,package,version,assembly,framework,consumer_target)
         except AssertionError as error:assert str(error)=='cached assembly bytes',str(error)
         else:raise AssertionError('accepted wrong cached assembly')
         finally:cached.write_bytes(assembly)
-        verify_package_bytes(work,package,version,assembly,framework)
+        verify_package_bytes(work,package,version,assembly,framework,consumer_target)
         assert current_source(root)==source_head,'Source changed during verification'
         report=dict(sourceHead=source_head,dirty=False,sdk=sdk,
+            consumerTargetFramework=consumer_target,
+            consumerRuntimeConfig=dict(file='consumer.runtimeconfig.json',sha256=digest(runtimeconfig),data=runtimeconfig_data),
             package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=metadata['targetFramework'],
                 repository=metadata['repository'],sha256=digest(package.read_bytes()),assemblySha256=digest(assembly)),
             cliSha256=digest(cli.read_bytes()),cliAssembly=cli_identity,
