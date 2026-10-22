@@ -22,7 +22,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Install independent inspectors and original test fonts
-        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-fonttools time
+        run: python3 scripts/ubuntu_packages.py packages clang zlib1g-dev poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-fonttools time
       - name: Compile native CLI and separate measurement harness
         run: |
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/native-subset

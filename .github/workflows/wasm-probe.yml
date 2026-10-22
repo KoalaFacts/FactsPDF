@@ -26,12 +26,13 @@ jobs:
       - name: Install official WASM workload and verification tools
         run: |
           dotnet workload install wasm-tools --skip-manifest-update
-          sudo apt-get update -qq
-          sudo apt-get install -y qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback python3-fonttools python3-pip p7zip-full clang zlib1g-dev
+          python3 scripts/ubuntu_packages.py packages qpdf poppler-utils fonts-dejavu-core fonts-droid-fallback python3-fonttools python3-pip p7zip-full clang zlib1g-dev
           /usr/bin/python3 -m pip install --disable-pip-version-check pypdf==6.10.0 Pillow==12.3.0
           npm ci --ignore-scripts --no-audit --no-fund --prefix scripts/wasm_probe
           cd scripts/wasm_probe
-          npx playwright install --with-deps chromium
+          /usr/bin/python3 ../verify_playwright_apt_scope.py node_modules/playwright/cli.js
+          /usr/bin/python3 ../ubuntu_packages.py playwright node_modules/playwright/cli.js
+          npx playwright install chromium
       - name: Prepare pinned explicit four-style verification fonts
         run: |
           /usr/bin/python3 scripts/font_style_fonts.py --sarasa-root artifacts/private-fonts --download --output artifacts/wasm-evidence/font-manifest.json

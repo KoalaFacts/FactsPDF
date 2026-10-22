@@ -28,8 +28,7 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Install native compiler
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y clang zlib1g-dev
+          python3 current/scripts/ubuntu_packages.py packages clang zlib1g-dev
       - name: Test measurement contract and prepare deterministic inputs
         run: |
           python3 -m unittest discover -s current/scripts -p 'test_box_layout_evidence.py' -v
