@@ -154,6 +154,38 @@ def validate_release_toolchain(sdk,runtime,expected_sdk,expected_runtime):
     assert runtime.get('framework')=='.NET '+expected_runtime,'Release runtime framework differs from the exact stable version'
 
 
+def probe_version(value):
+    if not isinstance(value,str) or not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?',value):
+        raise ValueError('Expected an exact SDK/runtime version, optionally prerelease; no floating or build metadata')
+    return value
+
+
+def configure_probe_toolchain(work,sdk,runtime):
+    probe_version(sdk);probe_version(runtime)
+    project=work/'consumer/FirstUse.csproj';tree=ET.parse(project)
+    target=consumer_tfm(tree.findtext('.//TargetFramework'))
+    assert runtime.startswith(target[3:]+'.'),'Probe runtime must match the consumer target family'
+    assert not tree.findall('.//RuntimeFrameworkVersion') and not tree.findall('.//RollForward'),'sample runtime overrides'
+    group=ET.SubElement(tree.getroot(),'PropertyGroup')
+    ET.SubElement(group,'RuntimeFrameworkVersion').text=runtime
+    ET.SubElement(group,'RollForward').text='Disable'
+    tree.write(project,encoding='unicode')
+    (work/'global.json').write_text(json.dumps(dict(sdk=dict(version=sdk,rollForward='disable',allowPrerelease='-' in sdk)),indent=2)+'\n')
+
+
+def validate_probe_toolchain(sdk,runtime,expected_sdk,expected_runtime):
+    probe_version(expected_sdk);probe_version(expected_runtime)
+    assert sdk==expected_sdk,'Probe SDK differs from the exact expected version'
+    assert runtime.get('version')==expected_runtime.split('-',1)[0],'Probe numeric runtime differs from the exact expected version'
+    assert runtime.get('framework')=='.NET '+expected_runtime,'Probe runtime framework differs from the exact expected version'
+
+
+def validate_probe_runtimeconfig(config,expected_runtime):
+    options=config.get('runtimeOptions',{})
+    assert options.get('framework',{}).get('version')==expected_runtime,'Probe runtimeconfig version'
+    assert options.get('rollForward')=='Disable','Probe runtimeconfig roll-forward'
+
+
 def verify_package_bytes(work,package,version,expected_dll,target,consumer_target=None):
     cache=work/'packages/factspdf'/version
     assert (cache/f'factspdf.{version}.nupkg').read_bytes()==package.read_bytes(),'cached package bytes'
@@ -196,7 +228,13 @@ def main(*,strict_toolchain=False):
     if strict_toolchain:
         parser.add_argument('--expected-sdk',type=stable_version,required=True)
         parser.add_argument('--expected-runtime',type=stable_version,required=True)
+    else:
+        parser.add_argument('--probe-sdk',type=probe_version,help='Pin only the temporary consumer SDK; requires --probe-runtime')
+        parser.add_argument('--probe-runtime',type=probe_version,help='Pin and verify the actual consumer runtime; requires --probe-sdk')
     args=parser.parse_args()
+    exact_probe=not strict_toolchain and args.probe_sdk is not None
+    if not strict_toolchain and (args.probe_sdk is None)!=(args.probe_runtime is None):
+        parser.error('--probe-sdk and --probe-runtime must be supplied together')
     root=Path(__file__).resolve().parents[1];cli=args.cli_dll.resolve();out=args.output.resolve()
     source_head=current_source(root)
     version,framework=expected_contract(root)
@@ -212,7 +250,10 @@ def main(*,strict_toolchain=False):
         for name in ('feed','packages','http-cache','dotnet-home','nuget-scratch','msbuild-user'): (work/name).mkdir()
         stage_consumer(root/'examples/first-use',work/'consumer')
         configure_consumer(work/'consumer/FirstUse.csproj',version,consumer_target)
-        shutil.copy2(root/'global.json',work/'global.json')
+        if exact_probe:configure_probe_toolchain(work,args.probe_sdk,args.probe_runtime)
+        else:shutil.copy2(root/'global.json',work/'global.json')
+        sdkconfig=(work/'global.json').read_bytes()
+        (out/'consumer.global.json').write_bytes(sdkconfig)
         shutil.copy2(package,work/'feed'/package.name)
         shutil.copytree(cli.parent,work/'cli')
         env,isolated=build_environment(os.environ,work)
@@ -231,6 +272,8 @@ def main(*,strict_toolchain=False):
         sdk=execute(args.dotnet,'--version').stdout.decode().strip()
         if strict_toolchain:
             assert sdk==args.expected_sdk,'Release SDK differs from the exact expected version'
+        if exact_probe:
+            assert sdk==args.probe_sdk,'Probe SDK differs from the exact expected version'
         execute(args.dotnet,'restore',project,'--configfile',config,'--packages',work/'packages','--no-http-cache')
         assets=json.loads((work/'consumer/obj/project.assets.json').read_text());validate_assets(assets,work,version,consumer_target)
         evaluation=json.loads(execute(args.dotnet,'msbuild',project,
@@ -253,6 +296,7 @@ def main(*,strict_toolchain=False):
         runtimeconfig=consumer.with_suffix('.runtimeconfig.json').read_bytes()
         runtimeconfig_data=json.loads(runtimeconfig)
         (out/'consumer.runtimeconfig.json').write_bytes(runtimeconfig)
+        if exact_probe:validate_probe_runtimeconfig(runtimeconfig_data,args.probe_runtime)
         cli_identity=json.loads(execute(args.dotnet,consumer,'--inspect-cli',work/'cli'/cli.name).stdout)
         assert Path(cli_identity['assembly']).resolve()==work/'cli'/cli.name,'inspected CLI assembly location'
         validate_assembly_source(cli_identity.get('assemblyInformationalVersion'),version,source_head)
@@ -268,6 +312,8 @@ def main(*,strict_toolchain=False):
                 validate_consumer_execution(api.get('runtime',{}),consumer_target,runtimeconfig_data)
                 if strict_toolchain:
                     validate_release_toolchain(sdk,api['runtime'],args.expected_sdk,args.expected_runtime)
+                if exact_probe:
+                    validate_probe_toolchain(sdk,api['runtime'],args.probe_sdk,args.probe_runtime)
                 assert api['pages']==2 and api['bytes']==pdf.stat().st_size,'API conversion metadata'
             else:assert not response.stdout,'CLI PDF went to stdout instead of destination'
             results.append(dict(entry=name,**inspect_pdf(pdf,expected,execute)))
@@ -299,7 +345,9 @@ def main(*,strict_toolchain=False):
         verify_package_bytes(work,package,version,assembly,framework,consumer_target)
         assert current_source(root)==source_head,'Source changed during verification'
         report=dict(sourceHead=source_head,dirty=False,sdk=sdk,
+            execution=dict(kind='managed-framework-dependent',nativeAot=False,jitTraceCaptured=False),
             consumerTargetFramework=consumer_target,
+            consumerSdkConfig=dict(file='consumer.global.json',sha256=digest(sdkconfig),data=json.loads(sdkconfig)),
             consumerRuntimeConfig=dict(file='consumer.runtimeconfig.json',sha256=digest(runtimeconfig),data=runtimeconfig_data),
             package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=metadata['targetFramework'],
                 repository=metadata['repository'],sha256=digest(package.read_bytes()),assemblySha256=digest(assembly)),
@@ -315,6 +363,10 @@ def main(*,strict_toolchain=False):
             report['toolchainConstraint']=dict(mode='exact-stable',expectedSdk=args.expected_sdk,
                 expectedRuntime=args.expected_runtime,verified=True,
                 scope='SDK and managed consumer runtime; not publication approval or an official GA designation')
+        if exact_probe:
+            report['toolchainConstraint']=dict(mode='exact-probe',expectedSdk=args.probe_sdk,
+                expectedRuntime=args.probe_runtime,verified=True,
+                scope='Actual managed consumer only; not official toolchain provenance, GA approval, Native AOT or WASM')
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(report=str(out/'report.json'),pages=2,entries=2,isolatedWorkspaceRemoved=True)))
 

@@ -197,6 +197,35 @@ and also needs its runtime installed. The current SDK 10 configuration can
 exercise the new option with `--consumer-tfm net10.0`; it cannot establish .NET 11
 compatibility. Native AOT and WASM remain separate acceptance paths.
 
+For an installed compatibility toolchain that must be selected independently of
+the repository SDK, the dev `verify_first_use.py` entrypoint additionally accepts
+the paired `--probe-sdk` and `--probe-runtime` arguments. They require exact
+versions (stable or prerelease), never floating values. Only the temporary
+consumer receives a `global.json` with SDK roll-forward disabled and a pinned
+`RuntimeFrameworkVersion` with runtime roll-forward disabled. Repository files
+and the default selection policy are unchanged. The actual selected SDK, generated
+runtimeconfig, numeric runtime and full `FrameworkDescription` must all match;
+an RC suffix cannot be replaced by a stable label or another RC build.
+
+The following exercises this path with **the existing stable .NET 10 toolchain**
+and the already packed dev artifact; it is not a .NET 11 RC result:
+
+```bash
+python3 scripts/verify_first_use.py \
+  --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
+  --dotnet "$(command -v dotnet)" --output artifacts/exact-probe \
+  --consumer-tfm net10.0 --probe-sdk 10.0.100 --probe-runtime 10.0.0
+```
+
+This records `toolchainConstraint.mode=exact-probe`, both generated configuration
+files, actual managed execution and the existing package/source identity. It
+does not prove that a supplied version is official or GA, perform a download, or
+establish Native AOT/WASM compatibility. Dynamic-code capability flags are not a
+JIT trace. The strict release entrypoint rejects these probe arguments and keeps
+its stable-only expectations. RC-shaped unit fixtures are only verifier tests;
+real RC evidence requires the actual installed official toolchain and successful
+consumer execution. A missing SDK/runtime fails without a successful report.
+
 ## Library API
 
 After restoring the local package as above, the existing API is:
