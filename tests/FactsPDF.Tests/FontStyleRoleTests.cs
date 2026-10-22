@@ -277,4 +277,35 @@ public sealed class FontStyleRoleTests
             Assert.That(Pdf(html, options), Is.EqualTo(i % 2 == 0 ? first : second));
         });
     }
+
+    [TestCase(false)][TestCase(true)]
+    public void SecondPageMissingGlyphPreservesOutputAndRecoversWithSameOptions(bool subset)
+    {
+        var options = new PdfOptions {
+            Fonts = [Font()], ItalicFonts = [Font(latinOnly: true), Font()], SubsetFonts = subset
+        };
+        const string first = "<p>A中<b></b><strong></strong><em></em></p>";
+        const string second = "<p style='break-before:page'><i>A中</i></p>";
+        var html = first + second;
+        using var before = new MemoryStream();
+        Assert.That(PdfConverter.Convert(html, before, options).PageCount, Is.EqualTo(2));
+        Assert.That(before.ToArray(), Is.EqualTo(Pdf("<p>A中</p>" + second, options)),
+            "Empty style nodes must neither require an unused bold chain nor change the output.");
+        var pages = Layout(html, options);
+        Assert.That(pages[1].Runs.Select(r => r.Font), Is.EqualTo(options.ItalicFonts));
+        Assert.That(string.Concat(pages[1].Runs.Select(r => r.Text)), Is.EqualTo("A中"));
+
+        var invalid = first + second.Replace("A中", "A中&#x20001;");
+        var error = Fails(invalid, options, "FPDF1504");
+        Assert.Multiple(() =>
+        {
+            Assert.That(error.Message, Does.Contain("italic").And.Contain("U+20001"));
+            Assert.That(error.SourceOffset, Is.EqualTo(invalid.IndexOf("<i>", StringComparison.Ordinal)));
+        });
+        // Reuse exactly the same caller options/font instances after the failure.
+        // The resolver itself is conversion-local, not a reusable public object.
+        using var recovered = new MemoryStream();
+        Assert.That(PdfConverter.Convert(html, recovered, options).PageCount, Is.EqualTo(2));
+        Assert.That(recovered.ToArray(), Is.EqualTo(before.ToArray()));
+    }
 }
