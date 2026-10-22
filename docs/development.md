@@ -203,7 +203,9 @@ the paired `--probe-sdk` and `--probe-runtime` arguments. They require exact
 versions (stable or prerelease), never floating values. Only the temporary
 consumer receives a `global.json` with SDK roll-forward disabled and a pinned
 `RuntimeFrameworkVersion` with runtime roll-forward disabled. Repository files
-and the default selection policy are unchanged. The actual selected SDK, generated
+and the default selection policy are unchanged. This managed probe executes the
+DLL with `dotnet`, so its temporary project disables unused apphost generation
+and does not require a matching apphost pack. The actual selected SDK, generated
 runtimeconfig, numeric runtime and full `FrameworkDescription` must all match;
 an RC suffix cannot be replaced by a stable label or another RC build.
 

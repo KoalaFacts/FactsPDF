@@ -33,6 +33,7 @@ class ExactConsumerProbeTests(unittest.TestCase):
             tree = ET.parse(work/'consumer/FirstUse.csproj')
             self.assertEqual(tree.findtext('.//RuntimeFrameworkVersion'), '11.0.0-rc.2.12345.6')
             self.assertEqual(tree.findtext('.//RollForward'), 'Disable')
+            self.assertEqual(tree.findtext('.//UseAppHost'), 'false')
             self.assertEqual(tree.findtext('.//TargetFramework'), 'net11.0')
             self.assertEqual(tree.find('.//PackageReference').get('Version'), '[0.1.0-dev]')
         self.assertEqual((ROOT/'global.json').read_bytes(), original)

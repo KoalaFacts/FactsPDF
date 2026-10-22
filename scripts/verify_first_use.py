@@ -165,10 +165,12 @@ def configure_probe_toolchain(work,sdk,runtime):
     project=work/'consumer/FirstUse.csproj';tree=ET.parse(project)
     target=consumer_tfm(tree.findtext('.//TargetFramework'))
     assert runtime.startswith(target[3:]+'.'),'Probe runtime must match the consumer target family'
-    assert not tree.findall('.//RuntimeFrameworkVersion') and not tree.findall('.//RollForward'),'sample runtime overrides'
+    assert not any(tree.findall('.//'+name) for name in ('RuntimeFrameworkVersion','RollForward','UseAppHost')),'sample runtime overrides'
     group=ET.SubElement(tree.getroot(),'PropertyGroup')
     ET.SubElement(group,'RuntimeFrameworkVersion').text=runtime
     ET.SubElement(group,'RollForward').text='Disable'
+    # Execution uses dotnet FirstUse.dll, so no matching apphost pack is needed.
+    ET.SubElement(group,'UseAppHost').text='false'
     tree.write(project,encoding='unicode')
     (work/'global.json').write_text(json.dumps(dict(sdk=dict(version=sdk,rollForward='disable',allowPrerelease='-' in sdk)),indent=2)+'\n')
 
