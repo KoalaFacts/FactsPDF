@@ -1,6 +1,9 @@
 """Validate local package metadata and license bytes; never publish an artifact."""
 from __future__ import annotations
 
+import argparse
+import json
+import tempfile
 from pathlib import Path
 import re
 import subprocess
@@ -55,7 +58,12 @@ def local_package(root, version):
     return expected
 
 
-def validate_package(path, root, version, source, target):
+def validate_package(path, root, version, source, target, *, assembly_reader=None):
+    targets = (target,) if isinstance(target, str) else tuple(target)
+    assert targets and len(set(targets)) == len(targets), "Explicit unique target configuration"
+    assert all(re.fullmatch(r"net[1-9][0-9]*\.0", t) for t in targets), "Target configuration"
+    assert len(targets) == 1 or targets == ("net10.0", "net11.0"), "Supported candidate target set"
+    assert len(targets) == 1 or callable(assembly_reader), "Candidate requires binary metadata reader"
     assert version and re.fullmatch(r'[0-9a-f]{40}', source), 'Expected package version/source'
     with ZipFile(path) as package:
         names = package.namelist()
@@ -76,29 +84,70 @@ def validate_package(path, root, version, source, target):
         assert package.read('LICENSE.md') == (root / 'LICENSE.md').read_bytes(), 'License changed during packing'
         assert package.read('README.md') == (root / 'README.md').read_bytes(), 'README missing or incorrect'
         assert not any(node.tag.split('}')[-1] == 'dependency' for node in doc.iter()), 'Runtime package dependencies'
-        group = single('group')
-        assert group.attrib == {'targetFramework': target}, 'Package target framework'
-        assert list(single('dependencies')) == [group] and not list(group), 'Package dependency group'
+        groups = list(single('dependencies'))
+        assert [n for n in doc.iter() if n.tag.split('}')[-1] == 'group'] == groups, 'Unexpected dependency group'
+        assert len(groups) == len(targets), 'Package dependency group count'
+        assert all(g.tag.split('}')[-1] == 'group' and not list(g) for g in groups), 'Package dependency group'
+        assert sorted(tuple(g.attrib.items()) for g in groups) == sorted((('targetFramework', t),) for t in targets), 'Package target framework'
         assert not any(node.tag.split('}')[-1] in ('frameworkReferences', 'frameworkAssemblies')
                        for node in doc.iter()), 'Framework dependencies'
         consumer_folders = ('lib/', 'ref/', 'runtimes/', 'build/', 'buildtransitive/',
                             'buildmultitargeting/', 'analyzers/', 'contentfiles/', 'content/', 'tools/')
         assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)
                   or name.replace('\\', '/').lower() == 'runtime.json']
-        assert assets == [f'lib/{target}/FactsPDF.dll'], 'Package consumer assets'
-        return dict(id='FactsPDF', version=version, targetFramework=target, repository=repository,
-                    assembly=package.read(assets[0]))
+        assert sorted(assets) == sorted(f'lib/{t}/FactsPDF.dll' for t in targets), 'Package consumer assets'
+        assemblies = {t: package.read(f'lib/{t}/FactsPDF.dll') for t in targets}
+        if assembly_reader is not None:
+            for t, data in assemblies.items():
+                metadata = assembly_reader(data)
+                assert metadata['name'] == 'FactsPDF', 'Assembly identity'
+                assert metadata['culture'] == '' and metadata['publicKey'] == '', 'Assembly culture/signing identity'
+                assert metadata['assemblyVersion'] == version.split('-', 1)[0] + '.0', 'Assembly version'
+                assert metadata['targetFramework'] == '.NETCoreApp,Version=v' + t[3:], 'Assembly target framework'
+                assert metadata.get('runtimeReferences') == [t[3:] + '.0.0'], 'Assembly runtime reference'
+                validate_assembly_source(metadata['informationalVersion'], version, source)
+        result = dict(id='FactsPDF', version=version, targetFrameworks=targets, repository=repository, assemblies=assemblies)
+        if len(targets) == 1:
+            result.update(targetFramework=targets[0], assembly=assemblies[targets[0]])
+        return result
+
+
+def validate_selected_asset(package, consumer_target, selected, loaded_bytes):
+    # Exact matching assets only: do not accept NuGet fallback for this candidate.
+    assert consumer_target in package['assemblies'], 'Unconfigured consumer target'
+    expected = [f'lib/{consumer_target}/FactsPDF.dll']
+    assert selected.get('compile') == expected and selected.get('runtime') == expected, 'Consumer asset selection'
+    assert loaded_bytes == package['assemblies'][consumer_target], 'Consumed assembly bytes'
+
 
 
 def validate_assembly_source(actual, version, source):
     assert actual == version + '+' + source, 'Loaded assembly version/source'
 
 
+def binary_reader(inspector, dotnet='dotnet'):
+    inspector = Path(inspector).resolve()
+    assert inspector.is_file(), 'Missing compiled metadata inspector'
+    def read(data):
+        with tempfile.TemporaryDirectory(prefix='factspdf-metadata-') as temporary:
+            path = Path(temporary) / 'assembly.dll'
+            path.write_bytes(data)
+            result = subprocess.run([str(dotnet), str(inspector), str(path)],
+                                    capture_output=True, timeout=60, check=True)
+            return json.loads(result.stdout)
+    return read
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--assembly-inspector', type=Path)
+    parser.add_argument('--dotnet', default='dotnet')
+    args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     source = current_source(root)
     version, target = expected_contract(root)
-    validate_package(local_package(root, version), root, version, source, target)
+    validate_package(local_package(root, version), root, version, source, target,
+                     assembly_reader=binary_reader(args.assembly_inspector, args.dotnet) if args.assembly_inspector else None)
     assert current_source(root) == source, 'Source changed during verification'
     print(f'Local package identity, version, source, {target} assets, license/README and absence of dependencies verified. Nothing was published.')
 

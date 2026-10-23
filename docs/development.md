@@ -132,6 +132,21 @@ require a reviewed verifier update. This is a literal declaration reader, not a
 general MSBuild evaluator. Future `net11.0` fixture tests exercise these paths
 without executing .NET 11 or establishing RC/GA compatibility.
 
+CI additionally builds `tools/FactsPDF.PackageInspector` and supplies its DLL to
+`verify_package.py --assembly-inspector`. The tool reads PE metadata without
+loading or executing the inspected assembly. Binary identity, target-framework
+attribute, exact source informational version, and the unique `System.Runtime`
+reference must agree with the declared package asset. A real negative fixture
+changes only a net10 DLL's target-framework label to net11; the unchanged runtime
+reference must still cause rejection. `verify_package_inspector.py` exercises
+that case against the freshly packed local artifact.
+
+The validator's explicit `(net10.0, net11.0)` fixture interface requires separate
+metadata checks for both assets and exact target-specific compile/runtime asset
+selection. This does not change the product's single-target declaration or claim
+that a real net11 package, cross-target API equivalence, or NativeAOT consumer has
+been validated. Existing first-use CLI/library byte comparisons remain intact.
+
 The current package remains the local, unreleased `0.1.0-dev` artifact. This
 verification does not assign a formal release version, create a NuGet publishing
 channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made
