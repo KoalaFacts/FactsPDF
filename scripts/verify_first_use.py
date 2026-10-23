@@ -42,7 +42,11 @@ def build_environment(ambient,work):
     # known hooks cannot establish a clean consumer; retain only OS process basics.
     allowed={'PATH','HOME','SYSTEMROOT','WINDIR','COMSPEC','PATHEXT','TEMP','TMP','TMPDIR','LANG','LC_ALL','TZ'}
     env={key:value for key,value in ambient.items() if key.upper() in allowed}
-    settings=dict(NUGET_PACKAGES=str(work/'packages'),NUGET_HTTP_CACHE_PATH=str(work/'http-cache'),
+    # .NET 11 named mutexes use XDG_RUNTIME_DIR before falling back to the real
+    # user home. Keep these process files private to this isolated consumer too.
+    runtime=work/'runtime-files';runtime.mkdir(mode=0o700)
+    settings=dict(XDG_RUNTIME_DIR=str(runtime),
+        NUGET_PACKAGES=str(work/'packages'),NUGET_HTTP_CACHE_PATH=str(work/'http-cache'),
         NUGET_SCRATCH=str(work/'nuget-scratch'),DOTNET_CLI_HOME=str(work/'dotnet-home'),
         DOTNET_CLI_TELEMETRY_OPTOUT='1',DOTNET_NOLOGO='1',DOTNET_GENERATE_ASPNET_CERTIFICATE='false',
         DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false',DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE='true',

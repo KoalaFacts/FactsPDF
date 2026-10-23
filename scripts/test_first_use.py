@@ -1,6 +1,7 @@
 """Reject provenance leaks and incorrect output in the external first-use verifier."""
 import copy
 import importlib.util
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -125,6 +126,21 @@ class FirstUseTests(unittest.TestCase):
                                      'DOTNET_STARTUP_HOOKS', 'NUGET_PLUGIN_PATHS'})
         self.assertEqual(env['MSBuildUserExtensionsPath'], str(self.work / 'msbuild-user'))
         self.assertEqual(settings['ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets'], 'false')
+
+    def test_runtime_files_are_private_and_independent_of_ambient_home(self):
+        env, settings = self.module.build_environment({
+            'HOME': '/read-only-home', 'XDG_RUNTIME_DIR': '/ambient-runtime'}, self.work)
+        self.assertIn('XDG_RUNTIME_DIR', env)
+        runtime = Path(env['XDG_RUNTIME_DIR'])
+        self.assertEqual(runtime.parent, self.work)
+        self.assertEqual(settings['XDG_RUNTIME_DIR'], str(runtime))
+        self.assertEqual(env['HOME'], '/read-only-home')
+        self.assertTrue(runtime.is_dir())
+        self.assertEqual(list(runtime.iterdir()), [])
+        if os.name == 'posix':
+            self.assertEqual(runtime.stat().st_mode & 0o777, 0o700)
+        (runtime / 'probe').write_bytes(b'private runtime files')
+        self.assertEqual((runtime / 'probe').read_bytes(), b'private runtime files')
 
     def test_preprocessed_import_graph_rejects_indirect_repository_import(self):
         self.assertTrue(hasattr(self.module, 'validate_imports'), 'Missing actual import graph validation')
