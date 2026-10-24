@@ -63,6 +63,18 @@ jobs:
           dpkg-query -W fonts-droid-fallback fonts-dejavu-core python3-fonttools
           test -f /usr/share/doc/fonts-droid-fallback/copyright
           /usr/bin/python3 scripts/verify_unicode.py artifacts/native/FactsPDF.Cli
+      - name: Exercise real Linux Native AOT furniture and long-row paths
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_native_feature_paths.py' -v
+          python3 scripts/verify_native_feature_paths.py --executable artifacts/native/FactsPDF.Cli --output artifacts/linux-native-feature-evidence
+      - name: Retain Linux Native AOT feature evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-native-feature-evidence
+          path: artifacts/linux-native-feature-evidence/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Build local package for metadata and first-use verification, without publishing
         run: |
           rm -rf src/FactsPDF/bin src/FactsPDF/obj src/FactsPDF.Cli/bin src/FactsPDF.Cli/obj
@@ -142,6 +154,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Windows acceptance guard tests failed" }
           & $pythonExe scripts/verify_windows_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence
           if ($LASTEXITCODE -ne 0) { throw "Actual Windows Native AOT acceptance failed" }
+          & $pythonExe -m unittest discover -s scripts -p test_native_feature_paths.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Native feature acceptance guard tests failed" }
+          & $pythonExe scripts/verify_native_feature_paths.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-native-feature-evidence
+          if ($LASTEXITCODE -ne 0) { throw "Windows Native AOT furniture/long-row acceptance failed" }
       - name: Retain Windows native acceptance evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -149,6 +165,7 @@ jobs:
           name: windows-native-aot-evidence
           path: |
             artifacts/windows-aot-evidence/
+            artifacts/windows-native-feature-evidence/
             artifacts/windows-aot-publish.log
             artifacts/windows-aot-toolchain.txt
             artifacts/windows-aot-tools.txt
