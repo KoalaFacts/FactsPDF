@@ -80,6 +80,9 @@ jobs:
       - name: Inspect branded image cells and repeated image headers through CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_table_images.py --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --native-cli artifacts/style-native/FactsPDF.Cli --qpdf qpdf --output artifacts/wasm-evidence/table-images
+      - name: Inspect rich spanning table cells through CLI and Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_table_rich_cells.py --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --native-cli artifacts/style-native/FactsPDF.Cli --qpdf qpdf --output artifacts/wasm-evidence/table-rich --example examples/business-table-rich-cells.html
       - name: Inspect F1 heading keeps through API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_heading_keep.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/heading-pagination --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/font-styles/bin/Release/net10.0/FactsPDF.FontStyles.dll --native-cli artifacts/style-native/FactsPDF.Cli

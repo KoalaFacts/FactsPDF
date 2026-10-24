@@ -41,8 +41,17 @@ internal static class HtmlDocumentReader
 
         void Flush()
         {
-            if (current is not null && table?.Cell is null)
-                CurrentChildren().Add(new ParagraphNode(current, anonymous));
+            if (current is not null)
+            {
+                if (table?.Cell is { } cell)
+                {
+                    // Formatting whitespace and empty inline wrappers are not
+                    // anonymous flow items. Explicit p margins are retained.
+                    if (!anonymous || current.Runs.Any(r => r.IsBreak) || TextLines.HasTextContent(current, cancellation))
+                        cell.Contents.Add(new TableCellText(current));
+                }
+                else CurrentChildren().Add(new ParagraphNode(current, anonymous));
+            }
             current = null;
             anonymous = false;
         }
@@ -56,7 +65,9 @@ internal static class HtmlDocumentReader
                 // first-inline-run span (including text-align). The retained
                 // BlockNode.Style separately stores the actual containing-box
                 // computed style for future block-aware layout.
-                current = new Paragraph(stack[^1].Style, stack[^1].SourceOffset);
+                current = table?.Cell is { } cell
+                    ? new Paragraph(cell.Style, cell.SourceOffset)
+                    : new Paragraph(stack[^1].Style, stack[^1].SourceOffset);
                 anonymous = true;
             }
             // Keep is a block hint, never part of glyph-run coalescing.
@@ -83,8 +94,7 @@ internal static class HtmlDocumentReader
                         throw new FactsPdfException("FPDF1101", "Structural list/table elements cannot contain direct text.", token.Offset);
                     continue;
                 }
-                table?.CheckText(decoded, token.Offset);
-                if (table?.Cell?.Image is null) Add(decoded, stack[^1].Style);
+                Add(decoded, stack[^1].Style);
                 continue;
             }
             var name = token.Value;
@@ -108,7 +118,7 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
-                if (stack[^1].Name == "p" && name != "p" && Container(name)) { Flush(); Pop(); }
+                if (table is null && stack[^1].Name == "p" && name != "p" && Container(name)) { Flush(); Pop(); }
                 if (ListTag(name) && stack[^1].Name == "li") { Flush(); Pop(); }
                 if (stack.Count == 1 || stack[^1].Name != name)
                     throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{name}'.", token.Offset);
@@ -132,7 +142,7 @@ internal static class HtmlDocumentReader
             table?.CheckChild(stack[^1].Name, name, token.Offset);
             if (name == "img" && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
                 throw new FactsPdfException("FPDF1101", "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
-            if ((ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
+            if (table is null && (ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
             if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
             if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name)))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
@@ -158,6 +168,7 @@ internal static class HtmlDocumentReader
             if (name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6')
                 style = style with { FontSize = style.FontSize * (name[1] switch
                 { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 }) };
+            var columnSpan = 1;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
@@ -166,6 +177,8 @@ internal static class HtmlDocumentReader
                         throw new FactsPdfException("FPDF1103", "Styling this metadata/void element is not supported.", token.Offset);
                     // Declarations were parsed once during source collection.
                 }
+                else if (attribute == "colspan" && name is "td" or "th")
+                    columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count, token.Offset, cancellation);
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (attribute is "id" or "class" or "lang" or "title" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
@@ -190,10 +203,9 @@ internal static class HtmlDocumentReader
             }
             if (TableMarkup.IsTag(name))
             {
-                table!.Start(name, style, boxStyle, token.Offset);
+                table!.Start(name, style, boxStyle, token.Offset, columnSpan);
                 if (name == "col") { path.RemoveAt(path.Count - 1); continue; }
                 stack.Add(new(name, style, boxStyle, null, token.Offset));
-                if (name is "td" or "th") { current = table.Cell!.Paragraph; anonymous = false; }
                 continue;
             }
             if (name == "img")
@@ -203,19 +215,16 @@ internal static class HtmlDocumentReader
                 if (!options.Images.TryGetValue(resourceName, out var image))
                     throw new FactsPdfException("FPDF1604", $"Image resource '{resourceName}' was not supplied.", token.Offset);
                 var imageNode = new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt"));
-                if (table?.Cell is { } imageCell) imageCell.Image = imageNode;
-                else
-                {
-                    Flush();
-                    CurrentChildren().Add(imageNode);
-                }
+                Flush();
+                if (table?.Cell is { } imageCell) imageCell.Contents.Add(new TableCellImage(imageNode));
+                else CurrentChildren().Add(imageNode);
                 path.RemoveAt(path.Count - 1); continue;
             }
             if (ParagraphTag(name) || Container(name)) Flush();
             // `html`, head/title metadata and spans remain structural
             // inheritance/style contexts, never painted block boxes.
             BlockNode? box = null;
-            if (BoxTag(name))
+            if (BoxTag(name) && table?.Cell is null)
             {
                 box = new BlockNode(name, style, boxStyle, token.Offset);
                 CurrentChildren().Add(box);
@@ -228,7 +237,7 @@ internal static class HtmlDocumentReader
             }
         }
         // HTML permits omitted p/body/html end tags; other unclosed elements are rejected here.
-        while (stack.Count > 1 && stack[^1].Name is "p" or "body" or "html")
+        while (table is null && stack.Count > 1 && stack[^1].Name is "p" or "body" or "html")
         {
             Flush(); // attach under the correct parent BEFORE popping
             Pop();
@@ -237,4 +246,24 @@ internal static class HtmlDocumentReader
         Flush();
         return result;
     }
+    private static int ParseColumnSpan(string value, int columns, int offset, CancellationToken cancellation)
+    {
+        var start = 0;
+        var end = value.Length;
+        while (start < end && HtmlTokens.Space(value[start])) { cancellation.ThrowIfCancellationRequested(); start++; }
+        while (end > start && HtmlTokens.Space(value[end - 1])) { cancellation.ThrowIfCancellationRequested(); end--; }
+        var span = 0;
+        for (var i = start; i < end; i++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var digit = value[i] - '0';
+            if (digit is < 0 or > 9 || span > (columns - digit) / 10 || span * 10 + digit > columns)
+                throw new FactsPdfException("FPDF1103", "colspan requires ASCII digits representing an explicit positive column count.", offset);
+            span = span * 10 + digit;
+        }
+        if (span == 0)
+            throw new FactsPdfException("FPDF1103", "colspan requires ASCII digits representing an explicit positive column count.", offset);
+        return span;
+    }
+
 }

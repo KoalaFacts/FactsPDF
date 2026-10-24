@@ -92,7 +92,7 @@ public sealed class TableStructureTests
     [Test]
     public void TableCannotBeInsideAListItem() => Fails("<ol><li>" + One + "</li></ol>", "FPDF1101");
 
-    [TestCase("<p>A</p>")][TestCase("<div>A</div>")][TestCase("<ul><li>A</li></ul>")]
+    [TestCase("<div>A</div>")][TestCase("<ul><li>A</li></ul>")]
     [TestCase(One)]
     public void CellsRejectDeferredBlockContent(string content)
         => Fails(One.Replace("<td>A", "<td>" + content), "FPDF1101");
@@ -101,7 +101,7 @@ public sealed class TableStructureTests
     public void SeventeenthColumnFailsAtItsStart()
         => Fails("<table><colgroup>" + string.Concat(Enumerable.Repeat("<col style='width:10pt'>", 17)) + "</colgroup></table>", "FPDF1101");
 
-    [TestCase("colspan='1'")][TestCase("rowspan='1'")][TestCase("width='10'")]
+    [TestCase("rowspan='1'")][TestCase("width='10'")]
     public void CellAttributesDoNotSilentlyExpandTheSubset(string attribute)
         => Fails(One.Replace("<td>", "<td " + attribute + ">"), "FPDF1103");
 

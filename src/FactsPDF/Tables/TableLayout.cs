@@ -73,76 +73,117 @@ internal static class TableLayout
             var imageBoxes = new List<PaintedBox>();
             var rowHeight = 0d;
             var x = edges.Left;
-            for (var i = 0; i < row.Cells.Count; i++)
+            var track = 0;
+            foreach (var cell in row.Cells)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var cell = row.Cells[i];
-                var cellEdges = ResolveEdges(cell.BoxStyle, tracks[i], cell.SourceOffset);
-                var contentWidth = tracks[i] - cellEdges.Left - cellEdges.Right;
+                var cellWidth = 0d;
+                for (var j = 0; j < cell.ColumnSpan; j++)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    cellWidth += tracks[track++];
+                }
+                var cellEdges = ResolveEdges(cell.BoxStyle, cellWidth, cell.SourceOffset);
+                var contentWidth = cellWidth - cellEdges.Left - cellEdges.Right;
                 if (contentWidth <= 0)
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
                 var height = cellEdges.Top;
+                var pending = 0d;
                 CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
-                if (cell.Image is { } image)
+                foreach (var content in cell.Contents)
                 {
-                    var geometry = ImageLayout.Resolve(image, contentWidth);
-                    CheckHeight(height + geometry.OuterHeight + cellEdges.Bottom, image.SourceOffset);
-                    var imageX = x + cellEdges.Left + (cell.Paragraph.Style.Alignment switch
+                    cancellation.ThrowIfCancellationRequested();
+                    if (content is TableCellImage imageContent)
                     {
-                        TextAlignment.Center => (contentWidth - geometry.OuterWidth) / 2,
-                        TextAlignment.Right => contentWidth - geometry.OuterWidth,
-                        _ => 0
-                    });
-                    charge(1, image.SourceOffset);
-                    images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
-                        geometry.Width, geometry.Height));
-                    var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
-                        geometry.OuterHeight, image.BoxStyle, image.Style.Color, 0);
-                    charge(imageBox.CommandCount, image.SourceOffset);
-                    if (imageBox.CommandCount > 0) imageBoxes.Add(imageBox);
-                    height += geometry.OuterHeight;
-                }
-                else
-                {
-                    // A spent allowance must fail before allocating another cell's
-                    // glyph/word buffers, just as it does for ordinary paragraphs.
-                    if (HasTextContent(cell.Paragraph, cancellation)) ensure(1, cell.SourceOffset);
-                    try
-                    {
-                        foreach (var line in Wrap(cell.Paragraph, contentWidth, options, resolved, cancellation))
+                        var image = imageContent.Image;
+                        var geometry = ImageLayout.Resolve(image, contentWidth);
+                        height += pending;
+                        pending = 0;
+                        CheckHeight(height + geometry.OuterHeight + cellEdges.Bottom, image.SourceOffset);
+                        var imageX = x + cellEdges.Left + (cell.Style.Alignment switch
+                        {
+                            TextAlignment.Center => (contentWidth - geometry.OuterWidth) / 2,
+                            TextAlignment.Right => contentWidth - geometry.OuterWidth,
+                            _ => 0
+                        });
+                        charge(1, image.SourceOffset);
+                        images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
+                            geometry.Width, geometry.Height));
+                        var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
+                            geometry.OuterHeight, image.BoxStyle, image.Style.Color, 0);
+                        charge(imageBox.CommandCount, image.SourceOffset);
+                        if (imageBox.CommandCount > 0) imageBoxes.Add(imageBox);
+                        height += geometry.OuterHeight;
+                        continue;
+                    }
+                    var paragraph = ((TableCellText)content).Paragraph;
+                    var offset = paragraph.SourceOffset;
+                    var before = paragraph.Style.MarginBefore;
+                    var after = paragraph.Style.MarginAfter;
+                    // Empty paragraphs contribute their largest margin once,
+                    // without wrapping, resolving fonts, or allocating lines.
+                    var hasText = HasTextContent(paragraph, cancellation);
+                    var occupied = hasText;
+                    if (!occupied)
+                        foreach (var run in paragraph.Runs)
                         {
                             cancellation.ThrowIfCancellationRequested();
-                            CheckHeight(height + line.Height + cellEdges.Bottom, cell.SourceOffset);
-                            var alignedX = x + cellEdges.Left + (cell.Paragraph.Style.Alignment switch
+                            if (run.IsBreak) { occupied = true; break; }
+                        }
+                    if (!occupied)
+                    {
+                        pending = Math.Max(pending, Math.Max(before, after));
+                        CheckHeight(height + pending + cellEdges.Bottom, offset);
+                        continue;
+                    }
+                    height += Math.Max(pending, before);
+                    pending = 0;
+                    CheckHeight(height + cellEdges.Bottom, offset);
+                    // Fail before allocating the shared wrapper's glyph buffers.
+                    if (hasText) ensure(1, offset);
+                    try
+                    {
+                        foreach (var line in Wrap(paragraph, contentWidth, options, resolved, cancellation))
+                        {
+                            cancellation.ThrowIfCancellationRequested();
+                            CheckHeight(height + line.Height + cellEdges.Bottom, offset);
+                            var alignedX = x + cellEdges.Left + (paragraph.Style.Alignment switch
                             {
                                 TextAlignment.Center => (contentWidth - line.Width) / 2,
                                 TextAlignment.Right => contentWidth - line.Width,
                                 _ => 0
                             });
                             AppendLine(line, alignedX, -top - height - line.Ascent,
-                                runs, charge, cancellation, cell.SourceOffset);
+                                runs, charge, cancellation, offset);
                             height += line.Height;
                         }
                     }
                     catch (FactsPdfException error) when (error.SourceOffset < 0)
                     {
-                        // Preserve the diagnostic and its text while adding the
-                        // cell location when the shared wrapper has no finer one.
-                        throw new FactsPdfException(error.Code, error.Message[(error.Code.Length + 2)..], cell.SourceOffset);
+                        throw new FactsPdfException(error.Code, error.Message[(error.Code.Length + 2)..], offset);
                     }
+                    pending = after;
+                    CheckHeight(height + pending + cellEdges.Bottom, offset);
                 }
+                height += pending;
                 rowHeight = Math.Max(rowHeight, height + cellEdges.Bottom);
-                x += tracks[i];
+                x += cellWidth;
             }
             x = edges.Left;
-            for (var i = 0; i < row.Cells.Count; i++)
+            track = 0;
+            foreach (var cell in row.Cells)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var cell = row.Cells[i];
-                var box = new PaintedBox(x, top, tracks[i], rowHeight, cell.BoxStyle, cell.Paragraph.Style.Color, 0);
+                var cellWidth = 0d;
+                for (var j = 0; j < cell.ColumnSpan; j++)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    cellWidth += tracks[track++];
+                }
+                var box = new PaintedBox(x, top, cellWidth, rowHeight, cell.BoxStyle, cell.Style.Color, 0);
                 charge(box.CommandCount, cell.SourceOffset);
                 if (box.CommandCount > 0) boxes.Add(box);
-                x += tracks[i];
+                x += cellWidth;
             }
             // Every cell background precedes every image decoration in this row.
             foreach (var box in imageBoxes)

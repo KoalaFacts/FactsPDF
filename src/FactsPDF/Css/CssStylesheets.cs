@@ -131,6 +131,7 @@ internal sealed class CssStylesheets
         bool paragraph, bool block, int elementOffset, bool allowStyling = true)
     {
         Array.Clear(winners); var element = path[^1];
+        var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
             budget.Work(declaration.Offset);
@@ -138,6 +139,9 @@ internal sealed class CssStylesheets
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
+            if (cellParagraph && (CssDeclarations.IsBoxProperty(declaration.Property)
+                || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
+                throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
                 (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))

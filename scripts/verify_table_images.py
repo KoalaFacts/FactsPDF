@@ -209,7 +209,7 @@ def main():
     reject_mutations(output / 'repeated-header-managed.pdf', manifest['cases'][-1], manifest['image'], output)
     report['actualPdfMutationsRejected'] = ['displaced-image', 'missing-header-image']
     invalid = output / 'mixed-content.html'
-    invalid.write_text(manifest['cases'][0]['html'].replace('<img src="sample">', '<img src="sample">TRAILING'))
+    invalid.write_text(manifest['cases'][0]['html'].replace('<img src="sample">', '<span><img src="sample"></span>'))
     for entry, command in commands:
         target = output / ('preserve-' + entry + '.pdf')
         target.write_bytes(b'KEEP ORIGINAL')
