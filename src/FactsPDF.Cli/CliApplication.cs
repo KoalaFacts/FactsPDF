@@ -1,16 +1,19 @@
 using System.Text;
+using FactsPDF.Configuration;
 
 namespace FactsPDF.CommandLine;
 
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
         "Experimental inline-CSS renderer. Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
         "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
         "Text is centered in existing margins; with --page-numbers the footer is text | N. Overflow fails; no wrapping.\n" +
+        "--page-furniture reads one explicit strict UTF-8 JSON file (at most 65536 bytes including BOM) for styled regions, {page}/{pages}, and first-page replacement.\n" +
+        "Structured furniture cannot be combined with --page-numbers, --header-text or --footer-text, including empty legacy text.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
         "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n";
 
@@ -25,7 +28,7 @@ public static class CliApplication
             cancellationToken.ThrowIfCancellationRequested();
             if (args.Length == 1 && args[0] is "--help" or "-h") { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
-            string? headerText = null; string? footerText = null;
+            string? headerText = null; string? footerText = null; string? furniturePath = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
@@ -42,6 +45,13 @@ public static class CliApplication
                 {
                     if (++i >= args.Length) throw new ArgumentException("--footer-text requires a literal text argument.");
                     footerText = args[i];
+                }
+                else if (arg == "--page-furniture")
+                {
+                    if (furniturePath is not null) throw new ArgumentException("PageFurniture: --page-furniture may appear only once.");
+                    if (++i >= args.Length || string.IsNullOrWhiteSpace(args[i]) || args[i] == "-" || args[i].StartsWith("--", StringComparison.Ordinal))
+                        throw new ArgumentException("PageFurniture: --page-furniture requires an explicit JSON file path.");
+                    furniturePath = Path.GetFullPath(args[i]);
                 }
                 else if (arg is "--font" or "--font-bold" or "--font-italic" or "--font-bold-italic")
                 {
@@ -66,17 +76,27 @@ public static class CliApplication
                 else paths.Add(arg);
             }
             if (paths.Count != 2) throw new ArgumentException("Specify input and output paths.");
+            if (furniturePath is not null && (pageNumbers || headerText is not null || footerText is not null))
+                throw new ArgumentException("PageFurniture cannot be combined with legacy page-number, header-text or footer-text options.");
             var source = paths[0] == "-" ? null : Path.GetFullPath(paths[0]);
             var destination = paths[1] == "-" ? null : Path.GetFullPath(paths[1]);
             var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             if (destination is not null && (source is not null && string.Equals(source, destination, comparison)
                 || fontPaths.Any(path => string.Equals(path.Path, destination, comparison))
-                || imagePaths.Values.Any(path => string.Equals(path, destination, comparison))))
-                throw new ArgumentException("Output must be different from the input HTML and every supplied font or image file.");
+                || imagePaths.Values.Any(path => string.Equals(path, destination, comparison))
+                || furniturePath is not null && string.Equals(furniturePath, destination, comparison)))
+                throw new ArgumentException("Output must be different from the input HTML and every supplied font, image or PageFurniture file.");
             if (destination is not null && File.Exists(destination) && !overwrite)
                 throw new IOException("Destination exists. Use --overwrite to replace it after a successful conversion.");
 
-            var options = new PdfOptions { SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText, FooterText = footerText }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
+            PdfPageFurniture? furniture = null;
+            if (furniturePath is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var configStream = File.OpenRead(furniturePath);
+                furniture = ReadPageFurniture(configStream, cancellationToken);
+            }
+            var options = new PdfOptions { SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText, FooterText = footerText, PageFurniture = furniture }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -133,6 +153,29 @@ public static class CliApplication
     // Keep CLI parameter errors distinct from the core's resource diagnostics.
     private static bool ImageName(string name) => name.Length is >= 1 and <= 128 && char.IsAsciiLetterOrDigit(name[0])
         && name.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-');
+
+    // Never trusts Length/Seek, consumes at most the limit plus one sentinel byte,
+    // and leaves the caller's stream open. The byte limit includes the optional BOM.
+    private static PdfPageFurniture ReadPageFurniture(Stream input, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        var bytes = new byte[PageFurnitureJson.MaxBytes];
+        var used = 0;
+        while (used < bytes.Length)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var count = input.Read(bytes, used, Math.Min(4096, bytes.Length - used));
+            cancellation.ThrowIfCancellationRequested();
+            if (count == 0) return PageFurnitureJson.Parse(bytes.AsSpan(0, used), cancellation);
+            used += count;
+        }
+        cancellation.ThrowIfCancellationRequested();
+        Span<byte> sentinel = stackalloc byte[1];
+        var extra = input.Read(sentinel);
+        cancellation.ThrowIfCancellationRequested();
+        if (extra != 0) throw new ArgumentException("PageFurniture must not exceed 65536 UTF-8 bytes, including a BOM.", "PageFurniture");
+        return PageFurnitureJson.Parse(bytes, cancellation);
+    }
 
     private static string ReadInput(Stream input, int limit, CancellationToken cancellation)
     {
