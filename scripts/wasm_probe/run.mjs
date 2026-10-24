@@ -241,9 +241,9 @@ try {
   // decimal totals and an entirely replaced cover. This complements (and does
   // not replace) the strict raw-operand/geometry oracle.
   const multiFurniture = {
-    html: '<p style="margin:0">BODY-001</p>' +
-      '<p style="break-before:page;margin:0">BODY-002</p>' +
-      '<p style="break-before:page;margin:0">BODY-003</p>',
+    html: '<p style="margin-top:0;margin-bottom:0">BODY-001</p>' +
+      '<p style="break-before:page;margin-top:0;margin-bottom:0">BODY-002</p>' +
+      '<p style="break-before:page;margin-top:0;margin-bottom:0">BODY-003</p>',
     json: JSON.stringify({
       default: {
         headerLeft: { template: 'Report {page}', fontSize: 12, color: '#203040' },
