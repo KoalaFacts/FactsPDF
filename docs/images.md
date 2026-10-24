@@ -29,9 +29,9 @@ JPEG requires a first JFIF APP0, 8-bit SOF0, one complete interleaved sequential
 
 Progressive/multiscan, CMYK/RGB-coded JPEG, arithmetic/lossless, ICC/Adobe transforms, non-square density, thumbnails and unsupported markers fail explicitly. Exif may omit orientation or specify 1; rotations/flips fail. Only bounded TIFF IFD0 ranges and the orientation field are interpreted; child IFD semantics are not validated. COM and bounded supported metadata are retained in the original DCT stream. DeviceRGB/Gray output does not claim color management or full image sanitization.
 
-`img` is a void, standalone block at the root/body or inside ordinary supported containers. Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
+`img` is a void block at the root/body or inside ordinary supported containers, or the sole direct content of a [table cell](tables.md#image-only-cells-and-branded-layouts). Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
 
-CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Images remain left-aligned. No automatic shrinking, independent height, transforms, float, wrap, inline, cell or list images are implemented.
+CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Standalone images remain left-aligned. An image-only cell uses its cell's text alignment and available content width. No automatic shrinking, independent height, transforms, float, wrap, inline/list images or mixed image/text cell content are implemented.
 
 The complete image outer box moves to the next page if necessary. An image plus required leading ancestor decoration that cannot fit an empty page fails `FPDF1302`. Its own padding/borders never split; ancestor decorations retain existing slice behavior. Each image draw costs one display command, plus normal decoration commands.
 
@@ -65,8 +65,8 @@ text, is ignored after framing/type/CRC validation; compressed metadata is not
 inflated. This does not implement color management or automatic Exif rotation.
 
 16-bit samples, Adam7 interlacing, APNG and SVG remain unsupported and fail
-explicitly. PNG support does not expand the current standalone image placement
-contract, add network fetching or bundle fonts.
+explicitly. PNG and JPEG share standalone and image-only-cell placement. The
+engine does not fetch images from the network or bundle fonts.
 
 ### Generate the brand-report sample
 
@@ -83,6 +83,14 @@ uses fontless ASCII so it needs no external font download; existing explicit
 font options can be supplied for other templates. Its illustrative line-item
 values are not a product quote. New sample reference approval remains separate
 from executable engineering verification.
+
+For a logo beside company information, use the newer complete
+[branded business report](../examples/branded-business-report.html):
+
+```sh
+python3 scripts/png_fixtures.py --output artifacts/png-inputs
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/branded-business-report.html artifacts/branded-business-report.pdf --image logo=artifacts/png-inputs/brand-mark.png --page-numbers --header-text "FACTSPDF | CLIENT REPORT" --footer-text "Synthetic capability sample"
+```
 
 ## Bounds and diagnostics
 

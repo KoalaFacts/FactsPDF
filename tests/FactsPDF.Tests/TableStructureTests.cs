@@ -93,7 +93,7 @@ public sealed class TableStructureTests
     public void TableCannotBeInsideAListItem() => Fails("<ol><li>" + One + "</li></ol>", "FPDF1101");
 
     [TestCase("<p>A</p>")][TestCase("<div>A</div>")][TestCase("<ul><li>A</li></ul>")]
-    [TestCase("<img src='missing'>")][TestCase(One)]
+    [TestCase(One)]
     public void CellsRejectDeferredBlockContent(string content)
         => Fails(One.Replace("<td>A", "<td>" + content), "FPDF1101");
 

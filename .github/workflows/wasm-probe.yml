@@ -77,6 +77,9 @@ jobs:
       - name: Inspect E2 whole-row pagination through API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_table_pagination.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/table-pagination --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/tables/bin/Release/net10.0/FactsPDF.Tables.dll --native-cli artifacts/style-native/FactsPDF.Cli
+      - name: Inspect branded image cells and repeated image headers through CLI and Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_table_images.py --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --native-cli artifacts/style-native/FactsPDF.Cli --qpdf qpdf --output artifacts/wasm-evidence/table-images
       - name: Inspect F1 heading keeps through API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_heading_keep.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/heading-pagination --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/font-styles/bin/Release/net10.0/FactsPDF.FontStyles.dll --native-cli artifacts/style-native/FactsPDF.Cli

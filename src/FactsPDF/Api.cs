@@ -27,7 +27,7 @@ public sealed record PdfOptions
     /// <summary>Ordered explicit fallback for text that is both bold and italic.</summary>
     public IReadOnlyList<PdfFont> BoldItalicFonts { get; init; } = Array.Empty<PdfFont>();
     public int MaxTotalFontBytes { get; init; } = 67_108_864;
-    /// <summary>Explicit ordinal resource names used by standalone img elements; no implicit file or network resolution.</summary>
+    /// <summary>Explicit ordinal resource names used by standalone and image-only table-cell img elements; no implicit file or network resolution.</summary>
     public IReadOnlyDictionary<string, PdfImage> Images { get; init; } = ImageResources.Empty;
     public int MaxImageResources { get; init; } = 16;
     public int MaxTotalImageBytes { get; init; } = 33_554_432;

@@ -3,11 +3,11 @@ using static FactsPDF.TextLines;
 namespace FactsPDF;
 
 internal sealed record MeasuredTable(double Width, double Height,
-    List<PlacedText> Runs, List<PaintedBox> PaintBoxes,
+    List<PlacedText> Runs, List<PaintedBox> PaintBoxes, List<PlacedImage> Images,
     List<MeasuredTableRow> Rows, double Top, double Bottom);
 
 internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader, int SourceOffset,
-    int RunStart, int RunCount, int BoxStart, int BoxCount);
+    int RunStart, int RunCount, int BoxStart, int BoxCount, int ImageStart, int ImageCount);
 
 /// <summary>Measure the table once, retaining only charged output commands.</summary>
 internal static class TableLayout
@@ -52,6 +52,7 @@ internal static class TableLayout
 
         var runs = new List<PlacedText>();
         var boxes = new List<PaintedBox>();
+        var images = new List<PlacedImage>();
         var rows = new List<MeasuredTableRow>();
         var top = edges.Top;
         var usableHeight = options.PageHeight - 2 * options.Margin;
@@ -68,6 +69,8 @@ internal static class TableLayout
             cancellation.ThrowIfCancellationRequested();
             var runStart = runs.Count;
             var boxStart = boxes.Count;
+            var imageStart = images.Count;
+            var imageBoxes = new List<PaintedBox>();
             var rowHeight = 0d;
             var x = edges.Left;
             for (var i = 0; i < row.Cells.Count; i++)
@@ -80,31 +83,53 @@ internal static class TableLayout
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
                 var height = cellEdges.Top;
                 CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
-                // A spent allowance must fail before allocating another cell's
-                // glyph/word buffers, just as it does for ordinary paragraphs.
-                if (HasTextContent(cell.Paragraph, cancellation)) ensure(1, cell.SourceOffset);
-                try
+                if (cell.Image is { } image)
                 {
-                    foreach (var line in Wrap(cell.Paragraph, contentWidth, options, resolved, cancellation))
+                    var geometry = ImageLayout.Resolve(image, contentWidth);
+                    CheckHeight(height + geometry.OuterHeight + cellEdges.Bottom, image.SourceOffset);
+                    var imageX = x + cellEdges.Left + (cell.Paragraph.Style.Alignment switch
                     {
-                        cancellation.ThrowIfCancellationRequested();
-                        CheckHeight(height + line.Height + cellEdges.Bottom, cell.SourceOffset);
-                        var alignedX = x + cellEdges.Left + (cell.Paragraph.Style.Alignment switch
-                        {
-                            TextAlignment.Center => (contentWidth - line.Width) / 2,
-                            TextAlignment.Right => contentWidth - line.Width,
-                            _ => 0
-                        });
-                        AppendLine(line, alignedX, -top - height - line.Ascent,
-                            runs, charge, cancellation, cell.SourceOffset);
-                        height += line.Height;
-                    }
+                        TextAlignment.Center => (contentWidth - geometry.OuterWidth) / 2,
+                        TextAlignment.Right => contentWidth - geometry.OuterWidth,
+                        _ => 0
+                    });
+                    charge(1, image.SourceOffset);
+                    images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
+                        geometry.Width, geometry.Height));
+                    var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
+                        geometry.OuterHeight, image.BoxStyle, image.Style.Color, 0);
+                    charge(imageBox.CommandCount, image.SourceOffset);
+                    if (imageBox.CommandCount > 0) imageBoxes.Add(imageBox);
+                    height += geometry.OuterHeight;
                 }
-                catch (FactsPdfException error) when (error.SourceOffset < 0)
+                else
                 {
-                    // Preserve the diagnostic and its text while adding the
-                    // cell location when the shared wrapper has no finer one.
-                    throw new FactsPdfException(error.Code, error.Message[(error.Code.Length + 2)..], cell.SourceOffset);
+                    // A spent allowance must fail before allocating another cell's
+                    // glyph/word buffers, just as it does for ordinary paragraphs.
+                    if (HasTextContent(cell.Paragraph, cancellation)) ensure(1, cell.SourceOffset);
+                    try
+                    {
+                        foreach (var line in Wrap(cell.Paragraph, contentWidth, options, resolved, cancellation))
+                        {
+                            cancellation.ThrowIfCancellationRequested();
+                            CheckHeight(height + line.Height + cellEdges.Bottom, cell.SourceOffset);
+                            var alignedX = x + cellEdges.Left + (cell.Paragraph.Style.Alignment switch
+                            {
+                                TextAlignment.Center => (contentWidth - line.Width) / 2,
+                                TextAlignment.Right => contentWidth - line.Width,
+                                _ => 0
+                            });
+                            AppendLine(line, alignedX, -top - height - line.Ascent,
+                                runs, charge, cancellation, cell.SourceOffset);
+                            height += line.Height;
+                        }
+                    }
+                    catch (FactsPdfException error) when (error.SourceOffset < 0)
+                    {
+                        // Preserve the diagnostic and its text while adding the
+                        // cell location when the shared wrapper has no finer one.
+                        throw new FactsPdfException(error.Code, error.Message[(error.Code.Length + 2)..], cell.SourceOffset);
+                    }
                 }
                 rowHeight = Math.Max(rowHeight, height + cellEdges.Bottom);
                 x += tracks[i];
@@ -119,8 +144,15 @@ internal static class TableLayout
                 if (box.CommandCount > 0) boxes.Add(box);
                 x += tracks[i];
             }
+            // Every cell background precedes every image decoration in this row.
+            foreach (var box in imageBoxes)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                boxes.Add(box);
+            }
             rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
-                runStart, runs.Count - runStart, boxStart, boxes.Count - boxStart));
+                runStart, runs.Count - runStart, boxStart, boxes.Count - boxStart,
+                imageStart, images.Count - imageStart));
             top += rowHeight;
         }
         var outerHeight = top + edges.Bottom;
@@ -132,7 +164,7 @@ internal static class TableLayout
             charge(tableBox.CommandCount, table.SourceOffset);
             if (tableBox.CommandCount > 0) boxes.Insert(0, tableBox);
         }
-        return new(outerWidth, outerHeight, runs, boxes, rows, edges.Top, edges.Bottom);
+        return new(outerWidth, outerHeight, runs, boxes, images, rows, edges.Top, edges.Bottom);
     }
 
     private static Edges ResolveEdges(BoxStyle style, double containingWidth, int offset)

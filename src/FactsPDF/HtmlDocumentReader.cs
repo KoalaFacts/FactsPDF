@@ -83,7 +83,8 @@ internal static class HtmlDocumentReader
                         throw new FactsPdfException("FPDF1101", "Structural list/table elements cannot contain direct text.", token.Offset);
                     continue;
                 }
-                Add(decoded, stack[^1].Style);
+                table?.CheckText(decoded, token.Offset);
+                if (table?.Cell?.Image is null) Add(decoded, stack[^1].Style);
                 continue;
             }
             var name = token.Value;
@@ -201,8 +202,13 @@ internal static class HtmlDocumentReader
                     throw new FactsPdfException("FPDF1103", "img requires an explicit resource name in src; paths and URLs are unsupported.", token.Offset);
                 if (!options.Images.TryGetValue(resourceName, out var image))
                     throw new FactsPdfException("FPDF1604", $"Image resource '{resourceName}' was not supplied.", token.Offset);
-                Flush();
-                CurrentChildren().Add(new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt")));
+                var imageNode = new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt"));
+                if (table?.Cell is { } imageCell) imageCell.Image = imageNode;
+                else
+                {
+                    Flush();
+                    CurrentChildren().Add(imageNode);
+                }
                 path.RemoveAt(path.Count - 1); continue;
             }
             if (ParagraphTag(name) || Container(name)) Flush();

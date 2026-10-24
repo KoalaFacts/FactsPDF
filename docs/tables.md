@@ -26,7 +26,7 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 - Tables are standalone blocks in the document/body or ordinary block containers. They cannot appear in paragraphs, headings, inline elements, list items or another table.
 - A table contains exactly one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, and exactly one `tbody` with at least one `tr`, in that order.
 - Every row has the same cell count as the column group. Header rows contain `th`; body rows contain `td`. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
-- Cells accept text and `span`, `b/strong`, `i/em`, `br`. Cell paragraphs, lists, images, nested tables, captions, `colspan` and `rowspan` are unsupported.
+- Cells accept text and `span`, `b/strong`, `i/em`, `br`, or one direct image as their entire content. Cell paragraphs, lists, nested tables, captions, `colspan` and `rowspan` are unsupported.
 
 ## Widths, rows and paint
 
@@ -45,6 +45,51 @@ Only a table taller than the usable page height enters E2 pagination. It uses re
 The table's own background and side borders continue across page fragments; top padding/border occurs only on the first fragment and bottom padding/border only on the last, matching existing sliced block decoration. A continuing fragment extends its background/side borders to the usable page bottom. Cell borders remain complete on every row. Ancestor decoration and following content use the existing block pagination rules.
 
 A row, repeated header plus row, or required first/last decoration that cannot fit an empty page fails `FPDF1302` before destination output. This does not add general keep-together, page furniture or cell splitting.
+
+## Image-only cells and branded layouts
+
+A cell can contain one direct `img`, with formatting whitespace or comments
+around it. The existing explicit image binding accepts supported JPEG and PNG,
+including transparency. Put company text in an adjacent cell:
+
+```html
+<table style="width:480pt">
+  <colgroup><col style="width:120pt"><col style="width:360pt"></colgroup>
+  <tbody><tr>
+    <td style="padding:6pt;background-color:#e4f3f0"><img src="logo" style="width:108pt"></td>
+    <td style="padding:6pt">Example Company<br>Monthly report<br>Report FP-2026-024</td>
+  </tr></tbody>
+</table>
+```
+
+An image cell cannot also contain text, `br`, another image or any inline wrapper,
+even an empty one. An image inside a `span` is unsupported. A nonbreaking space
+is content, not formatting whitespace. These mixed-content forms fail
+`FPDF1101`; an unbound image name still fails `FPDF1604`.
+
+Image width percentages and its padding percentages use the cell's content
+width, after cell padding/borders have been subtracted from the column track.
+Intrinsic size and aspect ratio follow the [image guide](images.md). The cell's
+`text-align` positions the image's complete outer box left, center or right;
+per-image text alignment does not override it. There is no automatic shrinking
+or vertical centering. The tallest decorated image or text cell determines the
+row height, with all cell contents aligned at the top.
+
+Cell backgrounds paint below the image's own background/borders and pixels.
+Transparent pixels reveal that background. Short tables move intact as before;
+long tables repeat an image-only header cell and its decorations on each page.
+Repeated placements share one PDF image and optional mask, while every draw and
+decoration is charged against the display-command limit. An image-only `th`
+needs no bold font until it actually contains text.
+
+The [branded business report](../examples/branded-business-report.html) is a
+complete example. Generate its synthetic logo with `scripts/png_fixtures.py`
+and bind it as `--image logo=path/to/brand-mark.png`. The independent
+`scripts/verify_table_images.py` checks authored image/text geometry, alpha over
+colored cells, decoration layering, whole-table movement and three-page repeated
+image headers. It also rejects deliberately displaced/removed image draws and
+checks failure preservation/recovery through the real CLI. The browser workflow
+runs the same cases through actual Native AOT and browser conversion.
 
 | Element | Supported CSS |
 | --- | --- |
