@@ -185,4 +185,9 @@ The [bilingual report](../examples/tables-report.html) uses all four real font r
 
 Historical E1 preparation receipts recorded unsupported-table rejection. They remain historical evidence only; the functional manifest now contains actual success/error expectations. Passing scripts or CI alone does not establish visual acceptance: every generated page still requires inspection. User reference approval and release budgets remain separate gates.
 
+The original `colspan.html` fixture still overfills its three explicit tracks and
+now expects the coverage error `FPDF1101`. The API probe uses `colspan="0"` to
+retain malformed-span `FPDF1103` and destination-preservation coverage. Valid
+spans are checked separately by the rich-cell fixtures above.
+
 E2 native verification uses `scripts/verify_table_pagination.py` and authored `tests/fixtures/tables-e2/` inputs: 10/30/100 rows, a page-tail start, a headerless table and bilingual text. It compares public API, CLI and Native AOT bytes; qpdf and Poppler check every page's row order, repeated header, text bounds and exact 28pt cell geometry. Missing-header and displaced-text mutations must fail inspection. See the [E2 verification record](table-pagination-verification.md). Browser printing is not part of this native acceptance path.

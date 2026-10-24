@@ -25,7 +25,7 @@ foreach (var (name, input, settings, expected) in new[]
 {
     ("shape", "<table></table>", options, "FPDF1101"),
     ("width", simple.Replace("width:100%", "width:99%"), options, "FPDF1302"),
-    ("colspan", simple.Replace("<td>", "<td colspan='1'>"), options, "FPDF1103"),
+    ("colspan", simple.Replace("<td>", "<td colspan='0'>"), options, "FPDF1103"),
     ("cell-css", simple.Replace("<td>", "<td style='width:100pt'>"), options, "FPDF1201"),
     ("missing-bold", simple.Replace("<tbody>", "<thead><tr><th>A</th></tr></thead><tbody>"), options with { BoldFonts = [] }, "FPDF1507"),
     ("height", simple, options with { PageHeight = 99, Margin = 10 }, "FPDF1302"),
