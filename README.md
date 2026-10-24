@@ -101,9 +101,11 @@ for integration without a source-project reference.
 the number alone. Text is literal: `{page}`, `{pages}` and HTML are not expanded.
 It must fit on one line in the existing margins; overflow is an error.
 
-**Total-page labels, left/center/right regions, configurable styles and different
-first-page content are the next planned increment, not current API features.**
-They are tracked in the [commercial-preview work](https://github.com/KoalaFacts/FactsPDF/issues/51).
+The current source API also supports total-page labels, left/center/right regions,
+explicit styles and whole first-page replacement through `PdfOptions.PageFurniture`.
+These additions are implemented in the development source and have not been
+released as a package. See the [page-furniture CLI guide](docs/page-furniture-cli.md)
+for configuration and limits.
 
 ## Compatibility lookup
 
