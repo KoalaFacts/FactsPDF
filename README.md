@@ -1,204 +1,238 @@
 # FactsPDF
 
-A browser-free HTML and CSS to PDF engine, designed for cross-language integration.
+**Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
-> **Status: experimental renderer.** This development branch contains a limited
-> document-text core and CLI, not a production release. Start with the
-> [business-report evaluation guide](docs/evaluation.md),
-> [development guide](docs/development.md), [CSS support](docs/css-stylesheets.md),
-> [Unicode/fonts](docs/unicode-fonts.md) and [font subsetting](docs/font-subsetting.md).
+FactsPDF is a KoalaFacts rendering engine for applications and command-line jobs
+that control their report templates. It supports English and Chinese text,
+explicit font styles, transparent PNGs, tables and pagination through a
+documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
-FactsPDF is a KoalaFacts project. Input is standard HTML and a documented CSS
-subset; no separate markup language is required. The shared core connects HTML
-parsing, stylesheet/inline cascade, font metrics, wrapping, pagination and PDF
-output without a browser or third-party runtime parser/font/layout/PDF library.
-High throughput, fast startup and low resource use remain engineering goals.
-Published development measurements identify their scope and limitations; no
-general performance guarantee or competitor comparison is claimed.
+> **Current stage: experimental development build (`0.1.0-dev`).**
+> Run from source or build a local package. There is no published NuGet package
+> or standalone CLI release, and the API is not stable yet.
+> Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md).
 
-## Try the development build
+[Quick start](#generate-your-first-pdf) · [C# API](#use-the-net-api) ·
+[Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
+[Licensing](#licensing)
 
-From a source checkout with the .NET 10 SDK:
+## Generate your first PDF
 
-```sh
-dotnet test FactsPDF.slnx -c Release
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html first-document.pdf
-```
-
-For complete CLI and independent .NET package-consumer commands, see
-[first use from local artifacts](docs/development.md#first-use-from-local-artifacts).
-
-For the bilingual stylesheet example, supply your own appropriately licensed,
-trusted static TrueType files and optionally enable native font subsetting:
+You need Git and a **.NET 10 SDK** compatible with [global.json](global.json).
+Check the [Community or Commercial licensing requirements](#licensing) before
+building or running the engine; there is no general free trial for ineligible
+organizations.
 
 ```sh
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html stylesheet.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
+git clone https://github.com/KoalaFacts/FactsPDF.git
+cd FactsPDF
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html quick-start.pdf
 ```
 
-Add `--page-numbers` (or `PdfOptions.PageNumbers = true`) for centered decimal
-[page numbers](docs/page-numbers.md) within the existing bottom margin. Use
-`--header-text "Report"` / `--footer-text "Internal"` (or `HeaderText` / `FooterText`)
-for bounded [static page headers and footers](docs/page-margins.md). Defaults
-remain unchanged.
+Open `quick-start.pdf`: a one-page service report with a styled table, using
+ASCII text and built-in Courier. This example needs no external fonts or images.
 
-No additional switch is needed for embedded stylesheets. `--font` may repeat in
-fallback order. Without fonts, the ASCII/Courier mode remains. Full embedding is
-the default; `--subset-fonts` or `PdfOptions.SubsetFonts` keeps needed glyphs and
-composite components where permitted. No-subsetting fonts remain fully embedded.
-No font files are bundled.
+To add a header, footer and current page number:
 
-## Stylesheets and selectors
-
-Templates can now share styles instead of repeating every inline declaration:
-
-```html
-<style>
-  body { font-size: 12pt; line-height: 1.5; }
-  h1, h2 { color: #1d4568; }
-  .report > p.lead { font-size: 16pt; }
-  .report .accent { color: #008000; }
-  p.next { break-before: page; }
-</style>
-<body>
-  <section class="report">
-    <h1>FactsPDF</h1>
-    <p class="lead">Hello, world.</p>
-    <p>A paragraph with <span class="accent">shared styling</span>.</p>
-  </section>
-</body>
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html numbered-report.pdf --header-text "Service report" --footer-text "Internal" --page-numbers
 ```
 
-Supported selector forms include type, universal, class, ID, compound, comma
-groups, descendant and child combinators. The bounded author cascade handles
-per-property specificity/source order, inline rules, `!important`, inheritance,
-`inherit`, `initial` and `unset`. Later style elements can affect earlier content.
+The footer reads `Internal | 1`. Existing output files require `--overwrite`;
+conversion failures preserve the existing file. Diagnostics go to stderr, and
+failure returns a nonzero exit code. Use `--help` for the CLI options.
 
-The syntax pipeline now parses standards-based CSS token, block, declaration
-and at-rule structures with recoverable diagnostics. **StrictPdf still rejects
-unsupported semantics and recovered syntax errors**, so this remains a strict
-documented rendering subset, not full HTML5/CSS or browser layout compatibility.
-See the [CSS Syntax Core guide](docs/css-syntax-core.md),
-[measured compatibility scope](docs/css-syntax-compatibility.md) and
-[independent-review / browser-differential gates](docs/css-syntax-quality-gates.md).
-The current controlled CSS subset also supports real block `width`, four-sided
-`padding`, solid borders, `background-color`, and **paginated box fragments**:
-continued backgrounds/side edges are sliced across pages, while only the first
-and final fragments paint the top and bottom borders. See the
-[M8 Box Fragmentation guide](docs/box-fragmentation.md) for precise grammar,
-geometry, limits and independent PDF/Chrome evidence. Explicit baseline JPEG and
-static PNG images, including PNG transparency, use the
-[image resource guide](docs/images.md). Try the
-[branded business report](examples/branded-business-report.html) for a logo beside
-company details, using the guide's reproducible command. Explicit fixed-column
-tables support column spans, ordered paragraph/image cells, repeated headers and
-long descriptions that continue across pages. Rows that fit a fresh page remain
-whole; see the [table guide](docs/tables.md),
-[detailed service report](examples/business-table-rich-cells.html) and
-[long service report](examples/business-table-long-description.html). Row spanning,
-nested tables, flex/grid,
-external stylesheets, at-rules and additional selector classes remain unsupported.
-Full Unicode shaping/RTL, automatic CSS font-family matching and automatic font discovery are not implemented.
-Unsupported input fails explicitly rather than silently changing the output.
-See [exact values, budgets and diagnostics](docs/css-stylesheets.md).
+## Use the .NET API
 
-## Verification and integration goals
+For a source-based evaluation, create a console app beside the checkout and
+reference the library project. Run these commands from the `FactsPDF` directory:
 
-CI tests Windows, Linux and macOS, and builds/runs actual Linux x64 and
-[Windows x64 Native AOT CLIs](docs/development.md#native-aot-and-verification).
-The Windows job directly executes an isolated `.exe` and checks two-page ASCII
-output, exact unsupported-input diagnostics, target preservation and recovery.
-Independent inspectors also check ASCII/Unicode output, real-font subsetting,
-and stylesheet-versus-handwritten-inline equivalence. The latter requires equal
-PDF bytes, text and rendered page pixels for the bilingual fixture. NuGet packing
-includes local metadata inspection and an [isolated first-use check](docs/development.md#first-use-from-local-artifacts): an external consumer restores, builds and runs the freshly packed package from an explicit local feed. Nothing is published to a registry.
+```sh
+dotnet new console --framework net10.0 --output ../FactsPdfDemo
+dotnet add ../FactsPdfDemo/FactsPdfDemo.csproj reference src/FactsPDF/FactsPDF.csproj
+```
 
-See the [CSS execution record](docs/css-development-ledger.md) and previous
-[first-renderer](docs/development-ledger.md), [Unicode](docs/unicode-development-ledger.md)
-and [subsetting](docs/subsetting-ledger.md) ledgers. A configured workflow is not
-proof for an untested commit, and fixture equivalence is not full conformance.
+Replace `../FactsPdfDemo/Program.cs` with:
 
-Public integration is not tied to the implementation language. Current entry
-points are the library API and CLI. The roadmap includes .NET/NuGet distribution,
-JavaScript/TypeScript/npm, Rust, Go, Python and WebAssembly sharing one rendering
-core. The [Node/CLI subprocess probe](docs/node-cli-probe.md) and
-[browser WASM probe](docs/browser-wasm-probe.md) have executable acceptance
-evidence using that core. They are experimental integration probes, not published
-SDKs. Rust/Go/Python bindings and additional AOT platforms remain planned.
-No stable API or published package is claimed.
+```csharp
+using FactsPDF;
 
-## Licensing: Community and Commercial
+using var pdf = new MemoryStream();
+var result = PdfConverter.Convert(
+    "<h1>Service report</h1><p>Prepared for Example Client.</p>",
+    pdf,
+    new PdfOptions
+    {
+        HeaderText = "Service report",
+        FooterText = "Internal",
+        PageNumbers = true
+    });
 
-**Commercial licenses are available by arrangement.** FactsPDF provides a free
-Community License for qualifying uses and a separately agreed Commercial License
-for other uses or negotiated licensing requirements.
+File.WriteAllBytes("report.pdf", pdf.ToArray());
+Console.WriteLine($"Created {result.PageCount} page(s), {result.BytesWritten} bytes.");
+```
 
-**Source-available; not MIT and not an OSI-approved open-source license.**
+```sh
+dotnet run --project ../FactsPdfDemo -c Release
+```
 
-The [FactsPDF Community License 1.1](LICENSE.md) permits free use for:
+This writes `report.pdf` in the current directory after conversion succeeds.
+The API also accepts page geometry, font/image resources, resource limits and a
+cancellation token. See the [API guide](docs/development.md#library-api) and the
+[local-package consumer recipe](docs/development.md#first-use-from-local-artifacts)
+for integration without a source-project reference.
 
-- Individuals and entities with Group annual gross revenue **at most
-  USD 1,000,000**, including proprietary commercial use.
-- Qualifying charitable organizations, for their charitable operations.
-- Qualifying open-source projects, within those projects' scope.
+## What works today
 
-The complete license defines consolidation, measurement periods, the 90-day
-transition after loss of eligibility, notices, and downstream execution rights.
-Receiving an ordinary generated PDF does not itself require an engine license.
-FactsML's separate MIT license does not apply to FactsPDF.
+| Area | Implemented capability | Details |
+| --- | --- | --- |
+| Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
+| Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors, cascade and inheritance | [CSS support](docs/css-stylesheets.md) |
+| Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
+| Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
+| Headers, footers and page numbers | Repeated single-line literal text, centered in the margins; current decimal page number | [Current page-text contract](docs/page-margins.md) |
+| Integration | .NET library and CLI; Linux/Windows x64 Native AOT execution checks | [Build and platform verification](docs/development.md#native-aot-and-verification) |
 
-### Changes to FactsPDF must be shared
+### Headers and footers: current limits
 
-**When you distribute or put a modified FactsPDF engine into operational use,
-you must publicly release the engine changes and corresponding build materials
-under the same FactsPDF Community License 1.1.** This includes internal use and
-SaaS, not only selling or distributing a modified library. Pure controlled
-development and testing can remain private until a publication trigger occurs.
+`HeaderText` and `FooterText` repeat on every page as centered, normal black
+10pt text. `PageNumbers = true` appends ` | N` to a nonempty footer, or shows
+the number alone. Text is literal: `{page}`, `{pages}` and HTML are not expanded.
+It must fit on one line in the existing margins; overflow is an error.
 
-An independent proprietary application that merely calls FactsPDF does not
-have to be published because of this rule. Customer data, credentials, HTML/CSS
-templates, and generated PDFs are not covered merely through use of the engine.
-The open-source-project exemption has its own application-source requirements.
+**Total-page labels, left/center/right regions, configurable styles and different
+first-page content are the next planned increment, not current API features.**
+They are tracked in the [commercial-preview work](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
-A public fork or a complete patch set against an available exact upstream
-version is sufficient; an upstream PR is optional. Source must be available
-without payment, login, or an NDA, and retained for at least three years after
-last use or distribution of the modified version. See sections 4.1-4.5 of
-[LICENSE.md](LICENSE.md) for the controlling scope, triggers, and conditions.
+## Compatibility lookup
 
-### Commercial License
+The **Can I render it?** site provides searchable support records for HTML,
+CSS, text, PDF behavior and runtime integration. Filter by category or status,
+open a feature's precise scope and limitations, and follow its source/test
+evidence. It supports Chinese/English interface labels, shareable feature links
+and JSON/CSV export.
 
-A Commercial License is the licensing path for uses that do not qualify for the
-Community License, including proprietary use by larger organizations without
-another exemption. Eligible Community users may also enquire about a separately
-negotiated commercial arrangement.
+This is a **code-audit snapshot**, not a released-version comparison matrix.
+Each record carries its own audit commit; unknown introduction versions remain
+unknown. A supported subfeature does not make its whole parent standard supported.
 
-Commercial agreements can address proprietary applications, SaaS deployments,
-and OEM or embedded redistribution. Covered entities, deployment and downstream
-rights, versions, duration, pricing, and any support or service levels must be
-expressly agreed; none is automatically included or unlimited.
+- [Read the current support data](site/data/compatibility.json).
+- [Run, verify or deploy the site](docs/compatibility-site.md).
+- [Public deployment status](https://github.com/KoalaFacts/FactsPDF/issues/51):
+  GitHub Pages configuration is still pending; the hosted site is not live yet.
 
-**Paying for a Commercial License does not automatically permit private engine
-modifications.** The standard commercial agreement must expressly retain the
-modification-publication requirement. It licenses the agreed commercial use,
-not a right to hide changes to FactsPDF. These policy statements do not amend
-an existing separately agreed contract.
+To browse locally, use Node 24 and npm, starting from the repository root:
 
-**[Enquire about a Commercial License](COMMERCIAL.md#contact-and-safe-handling).**
-Commercial-licensing enquiries are welcome now. Issuing paid licenses and
-accepting orders remain subject to the authorization and review requirements in
-[COMMERCIAL.md](COMMERCIAL.md) and the
-[licensing release gates](docs/licensing-review.md).
+```sh
+cd site
+npm ci
+npm run dev
+```
 
-Read the [licensing guide and examples](LICENSING.md),
-[commercial licensing details](COMMERCIAL.md), and
-[contribution policy](CONTRIBUTING.md). No commercial contract or price is
-created by this README. Technical support, an SLA, updates, and private-fork
-rights are not implied by the words "Commercial License".
+Open the local URL printed by Vite, normally `http://127.0.0.1:5173/FactsPDF/`.
 
-The initial licensing text has not been reviewed by retained legal counsel.
-Maintainers must complete the [licensing release gates](docs/licensing-review.md)
-before software-package release or accepting a paid license order.
-[License history](docs/license-history.md) records earlier terms; version 1.1
-does not retroactively change version 1.0 grants.
-[Explicit font styles](docs/font-styles.md) support normal, bold, italic and bold-italic through independent caller-supplied font chains, including ordered character fallback. No system discovery or synthetic styling is performed.
+### Check your template against these boundaries
 
+- Tables need explicit column widths. Short tables and rows that fit a fresh
+  page stay whole; only eligible oversized body rows continue at whole text-line
+  or image boundaries. Headers and images remain indivisible. No automatic
+  column widths, `rowspan` or nested tables.
+- PNG support is bounded: no interlaced/16-bit PNG, APNG or SVG. Images are
+  explicit resources, not URLs or files automatically loaded from HTML.
+- Fonts are explicit static TrueType files. There is no system-font discovery,
+  CSS font-family matching, synthetic bold/italic, full complex-script shaping
+  or RTL layout.
+- General flex/grid, external stylesheets, CSS Paged Media and arbitrary webpage
+  conversion are outside the supported subset. Unsupported input produces
+  explicit diagnostics.
+
+## Fonts and images are explicit inputs
+
+For Chinese or other supported non-ASCII text, provide appropriately licensed
+font files. The paths below are placeholders for files you supply:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html bilingual.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
+```
+
+Repeated `--font` options define fallback order. Bold, italic and bold-italic
+content need their own `--font-bold`, `--font-italic` and `--font-bold-italic`
+chains. Fonts are not bundled; full embedding is the default. Subsetting is
+opt-in and respects the supplied font's embedding restrictions.
+
+An HTML image such as `<img src="logo">` names a resource. Bind it using
+`--image logo=path/to/logo.png`, or `PdfOptions.Images` in the API. To try the
+branded example with a generated synthetic logo, use Python 3 for the fixture
+generation step, then the same CLI:
+
+```sh
+python3 scripts/png_fixtures.py --output artifacts/readme-images
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/branded-business-report.html branded-report.pdf --image logo=artifacts/readme-images/brand-mark.png --header-text "Service report" --footer-text "Internal" --page-numbers
+```
+
+## Choose a report example
+
+| Example | What it demonstrates | Inputs beyond HTML |
+| --- | --- | --- |
+| [Quick start](examples/quick-start.html) | A one-page service report with a styled table | None; ASCII/Courier |
+| [Branded report](examples/branded-business-report.html) | Transparent logo beside company details and line items | The explicit `logo` binding above |
+| [Detailed service report](examples/business-table-rich-cells.html) | Column spans and ordered paragraphs/images inside cells | The same `logo` binding |
+| [Long service report](examples/business-table-long-description.html) | A long description continues across pages; short values occur once and totals follow | The same `logo` binding |
+| [Combined reports](docs/combined-report.md#run-a-report) | English/Chinese text, four font roles, lists, image, table and page text together | Four explicit font-role chains, JPEG binding and page options; complete command in the guide |
+
+The [evaluation guide](docs/evaluation.md) helps match a real customer template
+and deployment environment to the current scope.
+
+## Development and delivery status
+
+CI runs managed tests on Windows, Linux and macOS, and executes actual Linux x64
+and Windows x64 Native AOT CLIs. Independent PDF checks cover content, geometry,
+fonts, images, pagination and error recovery. Windows native verification currently
+includes the bounded first-document/recovery smoke; execution of the new
+continued-row fixture on Windows Native AOT is still pending.
+
+The [Node subprocess](docs/node-cli-probe.md) and
+[browser WASM](docs/browser-wasm-probe.md) integrations are experimental probes,
+not published SDKs. Performance results apply to their documented workloads and
+environments; there is no general speed or resource guarantee.
+
+Next delivery work is the formal header/footer increment, then a fixed private
+`0.1.0-preview.1` .NET/CLI evaluation candidate. That candidate has not been
+produced or published. Follow [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51)
+for current implementation and delivery evidence.
+
+| Task | Documentation |
+| --- | --- |
+| Build, test, package locally or inspect Native AOT output | [Development guide](docs/development.md) |
+| Check exact support and acceptance evidence | [Engineering support matrix](docs/acceptance/support-matrix.md) |
+| Inspect CSS parsing and differential verification | [CSS syntax](docs/css-syntax-core.md), [quality gates](docs/css-syntax-quality-gates.md) |
+| Contribute code or review licensing obligations | [Contribution policy](CONTRIBUTING.md), [licensing guide](LICENSING.md) |
+
+## Licensing
+
+FactsPDF is **source-available, not MIT or OSI-approved open source**. It offers
+Community and separately agreed Commercial licensing paths.
+
+- The [Community License 1.1](LICENSE.md) covers qualifying personal use,
+  entities with Group annual gross revenue at most **USD 1,000,000** (including
+  proprietary commercial use), and qualifying charitable/open-source-project
+  uses within their defined scope. The full license controls eligibility.
+- Uses outside Community eligibility need written evaluation or commercial
+  authorization **before building or running** the engine. Commercial licences
+  are [available by arrangement](COMMERCIAL.md#contact-and-safe-handling).
+- Covered engine changes and corresponding build materials must be published
+  under Community License 1.1 before distribution or operational use, including
+  internal use and SaaS, subject to the license's controlled-development/testing
+  exception. An independent application's code, customer data, templates and
+  generated PDFs do not become public merely by calling FactsPDF.
+- Paying for a Commercial License does not automatically permit private engine
+  modifications or include support, an SLA, updates or unlimited deployments.
+
+See [licensing examples](LICENSING.md), [commercial terms and enquiry process](COMMERCIAL.md)
+and [release requirements](docs/licensing-review.md). Enquiries are welcome.
+Maintainers must complete the repository's release and authorization checks
+before publishing software packages or accepting paid license orders.
+Request a private channel before sharing customer templates or confidential
+business details. Receiving an ordinary generated PDF does not itself require
+an engine license.
