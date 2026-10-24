@@ -51,6 +51,40 @@ try {
       return { pdfBase64: null, pageCount: 0, errorCode: error.code ?? 'B2_HOST_ERROR', errorMessage: String(error) };
     }
   };
+  // Private explicit-byte path: the CLR parses the same strict JSON bytes as
+  // the managed CLI. No fonts, images, or configuration URLs are fetched here.
+  probe.convertPackedPageFurniture = (html, fontData = {}, imageData = {}, furnitureJson, subsetFonts = true) =>
+    JSON.parse(adapter.ConvertPageFurniture(html,
+      fontData.fontBytes ?? new Uint8Array(), fontData.fontLengths ?? new Int32Array(),
+      fontData.fontRoles ?? new Int32Array(),
+      imageData.imageBytes ?? new Uint8Array(), imageData.imageLengths ?? new Int32Array(),
+      imageData.imageNames ?? [], furnitureJson, subsetFonts));
+  probe.convertPageFurniture = (html, fontData = {}, images = [], furnitureJson, subsetFonts = true) => {
+    try {
+      if (!(furnitureJson instanceof Uint8Array))
+        throw Object.assign(new Error('PageFurniture requires explicit Uint8Array UTF-8 configuration bytes.'),
+          { code: 'B2_INPUT_FURNITURE' });
+      let imageData;
+      try {
+        imageData = packImageResources(images);
+      } catch (imageError) {
+        // The managed adapter parses strict JSON before checking resources.
+        // Recover that exact priority when JS image packing rejects early;
+        // never run a PDF conversion or loosen strict JSON in JavaScript.
+        const configurationError = adapter.ValidatePageFurnitureJson(furnitureJson);
+        if (configurationError)
+          return { pdfBase64: null, pageCount: 0, errorCode: 'B2_INPUT_FURNITURE',
+            errorMessage: configurationError };
+        throw imageError;
+      }
+      const convertStart = performance.now();
+      const result = probe.convertPackedPageFurniture(html, fontData,
+        imageData, furnitureJson, subsetFonts);
+      return { ...result, convertMs: performance.now() - convertStart };
+    } catch (error) {
+      return { pdfBase64: null, pageCount: 0, errorCode: error.code ?? 'B2_HOST_ERROR', errorMessage: String(error) };
+    }
+  };
   probe.ready = true;
   document.getElementById('status').textContent = 'Runtime ready. Use the probe runner to generate and independently verify PDFs.';
 } catch (error) {

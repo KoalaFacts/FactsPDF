@@ -95,3 +95,62 @@ pages remain pending user review. This data refresh neither reran the engine nor
 changed the original acceptance denominator, performance budgets or release
 approvals. Current site validation results belong to the actual update's
 command/CI logs.
+
+## 25 October 2026: PNG and rich table capabilities
+
+Snapshot `audit-2026-10-25.png-rich-tables` audits merged main
+`a085085ef161d51a241046839e59a1fd2dab7eea`. The audit date uses
+Australia/Sydney (25 October; 24 October in UTC). Its SHA-256 is
+`c4f428650a45752561c0fc3ed58b61660ccd7e10c2da0d40c6c73f0720967800`.
+All 418 IDs and their order, category totals, parent relationships and
+introduction-history fields are unchanged. Exactly 44 rows change; the other
+374 rows retain their complete previous records, including source commits and
+audit dates. The `engine_baseline` field remains the original inventory
+baseline, not the current audited engine commit.
+
+| Updated rows | Count | Recorded scope |
+| --- | ---: | --- |
+| `html.img`, `attr.13`, `pdf.images` | 3 | Bounded static PNG and transparency alongside JPEG; explicit resource bindings and direct cell images |
+| `html.p/table/tbody/td/th/thead/tr`, `attr.15`, `pdf.tables` | 9 | Colspan, flat paragraph/image cell content and oversized body-row continuation; headers and images remain atomic |
+| Existing width, padding, background and border properties | 27 | Cell paragraphs reject box declarations; cell percentage padding uses the sum of tracks covered by colspan |
+| `css.break-before`, `css.break-after` | 2 | Cell paragraphs reject break declarations, including overridden declarations |
+| `html.header`, `html.footer`, `pdf.headers` | 3 | Existing page-margin text options are separate from unsupported HTML tags and future structured furniture |
+
+Only `attr.15` changes status, from `none` to `partial`: colspan is implemented
+on td/th, while rowspan remains unsupported. Counts are **44 full, 115 partial,
+251 none, 6 unknown and 2 not applicable**. The accepted tag/property counts
+remain 34 and 37. The images' D1 introduction records still describe their
+original JPEG implementation; this update does not invent a new historical
+milestone or release for PNG or table features.
+
+The current scope is defined by [explicit image resources](images.md) and
+[fixed-column tables](tables.md). PNG support excludes 16-bit samples, Adam7,
+APNG and ICC/HDR color transformations; SVG remains unsupported. Short tables
+move intact, and body rows that fit on a fresh page stay whole. Only oversized
+body rows continue through complete text lines and direct image items, with
+independent cell progress so short values appear once. Repeated headers and
+each image with its own decoration remain indivisible. The inability to place
+required atomic content still fails explicitly.
+
+`pdf.headers` remains partial for `PageNumbers`, `HeaderText` and `FooterText`:
+literal single-line text, fixed normal black 10pt styling and existing centered
+margin placement. Total pages, six regions, first-page replacements and custom
+styles are outside this main snapshot. HTML `<header>` and `<footer>` remain
+unsupported. Unmerged implementation work is not release evidence or current
+support.
+
+This refresh statically inspects the merged source, documentation and existing
+renderer tests. It does not rerun renderer acceptance, approve new reference
+pages, publish a package, or extend untested platform claims. The three narrow
+data guards exercise lookup results for colspan versus rowspan, bounded PNG
+support, and page-margin options versus HTML tags. Existing site tests and
+the exact-byte SHA guard remain in place. The `viewer_validation` metadata is
+explicitly historical; current command/CI logs establish site verification,
+and a successful build does not establish a successful Pages deployment.
+
+The configured project path is `/FactsPDF/`, corresponding to
+<https://koalafacts.github.io/FactsPDF/> once Pages is enabled and deployed.
+This data refresh does not change the publishing workflow or repository Pages
+settings. Until a successful production deployment is verified, use the
+repository [source dataset](../site/data/compatibility.json) and the feature
+documentation as the available compatibility reference.

@@ -7,8 +7,43 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, '5722a6a3eeafb6833cd1ddfe733d7b7cae9df9cf');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:114, none:252, unknown:6, na:2 });
+  assert.equal(dataset.commit, 'a085085ef161d51a241046839e59a1fd2dab7eea');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:115, none:251, unknown:6, na:2 });
+});
+test('colspan lookup includes the implemented subset without promoting rowspan', () => {
+  const span=filterFeatures(dataset.features,{q:'colspan',status:'partial'}).find(f=>f.id==='attr.15');
+  assert(span, 'supported-subset search must find the colspan / rowspan record');
+  assert.match(span.scope,/colspan/);
+  assert.match(span.limitations,/rowspan[^；。]*不支持/);
+  assert.equal(filterFeatures(dataset.features,{q:'colspan',status:'full'}).length,0);
+});
+test('PNG lookup exposes bounded transparency support and unsupported encodings', () => {
+  const matches=filterFeatures(dataset.features,{q:'PNG',status:'partial'});
+  for(const id of ['html.img','pdf.images']){
+    const feature=matches.find(f=>f.id===id);
+    assert(feature, `${id} must be discoverable as partial PNG support`);
+    assert.match(feature.scope,/PNG/);
+  }
+  const images=matches.find(f=>f.id==='pdf.images');
+  assert.match(images.scope,/tRNS/);
+  assert.match(images.scope,/alpha/);
+  for(const unsupported of [/16.?bit/,/Adam7/,/APNG/,/SVG/]){
+    assert.match(images.limitations,unsupported);
+  }
+});
+test('page-margin options remain distinct from unsupported header/footer tags and templates', () => {
+  const margins=filterFeatures(dataset.features,{q:'HeaderText',status:'partial'}).find(f=>f.id==='pdf.headers');
+  assert(margins);
+  assert.match(margins.scope,/FooterText/);
+  assert.match(margins.scope,/PageNumbers/);
+  for(const unsupported of [/总页数/,/六区域/,/第一页/]){
+    assert.match(margins.limitations,unsupported);
+  }
+  for(const id of ['html.header','html.footer']){
+    const tag=dataset.features.find(f=>f.id===id);
+    assert.equal(tag.status,'none');
+    assert.match(tag.limitations,/HeaderText\/FooterText/);
+  }
 });
 test('missing evidence, unknown status, duplicate IDs, bad parents and categories are rejected', () => {
   const mutators = [d=>d.features[0].status='planned', d=>d.features[1].id=d.features[0].id,

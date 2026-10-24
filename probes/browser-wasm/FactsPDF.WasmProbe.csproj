@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/FactsPDF/FactsPDF.csproj" />
+    <Compile Include="../../shared/PageFurnitureJson.cs" Link="Configuration/PageFurnitureJson.cs" />
   </ItemGroup>
   <Target Name="RequireProbeBuildMode" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(RunAOTCompilation)' == 'true' Or '$(WasmEnableThreads)' == 'true'"

@@ -5,5 +5,8 @@
     <IsAotCompatible>true</IsAotCompatible>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../FactsPDF/FactsPDF.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FactsPDF/FactsPDF.csproj" />
+    <Compile Include="../../shared/PageFurnitureJson.cs" Link="Configuration/PageFurnitureJson.cs" />
+  </ItemGroup>
 </Project>

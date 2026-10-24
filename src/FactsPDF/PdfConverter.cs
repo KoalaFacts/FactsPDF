@@ -12,11 +12,13 @@ public static class PdfConverter
         options ??= new PdfOptions();
         cancellationToken.ThrowIfCancellationRequested();
         Validate(options);
+        PageFurnitureLayout.Validate(options);
         options = FontRoles.Snapshot(options);
         options = ImageResources.Snapshot(options, cancellationToken);
         if ((options.HeaderText?.Length ?? 0) > 1024 || (options.FooterText?.Length ?? 0) > 1024)
             throw new FactsPdfException("FPDF1001", "Each header/footer field is limited to 1024 UTF-16 units.");
-        if ((long)html.Length + (options.HeaderText?.Length ?? 0) + (options.FooterText?.Length ?? 0) > options.MaxInputCharacters)
+        var furnitureCharacters = PageFurnitureLayout.ValidateInput(options);
+        if ((long)html.Length + (options.HeaderText?.Length ?? 0) + (options.FooterText?.Length ?? 0) + furnitureCharacters > options.MaxInputCharacters)
             throw new FactsPdfException("FPDF1001", "HTML and page text exceed MaxInputCharacters.");
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
@@ -30,7 +32,10 @@ public static class PdfConverter
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
         }
-        if (options.PageNumbers || options.HeaderText is not null || options.FooterText is not null) PageMarginLayout.Append(pages, options, displayCommands, cancellationToken);
+        if (options.PageFurniture is not null)
+            PageFurnitureLayout.Append(pages, options, displayCommands, cancellationToken);
+        else if (options.PageNumbers || options.HeaderText is not null || options.FooterText is not null)
+            PageMarginLayout.Append(pages, options, displayCommands, cancellationToken);
         using var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);

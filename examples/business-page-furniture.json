@@ -1,0 +1,11 @@
+{
+  "default": {
+    "headerLeft": { "template": "Business report", "fontSize": 9 },
+    "headerRight": { "template": "Internal evaluation", "fontSize": 9, "color": "#606060" },
+    "footerLeft": { "template": "Prepared offline", "fontSize": 9, "color": "#606060" },
+    "footerRight": { "template": "Page {page} of {pages}", "fontSize": 9 }
+  },
+  "firstPage": {
+    "footerRight": { "template": "Page {page} of {pages}", "fontSize": 9 }
+  }
+}
