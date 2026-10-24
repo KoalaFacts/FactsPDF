@@ -53,20 +53,9 @@ internal static class BlockLayout
                     break;
                 case ImageNode image:
                 {
-                    var style = image.BoxStyle;
-                    double Resolve(CssLength length) => Checked(length.Resolve(frame.ContentWidth), image.SourceOffset);
-                    var left = Resolve(style.PaddingLeft) + style.BorderLeft.EffectiveWidth;
-                    var right = Resolve(style.PaddingRight) + style.BorderRight.EffectiveWidth;
-                    var top = Resolve(style.PaddingTop) + style.BorderTop.EffectiveWidth;
-                    var bottom = Resolve(style.PaddingBottom) + style.BorderBottom.EffectiveWidth;
-                    var width = style.Width is { } specified ? Resolve(specified) : image.Image.PixelWidth * 0.75;
-                    var height = Checked(width * image.Image.PixelHeight / image.Image.PixelWidth, image.SourceOffset);
-                    var outerWidth = Checked(width + left + right, image.SourceOffset);
-                    var outerHeight = Checked(height + top + bottom, image.SourceOffset);
-                    if (width <= 0 || outerWidth > frame.ContentWidth + 0.000001)
-                        throw new FactsPdfException("FPDF1302", "Image outer width exceeds containing content width or is zero.", image.SourceOffset);
-                    yield return new LayoutImage(image, frame.X, frame.X + left, top,
-                        width, height, outerWidth, outerHeight);
+                    var geometry = ImageLayout.Resolve(image, frame.ContentWidth);
+                    yield return new LayoutImage(image, frame.X, frame.X + geometry.Left, geometry.Top,
+                        geometry.Width, geometry.Height, geometry.OuterWidth, geometry.OuterHeight);
                     break;
                 }
                 case ParagraphNode paragraph:

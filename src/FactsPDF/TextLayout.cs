@@ -277,7 +277,7 @@ internal static class TextLayout
                 // A validated but invisible table does not occupy page space.
                 // Leave deferred breaks and ancestor decoration for the next
                 // visible content, just as an empty undecorated block does.
-                if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0)
+                if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0 && measured.Images.Count == 0)
                     continue;
                 if (breakNext)
                 {
@@ -336,6 +336,14 @@ internal static class TextLayout
                                 pages[^1].PaintBoxes.Add(box with { X = table.X + box.X,
                                     Top = rowTop + box.Top - row.Top, Order = paintOrder++ });
                             }
+                            for (var j = row.ImageStart; j < row.ImageStart + row.ImageCount; j++)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                if (repeat) ChargeDisplayCommands(1, row.SourceOffset);
+                                var cellImage = measured.Images[j];
+                                pages[^1].Images.Add(cellImage with { X = table.X + cellImage.X,
+                                    Top = rowTop + cellImage.Top - row.Top });
+                            }
                             rowTop += row.Height;
                         }
                         if (header is not null) PlaceRow(header, !first);
@@ -373,6 +381,11 @@ internal static class TextLayout
                 {
                     cancellation.ThrowIfCancellationRequested();
                     pages[^1].PaintBoxes.Add(box with { X = table.X + box.X, Top = y + box.Top, Order = paintOrder++ });
+                }
+                foreach (var cellImage in measured.Images)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    pages[^1].Images.Add(cellImage with { X = table.X + cellImage.X, Top = y + cellImage.Top });
                 }
                 y += measured.Height;
                 pendingTopPadding = pendingClosedPadding = after = 0;

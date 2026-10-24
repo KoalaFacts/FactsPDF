@@ -85,11 +85,13 @@ The current controlled CSS subset also supports real block `width`, four-sided
 continued backgrounds/side edges are sliced across pages, while only the first
 and final fragments paint the top and bottom borders. See the
 [M8 Box Fragmentation guide](docs/box-fragmentation.md) for precise grammar,
-geometry, limits and independent PDF/Chrome evidence. Explicit standalone baseline
-JPEG and static PNG images, including PNG transparency, are described in the
-[image resource guide](docs/images.md). Try the [PNG brand report](examples/png-brand-report.html)
-with the guide's reproducible input command. Explicit fixed-column,
-tables with whole-row pagination and repeated headers are described in the [table guide](docs/tables.md). Cell spanning, flex/grid,
+geometry, limits and independent PDF/Chrome evidence. Explicit baseline JPEG and
+static PNG images, including PNG transparency, use the
+[image resource guide](docs/images.md). Try the
+[branded business report](examples/branded-business-report.html) for a logo beside
+company details, using the guide's reproducible command. Explicit fixed-column
+tables support whole-row pagination, repeated headers and image-only cells; see
+the [table guide](docs/tables.md). Cell spanning, mixed image/text cells, flex/grid,
 external stylesheets, at-rules and additional selector classes remain unsupported.
 Full Unicode shaping/RTL, automatic CSS font-family matching and automatic font discovery are not implemented.
 Unsupported input fails explicitly rather than silently changing the output.

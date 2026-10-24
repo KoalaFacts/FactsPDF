@@ -13,4 +13,7 @@ internal sealed record TableRow(bool IsHeader, int SourceOffset)
 {
     internal List<TableCell> Cells { get; } = [];
 }
-internal sealed record TableCell(Paragraph Paragraph, BoxStyle BoxStyle, int SourceOffset);
+internal sealed record TableCell(Paragraph Paragraph, BoxStyle BoxStyle, int SourceOffset)
+{
+    internal ImageNode? Image { get; set; }
+}

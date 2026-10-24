@@ -16,7 +16,7 @@ The existing combined report examples exercise these capabilities together:
   font chains and ordered character fallback.
 - Headings, paragraphs, nested blocks, backgrounds, solid borders and lists
   nested up to two levels.
-- Explicitly supplied baseline JPEG images.
+- Explicitly supplied baseline JPEG and static PNG images, including PNG transparency.
 - Fixed-column tables with whole-row pagination and repeated headers.
 - Heading/first-paragraph keeps, page numbers and static single-line page text.
 
@@ -27,6 +27,7 @@ evaluation. Existing templates may need changes to fit the supported subset.
 | Example | Purpose | Resources |
 | --- | --- | --- |
 | [First document](../examples/first-document.html) | Run the shortest end-to-end conversion | ASCII/Courier; no external font files |
+| [Branded business report](../examples/branded-business-report.html) | Transparent logo beside company details, line items and page furniture | Generated synthetic PNG and explicit image binding; no external fonts |
 | [30-record combined report](../examples/combined-report-30.html) | Review typography, lists, image, table and page furniture together | Four explicit font roles, JPEG binding and page options |
 | [100-record combined report](../examples/combined-report-100.html) | Review repeated table headers and longer pagination | The same resources as the 30-record report |
 
@@ -81,7 +82,7 @@ Missing resources produce explicit diagnostics.
 | Area | Supported evaluation scope | Current boundary |
 | --- | --- | --- |
 | Tables | Explicit fixed columns, whole rows across pages, repeated single-row header | No automatic widths, row/column spans or splitting one cell across pages |
-| Images | Explicitly bound standalone baseline JPEG and supported static PNG, including alpha/tRNS transparency | No SVG, APNG, interlaced/16-bit PNG, inline/cell images or automatic URL loading |
+| Images | Explicitly bound baseline JPEG and supported static PNG, including alpha/tRNS; standalone or a single direct image per cell | No SVG, APNG, interlaced/16-bit PNG, inline/list images, mixed image/text cells or automatic URL loading |
 | Fonts | Explicit static TrueType roles and character fallback | No automatic family discovery, synthetic styles, full shaping or RTL |
 | Page furniture | Single-line literal header/footer, decimal page counter | No HTML header templates, total-page counters or general CSS Paged Media |
 | Layout | Documented block/text subset | General flex/grid and arbitrary webpage conversion are outside the current scope |

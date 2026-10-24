@@ -6,6 +6,7 @@ internal sealed class TableMarkup(TableNode node)
     private enum Phase { NeedColumns, Columns, AfterColumns, Header, AfterHeader, Body, Complete }
     private Phase phase;
     private int headerRows, bodyRows;
+    private bool hasInlineContent;
     private TableRow? row;
     internal TableNode Node { get; } = node;
     internal TableCell? Cell { get; private set; }
@@ -15,7 +16,9 @@ internal sealed class TableMarkup(TableNode node)
     internal void CheckChild(string parent, string name, int offset)
     {
         var valid = Cell is not null
-            ? name is "span" or "b" or "strong" or "i" or "em" or "br"
+            ? name == "img"
+                ? (parent is "td" or "th") && !hasInlineContent && Cell.Image is null
+                : Cell.Image is null && (name is "span" or "b" or "strong" or "i" or "em" or "br")
             : parent switch
             {
                 "table" => name == "colgroup" && phase == Phase.NeedColumns
@@ -29,6 +32,15 @@ internal sealed class TableMarkup(TableNode node)
                 _ => false
             };
         if (!valid) throw Invalid("Unsupported table structure, placement or cell content.", offset);
+        if (Cell is not null && name != "img") hasInlineContent = true;
+    }
+
+    internal void CheckText(string text, int offset)
+    {
+        if (Cell is null || text.All(HtmlTokens.Space)) return;
+        if (Cell.Image is not null)
+            throw Invalid("Image cells cannot contain text or inline content.", offset);
+        hasInlineContent = true;
     }
 
     internal void Start(string name, TextStyle style, BoxStyle box, int offset)
@@ -45,6 +57,7 @@ internal sealed class TableMarkup(TableNode node)
                 Node.Rows.Add(row);
                 break;
             case "td": case "th":
+                hasInlineContent = false;
                 Cell = new(new Paragraph(style, offset), box, offset);
                 row!.Cells.Add(Cell);
                 break;
