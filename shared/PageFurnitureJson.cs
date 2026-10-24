@@ -110,7 +110,7 @@ internal static class PageFurnitureJson
                 case "color":
                     Require(ref reader, JsonTokenType.String, field);
                     var color = String(ref reader, field, cancellation);
-                    if (color.Length != 7 || color[0] != '#' ||
+                    if (!IsRgbHex(color) ||
                         !uint.TryParse(color.AsSpan(1), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb))
                         throw Invalid(field, "must be exactly #RRGGBB");
                     result = result with { Color = new((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb) };
@@ -119,6 +119,16 @@ internal static class PageFurnitureJson
                 case "italic": result = result with { Italic = Boolean(ref reader, field) }; break;
             }
         }
+    }
+
+    private static bool IsRgbHex(string value)
+    {
+        if (value.Length != 7 || value[0] != '#') return false;
+        // Numeric parsing accepts trailing NULs; validate every character first.
+        for (var i = 1; i < value.Length; i++)
+            if (value[i] is not (>= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F'))
+                return false;
+        return true;
     }
 
     private static bool Boolean(ref Utf8JsonReader reader, string location) => reader.TokenType switch

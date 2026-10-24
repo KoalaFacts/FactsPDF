@@ -12,11 +12,12 @@ public static class PdfConverter
         options ??= new PdfOptions();
         cancellationToken.ThrowIfCancellationRequested();
         Validate(options);
-        var furnitureCharacters = PageFurnitureLayout.Validate(options);
+        PageFurnitureLayout.Validate(options);
         options = FontRoles.Snapshot(options);
         options = ImageResources.Snapshot(options, cancellationToken);
         if ((options.HeaderText?.Length ?? 0) > 1024 || (options.FooterText?.Length ?? 0) > 1024)
             throw new FactsPdfException("FPDF1001", "Each header/footer field is limited to 1024 UTF-16 units.");
+        var furnitureCharacters = PageFurnitureLayout.ValidateInput(options);
         if ((long)html.Length + (options.HeaderText?.Length ?? 0) + (options.FooterText?.Length ?? 0) + furnitureCharacters > options.MaxInputCharacters)
             throw new FactsPdfException("FPDF1001", "HTML and page text exceed MaxInputCharacters.");
 

@@ -24,15 +24,15 @@ internal static class PageFurnitureLayout
         yield return ("FooterRight", regions.FooterRight);
     }
 
-    internal static long Validate(PdfOptions options)
+    // Complete shape/numeric validation before resource snapshots and raw limits.
+    internal static void Validate(PdfOptions options)
     {
         var furniture = options.PageFurniture;
-        if (furniture is null) return 0;
+        if (furniture is null) return;
         if (options.PageNumbers || options.HeaderText is not null || options.FooterText is not null)
             throw new ArgumentException("PageFurniture cannot be combined with legacy page numbers, HeaderText or FooterText.");
         if (furniture.Default is null) throw new ArgumentException("PageFurniture.Default must not be null.");
 
-        long length = 0;
         foreach (var (group, regions) in new[] {
             ("Default", furniture.Default), ("FirstPage", furniture.FirstPage) })
         {
@@ -44,6 +44,23 @@ internal static class PageFurnitureLayout
                     throw new ArgumentException($"PageFurniture.{group}.{name}.Template must not be null.");
                 if (!double.IsFinite(field.FontSize) || field.FontSize is < 1 or > 144)
                     throw new ArgumentOutOfRangeException(nameof(options), $"PageFurniture.{group}.{name}.FontSize must be 1–144.");
+            }
+        }
+    }
+
+    // Called after both explicit-resource snapshots, including unused definitions.
+    internal static long ValidateInput(PdfOptions options)
+    {
+        var furniture = options.PageFurniture;
+        if (furniture is null) return 0;
+        long length = 0;
+        foreach (var (group, regions) in new[] {
+            ("Default", furniture.Default), ("FirstPage", furniture.FirstPage) })
+        {
+            if (regions is null) continue;
+            foreach (var (name, field) in Fields(regions))
+            {
+                if (field is null) continue;
                 if (field.Template.Length > 1024)
                     throw new FactsPdfException("FPDF1001", $"PageFurniture.{group}.{name} exceeds 1024 UTF-16 units.");
                 length += field.Template.Length;
@@ -82,6 +99,7 @@ internal static class PageFurnitureLayout
             void AppendBand((string Name, PdfPageText? Text)[] fields, bool topMargin)
             {
                 var staged = new List<PlacedRegion>(3);
+                long stagedCommands = 0;
                 foreach (var (name, field) in fields)
                 {
                     cancellation.ThrowIfCancellationRequested();
@@ -89,8 +107,10 @@ internal static class PageFurnitureLayout
                     var text = Expand(field.Template, index + 1, pages.Count,
                         (index == 0 && furniture.FirstPage is not null ? "FirstPage." : "Default.") + name, cancellation);
                     if (text.Length == 0) continue;
-                    // Refuse insufficient display budget before resolving fonts.
-                    if (displayCommands + staged.Count + 1 > options.MaxDisplayCommands)
+                    // A staged region may contain several font-fallback runs.
+                    // Reserve their actual count before resolving the next region,
+                    // without charging or appending before full band geometry.
+                    if (displayCommands + stagedCommands + 1 > options.MaxDisplayCommands)
                         throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
                     var alignment = name.EndsWith("Left", StringComparison.Ordinal) ? TextAlignment.Left
                         : name.EndsWith("Right", StringComparison.Ordinal) ? TextAlignment.Right : TextAlignment.Center;
@@ -140,6 +160,7 @@ internal static class PageFurnitureLayout
                     if (left < Clearance - Epsilon || right > options.PageWidth - Clearance + Epsilon)
                         throw Geometry(index, name, "extends beyond the page-edge clearance");
                     staged.Add(new(name, line, x, left, right, ascent, descent));
+                    stagedCommands += CountCommands(line, cancellation);
                 }
                 if (staged.Count == 0) return;
                 // Fields are ordered left/centre/right; allow width to use all
@@ -188,6 +209,20 @@ internal static class PageFurnitureLayout
                 }
             }
         }
+    }
+
+    private static int CountCommands(Line line, CancellationToken cancellation)
+    {
+        var count = 0;
+        for (var index = 0; index < line.Glyphs.Count; index++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            // Match AppendLine: style value equality and font object identity.
+            if (index == 0 || line.Glyphs[index].Style != line.Glyphs[index - 1].Style
+                || !ReferenceEquals(line.Glyphs[index].Font, line.Glyphs[index - 1].Font))
+                count++;
+        }
+        return count;
     }
 
     private static string Expand(string template, int page, int total, string field, CancellationToken cancellation)
