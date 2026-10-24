@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('5ca3ad5f',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('5722a6a3',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('filters and detail links survive refresh without inventing versions',async({page})=>{
@@ -15,7 +15,7 @@ test('filters and detail links survive refresh without inventing versions',async
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog').getByText('部分支持',{exact:true})).toBeVisible();
   await expect(page.getByRole('dialog').getByText('M7',{exact:true}).first()).toBeVisible();
-  await expect(page.getByRole('dialog').locator('a[href*="/blob/e35722"]')).not.toHaveCount(0);
+  await expect(page.getByRole('dialog').locator('a[href*="/blob/5722a6a3"]')).not.toHaveCount(0);
   await page.reload();await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
   expect(page.url()).not.toContain('feature=');

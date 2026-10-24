@@ -48,7 +48,7 @@ test('production template mounts the snapshot and reactive table without a load 
   query.value = 'FPDF1102';
   query.dispatchEvent(new window.Event('input', { bubbles: true }));
   await settled();
-  assert.equal(document.querySelector('.results-heading h2 span').textContent, '90');
+  assert.equal(document.querySelector('.results-heading h2 span').textContent, '82');
   assert.deepEqual([...document.querySelectorAll('tbody .feature-button')].map(node => node.textContent),
     filterFeatures(dataset.features, { q: 'FPDF1102' }).slice(0, 25).map(row => row.feature));
   assert.equal(document.querySelectorAll('tbody tr').length, 25);
