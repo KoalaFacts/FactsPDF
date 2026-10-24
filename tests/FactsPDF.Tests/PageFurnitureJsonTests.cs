@@ -30,7 +30,8 @@ public sealed class PageFurnitureJsonTests
         using var output = new MemoryStream(); PdfConverter.Convert(html, output, options); return output.ToArray();
     }
 
-    [TestCase(false)][TestCase(true)]
+    [TestCase(false)]
+    [TestCase(true)]
     public void CliConfigurationMatchesIndependentlyConstructedApi(bool subset)
     {
         const string json = """{"default":{"headerLeft":{"template":"HL {page}","fontSize":9,"color":"#1234aB"},"headerCenter":{"template":"HC {pages}"},"headerRight":{"template":"{{key}}"},"footerLeft":{"template":"FL"},"footerCenter":{"template":"Page {page} of {pages}"},"footerRight":{"template":"FR"}},"firstPage":{"headerLeft":{"template":"Cover"},"footerRight":{"template":"{page}/{pages}"}}}""";
@@ -39,8 +40,10 @@ public sealed class PageFurnitureJsonTests
             Default = new()
             {
                 HeaderLeft = new() { Template = "HL {page}", FontSize = 9, Color = new(0x12, 0x34, 0xab) },
-                HeaderCenter = new() { Template = "HC {pages}" }, HeaderRight = new() { Template = "{{key}}" },
-                FooterLeft = new() { Template = "FL" }, FooterCenter = new() { Template = "Page {page} of {pages}" },
+                HeaderCenter = new() { Template = "HC {pages}" },
+                HeaderRight = new() { Template = "{{key}}" },
+                FooterLeft = new() { Template = "FL" },
+                FooterCenter = new() { Template = "Page {page} of {pages}" },
                 FooterRight = new() { Template = "FR" }
             },
             FirstPage = new() { HeaderLeft = new() { Template = "Cover" }, FooterRight = new() { Template = "{page}/{pages}" } }
@@ -53,7 +56,8 @@ public sealed class PageFurnitureJsonTests
         Assert.That(result.Error, Does.Contain("2 page(s)"));
     }
 
-    [TestCase(false)][TestCase(true)]
+    [TestCase(false)]
+    [TestCase(true)]
     public void CliExplicitFurnitureStylesMatchTypedApi(bool subset)
     {
         var bytes = FontFixture.Create(); var fontPath = PathFor("font.ttf"); File.WriteAllBytes(fontPath, bytes);
@@ -67,17 +71,25 @@ public sealed class PageFurnitureJsonTests
         PdfFont[] Chain() => [PdfFont.LoadTrueType(bytes)];
         Assert.That(result.Pdf, Is.EqualTo(Expected(new()
         {
-            Fonts = Chain(), BoldFonts = Chain(), ItalicFonts = Chain(), BoldItalicFonts = Chain(), SubsetFonts = subset,
-            PageFurniture = new() { Default = new()
+            Fonts = Chain(),
+            BoldFonts = Chain(),
+            ItalicFonts = Chain(),
+            BoldItalicFonts = Chain(),
+            SubsetFonts = subset,
+            PageFurniture = new()
             {
-                HeaderLeft = new() { Template = "A", Bold = true, FontSize = 9, Color = new(255, 0, 0) },
-                HeaderCenter = new() { Template = "A", Italic = true, Color = new(0, 255, 0) },
-                HeaderRight = new() { Template = "A", Bold = true, Italic = true, Color = new(0, 0, 255) }
-            } }
+                Default = new()
+                {
+                    HeaderLeft = new() { Template = "A", Bold = true, FontSize = 9, Color = new(255, 0, 0) },
+                    HeaderCenter = new() { Template = "A", Italic = true, Color = new(0, 255, 0) },
+                    HeaderRight = new() { Template = "A", Bold = true, Italic = true, Color = new(0, 0, 255) }
+                }
+            }
         }, html)));
     }
 
-    [TestCase("{}")][TestCase("{\"default\":{}}")]
+    [TestCase("{}")]
+    [TestCase("{\"default\":{}}")]
     [TestCase("{\"default\":{},\"firstPage\":null}")]
     [TestCase("{\"default\":{\"headerLeft\":null,\"footerRight\":{}}}")]
     public void OmittedAndEmptyConfigurationPreservesDefaultBytes(string json)
@@ -87,20 +99,28 @@ public sealed class PageFurnitureJsonTests
         Assert.That(result.Pdf, Is.EqualTo(Expected(new())));
     }
 
-    [TestCase("null", false)][TestCase("{}", true)]
+    [TestCase("null", false)]
+    [TestCase("{}", true)]
     public void FirstPageNullInheritsButEmptyObjectSuppresses(string firstPage, bool suppress)
     {
         var result = Run(["-", "-", "--page-furniture", Config("{\"default\":{\"headerLeft\":{\"template\":\"Page {page}\"}},\"firstPage\":" + firstPage + "}")]);
         Assert.That(result.Exit, Is.Zero, result.Error);
-        Assert.That(result.Pdf, Is.EqualTo(Expected(new() { PageFurniture = new()
+        Assert.That(result.Pdf, Is.EqualTo(Expected(new()
         {
-            Default = new() { HeaderLeft = new() { Template = "Page {page}" } },
-            FirstPage = suppress ? new PdfPageFurnitureRegions() : null
-        } })));
+            PageFurniture = new()
+            {
+                Default = new() { HeaderLeft = new() { Template = "Page {page}" } },
+                FirstPage = suppress ? new PdfPageFurnitureRegions() : null
+            }
+        })));
     }
 
-    [TestCase("null")][TestCase("[]")][TestCase("1")][TestCase("")]
-    [TestCase("{\"default\":null}")][TestCase("{\"Default\":{}}")]
+    [TestCase("null")]
+    [TestCase("[]")]
+    [TestCase("1")]
+    [TestCase("")]
+    [TestCase("{\"default\":null}")]
+    [TestCase("{\"Default\":{}}")]
     [TestCase("{\"default\":{},\"default\":{}}")]
     [TestCase("{\"default\":{},\"\\u0064efault\":{}}")]
     [TestCase("{\"firstPage\":{},\"firstPage\":null}")]
@@ -120,7 +140,9 @@ public sealed class PageFurnitureJsonTests
     [TestCase("{\"default\":{\"headerLeft\":{\"color\":\"#11223344\"}}}")]
     [TestCase("{\"default\":{\"headerLeft\":{\"color\":\"#gg1122\"}}}")]
     [TestCase("{\"default\":{\"headerLeft\":{\"color\":null}}}")]
-    [TestCase("{/*comment*/}")][TestCase("{\"default\":{},}")][TestCase("{} {}")]
+    [TestCase("{/*comment*/}")]
+    [TestCase("{\"default\":{},}")]
+    [TestCase("{} {}")]
     [TestCase("{\"default\":{\"headerLeft\":{\"template\":\"\\uD800\"}}}")]
     [TestCase("{\"default\":{\"headerLeft\":{\"template\":\"\\uDC00\"}}}")]
     [TestCase("{\"default\":{\"headerLeft\":{\"template\":\"\\uD800\\u0041\"}}}")]
@@ -183,7 +205,8 @@ public sealed class PageFurnitureJsonTests
         }
     }
 
-    [TestCase("{nope}", "FPDF1306")][TestCase("line\\nnext", "FPDF1305")]
+    [TestCase("{nope}", "FPDF1306")]
+    [TestCase("line\\nnext", "FPDF1305")]
     public void CliLateFurnitureFailurePreservesExistingFileAndRecovers(string template, string code)
     {
         var path = Config("{\"default\":{\"headerLeft\":{\"template\":\"" + template + "\"}}}");

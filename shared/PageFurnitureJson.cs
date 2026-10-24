@@ -23,7 +23,9 @@ internal static class PageFurnitureJson
             if (utf8.StartsWith(new byte[] { 0xef, 0xbb, 0xbf })) utf8 = utf8[3..];
             var reader = new Utf8JsonReader(utf8, new JsonReaderOptions
             {
-                MaxDepth = 8, AllowTrailingCommas = false, CommentHandling = JsonCommentHandling.Disallow
+                MaxDepth = 8,
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow
             });
             Read(ref reader, cancellation);
             Require(ref reader, JsonTokenType.StartObject, "$");
@@ -63,8 +65,13 @@ internal static class PageFurnitureJson
             var name = Name(ref reader, location, cancellation);
             var bit = name switch
             {
-                "headerLeft" => 1, "headerCenter" => 2, "headerRight" => 4,
-                "footerLeft" => 8, "footerCenter" => 16, "footerRight" => 32, _ => 0
+                "headerLeft" => 1,
+                "headerCenter" => 2,
+                "headerRight" => 4,
+                "footerLeft" => 8,
+                "footerCenter" => 16,
+                "footerRight" => 32,
+                _ => 0
             };
             Mark(ref seen, bit, location, name);
             Read(ref reader, cancellation);
@@ -133,7 +140,8 @@ internal static class PageFurnitureJson
 
     private static bool Boolean(ref Utf8JsonReader reader, string location) => reader.TokenType switch
     {
-        JsonTokenType.True => true, JsonTokenType.False => false,
+        JsonTokenType.True => true,
+        JsonTokenType.False => false,
         _ => throw Invalid(location, "must be a boolean")
     };
 

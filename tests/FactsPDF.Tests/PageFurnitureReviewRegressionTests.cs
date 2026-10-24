@@ -42,8 +42,10 @@ public sealed class PageFurnitureReviewRegressionTests
         return firstPage ? new() { FirstPage = band } : new() { Default = band };
     }
 
-    [TestCase(false, false)][TestCase(true, false)]
-    [TestCase(false, true)][TestCase(true, true)]
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(true, true)]
     public void StagedActualFallbackRunsExhaustBudgetBeforeNextRegionFontResolution(bool footer, bool firstPage)
     {
         var options = Options() with
@@ -56,7 +58,8 @@ public sealed class PageFurnitureReviewRegressionTests
         Fails(options with { MaxDisplayCommands = 4 }, "FPDF1507");
     }
 
-    [TestCase(false)][TestCase(true)]
+    [TestCase(false)]
+    [TestCase(true)]
     public void ExactFallbackAndFollowingRegionBudgetKeepsPdfBytes(bool footer)
     {
         var options = Options() with { PageFurniture = WithBand(footer, false, null) };
@@ -75,14 +78,16 @@ public sealed class PageFurnitureReviewRegressionTests
     {
         var options = Options() with
         {
-            Margin = 10, MaxDisplayCommands = 2,
+            Margin = 10,
+            MaxDisplayCommands = 2,
             PageFurniture = WithBand(false, false, null)
         };
         // All three runs are known, but the 10pt margin cannot hold the band.
         Fails(options, "FPDF1302");
     }
 
-    [TestCase(false)][TestCase(true)]
+    [TestCase(false)]
+    [TestCase(true)]
     public void LaterNumericDefinitionPrecedesEarlierRawLength(bool inFirstPage)
     {
         var earlier = new PdfPageText { Template = new string('A', 1025) };
@@ -97,7 +102,8 @@ public sealed class PageFurnitureReviewRegressionTests
         Assert.That(output.Position, Is.EqualTo(3));
     }
 
-    [TestCase(false)][TestCase(true)]
+    [TestCase(false)]
+    [TestCase(true)]
     public void LaterNullDefinitionPrecedesEarlierRawLength(bool inFirstPage)
     {
         var earlier = new PdfPageText { Template = new string('A', 1025) };

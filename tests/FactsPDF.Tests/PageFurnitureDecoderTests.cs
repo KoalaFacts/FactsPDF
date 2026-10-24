@@ -26,7 +26,8 @@ public sealed class PageFurnitureDecoderTests
         var result = Parse("{\"\\u0064efault\":{\"headerLeft\":{},\"headerRight\":null},\"firstPage\":{}}");
         Assert.That(result, Is.EqualTo(new PdfPageFurniture
         {
-            Default = new() { HeaderLeft = new() }, FirstPage = new()
+            Default = new() { HeaderLeft = new() },
+            FirstPage = new()
         }));
     }
 
@@ -55,7 +56,9 @@ public sealed class PageFurnitureDecoderTests
         Assert.That(Assert.Throws<ArgumentException>(() => PageFurnitureJson.Parse(new byte[] { 0xff }))!.Message, Does.Contain("UTF-8"));
     }
 
-    [TestCase(1)][TestCase(13)][TestCase(4096)]
+    [TestCase(1)]
+    [TestCase(13)]
+    [TestCase(4096)]
     public void BoundedReaderHandlesShortReadsWithoutSeekingOrClosing(int chunk)
     {
         using var input = new GuardedStream(Encoding.UTF8.GetBytes("{}" + new string(' ', 65_534)), chunk);

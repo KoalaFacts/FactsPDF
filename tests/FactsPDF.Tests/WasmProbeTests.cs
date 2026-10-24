@@ -126,12 +126,19 @@ public class WasmProbeTests
             """;
         var parsedBytes = Encoding.UTF8.GetBytes(json);
         var actual = Furniture(html, parsedBytes);
-        var supplied = new PdfPageFurniture { Default = new()
+        var supplied = new PdfPageFurniture
         {
-            HeaderLeft = new() { Template = "Invoice" },
-            FooterRight = new() { Template = "Page {page} of {pages}",
-                FontSize = 11, Color = new PdfRgbColor(0x12, 0x34, 0x56) }
-        } };
+            Default = new()
+            {
+                HeaderLeft = new() { Template = "Invoice" },
+                FooterRight = new()
+                {
+                    Template = "Page {page} of {pages}",
+                    FontSize = 11,
+                    Color = new PdfRgbColor(0x12, 0x34, 0x56)
+                }
+            }
+        };
         using var expected = new MemoryStream();
         var typedResult = PdfConverter.Convert(html, expected,
             new PdfOptions { PageFurniture = supplied, SubsetFonts = true });

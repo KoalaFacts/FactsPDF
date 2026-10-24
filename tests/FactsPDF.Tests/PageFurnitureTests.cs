@@ -75,13 +75,18 @@ public sealed class PageFurnitureTests
     [Test]
     public void FirstPageReplacementDoesNotRestartNumbers()
     {
-        var opts = Page with { PageFurniture = new()
+        var opts = Page with
         {
-            Default = new() {
-                HeaderLeft = Text("Regular"),
-                FooterRight = Text("{page}/{pages}") },
-            FirstPage = new() { HeaderCenter = Text("Cover") }
-        } };
+            PageFurniture = new()
+            {
+                Default = new()
+                {
+                    HeaderLeft = Text("Regular"),
+                    FooterRight = Text("{page}/{pages}")
+                },
+                FirstPage = new() { HeaderCenter = Text("Cover") }
+            }
+        };
         var pages = Layout(Explicit(3), opts);
         Assert.That(pages[0].Runs.Last().Text, Is.EqualTo("Cover"));
         Assert.That(pages[0].Runs.All(r => !r.Text.Contains("1/3", StringComparison.Ordinal)), Is.True);
@@ -93,12 +98,22 @@ public sealed class PageFurnitureTests
     [Test]
     public void SixRegionsHaveSharedBaselineAndExplicitStyle()
     {
-        var opts = Page with { PageWidth = 400, PageFurniture = new() { Default = new()
+        var opts = Page with
         {
-            HeaderLeft = new() { Template = "L", FontSize = 8, Color = new PdfRgbColor(12, 34, 56) },
-            HeaderCenter = Text("C", 10), HeaderRight = Text("R", 12),
-            FooterLeft = Text("l", 8), FooterCenter = Text("c", 10), FooterRight = Text("r", 12)
-        } } };
+            PageWidth = 400,
+            PageFurniture = new()
+            {
+                Default = new()
+                {
+                    HeaderLeft = new() { Template = "L", FontSize = 8, Color = new PdfRgbColor(12, 34, 56) },
+                    HeaderCenter = Text("C", 10),
+                    HeaderRight = Text("R", 12),
+                    FooterLeft = Text("l", 8),
+                    FooterCenter = Text("c", 10),
+                    FooterRight = Text("r", 12)
+                }
+            }
+        };
         var pages = Layout("", opts);
         var text = pages.Single().Runs;
         Assert.That(text.Select(r => r.Text), Is.EqualTo(new[] { "L", "C", "R", "l", "c", "r" }));
@@ -114,20 +129,36 @@ public sealed class PageFurnitureTests
     {
         Fails("", Page with { PageFurniture = Furniture(Text(new string('A', 1025))) }, "FPDF1001");
         Fails("A", Page with { PageFurniture = Furniture(Text("A")), MaxInputCharacters = 1 }, "FPDF1001");
-        Fails("", Page with { PageFurniture = new() { Default = new(),
-            FirstPage = new() { FooterCenter = Text("{not-page}") } } }, "FPDF1306");
-        Assert.DoesNotThrow(() => Pdf("", Page with { PageFurniture = new()
+        Fails("", Page with
         {
-            Default = new() { HeaderLeft = Text("中") }, FirstPage = new()
-        } }));
-        Assert.Throws<ArgumentException>(() => Pdf("", Page with { PageFurniture = new()
+            PageFurniture = new()
+            {
+                Default = new(),
+                FirstPage = new() { FooterCenter = Text("{not-page}") }
+            }
+        }, "FPDF1306");
+        Assert.DoesNotThrow(() => Pdf("", Page with
         {
-            Default = new() { HeaderLeft = new PdfPageText { Template = null! } }
-        } }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Pdf("", Page with { PageFurniture = new()
+            PageFurniture = new()
+            {
+                Default = new() { HeaderLeft = Text("中") },
+                FirstPage = new()
+            }
+        }));
+        Assert.Throws<ArgumentException>(() => Pdf("", Page with
         {
-            Default = new() { HeaderLeft = Text("A", double.NaN) }
-        } }));
+            PageFurniture = new()
+            {
+                Default = new() { HeaderLeft = new PdfPageText { Template = null! } }
+            }
+        }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Pdf("", Page with
+        {
+            PageFurniture = new()
+            {
+                Default = new() { HeaderLeft = Text("A", double.NaN) }
+            }
+        }));
     }
 
     [TestCase("{{page}}", "{page}")]
@@ -159,11 +190,17 @@ public sealed class PageFurnitureTests
     [Test]
     public void HorizontalCollisionAndTooShallowMarginAreRejected()
     {
-        var both = Page with { PageFurniture = new() { Default = new()
+        var both = Page with
         {
-            HeaderLeft = Text(new string('A', 18)),
-            HeaderCenter = Text(new string('B', 18))
-        } } };
+            PageFurniture = new()
+            {
+                Default = new()
+                {
+                    HeaderLeft = Text(new string('A', 18)),
+                    HeaderCenter = Text(new string('B', 18))
+                }
+            }
+        };
         Fails("", both, "FPDF1302");
         Fails("", Page with { Margin = 10, PageFurniture = Furniture(Text("A", 12)) }, "FPDF1302");
     }
@@ -171,10 +208,18 @@ public sealed class PageFurnitureTests
     [Test]
     public void BudgetAndCancellationPreserveCallerStream()
     {
-        Fails("", Page with { MaxDisplayCommands = 1, PageFurniture = new() { Default = new()
+        Fails("", Page with
         {
-            HeaderLeft = Text("A"), FooterLeft = Text("B")
-        } } }, "FPDF1401");
+            MaxDisplayCommands = 1,
+            PageFurniture = new()
+            {
+                Default = new()
+                {
+                    HeaderLeft = Text("A"),
+                    FooterLeft = Text("B")
+                }
+            }
+        }, "FPDF1401");
         using var stream = new MemoryStream();
         stream.Write("sentinel"u8);
         Assert.Throws<OperationCanceledException>(() => PdfConverter.Convert("", stream,
