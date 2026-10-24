@@ -16,9 +16,12 @@ The existing combined report examples exercise these capabilities together:
   font chains and ordered character fallback.
 - Headings, paragraphs, nested blocks, backgrounds, solid borders and lists
   nested up to two levels.
-- Explicitly supplied baseline JPEG and static PNG images, including PNG transparency.
+- Explicitly supplied baseline JPEG images.
 - Fixed-column tables with whole-row pagination and repeated headers.
 - Heading/first-paragraph keeps, page numbers and static single-line page text.
+
+The newer [branded business report](../examples/branded-business-report.html)
+adds a transparent PNG logo beside company details using image-only table cells.
 
 [Read the combined-report guide](combined-report.md) for the exact input and
 acceptance contract. A template that fits these constraints is a useful first
