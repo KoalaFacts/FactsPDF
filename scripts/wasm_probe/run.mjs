@@ -278,7 +278,7 @@ try {
   const multiCliPdf = await readFile(multiCliPath);
   assert.deepEqual(multiPdf, multiCliPdf, 'Three-page WASM/CLI furniture bytes differ');
   const multiInfo = (await direct('pdfinfo', [multiWasmPath], { timeout: 15000 })).stdout;
-  assert.match(multiInfo, /^Pages:\\s+3\\s*$/m);
+  assert.match(multiInfo, /^Pages:\s+3\s*$/m);
   const pageContracts = [
     { present: ['COVER', 'Page 1 of 3', 'BODY-001'],
       absent: ['Report 1', 'Q4', 'Internal', '1/3', 'BODY-002', 'BODY-003', '{page}'] },
@@ -290,7 +290,7 @@ try {
   for (const [index, contract] of pageContracts.entries()) {
     const extracted = (await direct('pdftotext',
       ['-f', String(index + 1), '-l', String(index + 1), '-raw', multiWasmPath, '-'],
-      { timeout: 15000 })).stdout.replace(/\\s+/gu, ' ');
+      { timeout: 15000 })).stdout.replace(/\s+/gu, ' ');
     for (const marker of contract.present)
       assert.ok(extracted.includes(marker),
         `Missing independently authored page ${index + 1} text: ${marker}`);
