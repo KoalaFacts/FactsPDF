@@ -1,6 +1,6 @@
 # Fixed-column tables (E1 / E2)
 
-The existing converter, CLI, Native AOT and browser WASM adapter share this table path. Supply explicit columns; the renderer does not infer or shrink them. Tables that fit an empty usable page remain indivisible, preserving E1 placement. Taller tables paginate at whole-row boundaries and repeat the optional header on each fragment.
+The existing converter, CLI, Native AOT and browser WASM adapter share this table path. Supply explicit columns; the renderer does not infer or shrink them. Tables that fit an empty usable page remain indivisible, preserving E1 placement. In taller tables, rows that fit a fresh page remain whole; oversized body rows continue at complete text-line and image boundaries. Each table fragment repeats the optional header.
 
 ```html
 <style>
@@ -40,11 +40,11 @@ Cells wrap with the same font metrics and word/CJK break rules as paragraphs. Th
 
 A short table (its complete height including decorations fits an empty usable page) moves intact to the next page if it cannot fit the remaining space. Required leading ancestor decoration must still fit with it, as in E1.
 
-Only a table taller than the usable page height enters E2 pagination. It uses remaining page space when the header and at least one body row fit; otherwise both move to the next page. Each continuation repeats the single optional `thead` row with identical columns, text, styles and complete cell borders. Body rows stay in source order exactly once. A wrapped row moves as a whole; cells never split. Without `thead`, only body rows are placed.
+Only a table taller than the usable page height enters multi-page pagination. It uses remaining page space when the header and body content fit; otherwise both move to the next page. Each continuation repeats the single optional `thead` row with identical columns, text, styles and complete header-cell borders. Body content stays in source order exactly once. Rows that fit a fresh fragment with the header and required decoration move as a whole; only otherwise unplaceable body rows split as described below. Without `thead`, only body content is placed.
 
-The table's own background and side borders continue across page fragments; top padding/border occurs only on the first fragment and bottom padding/border only on the last, matching existing sliced block decoration. A continuing fragment extends its background/side borders to the usable page bottom. Cell borders remain complete on every row. Ancestor decoration and following content use the existing block pagination rules.
+The table's own background and side borders continue across page fragments; top padding/border occurs only on the first fragment and bottom padding/border only on the last, matching existing sliced block decoration. A continuing table fragment extends its background/side borders to the usable page bottom. Whole rows retain complete cell borders; continued rows use sliced cell borders. Ancestor decoration and following content use the existing block pagination rules.
 
-A row, repeated header plus row, or required first/last decoration that cannot fit an empty page fails `FPDF1302` before destination output. This does not add general keep-together, page furniture or cell splitting.
+A header, atomic line/image or required leading/terminal decoration that cannot fit its fresh fragment fails `FPDF1302` before destination output. A complete short table still stays indivisible even when ancestor leading padding makes it impossible to place. General keep-together and page furniture are separate features.
 
 ## Image-only cells and branded layouts
 
@@ -139,10 +139,9 @@ retain their existing box and pagination behavior.
 
 The spanned content width controls wrapping and image percentages. Paragraph
 alignment positions its text; the cell alignment positions image outer boxes.
-The tallest complete cell flow determines row height. Rich and spanned headers
-repeat intact. Rows still move as a whole; a description too tall for an empty
-page with its header/decorations fails `FPDF1302`. This increment does not split
-long descriptions across pages.
+The tallest complete cell flow determines the measured row height. Rich and
+spanned headers repeat intact. Rows that fit a fresh fragment remain whole;
+oversized body descriptions use the continuation rules below.
 
 The [detailed service report](../examples/business-table-rich-cells.html) combines
 a spanning section heading, paragraph/image/caption detail, a two-column total
@@ -150,6 +149,56 @@ and a full-width note. Generate its `logo` with `scripts/png_fixtures.py` and bi
 `brand-mark.png` through the existing `--image` option. Independent acceptance
 uses `scripts/verify_table_rich_cells.py` for actual text/image geometry, spanning
 border pixels, paragraph margins, repeated headers, failures and mutations.
+
+## Long descriptions across pages
+
+Automatic continuation applies only inside a table taller than the usable page.
+A body row qualifies when it cannot fit a fresh page together with its repeated
+header and required first or final decoration. A row may qualify even if its own
+height is less than the page height. A row that fits fresh moves intact from a
+short page tail. Headers and complete short tables never split.
+
+Each cell advances independently through complete wrapped text lines and whole
+image items. Item numbers, quantities and amounts in shorter cells appear once;
+those cells are blank on later fragments. Text before and after an image keeps
+its order. An image can wait for the next page while an adjacent text cell
+continues, but its pixels, padding and borders stay together. The optional header
+repeats above every occupied table fragment. After a continued row finishes,
+following rows and totals can use the remaining space on that page.
+
+Cell widths, spans, horizontal padding and alignment remain unchanged. The first
+fragment includes the cell's top edge; the final fragment includes its bottom
+edge. Backgrounds and side borders cover each shared occupied fragment height,
+including cells whose content has finished. No horizontal border is added at an
+internal page cut. Continued cell boxes stop at their occupied extent; the
+enclosing table background and side borders continue to the usable page bottom.
+Any intervening gap therefore shows the table background.
+
+An original initial paragraph margin stays with that cell's first occupied item,
+even if another cell starts on an earlier page. Before any neighboring cell
+advances, the original cell top edge, initial margin and first unit must fit the
+fresh first fragment. Later inter-item paragraph gaps are trimmed when their
+following item starts that cell's content on a continuation fragment; gaps within
+the same fragment retain the normal maximum-margin rule. Explicit `br` lines
+retain their positive height, including lines with no visible glyphs. Empty
+paragraphs, margins and padding do not create separate continuation pages.
+
+Final paragraph margins and cell bottom edges are accounted when the logical row
+finishes. The row height uses the largest final cell extent. Final table padding
+and borders stay with real body content: the layout can reserve a last line or
+image for the next fragment, rather than emitting a decoration-only final page.
+An atomic unit and its unavoidable final edges that cannot fit fresh fail
+`FPDF1302`. Already emitted pages are not reflowed.
+
+The [long service report](../examples/business-table-long-description.html)
+contains a long numbered description, an image and caption, a following service
+item and totals. Bind the same generated `brand-mark.png` as `logo`. Independent
+verification in `scripts/verify_table_row_fragments.py` checks source tokens,
+exact page positions, cell/table color gaps, terminal borders, image identity,
+budgets and failure recovery through actual entry points. Deliberately defective
+PDFs must fail the corresponding content or geometry assertions.
+
+## Supported styles
 
 | Element | Supported CSS |
 | --- | --- |
@@ -163,14 +212,21 @@ Existing selectors and global attributes apply. Matched inapplicable declaration
 
 ## Limits and diagnostics
 
-All existing input, element, depth, CSS, font, page, display-command and output-byte limits apply. Structural table tags count as elements. Measurement charges each retained text or cell paint command before storing it; placement additionally charges each repeated header and actual table decoration fragment; cancellation is checked during parsing, wrapping, measuring and placement. These are bounded-work controls, not a process-memory ceiling.
+All existing input, element, depth, CSS, font, page, display-command and output-byte limits apply. Structural table tags count as elements. Copied text/image commands are charged before retention; actual cell/table paint and repeated headers are also charged. Split candidates retain bounded geometry descriptors, and only emitted cell slices count as paint commands. Cancellation is checked during parsing, wrapping, measuring, fitting and placement. These are bounded-work controls, not a process-memory ceiling.
+
+Rows known to stay whole keep their existing early command checks. A trailing
+group whose status depends on final table decoration can defer its cell paint
+charge until that status is known. For these groups, the first reported failure
+can differ when both a later content error and a paint-budget error are present.
+Successful output has the same exact command budget, and failures still preserve
+the caller's destination.
 
 | Code | Table-specific cause |
 | --- | --- |
 | `FPDF1101` | Invalid structure/placement, incorrect column coverage or more than 16 columns |
 | `FPDF1103` | Invalid/misplaced `colspan`, unsupported attributes including `rowspan` |
 | `FPDF1201` | Unsupported CSS or tag-specific applicability |
-| `FPDF1302` | Missing/invalid resolved widths, cell content too narrow, table too wide, or an indivisible row/header/required-decoration combination too tall |
+| `FPDF1302` | Missing/invalid resolved widths, cell content too narrow, table too wide, or an unplaceable short table/header/atomic unit/required-decoration combination |
 | `FPDF1303` | Table movement or continuation would exceed MaxPages |
 | `FPDF1401` | Display-command or serialized output budget exceeded |
 | `FPDF1507` | A required bold/italic/bold-italic font chain is missing |

@@ -7,7 +7,7 @@ internal sealed record MeasuredTable(double Width, double Height,
     List<MeasuredTableRow> Rows, double Top, double Bottom);
 
 internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader, int SourceOffset,
-    int RunStart, int RunCount, int BoxStart, int BoxCount, int ImageStart, int ImageCount);
+    int RunStart, int RunCount, int BoxStart, int BoxCount, int ImageStart, int ImageCount, List<MeasuredTableCell> Cells, bool CanSplit = false, bool IsFirstBodyGroup = false);
 
 /// <summary>Measure the table once, retaining only charged output commands.</summary>
 internal static class TableLayout
@@ -16,7 +16,7 @@ internal static class TableLayout
 
     internal static MeasuredTable Measure(LayoutTable item, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
-        CancellationToken cancellation, Action<int, int> charge, Action<int, int> ensure)
+        CancellationToken cancellation, Action<int, int> charge, Action<int, int> ensure, TableFreshSpace? freshSpace = null)
     {
         var table = item.Node;
         var style = table.BoxStyle;
@@ -54,12 +54,31 @@ internal static class TableLayout
         var boxes = new List<PaintedBox>();
         var images = new List<PlacedImage>();
         var rows = new List<MeasuredTableRow>();
+        var rowBoxes = new List<List<PaintedBox>>();
+        var rowImageBoxes = new List<List<PaintedBox>>();
+        var ambiguous = new List<int>();
+        var firstBodyGroup = true;
+        var headerHeight = 0d;
         var top = edges.Top;
         var usableHeight = options.PageHeight - 2 * options.Margin;
+        var fresh = freshSpace ?? new(usableHeight, 0);
+        bool measuringHeader = false;
         void CheckHeight(double height, int offset)
         {
-            if (!double.IsFinite(height) || height > usableHeight + 0.000001)
+            if (!double.IsFinite(height) || (measuringHeader && height > usableHeight + 0.000001))
                 throw Geometry("A table row exceeds the usable page height.", offset);
+        }
+        void RetainCellBoxes(int index)
+        {
+            var measuredRow = rows[index];
+            foreach (var cell in measuredRow.Cells)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var box = new PaintedBox(cell.X, measuredRow.Top, cell.Width, measuredRow.Height,
+                    cell.BoxStyle, cell.TextColor, 0);
+                charge(box.CommandCount, cell.SourceOffset);
+                if (box.CommandCount > 0) rowBoxes[index].Add(box);
+            }
         }
         // First and last decoration may belong to different pages.
         CheckHeight(edges.Top, table.SourceOffset);
@@ -67,8 +86,9 @@ internal static class TableLayout
         foreach (var row in table.Rows)
         {
             cancellation.ThrowIfCancellationRequested();
+            measuringHeader = row.IsHeader;
+            var cells = new List<MeasuredTableCell>();
             var runStart = runs.Count;
-            var boxStart = boxes.Count;
             var imageStart = images.Count;
             var imageBoxes = new List<PaintedBox>();
             var rowHeight = 0d;
@@ -87,6 +107,7 @@ internal static class TableLayout
                 var contentWidth = cellWidth - cellEdges.Left - cellEdges.Right;
                 if (contentWidth <= 0)
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
+                var units = new List<MeasuredCellUnit>();
                 var height = cellEdges.Top;
                 var pending = 0d;
                 CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
@@ -97,7 +118,8 @@ internal static class TableLayout
                     {
                         var image = imageContent.Image;
                         var geometry = ImageLayout.Resolve(image, contentWidth);
-                        height += pending;
+                        var gap = pending;
+                        height += gap;
                         pending = 0;
                         CheckHeight(height + geometry.OuterHeight + cellEdges.Bottom, image.SourceOffset);
                         var imageX = x + cellEdges.Left + (cell.Style.Alignment switch
@@ -109,10 +131,15 @@ internal static class TableLayout
                         charge(1, image.SourceOffset);
                         images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
                             geometry.Width, geometry.Height));
+                        var imageIndex = images.Count - 1;
+                        var decorationStart = imageBoxes.Count;
                         var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
                             geometry.OuterHeight, image.BoxStyle, image.Style.Color, 0);
                         charge(imageBox.CommandCount, image.SourceOffset);
                         if (imageBox.CommandCount > 0) imageBoxes.Add(imageBox);
+                        units.Add(new(TableCellUnitKind.Image, image.SourceOffset, top + height,
+                            geometry.OuterHeight, gap, units.Count == 0, runs.Count, 0, imageIndex,
+                            decorationStart, imageBoxes.Count - decorationStart));
                         height += geometry.OuterHeight;
                         continue;
                     }
@@ -134,10 +161,15 @@ internal static class TableLayout
                     {
                         pending = Math.Max(pending, Math.Max(before, after));
                         CheckHeight(height + pending + cellEdges.Bottom, offset);
+                        if (units.Count == 0 && height + pending > usableHeight + .000001)
+                            throw Geometry("Initial cell spacing exceeds usable page height.", offset);
                         continue;
                     }
-                    height += Math.Max(pending, before);
+                    var paragraphGap = Math.Max(pending, before);
+                    height += paragraphGap;
                     pending = 0;
+                    if (units.Count == 0 && height > usableHeight + .000001)
+                        throw Geometry("Initial cell spacing exceeds usable page height.", offset);
                     CheckHeight(height + cellEdges.Bottom, offset);
                     // Fail before allocating the shared wrapper's glyph buffers.
                     if (hasText) ensure(1, offset);
@@ -153,8 +185,12 @@ internal static class TableLayout
                                 TextAlignment.Right => contentWidth - line.Width,
                                 _ => 0
                             });
+                            var lineStart = runs.Count;
                             AppendLine(line, alignedX, -top - height - line.Ascent,
                                 runs, charge, cancellation, offset);
+                            units.Add(new(TableCellUnitKind.TextLine, offset, top + height, line.Height,
+                                paragraphGap, units.Count == 0, lineStart, runs.Count - lineStart, -1, 0, 0));
+                            paragraphGap = 0;
                             height += line.Height;
                         }
                     }
@@ -165,38 +201,60 @@ internal static class TableLayout
                     pending = after;
                     CheckHeight(height + pending + cellEdges.Bottom, offset);
                 }
-                height += pending;
-                rowHeight = Math.Max(rowHeight, height + cellEdges.Bottom);
+                CheckHeight(height + pending + cellEdges.Bottom, cell.SourceOffset);
+                rowHeight = Math.Max(rowHeight, height + pending + cellEdges.Bottom);
+                cells.Add(new(x, cellWidth, x + cellEdges.Left, contentWidth, cellEdges.Top,
+                    cellEdges.Bottom, units.Count == 0 ? pending : units[0].LeadingGap, pending,
+                    cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units));
                 x += cellWidth;
+                if (!double.IsFinite(x)) throw Geometry("Cell coordinate must remain finite.", cell.SourceOffset);
             }
-            x = edges.Left;
-            track = 0;
-            foreach (var cell in row.Cells)
+            // Resolve a predecessor only after the next occupied row has been
+            // measured. Until then its terminal bottom may make it splittable.
+            if (!row.IsHeader && rowHeight > 0)
             {
-                cancellation.ThrowIfCancellationRequested();
-                var cellWidth = 0d;
-                for (var j = 0; j < cell.ColumnSpan; j++)
+                foreach (var index in ambiguous) RetainCellBoxes(index);
+                ambiguous.Clear();
+            }
+            var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
+            var capacity = fresh.UsableHeight - headerHeight
+                - (isFirstBodyGroup ? edges.Top + fresh.FirstLeading : 0);
+            var canSplit = !row.IsHeader && rowHeight > capacity + .000001;
+            var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
+            rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
+                runStart, runs.Count - runStart, 0, 0, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup));
+            rowBoxes.Add([]);
+            rowImageBoxes.Add(imageBoxes);
+            if (uncertain) ambiguous.Add(rows.Count - 1);
+            else if (!canSplit) RetainCellBoxes(rows.Count - 1);
+            if (row.IsHeader) headerHeight = rowHeight;
+            else if (rowHeight > 0) firstBodyGroup = false;
+            top += rowHeight;
+            CheckHeight(top, row.SourceOffset);
+        }
+        foreach (var index in ambiguous)
+            rows[index] = rows[index] with { CanSplit = true };
+        // Assign stable paint ranges once in source order, without insertion or
+        // shifting suffixes. Image decorations always follow all row cells.
+        for (var i = 0; i < rows.Count; i++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var start = boxes.Count;
+            boxes.AddRange(rowBoxes[i]);
+            var imageStart = boxes.Count;
+            boxes.AddRange(rowImageBoxes[i]);
+            foreach (var cell in rows[i].Cells)
+                for (var j = 0; j < cell.Units.Count; j++)
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    cellWidth += tracks[track++];
+                    var unit = cell.Units[j];
+                    if (unit.Kind == TableCellUnitKind.Image)
+                        cell.Units[j] = unit with { ImageBoxStart = imageStart + unit.ImageBoxStart };
                 }
-                var box = new PaintedBox(x, top, cellWidth, rowHeight, cell.BoxStyle, cell.Style.Color, 0);
-                charge(box.CommandCount, cell.SourceOffset);
-                if (box.CommandCount > 0) boxes.Add(box);
-                x += cellWidth;
-            }
-            // Every cell background precedes every image decoration in this row.
-            foreach (var box in imageBoxes)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                boxes.Add(box);
-            }
-            rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
-                runStart, runs.Count - runStart, boxStart, boxes.Count - boxStart,
-                imageStart, images.Count - imageStart));
-            top += rowHeight;
+            rows[i] = rows[i] with { BoxStart = start, BoxCount = boxes.Count - start };
         }
         var outerHeight = top + edges.Bottom;
+        CheckHeight(outerHeight, table.SourceOffset);
         var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0);
         // Preserve the E1 command order and bytes for every short table.
         // Long tables charge their actual sliced decorations during placement.

@@ -35,6 +35,13 @@ CSS width controls content width; percentages use the parent content width. Natu
 
 The complete image outer box moves to the next page if necessary. An image plus required leading ancestor decoration that cannot fit an empty page fails `FPDF1302`. Its own padding/borders never split; ancestor decorations retain existing slice behavior. Each image draw costs one display command, plus normal decoration commands.
 
+Within an oversized table row, a direct image item can wait for the next row
+fragment while adjacent cells continue. The image and its own decoration stay
+intact and appear once. The table header repeats; a body image too tall for a
+fresh fragment with the required header/edges fails `FPDF1302`. See
+[long descriptions](tables.md#long-descriptions-across-pages) for cell spacing
+and border behavior.
+
 ## Static PNG and transparency
 
 PNG uses the same `LoadImage` overloads, `Images` map and `--image name=path`

@@ -126,10 +126,11 @@ public sealed class TableRichTests
         Assert.That(paragraphs.Select(p => string.Concat(p.Runs.Select(r => r.Text))), Is.EqualTo(new[] { "A", "B", "C" }));
     }
     [Test]
-    public void OversizeRowsUnbreakableParagraphsAndNarrowSpansPreserveOutput()
+    public void FormerOversizeRichRowsContinueWhileUnbreakableParagraphsAndNarrowSpansFail()
     {
         var options = TableImageTests.Options() with { PageHeight = 100, Margin = 10 };
-        TableStructureTests.Fails(Rich("<p>A</p><img src='logo' style='width:80pt'><p>B</p>"), "FPDF1302", options);
+        Assert.That(TableLayoutTests.Layout(Rich("<p>A</p><img src='logo' style='width:80pt'><p>B</p>"), options), Has.Count.EqualTo(2));
+        TableStructureTests.Fails(Rich("<p>A</p><img src='logo' style='width:80pt;padding-top:50pt'><p>B</p>"), "FPDF1302", options);
         TableStructureTests.Fails(Rich("<p>UNBREAKABLEUNBREAKABLE</p>"), "FPDF1302");
         TableStructureTests.Fails(Rich("A", "padding:50pt"), "FPDF1302");
         Assert.That(TableLayoutTests.Pdf(Rich("<p>A</p>"), options), Is.Not.Empty);

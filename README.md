@@ -90,10 +90,12 @@ static PNG images, including PNG transparency, use the
 [image resource guide](docs/images.md). Try the
 [branded business report](examples/branded-business-report.html) for a logo beside
 company details, using the guide's reproducible command. Explicit fixed-column
-tables support column spans, ordered paragraph/image cells, whole-row pagination
-and repeated headers; see the [table guide](docs/tables.md) and
-[detailed service report](examples/business-table-rich-cells.html). Row spanning,
-row splitting, nested tables, flex/grid,
+tables support column spans, ordered paragraph/image cells, repeated headers and
+long descriptions that continue across pages. Rows that fit a fresh page remain
+whole; see the [table guide](docs/tables.md),
+[detailed service report](examples/business-table-rich-cells.html) and
+[long service report](examples/business-table-long-description.html). Row spanning,
+nested tables, flex/grid,
 external stylesheets, at-rules and additional selector classes remain unsupported.
 Full Unicode shaping/RTL, automatic CSS font-family matching and automatic font discovery are not implemented.
 Unsupported input fails explicitly rather than silently changing the output.

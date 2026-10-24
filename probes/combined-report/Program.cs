@@ -14,6 +14,8 @@ var options = new PdfOptions { Fonts = Load("normal"), BoldFonts = Load("bold"),
     FooterText = args[4] == "on" ? "Internal copy" : null };
 var html = File.ReadAllText(args[0]);
 var mode = args.Length == 6 ? args[5] : "positive";
+// tall-row input is authored by the oracle with one 80pt/line-height:10 atomic line.
+// An accumulated multiline body can now continue, so it is no longer a refusal.
 var code = mode switch { "missing-image" => "FPDF1604", "missing-bold" => "FPDF1507",
     "wide-row" or "tall-row" or "long-footer" => "FPDF1302", "oversize-footer" => "FPDF1001",
     "page-limit" => "FPDF1303", "output-limit" => "FPDF1401", "display-limit" => "FPDF1401", "positive" => null,

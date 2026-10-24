@@ -19,6 +19,7 @@ import { inspectImages } from './image_cases.mjs';
 import { inspectPngImages } from './png_cases.mjs';
 import { inspectTableImages } from './table_image_cases.mjs';
 import { inspectTableRichCells } from './table_rich_cases.mjs';
+import { inspectTableRowFragments } from './table_row_fragment_cases.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -257,6 +258,7 @@ try {
   if (styleManifest) report.pngImages = await inspectPngImages({ page, output, executable, dll });
   if (styleManifest) report.tableImages = await inspectTableImages({ page, output, executable, dll });
   if (styleManifest) report.tableRichCells = await inspectTableRichCells({ page, output, executable, dll });
+  if (styleManifest) report.tableRowFragments = await inspectTableRowFragments({ page, output, executable, dll });
   for (const [name, fontUrls, expected] of [
     ['bilingual', ['/probe-fonts/missing.ttf'], 'B2_RESOURCE_HTTP'],
     ['ascii', ['/probe-fonts/empty.ttf'], 'B2_RESOURCE_EMPTY'],

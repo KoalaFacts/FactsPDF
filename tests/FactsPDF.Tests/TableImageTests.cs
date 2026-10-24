@@ -145,11 +145,14 @@ public sealed class TableImageTests
         => TableStructureTests.Fails(Cell($"<img src='logo' style='{style}'>"), "FPDF1302", Options());
 
     [Test]
-    public void OversizeRowAndHeaderCombinationFailBeforeOutputAndRecover()
+    public void ImpossibleInitialImageEdgeFailsButFormerOversizeHeaderCombinationContinues()
     {
         var options = Options() with { PageHeight = 100, Margin = 10 };
         TableStructureTests.Fails(Cell("<img src='logo' style='width:80pt'>", "padding-top:41pt"), "FPDF1302", options);
-        TableStructureTests.Fails(RepeatedHeader().Replace("R1", "A<br>B<br>C"), "FPDF1302", options);
+        var continued = TableLayoutTests.Layout(RepeatedHeader().Replace("R1", "A<br>B<br>C"), options);
+        Assert.That(continued.Count, Is.GreaterThan(1));
+        Assert.That(continued.SelectMany(p => p.Runs).Count(r => r.Text == "A"), Is.EqualTo(1));
+        Assert.That(continued.SelectMany(p => p.Images).Count(), Is.EqualTo(continued.Count));
         Assert.That(TableLayoutTests.Pdf(Cell(Img), options), Is.Not.Empty);
     }
 }
