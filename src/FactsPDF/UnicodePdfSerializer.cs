@@ -129,7 +129,7 @@ internal static class UnicodePdfSerializer
                 Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R >>"));
                 StreamObject(firstPage + 2 * i + 1, Encoding.ASCII.GetBytes(content.ToString()));
             }
-            for (var i = 0; i < images.Count; i++)
+            for (var i = 0; i < images.ObjectCount; i++)
             {
                 if (firstImage + i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
                 offsets.Add(output.Position);

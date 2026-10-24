@@ -2,7 +2,7 @@
 
 **Experimental renderer, not a production release or a complete browser-compatible implementation.** The shared core accepts a documented HTML/CSS subset, performs font-aware text layout/pagination and writes PDF objects directly. Public APIs may change. No extra markup language is required.
 
-The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](unicode-fonts.md), [native font subsetting](font-subsetting.md), and [embedded CSS stylesheets/selectors](css-stylesheets.md). Their detailed constraints apply alongside this guide. Explicit fixed-column tables with whole-row pagination use the [table subset](tables.md). Explicit standalone baseline JPEG images use the [image resource API](images.md). The controlled CSS block box model now includes width, four-sided padding, solid borders, background fills and paginated box fragments; see [M8 Box Fragmentation](box-fragmentation.md) for exact limits.
+The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](unicode-fonts.md), [native font subsetting](font-subsetting.md), and [embedded CSS stylesheets/selectors](css-stylesheets.md). Their detailed constraints apply alongside this guide. Explicit fixed-column tables with whole-row pagination use the [table subset](tables.md). Explicit standalone baseline JPEG and static PNG images use the [image resource API](images.md). The controlled CSS block box model now includes width, four-sided padding, solid borders, background fills and paginated box fragments; see [M8 Box Fragmentation](box-fragmentation.md) for exact limits.
 
 ## Run from source
 
@@ -262,13 +262,13 @@ This example uses fontless ASCII mode. Explicit font API examples are in the Uni
 
 | Area | Supported | Not yet supported |
 | --- | --- | --- |
-| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br; bounded ol/ul/li; explicit standalone JPEG img; explicit-column tables with whole-row pagination/repeated headers | Links, spanning/nested tables, inline/list/cell images, PNG, SVG, forms; general list styles/counters |
+| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br; bounded ol/ul/li; explicit standalone JPEG/static PNG img; explicit-column tables with whole-row pagination/repeated headers | Links, spanning/nested tables, inline/list/cell images, SVG, APNG, interlaced/16-bit PNG, forms; general list styles/counters |
 | Document shell | html/body, explicit head/title, UTF-8 meta, HTML5 doctype, comments, embedded style | Full HTML5 tree construction, encoding sniffing and browser recovery |
 | Text | ASCII/Courier fallback; explicit static TrueType fonts, simple horizontal Unicode/Chinese, searchable text and optional glyph subsetting | Complete shaping, bidi/RTL, all-script typography, automatic font discovery |
 | Styles | Inline and embedded declarations; tag/class/id/universal/compound/group/descendant/child selectors, bounded author cascade | External stylesheets, at-rules, other selector classes, variables/functions and full CSS recovery |
 | Text layout | Supported font size/weight/style/color/line-height/alignment; paragraph margins; nested block widths, four-sided padding, solid border edges and background colors | Arbitrary CSS height, horizontal margins, border-radius, floats/flex/grid and general image/table layout |
 | Pagination | Wrapping; paragraph/heading break-before/break-after auto/page; opt-in [heading + first paragraph](heading-pagination.md) via break-after:avoid; opt-in [decimal page numbers](page-numbers.md) and [static page headers/footers](page-margins.md); CSS sliced block decorations across page fragments (background and side borders continue, top/bottom only first/last) | @page, arbitrary header/footer templates, widows/orphans, general keep-together and full browser fragmentation rules |
-| PDF | PDF 1.7 text/page tree/xref, embedded and compressed font resources, ToUnicode, explicit JPEG XObjects | Tagged PDF, PDF/A/UA conformance, links/bookmarks, signatures/encryption |
+| PDF | PDF 1.7 text/page tree/xref, embedded and compressed font resources, ToUnicode, explicit JPEG/PNG XObjects and PNG alpha soft masks | Tagged PDF, PDF/A/UA conformance, links/bookmarks, signatures/encryption |
 
 CSS property/value and applicability rules are in the stylesheet guide. Unsupported inputs fail explicitly rather than silently rendering wrong output. Headings use larger text by default, not synthetic bold. Normal whitespace is collapsed; font-aware CJK wrapping has a limited punctuation rule, not full UAX #14 support. A segment wider than the line is rejected rather than clipped or arbitrarily split.
 

@@ -1,6 +1,9 @@
 # Explicit image resources
 
-`PdfImage.LoadImage` recognizes the supplied bytes. This first implementation supports a bounded subset of baseline JPEG; PNG and other formats fail explicitly. The engine never interprets `src` as a file path, URL or data URI.
+`PdfImage.LoadImage` recognizes the supplied bytes. It supports bounded baseline
+JPEG and static non-interlaced PNG, including PNG transparency. The same API,
+CLI resource binding and shared layout apply to both formats. The engine never
+interprets `src` as a file path, URL or data URI.
 
 ```csharp
 using FactsPDF;
@@ -28,9 +31,58 @@ Progressive/multiscan, CMYK/RGB-coded JPEG, arithmetic/lossless, ICC/Adobe trans
 
 `img` is a void, standalone block at the root/body or inside ordinary supported containers. Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
 
-CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of JPEG density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Images remain left-aligned. No automatic shrinking, independent height, transforms, float, wrap, PNG, inline or list images are implemented.
+CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Images remain left-aligned. No automatic shrinking, independent height, transforms, float, wrap, inline, cell or list images are implemented.
 
 The complete image outer box moves to the next page if necessary. An image plus required leading ancestor decoration that cannot fit an empty page fails `FPDF1302`. Its own padding/borders never split; ancestor decorations retain existing slice behavior. Each image draw costs one display command, plus normal decoration commands.
+
+## Static PNG and transparency
+
+PNG uses the same `LoadImage` overloads, `Images` map and `--image name=path`
+binding. Supply original PNG bytes; no conversion to JPEG is needed.
+
+| PNG color type | Accepted bit depth | Transparency |
+| --- | --- | --- |
+| Grayscale | 1, 2, 4, 8 | Optional `tRNS` gray key |
+| RGB | 8 | Optional `tRNS` RGB key |
+| Indexed palette | 1, 2, 4, 8 | Optional per-entry `tRNS`; omitted entries are opaque |
+| Grayscale with alpha | 8 | Full alpha channel |
+| RGBA | 8 | Full alpha channel |
+
+All five scanline filters and consecutive split IDAT chunks are supported.
+Color samples become eight-bit DeviceGray/DeviceRGB PDF image streams; alpha
+becomes a separate eight-bit soft mask. Transparent pixels reveal existing page
+content, including colored panels, and partial alpha is retained. Images remain
+unassociated: color samples are not premultiplied or flattened onto white.
+Repeated placements share the same image and mask objects.
+
+The loader validates chunk framing/type/CRC, required ordering, palette indices,
+transparency, a completed zlib stream/checksum and the exact decoded row length.
+Unused bytes after the completed zlib stream in final IDAT are ignored as allowed
+by the PNG specification; data after IEND is rejected. Supported sRGB metadata
+is validated. ICC/HDR color-transform chunks are explicitly unsupported. Other
+ancillary metadata, including gamma/chromaticity, density, background, Exif and
+text, is ignored after framing/type/CRC validation; compressed metadata is not
+inflated. This does not implement color management or automatic Exif rotation.
+
+16-bit samples, Adam7 interlacing, APNG and SVG remain unsupported and fail
+explicitly. PNG support does not expand the current standalone image placement
+contract, add network fetching or bundle fonts.
+
+### Generate the brand-report sample
+
+The repository's Python generator creates synthetic test images without external
+packages. It is a sample preparation tool, not a renderer dependency:
+
+```sh
+python3 scripts/png_fixtures.py --output artifacts/png-inputs
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/png-brand-report.html artifacts/png-brand-report.pdf --image logo=artifacts/png-inputs/brand-mark.png --page-numbers --header-text "FactsPDF | Business report" --footer-text "Synthetic example"
+```
+
+The transparent mark is drawn over the report's green brand panel. The example
+uses fontless ASCII so it needs no external font download; existing explicit
+font options can be supplied for other templates. Its illustrative line-item
+values are not a product quote. New sample reference approval remains separate
+from executable engineering verification.
 
 ## Bounds and diagnostics
 
@@ -39,23 +91,48 @@ The complete image outer box moves to the next page if necessary. An image plus 
 | MaxBytes | 8,388,608 |
 | MaxDimension | 8,192 |
 | MaxPixels | 16,777,216 |
-| MaxDecodedBytes (width × height × components) | 50,331,648 |
-| MaxMcuBlocks (including padded edge blocks) | 1,048,576 |
+| MaxDecodedBytes (expanded color samples plus PNG alpha, when present) | 50,331,648 |
+| MaxMcuBlocks (JPEG, including padded edge blocks) | 1,048,576 |
 
-`PdfImageLimits` can override these positive bounds for an individual load. Additional fixed checks limit length-delimited segments to 256, total APP/COM payload to 65,536 bytes and Exif IFD0 entries to 256. Conversion defaults are 16 image bindings and 33,554,432 total compressed bytes (`PdfOptions.MaxImageResources/MaxTotalImageBytes`). Existing input, page, display-command and output-byte bounds also apply. These are work/data bounds, not a total process-memory guarantee; caller buffers, owned copies and the final PDF buffer can coexist.
+`PdfImageLimits` can override these positive bounds for an individual load. JPEG
+also limits length-delimited segments to 256, total APP/COM payload to 65,536 bytes
+and Exif IFD0 entries to 256. PNG checks expanded color/alpha size before allocation,
+decodes with two bounded row buffers and compresses the separate PDF planes.
+`ByteLength` always reports original encoded bytes. Conversion defaults remain
+16 image bindings and 33,554,432 original encoded bytes
+(`PdfOptions.MaxImageResources/MaxTotalImageBytes`), including unused aliases.
+Existing input, page, display-command and output-byte bounds also apply, with
+PNG soft-mask bytes included in output accounting. These are work/data bounds,
+not a total process-memory guarantee; caller buffers, encoded images, expanded
+PNG samples, compressed planes and final PDF buffers can coexist while loading.
 
 | Code | Meaning |
 |---|---|
-| FPDF1601 | Malformed/truncated JPEG or invalid encoded structure |
-| FPDF1602 | Unsupported format, JPEG encoding, color, metadata or orientation |
+| FPDF1601 | Malformed/truncated JPEG/PNG, invalid encoded structure or checksum |
+| FPDF1602 | Unsupported format, encoding, color, metadata or orientation |
 | FPDF1603 | Image byte, dimension, pixel, scan-work or resource budget |
 | FPDF1604 | Valid resource name has no explicit binding; located at img |
 
 Invalid API options, map names and null resources throw argument exceptions. Invalid `src` uses `FPDF1103`; forbidden nesting uses `FPDF1101`. Duplicate src keeps the tokenizer's existing `FPDF1101` at the duplicate attribute. CSS preflight and existing layout/output errors keep their established order. Pre-output failures leave caller output unchanged; cancellation or I/O during the final copy can still partially write a caller stream.
 
-Cancellation is checked between bounded reads, marker walks, metadata entries, entropy blocks, layout and binary output chunks. A synchronous caller stream cannot be interrupted while its read/write is blocked. Private WASM verification accepts explicit byte arrays, bounds JS packing before copying, then applies .NET limits again. Caller-owned arrays and interop copies are outside loader accounting; no image-fetch API or browser cancellation UI is added.
+Cancellation is checked between bounded reads, marker/chunk walks, CRC work,
+metadata entries, entropy blocks, PNG inflation/unfiltering/expansion/compression,
+layout and binary output chunks. A synchronous caller stream cannot be interrupted
+while its read/write is blocked. Private WASM verification accepts explicit byte
+arrays, bounds JS packing before copying, then applies .NET limits again.
+Caller-owned arrays and interop copies are outside loader accounting; no
+image-fetch API or browser cancellation UI is added.
 
 ## Evidence scope
+
+`scripts/verify_png.py` generates eight authored PNG cases, verifies their decoded
+colors independently, checks actual PDF color and alpha streams with pypdf, and
+checks all 561 pixel centers per case after Poppler rendering over a colored
+background. It also checks image reuse, malformed-input target preservation,
+recovery and the one-page brand report. The existing WASM workflow runs these
+cases through managed/Native AOT CLI and the actual protected-browser host.
+Actual completed-run results, not the workflow configuration alone, establish
+which platforms were verified.
 
 `tests/fixtures/jpeg` contains 35 authored JPEGs, a single-page report and explicit per-entry contracts. `probes/images` and `scripts/verify_images.py` exercise direct API/managed CLI/Node/Linux Native AOT; the protected WASM workflow runs the shared .NET engine with supplied bytes. Verification checks raw DCT hashes, authored matrices, image reuse, qpdf, Poppler text/bounds, rendered corner/arrow/bar pixels, and unchanged output on failure. Deliberately removed/duplicated draws, changed geometry and changed image streams must fail inspection. Reference page approval remains separate from successful conversion.
 

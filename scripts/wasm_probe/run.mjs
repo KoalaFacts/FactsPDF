@@ -16,6 +16,7 @@ import { finishBrowserCleanup } from './cleanup.mjs';
 import { addReaderFiles, inspectReader } from './pdf_interaction.mjs';
 import { restrictedFont } from './restricted_font.mjs';
 import { inspectImages } from './image_cases.mjs';
+import { inspectPngImages } from './png_cases.mjs';
 
 const direct = promisify(execFile);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -251,6 +252,7 @@ try {
   }
   if (styleManifest) report.images = await inspectImages({ page, context, origin: server.origin,
     files, output, executable, dll, styleUrls, fontPaths: styleManifest.roles.normal });
+  if (styleManifest) report.pngImages = await inspectPngImages({ page, output, executable, dll });
   for (const [name, fontUrls, expected] of [
     ['bilingual', ['/probe-fonts/missing.ttf'], 'B2_RESOURCE_HTTP'],
     ['ascii', ['/probe-fonts/empty.ttf'], 'B2_RESOURCE_EMPTY'],

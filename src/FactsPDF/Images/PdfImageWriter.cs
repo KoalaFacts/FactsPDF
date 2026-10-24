@@ -7,8 +7,8 @@ namespace FactsPDF;
 internal sealed class PdfImageWriter
 {
     private readonly Dictionary<PdfImage, int> indices = new(ReferenceEqualityComparer.Instance);
-    private readonly List<PdfImage> images = [];
-    internal int Count => images.Count;
+    private readonly List<(PdfImage Image, bool Mask)> images = [];
+    internal int ObjectCount => images.Count;
 
     internal PdfImageWriter(List<LayoutPage> pages, CancellationToken cancellation)
     {
@@ -16,7 +16,11 @@ internal sealed class PdfImageWriter
             foreach (var placed in page.Images)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (indices.TryAdd(placed.Image, images.Count)) images.Add(placed.Image);
+                if (indices.TryAdd(placed.Image, images.Count))
+                {
+                    images.Add((placed.Image, false));
+                    if (placed.Image.HasAlpha) images.Add((placed.Image, true));
+                }
             }
     }
 
@@ -46,20 +50,27 @@ internal sealed class PdfImageWriter
 
     internal void WriteObject(Stream output, int index, int id, int limit, CancellationToken cancellation)
     {
-        var image = images[index];
+        var (image, mask) = images[index];
+        var bytes = mask ? image.Alpha : image.Data;
         void WriteText(string text)
         {
             cancellation.ThrowIfCancellationRequested();
             Check(output.Position + text.Length, limit);
             output.Write(Encoding.ASCII.GetBytes(text));
         }
-        WriteText(FormattableString.Invariant($"{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {image.PixelWidth} /Height {image.PixelHeight} /BitsPerComponent 8 /ColorSpace /Device{(image.Components == 1 ? "Gray" : "RGB")} /Filter /DCTDecode /DecodeParms << /ColorTransform {(image.Components == 1 ? 0 : 1)} >> /Length {image.ByteLength} >>\nstream\n"));
-        Check(output.Position + image.ByteLength, limit);
-        for (var offset = 0; offset < image.ByteLength;)
+        if (!image.IsPng)
+            WriteText(FormattableString.Invariant($"{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {image.PixelWidth} /Height {image.PixelHeight} /BitsPerComponent 8 /ColorSpace /Device{(image.Components == 1 ? "Gray" : "RGB")} /Filter /DCTDecode /DecodeParms << /ColorTransform {(image.Components == 1 ? 0 : 1)} >> /Length {image.ByteLength} >>\nstream\n"));
+        else
+        {
+            var softMask = !mask && image.HasAlpha ? FormattableString.Invariant($" /SMask {id + 1} 0 R") : "";
+            WriteText(FormattableString.Invariant($"{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {image.PixelWidth} /Height {image.PixelHeight} /BitsPerComponent 8 /ColorSpace /Device{(mask || image.Components == 1 ? "Gray" : "RGB")} /Filter /FlateDecode{softMask} /Length {bytes.Length} >>\nstream\n"));
+        }
+        Check(output.Position + bytes.Length, limit);
+        for (var offset = 0; offset < bytes.Length;)
         {
             cancellation.ThrowIfCancellationRequested();
-            var count = Math.Min(16_384, image.ByteLength - offset);
-            output.Write(image.Data.Slice(offset, count)); offset += count;
+            var count = Math.Min(16_384, bytes.Length - offset);
+            output.Write(bytes.Slice(offset, count)); offset += count;
         }
         WriteText("\nendstream\nendobj\n");
     }

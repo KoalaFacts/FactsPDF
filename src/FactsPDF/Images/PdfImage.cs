@@ -1,14 +1,22 @@
 namespace FactsPDF;
 
-/// <summary>Immutable explicitly supplied image. Format is recognized from bytes; D1 supports bounded baseline JPEG.</summary>
+/// <summary>Immutable explicitly supplied image. Format is recognized from bytes; supports bounded baseline JPEG and static noninterlaced PNG.</summary>
 public sealed class PdfImage
 {
     private readonly byte[] data;
+    private readonly int byteLength;
+    private readonly byte[]? alpha;
     private PdfImage(byte[] owned, JpegInfo info)
-    { data = owned; PixelWidth = info.Width; PixelHeight = info.Height; Components = info.Components; }
+    { data = owned; byteLength = owned.Length; PixelWidth = info.Width; PixelHeight = info.Height; Components = info.Components; }
+    private PdfImage(int encodedLength, PngInfo info)
+    { data = info.Color; alpha = info.Alpha; byteLength = encodedLength; IsPng = true; PixelWidth = info.Width; PixelHeight = info.Height; Components = info.Components; }
     public int PixelWidth { get; }
     public int PixelHeight { get; }
-    public int ByteLength => data.Length;
+    /// <summary>Original encoded input size, before any PNG expansion or recompression.</summary>
+    public int ByteLength => byteLength;
+    internal bool IsPng { get; }
+    internal bool HasAlpha => alpha is not null;
+    internal ReadOnlySpan<byte> Alpha => alpha;
     internal int Components { get; }
     internal ReadOnlySpan<byte> Data => data;
 
@@ -54,10 +62,12 @@ public sealed class PdfImage
     {
         cancellation.ThrowIfCancellationRequested();
         // Content recognition only; a path extension or MIME label is never consulted.
+        if (bytes.AsSpan().StartsWith(PngReader.Signature))
+            return new(bytes.Length, PngReader.Read(bytes, limits, cancellation));
         if (bytes.Length < 2 || bytes[0] == 255 && bytes[1] == 0)
             throw JpegErrors.Invalid("Empty or malformed image signature.");
         if (bytes[0] != 255 || bytes[1] != 216)
-            throw JpegErrors.Unsupported("Unsupported image format. Supply a supported baseline JPEG image.");
+            throw JpegErrors.Unsupported("Unsupported image format. Supply a supported baseline JPEG or static PNG image.");
         return new(bytes, JpegReader.Read(bytes, limits, cancellation));
     }
 }
