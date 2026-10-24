@@ -108,7 +108,7 @@ def create(directory):
               '<img src="sample" style="width:64pt">'
               '<p style="margin-top:2pt;margin-bottom:0">CAPTION</p></th></tr></thead>')
     repeated = COMMON + '<table>' + COLUMNS + header + '<tbody>' + ''.join(
-        f'<tr style="line-height:2"><td>R{n:03}</td><td>X</td><td>Y</td></tr>'
+        f'<tr style="line-height:2"><td>R{n:03}</td><td>X{n:03}</td><td>Y{n:03}</td></tr>'
         for n in range(1, 48)) + '</tbody></table>'
     add('repeated-header', repeated,
         [t for page in range(3) for t in [text('BRAND', 41, 50, page), text('CAPTION', 41, 106, page)]],
@@ -144,7 +144,7 @@ def inspect(path, case, source_image, *, qpdf=None, raster=True):
     assert len(reader.pages) == case['pages'], 'wrong rich-table page count'
     rgba = bytes(source_image['rgba'])
     rgb = bytes(v for at in range(0, len(rgba), 4) for v in rgba[at:at + 3])
-    image_ids, mask_ids, rows = set(), set(), []
+    image_ids, mask_ids, rows, body_cells = set(), set(), [], []
     checked = 0
     for index, page in enumerate(reader.pages):
         assert abs(float(page.mediabox.width) - 595.28) < .001
@@ -162,6 +162,8 @@ def inspect(path, case, source_image, *, qpdf=None, raster=True):
                 texts.append((value, text_matrix[4], text_matrix[5]))
                 if len(value) == 4 and value.startswith('R') and value[1:].isdigit():
                     rows.append((index, value, text_matrix[4], text_matrix[5]))
+                if len(value) == 4 and value[0] in 'RXY' and value[1:].isdigit():
+                    body_cells.append((index, value, text_matrix[4], text_matrix[5]))
             elif operator == b'Do':
                 assert matrix is not None
                 width, a, b, height, x, bottom = matrix
@@ -236,9 +238,16 @@ def inspect(path, case, source_image, *, qpdf=None, raster=True):
         assert [v for _, v, _, _ in rows] == [f'R{n:03}' for n in range(1, 48)], 'body row loss/order/duplication'
         assert [sum(p == i for p, *_ in rows) for i in range(3)] == case['rowsPerPage'], 'whole-row pagination changed'
         # 36 + 78 header + 5 edges + (9 + (20-12)/2) baseline = 132.
-        for page in range(3):
-            for n, (_, _, x, baseline) in enumerate(r for r in rows if r[0] == page):
-                assert abs(x - 41) < .001 and abs(baseline - (PAGE_HEIGHT - 132 - n * 30)) < .001, 'body row geometry changed'
+        expected_cells = []
+        row_number = 1
+        for page, count in enumerate(case['rowsPerPage']):
+            for n in range(count):
+                expected_cells.extend((page, f'{prefix}{row_number:03}', x, PAGE_HEIGHT - 132 - n * 30)
+                                      for prefix, x in [('R', 41), ('X', 81), ('Y', 141)])
+                row_number += 1
+        assert [(p, v) for p, v, _, _ in body_cells] == [(p, v) for p, v, _, _ in expected_cells], 'body sibling cell loss/order/duplication'
+        for actual, expected in zip(body_cells, expected_cells):
+            assert abs(actual[2] - expected[2]) < .001 and abs(actual[3] - expected[3]) < .001, 'body cell geometry changed'
     if qpdf:
         run([qpdf, '--check', path])
     return {'name': case['name'], 'pages': len(reader.pages), 'imageDraws': len(case['images']),
@@ -348,8 +357,11 @@ def main():
                 target = output / ('legacy-' + item['name'] + '.pdf')
                 image_flags = ['--image', f'sample={root / item["image"]}'] if item['image'] else []
                 run([*commands[0][1], root / item['html'], target, '--overwrite', *image_flags])
-                assert target.read_bytes() == (root / item['pdf']).read_bytes(), f'legacy bytes changed: {item["name"]}'
-                report['legacyBaseline'].append({'name': item['name'], 'byteEquality': True, 'sha256': item['sha256']})
+                compared = target.read_bytes()
+                assert compared == (root / item['pdf']).read_bytes(), f'legacy bytes changed: {item["name"]}'
+                digest = hashlib.sha256(compared).hexdigest()
+                assert digest == item['sha256'], f'captured baseline hash changed: {item["name"]}'
+                report['legacyBaseline'].append({'name': item['name'], 'byteEquality': True, 'sha256': digest})
         if args.example:
             assets = fixtures / 'example-assets'
             create_png(assets)
