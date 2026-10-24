@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash, pageSlice, csv } from '../src/model.mjs';
 const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', import.meta.url), 'utf8'));
 
-test('418 stable records retain provenance with three bounded D1 updates', () => {
+test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, '5ca3ad5fce178b895b704c6afdec05d56b8b8bb1');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:100, none:265, unknown:7, na:2 });
+  assert.equal(dataset.commit, '5722a6a3eeafb6833cd1ddfe733d7b7cae9df9cf');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:114, none:252, unknown:6, na:2 });
 });
 test('missing evidence, unknown status, duplicate IDs, bad parents and categories are rejected', () => {
   const mutators = [d=>d.features[0].status='planned', d=>d.features[1].id=d.features[0].id,

@@ -46,3 +46,52 @@ not included in the deployed bundle.
 C2 intentionally updates only `html.ol`, `html.ul`, and `html.li` against core `a172961c471fa12f45a1ac831daad1e2b32d7bcc` after list tests and the real API/CLI/Linux AOT report. The other 415 rows retain their previous provenance; total rows remain 418. Current C2 snapshot SHA-256: `420e04d19016776b895d860b420d1bc3bca65192debe8e8108a338bdde787a9d`. This data update does not change Pages configuration or claim deployment success.
 
 D1 intentionally updates only three stable rows (`html.img`, `attr.13`, `pdf.images`) to partial support using actual engine/entry evidence at `5ca3ad5fce178b895b704c6afdec05d56b8b8bb1`. The count remains418; PNG/SVG, inline/list images and implicit URL/file resolution remain unsupported. Snapshot SHA-256: `2fd3a747bb8040321c6e0558adc8ba08295c4b862ff17a401bfc47f6aaa6c3be`. Local772 core tests,16 actual PDFs across4 entries, raw DCT/geometry/raster checks and four viewed unique pages support this snapshot; protected browser WASM run39090248247 also passes with identical4PDFs and actual PDF.js search/copy/paste. The Exif diagnostic correction and final same-head PR gates are tracked separately. Existing Pages deployment404 is unchanged and was not retried or reconfigured.
+
+## 24 October 2026: implemented preview capabilities
+
+Snapshot `audit-2026-10-24.preview-capabilities` audits main
+`5722a6a3eeafb6833cd1ddfe733d7b7cae9df9cf`. Its SHA-256 is
+`84be0d224340acda9330dd013f28f74267a8c2b0fcf24a060bf74547e97bc56a`. The 418 stable IDs, their order,
+category totals and introduction-history fields are unchanged. Exactly 50 rows
+have updated audit evidence; the other 368 rows retain their previous values,
+including per-row source commits and dates.
+
+| Updated rows | Count | Recorded scope |
+| --- | ---: | --- |
+| `html.col/colgroup/table/tbody/td/th/thead/tr` | 8 | E1 fixed columns and E2 whole-row pagination with one optional repeated header |
+| `html.h1`–`html.h6`, `css.break-after`, `value.break.avoid` | 8 | F1 opt-in heading/first-paragraph keep outside lists; oversized combinations relax |
+| `attr.15` | 1 | Spanning remains unsupported by the implemented table subset |
+| `pdf.keep`, `pdf.headers`, `pdf.tables` | 3 | F1–F3 behavior and separate F4 combined-report engineering evidence |
+| `runtime.node`, `runtime.win-aot`, `runtime.browser-wasm` | 3 | Existing subprocess probe, Windows x64 native execution and private browser WASM host |
+| Existing width, padding, background and border properties | 27 | Current element applicability, including tables/cells; cell padding percentages use column-track width |
+
+Fourteen rows move to `partial`: the eight table elements, bounded
+`break-after:avoid`, three PDF capabilities, Windows x64 AOT and browser WASM.
+The remaining updated rows retain their statuses. Counts are **44 full,
+114 partial, 252 none, 6 unknown and 2 not applicable**. The accepted HTML tag
+count becomes 34; the accepted CSS property count remains 37. These counts
+describe this inventory, not whole HTML/CSS conformance.
+
+The Node row remains `none` for its named JavaScript/TypeScript SDK feature:
+B1 has an internal CLI subprocess probe, not a published SDK. Browser WASM is
+`partial`, explicitly single-threaded and non-AOT. Windows AOT is `partial`
+for its tested two-page ASCII, diagnostics, destination-preservation and recovery
+slice; untested font/resource/platform combinations are not promoted.
+
+Evidence was read from the code, documentation, existing tests and actual
+Actions results. The [main CI run](https://github.com/KoalaFacts/FactsPDF/actions/runs/39876677455)
+passed 1052 .NET tests on its Ubuntu job and the
+[Windows native job](https://github.com/KoalaFacts/FactsPDF/actions/runs/39876677455/job/120163846267)
+passed. The protected browser and native F4 steps passed in
+[PR49's browser workflow](https://github.com/KoalaFacts/FactsPDF/actions/runs/39876108148)
+at head `30a5d575ea205a882cd36800d3f08f2a44196985`.
+That head and the audited main share Git tree
+`4e5baf835b7db888932df2103c76a8d9ac85f268`; the workflow is still recorded
+against its actual PR head, not relabelled as a main-SHA run.
+
+[F4's combined 10/30/100-record reports](combined-report.md) supply separate
+positive engineering evidence for the implemented features. Their new reference
+pages remain pending user review. This data refresh neither reran the engine nor
+changed the original acceptance denominator, performance budgets or release
+approvals. Current site validation results belong to the actual update's
+command/CI logs.

@@ -4,6 +4,7 @@ A browser-free HTML and CSS to PDF engine, designed for cross-language integrati
 
 > **Status: experimental renderer.** This development branch contains a limited
 > document-text core and CLI, not a production release. Start with the
+> [business-report evaluation guide](docs/evaluation.md),
 > [development guide](docs/development.md), [CSS support](docs/css-stylesheets.md),
 > [Unicode/fonts](docs/unicode-fonts.md) and [font subsetting](docs/font-subsetting.md).
 
@@ -88,7 +89,7 @@ geometry, limits and independent PDF/Chrome evidence. Explicit standalone baseli
 JPEG blocks are described in the [image resource guide](docs/images.md). Explicit fixed-column,
 tables with whole-row pagination and repeated headers are described in the [table guide](docs/tables.md). Cell spanning, flex/grid,
 external stylesheets, at-rules and additional selector classes remain unsupported.
-Full Unicode shaping/RTL, CSS font selection and automatic font discovery are not implemented.
+Full Unicode shaping/RTL, automatic CSS font-family matching and automatic font discovery are not implemented.
 Unsupported input fails explicitly rather than silently changing the output.
 See [exact values, budgets and diagnostics](docs/css-stylesheets.md).
 
@@ -192,3 +193,4 @@ before software-package release or accepting a paid license order.
 [License history](docs/license-history.md) records earlier terms; version 1.1
 does not retroactively change version 1.0 grants.
 [Explicit font styles](docs/font-styles.md) support normal, bold, italic and bold-italic through independent caller-supplied font chains, including ordered character fallback. No system discovery or synthetic styling is performed.
+
