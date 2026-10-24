@@ -227,9 +227,9 @@ try {
   assert.deepEqual(furniturePdf, furnitureCliPdf, 'Actual browser furniture PDF differs from CLI');
   const furnitureText = (await direct('pdftotext', ['-raw', furnitureWasmPath, '-'], { timeout: 15000 })).stdout;
   const furniturePages = (await direct('pdfinfo', [furnitureWasmPath], { timeout: 15000 })).stdout;
-  assert.match(furniturePages, /^Pages:\\s+1\\s*$/m);
+  assert.match(furniturePages, /^Pages:\s+1\s*$/m);
   for (const marker of ['ACME', 'Page 1 of 1', 'Regional report.'])
-    assert.ok(furnitureText.replace(/\\s+/gu, ' ').includes(marker),
+    assert.ok(furnitureText.replace(/\s+/gu, ' ').includes(marker),
       `Missing independently specified furniture/body marker: ${marker}`);
   report.cases.push({ name: 'page-furniture-browser-actual-pdf-and-error-priority',
     pageCount: 1, bytes: furniturePdf.length, sha256: hash(furniturePdf),
