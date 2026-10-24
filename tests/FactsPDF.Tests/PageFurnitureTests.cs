@@ -113,7 +113,7 @@ public sealed class PageFurnitureTests
     public void AllSuppliedDefinitionsAreBoundedButUnusedGlyphsAreNotResolved()
     {
         Fails("", Page with { PageFurniture = Furniture(Text(new string('A', 1025))) }, "FPDF1001");
-        Fails("", Page with { PageFurniture = Furniture(Text("A")) , MaxInputCharacters = 1 }, "FPDF1001");
+        Fails("A", Page with { PageFurniture = Furniture(Text("A")), MaxInputCharacters = 1 }, "FPDF1001");
         Fails("", Page with { PageFurniture = new() { Default = new(),
             FirstPage = new() { FooterCenter = Text("{not-page}") } } }, "FPDF1306");
         Assert.DoesNotThrow(() => Pdf("", Page with { PageFurniture = new()
