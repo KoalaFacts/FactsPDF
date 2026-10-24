@@ -383,7 +383,7 @@ def main():
             run(['pdftoppm', '-png', '-singlefile', '-r', '110', target, target.with_suffix('')])
             report['example'] = {'pages': 1, 'imageDraws': 2, 'uniqueImages': 1,
                                  'sha256': hashlib.sha256(target.read_bytes()).hexdigest()}
-        report['status'] = 'passed' 
+        report['status'] = 'passed'
     except Exception as error:
         report['status'] = 'failed'
         report['failure'] = str(error)
