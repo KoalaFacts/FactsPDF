@@ -183,6 +183,59 @@ try {
       } else assert.equal(samples[attempt].sha256, samples[0].sha256, 'Repeated conversion differs');
     }
   }
+  // Regress the actual JS wrapper precedence (not only the managed adapter),
+  // and prove a real browser-WASM furniture PDF matches the managed CLI bytes.
+  const furnitureFixture = { html: '<p>Regional report.</p>',
+    json: '{"default":{"headerLeft":{"template":"ACME"},"footerRight":{"template":"Page {page} of {pages}"}}}' };
+  const furnitureResults = await withDeadline(page.evaluate(({ html, json }) => {
+    const good = new TextEncoder().encode(json);
+    const broken = new TextEncoder().encode('{bad');
+    const invalidImages = [{ name: 'bad/name', bytes: new Uint8Array([1]) }];
+    const probe = window.factspdfProbe;
+    return {
+      simultaneous: probe.convertPageFurniture(html, {}, invalidImages, broken),
+      imageOnly: probe.convertPageFurniture(html, {}, invalidImages, good),
+      valid: probe.convertPageFurniture(html, {}, [], good),
+      recovered: probe.convertPageFurniture(html, {}, [], good),
+    };
+  }, furnitureFixture), 45000, 'Protected browser page-furniture precedence and parity');
+  assert.equal(furnitureResults.simultaneous.errorCode, 'B2_INPUT_FURNITURE',
+    'Malformed configuration must outrank JS image validation');
+  assert.equal(furnitureResults.imageOnly.errorCode, 'B2_INPUT_IMAGES',
+    'Valid configuration must not mask the original JS image error');
+  for (const result of [furnitureResults.simultaneous, furnitureResults.imageOnly]) {
+    assert.equal(result.pdfBase64, null);
+    assert.equal(result.pageCount, 0);
+  }
+  assert.equal(furnitureResults.valid.errorCode, null, JSON.stringify(furnitureResults.valid));
+  assert.equal(furnitureResults.valid.pageCount, 1);
+  assert.equal(furnitureResults.recovered.errorCode, null);
+  assert.equal(furnitureResults.recovered.pdfBase64, furnitureResults.valid.pdfBase64,
+    'Malformed attempts must not contaminate later conversions');
+  const furniturePdf = Buffer.from(furnitureResults.valid.pdfBase64, 'base64');
+  assert.equal(furniturePdf.subarray(0, 5).toString(), '%PDF-');
+  const furnitureHtmlPath = join(output, 'page-furniture-browser.html');
+  const furnitureJsonPath = join(output, 'page-furniture-browser.json');
+  const furnitureWasmPath = join(output, 'page-furniture-browser-wasm.pdf');
+  const furnitureCliPath = join(output, 'page-furniture-browser-cli.pdf');
+  await writeFile(furnitureHtmlPath, furnitureFixture.html);
+  await writeFile(furnitureJsonPath, furnitureFixture.json);
+  await writeFile(furnitureWasmPath, furniturePdf);
+  await direct(executable, [...(dll ? [dll] : []), furnitureHtmlPath, furnitureCliPath,
+    '--page-furniture', furnitureJsonPath, '--subset-fonts'], { timeout: 45000 });
+  const furnitureCliPdf = await readFile(furnitureCliPath);
+  assert.deepEqual(furniturePdf, furnitureCliPdf, 'Actual browser furniture PDF differs from CLI');
+  const furnitureText = (await direct('pdftotext', ['-raw', furnitureWasmPath, '-'], { timeout: 15000 })).stdout;
+  const furniturePages = (await direct('pdfinfo', [furnitureWasmPath], { timeout: 15000 })).stdout;
+  assert.match(furniturePages, /^Pages:\\s+1\\s*$/m);
+  for (const marker of ['ACME', 'Page 1 of 1', 'Regional report.'])
+    assert.ok(furnitureText.replace(/\\s+/gu, ' ').includes(marker),
+      `Missing independently specified furniture/body marker: ${marker}`);
+  report.cases.push({ name: 'page-furniture-browser-actual-pdf-and-error-priority',
+    pageCount: 1, bytes: furniturePdf.length, sha256: hash(furniturePdf),
+    cliSha256: hash(furnitureCliPdf), byteEquality: true,
+    malformedJsonBeforeInvalidImages: true, originalImageErrorPreserved: true,
+    recoveredAfterErrors: true });
   for (const item of [...listErrors, ...tableErrors]) {
     const result = await call(item.name, []);
     assert.equal(result.errorCode, item.code, JSON.stringify(result));
