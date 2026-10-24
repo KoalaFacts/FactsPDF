@@ -55,53 +55,111 @@ def page_boxes(pdf, page):
     return width, height, words
 
 
-def require_region(words, token, width, height, side, band):
-    matches = [word for word in words if word[0] == token]
-    assert len(matches) == 1, ('Missing or duplicate furniture token', token, matches)
-    _, left, top, right, bottom = matches[0]
-    assert (right < width / 2 if side == 'left' else left > width / 2), ('Wrong horizontal region', token)
-    assert (bottom < 50 if band == 'header' else top > height - 50), ('Wrong page-margin region', token)
-    assert 2 <= left < right <= width - 2 and 2 <= top < bottom <= height - 2, (
-        'Outside page clearance', token)
-
-
 def validate_furniture_words(original, decorated, page):
-    """Independent body-geometry control: furniture only adds expected margin ink."""
+    """Prove complete phrases, positions and unchanged body word geometry."""
     width, height, baseline = original
     other_width, other_height, written = decorated
     assert (width, height) == (other_width, other_height), 'Page geometry changed'
     extra = Counter(written) - Counter(baseline)
     missing = Counter(baseline) - Counter(written)
     assert not missing, ('Body word/position lost or moved', page, missing)
-    tokens = ['Page', str(page), 'of', '2']
+    expected = {'footerRight': f'Page {page} of 2'}
     if page == 2:
-        tokens += ['Business', 'report', 'Internal', 'evaluation', 'Prepared', 'offline']
-    assert Counter(word[0] for word in extra.elements()) == Counter(tokens), (
-        'Unexpected furniture words or duplicates', page, list(extra.elements()))
-    assert sum(extra.values()) == len(tokens), 'Unexpected additional PDF text'
-    if page == 2:
-        require_region(written, 'Business', width, height, 'left', 'header')
-        require_region(written, 'Internal', width, height, 'right', 'header')
-        require_region(written, 'Prepared', width, height, 'left', 'footer')
-    require_region(written, 'Page', width, height, 'right', 'footer')
-    assert all(item[4] < 50 or item[2] > height - 50 for item in extra.elements()), (
-        'Added text outside page margins', page)
-    return dict(page=page, addedWords=len(tokens), bodyWordsUnchanged=len(baseline))
+        expected.update(headerLeft='Business report', headerRight='Internal evaluation',
+                        footerLeft='Prepared offline')
+    groups = {}
+    for word, left, top, right, bottom in extra.elements():
+        assert 2 <= left < right <= width - 2 and 2 <= top < bottom <= height - 2, (
+            'Furniture outside page clearance', page, word)
+        if bottom < 50:
+            band = 'header'
+        elif top > height - 50:
+            band = 'footer'
+        else:
+            raise AssertionError(('Furniture outside margin bands', page, word, top, bottom))
+        if right < width / 2:
+            side = 'Left'
+        elif left > width / 2:
+            side = 'Right'
+        else:
+            raise AssertionError(('Furniture not in expected side region', page, word, left, right))
+        groups.setdefault(band + side, []).append((left, word, top, bottom))
+    assert set(groups) == set(expected), ('Missing/extra furniture regions', page, groups)
+    for region, phrase in expected.items():
+        ordered = sorted(groups[region])
+        assert [word for _, word, _, _ in ordered] == phrase.split(), (
+            'Furniture phrase or word order changed', page, region, phrase, ordered)
+        assert max(item[3] for item in ordered) - min(item[2] for item in ordered) < 14, (
+            'Furniture phrase has inconsistent vertical placement', page, region)
+    return dict(page=page, addedWords=sum(extra.values()),
+                completePhrases=expected, bodyWordsUnchanged=len(baseline))
 
 
-def validate_continued_row(pages):
+def expected_note_texts(html):
+    """Extract the authored fixture notes, never using generated-PDF output as truth."""
+    from html import unescape
+    paragraphs = [re.sub(r'\s+', ' ', unescape(match.group(1))).strip()
+                  for match in re.finditer(r'<p\s+class="detail"[^>]*>(.*?)</p>', html, re.DOTALL)]
+    notes = [value for value in paragraphs if re.match(r'^\d{2}\.\s', value)]
+    assert len(notes) == 24, 'Source fixture note count changed'
+    assert [value[:3] for value in notes] == [f'{i:02d}.' for i in range(1, 25)], 'Source fixture note IDs changed'
+    final = [value for value in paragraphs if value.startswith('FINAL REVIEW NOTE:')]
+    assert len(final) == 1, 'Source fixture final note missing'
+    return notes, final[0]
+
+
+def validate_continued_row(pages, expected_notes=None, final_note=None):
     assert len(pages) == 2
-    text = '\n'.join('\n'.join(page) for page in pages)
+    normalized = [' '.join(' '.join(page).split()) for page in pages]
+    text = ' '.join(normalized)
     numbers = re.findall(r'(?<!\d)(?:0[1-9]|1[0-9]|2[0-4])\.(?=\s)', text)
     expected = [f'{number:02d}.' for number in range(1, 25)]
     assert numbers == expected, ('Continued note missing, repeated or out of order', numbers)
-    for marker in ('SRV-001', 'SRV-002', '600.00', '300.00', '900.00', 'TOTAL / ILLUSTRATIVE'):
-        assert text.count(marker) == 1, ('Missing/duplicate value', marker, text.count(marker))
+    if expected_notes is None:
+        expected_notes = [f'{n:02d}. Note {n}' for n in range(1, 25)]
+    assert len(expected_notes) == 24 and [note[:3] for note in expected_notes] == expected
+    positions = []
+    for index, note in enumerate(expected_notes):
+        page = 0 if index < 12 else 1
+        assert normalized[page].count(note) == 1 and note not in normalized[1-page], (
+            'Note contents missing, duplicated or misplaced', index + 1, note)
+        positions.append((page, normalized[page].index(note)))
+    assert positions == sorted(positions), 'Source notes reordered'
     header = 'Description / delivery notes'
-    assert text.count(header) == 2, ('Repeated table heading lost', text.count(header))
-    assert re.findall(r'(?<!\d)(?:0[1-9]|1[0-9]|2[0-4])\.(?=\s)', '\n'.join(pages[0])) == expected[:12], 'First page notes'
-    assert re.findall(r'(?<!\d)(?:0[1-9]|1[0-9]|2[0-4])\.(?=\s)', '\n'.join(pages[1])) == expected[12:], 'Second page notes'
-    return dict(notes=24, pages=2, repeatedHeaders=2)
+    for page in (0, 1):
+        assert normalized[page].count(header) == 1, ('Repeated heading missing/duplicated on page', page + 1)
+        assert normalized[page].index(header) < positions[page * 12][1], 'Heading not before continuation'
+    assert normalized[0].count('SRV-001') == 1 and normalized[1].count('SRV-001') == 0, 'Initial item placement'
+    assert normalized[0].count('600.00') == 1 and normalized[1].count('600.00') == 0, 'Initial amount placement'
+    assert normalized[0].index('SRV-001') < positions[0][1], 'Initial item not before notes'
+    # Ensure all wrapped lines appear exactly once, not just the numbered prefixes.
+    for index in range(24):
+        if index == 23:
+            continue
+        page, start = positions[index]
+        stop = positions[index + 1][1] if positions[index + 1][0] == page else len(normalized[page])
+        fragment = normalized[page][start:stop].strip()
+        wanted = expected_notes[index] + (' 600.00' if index == 11 else '')
+        assert fragment == wanted, ('Note continuation line added, omitted or reordered', index + 1, fragment)
+    tail = normalized[1][positions[-1][1] + len(expected_notes[-1]):].strip()
+    if final_note:
+        assert tail.startswith(final_note), 'Final review note text missing or incomplete'
+        exact_tail = (final_note + ' SRV-002 Document generation '
+                      'Prepared the agreed searchable reports after the template review. '
+                      '300.00 TOTAL / ILLUSTRATIVE 900.00 '
+                      'Synthetic capability sample. Amounts are illustrative and are not a '
+                      'product quote or commercial offer.')
+        assert tail == exact_tail, ('Unexpected, missing or reordered final text', tail)
+    following = ([final_note] if final_note else []) + [
+        'SRV-002', '300.00', 'TOTAL / ILLUSTRATIVE', '900.00']
+    offsets = []
+    for marker in following:
+        assert text.count(marker) == 1 and marker not in normalized[0], ('Following value mislocated', marker)
+        assert tail.count(marker) == 1, ('Following value missing or duplicated', marker)
+        offsets.append(tail.index(marker))
+    assert offsets == sorted(offsets) and len(set(offsets)) == len(offsets), 'Following row/totals before final continuation'
+    return dict(notes=24, completeNoteContents=True, pages=2,
+                repeatedHeadersPerPage=[1, 1], followingRowsAfterContinuation=True)
 
 
 def main():
@@ -151,7 +209,9 @@ def main():
         continued = output / 'continued-row.pdf'
         assert not run(isolated, long, continued, '--image', f'logo={logo}', cwd=work), 'Row native CLI wrote stdout'
         assert count_pages(continued) == 2, 'Continued row page count'
-        row_result = validate_continued_row([page_lines(continued, page) for page in (1, 2)])
+        assert sha(long) == '3ad9fe8afbf140ef1e9e5f0c1bfafa43add2e36da6003281c4b2d9b70f4fa8a7', 'Unreviewed row fixture change'
+        authored_notes, final_note = expected_note_texts(long.read_text(encoding='utf-8'))
+        row_result = validate_continued_row([page_lines(continued, page) for page in (1, 2)], authored_notes, final_note)
         again = output / 'continued-row-repeat.pdf'
         assert not run(isolated, long, again, '--image', f'logo={logo}', cwd=work), 'Repeated row native CLI wrote stdout'
         assert continued.read_bytes() == again.read_bytes(), 'Continued row not deterministic'

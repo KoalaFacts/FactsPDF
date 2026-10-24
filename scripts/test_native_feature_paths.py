@@ -1,4 +1,4 @@
-"""Mutation controls for assertions also used on real platform-native PDFs."""
+"""Mutation controls for the same assertions used on actual platform-native PDFs."""
 import unittest
 
 from verify_native_feature_paths import validate_continued_row, validate_furniture_words
@@ -47,7 +47,7 @@ class NativeFeaturePathTests(unittest.TestCase):
 
     @staticmethod
     def row_pages():
-        first = ['Description / delivery notes', 'SRV-001', '600.00'] + [f'{n:02d}. Note {n}' for n in range(1, 13)]
+        first = ['Description / delivery notes', 'SRV-001'] + [f'{n:02d}. Note {n}' for n in range(1, 13)] + ['600.00']
         second = ['Description / delivery notes'] + [f'{n:02d}. Note {n}' for n in range(13, 25)] + [
             'SRV-002', '300.00', 'TOTAL / ILLUSTRATIVE', '900.00']
         return [first, second]
@@ -65,6 +65,50 @@ class NativeFeaturePathTests(unittest.TestCase):
             pages = self.row_pages(); change(pages)
             with self.subTest(pages=pages), self.assertRaises(AssertionError):
                 validate_continued_row(pages)
+
+    def test_nonleading_words_and_swapped_page_numbers_are_rejected(self):
+        plain, decorated = self.words(2)
+        width, height, words = decorated
+        for label in ('report', 'evaluation', 'offline', 'of', '2'):
+            mutated = list(words)
+            index = next(i for i, word in enumerate(mutated) if word[0] == label)
+            token = mutated[index]
+            mutated[index] = (token[0], -100.0, token[2], -60.0, token[4])
+            with self.subTest(label=label), self.assertRaises(AssertionError):
+                validate_furniture_words(plain, (width, height, mutated), 2)
+        plain, decorated = self.words(1)
+        words = list(decorated[2]); one, two = 1, 3
+        original_one, original_two = words[one], words[two]
+        words[one] = (original_one[0], original_two[1], original_one[2], original_two[3], original_one[4])
+        words[two] = (original_two[0], original_one[1], original_two[2], original_one[3], original_two[4])
+        with self.assertRaises(AssertionError):
+            validate_furniture_words(plain, (decorated[0], decorated[1], words), 1)
+
+    def test_note_body_truncation_rejected_even_when_prefix_survives(self):
+        pages = self.row_pages()
+        pages[0][3] = '02. TRUNCATED'
+        with self.assertRaises(AssertionError):
+            validate_continued_row(pages)
+
+    def test_duplicate_wrapped_continuation_line_rejected(self):
+        pages = self.row_pages()
+        pages[0].insert(4, 'unwanted duplicated wrapped text')
+        with self.assertRaises(AssertionError):
+            validate_continued_row(pages)
+
+    def test_repeated_header_moved_to_wrong_page_rejected(self):
+        pages = self.row_pages()
+        pages[0].insert(0, pages[1].pop(0))
+        with self.assertRaises(AssertionError):
+            validate_continued_row(pages)
+
+    def test_following_row_and_total_before_continuation_rejected(self):
+        pages = self.row_pages()
+        for marker in ('SRV-002', '300.00', 'TOTAL / ILLUSTRATIVE', '900.00'):
+            pages[1].remove(marker)
+            pages[0].insert(1, marker)
+        with self.assertRaises(AssertionError):
+            validate_continued_row(pages)
 
 
 if __name__ == '__main__':
