@@ -38,7 +38,6 @@ public sealed class JpegResourceTests
         });
     }
 
-    [TestCase("89504e470d0a1a0a")]
     [TestCase("474946383961")]
     [TestCase("524946460000000057454250")]
     [TestCase("ffd8ffe000104a46494600010100000100010000ffc2000b080008000801011100")]

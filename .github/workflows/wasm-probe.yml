@@ -65,6 +65,9 @@ jobs:
       - name: Inspect JPEG images through API CLI Node and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_images.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/images --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/images/bin/Release/net10.0/FactsPDF.Images.dll --native-cli artifacts/style-native/FactsPDF.Cli
+      - name: Inspect PNG color and transparency through CLI and Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_png.py --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --native-cli artifacts/style-native/FactsPDF.Cli --qpdf qpdf --output artifacts/wasm-evidence/png
       - name: Inspect multipage image list and font combinations
         run: |
           /usr/bin/python3 scripts/verify_image_composition.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/composition --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --native-cli artifacts/style-native/FactsPDF.Cli

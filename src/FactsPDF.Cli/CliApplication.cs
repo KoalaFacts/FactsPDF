@@ -12,7 +12,7 @@ public static class CliApplication
         "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
         "Text is centered in existing margins; with --page-numbers the footer is text | N. Overflow fails; no wrapping.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
-        "--image name=path supplies an explicit baseline JPEG resource (at most 16; no network downloads). Format is detected from content.\n";
+        "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n";
 
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
         CancellationToken cancellationToken = default)

@@ -81,7 +81,7 @@ Missing resources produce explicit diagnostics.
 | Area | Supported evaluation scope | Current boundary |
 | --- | --- | --- |
 | Tables | Explicit fixed columns, whole rows across pages, repeated single-row header | No automatic widths, row/column spans or splitting one cell across pages |
-| Images | Explicitly bound standalone baseline JPEG | No PNG/SVG, transparent images or automatic URL loading |
+| Images | Explicitly bound standalone baseline JPEG and supported static PNG, including alpha/tRNS transparency | No SVG, APNG, interlaced/16-bit PNG, inline/cell images or automatic URL loading |
 | Fonts | Explicit static TrueType roles and character fallback | No automatic family discovery, synthetic styles, full shaping or RTL |
 | Page furniture | Single-line literal header/footer, decimal page counter | No HTML header templates, total-page counters or general CSS Paged Media |
 | Layout | Documented block/text subset | General flex/grid and arbitrary webpage conversion are outside the current scope |

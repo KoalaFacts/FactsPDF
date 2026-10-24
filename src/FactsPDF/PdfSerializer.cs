@@ -55,7 +55,7 @@ internal static class PdfSerializer
                 Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {5 + 2 * i} 0 R >>");
                 Object(5 + 2 * i, $"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
             }
-            for (var i = 0; i < images.Count; i++)
+            for (var i = 0; i < images.ObjectCount; i++)
             {
                 if (firstImage + i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
                 offsets.Add(output.Position);
