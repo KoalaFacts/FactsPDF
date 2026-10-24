@@ -236,6 +236,71 @@ try {
     cliSha256: hash(furnitureCliPdf), byteEquality: true,
     malformedJsonBeforeInvalidImages: true, originalImageErrorPreserved: true,
     recoveredAfterErrors: true });
+
+  // Independent, page-scoped real-PDF acceptance for all six default regions,
+  // decimal totals and an entirely replaced cover. This complements (and does
+  // not replace) the strict raw-operand/geometry oracle.
+  const multiFurniture = {
+    html: '<p style="margin:0">BODY-001</p>' +
+      '<p style="break-before:page;margin:0">BODY-002</p>' +
+      '<p style="break-before:page;margin:0">BODY-003</p>',
+    json: JSON.stringify({
+      default: {
+        headerLeft: { template: 'Report {page}', fontSize: 12, color: '#203040' },
+        headerCenter: { template: '{{page}}', fontSize: 8, color: '#506070' },
+        headerRight: { template: 'Q4', fontSize: 10, color: '#804020' },
+        footerLeft: { template: 'Internal', fontSize: 9, color: '#606060' },
+        footerCenter: { template: '{page}/{pages}', fontSize: 10, color: '#102030' },
+        footerRight: { template: 'Page {page} of {pages}', fontSize: 8, color: '#204060' },
+      },
+      firstPage: {
+        headerCenter: { template: 'COVER', fontSize: 14, color: '#803020' },
+        footerRight: { template: 'Page {page} of {pages}', fontSize: 8, color: '#204060' },
+      },
+    }),
+  };
+  const multiResult = await withDeadline(page.evaluate(({ html, json }) =>
+    window.factspdfProbe.convertPageFurniture(html, {}, [], new TextEncoder().encode(json)),
+  multiFurniture), 45000, 'Protected browser three-page furniture');
+  assert.equal(multiResult.errorCode, null, JSON.stringify(multiResult));
+  assert.equal(multiResult.pageCount, 3, 'Three explicit body pages must remain three');
+  const multiPdf = Buffer.from(multiResult.pdfBase64, 'base64');
+  assert.equal(multiPdf.subarray(0, 5).toString(), '%PDF-');
+  const multiHtmlPath = join(output, 'page-furniture-three-page.html');
+  const multiJsonPath = join(output, 'page-furniture-three-page.json');
+  const multiWasmPath = join(output, 'page-furniture-three-page-wasm.pdf');
+  const multiCliPath = join(output, 'page-furniture-three-page-cli.pdf');
+  await writeFile(multiHtmlPath, multiFurniture.html);
+  await writeFile(multiJsonPath, multiFurniture.json);
+  await writeFile(multiWasmPath, multiPdf);
+  await direct(executable, [...(dll ? [dll] : []), multiHtmlPath, multiCliPath,
+    '--page-furniture', multiJsonPath, '--subset-fonts'], { timeout: 45000 });
+  const multiCliPdf = await readFile(multiCliPath);
+  assert.deepEqual(multiPdf, multiCliPdf, 'Three-page WASM/CLI furniture bytes differ');
+  const multiInfo = (await direct('pdfinfo', [multiWasmPath], { timeout: 15000 })).stdout;
+  assert.match(multiInfo, /^Pages:\\s+3\\s*$/m);
+  const pageContracts = [
+    { present: ['COVER', 'Page 1 of 3', 'BODY-001'],
+      absent: ['Report 1', 'Q4', 'Internal', '1/3', 'BODY-002', 'BODY-003', '{page}'] },
+    { present: ['Report 2', '{page}', 'Q4', 'Internal', '2/3', 'Page 2 of 3', 'BODY-002'],
+      absent: ['COVER', 'BODY-001', 'BODY-003', 'Report 3', 'Page 3 of 3'] },
+    { present: ['Report 3', '{page}', 'Q4', 'Internal', '3/3', 'Page 3 of 3', 'BODY-003'],
+      absent: ['COVER', 'BODY-001', 'BODY-002', 'Report 2', 'Page 2 of 3'] },
+  ];
+  for (const [index, contract] of pageContracts.entries()) {
+    const extracted = (await direct('pdftotext',
+      ['-f', String(index + 1), '-l', String(index + 1), '-raw', multiWasmPath, '-'],
+      { timeout: 15000 })).stdout.replace(/\\s+/gu, ' ');
+    for (const marker of contract.present)
+      assert.ok(extracted.includes(marker),
+        `Missing independently authored page ${index + 1} text: ${marker}`);
+    for (const marker of contract.absent)
+      assert.ok(!extracted.includes(marker),
+        `Unexpected page ${index + 1} text: ${marker}`);
+  }
+  report.cases.push({ name: 'page-furniture-three-pages-six-regions-cover',
+    pages: 3, bytes: multiPdf.length, sha256: hash(multiPdf), cliSha256: hash(multiCliPdf),
+    byteEquality: true, independentPageText: true, firstPageReplacement: true });
   for (const item of [...listErrors, ...tableErrors]) {
     const result = await call(item.name, []);
     assert.equal(result.errorCode, item.code, JSON.stringify(result));
