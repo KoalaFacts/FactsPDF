@@ -2,4 +2,5 @@
   <Project Path="src/FactsPDF/FactsPDF.csproj" />
   <Project Path="src/FactsPDF.Cli/FactsPDF.Cli.csproj" />
   <Project Path="tests/FactsPDF.Tests/FactsPDF.Tests.csproj" />
+  <Project Path="tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj" />
 </Solution>
