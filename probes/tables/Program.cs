@@ -21,6 +21,12 @@ const string breakAfter = "<p style='break-after:page'>A</p>";
 if (!Convert(breakAfter + empty, options with { MaxPages = 1 }).AsSpan().SequenceEqual(Convert(breakAfter, options)))
     throw new Exception("Invisible table consumed a deferred break");
 var errors = new List<object>();
+// The former four-line height refusal is now a valid two-page body continuation.
+using (var continued = new MemoryStream())
+{
+    var split = PdfConverter.Convert(simple, continued, options with { PageHeight = 99, Margin = 10 });
+    if (split.PageCount != 2) throw new Exception("Former height refusal did not continue on two pages");
+}
 foreach (var (name, input, settings, expected) in new[]
 {
     ("shape", "<table></table>", options, "FPDF1101"),
@@ -28,7 +34,7 @@ foreach (var (name, input, settings, expected) in new[]
     ("colspan", simple.Replace("<td>", "<td colspan='0'>"), options, "FPDF1103"),
     ("cell-css", simple.Replace("<td>", "<td style='width:100pt'>"), options, "FPDF1201"),
     ("missing-bold", simple.Replace("<tbody>", "<thead><tr><th>A</th></tr></thead><tbody>"), options with { BoldFonts = [] }, "FPDF1507"),
-    ("height", simple, options with { PageHeight = 99, Margin = 10 }, "FPDF1302"),
+    ("atomic-line-height", simple.Replace("line-height:2", "line-height:8"), options with { PageHeight = 99, Margin = 10 }, "FPDF1302"),
     ("empty-leading", "<div style='padding-top:1pt;background-color:red'>" + empty + simple + "</div>", options with { PageHeight = 100, Margin = 10 }, "FPDF1302"),
     ("pages", "<p>A</p>" + simple, options with { PageHeight = 100, Margin = 10, MaxPages = 1 }, "FPDF1303"),
     ("commands", simple, options with { MaxDisplayCommands = 3 }, "FPDF1401"),

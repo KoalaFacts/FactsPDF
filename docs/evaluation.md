@@ -24,6 +24,9 @@ The newer [branded business report](../examples/branded-business-report.html)
 adds a transparent PNG logo beside company details using image-only table cells.
 The [detailed service report](../examples/business-table-rich-cells.html) adds
 column spans and ordered paragraphs, images and captions inside a cell.
+The [long service report](../examples/business-table-long-description.html)
+continues one oversized description across pages, with repeated table headings,
+single-occurrence item values and an intact image.
 
 [Read the combined-report guide](combined-report.md) for the exact input and
 acceptance contract. A template that fits these constraints is a useful first
@@ -34,6 +37,7 @@ evaluation. Existing templates may need changes to fit the supported subset.
 | [First document](../examples/first-document.html) | Run the shortest end-to-end conversion | ASCII/Courier; no external font files |
 | [Branded business report](../examples/branded-business-report.html) | Transparent logo beside company details, line items and page furniture | Generated synthetic PNG and explicit image binding; no external fonts |
 | [Detailed service report](../examples/business-table-rich-cells.html) | Spanning headings/totals and paragraph/image/caption detail cells | The same generated synthetic logo; no external fonts |
+| [Long service report](../examples/business-table-long-description.html) | One long description continues across pages; a following item and totals remain in order | The same generated synthetic logo; no external fonts |
 | [30-record combined report](../examples/combined-report-30.html) | Review typography, lists, image, table and page furniture together | Four explicit font roles, JPEG binding and page options |
 | [100-record combined report](../examples/combined-report-100.html) | Review repeated table headers and longer pagination | The same resources as the 30-record report |
 
@@ -87,7 +91,7 @@ Missing resources produce explicit diagnostics.
 
 | Area | Supported evaluation scope | Current boundary |
 | --- | --- | --- |
-| Tables | Explicit fixed columns, column spans, ordered paragraph/image cells, whole rows across pages, repeated single-row header | No automatic widths, row spans, nested tables or splitting one cell across pages |
+| Tables | Explicit fixed columns, column spans, ordered paragraph/image cells, repeated single-row header, oversized body rows split at text-line/image boundaries | Short tables and rows that fit a fresh page stay whole; no automatic widths, row spans, nested tables or split images/headers |
 | Images | Explicitly bound baseline JPEG and supported static PNG, including alpha/tRNS; standalone or direct image items in cells | No SVG, APNG, interlaced/16-bit PNG, inline/list images, text wrapping around images or automatic URL loading |
 | Fonts | Explicit static TrueType roles and character fallback | No automatic family discovery, synthetic styles, full shaping or RTL |
 | Page furniture | Single-line literal header/footer, decimal page counter | No HTML header templates, total-page counters or general CSS Paged Media |

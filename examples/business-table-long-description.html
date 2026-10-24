@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>FactsPDF long service report</title>
+  <style>
+    body { font-size: 10pt; line-height: 1.5; color: #213547; }
+    table { width: 523.28pt; }
+    .brand td { padding: 14pt; background-color: #e4f3f0; }
+    .brand img { width: 108pt; }
+    .company { font-size: 13pt; color: #125c56; margin-bottom: 4pt; }
+    .contact { font-size: 9pt; margin-bottom: 0; }
+    h1 { font-size: 22pt; color: #125c56; margin-top: 16pt; margin-bottom: 6pt; }
+    .muted { color: #596979; font-size: 9pt; }
+    .items th { font-weight: normal; background-color: #f2f5f8; }
+    .items th, .items td { padding: 7pt; border: 1pt solid #c7d8df; }
+    .items td { background-color: #ffffff; }
+    .items .section, .items .total { background-color: #e4f3f0; }
+    .label { font-size: 11pt; color: #125c56; margin-bottom: 6pt; }
+    .detail { font-size: 9pt; line-height: 1.35; margin-bottom: 4pt; }
+    .caption { font-size: 8pt; color: #596979; margin-top: 4pt; margin-bottom: 8pt; }
+    .items img { width: 96pt; padding: 2pt; border: 1pt solid #bdd8d2; background-color: #f0f8f6; }
+    .money { text-align: right; }
+  </style>
+</head>
+<body>
+  <table class="brand">
+    <colgroup><col style="width:140pt"><col style="width:383.28pt"></colgroup>
+    <tbody><tr>
+      <td><img src="logo" alt="Synthetic demonstration mark"></td>
+      <td><p class="company">Example Operations</p><p class="contact">Business reporting services<br>Prepared 24 October 2026</p></td>
+    </tr></tbody>
+  </table>
+  <h1>LONG SERVICE REPORT</h1>
+  <p class="muted">Report FP-2026-026 / Prepared for Example Client</p>
+  <table class="items">
+    <colgroup><col style="width:80pt"><col style="width:323.28pt"><col style="width:120pt"></colgroup>
+    <thead><tr><th>Item</th><th>Description / delivery notes</th><th class="money">Amount</th></tr></thead>
+    <tbody>
+      <tr><td colspan="3" class="section">DELIVERED SERVICES / OCTOBER 2026</td></tr>
+      <tr>
+        <td>SRV-001</td>
+        <td>
+          <p class="label">Reporting template implementation</p>
+          <p class="detail">01. Source fields: Mapped the agreed source fields to the report and retained the original record identifiers for later checks.</p>
+          <p class="detail">02. Column widths: Set explicit column widths so item codes, descriptions and amounts keep the same positions across pages.</p>
+          <p class="detail">03. Brand assets: Connected the supplied brand asset through an explicit resource name and checked its transparent background.</p>
+          <p class="detail">04. Paragraph flow: Separated each delivery note into its own paragraph, with consistent spacing and readable line wrapping.</p>
+          <p class="detail">05. Text styles: Kept the title, body notes and captions distinct using the supported text styles and explicit font resources.</p>
+          <p class="detail">06. Source order: Checked that the description follows the order of the source records and that no note is repeated or omitted.</p>
+          <p class="detail">07. Table headings: Used a full-width section heading to identify the group of services while retaining the fixed item columns.</p>
+          <p class="detail">08. Long descriptions: Allowed this description to continue onto another page when its complete content exceeds a fresh page.</p>
+          <p class="detail">09. Repeated header: Repeated the table header above the continued description so the reader can identify each column.</p>
+          <p class="detail">10. Short values: Kept the item code and its amount on the first fragment of the item instead of repeating them on every page.</p>
+          <p class="detail">11. Image placement: Kept the image and its own border together, moving the complete image when the available space is too small.</p>
+          <p class="detail">12. Resource reuse: Reused the same authored image resource for the report heading and the description preview below.</p>
+          <img src="logo" alt="Synthetic integration preview">
+          <p class="caption">Authored brand asset, kept with its own complete image border.</p>
+          <p class="detail">13. Continuation lines: Broke the continued description between complete text lines and kept the next line inside its original column.</p>
+          <p class="detail">14. Cell boundaries: Continued the cell backgrounds and side borders while reserving the final bottom border for the end of the row.</p>
+          <p class="detail">15. Initial spacing: Retained an original paragraph margin when a cell waits for space while another cell continues on the current page.</p>
+          <p class="detail">16. Paragraph spacing: Applied the documented spacing rules at continuation pages without creating pages containing only a large gap.</p>
+          <p class="detail">17. Ending decoration: Placed the final text together with the required bottom edges and checked that no empty final page was introduced.</p>
+          <p class="detail">18. Following items: Placed the next service item after the long description and used remaining space on that page where it fits.</p>
+          <p class="detail">19. Totals: Kept the final total as its own complete row and used a spanning label across the first two fixed columns.</p>
+          <p class="detail">20. Searchable text: Retained ordinary PDF text so the recipient can search for an item code or copy a delivery note.</p>
+          <p class="detail">21. Input validation: Checked the supported document structure and used explicit errors when a supplied input falls outside the supported subset.</p>
+          <p class="detail">22. Output protection: Checked that a conversion failure preserves an existing destination and that a later valid conversion can succeed.</p>
+          <p class="detail">23. Delivery review: Reviewed the generated pages for missing text, repeated values, displaced images and unexpected cell boundaries.</p>
+          <p class="detail">24. Handover: Prepared the source template and its authored image binding so the same layout can be reproduced from application data.</p>
+          <p class="detail" style="margin-bottom:0">FINAL REVIEW NOTE: This demonstration uses synthetic records and an intentionally long description.</p>
+        </td>
+        <td class="money">600.00</td>
+      </tr>
+      <tr><td>SRV-002</td><td><p class="label">Document generation</p><p class="detail" style="margin-bottom:0">Prepared the agreed searchable reports after the template review.</p></td><td class="money">300.00</td></tr>
+      <tr><td colspan="2" class="total money">TOTAL / ILLUSTRATIVE</td><td class="total money">900.00</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Synthetic capability sample. Amounts are illustrative and are not a product quote or commercial offer.</p>
+</body>
+</html>

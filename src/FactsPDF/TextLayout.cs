@@ -272,8 +272,9 @@ internal static class TextLayout
             }
             if (step is LayoutTable table)
             {
+                var freshSpace = new TableFreshSpace(bottom - o.Margin, MoveUnconsumedBlocksToNewPage(apply: false));
                 var measured = TableLayout.Measure(table, o, resolved, cancellation,
-                    ChargeDisplayCommands, EnsureDisplayCommands);
+                    ChargeDisplayCommands, EnsureDisplayCommands, freshSpace);
                 // A validated but invisible table does not occupy page space.
                 // Leave deferred breaks and ancestor decoration for the next
                 // visible content, just as an empty undecorated block does.
@@ -295,18 +296,28 @@ internal static class TextLayout
                     var header = measured.Rows[0].IsHeader ? measured.Rows[0] : null;
                     var rowIndex = header is null ? 0 : 1;
                     var first = true;
+                    var affected = measured.Rows.Any(row => row.CanSplit);
+                    var cursor = new TableCursor(rowIndex);
                     while (rowIndex < measured.Rows.Count)
                     {
                         cancellation.ThrowIfCancellationRequested();
-                        var fragment = TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
-                        if (fragment.EndRow == rowIndex && CurrentPageOccupied())
+                        var plan = affected ? TablePagination.FitWithContinuations(measured, cursor,
+                            bottom - y - tableGap, freshSpace, first, cancellation) : null;
+                        var fragment = affected ? new TablePagination.Fragment(plan!.Next.RowIndex, plan.Height)
+                            : TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
+                        var noProgress = affected ? plan!.Parts.Count == 0 : fragment.EndRow == rowIndex;
+                        if (noProgress && CurrentPageOccupied())
                         {
                             NewPage();
                             MoveUnconsumedBlocksToNewPage();
                             tableGap = pendingTopPadding;
-                            fragment = TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
+                            plan = affected ? TablePagination.FitWithContinuations(measured, cursor,
+                                bottom - y - tableGap, freshSpace, first, cancellation) : null;
+                            fragment = affected ? new TablePagination.Fragment(plan!.Next.RowIndex, plan.Height)
+                                : TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
+                            noProgress = affected ? plan!.Parts.Count == 0 : fragment.EndRow == rowIndex;
                         }
-                        if (fragment.EndRow == rowIndex)
+                        if (noProgress)
                             throw new FactsPdfException("FPDF1302",
                                 "Table row, repeated header and required decoration cannot fit on a page.",
                                 measured.Rows[rowIndex].SourceOffset);
@@ -346,8 +357,64 @@ internal static class TextLayout
                             }
                             rowTop += row.Height;
                         }
+                        void PlaceSlice(MeasuredTableRow row, RowFragment slice)
+                        {
+                            // All shared-height cell slices precede every image
+                            // decoration, even when short cells are exhausted.
+                            foreach (var cell in row.Cells)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                var box = new PaintedBox(table.X + cell.X, rowTop, cell.Width, slice.Height,
+                                    cell.BoxStyle, cell.TextColor, paintOrder++, slice.IsFirst, slice.IsLast);
+                                ChargeDisplayCommands(box.CommandCount, cell.SourceOffset);
+                                if (box.CommandCount > 0) pages[^1].PaintBoxes.Add(box);
+                            }
+                            foreach (var selected in slice.Cells)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                var cell = row.Cells[selected.CellIndex];
+                                if (selected.StartUnit == selected.EndUnit) continue;
+                                var originalTop = cell.Units[selected.StartUnit].Top;
+                                for (var i = selected.StartUnit; i < selected.EndUnit; i++)
+                                {
+                                    cancellation.ThrowIfCancellationRequested();
+                                    var unit = cell.Units[i];
+                                    var unitTop = rowTop + selected.ContentTop + unit.Top - originalTop;
+                                    for (var j = unit.RunStart; j < unit.RunStart + unit.RunCount; j++)
+                                    {
+                                        cancellation.ThrowIfCancellationRequested();
+                                        var run = measured.Runs[j];
+                                        pages[^1].Runs.Add(run with { X = table.X + run.X,
+                                            Baseline = run.Baseline + o.PageHeight - unitTop + unit.Top });
+                                    }
+                                    if (unit.Kind != TableCellUnitKind.Image) continue;
+                                    for (var j = unit.ImageBoxStart; j < unit.ImageBoxStart + unit.ImageBoxCount; j++)
+                                    {
+                                        cancellation.ThrowIfCancellationRequested();
+                                        var imageBox = measured.PaintBoxes[j];
+                                        pages[^1].PaintBoxes.Add(imageBox with { X = table.X + imageBox.X,
+                                            Top = imageBox.Top + unitTop - unit.Top, Order = paintOrder++ });
+                                    }
+                                    var image = measured.Images[unit.ImageIndex];
+                                    pages[^1].Images.Add(image with { X = table.X + image.X,
+                                        Top = image.Top + unitTop - unit.Top });
+                                }
+                            }
+                            rowTop += slice.Height;
+                        }
                         if (header is not null) PlaceRow(header, !first);
-                        for (; rowIndex < fragment.EndRow; rowIndex++) PlaceRow(measured.Rows[rowIndex], false);
+                        if (affected)
+                        {
+                            foreach (var part in plan!.Parts)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                if (part.Slice is { } slice) PlaceSlice(measured.Rows[part.RowIndex], slice);
+                                else PlaceRow(measured.Rows[part.RowIndex], false);
+                            }
+                            cursor = plan.Next;
+                            rowIndex = cursor.RowIndex;
+                        }
+                        else for (; rowIndex < fragment.EndRow; rowIndex++) PlaceRow(measured.Rows[rowIndex], false);
                         y += fragment.Height;
                         pendingTopPadding = pendingClosedPadding = after = 0;
                         contentEpoch++;

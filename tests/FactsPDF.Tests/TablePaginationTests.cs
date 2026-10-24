@@ -101,10 +101,15 @@ public sealed class TablePaginationTests
     }
 
     [TestCase(false)] [TestCase(true)]
-    public void OversizeRowOrHeaderCombinationFailsAtomically(bool header)
+    public void FormerOversizeRowsNowContinueWithOptionalHeader(bool header)
     {
         var html = Table(2, header, content: "A<br>B<br>C<br>D" + (header ? "" : "<br>E"));
-        TableStructureTests.Fails(html, "FPDF1302", Page);
+        var pages = TableLayoutTests.Layout(html, Page);
+        Assert.That(pages, Has.Count.EqualTo(3));
+        Assert.That(pages.SelectMany(p => p.Runs).Count(r => r.Text == "A"), Is.EqualTo(2));
+        Assert.That(pages.SelectMany(p => p.Runs).Count(r => r.Text == "HEAD"), Is.EqualTo(header ? 3 : 0));
+        Assert.That(TableLayoutTests.Pdf(html, Page), Is.Not.Empty);
+        TableStructureTests.Fails(Table(1, header, content: "<span style='line-height:9'>A</span>"), "FPDF1302", Page);
     }
 
     [Test]

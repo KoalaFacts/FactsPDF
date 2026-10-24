@@ -419,7 +419,7 @@ def main():
     for mode,code in negatives.items():
         html=original
         if mode=='wide-row':html=html.replace('<td>R001</td>','<td>'+'W'*200+'</td>')
-        elif mode=='tall-row':html=html.replace('<td>R001</td>','<td>R001'+'<br>continued'*40+'</td>')
+        elif mode=='tall-row':html=html.replace('<td>R001</td>','<td style="font-size:80pt;line-height:10">X</td>')
         source=out/(mode+'.html');source.write_text(html)
         api=json.loads(run(args.dotnet,args.api_dll,source,out/'must-not-exist.pdf',args.manifest,jpeg,'on',mode))
         assert not (out/'must-not-exist.pdf').exists(),'negative API wrote a file'

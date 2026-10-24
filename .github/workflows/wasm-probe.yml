@@ -54,6 +54,7 @@ jobs:
           dotnet build probes/lists/FactsPDF.Lists.csproj -c Release
           dotnet build probes/images/FactsPDF.Images.csproj -c Release
           dotnet build probes/tables/FactsPDF.Tables.csproj -c Release
+          dotnet build probes/table-row-fragments/FactsPDF.TableRowFragments.csproj -c Release
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/style-native
           dotnet msbuild probes/browser-wasm/FactsPDF.WasmProbe.csproj -p:Configuration=Release -getProperty:NETCoreSdkVersion,RuntimeFrameworkVersion,TargetFramework,RuntimeIdentifier,RunAOTCompilation,WasmBuildNative,WasmEnableThreads,PublishTrimmed,WasmEnableSIMD > artifacts/wasm-evidence/build-properties.json
       - name: Inspect real style glyphs and direct API / CLI / Native AOT parity
@@ -83,6 +84,9 @@ jobs:
       - name: Inspect rich spanning table cells through CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_table_rich_cells.py --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --native-cli artifacts/style-native/FactsPDF.Cli --qpdf qpdf --output artifacts/wasm-evidence/table-rich --example examples/business-table-rich-cells.html
+      - name: Inspect continued body rows through public API CLI and actual Native AOT
+        run: |
+          /usr/bin/python3 scripts/verify_table_row_fragments.py --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/table-row-fragments/bin/Release/net10.0/FactsPDF.TableRowFragments.dll --native-cli artifacts/style-native/FactsPDF.Cli --qpdf qpdf --output artifacts/wasm-evidence/table-row-fragments --example examples/business-table-long-description.html
       - name: Inspect F1 heading keeps through API CLI and Native AOT
         run: |
           /usr/bin/python3 scripts/verify_heading_keep.py --manifest artifacts/wasm-evidence/font-manifest.json --output artifacts/wasm-evidence/heading-pagination --dotnet "$(command -v dotnet)" --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll --api-dll probes/font-styles/bin/Release/net10.0/FactsPDF.FontStyles.dll --native-cli artifacts/style-native/FactsPDF.Cli

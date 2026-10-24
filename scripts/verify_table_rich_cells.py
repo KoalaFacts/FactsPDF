@@ -128,7 +128,7 @@ def create(directory):
         {'name': 'coverage-overflow', 'html': table('X').replace('colspan="2"', 'colspan="3"'), 'code': 'FPDF1101'},
         {'name': 'coverage-underfill', 'html': table('X').replace('<td>Z</td>', ''), 'code': 'FPDF1101'},
         {'name': 'overridden-illegal-p', 'html': table('<p style="padding:1pt;padding:initial">X</p>'), 'code': 'FPDF1201'},
-        {'name': 'oversized-rich-row', 'html': table('<p>' + '<br>'.join(['LONG'] * 70) + '</p>'), 'code': 'FPDF1302'},
+        {'name': 'oversized-atomic-rich-line', 'html': table('<p style="font-size:80pt;line-height:10">X</p>'), 'code': 'FPDF1302'},
     ]
     manifest = {'source': 'literal authored acceptance geometry; no renderer imports',
                 'referenceApproval': 'pending-user-review',
