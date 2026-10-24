@@ -1,3 +1,5 @@
+using System.Text;
+using FactsPDF.CommandLine;
 using FactsPDF.WasmProbe;
 using NUnit.Framework;
 
@@ -109,4 +111,104 @@ public class WasmProbeTests
         Assert.That(result.ErrorMessage, Is.EqualTo("FPDF1504: No supplied italic font contains U+4E2D."));
         Assert.That(result.PdfBase64, Is.Null);
     }
+    private static ProbeResult Furniture(string html, byte[] config, byte[]? fonts = null, int[]? lengths = null,
+        int[]? roles = null, byte[]? images = null, int[]? imageLengths = null, string[]? imageNames = null)
+        => ProbeConversion.RunPageFurniture(html, fonts ?? [], lengths ?? [], roles ?? [],
+            images ?? [], imageLengths ?? [], imageNames ?? [], config, true);
+
+    [Test]
+    public void FurnitureProbeMatchesIndependentTypedApiAndManagedCli()
+    {
+        const string html = "<p>Independent business report.</p>";
+        const string json = """
+            {"default":{"headerLeft":{"template":"Invoice"},
+                        "footerRight":{"template":"Page {page} of {pages}","fontSize":11,"color":"#123456"}}}
+            """;
+        var parsedBytes = Encoding.UTF8.GetBytes(json);
+        var actual = Furniture(html, parsedBytes);
+        var supplied = new PdfPageFurniture { Default = new()
+        {
+            HeaderLeft = new() { Template = "Invoice" },
+            FooterRight = new() { Template = "Page {page} of {pages}",
+                FontSize = 11, Color = new PdfRgbColor(0x12, 0x34, 0x56) }
+        } };
+        using var expected = new MemoryStream();
+        var typedResult = PdfConverter.Convert(html, expected,
+            new PdfOptions { PageFurniture = supplied, SubsetFonts = true });
+        Assert.Multiple(() =>
+        {
+            Assert.That(actual.ErrorCode, Is.Null);
+            Assert.That(actual.PageCount, Is.EqualTo(typedResult.PageCount));
+            Assert.That(Convert.FromBase64String(actual.PdfBase64!), Is.EqualTo(expected.ToArray()));
+        });
+
+        var path = Path.Combine(Path.GetTempPath(), "factspdf-wasm-furniture-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            File.WriteAllBytes(path, parsedBytes);
+            using var input = new MemoryStream(Encoding.UTF8.GetBytes(html));
+            using var output = new MemoryStream();
+            using var stderr = new StringWriter();
+            var exit = CliApplication.Run(["-", "-", "--page-furniture", path, "--subset-fonts"],
+                input, output, stderr);
+            Assert.Multiple(() =>
+            {
+                Assert.That(exit, Is.Zero, stderr.ToString());
+                Assert.That(output.ToArray(), Is.EqualTo(expected.ToArray()));
+            });
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Test]
+    public void FurnitureProbePrioritisesStrictJsonOverBadTransport()
+    {
+        var malformed = Furniture("<p>ASCII</p>", "{bad"u8.ToArray(),
+            [1], [2], [9], [1], [1], ["bad/name"]);
+        Assert.Multiple(() =>
+        {
+            Assert.That(malformed.ErrorCode, Is.EqualTo("B2_INPUT_FURNITURE"));
+            Assert.That(malformed.PdfBase64, Is.Null);
+            Assert.That(malformed.PageCount, Is.Zero);
+        });
+        var fontFailure = Furniture("<p>ASCII</p>", "{}"u8.ToArray(), [1], [2], [9]);
+        Assert.That(fontFailure.ErrorCode, Is.EqualTo("B2_INPUT_FONTS"));
+        var imageFailure = Furniture("<p>ASCII</p>", "{}"u8.ToArray(),
+            images: [1], imageLengths: [1], imageNames: ["bad/name"]);
+        Assert.That(imageFailure.ErrorCode, Is.EqualTo("B2_INPUT_IMAGES"));
+        Assert.That(Furniture("<p>ASCII</p>", null!).ErrorCode, Is.EqualTo("B2_INPUT_FURNITURE"));
+    }
+
+    [Test]
+    public void FurnitureProbeRetainsCoreErrorsAndRecoversWithoutChangingOldAdapter()
+    {
+        const string html = "<p>Independent.</p>";
+        var oldBefore = ProbeConversion.RunImages(html, [], [], [], [], [], [], true);
+        var clean = Furniture(html, "{}"u8.ToArray());
+        Assert.That(clean.ErrorCode, Is.Null);
+        Assert.That(clean.PdfBase64, Is.EqualTo(oldBefore.PdfBase64));
+
+        var invalidTemplate = Furniture(html, """{"default":{"headerLeft":{"template":"{bad}"}}}"""u8.ToArray());
+        Assert.Multiple(() =>
+        {
+            Assert.That(invalidTemplate.ErrorCode, Is.EqualTo("FPDF1306"));
+            Assert.That(invalidTemplate.PdfBase64, Is.Null);
+            Assert.That(invalidTemplate.PageCount, Is.Zero);
+        });
+        var missingBold = Furniture(html, """{"default":{"headerLeft":{"template":"B","bold":true}}}"""u8.ToArray());
+        Assert.That(missingBold.ErrorCode, Is.EqualTo("FPDF1507"));
+        Assert.That(missingBold.PdfBase64, Is.Null);
+        var missingUnicode = Furniture("<p>中</p>", "{}"u8.ToArray());
+        Assert.That(missingUnicode.ErrorCode, Is.EqualTo("FPDF1301"));
+        Assert.That(missingUnicode.PdfBase64, Is.Null);
+
+        var after = Furniture(html, "{}"u8.ToArray());
+        var oldAfter = ProbeConversion.RunImages(html, [], [], [], [], [], [], true);
+        Assert.Multiple(() =>
+        {
+            Assert.That(after.PdfBase64, Is.EqualTo(clean.PdfBase64));
+            Assert.That(oldAfter.PdfBase64, Is.EqualTo(oldBefore.PdfBase64));
+        });
+    }
+
 }

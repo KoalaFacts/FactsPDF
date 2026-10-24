@@ -1,3 +1,5 @@
+using FactsPDF.Configuration;
+
 namespace FactsPDF.WasmProbe;
 
 internal static class ProbeConversion
@@ -10,6 +12,29 @@ internal static class ProbeConversion
 
     internal static ProbeResult RunImages(string html, byte[] packed, int[] lengths, int[] roles,
         byte[] imageBytes, int[] imageLengths, string[] imageNames, bool subsetFonts)
+        => RunImagesCore(html, packed, lengths, roles, imageBytes, imageLengths, imageNames, subsetFonts, null);
+
+    // Configuration is parsed before inspecting packed resources, so malformed
+    // furniture wins over a simultaneous invalid font/image transport.
+    internal static ProbeResult RunPageFurniture(string html, byte[] packed, int[] lengths, int[] roles,
+        byte[] imageBytes, int[] imageLengths, string[] imageNames, byte[] furnitureJson, bool subsetFonts)
+    {
+        var before = GC.GetTotalMemory(false);
+        try
+        {
+            if (furnitureJson is null)
+                throw new ArgumentException("PageFurniture JSON bytes are required.", nameof(furnitureJson));
+            var furniture = PageFurnitureJson.Parse(furnitureJson);
+            return RunImagesCore(html, packed, lengths, roles, imageBytes, imageLengths, imageNames, subsetFonts, furniture);
+        }
+        catch (ArgumentException error)
+        {
+            return new(null, 0, "B2_INPUT_FURNITURE", error.Message, before, GC.GetTotalMemory(false));
+        }
+    }
+
+    private static ProbeResult RunImagesCore(string html, byte[] packed, int[] lengths, int[] roles,
+        byte[] imageBytes, int[] imageLengths, string[] imageNames, bool subsetFonts, PdfPageFurniture? furniture)
     {
         var before = GC.GetTotalMemory(false);
         if (packed is null || lengths is null || roles is null || lengths.Length != roles.Length || lengths.Length > 8
@@ -25,7 +50,7 @@ internal static class ProbeConversion
             return new(null, 0, "B2_INPUT_IMAGES", "Invalid explicit image configuration.", before, GC.GetTotalMemory(false));
         try
         {
-            var options = new PdfOptions { SubsetFonts = subsetFonts };
+            var options = new PdfOptions { SubsetFonts = subsetFonts, PageFurniture = furniture };
             if (imageBytes.Length > options.MaxTotalImageBytes || imageLengths.Any(length => length > 8_388_608))
                 throw new FactsPdfException("FPDF1603", "Images exceed explicit resource byte limits.");
             if (packed.Length > options.MaxTotalFontBytes)
