@@ -36,6 +36,23 @@ public static partial class BrowserExports
         => JsonSerializer.Serialize(ProbeConversion.RunPageFurniture(html, fontBytes, fontLengths, fontRoles,
             imageBytes, imageLengths, imageNames, furnitureJson, subsetFonts), ProbeJsonContext.Default.ProbeResult);
 
+    // Validate only when the JavaScript wrapper rejects an image resource.
+    // Keep configuration diagnostics ahead of resource diagnostics without
+    // rendering a second PDF on the normal successful path.
+    [JSExport]
+    public static string ValidatePageFurnitureJson(byte[] json)
+    {
+        try
+        {
+            _ = FactsPDF.Configuration.PageFurnitureJson.Parse(json);
+            return string.Empty;
+        }
+        catch (ArgumentException error)
+        {
+            return error.Message;
+        }
+    }
+
     [JSExport]
     public static bool IsBrowser() => OperatingSystem.IsBrowser();
 }
