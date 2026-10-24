@@ -9,6 +9,8 @@ public sealed record PdfOptions
     public double FontSize { get; init; } = 12;
     /// <summary>Opt in to centered decimal page numbers in the existing bottom margin, using normal 10pt text.</summary>
     public bool PageNumbers { get; init; }
+    /// <summary>Optional six-region styled page furniture; mutually exclusive with legacy margin text.</summary>
+    public PdfPageFurniture? PageFurniture { get; init; }
     /// <summary>Optional literal single-line header, normal 10pt text in the existing top margin; at most 1024 UTF-16 units.</summary>
     public string? HeaderText { get; init; }
     /// <summary>Optional literal single-line footer; PageNumbers appends " | N". At most 1024 UTF-16 units.</summary>
