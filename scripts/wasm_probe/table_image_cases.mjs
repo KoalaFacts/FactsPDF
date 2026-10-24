@@ -35,7 +35,7 @@ export async function inspectTableImages({ page, output, executable, dll }) {
       ['-c', python, browserPath, JSON.stringify(item), JSON.stringify(manifest.image)], { timeout: 45000 })).stdout);
     results.push({ id: `table-image-${item.name}`, byteEquality: true, ...inspected });
   }
-  const invalid = manifest.cases[0].html.replace('<img src="sample">', '<img src="sample">TRAILING');
+  const invalid = manifest.cases[0].html.replace('<img src="sample">', '<span><img src="sample"></span>');
   const failure = await call(invalid);
   assert.equal(failure.errorCode, 'FPDF1101');
   assert.equal(failure.pdfBase64, null);

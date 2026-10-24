@@ -37,7 +37,11 @@ internal static class BlockTreeTraversal
                         foreach (var cell in row.Cells)
                         {
                             cancellation.ThrowIfCancellationRequested();
-                            if (cell.Image is null) yield return cell.Paragraph;
+                            foreach (var content in cell.Contents)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                if (content is TableCellText text) yield return text.Paragraph;
+                            }
                         }
                     break;
                 default:

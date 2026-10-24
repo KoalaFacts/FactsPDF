@@ -29,9 +29,9 @@ JPEG requires a first JFIF APP0, 8-bit SOF0, one complete interleaved sequential
 
 Progressive/multiscan, CMYK/RGB-coded JPEG, arithmetic/lossless, ICC/Adobe transforms, non-square density, thumbnails and unsupported markers fail explicitly. Exif may omit orientation or specify 1; rotations/flips fail. Only bounded TIFF IFD0 ranges and the orientation field are interpreted; child IFD semantics are not validated. COM and bounded supported metadata are retained in the original DCT stream. DeviceRGB/Gray output does not claim color management or full image sanitization.
 
-`img` is a void block at the root/body or inside ordinary supported containers, or the sole direct content of a [table cell](tables.md#image-only-cells-and-branded-layouts). Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
+`img` is a void block at the root/body or inside ordinary supported containers, or a direct image item in a [table cell](tables.md#rich-and-spanning-cells). Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
 
-CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Standalone images remain left-aligned. An image-only cell uses its cell's text alignment and available content width. No automatic shrinking, independent height, transforms, float, wrap, inline/list images or mixed image/text cell content are implemented.
+CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Standalone images remain left-aligned. Cell images use their cell's text alignment and available content width, including any covered tracks from `colspan`. Paragraphs and images may share a cell as separate vertical items. No automatic shrinking, independent height, transforms, float, text wrapping around images, or inline/list images are implemented.
 
 The complete image outer box moves to the next page if necessary. An image plus required leading ancestor decoration that cannot fit an empty page fails `FPDF1302`. Its own padding/borders never split; ancestor decorations retain existing slice behavior. Each image draw costs one display command, plus normal decoration commands.
 
@@ -65,7 +65,7 @@ text, is ignored after framing/type/CRC validation; compressed metadata is not
 inflated. This does not implement color management or automatic Exif rotation.
 
 16-bit samples, Adam7 interlacing, APNG and SVG remain unsupported and fail
-explicitly. PNG and JPEG share standalone and image-only-cell placement. The
+explicitly. PNG and JPEG share standalone and direct-cell-item placement. The
 engine does not fetch images from the network or bundle fonts.
 
 ### Generate the brand-report sample

@@ -13,7 +13,10 @@ internal sealed record TableRow(bool IsHeader, int SourceOffset)
 {
     internal List<TableCell> Cells { get; } = [];
 }
-internal sealed record TableCell(Paragraph Paragraph, BoxStyle BoxStyle, int SourceOffset)
+internal abstract record TableCellContent;
+internal sealed record TableCellText(Paragraph Paragraph) : TableCellContent;
+internal sealed record TableCellImage(ImageNode Image) : TableCellContent;
+internal sealed record TableCell(TextStyle Style, BoxStyle BoxStyle, int SourceOffset, int ColumnSpan)
 {
-    internal ImageNode? Image { get; set; }
+    internal List<TableCellContent> Contents { get; } = [];
 }

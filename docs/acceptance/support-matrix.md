@@ -34,6 +34,7 @@ These implemented paths have independent executable evidence. This table neither
 | Fixed columns, whole rows, repeated headers | [E1/E2 tables](../tables.md), `scripts/verify_table_pagination.py` | Separate from malformed T-table rejection |
 | Static PNG color and transparency | [PNG image resources](../images.md), `scripts/verify_png.py` | Scoped non-interlaced formats; separate engineering evidence |
 | Image-only table cells and repeated image headers | [Branded table composition](../tables.md#image-only-cells-and-branded-layouts), `scripts/verify_table_images.py` | Literal geometry/pixels, reuse and actual mutated-PDF rejection; new pages pending reference review |
+| Column spans and ordered paragraph/image cells | [Rich and spanning cells](../tables.md#rich-and-spanning-cells), `scripts/verify_table_rich_cells.py` | Authored geometry, margin and border witnesses; rows still indivisible; new pages pending reference review |
 | Heading kept with following paragraph | [F1 heading keep](../heading-pagination.md), `scripts/verify_heading_keep.py` | Existing opt-in paragraph contract |
 | Page counters | [F2 page numbers](../page-numbers.md), `scripts/verify_page_numbers.py` | Existing body geometry remains unchanged |
 | Static header/footer and counter composition | [F3 page margins](../page-margins.md), `scripts/verify_page_margins.py` | Explicit literal text; existing margins |

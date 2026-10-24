@@ -63,13 +63,18 @@ public sealed class TableImageTests
         Assert.That(page.Runs.Single().Baseline, Is.LessThan(841.89 - 48));
     }
 
-    [TestCase("A")] [TestCase("&nbsp;")] [TestCase("&#160;")] [TestCase("<span></span>")]
-    [TestCase("<b> </b>")] [TestCase("<br>")] [TestCase("<p>A</p>")] [TestCase("<div></div>")]
-    [TestCase("<ul><li>A</li></ul>")] [TestCase(Img)] [TestCase(TableStructureTests.One)]
-    public void MixedContentBothOrdersFailsWithoutChangingOutput(string other)
+    [TestCase("<div></div>")][TestCase("<ul><li>A</li></ul>")][TestCase(TableStructureTests.One)]
+    public void ForbiddenBlockContentBothOrdersFailsWithoutChangingOutput(string other)
     {
         TableStructureTests.Fails(Cell(other + Img), "FPDF1101", Options());
         TableStructureTests.Fails(Cell(Img + other), "FPDF1101", Options());
+    }
+
+    [TestCase("span")][TestCase("p")]
+    public void WrappedImageAndTextBothOrdersFailWithoutChangingOutput(string wrapper)
+    {
+        TableStructureTests.Fails(Cell($"<{wrapper}>A" + Img + $"</{wrapper}>"), "FPDF1101", Options());
+        TableStructureTests.Fails(Cell($"<{wrapper}>" + Img + $"A</{wrapper}>"), "FPDF1101", Options());
     }
 
     [Test]

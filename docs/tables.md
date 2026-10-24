@@ -25,8 +25,8 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 
 - Tables are standalone blocks in the document/body or ordinary block containers. They cannot appear in paragraphs, headings, inline elements, list items or another table.
 - A table contains exactly one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, and exactly one `tbody` with at least one `tr`, in that order.
-- Every row has the same cell count as the column group. Header rows contain `th`; body rows contain `td`. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
-- Cells accept text and `span`, `b/strong`, `i/em`, `br`, or one direct image as their entire content. Cell paragraphs, lists, nested tables, captions, `colspan` and `rowspan` are unsupported.
+- Every row covers the same explicit columns, using consecutive cells and optional `colspan`. Header rows contain `th`; body rows contain `td`. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
+- Cells accept an ordered flat flow of text/inline runs, direct `p` paragraphs and direct images. Text uses `span`, `b/strong`, `i/em`, `br`. Lists, nested tables, headings/containers inside cells, captions and `rowspan` are unsupported.
 
 ## Widths, rows and paint
 
@@ -34,7 +34,7 @@ Every column needs a positive CSS `width` in pt, px or percent. Percentages use 
 
 An explicit table width describes its content box. Its own padding/borders sit outside that width and the outer box must fit its parent. As for existing blocks, omitted/auto table width fills the parent with the outer box, subtracting the table's own padding/borders to find its content width.
 
-A column track includes each cell's horizontal padding and borders. Cell text width is the track minus those decorations and must stay positive. Cell padding percentages, including vertical padding, resolve against that cell's track width. Table padding percentages use the parent content width.
+A cell's covered column tracks include its horizontal padding and borders. Cell content width is their sum minus those decorations and must stay positive. Cell padding percentages, including vertical padding, resolve against that summed width. Table padding percentages use the parent content width.
 
 Cells wrap with the same font metrics and word/CJK break rules as paragraphs. The tallest wrapped cell plus its vertical decorations determines the row height. Every cell paints to that height, with shorter text at the top. Empty or whitespace-only cells have zero text-line height plus their decorations; `br` creates the existing explicit line box. Separate cell border boxes touch without spacing; adjacent borders remain distinct strokes.
 
@@ -62,10 +62,10 @@ including transparency. Put company text in an adjacent cell:
 </table>
 ```
 
-An image cell cannot also contain text, `br`, another image or any inline wrapper,
-even an empty one. An image inside a `span` is unsupported. A nonbreaking space
-is content, not formatting whitespace. These mixed-content forms fail
-`FPDF1101`; an unbound image name still fails `FPDF1604`.
+Cells may also contain direct text, paragraphs and multiple direct images in
+source order, as described below. Every image occupies its own vertical item;
+an image inside a `span` or `p` fails `FPDF1101`. A nonbreaking space is content,
+not formatting whitespace. An unbound image name still fails `FPDF1604`.
 
 Image width percentages and its padding percentages use the cell's content
 width, after cell padding/borders have been subtracted from the column track.
@@ -91,10 +91,71 @@ image headers. It also rejects deliberately displaced/removed image draws and
 checks failure preservation/recovery through the real CLI. The browser workflow
 runs the same cases through actual Native AOT and browser conversion.
 
+## Rich and spanning cells
+
+`colspan` is accepted on `td` and `th`. Omitted means one column. After trimming
+HTML formatting whitespace, its value must contain only ASCII digits and name
+1 through the table's explicit column count. Leading zeros are accepted; signs,
+decimals, zero, non-ASCII digits and out-of-range values fail `FPDF1103`. Every
+row must cover exactly all columns; overfill or underfill fails `FPDF1101`.
+A spanned cell paints one rectangle across the covered tracks, without an
+internal border between them. Other rows retain their own column boundaries.
+
+```html
+<table style="width:300pt;font-size:10pt">
+  <colgroup><col style="width:120pt"><col style="width:80pt"><col style="width:100pt"></colgroup>
+  <tbody><tr>
+    <td colspan="2" style="padding:6pt;border:1pt solid #24445a">
+      <p style="margin-bottom:4pt">Installation details</p>
+      <p>Prepare the report and validate the supplied resources.</p>
+      <img src="logo" style="width:72pt">
+      <p style="font-size:9pt;margin-top:4pt;margin-bottom:0">Integration preview</p>
+    </td>
+    <td style="padding:6pt;text-align:right">600.00</td>
+  </tr></tbody>
+</table>
+```
+
+A cell's paragraphs and images flow vertically in source order. Direct text
+before or after an item forms an anonymous paragraph with zero margins and the
+cell's text alignment. Formatting whitespace between items adds no paragraph;
+`br` keeps its explicit line-box behavior. Images must be direct cell children.
+Cell paragraphs must be explicitly closed and cannot contain another paragraph,
+an image, a list, heading, block container or table.
+
+Cell paragraphs support text styling and `margin-top`/`margin-bottom`. An
+unstyled paragraph has top margin zero and bottom margin 8pt. Between occupied
+items, the larger adjacent margin is used. The first top and final bottom margin
+remain inside the cell; no margin collapses through cell edges. Empty paragraphs
+create no text line and combine their pending margins by maximum. Two empty
+unstyled paragraphs therefore contribute 8pt, not two blank lines. Explicit
+`initial` margin values retain the existing zero initial value.
+
+Paragraph width, padding, borders, backgrounds and all break declarations are
+unsupported inside cells and fail `FPDF1201`, including a matched declaration
+that another rule overrides. Apply decoration to the cell or image, and narrow
+global paragraph selectors when necessary. Ordinary paragraphs outside tables
+retain their existing box and pagination behavior.
+
+The spanned content width controls wrapping and image percentages. Paragraph
+alignment positions its text; the cell alignment positions image outer boxes.
+The tallest complete cell flow determines row height. Rich and spanned headers
+repeat intact. Rows still move as a whole; a description too tall for an empty
+page with its header/decorations fails `FPDF1302`. This increment does not split
+long descriptions across pages.
+
+The [detailed service report](../examples/business-table-rich-cells.html) combines
+a spanning section heading, paragraph/image/caption detail, a two-column total
+and a full-width note. Generate its `logo` with `scripts/png_fixtures.py` and bind
+`brand-mark.png` through the existing `--image` option. Independent acceptance
+uses `scripts/verify_table_rich_cells.py` for actual text/image geometry, spanning
+border pixels, paragraph margins, repeated headers, failures and mutations.
+
 | Element | Supported CSS |
 | --- | --- |
 | `table` | Existing container width, padding, solid borders, background-color and inherited text properties |
 | `td`, `th` | Padding, solid borders, background-color and text properties; no width, margin or break declarations |
+| `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
 | `col` | Width only |
 | `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only |
 
@@ -106,8 +167,8 @@ All existing input, element, depth, CSS, font, page, display-command and output-
 
 | Code | Table-specific cause |
 | --- | --- |
-| `FPDF1101` | Invalid structure/placement, wrong cell counts or more than 16 columns |
-| `FPDF1103` | Unsupported attributes, including spanning |
+| `FPDF1101` | Invalid structure/placement, incorrect column coverage or more than 16 columns |
+| `FPDF1103` | Invalid/misplaced `colspan`, unsupported attributes including `rowspan` |
 | `FPDF1201` | Unsupported CSS or tag-specific applicability |
 | `FPDF1302` | Missing/invalid resolved widths, cell content too narrow, table too wide, or an indivisible row/header/required-decoration combination too tall |
 | `FPDF1303` | Table movement or continuation would exceed MaxPages |
