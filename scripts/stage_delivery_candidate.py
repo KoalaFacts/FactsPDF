@@ -600,7 +600,10 @@ def _native_compiler_origin(dotnet: str, root: Path, profile: str) -> dict:
             raise ValueError('Invalid native compiler package SHA512') from exc
         if len(decoded) != 64 or base64.b64encode(decoded).decode('ascii') != digest:
             raise ValueError('Invalid native compiler package SHA512')
-        if library.get('sha512') != digest:
+        # NuGet project.assets.json uses the SRI-style `sha512-` prefix;
+        # the adjacent .nupkg.sha512 cache file contains bare base64.
+        # Compare the complete canonical forms without trimming the prefix.
+        if library.get('sha512') != 'sha512-' + digest:
             raise ValueError('Native compiler asset/cache SHA512 mismatch: ' + package_id)
         packages.append({'packageId': package_id, 'version': RUNTIME,
                          'nuspecSha256': _sha(nuspec.read_bytes()),
