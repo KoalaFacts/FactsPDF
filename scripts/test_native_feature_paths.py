@@ -1,10 +1,26 @@
 """Mutation controls for the same assertions used on actual platform-native PDFs."""
 import unittest
+import tempfile
+from pathlib import Path
 
-from verify_native_feature_paths import validate_continued_row, validate_furniture_words
+from verify_native_feature_paths import ROOT, validate_row_fixture, validate_continued_row, validate_furniture_words
 
 
 class NativeFeaturePathTests(unittest.TestCase):
+    def test_fixture_pin_accepts_checkout_endings_but_rejects_content_changes(self):
+        original = (ROOT / "examples/business-table-long-description.html").read_bytes()
+        lf = original.replace(b"\r\n", b"\n")
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.html"
+            for content in (lf, lf.replace(b"\n", b"\r\n")):
+                fixture.write_bytes(content)
+                self.assertEqual(validate_row_fixture(fixture),
+                                 "e6dd417ec5da8193124c18110a6b48575508d034c9c91cbbc3e002ef3dc26650")
+                self.assertEqual(fixture.read_bytes(), content)
+                fixture.write_bytes(content.replace(b"FINAL REVIEW NOTE:", b"CHANGED REVIEW NOTE:"))
+                with self.assertRaises(AssertionError):
+                    validate_row_fixture(fixture)
+
     @staticmethod
     def words(page):
         body = [('BODY', 120.0, 110.0, 150.0, 120.0)]
@@ -44,6 +60,13 @@ class NativeFeaturePathTests(unittest.TestCase):
         for mutant in mutants:
             with self.subTest(mutant=mutant), self.assertRaises(AssertionError):
                 validate_furniture_words(plain, (width, height, [tuple(w) for w in mutant]), 2)
+
+    def test_overlapping_phrase_words_are_rejected(self):
+        plain, decorated = self.words(2)
+        words = [(word[0], 37.0, 16.0, 67.0, 25.0) if word[0] == "report" else word
+                 for word in decorated[2]]
+        with self.assertRaises(AssertionError):
+            validate_furniture_words(plain, (decorated[0], decorated[1], words), 2)
 
     @staticmethod
     def row_pages():

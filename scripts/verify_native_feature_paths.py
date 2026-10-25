@@ -23,6 +23,15 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def validate_row_fixture(path):
+    """Pin authored bytes modulo checkout CRLF; keep raw hashes in the receipt."""
+    normalized = path.read_bytes().replace(b"\r\n", b"\n")
+    digest = hashlib.sha256(normalized).hexdigest()
+    assert digest == "e6dd417ec5da8193124c18110a6b48575508d034c9c91cbbc3e002ef3dc26650", \
+        "Unreviewed row fixture change"
+    return digest
+
+
 def run(*args, cwd=None, exit_code=0):
     process = subprocess.run([str(arg) for arg in args], cwd=cwd, capture_output=True, timeout=120)
     assert process.returncode == exit_code, (args, process.returncode,
@@ -83,12 +92,14 @@ def validate_furniture_words(original, decorated, page):
             side = 'Right'
         else:
             raise AssertionError(('Furniture not in expected side region', page, word, left, right))
-        groups.setdefault(band + side, []).append((left, word, top, bottom))
+        groups.setdefault(band + side, []).append((left, word, top, bottom, right))
     assert set(groups) == set(expected), ('Missing/extra furniture regions', page, groups)
     for region, phrase in expected.items():
         ordered = sorted(groups[region])
-        assert [word for _, word, _, _ in ordered] == phrase.split(), (
+        assert [item[1] for item in ordered] == phrase.split(), (
             'Furniture phrase or word order changed', page, region, phrase, ordered)
+        assert all(previous[4] <= following[0] for previous, following in zip(ordered, ordered[1:])), (
+            'Furniture words overlap horizontally', page, region)
         assert max(item[3] for item in ordered) - min(item[2] for item in ordered) < 14, (
             'Furniture phrase has inconsistent vertical placement', page, region)
     return dict(page=page, addedWords=sum(extra.values()),
@@ -209,7 +220,7 @@ def main():
         continued = output / 'continued-row.pdf'
         assert not run(isolated, long, continued, '--image', f'logo={logo}', cwd=work), 'Row native CLI wrote stdout'
         assert count_pages(continued) == 2, 'Continued row page count'
-        assert sha(long) == '3ad9fe8afbf140ef1e9e5f0c1bfafa43add2e36da6003281c4b2d9b70f4fa8a7', 'Unreviewed row fixture change'
+        normalized_fixture_sha = validate_row_fixture(long)
         authored_notes, final_note = expected_note_texts(long.read_text(encoding='utf-8'))
         row_result = validate_continued_row([page_lines(continued, page) for page in (1, 2)], authored_notes, final_note)
         again = output / 'continued-row-repeat.pdf'
@@ -225,6 +236,7 @@ def main():
             'nativeExecutableSha256': sha(original),
             'firstInputSha256': sha(first), 'configSha256': sha(config),
             'continuedInputSha256': sha(long), 'logoSha256': sha(logo),
+            'continuedInputLfSha256': normalized_fixture_sha,
             'furniture': {'sha256': sha(furnished), 'pages': 2, 'wordGeometry': furniture_results,
                           'bodyWordGeometryUnchanged': True, 'leftRightAndMarginPositions': True,
                           'repeatBytesEqual': True, 'invalidConfigDestinationPreserved': True,
