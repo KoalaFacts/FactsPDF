@@ -77,7 +77,7 @@ class ReleaseToolchainTests(unittest.TestCase):
                 work = Path(kwargs['cwd']).parent
                 result = b''
                 if command[1] == '--version':
-                    result = b'10.0.402\\n'
+                    result = b'10.0.402'
                 elif command[1] == 'restore':
                     assets = work / 'consumer/obj/project.assets.json'
                     assets.parent.mkdir(parents=True)
