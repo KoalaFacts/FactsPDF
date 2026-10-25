@@ -188,8 +188,13 @@ def _build_command(dotnet: str, root: Path, work: Path, label: str,
         result = subprocess.run([dotnet, *arguments], cwd=root, stdout=stream,
                                 stderr=subprocess.STDOUT, timeout=600, check=False)
     if result.returncode:
+        # CI must surface the actual compiler diagnostic: keeping it solely
+        # under RUNNER_TEMP makes the failure impossible to triage remotely.
+        # The complete log stays private; only a bounded tail reaches CI.
+        tail = log.read_text(encoding='utf-8', errors='replace')[-5000:]
         raise RuntimeError('Private candidate build failed: ' + label +
-                           ' (exit ' + str(result.returncode) + '); see ' + str(log))
+                           ' (exit ' + str(result.returncode) + '); see ' + str(log) +
+                           '\nCompiler output (last 5000 characters):\n' + tail)
 
 
 def _clear_known_build_outputs(root: Path) -> None:

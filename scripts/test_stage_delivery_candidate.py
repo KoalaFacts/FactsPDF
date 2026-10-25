@@ -143,6 +143,19 @@ class PrivateBuildContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Observed SDK'):
                 _host_toolchain('dotnet', Path('.'))
 
+    def test_compiler_failure_surfaces_bounded_diagnostic(self):
+        from unittest.mock import patch
+        from subprocess import CompletedProcess
+        from stage_delivery_candidate import _build_command
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def fail(command, **kwargs):
+                kwargs['stdout'].write('MSB1234: diagnostic for this actual failed build\n')
+                return CompletedProcess(command, 1)
+            with patch('stage_delivery_candidate.subprocess.run', side_effect=fail):
+                with self.assertRaisesRegex(RuntimeError, 'MSB1234: diagnostic'):
+                    _build_command('dotnet', root, root, 'inspector-build', ['build'])
+
     def test_record_rejects_symlinks_and_missing_payload(self):
         from stage_delivery_candidate import _member_record
         with tempfile.TemporaryDirectory() as d:
