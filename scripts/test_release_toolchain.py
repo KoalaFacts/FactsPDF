@@ -71,6 +71,38 @@ class ReleaseToolchainTests(unittest.TestCase):
                     self.assertIn('--expected-', result.stderr)
                     self.assertFalse(output.exists())
 
+    def test_strict_consumer_sdk_and_runtime_are_generated_not_copied_from_repo(self):
+        import json
+        import shutil
+        from xml.etree import ElementTree as ET
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            (work / 'consumer').mkdir()
+            shutil.copy2(ROOT / 'examples/first-use/FirstUse.csproj', work / 'consumer/FirstUse.csproj')
+            (work / 'global.json').write_text('{"sdk":{"version":"11.0.100","rollForward":"latestFeature"}}')
+            first_use.configure_consumer_toolchain(work, ROOT, '10.0.402', '10.0.13', strict_toolchain=True)
+            self.assertEqual(json.loads((work / 'global.json').read_text())['sdk'],
+                             {'version': '10.0.402', 'rollForward': 'disable', 'allowPrerelease': False})
+            tree = ET.parse(work / 'consumer/FirstUse.csproj')
+            self.assertEqual(tree.findtext('.//RuntimeFrameworkVersion'), '10.0.13')
+            self.assertEqual(tree.findtext('.//RollForward'), 'Disable')
+            self.assertEqual(tree.findtext('.//UseAppHost'), 'false')
+            with self.assertRaises(ValueError):
+                first_use.configure_consumer_toolchain(work, ROOT, '10.0.x', '10.0.13', strict_toolchain=True)
+
+    def test_strict_release_runtimeconfig_rejects_floating_or_wrong_runtime(self):
+        good = {'runtimeOptions': {'framework': {'version': '10.0.13'}, 'rollForward': 'Disable'}}
+        first_use.validate_probe_runtimeconfig(good, '10.0.13')
+        for bad in [
+            {'runtimeOptions': {'framework': {'version': '10.0.13'}}},
+            {'runtimeOptions': {'framework': {'version': '10.0.12'}, 'rollForward': 'Disable'}},
+            {'runtimeOptions': {'framework': {'version': '10.0.13'}, 'rollForward': 'LatestPatch'}},
+            {'runtimeOptions': {'frameworks': [{'name':'Microsoft.NETCore.App','version':'10.0.13'}],
+                                'rollForward': 'Disable'}},
+        ]:
+            with self.subTest(bad=bad), self.assertRaises(AssertionError):
+                first_use.validate_probe_runtimeconfig(bad, '10.0.13')
+
     def test_dev_entry_keeps_family_runtime_validation(self):
         runtime = dict(version='10.0.1-rc.synthetic', framework='.NET synthetic', os='test', rid='linux-x64',
                        architecture='X64', targetFramework='.NETCoreApp,Version=v10.0',

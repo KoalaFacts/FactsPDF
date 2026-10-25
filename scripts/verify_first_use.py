@@ -179,6 +179,20 @@ def configure_probe_toolchain(work,sdk,runtime):
     (work/'global.json').write_text(json.dumps(dict(sdk=dict(version=sdk,rollForward='disable',allowPrerelease='-' in sdk)),indent=2)+'\n')
 
 
+def configure_consumer_toolchain(work,root,sdk=None,runtime=None,*,strict_toolchain=False):
+    """Pin strict/probe consumers independent of the checkout's SDK selection.
+
+    The ordinary development path keeps the repository global.json unchanged.
+    """
+    if sdk is None and runtime is None and not strict_toolchain:
+        shutil.copy2(root/'global.json',work/'global.json')
+        return
+    assert sdk is not None and runtime is not None, 'Expected both SDK and runtime'
+    if strict_toolchain:
+        stable_version(sdk);stable_version(runtime)
+    configure_probe_toolchain(work,sdk,runtime)
+
+
 def validate_probe_toolchain(sdk,runtime,expected_sdk,expected_runtime):
     probe_version(expected_sdk);probe_version(expected_runtime)
     assert sdk==expected_sdk,'Probe SDK differs from the exact expected version'
@@ -256,8 +270,12 @@ def main(*,strict_toolchain=False):
         for name in ('feed','packages','http-cache','dotnet-home','nuget-scratch','msbuild-user'): (work/name).mkdir()
         stage_consumer(root/'examples/first-use',work/'consumer')
         configure_consumer(work/'consumer/FirstUse.csproj',version,consumer_target)
-        if exact_probe:configure_probe_toolchain(work,args.probe_sdk,args.probe_runtime)
-        else:shutil.copy2(root/'global.json',work/'global.json')
+        if strict_toolchain or exact_probe:
+            selected_sdk=args.expected_sdk if strict_toolchain else args.probe_sdk
+            selected_runtime=args.expected_runtime if strict_toolchain else args.probe_runtime
+            configure_consumer_toolchain(work,root,selected_sdk,selected_runtime,strict_toolchain=strict_toolchain)
+        else:
+            configure_consumer_toolchain(work,root)
         sdkconfig=(work/'global.json').read_bytes()
         (out/'consumer.global.json').write_bytes(sdkconfig)
         shutil.copy2(package,work/'feed'/package.name)
@@ -302,7 +320,10 @@ def main(*,strict_toolchain=False):
         runtimeconfig=consumer.with_suffix('.runtimeconfig.json').read_bytes()
         runtimeconfig_data=json.loads(runtimeconfig)
         (out/'consumer.runtimeconfig.json').write_bytes(runtimeconfig)
-        if exact_probe:validate_probe_runtimeconfig(runtimeconfig_data,args.probe_runtime)
+        if strict_toolchain:
+            validate_probe_runtimeconfig(runtimeconfig_data,args.expected_runtime)
+        if exact_probe:
+            validate_probe_runtimeconfig(runtimeconfig_data,args.probe_runtime)
         cli_identity=json.loads(execute(args.dotnet,consumer,'--inspect-cli',work/'cli'/cli.name).stdout)
         assert Path(cli_identity['assembly']).resolve()==work/'cli'/cli.name,'inspected CLI assembly location'
         validate_assembly_source(cli_identity.get('assemblyInformationalVersion'),version,source_head)
