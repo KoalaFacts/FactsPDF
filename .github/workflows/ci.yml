@@ -143,6 +143,80 @@ jobs:
             --dotnet "$(command -v dotnet)" --output "$RUNNER_TEMP/factspdf-private-managed-first-use"
           cp "$RUNNER_TEMP/factspdf-private-managed/managed-archive.json" artifacts/first-use/private-managed-archive.json
           cp "$RUNNER_TEMP/factspdf-private-managed-first-use/report.json" artifacts/first-use/private-managed-first-use.json
+      - name: Independently install and run the source-bound private examples ZIP
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_examples_payload.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-examples --output "$RUNNER_TEMP/factspdf-private-examples"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, zipfile
+          runner = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = runner / 'factspdf-private-examples'
+          report = json.loads((folder / 'examples-archive.json').read_text())
+          build = json.loads((runner / 'factspdf-private-build/private-build.json').read_text())
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert report['sourceHead'] == build['sourceHead'] == head
+          assert report['version'] == '0.1.0-preview.1'
+          assert report['candidateAssembled'] is False and report['independentlyValidated'] is False
+          assert report['published'] is False and report['distributionAuthorized'] is False
+          archive = folder / report['archive']['filename']
+          assert archive.name == 'FactsPDF.0.1.0-preview.1.examples.zip'
+          assert archive.stat().st_size == report['archive']['bytes'] <= 4 * 1024 * 1024
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          allowed = {'FactsPDF.Examples/' + p for p in (
+              'first-use/FirstUse.csproj', 'first-use/Program.cs', 'first-use/NuGet.Config',
+              'first-use/input.html', 'first-use/unsupported.html',
+              'first-use/expected-pages.json', 'global.json', 'LICENSE.md',
+              'README.md', 'EXAMPLES-MANIFEST.json')}
+          extracted = runner / 'factspdf-private-examples-extracted'
+          extracted.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              entries = z.infolist()
+              assert len(entries) == len(allowed)
+              assert {item.filename for item in entries} == allowed
+              assert z.testzip() is None
+              files = {}
+              for item in entries:
+                  assert item.create_system == 3 and item.external_attr >> 16 == 0o100644
+                  assert item.file_size <= 1024 * 1024 and not (item.flag_bits & 1)
+                  data = z.read(item)
+                  assert len(data) == item.file_size
+                  files[item.filename] = data
+                  target = extracted / item.filename
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(data)
+          assert {item['path'] for item in report['members']} == allowed
+          for item in report['members']:
+              data = files[item['path']]
+              assert len(data) == item['bytes']
+              assert hashlib.sha256(data).hexdigest() == item['sha256']
+          manifest = json.loads(files['FactsPDF.Examples/EXAMPLES-MANIFEST.json'])
+          assert manifest['sourceHead'] == head and manifest['version'] == report['version']
+          assert manifest['generatedMembers'] == ['EXAMPLES-MANIFEST.json']
+          assert {'FactsPDF.Examples/' + rec['path'] for rec in manifest['trackedMembers']} == allowed - {'FactsPDF.Examples/EXAMPLES-MANIFEST.json'}
+          for rec in manifest['trackedMembers']:
+              payload = files['FactsPDF.Examples/' + rec['path']]
+              assert len(payload) == rec['bytes']
+              assert hashlib.sha256(payload).hexdigest() == rec['sha256']
+              assert subprocess.check_output(['git', 'cat-file', 'blob',
+                  head + ':' + rec['sourcePath']]) == payload
+          assert files['FactsPDF.Examples/LICENSE.md'] == pathlib.Path('LICENSE.md').read_bytes()
+          assert files['FactsPDF.Examples/global.json'] == pathlib.Path('global.json').read_bytes()
+          package = runner / 'factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg'
+          record, = (rec for rec in build['files'] if rec['path'] == 'packages/' + package.name)
+          assert package.stat().st_size == record['bytes']
+          assert hashlib.sha256(package.read_bytes()).hexdigest() == record['sha256']
+          assert not (extracted / 'FactsPDF.Examples/.git').exists()
+          print('Real examples ZIP extracted outside checkout; committed example bytes, package source, license and budgets match')
+          PY
+          python3 scripts/verify_release_candidate.py \
+            --cli-dll "$RUNNER_TEMP/factspdf-private-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
+            --package "$RUNNER_TEMP/factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg" \
+            --consumer-source "$RUNNER_TEMP/factspdf-private-examples-extracted/FactsPDF.Examples/first-use" \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" \
+            --output "$RUNNER_TEMP/factspdf-private-examples-first-use"
+          cp "$RUNNER_TEMP/factspdf-private-examples/examples-archive.json" artifacts/first-use/private-examples-archive.json
+          cp "$RUNNER_TEMP/factspdf-private-examples-first-use/report.json" artifacts/first-use/private-examples-installed-first-use.json
       - name: Assemble and independently exercise extracted private Linux Native AOT software
         run: |
           python3 -m unittest discover -s scripts -p 'test_private_native_archive.py' -v

@@ -244,6 +244,8 @@ def main(*,strict_toolchain=False):
     for name in ('cli-dll','output'):parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--package',type=Path,help='Defaults to the sole declared-version package in artifacts/packages')
     parser.add_argument('--dotnet',default='dotnet')
+    parser.add_argument('--consumer-source',type=Path,
+        help='Use independently extracted first-use sources outside the repository')
     parser.add_argument('--consumer-tfm',type=consumer_tfm,help='Explicit consumer target; defaults to the declared library TFM')
     if strict_toolchain:
         parser.add_argument('--expected-sdk',type=stable_version,required=True)
@@ -257,6 +259,11 @@ def main(*,strict_toolchain=False):
         parser.error('--probe-sdk and --probe-runtime must be supplied together')
     root=Path(__file__).resolve().parents[1];cli=args.cli_dll.resolve();out=args.output.resolve()
     source_head=current_source(root)
+    source_examples=root/'examples/first-use'
+    if args.consumer_source is not None:
+        source_examples=args.consumer_source.resolve(strict=True)
+        if not source_examples.is_dir() or source_examples==root or root in source_examples.parents:
+            raise ValueError('Extracted examples must be a directory outside the repository')
     version,framework=expected_contract(root)
     consumer_target=args.consumer_tfm or framework
     package=(args.package or local_package(root,version)).resolve()
@@ -268,7 +275,7 @@ def main(*,strict_toolchain=False):
     with tempfile.TemporaryDirectory(prefix='factspdf-first-use-') as temporary:
         work=Path(temporary).resolve();validate_workspace(work,root)
         for name in ('feed','packages','http-cache','dotnet-home','nuget-scratch','msbuild-user'): (work/name).mkdir()
-        stage_consumer(root/'examples/first-use',work/'consumer')
+        stage_consumer(source_examples,work/'consumer')
         configure_consumer(work/'consumer/FirstUse.csproj',version,consumer_target)
         if strict_toolchain or exact_probe:
             selected_sdk=args.expected_sdk if strict_toolchain else args.probe_sdk
