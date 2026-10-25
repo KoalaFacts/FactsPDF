@@ -68,8 +68,20 @@ class NativeArchiveTests(unittest.TestCase):
                        'notices': [{'filename': name, 'bytes': len(value),
                                     'sha256': hashlib.sha256(value).hexdigest()}
                                    for name, value in self.notices.items()]}
+        self.compiler_origin = {
+            'projectAssetsSha256': '1' * 64,
+            'packages': [
+                {'packageId': 'Microsoft.DotNet.ILCompiler', 'version': '10.0.13',
+                 'nuspecSha256': '2' * 64, 'packageSha512': 'A' * 86 + '=='},
+                {'packageId': 'runtime.linux-x64.Microsoft.DotNet.ILCompiler',
+                 'version': '10.0.13', 'nuspecSha256': '3' * 64,
+                 'packageSha512': 'A' * 86 + '=='},
+            ],
+            'officialSignatureVerified': False
+        }
         self.record = {'schemaVersion': 1, 'phase': 'private-build-unverified',
                        'nativeNoticeOrigin': self.origin,
+                       'nativeCompilerOrigin': self.compiler_origin,
                        'sourceHead': self.source, 'identity': self.selected,
                        'candidateBuilt': True, 'candidateAssembled': False,
                        'independentlyValidated': False, 'published': False,
@@ -106,6 +118,7 @@ class NativeArchiveTests(unittest.TestCase):
             self.assertEqual(z.read('FactsPDF.Native/FactsPDF.Cli'), self.payload)
             self.assertEqual(z.getinfo('FactsPDF.Native/FactsPDF.Cli').external_attr >> 16, 0o100755)
             self.assertIsNone(z.testzip())
+        self.assertEqual(report['nativeCompilerOrigin'], self.compiler_origin)
         self.assertFalse(report['candidateAssembled'])
         self.assertFalse(report['independentlyValidated'])
 
@@ -125,6 +138,19 @@ class NativeArchiveTests(unittest.TestCase):
         del self.record['nativeNoticeOrigin']
         self.save()
         with self.assertRaisesRegex(ValueError, 'provenance'):
+            self.assemble()
+        self.assertFalse(self.out.exists())
+
+    def test_missing_or_wrong_resolved_compiler_rejected(self):
+        del self.record['nativeCompilerOrigin']
+        self.save()
+        with self.assertRaisesRegex(ValueError, 'compiler provenance'):
+            self.assemble()
+        self.assertFalse(self.out.exists())
+        self.record['nativeCompilerOrigin'] = self.compiler_origin
+        self.compiler_origin['packages'][1]['version'] = '10.0.14'
+        self.save()
+        with self.assertRaisesRegex(ValueError, 'compiler provenance'):
             self.assemble()
         self.assertFalse(self.out.exists())
 
@@ -169,6 +195,7 @@ class NativeArchiveTests(unittest.TestCase):
         exe = self.build / 'native/FactsPDF.Cli.exe'
         exe.write_bytes(valid_windows_pe())
         self.origin['packageId'] = 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
+        self.compiler_origin['packages'][1]['packageId'] = 'runtime.win-x64.Microsoft.DotNet.ILCompiler'
         self.record['files'][0] = {'path': 'native/FactsPDF.Cli.exe',
                                   'bytes': exe.stat().st_size,
                                   'sha256': hashlib.sha256(exe.read_bytes()).hexdigest()}
@@ -236,6 +263,7 @@ class NativeArchiveTests(unittest.TestCase):
                 data = bytes(raw)
                 exe.write_bytes(data)
                 self.origin['packageId'] = 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
+                self.compiler_origin['packages'][1]['packageId'] = 'runtime.win-x64.Microsoft.DotNet.ILCompiler'
                 self.record['files'][0] = {'path': 'native/FactsPDF.Cli.exe',
                     'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
                 self.save()
