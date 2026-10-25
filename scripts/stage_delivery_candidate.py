@@ -103,7 +103,9 @@ def inspector_inputs(root: Path) -> list[dict]:
     if len(explicit) != 1 or explicit[0].attrib != {
             'Include': '../../scripts/inspect_candidate_assembly.cs', 'Link': 'Program.cs'}:
         raise ValueError('Unexpected inspector source-link closure')
-    if any(node.tag in ('EnableDefaultCompileItems', 'DefaultItemExcludes',
+    # The single pinned DefaultItemExcludes is verified against its exact
+    # value below; it must not trip the generic glob-override rejection.
+    if any(node.tag in ('EnableDefaultCompileItems',
                         'DefaultItemExcludesInProjectFolder', 'Compile') and node is not explicit[0]
            for node in doc.iter()):
         raise ValueError('Unexpected inspector glob override')
