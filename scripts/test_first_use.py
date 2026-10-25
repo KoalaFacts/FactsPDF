@@ -102,15 +102,17 @@ class FirstUseTests(unittest.TestCase):
 
     def test_copyable_consumer_is_package_based_and_explicit(self):
         from xml.etree import ElementTree as ET
+        import verify_package as package_check
+        version, target = package_check.expected_contract(ROOT)
         project = ROOT / 'examples/first-use/FirstUse.csproj'
         self.assertTrue(project.is_file(), 'Missing independent consumer project')
         tree = ET.parse(project)
-        self.assertEqual(tree.findtext('.//TargetFramework'), 'net10.0')
+        self.assertEqual(tree.findtext('.//TargetFramework'), target)
         self.assertEqual(tree.findtext('.//OutputType'), 'Exe')
         self.assertEqual(tree.findtext('.//NuGetAudit'), 'false')
         self.assertFalse(tree.findall('.//ProjectReference'))
         self.assertEqual([p.attrib for p in tree.findall('.//PackageReference')],
-                         [{'Include': 'FactsPDF', 'Version': '[0.1.0-dev]'}])
+                         [{'Include': 'FactsPDF', 'Version': f'[{version}]'}])
 
     def test_environment_drops_import_hooks_and_uses_empty_user_extensions(self):
         self.assertTrue(hasattr(self.module, 'build_environment'), 'Missing environment isolation')
