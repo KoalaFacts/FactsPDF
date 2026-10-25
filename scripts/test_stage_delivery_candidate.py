@@ -197,28 +197,43 @@ class PrivateBuildContractTests(unittest.TestCase):
                 (package_dir / (package_key + '.nuspec')).write_text(
                     '<package><metadata><id>' + package_id +
                     '</id><version>10.0.13</version></metadata></package>')
-                digest = base64.b64encode(bytes([i + 1]) * 64).decode('ascii')
-                (package_dir / (package_key + '.10.0.13.nupkg.sha512')).write_text(digest)
+                # Repository-signed archive SHA512 differs from unsigned NuGet
+                # contentHash recorded in project.assets.json.
+                archive_hash = base64.b64encode(bytes([i + 1]) * 64).decode('ascii')
+                content_hash = base64.b64encode(bytes([i + 11]) * 64).decode('ascii')
+                (package_dir / (package_key + '.10.0.13.nupkg.sha512')).write_text(
+                    archive_hash)
+                (package_dir / '.nupkg.metadata').write_text(json.dumps({
+                    'version': 2, 'contentHash': content_hash,
+                    'source': 'https://api.nuget.org/v3/index.json'}))
                 libraries[package_id + '/10.0.13'] = {
-                    'type': 'package', 'path': package_key + '/10.0.13', 'sha512': 'sha512-' + digest}
+                    'type': 'package', 'path': package_key + '/10.0.13',
+                    'sha512': content_hash}
             def save():
                 assets_file.write_text(json.dumps({'libraries': libraries}))
             save()
             with patch('stage_delivery_candidate.subprocess.run',
-                       return_value=CompletedProcess([], 0, 'global-packages: ' + str(cache) + '\n', '')):
+                       return_value=CompletedProcess(
+                           [], 0, 'global-packages: ' + str(cache) + '\n', '')):
                 record = _native_compiler_origin('dotnet', root, 'local-linux')
                 self.assertEqual([p['packageId'] for p in record['packages']], list(ids))
                 self.assertEqual([p['version'] for p in record['packages']], ['10.0.13'] * 2)
                 self.assertEqual(record['projectAssetsSha256'],
                                  hashlib.sha256(assets_file.read_bytes()).hexdigest())
                 self.assertFalse(record['officialSignatureVerified'])
-                # NuGet assets require the SRI-style prefix; cache has bare base64.
-                libraries[ids[0] + '/10.0.13']['sha512'] = record['packages'][0]['packageSha512']
+                self.assertNotEqual(record['packages'][0]['contentSha512'],
+                                    record['packages'][0]['packageSha512'])
+                self.assertEqual(record['packages'][0]['contentSha512'],
+                                 libraries[ids[0] + '/10.0.13']['sha512'])
+
+                # SRI sha512- prefix is NOT used in project.assets.json.
+                libraries[ids[0] + '/10.0.13']['sha512'] = (
+                    'sha512-' + record['packages'][0]['contentSha512'])
                 save()
-                with self.assertRaisesRegex(ValueError, 'asset/cache SHA512 mismatch'):
+                with self.assertRaisesRegex(ValueError, 'assets/contentHash SHA512 mismatch'):
                     _native_compiler_origin('dotnet', root, 'local-linux')
                 libraries[ids[0] + '/10.0.13']['sha512'] = (
-                    'sha512-' + record['packages'][0]['packageSha512'])
+                    record['packages'][0]['contentSha512'])
                 save()
 
                 changed = libraries.pop(ids[1] + '/10.0.13')
@@ -229,10 +244,24 @@ class PrivateBuildContractTests(unittest.TestCase):
                 libraries.pop(ids[1] + '/10.0.14')
                 libraries[ids[1] + '/10.0.13'] = changed
                 save()
+
+                metadata_path = cache / ids[1].lower() / '10.0.13/.nupkg.metadata'
+                metadata_original = metadata_path.read_text()
+                metadata = json.loads(metadata_original)
+                metadata['contentHash'] = base64.b64encode(b'X' * 64).decode('ascii')
+                metadata_path.write_text(json.dumps(metadata))
+                with self.assertRaisesRegex(ValueError, 'assets/contentHash SHA512 mismatch'):
+                    _native_compiler_origin('dotnet', root, 'local-linux')
+                metadata_path.write_text(metadata_original)
+                metadata_path.unlink()
+                with self.assertRaisesRegex(ValueError, 'package cache'):
+                    _native_compiler_origin('dotnet', root, 'local-linux')
+                metadata_path.write_text(metadata_original)
+
                 sha = cache / ids[1].lower() / '10.0.13' / (
                     ids[1].lower() + '.10.0.13.nupkg.sha512')
-                sha.write_text(base64.b64encode(b'x' * 64).decode('ascii'))
-                with self.assertRaisesRegex(ValueError, 'asset/cache SHA512 mismatch'):
+                sha.write_text('invalid-archive-hash')
+                with self.assertRaisesRegex(ValueError, 'archive SHA512'):
                     _native_compiler_origin('dotnet', root, 'local-linux')
                 sha.unlink()
                 with self.assertRaisesRegex(ValueError, 'package cache'):
