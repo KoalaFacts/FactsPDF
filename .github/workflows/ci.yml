@@ -184,9 +184,9 @@ jobs:
                   target = extracted / item.filename
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(data)
-          assert {item['path'] for item in report['members']} == allowed
+          assert {'FactsPDF.Examples/' + item['path'] for item in report['members']} == allowed
           for item in report['members']:
-              data = files[item['path']]
+              data = files['FactsPDF.Examples/' + item['path']]
               assert len(data) == item['bytes']
               assert hashlib.sha256(data).hexdigest() == item['sha256']
           manifest = json.loads(files['FactsPDF.Examples/EXAMPLES-MANIFEST.json'])
