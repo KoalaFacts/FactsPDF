@@ -343,6 +343,112 @@ def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet'
         raise
 
 
+
+# This is an intermediate *software* payload, not the completed five-payload
+# delivery candidate. The independent extracted-consumer gate runs separately.
+MANAGED_MEMBERS = (
+    ('managed/FactsPDF.Cli.dll', 'FactsPDF.Cli/FactsPDF.Cli.dll'),
+    ('managed/FactsPDF.dll', 'FactsPDF.Cli/FactsPDF.dll'),
+    ('managed/FactsPDF.Cli.deps.json', 'FactsPDF.Cli/FactsPDF.Cli.deps.json'),
+    ('managed/FactsPDF.Cli.runtimeconfig.json', 'FactsPDF.Cli/FactsPDF.Cli.runtimeconfig.json'),
+    ('LICENSE.md', 'FactsPDF.Cli/LICENSE.md'),
+    ('docs/private-managed-cli-readme.md', 'FactsPDF.Cli/CLI-README.md'),
+)
+MANAGED_ARCHIVE_NAME = 'FactsPDF.Cli.' + VERSION + '.managed.zip'
+MAX_MANAGED_MEMBER = 32 * 1024 * 1024
+MAX_MANAGED_ARCHIVE = 64 * 1024 * 1024
+
+
+def assemble_managed(root: Path, build: Path, output: Path) -> dict:
+    """Assemble only the bounded, real managed CLI from an exact private build.
+
+    No successful payload verification, final manifest, publication or other
+    profile is implied. The source/build/archive must be checked again by the
+    independent extraction and installed-consumer acceptance step.
+    """
+    import zipfile
+
+    root = root.resolve(strict=True)
+    if build.is_symlink() or not build.is_dir():
+        raise ValueError('Private build directory is missing or a symlink')
+    build = build.resolve(strict=True)
+    if build == root or root in build.parents:
+        raise ValueError('Private build must be outside source')
+    output = output.absolute()
+    destination = output.resolve()
+    if (destination == root or root in destination.parents or
+            output.exists() or output.is_symlink() or not output.parent.is_dir()):
+        raise ValueError('Fresh external managed archive directory required')
+    source = current_source(root)
+    selected = identity(root, 'local-linux')
+    receipt_path = build / 'private-build.json'
+    if receipt_path.is_symlink() or not receipt_path.is_file() or receipt_path.stat().st_size > 128 * 1024:
+        raise ValueError('Missing or oversized private build receipt')
+    receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+    if (receipt.get('schemaVersion') != 1 or receipt.get('phase') != 'private-build-unverified' or
+            receipt.get('sourceHead') != source or receipt.get('identity') != selected or
+            receipt.get('candidateBuilt') is not True or
+            receipt.get('candidateAssembled') is not False or
+            receipt.get('independentlyValidated') is not False or
+            receipt.get('published') is not False or
+            receipt.get('distributionAuthorized') is not False):
+        raise ValueError('Private build identity/status does not match source')
+    records = receipt.get('files')
+    if not isinstance(records, list) or not all(isinstance(r, dict) and
+            isinstance(r.get('path'), str) for r in records):
+        raise ValueError('Malformed private build inventory')
+    by_path = {r['path']: r for r in records}
+    if len(by_path) != len(records):
+        raise ValueError('Duplicate private build record')
+    members = {}
+    for relative, archived in MANAGED_MEMBERS:
+        if relative.startswith('managed/'):
+            expected = by_path.get(relative)
+            if not isinstance(expected, dict):
+                raise ValueError('Unrecorded managed build member: ' + relative)
+            path = build / relative
+        else:
+            expected = None
+            path = root / relative
+        if path.is_symlink() or not path.is_file():
+            raise ValueError('Missing/symlinked managed archive member: ' + relative)
+        size = path.stat().st_size
+        if size <= 0 or size > MAX_MANAGED_MEMBER:
+            raise ValueError('Managed archive member exceeds size bound: ' + relative)
+        data = path.read_bytes()
+        if expected and (len(data) != expected.get('bytes') or
+                         _sha(data) != expected.get('sha256')):
+            raise ValueError('Private build member changed after receipt: ' + relative)
+        members[archived] = data
+    if current_source(root) != source:
+        raise ValueError('Source changed during managed archive preflight')
+    output.mkdir(mode=0o700)
+    archive = output / MANAGED_ARCHIVE_NAME
+    with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=9, allowZip64=False) as stream:
+        for name, data in sorted(members.items()):
+            item = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            item.create_system = 3
+            item.external_attr = 0o100644 << 16
+            item.compress_type = zipfile.ZIP_DEFLATED
+            stream.writestr(item, data, compress_type=zipfile.ZIP_DEFLATED,
+                            compresslevel=9)
+    if archive.stat().st_size > MAX_MANAGED_ARCHIVE or current_source(root) != source:
+        raise ValueError('Managed archive budget/source changed')
+    report = {'schemaVersion': 1, 'phase': 'partial-managed-software-archive-unverified',
+              'sourceHead': source, 'identity': selected,
+              'archive': {'filename': archive.name, 'bytes': archive.stat().st_size,
+                          'sha256': _sha(archive.read_bytes())},
+              'members': [{'path': name, 'bytes': len(data), 'sha256': _sha(data)}
+                          for name, data in sorted(members.items())],
+              'candidateBuilt': True, 'candidateAssembled': False,
+              'independentlyValidated': False, 'published': False,
+              'distributionAuthorized': False}
+    (output / 'managed-archive.json').write_text(
+        json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    return report
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -353,9 +459,15 @@ def main() -> None:
     build.add_argument('--profile', required=True, choices=sorted(PROFILES))
     build.add_argument('--output', required=True, type=Path)
     build.add_argument('--dotnet', default='dotnet')
+    managed = commands.add_parser('assemble-managed', help='Assemble unverified managed CLI software ZIP from an exact private build')
+    managed.add_argument('--build', required=True, type=Path)
+    managed.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.command == 'build':
+    if args.command == 'assemble-managed':
+        result = assemble_managed(root, args.build, args.output)
+        print(f"Managed private software archive: {result['sourceHead']}; partial/unverified/unpublished.")
+    elif args.command == 'build':
         result = private_build(root, args.profile, args.output, args.dotnet)
         print(f"Private build: {result['sourceHead']} / {args.profile}; not verified or published.")
     else:

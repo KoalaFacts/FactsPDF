@@ -104,6 +104,45 @@ jobs:
           test -s "$RUNNER_TEMP/factspdf-private-build/private-build.json"
           cp "$RUNNER_TEMP/factspdf-private-build/private-build.json" artifacts/first-use/private-build.json
           python3 -c "import json; p=json.load(open('artifacts/first-use/private-build.json')); assert p['candidateBuilt'] and not p['candidateAssembled'] and not p['independentlyValidated'] and not p['published']"
+      - name: Assemble and independently exercise extracted private managed CLI software
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_managed_archive.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-managed --build "$RUNNER_TEMP/factspdf-private-build" --output "$RUNNER_TEMP/factspdf-private-managed"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = root / 'factspdf-private-managed'
+          report = json.loads((folder / 'managed-archive.json').read_text())
+          archive = folder / report['archive']['filename']
+          allowed = {'FactsPDF.Cli/' + name for name in (
+              'FactsPDF.Cli.dll', 'FactsPDF.dll', 'FactsPDF.Cli.deps.json',
+              'FactsPDF.Cli.runtimeconfig.json', 'LICENSE.md', 'CLI-README.md')}
+          assert report['candidateAssembled'] is False and report['independentlyValidated'] is False
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          extraction = root / 'factspdf-private-managed-extracted'
+          extraction.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              members = z.infolist()
+              assert len(members) == len(allowed)
+              assert {m.filename for m in members} == allowed
+              assert all((m.external_attr >> 16) & 0o170000 == 0o100000 for m in members)
+              assert z.testzip() is None
+              assert {m['path'] for m in report['members']} == allowed
+              for m in members:
+                  data = z.read(m)
+                  expected, = [x for x in report['members'] if x['path'] == m.filename]
+                  assert len(data) == expected['bytes'] and hashlib.sha256(data).hexdigest() == expected['sha256']
+              z.extractall(extraction)
+          assert (extraction / 'FactsPDF.Cli/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          print('Exact six-member managed software ZIP extracted outside source, inventory and LICENSE confirmed')
+          PY
+          python3 scripts/verify_release_candidate.py \
+            --cli-dll "$RUNNER_TEMP/factspdf-private-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
+            --package "$RUNNER_TEMP/factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg" \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" --output "$RUNNER_TEMP/factspdf-private-managed-first-use"
+          cp "$RUNNER_TEMP/factspdf-private-managed/managed-archive.json" artifacts/first-use/private-managed-archive.json
+          cp "$RUNNER_TEMP/factspdf-private-managed-first-use/report.json" artifacts/first-use/private-managed-first-use.json
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
