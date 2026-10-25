@@ -156,16 +156,180 @@ def preflight(root: Path, profile: str, output: Path) -> dict:
     return receipt
 
 
+
+def _host_toolchain(dotnet: str, root: Path) -> dict:
+    """Require the exact SDK and installed managed runtime, not just a requested pin."""
+    def invoke(*args: str) -> str:
+        result = subprocess.run([dotnet, *args], cwd=root, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                timeout=60, check=False)
+        if result.returncode:
+            raise RuntimeError('dotnet ' + ' '.join(args) + ' failed: ' + result.stdout[-2000:])
+        return result.stdout.strip()
+    sdk = invoke('--version')
+    if sdk != SDK:
+        raise ValueError('Observed SDK version differs from fixed candidate SDK: ' + sdk)
+    runtimes = invoke('--list-runtimes')
+    if not any(re.match(r'^Microsoft\.NETCore\.App\s+' + re.escape(RUNTIME) + r'\s+\[', line)
+               for line in runtimes.splitlines()):
+        raise ValueError('Exact candidate managed runtime is not installed: ' + RUNTIME)
+    info = invoke('--info')
+    return {'sdk': sdk, 'managedRuntime': RUNTIME, 'runtimeList': runtimes,
+            'infoSha256': _sha(info.encode('utf-8'))}
+
+
+def _build_command(dotnet: str, root: Path, work: Path, label: str,
+                   arguments: list[str]) -> None:
+    """Retain a private real command log, fail on every non-zero exit."""
+    logdir = work / 'logs'
+    logdir.mkdir(exist_ok=True)
+    log = logdir / (label + '.log')
+    with log.open('w', encoding='utf-8') as stream:
+        result = subprocess.run([dotnet, *arguments], cwd=root, stdout=stream,
+                                stderr=subprocess.STDOUT, timeout=600, check=False)
+    if result.returncode:
+        raise RuntimeError('Private candidate build failed: ' + label +
+                           ' (exit ' + str(result.returncode) + '); see ' + str(log))
+
+
+def _clear_known_build_outputs(root: Path) -> None:
+    """Only four specific SDK output directories may be cleared after clean-source preflight."""
+    import shutil
+    for project in ('src/FactsPDF', 'src/FactsPDF.Cli'):
+        for directory in ('bin', 'obj'):
+            candidate = root / project / directory
+            if candidate.is_symlink():
+                raise ValueError('Symlink build output is forbidden: ' + str(candidate))
+            if candidate.exists():
+                if not candidate.is_dir():
+                    raise ValueError('Unexpected build output type: ' + str(candidate))
+                shutil.rmtree(candidate)
+
+
+def _member_record(work: Path, relative: str) -> dict:
+    import os
+    path = work / relative
+    if not path.is_file() or path.is_symlink() or not path.stat().st_size:
+        raise ValueError('Missing/invalid private build payload: ' + relative)
+    h = hashlib.sha256()
+    with path.open('rb') as source:
+        while block := source.read(1024 * 1024):
+            h.update(block)
+    return {'path': relative, 'bytes': path.stat().st_size, 'sha256': h.hexdigest(),
+            'executable': os.access(path, os.X_OK)}
+
+
+def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet') -> dict:
+    """Perform real private builds; do NOT assemble/distribute an accepted candidate.
+
+    One trusted, clean checkout and fresh external directory. The caller must
+    independently verify extracted archives before candidate finalization.
+    """
+    import shutil
+    if profile not in PROFILES:
+        raise ValueError('Unknown delivery profile')
+    dotnet_path = shutil.which(dotnet)
+    if not dotnet_path:
+        raise ValueError('dotnet executable unavailable')
+    receipt = preflight(root, profile, output)
+    root = root.resolve(strict=True)
+    work = output.absolute()
+    source = receipt['sourceHead']
+    try:
+        observed = _host_toolchain(dotnet_path, root)
+        (work / 'logs').mkdir()
+        # Record actual runtime and SDK metadata without mistaking a requested pack
+        # version for the version resolved by the .NET compiler.
+        _build_command(dotnet_path, root, work, 'dotnet-info', ['--info'])
+        _clear_known_build_outputs(root)
+        common = ['-p:SourceRevisionId=' + source,
+                  '-p:ContinuousIntegrationBuild=true',
+                  '-p:RuntimeFrameworkVersion=' + RUNTIME]
+        records = []
+        if profile == 'local-linux':
+            inspector_obj = work / 'inspector' / 'obj'
+            inspector_bin = work / 'inspector' / 'bin'
+            inspector_obj.mkdir(parents=True)
+            inspector_bin.mkdir(parents=True)
+            # Never use a pre-existing inspector DLL or the source project's
+            # implicit obj: its compilation inputs were frozen by preflight.
+            _build_command(dotnet_path, root, work, 'inspector-build', [
+                'build', 'tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj',
+                '-c', 'Release',
+                '-p:BaseIntermediateOutputPath=' + str(inspector_obj) + '/',
+                '-p:MSBuildProjectExtensionsPath=' + str(inspector_obj) + '/',
+                '-p:BaseOutputPath=' + str(inspector_bin) + '/',
+                *common])
+            inspector_dlls = list(inspector_bin.rglob('FactsPDF.PackageInspector.dll'))
+            if len(inspector_dlls) != 1:
+                raise ValueError('Expected exactly one newly compiled PackageInspector assembly')
+            records.append(_member_record(work, inspector_dlls[0].relative_to(work).as_posix()))
+            (work / 'packages').mkdir()
+            _build_command(dotnet_path, root, work, 'package-pack', [
+                'pack', 'src/FactsPDF/FactsPDF.csproj', '-c', 'Release',
+                '-o', str(work / 'packages'), *common])
+            package = 'packages/FactsPDF.' + VERSION + '.nupkg'
+            records.append(_member_record(work, package))
+            (work / 'managed').mkdir()
+            _build_command(dotnet_path, root, work, 'managed-publish', [
+                'publish', 'src/FactsPDF.Cli/FactsPDF.Cli.csproj', '-c', 'Release',
+                '--no-self-contained', '-p:UseAppHost=false',
+                '-p:RollForward=Disable', '-o', str(work / 'managed'), *common])
+            import json as _json
+            runtime_config = _json.loads((work / 'managed/FactsPDF.Cli.runtimeconfig.json').read_text('utf-8'))
+            options = runtime_config.get('runtimeOptions', {})
+            framework = options.get('framework', {})
+            if (framework.get('name'), framework.get('version'), options.get('rollForward')) != (
+                    'Microsoft.NETCore.App', RUNTIME, 'Disable'):
+                raise ValueError('Generated managed CLI runtimeconfig is not strictly pinned')
+            for name in ('FactsPDF.Cli.dll', 'FactsPDF.dll',
+                         'FactsPDF.Cli.deps.json', 'FactsPDF.Cli.runtimeconfig.json'):
+                records.append(_member_record(work, 'managed/' + name))
+        (work / 'native').mkdir()
+        native_args = ['publish', 'src/FactsPDF.Cli/FactsPDF.Cli.csproj',
+                       '-c', 'Release', '-r', PROFILES[profile],
+                       '-p:PublishAot=true', '-p:IlcVersion=' + RUNTIME,
+                       '-o', str(work / 'native'), *common]
+        _build_command(dotnet_path, root, work, 'native-publish', native_args)
+        native = 'native/FactsPDF.Cli' + ('.exe' if profile == 'win-x64-validation' else '')
+        records.append(_member_record(work, native))
+        if current_source(root) != source or inspector_inputs(root) != receipt['inspectorInputs']:
+            raise ValueError('Tracked source or inspector closure changed during build')
+        # The build receipt binds real bytes only. Runtime/NativeAOT compiler pack
+        # provenance, extracted package validation and owner authorization remain open.
+        result = {'schemaVersion': 1, 'phase': 'private-build-unverified',
+                  'sourceHead': source, 'identity': receipt['identity'],
+                  'observedHost': observed, 'files': sorted(records, key=lambda x: x['path']),
+                  'nativeCompilerPackVerified': False, 'candidateBuilt': True,
+                  'candidateAssembled': False, 'independentlyValidated': False,
+                  'published': False, 'distributionAuthorized': False}
+        (work / 'private-build.json').write_text(
+            json.dumps(result, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        return result
+    except Exception:
+        # Retain private failure logs/preflight evidence for recovery. A failed
+        # build never writes a success receipt or silently reuses old payloads.
+        raise
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
     check = commands.add_parser('preflight', help='Validate candidate inputs without building software')
     check.add_argument('--profile', required=True, choices=sorted(PROFILES))
     check.add_argument('--output', required=True, type=Path)
+    build = commands.add_parser('build', help='Build private unverified candidate inputs; no publication')
+    build.add_argument('--profile', required=True, choices=sorted(PROFILES))
+    build.add_argument('--output', required=True, type=Path)
+    build.add_argument('--dotnet', default='dotnet')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    receipt = preflight(root, args.profile, args.output)
-    print(f"Preflight: {receipt['sourceHead']} / {args.profile}; no binary or candidate built.")
+    if args.command == 'build':
+        result = private_build(root, args.profile, args.output, args.dotnet)
+        print(f"Private build: {result['sourceHead']} / {args.profile}; not verified or published.")
+    else:
+        receipt = preflight(root, args.profile, args.output)
+        print(f"Preflight: {receipt['sourceHead']} / {args.profile}; no binary or candidate built.")
 
 
 if __name__ == '__main__':

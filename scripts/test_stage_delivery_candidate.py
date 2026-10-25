@@ -110,5 +110,50 @@ class CandidateInputTests(unittest.TestCase):
             inspector_inputs(self.root)
 
 
+
+class PrivateBuildContractTests(unittest.TestCase):
+    def test_host_toolchain_requires_real_exact_runtime(self):
+        from unittest.mock import patch
+        from subprocess import CompletedProcess
+        from stage_delivery_candidate import _host_toolchain
+        outputs = ['10.0.402\n', 'Microsoft.NETCore.App 10.0.13 [/sdk]\n', '.NET SDK 10.0.402\n']
+        with patch('stage_delivery_candidate.subprocess.run',
+                   side_effect=[CompletedProcess([], 0, out, '') for out in outputs]) as called:
+            result = _host_toolchain('dotnet', Path('.'))
+        self.assertEqual(result['sdk'], '10.0.402')
+        self.assertEqual(result['managedRuntime'], '10.0.13')
+        self.assertEqual(called.call_count, 3)
+
+    def test_host_toolchain_rejects_implicit_runtime_roll_forward(self):
+        from unittest.mock import patch
+        from subprocess import CompletedProcess
+        from stage_delivery_candidate import _host_toolchain
+        outputs = ['10.0.402\n', 'Microsoft.NETCore.App 10.0.14 [/sdk]\n']
+        with patch('stage_delivery_candidate.subprocess.run',
+                   side_effect=[CompletedProcess([], 0, out, '') for out in outputs]):
+            with self.assertRaisesRegex(ValueError, 'not installed'):
+                _host_toolchain('dotnet', Path('.'))
+
+    def test_host_toolchain_rejects_newer_sdk(self):
+        from unittest.mock import patch
+        from subprocess import CompletedProcess
+        from stage_delivery_candidate import _host_toolchain
+        with patch('stage_delivery_candidate.subprocess.run',
+                   return_value=CompletedProcess([], 0, '10.0.403\n', '')):
+            with self.assertRaisesRegex(ValueError, 'Observed SDK'):
+                _host_toolchain('dotnet', Path('.'))
+
+    def test_record_rejects_symlinks_and_missing_payload(self):
+        from stage_delivery_candidate import _member_record
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'real.dll').write_bytes(b'actual sample')
+            self.assertEqual(_member_record(root, 'real.dll')['bytes'], 13)
+            (root / 'alias.dll').symlink_to('real.dll')
+            with self.assertRaisesRegex(ValueError, 'Missing/invalid'):
+                _member_record(root, 'alias.dll')
+            with self.assertRaisesRegex(ValueError, 'Missing/invalid'):
+                _member_record(root, 'missing.dll')
+
 if __name__ == '__main__':
     unittest.main()
