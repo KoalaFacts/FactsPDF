@@ -42,6 +42,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - name: Gate private candidate source and inspector inputs before build
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_stage_delivery_candidate.py' -v
+          python3 scripts/stage_delivery_candidate.py preflight --profile local-linux --output "$RUNNER_TEMP/factspdf-candidate-preflight"
       - name: Verify Ubuntu package source isolation without network
         run: python3 -m unittest discover -s scripts -p 'test_ubuntu_packages.py' -v
       - name: Install native compiler and independent verification tools
@@ -125,6 +129,13 @@ jobs:
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '10.0.402'
+      - name: Gate Windows private candidate source and inspector inputs before build
+        shell: pwsh
+        run: |
+          python -m unittest discover -s scripts -p test_stage_delivery_candidate.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Candidate source preflight tests failed" }
+          python scripts/stage_delivery_candidate.py preflight --profile win-x64-validation --output (Join-Path $env:RUNNER_TEMP 'factspdf-candidate-preflight')
+          if ($LASTEXITCODE -ne 0) { throw "Candidate source preflight failed" }
       - name: Install independent PDF tools from the official signed MSYS2 repository
         id: msys2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
