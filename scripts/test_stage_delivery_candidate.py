@@ -33,7 +33,9 @@ class CandidateInputTests(unittest.TestCase):
             'profiles': [{'name': 'local-linux', 'rid': 'linux-x64', 'binaryRetained': True},
                          {'name': 'win-x64-validation', 'rid': 'win-x64', 'binaryRetained': False}]}))
         (self.root / 'tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj').write_text(
-            '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup>'
+            '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>'
+            '<DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>'
+            '</PropertyGroup><ItemGroup>'
             '<Compile Include="../../scripts/inspect_candidate_assembly.cs" Link="Program.cs" />'
             '</ItemGroup></Project>')
         (self.root / 'scripts/inspect_candidate_assembly.cs').write_text('Console.WriteLine("metadata");')
@@ -109,6 +111,66 @@ class CandidateInputTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'imports'):
             inspector_inputs(self.root)
 
+
+    def test_reject_ignored_msbuild_user_project_even_with_clean_git(self):
+        (self.root / '.gitignore').write_text('*.user\n')
+        self.git('add', '.gitignore')
+        self.git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                 'commit', '-qm', 'ignore user project')
+        user_project = self.root / 'tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj.user'
+        user_project.write_text('<Project><Target Name="Injected" BeforeTargets="Build" /></Project>')
+        self.assertFalse(self.git('status', '--porcelain'))
+        with self.assertRaisesRegex(ValueError, 'user project import'):
+            inspector_inputs(self.root)
+        self.assertFalse((self.parent / 'candidate').exists())
+
+    def test_reject_removed_source_tree_exclusions(self):
+        project = self.root / 'tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj'
+        project.write_text(project.read_text().replace(';obj/**', ''))
+        self.git('add', '.')
+        self.git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                 'commit', '-qm', 'remove exclusions')
+        with self.assertRaisesRegex(ValueError, 'source-tree bin/obj exclusions'):
+            inspector_inputs(self.root)
+
+    def test_private_build_rejects_conflicting_runtimeconfig_before_native_publish(self):
+        from unittest.mock import patch
+        from stage_delivery_candidate import private_build
+        for name in ('framework-rollforward', 'framework-array', 'included-frameworks', 'wrong-tfm'):
+            with self.subTest(name=name):
+                runtime = {'runtimeOptions': {
+                    'tfm': 'net10.0', 'rollForward': 'Disable',
+                    'framework': {'name': 'Microsoft.NETCore.App', 'version': '10.0.13'}}}
+                if name == 'framework-rollforward':
+                    runtime['runtimeOptions']['framework']['rollForward'] = 'LatestPatch'
+                elif name == 'framework-array':
+                    runtime['runtimeOptions']['frameworks'] = [{'name': 'Other', 'version': '10.0.13'}]
+                elif name == 'included-frameworks':
+                    runtime['runtimeOptions']['includedFrameworks'] = [{'name': 'Other', 'version': '10.0.13'}]
+                else:
+                    runtime['runtimeOptions']['tfm'] = 'net9.0'
+                commands = []
+
+                def fake_build(dotnet, root, work, label, args):
+                    commands.append(label)
+                    if label == 'inspector-build':
+                        dll = work / 'inspector/bin/Release/net10.0/FactsPDF.PackageInspector.dll'
+                        dll.parent.mkdir(parents=True, exist_ok=True)
+                        dll.write_bytes(b'inspected candidate metadata')
+                    elif label == 'package-pack':
+                        (work / 'packages/FactsPDF.0.1.0-preview.1.nupkg').write_bytes(b'package')
+                    elif label == 'managed-publish':
+                        (work / 'managed/FactsPDF.Cli.runtimeconfig.json').write_text(json.dumps(runtime))
+
+                output = self.parent / ('build-' + name)
+                with patch('shutil.which', return_value='/fake/dotnet'), \\
+                        patch('stage_delivery_candidate._host_toolchain',
+                              return_value={'sdk': '10.0.402', 'managedRuntime': '10.0.13'}), \\
+                        patch('stage_delivery_candidate._build_command', side_effect=fake_build):
+                    with self.assertRaisesRegex(ValueError, 'runtimeconfig'):
+                        private_build(self.root, 'local-linux', output)
+                self.assertNotIn('native-publish', commands)
+                self.assertFalse((output / 'private-build.json').exists())
 
 
 class PrivateBuildContractTests(unittest.TestCase):

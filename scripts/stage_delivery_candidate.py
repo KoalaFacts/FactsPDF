@@ -23,6 +23,7 @@ PROFILES = {'local-linux': 'linux-x64', 'win-x64-validation': 'win-x64'}
 CONFIG_NAMES = ('Directory.Build.props', 'Directory.Build.targets',
                 'Directory.Packages.props', 'Directory.Build.rsp')
 INSPECTOR = Path('tools/FactsPDF.PackageInspector')
+INSPECTOR_OUTPUT_EXCLUDES = '$(DefaultItemExcludes);bin/**;obj/**'
 LINK = Path('scripts/inspect_candidate_assembly.cs')
 
 
@@ -78,6 +79,11 @@ def inspector_inputs(root: Path) -> list[dict]:
     """
     tracked = set(filter(None, _git(root, 'ls-files', '-z').decode().split('\0')))
     project = root / INSPECTOR
+    # MSBuild imports this user project automatically, even when git ignores it.
+    # A missing or dangling symlink is not a trustworthy empty input either.
+    user_project = project / 'FactsPDF.PackageInspector.csproj.user'
+    if user_project.exists() or user_project.is_symlink():
+        raise ValueError('Untracked/ignored inspector user project import: ' + str(user_project))
     doc = ET.parse(project / 'FactsPDF.PackageInspector.csproj').getroot()
     if doc.attrib != {'Sdk': 'Microsoft.NET.Sdk'}:
         raise ValueError('Unexpected inspector SDK or project import')
@@ -87,7 +93,7 @@ def inspector_inputs(root: Path) -> list[dict]:
         raise ValueError('Conditional inspector build group')
     if any(node.tag not in ('PropertyGroup', 'ItemGroup') for node in doc):
         raise ValueError('Unexpected inspector build target or project node')
-    if any(node.tag not in ('OutputType', 'IsPackable') for group in doc.findall('PropertyGroup') for node in group):
+    if any(node.tag not in ('OutputType', 'IsPackable', 'DefaultItemExcludes') for group in doc.findall('PropertyGroup') for node in group):
         raise ValueError('Unexpected inspector build property')
     if any(node.tag != 'Compile' for group in doc.findall('ItemGroup') for node in group):
         raise ValueError('Unexpected inspector build item')
@@ -101,6 +107,12 @@ def inspector_inputs(root: Path) -> list[dict]:
                         'DefaultItemExcludesInProjectFolder', 'Compile') and node is not explicit[0]
            for node in doc.iter()):
         raise ValueError('Unexpected inspector glob override')
+    # External BaseOutputPath/BaseIntermediateOutputPath change SDK implicit
+    # exclusions; retain source-tree bin/obj exclusions in the project itself.
+    # This is checked as part of the committed input closure, not an ambient flag.
+    exclusions = doc.findall('./PropertyGroup/DefaultItemExcludes')
+    if len(exclusions) != 1 or exclusions[0].text != INSPECTOR_OUTPUT_EXCLUDES:
+        raise ValueError('Inspector source-tree bin/obj exclusions are not pinned')
     selected = {INSPECTOR / 'FactsPDF.PackageInspector.csproj', LINK}
     for directory in (Path('.'), Path('tools'), INSPECTOR):
         selected.update(directory / name for name in CONFIG_NAMES
@@ -224,6 +236,24 @@ def _member_record(work: Path, relative: str) -> dict:
             'executable': os.access(path, os.X_OK)}
 
 
+def _check_managed_runtimeconfig(path: Path) -> None:
+    """Refuse a managed CLI that can override the fixed runtime with another framework."""
+    data = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(data, dict):
+        raise ValueError('Generated managed CLI runtimeconfig must be an object')
+    options = data.get('runtimeOptions')
+    if not isinstance(options, dict) or options.get('tfm') != TARGET:
+        raise ValueError('Generated managed CLI runtimeconfig TFM is not strictly pinned')
+    if ('frameworks' in options or 'includedFrameworks' in options or
+            'frameworks' in data or 'includedFrameworks' in data):
+        raise ValueError('Generated managed CLI runtimeconfig contains alternative frameworks')
+    framework = options.get('framework')
+    if (not isinstance(framework, dict) or
+            framework != {'name': 'Microsoft.NETCore.App', 'version': RUNTIME} or
+            options.get('rollForward') != 'Disable'):
+        raise ValueError('Generated managed CLI runtimeconfig is not strictly pinned')
+
+
 def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet') -> dict:
     """Perform real private builds; do NOT assemble/distribute an accepted candidate.
 
@@ -280,13 +310,7 @@ def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet'
                 'publish', 'src/FactsPDF.Cli/FactsPDF.Cli.csproj', '-c', 'Release',
                 '--no-self-contained', '-p:UseAppHost=false',
                 '-p:RollForward=Disable', '-o', str(work / 'managed'), *common])
-            import json as _json
-            runtime_config = _json.loads((work / 'managed/FactsPDF.Cli.runtimeconfig.json').read_text('utf-8'))
-            options = runtime_config.get('runtimeOptions', {})
-            framework = options.get('framework', {})
-            if (framework.get('name'), framework.get('version'), options.get('rollForward')) != (
-                    'Microsoft.NETCore.App', RUNTIME, 'Disable'):
-                raise ValueError('Generated managed CLI runtimeconfig is not strictly pinned')
+            _check_managed_runtimeconfig(work / 'managed/FactsPDF.Cli.runtimeconfig.json')
             for name in ('FactsPDF.Cli.dll', 'FactsPDF.dll',
                          'FactsPDF.Cli.deps.json', 'FactsPDF.Cli.runtimeconfig.json'):
                 records.append(_member_record(work, 'managed/' + name))
