@@ -143,6 +143,15 @@ def validate_continued_row(pages, expected_notes=None, final_note=None):
     assert normalized[0].count('SRV-001') == 1 and normalized[1].count('SRV-001') == 0, 'Initial item placement'
     assert normalized[0].count('600.00') == 1 and normalized[1].count('600.00') == 0, 'Initial amount placement'
     assert normalized[0].index('SRV-001') < positions[0][1], 'Initial item not before notes'
+    caption = 'Authored brand asset, kept with its own complete image border.'
+    caption_counts = [page.count(caption) for page in normalized]
+    assert sum(caption_counts) == 1, 'Authored caption missing, duplicated or split across pages'
+    caption_on_first = caption_counts[0] == 1
+    # The image/caption boundary may fit after note 12 or continue before note 13.
+    # Match the complete boundary, rather than discarding unrecognized prefix text.
+    second_prefix = 'Item ' + header + ' Amount' + ('' if caption_on_first else ' ' + caption)
+    assert normalized[1][:positions[12][1]].strip() == second_prefix, (
+        'Unexpected caption or text before second-page continuation', normalized[1][:positions[12][1]])
     # Ensure all wrapped lines appear exactly once, not just the numbered prefixes.
     for index in range(24):
         if index == 23:
@@ -150,7 +159,9 @@ def validate_continued_row(pages, expected_notes=None, final_note=None):
         page, start = positions[index]
         stop = positions[index + 1][1] if positions[index + 1][0] == page else len(normalized[page])
         fragment = normalized[page][start:stop].strip()
-        wanted = expected_notes[index] + (' 600.00' if index == 11 else '')
+        wanted = expected_notes[index]
+        if index == 11:
+            wanted += (' ' + caption if caption_on_first else '') + ' 600.00'
         assert fragment == wanted, ('Note continuation line added, omitted or reordered', index + 1, fragment)
     tail = normalized[1][positions[-1][1] + len(expected_notes[-1]):].strip()
     if final_note:
