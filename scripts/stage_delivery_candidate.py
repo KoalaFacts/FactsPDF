@@ -14,6 +14,7 @@ import subprocess
 from xml.etree import ElementTree as ET
 
 from verify_package import current_source, expected_contract
+from private_source_payload import assemble_source
 
 VERSION = '0.1.0-preview.1'
 TARGET = 'net10.0'
@@ -837,9 +838,18 @@ def main() -> None:
     n = commands.add_parser('assemble-native', help='Assemble unverified native software ZIP')
     n.add_argument('--build', required=True, type=Path)
     n.add_argument('--output', required=True, type=Path)
+    source = commands.add_parser('assemble-source', help='Stage source-exact unverified corresponding-source tarball')
+    source.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.command == 'assemble-native':
+    if args.command == 'assemble-source':
+        source_head = current_source(root)
+        identity(root, 'local-linux')
+        result = assemble_source(root, args.output, source_head)
+        if current_source(root) != source_head:
+            raise ValueError('Source changed during source archive packaging')
+        print(f"Private corresponding source: {source_head}; partial/unverified/unpublished.")
+    elif args.command == 'assemble-native':
         result = assemble_native(root, args.build, args.output)
         print(f"Native private software: {result['sourceHead']}; partial/unverified/unpublished.")
     elif args.command == 'assemble-managed':
