@@ -823,6 +823,173 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
     return report
 
 
+
+def assemble_five_payloads(root: Path, build_dir: Path, managed_dir: Path,
+                           native_dir: Path, source_dir: Path,
+                           examples_dir: Path, output: Path) -> dict:
+    """Stage the five real local-Linux payloads together, without claiming validation.
+
+    Each input was produced by the existing source-bound component commands.
+    This is NOT the independently verified final candidate or its final manifest.
+    Never publish or upload the files from this intermediate directory.
+    """
+    import shutil
+    from private_examples_payload import FILES as EXAMPLE_FILES
+    from private_source_payload import SOURCE_ROOT
+
+    root = root.resolve(strict=True)
+    source_head = current_source(root)
+    selected = identity(root, 'local-linux')
+    inputs = (build_dir, managed_dir, native_dir, source_dir, examples_dir)
+    dirs = []
+    for directory in inputs:
+        if directory.is_symlink() or not directory.is_dir():
+            raise ValueError('Missing or symlinked five-payload input directory')
+        resolved = directory.resolve(strict=True)
+        if resolved == root or root in resolved.parents or resolved in dirs:
+            raise ValueError('Five-payload inputs must be distinct and external')
+        dirs.append(resolved)
+    build_dir, managed_dir, native_dir, source_dir, examples_dir = dirs
+    output = output.absolute()
+    destination = output.resolve()
+    if (output.exists() or output.is_symlink() or not output.parent.is_dir() or
+            destination == root or root in destination.parents or
+            any(destination == d or d in destination.parents or
+                destination in d.parents for d in dirs)):
+        raise ValueError('Fresh external five-payload output required')
+
+    def receipt(directory: Path, filename: str, phase: str, require_identity: bool):
+        path = directory / filename
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024 * 1024:
+            raise ValueError('Missing, symlinked or oversized payload receipt: ' + filename)
+        data = path.read_bytes()
+        record = json.loads(data)
+        if (record.get('schemaVersion') != 1 or record.get('phase') != phase or
+                record.get('sourceHead') != source_head or
+                any(record.get(k) is not False for k in (
+                    'candidateAssembled', 'independentlyValidated', 'published',
+                    'distributionAuthorized')) or
+                (require_identity and record.get('identity') != selected) or
+                (not require_identity and record.get('version') != VERSION)):
+            raise ValueError('Mismatched source, profile or status: ' + filename)
+        return record, _sha(data)
+
+    built, built_sha = receipt(build_dir, 'private-build.json',
+                               'private-build-unverified', True)
+    if built.get('candidateBuilt') is not True:
+        raise ValueError('Five-payload staging requires real candidate build')
+    managed, managed_sha = receipt(managed_dir, 'managed-archive.json',
+                                   'partial-managed-software-archive-unverified', True)
+    native, native_sha = receipt(native_dir, 'native-archive.json',
+                                 'partial-native-software-archive-unverified', True)
+    source, source_sha = receipt(source_dir, 'source-archive.json',
+                                 'partial-source-archive-unverified', False)
+    examples, examples_sha = receipt(examples_dir, 'examples-archive.json',
+                                     'partial-examples-archive-unverified', False)
+    if (managed.get('nativeCompilerOrigin') is not None or
+            native.get('nativeCompilerOrigin') != built.get('nativeCompilerOrigin') or
+            native.get('nativeNoticeOrigin') != built.get('nativeNoticeOrigin')):
+        raise ValueError('Native compiler/notice provenance changed across payloads')
+
+    expected_members = {
+        'managed': {name for _, name in MANAGED_MEMBERS},
+        'native': {'FactsPDF.Native/FactsPDF.Cli',
+                   'FactsPDF.Native/LICENSE.md', 'FactsPDF.Native/CLI-README.md',
+                   'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                   'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'},
+        'examples': set(EXAMPLE_FILES.values()) | {'EXAMPLES-MANIFEST.json'},
+    }
+    for label, report in (('managed', managed), ('native', native),
+                          ('examples', examples)):
+        members = report.get('members')
+        if (not isinstance(members, list) or
+                len(members) != len(expected_members[label]) or
+                {x.get('path') for x in members if isinstance(x, dict)} !=
+                expected_members[label]):
+            raise ValueError('Unexpected ' + label + ' component member inventory')
+    source_members = source.get('members')
+    if (not isinstance(source_members, list) or len(source_members) < 10 or
+            not {'LICENSE.md', 'SOURCE-MANIFEST.json', 'SOURCE-BUILD.md',
+                 'src/FactsPDF.Cli/FactsPDF.Cli.csproj'}.issubset(
+                     {x.get('path') for x in source_members if isinstance(x, dict)})):
+        raise ValueError('Incomplete corresponding-source payload inventory')
+    package_name = 'FactsPDF.' + VERSION + '.nupkg'
+    build_records = built.get('files')
+    if not isinstance(build_records, list):
+        raise ValueError('Missing original package build inventory')
+    package_record = [x for x in build_records if isinstance(x, dict) and
+                      x.get('path') == 'packages/' + package_name]
+    if len(package_record) != 1:
+        raise ValueError('Original package is absent or duplicated')
+
+    entries = (
+        ('package', build_dir / 'packages' / package_name,
+         package_name, package_record[0], built_sha),
+        ('managed', managed_dir / MANAGED_ARCHIVE_NAME, MANAGED_ARCHIVE_NAME,
+         managed.get('archive'), managed_sha),
+        ('native', native_dir / NATIVE_ARCHIVE_NAME.format(rid='linux-x64'),
+         NATIVE_ARCHIVE_NAME.format(rid='linux-x64'),
+         native.get('archive'), native_sha),
+        ('source', source_dir / ('FactsPDF.' + VERSION + '.source.tar.gz'),
+         'FactsPDF.' + VERSION + '.source.tar.gz', source.get('archive'), source_sha),
+        ('examples', examples_dir / ('FactsPDF.' + VERSION + '.examples.zip'),
+         'FactsPDF.' + VERSION + '.examples.zip', examples.get('archive'), examples_sha),
+    )
+    total = 0
+    payloads = []
+    for label, path, filename, recorded, receipt_hash in entries:
+        if (path.is_symlink() or not path.is_file() or
+                not isinstance(recorded, dict) or
+                (label != 'package' and recorded.get('filename') != filename)):
+            raise ValueError('Missing or mismatched ' + label + ' candidate payload')
+        size = path.stat().st_size
+        if size <= 0 or size > 256 * 1024 * 1024:
+            raise ValueError('Five-payload member exceeds size budget')
+        total += size
+        if total > 512 * 1024 * 1024:
+            raise ValueError('Five-payload total exceeds size budget')
+        digest = hashlib.sha256()
+        with path.open('rb') as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b''):
+                digest.update(block)
+        if size != recorded.get('bytes') or digest.hexdigest() != recorded.get('sha256'):
+            raise ValueError('Payload no longer matches source-bound receipt: ' + label)
+        payloads.append({'role': label, 'filename': filename, 'bytes': size,
+                         'sha256': digest.hexdigest(), 'producerReceiptSha256': receipt_hash})
+    if current_source(root) != source_head:
+        raise ValueError('Source changed during five-payload preflight')
+
+    output.mkdir(mode=0o700)
+    for entry, record in zip(entries, payloads):
+        path = entry[1]
+        target = output / record['filename']
+        with path.open('rb') as src, target.open('xb') as dst:
+            shutil.copyfileobj(src, dst, 1024 * 1024)
+        if (target.stat().st_size != record['bytes'] or
+                _sha(target.read_bytes()) != record['sha256']):
+            raise ValueError('Staged payload changed during copying')
+    for directory, name, digest in zip(
+            dirs, ('private-build.json', 'managed-archive.json',
+                   'native-archive.json', 'source-archive.json',
+                   'examples-archive.json'),
+            (built_sha, managed_sha, native_sha, source_sha, examples_sha)):
+        if _sha((directory / name).read_bytes()) != digest:
+            raise ValueError('Producer receipt changed during five-payload staging')
+    if current_source(root) != source_head:
+        raise ValueError('Source changed during five-payload staging')
+    report = {'schemaVersion': 1,
+              'phase': 'five-payloads-staged-awaiting-independent-verification',
+              'sourceHead': source_head, 'identity': selected,
+              'payloads': payloads, 'candidateBuilt': True,
+              'candidateAssembled': True, 'independentlyValidated': False,
+              'published': False, 'distributionAuthorized': False,
+              'retainedProfile': 'local-linux', 'windowsBinaryRetained': False,
+              'notFinalCandidate': True}
+    (output / 'candidate-staging.json').write_text(
+        json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    return report
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -843,9 +1010,16 @@ def main() -> None:
     source.add_argument('--output', required=True, type=Path)
     examples = commands.add_parser('assemble-examples', help='Stage source-exact private first-use examples')
     examples.add_argument('--output', required=True, type=Path)
+    staged = commands.add_parser('assemble-five', help='Stage all five private Linux payloads; not verified or released')
+    for flag in ('build', 'managed', 'native', 'source', 'examples', 'output'):
+        staged.add_argument('--' + flag, required=True, type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.command == 'assemble-examples':
+    if args.command == 'assemble-five':
+        result = assemble_five_payloads(root, args.build, args.managed, args.native,
+                                        args.source, args.examples, args.output)
+        print(f"Five real payloads staged: {result['sourceHead']}; independent verification pending; not published.")
+    elif args.command == 'assemble-examples':
         source_head = current_source(root)
         identity(root, 'local-linux')
         result = assemble_examples(root, args.output, source_head)
