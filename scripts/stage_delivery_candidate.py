@@ -499,8 +499,16 @@ def _verify_native_x64_header(payload: bytes, profile: str) -> None:
         raise ValueError('Windows native executable has invalid PE section bounds')
     has_raw_data = False
     for index in range(sections):
-        raw_size, raw_offset = struct.unpack_from('<II', payload,
-                                                   section_table + index * 40 + 16)
+        section_offset = section_table + index * 40
+        virtual_size, virtual_address, raw_size, raw_offset = (
+            struct.unpack_from('<IIII', payload, section_offset + 8))
+        # PE sections must fit the loader's declared virtual image, not just
+        # the on-disk file. A zero VirtualSize uses SizeOfRawData.
+        virtual_extent = virtual_size or raw_size
+        if (virtual_address < size_headers or
+                virtual_address >= size_image or
+                virtual_extent > size_image - virtual_address):
+            raise ValueError('Windows native executable has invalid PE virtual section bounds')
         if raw_size:
             if (raw_offset < size_headers or raw_offset > len(payload) or
                     raw_size > len(payload) - raw_offset):
