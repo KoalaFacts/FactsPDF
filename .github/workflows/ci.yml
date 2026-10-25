@@ -291,8 +291,30 @@ jobs:
           test "$source_head" = "$(git rev-parse HEAD)"
           test "$(dotnet --version)" = "10.0.402"
           offline_config="$RUNNER_TEMP/factspdf-private-source-nuget.config"
-          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<configuration><packageSources><clear /></packageSources></configuration>' > "$offline_config"
-          mkdir -p "$RUNNER_TEMP/factspdf-private-source-packages"
+          source_feed="$RUNNER_TEMP/factspdf-private-source-feed"
+          mkdir -p "$RUNNER_TEMP/factspdf-private-source-packages" "$source_feed"
+          # SDK 10.0.402 requires the pinned ILLink.Tasks 10.0.13 package.
+          # Copy only its hashed NuGet archive from the earlier clean build into
+          # a local feed; never restore from checkout outputs or the network.
+          python3 - <<'PY'
+          import base64, hashlib, os, pathlib, shutil
+          cache = pathlib.Path.home() / '.nuget/packages/microsoft.net.illink.tasks/10.0.13'
+          archive = cache / 'microsoft.net.illink.tasks.10.0.13.nupkg'
+          digest_file = cache / 'microsoft.net.illink.tasks.10.0.13.nupkg.sha512'
+          for path in (archive, digest_file):
+              if not path.is_file() or path.is_symlink() or not path.stat().st_size:
+                  raise AssertionError('Missing/invalid pinned ILLink package cache member: ' + str(path))
+          digest = hashlib.sha512()
+          with archive.open('rb') as stream:
+              for block in iter(lambda: stream.read(1024 * 1024), b''):
+                  digest.update(block)
+          actual = base64.b64encode(digest.digest()).decode('ascii')
+          if actual != digest_file.read_text(encoding='ascii').strip():
+              raise AssertionError('ILLink package archive differs from recorded NuGet cache SHA512')
+          shutil.copyfile(archive, pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-source-feed' / archive.name)
+          print('Pinned ILLink.Tasks 10.0.13 archive checksum verified for offline extracted-source restore')
+          PY
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<configuration><packageSources><clear /><add key="verified-local" value="'"$source_feed"'" /></packageSources></configuration>' > "$offline_config"
           (
             cd "$source_root"
             export NUGET_PACKAGES="$RUNNER_TEMP/factspdf-private-source-packages"
