@@ -576,6 +576,30 @@ jobs:
           assert (root / 'factspdf-staged-examples-extracted/FactsPDF.Examples/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
           print('All five staged software bytes, frozen archive allowlists, source identity, notices and executable modes checked independently')
           PY
+          # Use the exact freshly compiled, receipt-bound PackageInspector on the
+          # staged nupkg; the clean consumer alone does not check PE metadata.
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, sys
+          sys.path.insert(0, str(pathlib.Path('scripts').resolve()))
+          from verify_package import validate_package, binary_reader
+          root = pathlib.Path.cwd()
+          work = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-build'
+          receipt = json.loads((work / 'private-build.json').read_text())
+          inspector = list((work / 'inspector/bin').rglob('FactsPDF.PackageInspector.dll'))
+          assert len(inspector) == 1
+          assembly = inspector[0]
+          record, = [rec for rec in receipt['files']
+                     if rec['path'] == assembly.relative_to(work).as_posix()]
+          assert assembly.is_file() and not assembly.is_symlink()
+          assert assembly.stat().st_size == record['bytes']
+          assert hashlib.sha256(assembly.read_bytes()).hexdigest() == record['sha256']
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert receipt['sourceHead'] == head and receipt['identity']['profile'] == 'local-linux'
+          package = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-five-staged/FactsPDF.0.1.0-preview.1.nupkg'
+          validate_package(package, root, '0.1.0-preview.1', head, 'net10.0',
+                           assembly_reader=binary_reader(assembly, 'dotnet'))
+          print('Staged NuGet package validated through actual source-bound compiled PackageInspector PE metadata oracle')
+          PY
           python3 scripts/verify_release_candidate.py \
             --cli-dll "$RUNNER_TEMP/factspdf-staged-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
             --package "$RUNNER_TEMP/factspdf-private-five-staged/FactsPDF.0.1.0-preview.1.nupkg" \
