@@ -166,6 +166,18 @@ jobs:
           assert len(report['members']) == 5 and {r['path'] for r in report['members']} == allowed
           build = json.loads((root / 'factspdf-private-build/private-build.json').read_text())
           assert report['nativeNoticeOrigin'] == build['nativeNoticeOrigin']
+          # Independently bind resolved ILCompiler packages to the source
+          # assets that the actual native publish left in the checkout.
+          compiler = report['nativeCompilerOrigin']
+          assert compiler == build['nativeCompilerOrigin']
+          assert build['nativeCompilerPackVerified'] is False
+          assert compiler['officialSignatureVerified'] is False
+          assert compiler['projectAssetsSha256'] == hashlib.sha256(
+              pathlib.Path('src/FactsPDF.Cli/obj/project.assets.json').read_bytes()).hexdigest()
+          assert [p['packageId'] for p in compiler['packages']] == [
+              'Microsoft.DotNet.ILCompiler',
+              'runtime.linux-x64.Microsoft.DotNet.ILCompiler']
+          assert all(p['version'] == '10.0.13' for p in compiler['packages'])
           pinned = {'LICENSE.TXT': 'cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310',
                     'THIRD-PARTY-NOTICES.TXT': '66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54'}
           assert {n['filename']: n['sha256'] for n in build['nativeNoticeOrigin']['notices']} == pinned
@@ -319,6 +331,16 @@ jobs:
                      'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'}
           assert len(report['members']) == 5 and {x['path'] for x in report['members']} == allowed
           assert report['nativeNoticeOrigin'] == build['nativeNoticeOrigin']
+          compiler = report['nativeCompilerOrigin']
+          assert compiler == build['nativeCompilerOrigin']
+          assert build['nativeCompilerPackVerified'] is False
+          assert compiler['officialSignatureVerified'] is False
+          assert compiler['projectAssetsSha256'] == hashlib.sha256(
+              Path('src/FactsPDF.Cli/obj/project.assets.json').read_bytes()).hexdigest()
+          assert [p['packageId'] for p in compiler['packages']] == [
+              'Microsoft.DotNet.ILCompiler',
+              'runtime.win-x64.Microsoft.DotNet.ILCompiler']
+          assert all(p['version'] == '10.0.13' for p in compiler['packages'])
           assert report['nativeNoticeOrigin']['packageId'] == 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
           assert report['nativeNoticeOrigin']['version'] == '10.0.13'
           extracted = temp / 'factspdf-private-windows-extracted'
