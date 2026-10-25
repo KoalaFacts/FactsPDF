@@ -31,6 +31,7 @@ DOC_FILES = frozenset({
     'docs/development.md', 'docs/evaluation.md', 'docs/combined-report.md',
     'docs/tables.md', 'docs/images.md', 'docs/font-styles.md',
     'docs/page-furniture-cli.md', 'docs/page-margins.md',
+    'docs/private-examples-readme.md',
     'docs/unicode-fonts.md', 'docs/font-subsetting.md',
 })
 SCRIPT_FILES = frozenset({
@@ -38,6 +39,7 @@ SCRIPT_FILES = frozenset({
     'scripts/verify_package.py', 'scripts/verify_package_inspector.py',
     'scripts/verify_release_candidate.py', 'scripts/verify_first_use.py',
     'scripts/stage_delivery_candidate.py', 'scripts/private_source_payload.py',
+    'scripts/private_examples_payload.py',
 })
 REQUIRED = frozenset({
     'Directory.Build.props', 'global.json', 'LICENSE.md', 'README.md',

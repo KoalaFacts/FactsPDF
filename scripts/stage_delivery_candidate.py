@@ -15,6 +15,7 @@ from xml.etree import ElementTree as ET
 
 from verify_package import current_source, expected_contract
 from private_source_payload import assemble_source
+from private_examples_payload import assemble_examples
 
 VERSION = '0.1.0-preview.1'
 TARGET = 'net10.0'
@@ -840,9 +841,18 @@ def main() -> None:
     n.add_argument('--output', required=True, type=Path)
     source = commands.add_parser('assemble-source', help='Stage source-exact unverified corresponding-source tarball')
     source.add_argument('--output', required=True, type=Path)
+    examples = commands.add_parser('assemble-examples', help='Stage source-exact private first-use examples')
+    examples.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.command == 'assemble-source':
+    if args.command == 'assemble-examples':
+        source_head = current_source(root)
+        identity(root, 'local-linux')
+        result = assemble_examples(root, args.output, source_head)
+        if current_source(root) != source_head:
+            raise ValueError('Source changed during examples packaging')
+        print(f"Private examples: {source_head}; partial/unverified/unpublished.")
+    elif args.command == 'assemble-source':
         source_head = current_source(root)
         identity(root, 'local-linux')
         result = assemble_source(root, args.output, source_head)
