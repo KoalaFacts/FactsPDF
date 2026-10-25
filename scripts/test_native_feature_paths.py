@@ -3,7 +3,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from verify_native_feature_paths import ROOT, validate_row_fixture, validate_continued_row, validate_furniture_words
+from verify_native_feature_paths import ROOT, validate_row_fixture, expected_note_texts, validate_continued_row, validate_furniture_words
 
 
 class NativeFeaturePathTests(unittest.TestCase):
@@ -70,17 +70,51 @@ class NativeFeaturePathTests(unittest.TestCase):
 
     @staticmethod
     def row_pages():
-        first = ['Description / delivery notes', 'SRV-001'] + [f'{n:02d}. Note {n}' for n in range(1, 13)] + ['600.00']
-        second = ['Description / delivery notes'] + [f'{n:02d}. Note {n}' for n in range(13, 25)] + [
+        first = ['Item Description / delivery notes Amount', 'SRV-001'] + [f'{n:02d}. Note {n}' for n in range(1, 13)] + ['600.00']
+        second = ['Item Description / delivery notes Amount',
+                  'Authored brand asset, kept with its own complete image border.'] + [f'{n:02d}. Note {n}' for n in range(13, 25)] + [
             'SRV-002', '300.00', 'TOTAL / ILLUSTRATIVE', '900.00']
         return [first, second]
+
+    def test_complete_authored_caption_on_either_boundary_page(self):
+        notes, final = expected_note_texts(
+            (ROOT / 'examples/business-table-long-description.html').read_text(encoding='utf-8'))
+        caption = 'Authored brand asset, kept with its own complete image border.'
+        first = ['Item Description / delivery notes Amount', 'SRV-001'] + notes[:12] + ['600.00']
+        second = ['Item Description / delivery notes Amount', caption] + notes[12:] + [
+            final, 'SRV-002', 'Document generation',
+            'Prepared the agreed searchable reports after the template review.',
+            '300.00', 'TOTAL / ILLUSTRATIVE', '900.00',
+            'Synthetic capability sample. Amounts are illustrative and are not a product quote or commercial offer.']
+        validate_continued_row([first, second], notes, final)
+        first.insert(-1, caption)
+        second.remove(caption)
+        validate_continued_row([first, second], notes, final)
+
+    def test_caption_missing_duplicate_and_boundary_corruption_rejected(self):
+        caption = 'Authored brand asset, kept with its own complete image border.'
+        mutations = [
+            lambda p: p[1].remove(caption),
+            lambda p: p[1].insert(1, caption),
+            lambda p: p[0].insert(-1, caption),
+            lambda p: p[1].__setitem__(1, caption.replace('complete', 'partial')),
+            lambda p: p[1].insert(1, p[1].pop(2)),
+            lambda p: p[0].insert(2, p[1].pop(1)),
+            lambda p: p[1].insert(0, p[1].pop(1)),
+            lambda p: p[1].insert(2, 'unexpected boundary text'),
+        ]
+        for mutation in mutations:
+            pages = self.row_pages()
+            mutation(pages)
+            with self.subTest(pages=pages), self.assertRaises(AssertionError):
+                validate_continued_row(pages)
 
     def test_continued_row_positive_and_mutations(self):
         self.assertEqual(validate_continued_row(self.row_pages())['notes'], 24)
         changes = [
             lambda p: p[0].remove('12. Note 12'),
             lambda p: p[1].append('24. Note 24'),
-            lambda p: p[0].remove('Description / delivery notes'),
+            lambda p: p[0].remove('Item Description / delivery notes Amount'),
             lambda p: p[1].remove('SRV-002'),
             lambda p: p[1].reverse(),
         ]
