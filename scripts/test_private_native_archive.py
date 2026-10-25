@@ -10,6 +10,34 @@ import zipfile
 from stage_delivery_candidate import assemble_native, NATIVE_ARCHIVE_NAME
 
 
+def valid_linux_elf() -> bytes:
+    import struct
+    data = bytearray(256)
+    data[:16] = b'\x7fELF\x02\x01\x01' + bytes(9)
+    struct.pack_into('<HHIQQQIHHHHHH', data, 16,
+                     3, 62, 1, 0x400000, 64, 0, 0, 64, 56, 1, 0, 0, 0)
+    struct.pack_into('<IIQQQQQQ', data, 64,
+                     1, 5, 0, 0x400000, 0x400000, len(data), len(data), 0x1000)
+    return bytes(data)
+
+
+def valid_windows_pe() -> bytes:
+    import struct
+    data = bytearray(1024)
+    data[:2] = b'MZ'
+    struct.pack_into('<I', data, 0x3c, 0x80)
+    data[0x80:0x84] = b'PE\x00\x00'
+    struct.pack_into('<HHIIIHH', data, 0x84, 0x8664, 1, 0, 0, 0, 0xf0, 0x22)
+    optional = 0x98
+    struct.pack_into('<H', data, optional, 0x20b)
+    struct.pack_into('<II', data, optional + 56, 0x2000, 0x200)
+    struct.pack_into('<I', data, optional + 108, 16)
+    section = optional + 0xf0
+    data[section:section + 8] = b'.text\x00\x00\x00'
+    struct.pack_into('<IIII', data, section + 8, 0x180, 0x1000, 0x200, 0x200)
+    return bytes(data)
+
+
 class NativeArchiveTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -21,7 +49,7 @@ class NativeArchiveTests(unittest.TestCase):
         self.build.mkdir()
         self.source = 'f' * 40
         self.selected = {'version': '0.1.0-preview.1', 'profile': 'local-linux'}
-        self.payload = b'\x7fELF' + b'\x00' * 12 + b'compiled payload'
+        self.payload = valid_linux_elf()
         native = self.build / 'native/FactsPDF.Cli'
         native.parent.mkdir()
         native.write_bytes(self.payload)
@@ -105,7 +133,7 @@ class NativeArchiveTests(unittest.TestCase):
         self.record['identity'] = self.selected
         (self.build / 'native/FactsPDF.Cli').unlink()
         exe = self.build / 'native/FactsPDF.Cli.exe'
-        exe.write_bytes(b'MZ' + self.payload[2:])
+        exe.write_bytes(valid_windows_pe())
         self.record['files'] = [{'path': 'native/FactsPDF.Cli.exe',
                                  'bytes': exe.stat().st_size,
                                  'sha256': hashlib.sha256(exe.read_bytes()).hexdigest()}]
@@ -115,6 +143,59 @@ class NativeArchiveTests(unittest.TestCase):
         with zipfile.ZipFile(self.out / NATIVE_ARCHIVE_NAME.format(rid='win-x64')) as z:
             self.assertEqual(z.read('FactsPDF.Native/FactsPDF.Cli.exe'), exe.read_bytes())
 
+
+    def test_reject_truncated_wrong_architecture_and_invalid_elf_headers(self):
+        import struct
+        cases = {'truncated-magic': b'\x7fELF',
+                 'elf32': bytearray(self.payload),
+                 'arm64': bytearray(self.payload),
+                 'missing-program-table': bytearray(self.payload),
+                 'bad-segment-offset': bytearray(self.payload),
+                 'no-loadable-segment': bytearray(self.payload)}
+        cases['elf32'][4] = 1
+        struct.pack_into('<H', cases['arm64'], 18, 183)
+        struct.pack_into('<Q', cases['missing-program-table'], 32, len(self.payload))
+        struct.pack_into('<Q', cases['bad-segment-offset'], 64 + 8, len(self.payload))
+        struct.pack_into('<I', cases['no-loadable-segment'], 64, 2)
+        for name, raw in cases.items():
+            with self.subTest(name=name):
+                data = bytes(raw)
+                (self.build / 'native/FactsPDF.Cli').write_bytes(data)
+                self.record['files'][0].update(bytes=len(data),
+                    sha256=hashlib.sha256(data).hexdigest())
+                self.save()
+                with self.assertRaisesRegex(ValueError, 'ELF'):
+                    self.assemble()
+                self.assertFalse(self.out.exists())
+
+    def test_reject_windows_truncated_wrong_architecture_and_sections(self):
+        import struct
+        self.selected = {'version': '0.1.0-preview.1',
+                         'profile': 'win-x64-validation', 'binaryRetained': False}
+        self.record['identity'] = self.selected
+        (self.build / 'native/FactsPDF.Cli').unlink()
+        exe = self.build / 'native/FactsPDF.Cli.exe'
+        cases = {'truncated-magic': b'MZ',
+                 'arm64': bytearray(valid_windows_pe()),
+                 'pe32': bytearray(valid_windows_pe()),
+                 'bad-signature': bytearray(valid_windows_pe()),
+                 'bad-section': bytearray(valid_windows_pe()),
+                 'not-executable': bytearray(valid_windows_pe())}
+        struct.pack_into('<H', cases['arm64'], 0x84, 0xaa64)
+        struct.pack_into('<H', cases['pe32'], 0x98, 0x10b)
+        cases['bad-signature'][0x80:0x84] = b'JUNK'
+        struct.pack_into('<I', cases['bad-section'], 0x98 + 0xf0 + 20, 9999)
+        struct.pack_into('<H', cases['not-executable'], 0x84 + 18, 0x20)
+        for name, raw in cases.items():
+            with self.subTest(name=name):
+                data = bytes(raw)
+                exe.write_bytes(data)
+                self.record['files'] = [{'path': 'native/FactsPDF.Cli.exe',
+                    'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}]
+                self.save()
+                with self.assertRaisesRegex(ValueError, 'PE'):
+                    self.assemble()
+                self.assertFalse(self.out.exists())
 
 if __name__ == '__main__':
     unittest.main()

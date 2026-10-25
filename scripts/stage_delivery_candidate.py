@@ -450,6 +450,66 @@ def assemble_managed(root: Path, build: Path, output: Path) -> dict:
 
 
 
+def _verify_native_x64_header(payload: bytes, profile: str) -> None:
+    """Check actual executable structure and x64 identity, not only magic bytes.
+
+    Independently executing the extracted binary is still mandatory.
+    """
+    import struct
+
+    if profile == 'local-linux':
+        if len(payload) < 120 or payload[:7] != b'\x7fELF\x02\x01\x01':
+            raise ValueError('Linux native executable must be executable ELF64 x86-64')
+        (kind, machine, version, _, phoff, _, _, ehsize, phsize, phnum, _, _, _) = (
+            struct.unpack_from('<HHIQQQIHHHHHH', payload, 16))
+        if (kind not in (2, 3) or machine != 62 or version != 1 or
+                ehsize != 64 or phsize != 56 or not 0 < phnum <= 128 or
+                phoff < 64 or phoff + phnum * phsize > len(payload)):
+            raise ValueError('Linux native executable must be executable ELF64 x86-64')
+        loadable = False
+        for index in range(phnum):
+            kind, _, offset, _, _, length, memory, _ = (
+                struct.unpack_from('<IIQQQQQQ', payload, phoff + index * phsize))
+            if offset > len(payload) or length > len(payload) - offset or memory < length:
+                raise ValueError('Linux native executable has invalid ELF program headers')
+            if kind == 1 and length > 0:
+                loadable = True
+        if not loadable:
+            raise ValueError('Linux native executable must contain a loadable ELF segment')
+        return
+
+    if profile != 'win-x64-validation' or len(payload) < 64 or payload[:2] != b'MZ':
+        raise ValueError('Windows native executable must be PE32+ x64')
+    pe = struct.unpack_from('<I', payload, 0x3c)[0]
+    if pe < 64 or pe > len(payload) - 24 or payload[pe:pe + 4] != b'PE\x00\x00':
+        raise ValueError('Windows native executable must have a valid PE header')
+    machine, sections, _, _, _, size_optional, flags = (
+        struct.unpack_from('<HHIIIHH', payload, pe + 4))
+    optional = pe + 24
+    section_table = optional + size_optional
+    if (machine != 0x8664 or not 0 < sections <= 96 or not flags & 0x0002 or
+            not 112 <= size_optional <= 4096 or section_table > len(payload) or
+            sections * 40 > len(payload) - section_table):
+        raise ValueError('Windows native executable must be executable PE32+ x64')
+    if struct.unpack_from('<H', payload, optional)[0] != 0x20b:
+        raise ValueError('Windows native executable must be PE32+ x64')
+    size_image, size_headers = struct.unpack_from('<II', payload, optional + 56)
+    if (size_headers < section_table + sections * 40 or
+            size_headers > len(payload) or size_image < size_headers):
+        raise ValueError('Windows native executable has invalid PE section bounds')
+    has_raw_data = False
+    for index in range(sections):
+        raw_size, raw_offset = struct.unpack_from('<II', payload,
+                                                   section_table + index * 40 + 16)
+        if raw_size:
+            if (raw_offset < size_headers or raw_offset > len(payload) or
+                    raw_size > len(payload) - raw_offset):
+                raise ValueError('Windows native executable has invalid PE section bounds')
+            has_raw_data = True
+    if not has_raw_data:
+        raise ValueError('Windows native executable must contain section data')
+
+
 # Real native software payload, not a final validated candidate or a QA archive.
 NATIVE_ARCHIVE_NAME = 'FactsPDF.Cli.' + VERSION + '.native-{rid}.zip'
 NATIVE_DOC = 'docs/private-native-cli-readme.md'
@@ -519,11 +579,9 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
         if path == build / relative:
             if len(payload) != expected.get('bytes') or _sha(payload) != expected.get('sha256'):
                 raise ValueError('Private native executable changed after receipt')
-            if profile == 'local-linux':
-                if payload[:4] != b'\x7fELF' or not path.stat().st_mode & 0o111:
-                    raise ValueError('Linux native executable must be executable ELF')
-            elif payload[:2] != b'MZ':
-                raise ValueError('Windows native executable must be PE')
+            if profile == 'local-linux' and not path.stat().st_mode & 0o111:
+                raise ValueError('Linux native executable must be executable ELF')
+            _verify_native_x64_header(payload, profile)
         members[archived] = payload
     if current_source(root) != source:
         raise ValueError('Source changed during native archive preflight')
