@@ -174,6 +174,62 @@ class CandidateInputTests(unittest.TestCase):
 
 
 class PrivateBuildContractTests(unittest.TestCase):
+
+    def test_native_compiler_origin_binds_assets_cache_and_exact_versions(self):
+        import base64
+        import hashlib
+        from subprocess import CompletedProcess
+        from unittest.mock import patch
+        from stage_delivery_candidate import _native_compiler_origin
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            root = parent / 'checkout'
+            assets_file = root / 'src/FactsPDF.Cli/obj/project.assets.json'
+            assets_file.parent.mkdir(parents=True)
+            cache = parent / 'packages'
+            ids = ('Microsoft.DotNet.ILCompiler',
+                   'runtime.linux-x64.Microsoft.DotNet.ILCompiler')
+            libraries = {}
+            for i, package_id in enumerate(ids):
+                package_key = package_id.lower()
+                package_dir = cache / package_key / '10.0.13'
+                package_dir.mkdir(parents=True)
+                (package_dir / (package_key + '.nuspec')).write_text(
+                    '<package><metadata><id>' + package_id +
+                    '</id><version>10.0.13</version></metadata></package>')
+                digest = base64.b64encode(bytes([i + 1]) * 64).decode('ascii')
+                (package_dir / (package_key + '.10.0.13.nupkg.sha512')).write_text(digest)
+                libraries[package_id + '/10.0.13'] = {
+                    'type': 'package', 'path': package_key + '/10.0.13', 'sha512': digest}
+            def save():
+                assets_file.write_text(json.dumps({'libraries': libraries}))
+            save()
+            with patch('stage_delivery_candidate.subprocess.run',
+                       return_value=CompletedProcess([], 0, 'global-packages: ' + str(cache) + '\n', '')):
+                record = _native_compiler_origin('dotnet', root, 'local-linux')
+                self.assertEqual([p['packageId'] for p in record['packages']], list(ids))
+                self.assertEqual([p['version'] for p in record['packages']], ['10.0.13'] * 2)
+                self.assertEqual(record['projectAssetsSha256'],
+                                 hashlib.sha256(assets_file.read_bytes()).hexdigest())
+                self.assertFalse(record['officialSignatureVerified'])
+
+                changed = libraries.pop(ids[1] + '/10.0.13')
+                libraries[ids[1] + '/10.0.14'] = changed
+                save()
+                with self.assertRaisesRegex(ValueError, 'version mismatch'):
+                    _native_compiler_origin('dotnet', root, 'local-linux')
+                libraries.pop(ids[1] + '/10.0.14')
+                libraries[ids[1] + '/10.0.13'] = changed
+                save()
+                sha = cache / ids[1].lower() / '10.0.13' / (
+                    ids[1].lower() + '.10.0.13.nupkg.sha512')
+                sha.write_text(base64.b64encode(b'x' * 64).decode('ascii'))
+                with self.assertRaisesRegex(ValueError, 'asset/cache SHA512 mismatch'):
+                    _native_compiler_origin('dotnet', root, 'local-linux')
+                sha.unlink()
+                with self.assertRaisesRegex(ValueError, 'package cache'):
+                    _native_compiler_origin('dotnet', root, 'local-linux')
+
     def test_host_toolchain_requires_real_exact_runtime(self):
         from unittest.mock import patch
         from subprocess import CompletedProcess
