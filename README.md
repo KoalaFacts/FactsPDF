@@ -91,7 +91,7 @@ for integration without a source-project reference.
 | Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors, cascade and inheritance | [CSS support](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
-| Headers, footers and page numbers | Repeated single-line literal text, centered in the margins; current decimal page number | [Current page-text contract](docs/page-margins.md) |
+| Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
 | Integration | .NET library and CLI; Linux/Windows x64 Native AOT execution checks | [Build and platform verification](docs/development.md#native-aot-and-verification) |
 
 ### Headers and footers: current limits
@@ -199,8 +199,9 @@ The [Node subprocess](docs/node-cli-probe.md) and
 not published SDKs. Performance results apply to their documented workloads and
 environments; there is no general speed or resource guarantee.
 
-Next delivery work is the formal header/footer increment, then a fixed private
-`0.1.0-preview.1` .NET/CLI evaluation candidate. That candidate has not been
+Structured page furniture is implemented in the development source. Remaining
+delivery work includes exact-revision native feature acceptance and preparation
+of a fixed private `0.1.0-preview.1` .NET/CLI evaluation candidate. That candidate has not been
 produced or published. Follow [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51)
 for current implementation and delivery evidence.
 
