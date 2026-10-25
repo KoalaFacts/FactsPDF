@@ -154,3 +154,50 @@ This data refresh does not change the publishing workflow or repository Pages
 settings. Until a successful production deployment is verified, use the
 repository [source dataset](../site/data/compatibility.json) and the feature
 documentation as the available compatibility reference.
+
+## 25 October 2026: structured page furniture
+
+Snapshot `audit-2026-10-25.structured-furniture` audits merged main
+`2f9cfd1fac13ab6034ac03a10d03b680f1de4018`. Its SHA-256 is
+`7426bdd28a6ebbb5c5af04c790e655cb64408abfec1ef35a68d99979b7ad35ee`. Only `pdf.headers`,
+`html.header` and `html.footer` change; the other **415 complete records** retain
+their previous values, including their source commits and audit dates. All 418
+IDs, order, categories, parent relationships, introduction history and statuses
+remain unchanged: **44 full, 115 partial, 251 none, 6 unknown and 2 not
+applicable**. The tag/property counts remain 34 and 37.
+
+`pdf.headers` remains partial and now describes the implemented .NET API and
+CLI structured mode: `PdfOptions.PageFurniture`, six left/center/right regions,
+physical `{page}` / `{pages}`, whole-set `FirstPage` replacement, per-region
+1–144pt text, opaque RGB and explicit bold/italic font roles. An empty first-page
+set clears that page's furniture without removing its body or restarting page
+numbers. The CLI uses `--page-furniture path.json`, a bounded strict UTF-8 JSON
+configuration. Body pagination is preserved.
+
+Regions remain single-line text, without HTML, images, multiline wrapping,
+automatic shrinking or CSS `@page`. Missing fonts, bad templates, collisions
+and overflow fail explicitly. Structured furniture is mutually exclusive with
+legacy `PageNumbers`, `HeaderText` and `FooterText`, even empty legacy text;
+those text fields retain their literal behavior. HTML `<header>` and `<footer>`
+still fail independently of either PDF option mode. No full status or new
+release/introduction version is inferred from this expansion.
+
+The cited core, CLI, shared JSON decoder and dedicated furniture tests are
+unchanged between historical main `ff03f91edde3bc686262477aac9232e0e88b5608`
+and this audited main. The actual
+[Ubuntu CI log at that historical commit](https://github.com/KoalaFacts/FactsPDF/actions/runs/40134259420/job/120992303896)
+records **1,364/1,364 tests passing**, including actual totals, first-page
+replacement, six-region styling and CLI/independently constructed API output
+comparisons. That run remains attributed to `ff03f91e`; it is not recorded as a
+new `2f9cfd1f` execution. This documentation/data refresh does not rerun the
+renderer, complete the full 52-PDF legacy replay, or approve release/reference
+pages. Later native acceptance evidence keeps its own commit and scope; this
+three-record update does not revise the platform rows.
+
+The model guard now requires structured API/CLI lookup results while retaining
+the unsupported-HTML-tag and legacy-mode distinctions. The browser startup
+expectation follows the new global audit SHA. Its `border-style` detail source
+expectation deliberately remains at `a085085e`, because that row was not
+reaudited. Current site verification belongs to this change's command/CI logs;
+prior passing browser tests or a successful local build do not establish a new
+browser run or successful public deployment.
