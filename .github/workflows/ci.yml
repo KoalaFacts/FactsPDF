@@ -242,12 +242,20 @@ jobs:
         run: |
           mkdir -p artifacts
           pacman -Q mingw-w64-ucrt-x86_64-poppler mingw-w64-ucrt-x86_64-fontconfig > artifacts/windows-aot-tools.txt
-      - name: Publish a real Windows x64 Native AOT executable
+      - name: Publish pinned private Windows x64 Native AOT executable
         shell: pwsh
         run: |
           dotnet --info | Out-File artifacts/windows-aot-toolchain.txt
-          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r win-x64 -p:PublishAot=true -o artifacts/windows-native 2>&1 | Tee-Object artifacts/windows-aot-publish.log
-          if ($LASTEXITCODE -ne 0) { throw "Windows Native AOT publish failed" }
+          $privateBuild = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-build'
+          python scripts/stage_delivery_candidate.py build --profile win-x64-validation --output $privateBuild 2>&1 | Tee-Object artifacts/windows-aot-publish.log
+          if ($LASTEXITCODE -ne 0) {
+            $diagnostic = Join-Path $privateBuild 'logs/native-publish.log'
+            if (Test-Path -LiteralPath $diagnostic) { Get-Content -LiteralPath $diagnostic -Tail 120 }
+            throw "Pinned Windows private candidate Native AOT build failed"
+          }
+          New-Item -ItemType Directory -Force -Path artifacts/windows-native | Out-Null
+          Copy-Item -LiteralPath (Join-Path $privateBuild 'native/FactsPDF.Cli.exe') -Destination artifacts/windows-native/FactsPDF.Cli.exe -ErrorAction Stop
+          Copy-Item -LiteralPath (Join-Path $privateBuild 'logs/native-publish.log') -Destination artifacts/windows-aot-private-publish.log -ErrorAction Stop
       - name: Run the isolated native exe and inspect two-page PDF and error recovery
         shell: pwsh
         env:
@@ -263,6 +271,69 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Native feature acceptance guard tests failed" }
           & $pythonExe scripts/verify_native_feature_paths.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-native-feature-evidence
           if ($LASTEXITCODE -ne 0) { throw "Windows Native AOT furniture/long-row acceptance failed" }
+      - name: Independently extract and execute private Windows Native AOT software ZIP
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          $pythonExe = (Get-Command python).Source
+          & $pythonExe -m unittest discover -s scripts -p test_private_native_archive.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Private native ZIP contract tests failed" }
+          $privateBuild = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-build'
+          $privateArchive = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-native'
+          & $pythonExe scripts/stage_delivery_candidate.py assemble-native --build $privateBuild --output $privateArchive
+          if ($LASTEXITCODE -ne 0) { throw "Windows private native ZIP assembly failed" }
+          @'
+          import hashlib, json, os
+          from pathlib import Path
+          import zipfile
+
+          temp = Path(os.environ['RUNNER_TEMP'])
+          build = json.loads((temp / 'factspdf-private-windows-build/private-build.json').read_text())
+          folder = temp / 'factspdf-private-windows-native'
+          report = json.loads((folder / 'native-archive.json').read_text())
+          assert build['candidateBuilt'] is True and build['identity']['profile'] == 'win-x64-validation'
+          assert report['sourceHead'] == build['sourceHead'] and report['identity'] == build['identity']
+          assert not any(report[k] for k in ('candidateAssembled', 'independentlyValidated',
+                                             'published', 'distributionAuthorized'))
+          record, = [r for r in build['files'] if r['path'] == 'native/FactsPDF.Cli.exe']
+          assert report['archive']['filename'] == 'FactsPDF.Cli.0.1.0-preview.1.native-win-x64.zip'
+          archive = folder / report['archive']['filename']
+          assert archive.stat().st_size == report['archive']['bytes']
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          allowed = {'FactsPDF.Native/FactsPDF.Cli.exe', 'FactsPDF.Native/LICENSE.md',
+                     'FactsPDF.Native/CLI-README.md'}
+          assert len(report['members']) == 3 and {x['path'] for x in report['members']} == allowed
+          extracted = temp / 'factspdf-private-windows-extracted'
+          extracted.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              infos = z.infolist()
+              assert len(infos) == 3 and {x.filename for x in infos} == allowed
+              assert z.testzip() is None
+              for item in infos:
+                  expected, = [x for x in report['members'] if x['path'] == item.filename]
+                  payload = z.read(item)
+                  assert item.create_system == 3 and item.external_attr >> 16 == 0o100644
+                  assert len(payload) == expected['bytes']
+                  assert hashlib.sha256(payload).hexdigest() == expected['sha256']
+                  target = extracted / item.filename
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(payload)
+          native = extracted / 'FactsPDF.Native/FactsPDF.Cli.exe'
+          assert native.read_bytes()[:2] == b'MZ'
+          assert native.stat().st_size == record['bytes']
+          assert hashlib.sha256(native.read_bytes()).hexdigest() == record['sha256']
+          assert (extracted / 'FactsPDF.Native/LICENSE.md').read_bytes() == Path('LICENSE.md').read_bytes()
+          print('Verified exact Windows native ZIP, source-bound executable bytes and original LICENSE')
+          '@ | & $pythonExe -
+          if ($LASTEXITCODE -ne 0) { throw "Independent Windows native ZIP extraction/inventory failed" }
+          $env:PATH = (Join-Path $env:MSYS2_LOCATION 'ucrt64\bin') + ';' + $env:PATH
+          $extractedCli = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-extracted/FactsPDF.Native/FactsPDF.Cli.exe'
+          & $pythonExe scripts/verify_windows_aot.py --executable $extractedCli --output artifacts/windows-private-native-aot-evidence
+          if ($LASTEXITCODE -ne 0) { throw "Extracted Windows native PDF/recovery verification failed" }
+          & $pythonExe scripts/verify_native_feature_paths.py --executable $extractedCli --output artifacts/windows-private-native-feature-evidence
+          if ($LASTEXITCODE -ne 0) { throw "Extracted Windows native furniture/long-row verification failed" }
+          Copy-Item -LiteralPath (Join-Path $privateArchive 'native-archive.json') -Destination artifacts/windows-private-native-archive.json -ErrorAction Stop
       - name: Retain Windows native acceptance evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -274,5 +345,9 @@ jobs:
             artifacts/windows-aot-publish.log
             artifacts/windows-aot-toolchain.txt
             artifacts/windows-aot-tools.txt
+            artifacts/windows-aot-private-publish.log
+            artifacts/windows-private-native-archive.json
+            artifacts/windows-private-native-aot-evidence/
+            artifacts/windows-private-native-feature-evidence/
           if-no-files-found: warn
           retention-days: 7
