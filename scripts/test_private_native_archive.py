@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from stage_delivery_candidate import assemble_native, NATIVE_ARCHIVE_NAME
+from stage_delivery_candidate import assemble_native, NATIVE_ARCHIVE_NAME, LINUX_NATIVE_NOTICE_SHA256
 
 
 def valid_linux_elf() -> bytes:
@@ -58,14 +58,28 @@ class NativeArchiveTests(unittest.TestCase):
         doc = self.root / 'docs/private-native-cli-readme.md'
         doc.parent.mkdir()
         doc.write_text('native usage instructions')
+        self.notices = {'LICENSE.TXT': b'NativeAOT license test fixture',
+                        'THIRD-PARTY-NOTICES.TXT': b'NativeAOT third-party test fixture'}
+        (self.build / 'native-notices').mkdir()
+        for name, value in self.notices.items():
+            (self.build / 'native-notices' / name).write_bytes(value)
+        self.origin = {'packageId': 'Microsoft.NETCore.App.Runtime.NativeAOT.linux-x64',
+                       'version': '10.0.13',
+                       'notices': [{'filename': name, 'bytes': len(value),
+                                    'sha256': hashlib.sha256(value).hexdigest()}
+                                   for name, value in self.notices.items()]}
         self.record = {'schemaVersion': 1, 'phase': 'private-build-unverified',
+                       'nativeNoticeOrigin': self.origin,
                        'sourceHead': self.source, 'identity': self.selected,
                        'candidateBuilt': True, 'candidateAssembled': False,
                        'independentlyValidated': False, 'published': False,
                        'distributionAuthorized': False,
                        'files': [{'path': 'native/FactsPDF.Cli',
                                   'bytes': len(self.payload),
-                                  'sha256': hashlib.sha256(self.payload).hexdigest()}]}
+                                  'sha256': hashlib.sha256(self.payload).hexdigest()}] +
+                        [{'path': 'native-notices/' + name, 'bytes': len(value),
+                          'sha256': hashlib.sha256(value).hexdigest()}
+                         for name, value in self.notices.items()]}
         self.save()
         self.out = self.base / 'delivery'
 
@@ -74,14 +88,21 @@ class NativeArchiveTests(unittest.TestCase):
 
     def assemble(self):
         with patch('stage_delivery_candidate.current_source', return_value=self.source), \
-             patch('stage_delivery_candidate.identity', return_value=self.selected):
+             patch('stage_delivery_candidate.identity', return_value=self.selected), \
+             patch.dict(LINUX_NATIVE_NOTICE_SHA256,
+                        {name: hashlib.sha256(value).hexdigest()
+                         for name, value in self.notices.items()}):
             return assemble_native(self.root, self.build, self.out)
 
-    def test_real_three_member_native_software_archive_and_modes(self):
+    def test_real_five_member_native_software_archive_and_modes(self):
         report = self.assemble()
         with zipfile.ZipFile(self.out / NATIVE_ARCHIVE_NAME.format(rid='linux-x64')) as z:
             self.assertEqual(sorted(z.namelist()), ['FactsPDF.Native/CLI-README.md',
-                'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md'])
+                'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md',
+                'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'])
+            self.assertEqual(z.read('FactsPDF.Native/notices/dotnet/LICENSE.TXT'),
+                             self.notices['LICENSE.TXT'])
             self.assertEqual(z.read('FactsPDF.Native/FactsPDF.Cli'), self.payload)
             self.assertEqual(z.getinfo('FactsPDF.Native/FactsPDF.Cli').external_attr >> 16, 0o100755)
             self.assertIsNone(z.testzip())
@@ -91,6 +112,19 @@ class NativeArchiveTests(unittest.TestCase):
     def test_mutated_real_binary_fails_before_output(self):
         (self.build / 'native/FactsPDF.Cli').write_bytes(self.payload + b'tampered')
         with self.assertRaisesRegex(ValueError, 'changed after receipt'):
+            self.assemble()
+        self.assertFalse(self.out.exists())
+
+    def test_changed_native_notice_rejected_before_archive_creation(self):
+        (self.build / 'native-notices/LICENSE.TXT').write_bytes(b'tampered')
+        with self.assertRaisesRegex(ValueError, 'changed after receipt'):
+            self.assemble()
+        self.assertFalse(self.out.exists())
+
+    def test_missing_native_notice_origin_rejected(self):
+        del self.record['nativeNoticeOrigin']
+        self.save()
+        with self.assertRaisesRegex(ValueError, 'provenance'):
             self.assemble()
         self.assertFalse(self.out.exists())
 
@@ -134,9 +168,10 @@ class NativeArchiveTests(unittest.TestCase):
         (self.build / 'native/FactsPDF.Cli').unlink()
         exe = self.build / 'native/FactsPDF.Cli.exe'
         exe.write_bytes(valid_windows_pe())
-        self.record['files'] = [{'path': 'native/FactsPDF.Cli.exe',
-                                 'bytes': exe.stat().st_size,
-                                 'sha256': hashlib.sha256(exe.read_bytes()).hexdigest()}]
+        self.origin['packageId'] = 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
+        self.record['files'][0] = {'path': 'native/FactsPDF.Cli.exe',
+                                  'bytes': exe.stat().st_size,
+                                  'sha256': hashlib.sha256(exe.read_bytes()).hexdigest()}
         self.save()
         report = self.assemble()
         self.assertFalse(report['identity']['binaryRetained'])
@@ -200,8 +235,9 @@ class NativeArchiveTests(unittest.TestCase):
             with self.subTest(name=name):
                 data = bytes(raw)
                 exe.write_bytes(data)
-                self.record['files'] = [{'path': 'native/FactsPDF.Cli.exe',
-                    'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}]
+                self.origin['packageId'] = 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
+                self.record['files'][0] = {'path': 'native/FactsPDF.Cli.exe',
+                    'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
                 self.save()
                 with self.assertRaisesRegex(ValueError, 'PE'):
                     self.assemble()

@@ -160,13 +160,20 @@ jobs:
           assert archive.stat().st_size == report['archive']['bytes']
           assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
           allowed = {'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md',
-                     'FactsPDF.Native/CLI-README.md'}
-          assert len(report['members']) == 3 and {r['path'] for r in report['members']} == allowed
+                     'FactsPDF.Native/CLI-README.md',
+                     'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                     'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'}
+          assert len(report['members']) == 5 and {r['path'] for r in report['members']} == allowed
+          build = json.loads((root / 'factspdf-private-build/private-build.json').read_text())
+          assert report['nativeNoticeOrigin'] == build['nativeNoticeOrigin']
+          pinned = {'LICENSE.TXT': 'cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310',
+                    'THIRD-PARTY-NOTICES.TXT': '66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54'}
+          assert {n['filename']: n['sha256'] for n in build['nativeNoticeOrigin']['notices']} == pinned
           extracted = root / 'factspdf-private-native-extracted'
           extracted.mkdir()
           with zipfile.ZipFile(archive) as z:
               infos = z.infolist()
-              assert len(infos) == 3 and {i.filename for i in infos} == allowed
+              assert len(infos) == 5 and {i.filename for i in infos} == allowed
               assert z.testzip() is None
               for item in infos:
                   expected, = [r for r in report['members'] if r['path'] == item.filename]
@@ -185,7 +192,9 @@ jobs:
           assert native.read_bytes()[:4] == b'\x7fELF'
           assert hashlib.sha256(native.read_bytes()).hexdigest() == record['sha256']
           assert (extracted / 'FactsPDF.Native/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
-          print('Real private Linux native software ZIP: extracted executable, original license, source-bound SHA and mode verified')
+          for name, digest in pinned.items():
+              assert hashlib.sha256((extracted / 'FactsPDF.Native/notices/dotnet' / name).read_bytes()).hexdigest() == digest
+          print('Real private Linux native software ZIP: extracted executable, original license, target-pack notices, source SHA and mode verified')
           PY
           python3 scripts/verify_native_feature_paths.py \
             --executable "$RUNNER_TEMP/factspdf-private-native-extracted/FactsPDF.Native/FactsPDF.Cli" \
@@ -305,13 +314,18 @@ jobs:
           assert archive.stat().st_size == report['archive']['bytes']
           assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
           allowed = {'FactsPDF.Native/FactsPDF.Cli.exe', 'FactsPDF.Native/LICENSE.md',
-                     'FactsPDF.Native/CLI-README.md'}
-          assert len(report['members']) == 3 and {x['path'] for x in report['members']} == allowed
+                     'FactsPDF.Native/CLI-README.md',
+                     'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                     'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'}
+          assert len(report['members']) == 5 and {x['path'] for x in report['members']} == allowed
+          assert report['nativeNoticeOrigin'] == build['nativeNoticeOrigin']
+          assert report['nativeNoticeOrigin']['packageId'] == 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
+          assert report['nativeNoticeOrigin']['version'] == '10.0.13'
           extracted = temp / 'factspdf-private-windows-extracted'
           extracted.mkdir()
           with zipfile.ZipFile(archive) as z:
               infos = z.infolist()
-              assert len(infos) == 3 and {x.filename for x in infos} == allowed
+              assert len(infos) == 5 and {x.filename for x in infos} == allowed
               assert z.testzip() is None
               for item in infos:
                   expected, = [x for x in report['members'] if x['path'] == item.filename]
@@ -327,7 +341,13 @@ jobs:
           assert native.stat().st_size == record['bytes']
           assert hashlib.sha256(native.read_bytes()).hexdigest() == record['sha256']
           assert (extracted / 'FactsPDF.Native/LICENSE.md').read_bytes() == Path('LICENSE.md').read_bytes()
-          print('Verified exact Windows native ZIP, source-bound executable bytes and original LICENSE')
+          for notice in build['nativeNoticeOrigin']['notices']:
+              name = notice['filename']
+              extracted_file = extracted / 'FactsPDF.Native/notices/dotnet' / name
+              staged_file = temp / 'factspdf-private-windows-build/native-notices' / name
+              assert extracted_file.read_bytes() == staged_file.read_bytes()
+              assert hashlib.sha256(extracted_file.read_bytes()).hexdigest() == notice['sha256']
+          print('Verified Windows native ZIP, executable bytes, original LICENSE and target-pack notices')
           '@ | & $pythonExe -
           if ($LASTEXITCODE -ne 0) { throw "Independent Windows native ZIP extraction/inventory failed" }
           $env:PATH = (Join-Path $env:MSYS2_LOCATION 'ucrt64\bin') + ';' + $env:PATH

@@ -324,6 +324,9 @@ def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet'
         _build_command(dotnet_path, root, work, 'native-publish', native_args)
         native = 'native/FactsPDF.Cli' + ('.exe' if profile == 'win-x64-validation' else '')
         records.append(_member_record(work, native))
+        native_notice_origin = _stage_native_notices(dotnet_path, root, work, profile)
+        for name in NATIVE_NOTICE_NAMES:
+            records.append(_member_record(work, 'native-notices/' + name))
         if current_source(root) != source or inspector_inputs(root) != receipt['inspectorInputs']:
             raise ValueError('Tracked source or inspector closure changed during build')
         # The build receipt binds real bytes only. Runtime/NativeAOT compiler pack
@@ -331,6 +334,7 @@ def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet'
         result = {'schemaVersion': 1, 'phase': 'private-build-unverified',
                   'sourceHead': source, 'identity': receipt['identity'],
                   'observedHost': observed, 'files': sorted(records, key=lambda x: x['path']),
+                  'nativeNoticeOrigin': native_notice_origin,
                   'nativeCompilerPackVerified': False, 'candidateBuilt': True,
                   'candidateAssembled': False, 'independentlyValidated': False,
                   'published': False, 'distributionAuthorized': False}
@@ -518,6 +522,59 @@ def _verify_native_x64_header(payload: bytes, profile: str) -> None:
         raise ValueError('Windows native executable must contain section data')
 
 
+# The NativeAOT runtime pack is a separate component from SDK/ILCompiler packs.
+# Linux notice fingerprints come from the accepted official 10.0.13 acquisition.
+# On Windows only actual locally installed target-pack bytes may be packaged.
+NATIVE_NOTICE_NAMES = ('LICENSE.TXT', 'THIRD-PARTY-NOTICES.TXT')
+LINUX_NATIVE_NOTICE_SHA256 = {
+    'LICENSE.TXT': 'cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310',
+    'THIRD-PARTY-NOTICES.TXT': '66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54',
+}
+
+
+def _stage_native_notices(dotnet: str, root: Path, work: Path, profile: str) -> dict:
+    """Stage target-pack notices from the real NuGet cache; do not infer compiler identity."""
+    result = subprocess.run([dotnet, 'nuget', 'locals', 'global-packages', '--list'],
+                            cwd=root, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, timeout=60, check=False)
+    if result.returncode:
+        raise RuntimeError('NuGet cache query failed: ' + result.stdout[-1000:])
+    entries = [line.partition(':')[2].strip() for line in result.stdout.splitlines()
+               if line.lower().startswith('global-packages:')]
+    if len(entries) != 1 or not entries[0]:
+        raise ValueError('Missing/ambiguous NuGet global-packages path')
+    cache = Path(entries[0])
+    package_id = 'Microsoft.NETCore.App.Runtime.NativeAOT.' + PROFILES[profile]
+    directory = cache / package_id.lower() / RUNTIME
+    if cache.is_symlink() or directory.is_symlink() or not directory.is_dir():
+        raise ValueError('Expected NativeAOT runtime-pack cache is missing/symlinked')
+    nuspec = directory / (package_id.lower() + '.nuspec')
+    if nuspec.is_symlink() or not nuspec.is_file() or nuspec.stat().st_size > 1024 * 1024:
+        raise ValueError('NativeAOT runtime-pack nuspec missing or invalid')
+    metadata = ET.parse(nuspec).getroot()
+    found_id = metadata.findtext('.//{*}id')
+    found_version = metadata.findtext('.//{*}version')
+    if found_id is None or found_id.lower() != package_id.lower() or found_version != RUNTIME:
+        raise ValueError('NativeAOT runtime-pack nuspec identity/version mismatch')
+    destination = work / 'native-notices'
+    destination.mkdir()
+    notices = []
+    for name in NATIVE_NOTICE_NAMES:
+        original = directory / name
+        if original.is_symlink() or not original.is_file():
+            raise ValueError('NativeAOT runtime-pack notice missing/symlinked: ' + name)
+        if not 0 < original.stat().st_size <= 1024 * 1024:
+            raise ValueError('NativeAOT runtime-pack notice size invalid: ' + name)
+        payload = original.read_bytes()
+        digest = _sha(payload)
+        if profile == 'local-linux' and digest != LINUX_NATIVE_NOTICE_SHA256[name]:
+            raise ValueError('Linux NativeAOT notice differs from accepted 10.0.13 pack: ' + name)
+        (destination / name).write_bytes(payload)
+        notices.append({'filename': name, 'bytes': len(payload), 'sha256': digest})
+    return {'packageId': package_id, 'version': RUNTIME,
+            'nuspecSha256': _sha(nuspec.read_bytes()), 'notices': notices}
+
+
 # Real native software payload, not a final validated candidate or a QA archive.
 NATIVE_ARCHIVE_NAME = 'FactsPDF.Cli.' + VERSION + '.native-{rid}.zip'
 NATIVE_DOC = 'docs/private-native-cli-readme.md'
@@ -526,7 +583,7 @@ MAX_NATIVE_ARCHIVE = 96 * 1024 * 1024
 
 
 def assemble_native(root: Path, build: Path, output: Path) -> dict:
-    """Package only the recorded native CLI, original license and usage instructions."""
+    """Package the recorded native CLI, original license and actual NativeAOT pack notices."""
     import zipfile
 
     root = root.resolve(strict=True)
@@ -573,9 +630,18 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
     expected = by_path.get(relative)
     if not isinstance(expected, dict):
         raise ValueError('Unrecorded native executable')
+    origin = receipt.get('nativeNoticeOrigin')
+    if (not isinstance(origin, dict) or
+            origin.get('packageId') != 'Microsoft.NETCore.App.Runtime.NativeAOT.' + PROFILES[profile] or
+            origin.get('version') != RUNTIME or
+            not isinstance(origin.get('notices'), list) or
+            [x.get('filename') for x in origin['notices'] if isinstance(x, dict)] != list(NATIVE_NOTICE_NAMES)):
+        raise ValueError('Missing NativeAOT runtime-pack notice provenance')
     sources = ((build / relative, 'FactsPDF.Native/' + binary),
                (root / 'LICENSE.md', 'FactsPDF.Native/LICENSE.md'),
-               (root / NATIVE_DOC, 'FactsPDF.Native/CLI-README.md'))
+               (root / NATIVE_DOC, 'FactsPDF.Native/CLI-README.md'),
+               *((build / 'native-notices' / name, 'FactsPDF.Native/notices/dotnet/' + name)
+                 for name in NATIVE_NOTICE_NAMES))
     members = {}
     for path, archived in sources:
         if path.is_symlink() or not path.is_file():
@@ -584,12 +650,23 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
         if not 0 < size <= MAX_NATIVE_MEMBER:
             raise ValueError('Native archive member exceeds size bound')
         payload = path.read_bytes()
+        record_name = relative if path == build / relative else (
+            'native-notices/' + path.name if path.parent == build / 'native-notices' else None)
+        if record_name is not None:
+            original = by_path.get(record_name)
+            if (not isinstance(original, dict) or original.get('bytes') != len(payload) or
+                    original.get('sha256') != _sha(payload)):
+                raise ValueError('Private native member changed after receipt: ' + record_name)
         if path == build / relative:
-            if len(payload) != expected.get('bytes') or _sha(payload) != expected.get('sha256'):
-                raise ValueError('Private native executable changed after receipt')
             if profile == 'local-linux' and not path.stat().st_mode & 0o111:
                 raise ValueError('Linux native executable must be executable ELF')
             _verify_native_x64_header(payload, profile)
+        if path.parent == build / 'native-notices':
+            notice, = [x for x in origin['notices'] if x['filename'] == path.name]
+            if notice.get('bytes') != size or notice.get('sha256') != _sha(payload):
+                raise ValueError('NativeAOT notice changed after origin recording')
+            if profile == 'local-linux' and _sha(payload) != LINUX_NATIVE_NOTICE_SHA256[path.name]:
+                raise ValueError('Linux NativeAOT notice differs from accepted pack')
         members[archived] = payload
     if current_source(root) != source:
         raise ValueError('Source changed during native archive preflight')
@@ -608,6 +685,7 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
         raise ValueError('Native archive budget/source changed')
     report = {'schemaVersion': 1, 'phase': 'partial-native-software-archive-unverified',
               'sourceHead': source, 'identity': selected,
+              'nativeNoticeOrigin': origin,
               'archive': {'filename': archive.name, 'bytes': archive.stat().st_size,
                           'sha256': _sha(archive.read_bytes())},
               'members': [{'path': name, 'bytes': len(data), 'sha256': _sha(data)}
