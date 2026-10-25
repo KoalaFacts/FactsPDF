@@ -414,6 +414,54 @@ jobs:
                   raise AssertionError('Missing extractable PDF content: ' + expected)
           print('Source-only archive: offline CLI and PackageInspector rebuilt outside checkout; real one-page searchable PDF verified')
           PY
+      - name: Stage exactly five source-bound private Linux software payloads (not a release)
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_private_five_payloads.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-five \
+            --build "$RUNNER_TEMP/factspdf-private-build" \
+            --managed "$RUNNER_TEMP/factspdf-private-managed" \
+            --native "$RUNNER_TEMP/factspdf-private-native" \
+            --source "$RUNNER_TEMP/factspdf-private-source" \
+            --examples "$RUNNER_TEMP/factspdf-private-examples" \
+            --output "$RUNNER_TEMP/factspdf-private-five-staged"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          folder = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-five-staged'
+          actual = {p.name for p in folder.iterdir()}
+          names = {
+              'FactsPDF.0.1.0-preview.1.nupkg',
+              'FactsPDF.Cli.0.1.0-preview.1.managed.zip',
+              'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip',
+              'FactsPDF.0.1.0-preview.1.source.tar.gz',
+              'FactsPDF.0.1.0-preview.1.examples.zip',
+          }
+          assert actual == names | {'candidate-staging.json'}
+          report = json.loads((folder / 'candidate-staging.json').read_text())
+          assert report['sourceHead'] == subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert report['identity']['profile'] == 'local-linux'
+          assert report['phase'] == 'five-payloads-staged-awaiting-independent-verification'
+          assert report['candidateBuilt'] and report['candidateAssembled']
+          assert not any(report[x] for x in (
+              'independentlyValidated', 'published', 'distributionAuthorized',
+              'windowsBinaryRetained'))
+          assert report['notFinalCandidate'] and len(report['payloads']) == 5
+          assert {r['filename'] for r in report['payloads']} == names
+          assert len({r['producerReceiptSha256'] for r in report['payloads']}) == 5
+          for item in report['payloads']:
+              payload = folder / item['filename']
+              assert payload.stat().st_size == item['bytes']
+              digest = hashlib.sha256()
+              with payload.open('rb') as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b''):
+                      digest.update(block)
+              assert digest.hexdigest() == item['sha256']
+          assert not (folder / 'candidate-manifest.json').exists()
+          assert not (folder / 'SHA256SUMS').exists()
+          print('Five actual source-bound software payloads retained privately; independent final candidate gate still pending')
+          PY
+          cp "$RUNNER_TEMP/factspdf-private-five-staged/candidate-staging.json" artifacts/first-use/private-five-payload-staging.json
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
