@@ -227,4 +227,50 @@ class ReleaseToolchainTests(unittest.TestCase):
             first_use.validate_assembly_source('0.1.0-dev+' + 'b' * 40, '0.1.0-dev', 'a' * 40)
 
 
+    def test_committed_private_candidate_identity_matches_source_and_workflows(self):
+        """Reject a local preview whose package/SDK/runtime identity floats."""
+        import json
+        import re
+        import verify_package as package_check
+
+        identity = json.loads((ROOT / 'eng/delivery-candidate.json').read_text())
+        self.assertEqual(identity['schemaVersion'], 1)
+        self.assertEqual((identity['packageId'], identity['version'], identity['targetFramework']),
+                         ('FactsPDF', '0.1.0-preview.1', 'net10.0'))
+        self.assertEqual(package_check.expected_contract(ROOT),
+                         (identity['version'], identity['targetFramework']))
+        sdk = json.loads((ROOT / 'global.json').read_text())['sdk']
+        self.assertEqual(sdk, {'version': '10.0.402',
+                               'rollForward': 'disable', 'allowPrerelease': False})
+        self.assertEqual(identity['sdk']['version'], sdk['version'])
+        self.assertEqual(identity['sdk']['rollForward'], sdk['rollForward'])
+        self.assertEqual(identity['managedRuntime'],
+                         {'framework': 'Microsoft.NETCore.App', 'version': '10.0.13',
+                          'rollForward': 'Disable'})
+        self.assertEqual(identity['nativePacks'],
+                         {'runtimeVersion': '10.0.13', 'compilerVersion': '10.0.13'})
+        self.assertEqual(identity['profiles'], [
+            {'name': 'local-linux', 'rid': 'linux-x64', 'binaryRetained': True},
+            {'name': 'win-x64-validation', 'rid': 'win-x64', 'binaryRetained': False}])
+        self.assertEqual(identity['publication'],
+                         {'published': False, 'distributionAuthorized': False})
+        self.assertNotIn('sourceHead', identity,
+                         'Source identity must come from actual committed Git HEAD')
+        acquisition = identity['sdk']['officialLinuxX64Archive']
+        self.assertEqual(acquisition['url'],
+                         'https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.402/'
+                         'dotnet-sdk-10.0.402-linux-x64.tar.gz')
+        self.assertRegex(acquisition['sha512'], r'\A[0-9a-f]{128}\Z')
+        workflow_count = 0
+        for workflow in sorted((ROOT / '.github/workflows').glob('*.yml')):
+            content = workflow.read_text()
+            if 'actions/setup-dotnet@' not in content:
+                continue
+            pins = re.findall(r"(?m)^\s*dotnet-version:\s*'([^']+)'\s*$", content)
+            self.assertTrue(pins, f'Missing exact SDK pin: {workflow.name}')
+            self.assertEqual(pins, ['10.0.402'] * len(pins), workflow.name)
+            workflow_count += 1
+        self.assertGreaterEqual(workflow_count, 10)
+
+
 if __name__ == '__main__': unittest.main()

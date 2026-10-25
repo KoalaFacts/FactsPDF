@@ -7,8 +7,8 @@ that control their report templates. It supports English and Chinese text,
 explicit font styles, transparent PNGs, tables and pagination through a
 documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
-> **Current stage: experimental development build (`0.1.0-dev`).**
-> Run from source or build a local package. There is no published NuGet package
+> **Current stage: experimental private preview source (`0.1.0-preview.1`).**
+> This source version is not a verified installable candidate yet. Run from source or build a local package. There is no published NuGet package
 > or standalone CLI release, and the API is not stable yet.
 > Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md).
 

@@ -27,7 +27,7 @@ Exit codes: 0 success; 2 usage/argument error; 3 input/rendering limitation; 4 I
 
 ## First use from local artifacts
 
-The following Bash recipe uses the installed .NET 10 SDK and the current unreleased `0.1.0-dev` package. It builds local artifacts, then uses them from a fresh directory outside the checkout. No NuGet registry publication or credentials are needed. Package restore has one explicit local source and a new package cache; the installed SDK supplies the .NET targeting pack. This is the Linux first-use acceptance path, not a claim about Windows AOT or a published SDK.
+The following Bash recipe uses the installed .NET 10 SDK and the source-declared, not-yet-released `0.1.0-preview.1` package. It builds local artifacts, then uses them from a fresh directory outside the checkout. No NuGet registry publication or credentials are needed. Package restore has one explicit local source and a new package cache; the installed SDK supplies the .NET targeting pack. This is the Linux first-use acceptance path, not a claim about Windows AOT or a published SDK.
 
 From the repository root:
 
@@ -39,7 +39,7 @@ first_use_dir=$(mktemp -d /tmp/factspdf-first-use.XXXXXX)
 mkdir -p "$first_use_dir/consumer" "$first_use_dir/feed" "$first_use_dir/packages"
 cp examples/first-use/{FirstUse.csproj,Program.cs,NuGet.Config,input.html,unsupported.html,expected-pages.json} "$first_use_dir/consumer/"
 cp global.json "$first_use_dir/"
-cp artifacts/packages/FactsPDF.0.1.0-dev.nupkg "$first_use_dir/feed/"
+cp artifacts/packages/FactsPDF.0.1.0-preview.1.nupkg "$first_use_dir/feed/"
 cp -R artifacts/first-use-cli "$first_use_dir/cli"
 export DOTNET_CLI_HOME="$first_use_dir/dotnet-home"
 export NUGET_PACKAGES="$first_use_dir/packages"
@@ -82,7 +82,7 @@ For automated, independent verification, return to the repository root and use a
 ```sh
 python3 -m unittest discover -s scripts -p 'test_first_use.py' -v
 python3 scripts/verify_first_use.py \
-  --package artifacts/packages/FactsPDF.0.1.0-dev.nupkg \
+  --package artifacts/packages/FactsPDF.0.1.0-preview.1.nupkg \
   --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
   --dotnet "$(command -v dotnet)" --output artifacts/first-use
 ```
@@ -147,9 +147,10 @@ selection. This does not change the product's single-target declaration or claim
 that a real net11 package, cross-target API equivalence, or NativeAOT consumer has
 been validated. Existing first-use CLI/library byte comparisons remain intact.
 
-The current package remains the local, unreleased `0.1.0-dev` artifact. This
-verification does not assign a formal release version, create a NuGet publishing
-channel, or establish .NET 11 RC/GA compatibility. Candidate builds must be made
+The source now declares the experimental, unreleased `0.1.0-preview.1` identity.
+This ordinary first-use verification does not establish an independently validated
+fixed private candidate, create a NuGet publishing channel, or establish .NET 11
+RC/GA compatibility. Candidate builds must be made
 from their committed version/source; release-specific SDK/runtime validation
 and actual registry publication remain separate operations.
 
@@ -172,7 +173,7 @@ toolchain and local dev package**, after the clean pack/publish recipe above:
 python3 scripts/verify_release_candidate.py \
   --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
   --dotnet "$(command -v dotnet)" --output artifacts/exact-toolchain \
-  --expected-sdk 10.0.100 --expected-runtime 10.0.0
+  --expected-sdk 10.0.402 --expected-runtime 10.0.13
 ```
 
 For an actual release candidate, obtain the expected versions from the confirmed
@@ -231,7 +232,7 @@ and the already packed dev artifact; it is not a .NET 11 RC result:
 python3 scripts/verify_first_use.py \
   --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
   --dotnet "$(command -v dotnet)" --output artifacts/exact-probe \
-  --consumer-tfm net10.0 --probe-sdk 10.0.100 --probe-runtime 10.0.0
+  --consumer-tfm net10.0 --probe-sdk 10.0.402 --probe-runtime 10.0.13
 ```
 
 This records `toolchainConstraint.mode=exact-probe`, both generated configuration

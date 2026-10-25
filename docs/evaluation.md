@@ -5,8 +5,9 @@ without a browser rendering engine. Its first delivery scope is bilingual busine
 reports for .NET applications and command-line integrations.
 
 The current build is experimental. Evaluate a specific template and deployment
-environment before making a production commitment. The package version remains
-`0.1.0-dev`; the commands below use a source checkout.
+environment before making a production commitment. The source declares
+`0.1.0-preview.1`, but no independently validated private candidate or public
+package is yet available. The commands below use a source checkout.
 
 ## Start with a report that fits
 
@@ -94,7 +95,7 @@ Missing resources produce explicit diagnostics.
 | Tables | Explicit fixed columns, column spans, ordered paragraph/image cells, repeated single-row header, oversized body rows split at text-line/image boundaries | Short tables and rows that fit a fresh page stay whole; no automatic widths, row spans, nested tables or split images/headers |
 | Images | Explicitly bound baseline JPEG and supported static PNG, including alpha/tRNS; standalone or direct image items in cells | No SVG, APNG, interlaced/16-bit PNG, inline/list images, text wrapping around images or automatic URL loading |
 | Fonts | Explicit static TrueType roles and character fallback | No automatic family discovery, synthetic styles, full shaping or RTL |
-| Page furniture | Single-line literal header/footer, decimal page counter | No HTML header templates, total-page counters or general CSS Paged Media |
+| Page furniture | Legacy literal header/footer and current page number, plus structured left/centre/right styled regions with actual total page count and first-page replacement via .NET/CLI | No HTML header templates or general CSS Paged Media |
 | Layout | Documented block/text subset | General flex/grid and arbitrary webpage conversion are outside the current scope |
 | Integration | .NET library, CLI; actual Linux/Windows x64 Native AOT evidence | Node subprocess and browser WASM are experimental probes; other language SDKs remain planned |
 
