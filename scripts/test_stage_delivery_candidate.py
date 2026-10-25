@@ -163,10 +163,10 @@ class CandidateInputTests(unittest.TestCase):
                         (work / 'managed/FactsPDF.Cli.runtimeconfig.json').write_text(json.dumps(runtime))
 
                 output = self.parent / ('build-' + name)
-                with patch('shutil.which', return_value='/fake/dotnet'), \\
-                        patch('stage_delivery_candidate._host_toolchain',
-                              return_value={'sdk': '10.0.402', 'managedRuntime': '10.0.13'}), \\
-                        patch('stage_delivery_candidate._build_command', side_effect=fake_build):
+                with (patch('shutil.which', return_value='/fake/dotnet'),
+                      patch('stage_delivery_candidate._host_toolchain',
+                            return_value={'sdk': '10.0.402', 'managedRuntime': '10.0.13'}),
+                      patch('stage_delivery_candidate._build_command', side_effect=fake_build)):
                     with self.assertRaisesRegex(ValueError, 'runtimeconfig'):
                         private_build(self.root, 'local-linux', output)
                 self.assertNotIn('native-publish', commands)
