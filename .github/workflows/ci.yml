@@ -531,7 +531,7 @@ jobs:
                   infos = z.infolist()
                   assert len(infos) == len(members[kind])
                   assert {info.filename for info in infos} == members[kind]
-                  assert z.testzip() is None
+                  # Reject oversized expanded content BEFORE testzip decompresses it.
                   total = 0
                   for info in infos:
                       mode = 0o100755 if info.filename == 'FactsPDF.Native/FactsPDF.Cli' else 0o100644
@@ -539,6 +539,9 @@ jobs:
                       assert 0 < info.file_size <= budgets[kind]
                       total += info.file_size
                       assert total <= budgets[kind]
+                  assert z.testzip() is None
+                  for info in infos:
+                      mode = 0o100755 if info.filename == 'FactsPDF.Native/FactsPDF.Cli' else 0o100644
                       data = z.read(info)
                       assert len(data) == info.file_size
                       path = extracted / info.filename
