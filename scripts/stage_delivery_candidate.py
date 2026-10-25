@@ -325,6 +325,7 @@ def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet'
         native = 'native/FactsPDF.Cli' + ('.exe' if profile == 'win-x64-validation' else '')
         records.append(_member_record(work, native))
         native_notice_origin = _stage_native_notices(dotnet_path, root, work, profile)
+        compiler_origin = _native_compiler_origin(dotnet_path, root, profile)
         for name in NATIVE_NOTICE_NAMES:
             records.append(_member_record(work, 'native-notices/' + name))
         if current_source(root) != source or inspector_inputs(root) != receipt['inspectorInputs']:
@@ -335,6 +336,7 @@ def private_build(root: Path, profile: str, output: Path, dotnet: str = 'dotnet'
                   'sourceHead': source, 'identity': receipt['identity'],
                   'observedHost': observed, 'files': sorted(records, key=lambda x: x['path']),
                   'nativeNoticeOrigin': native_notice_origin,
+                  'nativeCompilerOrigin': compiler_origin,
                   'nativeCompilerPackVerified': False, 'candidateBuilt': True,
                   'candidateAssembled': False, 'independentlyValidated': False,
                   'published': False, 'distributionAuthorized': False}
@@ -532,6 +534,81 @@ LINUX_NATIVE_NOTICE_SHA256 = {
 }
 
 
+def _native_compiler_origin(dotnet: str, root: Path, profile: str) -> dict:
+    """Bind actual resolved ILCompiler packages to the published native build.
+
+    This verifies the fresh assets closure and NuGet cache integrity metadata.
+    It does not claim official package signatures or release authorization.
+    """
+    import base64
+    assets_path = root / 'src/FactsPDF.Cli/obj/project.assets.json'
+    if (assets_path.is_symlink() or not assets_path.is_file() or
+            not 0 < assets_path.stat().st_size <= 16 * 1024 * 1024):
+        raise ValueError('Missing/invalid native compiler project assets')
+    raw_assets = assets_path.read_bytes()
+    assets = json.loads(raw_assets)
+    libraries = assets.get('libraries')
+    if not isinstance(libraries, dict):
+        raise ValueError('Missing resolved native compiler libraries')
+
+    requested = ('Microsoft.DotNet.ILCompiler',
+                 'runtime.' + PROFILES[profile] + '.Microsoft.DotNet.ILCompiler')
+    result = subprocess.run([dotnet, 'nuget', 'locals', 'global-packages', '--list'],
+                            cwd=root, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, timeout=60, check=False)
+    if result.returncode:
+        raise RuntimeError('NuGet cache query failed: ' + result.stdout[-1000:])
+    entries = [line.partition(':')[2].strip() for line in result.stdout.splitlines()
+               if line.lower().startswith('global-packages:')]
+    if len(entries) != 1 or not entries[0]:
+        raise ValueError('Missing/ambiguous NuGet global-packages path')
+    cache = Path(entries[0])
+    if cache.is_symlink() or not cache.is_dir():
+        raise ValueError('Compiler NuGet cache root missing/symlinked')
+
+    packages = []
+    for package_id in requested:
+        # A correct package sitting in the cache cannot excuse a different
+        # compiler version actually selected by project.assets.json.
+        matches = [(key, value) for key, value in libraries.items()
+                   if key.split('/', 1)[0].lower() == package_id.lower()]
+        if len(matches) != 1 or matches[0][0].split('/', 1)[-1] != RUNTIME:
+            raise ValueError('Resolved native compiler package version mismatch: ' + package_id)
+        _, library = matches[0]
+        relative = package_id.lower() + '/' + RUNTIME
+        if (not isinstance(library, dict) or library.get('type') != 'package' or
+                library.get('path', '').lower() != relative):
+            raise ValueError('Resolved native compiler package metadata mismatch: ' + package_id)
+        package_dir = cache / package_id.lower() / RUNTIME
+        nuspec = package_dir / (package_id.lower() + '.nuspec')
+        sha_file = package_dir / (package_id.lower() + '.' + RUNTIME + '.nupkg.sha512')
+        if any(item.is_symlink() for item in (package_dir, nuspec, sha_file)):
+            raise ValueError('Symlink in resolved native compiler package: ' + package_id)
+        if (not package_dir.is_dir() or not nuspec.is_file() or
+                not 0 < nuspec.stat().st_size <= 1024 * 1024 or
+                not sha_file.is_file() or not 0 < sha_file.stat().st_size <= 4096):
+            raise ValueError('Missing/invalid native compiler package cache: ' + package_id)
+        metadata = ET.parse(nuspec).getroot()
+        name = metadata.findtext('.//{*}id')
+        version = metadata.findtext('.//{*}version')
+        if name is None or name.lower() != package_id.lower() or version != RUNTIME:
+            raise ValueError('Native compiler nuspec identity/version mismatch: ' + package_id)
+        digest = sha_file.read_text(encoding='ascii').strip()
+        try:
+            decoded = base64.b64decode(digest, validate=True)
+        except ValueError as exc:
+            raise ValueError('Invalid native compiler package SHA512') from exc
+        if len(decoded) != 64 or base64.b64encode(decoded).decode('ascii') != digest:
+            raise ValueError('Invalid native compiler package SHA512')
+        if library.get('sha512') != digest:
+            raise ValueError('Native compiler asset/cache SHA512 mismatch: ' + package_id)
+        packages.append({'packageId': package_id, 'version': RUNTIME,
+                         'nuspecSha256': _sha(nuspec.read_bytes()),
+                         'packageSha512': digest})
+    return {'projectAssetsSha256': _sha(raw_assets), 'packages': packages,
+            'officialSignatureVerified': False}
+
+
 def _stage_native_notices(dotnet: str, root: Path, work: Path, profile: str) -> dict:
     """Stage target-pack notices from the real NuGet cache; do not infer compiler identity."""
     result = subprocess.run([dotnet, 'nuget', 'locals', 'global-packages', '--list'],
@@ -637,6 +714,21 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
             not isinstance(origin.get('notices'), list) or
             [x.get('filename') for x in origin['notices'] if isinstance(x, dict)] != list(NATIVE_NOTICE_NAMES)):
         raise ValueError('Missing NativeAOT runtime-pack notice provenance')
+    compiler = receipt.get('nativeCompilerOrigin')
+    expected_compiler_ids = ('Microsoft.DotNet.ILCompiler',
+                             'runtime.' + PROFILES[profile] + '.Microsoft.DotNet.ILCompiler')
+    if (not isinstance(compiler, dict) or
+            not re.fullmatch(r'[0-9a-f]{64}', str(compiler.get('projectAssetsSha256', ''))) or
+            compiler.get('officialSignatureVerified') is not False or
+            not isinstance(compiler.get('packages'), list) or
+            len(compiler['packages']) != 2 or
+            [p.get('packageId') for p in compiler['packages'] if isinstance(p, dict)] !=
+            list(expected_compiler_ids) or
+            any(p.get('version') != RUNTIME or
+                not re.fullmatch(r'[0-9a-f]{64}', str(p.get('nuspecSha256', ''))) or
+                not isinstance(p.get('packageSha512'), str)
+                for p in compiler['packages'])):
+        raise ValueError('Missing/invalid resolved native compiler provenance')
     sources = ((build / relative, 'FactsPDF.Native/' + binary),
                (root / 'LICENSE.md', 'FactsPDF.Native/LICENSE.md'),
                (root / NATIVE_DOC, 'FactsPDF.Native/CLI-README.md'),
@@ -686,6 +778,7 @@ def assemble_native(root: Path, build: Path, output: Path) -> dict:
     report = {'schemaVersion': 1, 'phase': 'partial-native-software-archive-unverified',
               'sourceHead': source, 'identity': selected,
               'nativeNoticeOrigin': origin,
+              'nativeCompilerOrigin': compiler,
               'archive': {'filename': archive.name, 'bytes': archive.stat().st_size,
                           'sha256': _sha(archive.read_bytes())},
               'members': [{'path': name, 'bytes': len(data), 'sha256': _sha(data)}
