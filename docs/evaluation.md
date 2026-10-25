@@ -8,6 +8,8 @@ The current build is experimental. Evaluate a specific template and deployment
 environment before making a production commitment. The package version remains
 `0.1.0-dev`; the commands below use a source checkout.
 
+**Working with an existing reporting template?** [Open a template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md). Share a redacted layout description, not customer documents or credentials. A public request starts a scope discussion only; see licensing below before building or running FactsPDF.
+
 ## Start with a report that fits
 
 The existing combined report examples exercise these capabilities together:

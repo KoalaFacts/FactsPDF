@@ -16,6 +16,8 @@ documented HTML/CSS subset. Fonts and images are supplied by the caller.
 [Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
 [Licensing](#licensing)
 
+**Have a business report template to assess?** [Request a template-fit check](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md) with a public, non-confidential description of the layout and runtime. Maintainers can compare it with the documented support boundaries and discuss evaluation rights. This is not a trial grant, a package release or a promise of production suitability.
+
 ## Generate your first PDF
 
 You need Git and a **.NET 10 SDK** compatible with [global.json](global.json).
