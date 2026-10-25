@@ -1,6 +1,6 @@
 # Structured page furniture: CLI configuration
 
-This is the in-development PR #57 CLI contract, not a published package or a completed cross-platform acceptance claim. Core .NET callers use `PdfOptions.PageFurniture` directly. The legacy flags and their default output remain separate.
+This is the development-source CLI contract for structured page furniture, not a published package or a completed cross-platform acceptance claim. Core .NET callers use `PdfOptions.PageFurniture` directly. The legacy flags and their default output remain separate.
 
 ## Run the repository example
 
@@ -30,4 +30,4 @@ Configuration/argument failures return 2; core template/font/layout failures ret
 
 The first 48 CLI contract cases were committed before implementation at `85268dd112a3e068d7f9488fa4edf2f309b7f257`. A subsequent non-conflicting documentation commit preserved them at `946d1eaae54a11ead63b6bbcebf5bd306d5fbd9e`. Its actual [macOS test job](https://github.com/KoalaFacts/FactsPDF/actions/runs/40118458882/job/120944641868) compiled and ran 1,324 tests: all 48 new cases failed for the missing `--page-furniture` option, while all 1,276 existing cases passed. This is observed RED evidence, not a claimed acceptance pass. The current implementation must pass those unweakened cases, the direct-decoder and bounded non-seekable stream tests, and the remaining PR gates.
 
-Remaining whole-feature gates include protected browser integration, actual managed/API/Native AOT PDF evidence, the precise independent geometry/body-preservation oracle, legacy-byte baselines, independent review and all required checks for the final head. The existing Windows Native AOT smoke alone does not exercise new furniture or continued-row output. A neutral CodeQL result is not a successful analysis. PR #57 remains draft until the full accepted plan is complete.
+Whole-feature acceptance requires protected browser integration, actual managed/API/Native AOT PDF evidence, the precise independent geometry/body-preservation oracle, legacy-byte baselines, independent review and all required checks for the final head. The existing Windows Native AOT smoke alone does not exercise new furniture or continued-row output. A neutral CodeQL result is not a successful analysis. PR #57 is merged; follow [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) and [PR #58](https://github.com/KoalaFacts/FactsPDF/pull/58) for exact-revision native feature acceptance and remaining delivery gates.
