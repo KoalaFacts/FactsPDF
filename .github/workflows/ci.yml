@@ -213,6 +213,74 @@ jobs:
             --output "$RUNNER_TEMP/factspdf-private-native-feature-evidence"
           cp "$RUNNER_TEMP/factspdf-private-native/native-archive.json" artifacts/first-use/private-native-archive.json
           cp "$RUNNER_TEMP/factspdf-private-native-feature-evidence/report.json" artifacts/first-use/private-native-feature-report.json
+      - name: Assemble and independently extract actual corresponding-source delivery payload
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_source_payload.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-source --output "$RUNNER_TEMP/factspdf-private-source"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, tarfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = root / 'factspdf-private-source'
+          receipt = json.loads((folder / 'source-archive.json').read_text())
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert receipt['sourceHead'] == head
+          assert receipt['archive']['filename'] == 'FactsPDF.0.1.0-preview.1.source.tar.gz'
+          assert not any(receipt[key] for key in (
+              'candidateAssembled', 'independentlyValidated', 'published',
+              'distributionAuthorized'))
+          archive = folder / receipt['archive']['filename']
+          assert archive.stat().st_size == receipt['archive']['bytes']
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == receipt['archive']['sha256']
+          prefix = 'FactsPDF.0.1.0-preview.1.source/'
+          extracted = root / 'factspdf-private-source-extracted'
+          extracted.mkdir()
+          with tarfile.open(archive, 'r:gz') as stream:
+              entries = stream.getmembers()
+              assert len(entries) > 60 and len(entries) <= 513
+              assert entries[0].isdir() and entries[0].name == prefix.rstrip('/')
+              files = {}
+              for item in entries[1:]:
+                  assert item.isfile() and not item.issym() and not item.islnk()
+                  assert item.name.startswith(prefix)
+                  relative = item.name[len(prefix):]
+                  assert relative and all(p not in ('', '.', '..') for p in relative.split('/'))
+                  assert '\\' not in relative and ':' not in relative and relative not in files
+                  assert item.size <= 8 * 1024 * 1024 and item.mode == 0o644
+                  payload = stream.extractfile(item).read()
+                  assert len(payload) == item.size
+                  files[relative] = payload
+                  target = extracted / relative
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(payload)
+          assert {r['path'] for r in receipt['members']} == set(files)
+          for rec in receipt['members']:
+              payload = files[rec['path']]
+              assert len(payload) == rec['bytes'] and hashlib.sha256(payload).hexdigest() == rec['sha256']
+          assert files['LICENSE.md'] == pathlib.Path('LICENSE.md').read_bytes()
+          assert files['global.json'] == pathlib.Path('global.json').read_bytes()
+          assert files['Directory.Build.props'] == pathlib.Path('Directory.Build.props').read_bytes()
+          assert files['shared/PageFurnitureJson.cs'] == pathlib.Path('shared/PageFurnitureJson.cs').read_bytes()
+          assert 'src/FactsPDF.Cli/FactsPDF.Cli.csproj' in files
+          assert 'src/FactsPDF/FactsPDF.csproj' in files
+          assert 'examples/first-use/FirstUse.csproj' in files
+          manifest = json.loads(files['SOURCE-MANIFEST.json'])
+          assert manifest['sourceHead'] == head and manifest['packageVersion'] == '0.1.0-preview.1'
+          assert manifest['generatedMembers'] == ['SOURCE-BUILD.md', 'SOURCE-MANIFEST.json']
+          expected = {r['path'] for r in manifest['trackedMembers']}
+          assert expected == set(files) - set(manifest['generatedMembers'])
+          for rec in manifest['trackedMembers']:
+              path = rec['path']
+              payload = files[path]
+              assert len(payload) == rec['bytes']
+              assert hashlib.sha256(payload).hexdigest() == rec['sha256']
+              actual_git = subprocess.check_output(['git', 'cat-file', 'blob', head + ':' + path])
+              assert payload == actual_git
+          assert head.encode() in files['SOURCE-BUILD.md']
+          assert not any(name.startswith(('.git', 'bin/', 'obj/')) or name.endswith(
+              ('.ttf', '.otf', '.pdf', '.pdb', '.dll', '.exe')) for name in files)
+          print('Independent source payload extraction, exact Git bytes, build closure, license and budgets verified')
+          PY
+          cp "$RUNNER_TEMP/factspdf-private-source/source-archive.json" artifacts/first-use/private-source-archive.json
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
