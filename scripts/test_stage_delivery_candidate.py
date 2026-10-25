@@ -200,7 +200,7 @@ class PrivateBuildContractTests(unittest.TestCase):
                 digest = base64.b64encode(bytes([i + 1]) * 64).decode('ascii')
                 (package_dir / (package_key + '.10.0.13.nupkg.sha512')).write_text(digest)
                 libraries[package_id + '/10.0.13'] = {
-                    'type': 'package', 'path': package_key + '/10.0.13', 'sha512': digest}
+                    'type': 'package', 'path': package_key + '/10.0.13', 'sha512': 'sha512-' + digest}
             def save():
                 assets_file.write_text(json.dumps({'libraries': libraries}))
             save()
@@ -212,6 +212,14 @@ class PrivateBuildContractTests(unittest.TestCase):
                 self.assertEqual(record['projectAssetsSha256'],
                                  hashlib.sha256(assets_file.read_bytes()).hexdigest())
                 self.assertFalse(record['officialSignatureVerified'])
+                # NuGet assets require the SRI-style prefix; cache has bare base64.
+                libraries[ids[0] + '/10.0.13']['sha512'] = record['packages'][0]['packageSha512']
+                save()
+                with self.assertRaisesRegex(ValueError, 'asset/cache SHA512 mismatch'):
+                    _native_compiler_origin('dotnet', root, 'local-linux')
+                libraries[ids[0] + '/10.0.13']['sha512'] = (
+                    'sha512-' + record['packages'][0]['packageSha512'])
+                save()
 
                 changed = libraries.pop(ids[1] + '/10.0.13')
                 libraries[ids[1] + '/10.0.14'] = changed
