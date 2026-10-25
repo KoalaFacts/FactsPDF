@@ -582,32 +582,49 @@ def _native_compiler_origin(dotnet: str, root: Path, profile: str) -> dict:
         package_dir = cache / package_id.lower() / RUNTIME
         nuspec = package_dir / (package_id.lower() + '.nuspec')
         sha_file = package_dir / (package_id.lower() + '.' + RUNTIME + '.nupkg.sha512')
-        if any(item.is_symlink() for item in (package_dir, nuspec, sha_file)):
+        content_file = package_dir / '.nupkg.metadata'
+        if any(item.is_symlink() for item in (package_dir, nuspec, sha_file, content_file)):
             raise ValueError('Symlink in resolved native compiler package: ' + package_id)
         if (not package_dir.is_dir() or not nuspec.is_file() or
                 not 0 < nuspec.stat().st_size <= 1024 * 1024 or
-                not sha_file.is_file() or not 0 < sha_file.stat().st_size <= 4096):
+                not sha_file.is_file() or not 0 < sha_file.stat().st_size <= 4096 or
+                not content_file.is_file() or not 0 < content_file.stat().st_size <= 4096):
             raise ValueError('Missing/invalid native compiler package cache: ' + package_id)
         metadata = ET.parse(nuspec).getroot()
         name = metadata.findtext('.//{*}id')
         version = metadata.findtext('.//{*}version')
         if name is None or name.lower() != package_id.lower() or version != RUNTIME:
             raise ValueError('Native compiler nuspec identity/version mismatch: ' + package_id)
-        digest = sha_file.read_text(encoding='ascii').strip()
-        try:
-            decoded = base64.b64decode(digest, validate=True)
-        except ValueError as exc:
-            raise ValueError('Invalid native compiler package SHA512') from exc
-        if len(decoded) != 64 or base64.b64encode(decoded).decode('ascii') != digest:
-            raise ValueError('Invalid native compiler package SHA512')
-        # NuGet project.assets.json uses the SRI-style `sha512-` prefix;
-        # the adjacent .nupkg.sha512 cache file contains bare base64.
-        # Compare the complete canonical forms without trimming the prefix.
-        if library.get('sha512') != 'sha512-' + digest:
-            raise ValueError('Native compiler asset/cache SHA512 mismatch: ' + package_id)
+        # NuGet records two distinct hashes for signed packages:
+        # .nupkg.metadata/contentHash is the original unsigned content hash
+        # also stored in project.assets.json/libraries/*/sha512, while the
+        # .nupkg.sha512 file hashes the downloaded signed archive. Treating
+        # them as interchangeable rejects legitimate repository-signed packs.
+        # See Microsoft NuGet "Troubleshooting Installed Packages".
+        content_raw = content_file.read_bytes()
+        content_metadata = json.loads(content_raw)
+        if (not isinstance(content_metadata, dict) or
+                content_metadata.get('version') not in (1, 2)):
+            raise ValueError('Invalid native compiler NuGet content metadata')
+        content_digest = content_metadata.get('contentHash')
+        archive_digest = sha_file.read_text(encoding='ascii').strip()
+        for kind, digest in (('content', content_digest), ('archive', archive_digest)):
+            if not isinstance(digest, str):
+                raise ValueError('Invalid native compiler package ' + kind + ' SHA512')
+            try:
+                decoded = base64.b64decode(digest, validate=True)
+            except ValueError as exc:
+                raise ValueError('Invalid native compiler package ' + kind + ' SHA512') from exc
+            if len(decoded) != 64 or base64.b64encode(decoded).decode('ascii') != digest:
+                raise ValueError('Invalid native compiler package ' + kind + ' SHA512')
+        if library.get('sha512') != content_digest:
+            raise ValueError('Native compiler assets/contentHash SHA512 mismatch: ' + package_id)
         packages.append({'packageId': package_id, 'version': RUNTIME,
                          'nuspecSha256': _sha(nuspec.read_bytes()),
-                         'packageSha512': digest})
+                         'contentMetadataSha256': _sha(content_raw),
+                         'contentSha512': content_digest,
+                         'packageSha512': archive_digest,
+                         'declaredCacheSource': content_metadata.get('source')})
     return {'projectAssetsSha256': _sha(raw_assets), 'packages': packages,
             'officialSignatureVerified': False}
 
