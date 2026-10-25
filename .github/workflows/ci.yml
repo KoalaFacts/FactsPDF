@@ -462,6 +462,129 @@ jobs:
           print('Five actual source-bound software payloads retained privately; independent final candidate gate still pending')
           PY
           cp "$RUNNER_TEMP/factspdf-private-five-staged/candidate-staging.json" artifacts/first-use/private-five-payload-staging.json
+      - name: Independently install and execute the exact staged five-payload copies
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, tarfile, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          staged = root / 'factspdf-private-five-staged'
+          result = json.loads((staged / 'candidate-staging.json').read_text())
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert result['sourceHead'] == head
+          assert result['identity']['profile'] == 'local-linux'
+          assert result['candidateBuilt'] and result['candidateAssembled']
+          assert not any(result[k] for k in ('independentlyValidated', 'published',
+                                            'distributionAuthorized'))
+          assert result['notFinalCandidate'] and not result['windowsBinaryRetained']
+          names = {
+              'package': 'FactsPDF.0.1.0-preview.1.nupkg',
+              'managed': 'FactsPDF.Cli.0.1.0-preview.1.managed.zip',
+              'native': 'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip',
+              'source': 'FactsPDF.0.1.0-preview.1.source.tar.gz',
+              'examples': 'FactsPDF.0.1.0-preview.1.examples.zip',
+          }
+          records = result['payloads']
+          assert len(records) == 5 and {r['role']: r['filename'] for r in records} == names
+          assert {p.name for p in staged.iterdir()} == set(names.values()) | {'candidate-staging.json'}
+          for record in records:
+              path = staged / record['filename']
+              assert path.is_file() and not path.is_symlink() and 0 < path.stat().st_size <= 256 * 1024 * 1024
+              assert path.stat().st_size == record['bytes']
+              digest = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b''):
+                      digest.update(block)
+              assert digest.hexdigest() == record['sha256']
+          members = {
+              'managed': {
+                  'FactsPDF.Cli/FactsPDF.Cli.dll', 'FactsPDF.Cli/FactsPDF.dll',
+                  'FactsPDF.Cli/FactsPDF.Cli.deps.json',
+                  'FactsPDF.Cli/FactsPDF.Cli.runtimeconfig.json',
+                  'FactsPDF.Cli/LICENSE.md', 'FactsPDF.Cli/CLI-README.md',
+              },
+              'native': {
+                  'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md',
+                  'FactsPDF.Native/CLI-README.md',
+                  'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                  'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT',
+              },
+              'examples': {
+                  'FactsPDF.Examples/first-use/FirstUse.csproj',
+                  'FactsPDF.Examples/first-use/Program.cs',
+                  'FactsPDF.Examples/first-use/NuGet.Config',
+                  'FactsPDF.Examples/first-use/input.html',
+                  'FactsPDF.Examples/first-use/unsupported.html',
+                  'FactsPDF.Examples/first-use/expected-pages.json',
+                  'FactsPDF.Examples/global.json', 'FactsPDF.Examples/LICENSE.md',
+                  'FactsPDF.Examples/README.md',
+                  'FactsPDF.Examples/EXAMPLES-MANIFEST.json',
+              },
+          }
+          budgets = {'managed': 64 * 1024 * 1024,
+                     'native': 256 * 1024 * 1024,
+                     'examples': 4 * 1024 * 1024}
+          for kind in ('managed', 'native', 'examples'):
+              extracted = root / ('factspdf-staged-' + kind + '-extracted')
+              extracted.mkdir(mode=0o700)
+              with zipfile.ZipFile(staged / names[kind]) as z:
+                  infos = z.infolist()
+                  assert len(infos) == len(members[kind])
+                  assert {info.filename for info in infos} == members[kind]
+                  assert z.testzip() is None
+                  total = 0
+                  for info in infos:
+                      mode = 0o100755 if info.filename == 'FactsPDF.Native/FactsPDF.Cli' else 0o100644
+                      assert info.create_system == 3 and info.external_attr >> 16 == mode
+                      assert 0 < info.file_size <= budgets[kind]
+                      total += info.file_size
+                      assert total <= budgets[kind]
+                      data = z.read(info)
+                      assert len(data) == info.file_size
+                      path = extracted / info.filename
+                      path.parent.mkdir(parents=True, exist_ok=True)
+                      path.write_bytes(data)
+                      path.chmod(mode & 0o777)
+              if kind == 'examples':
+                  manifest = json.loads((extracted / 'FactsPDF.Examples/EXAMPLES-MANIFEST.json').read_text())
+                  assert manifest['sourceHead'] == head
+                  assert manifest['version'] == '0.1.0-preview.1'
+          source_prefix = 'FactsPDF.0.1.0-preview.1.source/'
+          with tarfile.open(staged / names['source'], 'r:gz') as stream:
+              entries = stream.getmembers()
+              assert 60 < len(entries) <= 513
+              assert entries[0].isdir() and entries[0].name == source_prefix[:-1]
+              paths = set()
+              for item in entries[1:]:
+                  assert item.isfile() and item.name.startswith(source_prefix)
+                  relative = item.name[len(source_prefix):]
+                  assert relative and all(part not in ('', '.', '..') for part in relative.split('/'))
+                  assert '\\' not in relative and ':' not in relative and relative not in paths
+                  assert 0 < item.size <= 8 * 1024 * 1024 and item.mode == 0o644
+                  paths.add(relative)
+              assert {'SOURCE-MANIFEST.json', 'LICENSE.md', 'SOURCE-BUILD.md',
+                      'src/FactsPDF.Cli/FactsPDF.Cli.csproj',
+                      'tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj'} <= paths
+              source_manifest = json.load(stream.extractfile(source_prefix + 'SOURCE-MANIFEST.json'))
+              assert source_manifest['sourceHead'] == head
+              assert source_manifest['packageVersion'] == '0.1.0-preview.1'
+          assert (root / 'factspdf-staged-native-extracted/FactsPDF.Native/FactsPDF.Cli').read_bytes()[:4] == b'\x7fELF'
+          assert (root / 'factspdf-staged-managed-extracted/FactsPDF.Cli/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          assert (root / 'factspdf-staged-examples-extracted/FactsPDF.Examples/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          print('All five staged software bytes, frozen archive allowlists, source identity, notices and executable modes checked independently')
+          PY
+          python3 scripts/verify_release_candidate.py \
+            --cli-dll "$RUNNER_TEMP/factspdf-staged-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
+            --package "$RUNNER_TEMP/factspdf-private-five-staged/FactsPDF.0.1.0-preview.1.nupkg" \
+            --consumer-source "$RUNNER_TEMP/factspdf-staged-examples-extracted/FactsPDF.Examples/first-use" \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" \
+            --output "$RUNNER_TEMP/factspdf-staged-five-installed-consumer"
+          python3 scripts/verify_native_feature_paths.py \
+            --executable "$RUNNER_TEMP/factspdf-staged-native-extracted/FactsPDF.Native/FactsPDF.Cli" \
+            --output "$RUNNER_TEMP/factspdf-staged-five-native-features"
+          cp "$RUNNER_TEMP/factspdf-staged-five-installed-consumer/report.json" artifacts/first-use/private-five-staged-installed-consumer.json
+          cp "$RUNNER_TEMP/factspdf-staged-five-native-features/report.json" artifacts/first-use/private-five-staged-native-features.json
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
