@@ -180,11 +180,21 @@ class NativeArchiveTests(unittest.TestCase):
                  'pe32': bytearray(valid_windows_pe()),
                  'bad-signature': bytearray(valid_windows_pe()),
                  'bad-section': bytearray(valid_windows_pe()),
+                 'section-rva-outside-image': bytearray(valid_windows_pe()),
+                 'section-rva-near-overflow': bytearray(valid_windows_pe()),
+                 'section-virtual-size-outside-image': bytearray(valid_windows_pe()),
+                 'section-zero-virtual-size-raw-outside-image': bytearray(valid_windows_pe()),
                  'not-executable': bytearray(valid_windows_pe())}
         struct.pack_into('<H', cases['arm64'], 0x84, 0xaa64)
         struct.pack_into('<H', cases['pe32'], 0x98, 0x10b)
         cases['bad-signature'][0x80:0x84] = b'JUNK'
         struct.pack_into('<I', cases['bad-section'], 0x98 + 0xf0 + 20, 9999)
+        section = 0x98 + 0xf0
+        struct.pack_into('<I', cases['section-rva-outside-image'], section + 12, 0x3000)
+        struct.pack_into('<I', cases['section-rva-near-overflow'], section + 12, 0xfffffff0)
+        struct.pack_into('<I', cases['section-virtual-size-outside-image'], section + 8, 0x1100)
+        struct.pack_into('<I', cases['section-zero-virtual-size-raw-outside-image'], section + 8, 0)
+        struct.pack_into('<I', cases['section-zero-virtual-size-raw-outside-image'], 0x98 + 56, 0x1100)
         struct.pack_into('<H', cases['not-executable'], 0x84 + 18, 0x20)
         for name, raw in cases.items():
             with self.subTest(name=name):
