@@ -199,7 +199,12 @@ class PrivateBuildContractTests(unittest.TestCase):
                     '</id><version>10.0.13</version></metadata></package>')
                 # Repository-signed archive SHA512 differs from unsigned NuGet
                 # contentHash recorded in project.assets.json.
-                archive_hash = base64.b64encode(bytes([i + 1]) * 64).decode('ascii')
+                archive = package_dir / (package_key + '.10.0.13.nupkg')
+                import zipfile
+                with zipfile.ZipFile(archive, 'w') as z:
+                    z.writestr(package_key + '.nuspec', 'synthetic package ' + str(i))
+                archive_hash = base64.b64encode(
+                    hashlib.sha512(archive.read_bytes()).digest()).decode('ascii')
                 content_hash = base64.b64encode(bytes([i + 11]) * 64).decode('ascii')
                 (package_dir / (package_key + '.10.0.13.nupkg.sha512')).write_text(
                     archive_hash)
@@ -225,6 +230,21 @@ class PrivateBuildContractTests(unittest.TestCase):
                                     record['packages'][0]['packageSha512'])
                 self.assertEqual(record['packages'][0]['contentSha512'],
                                  libraries[ids[0] + '/10.0.13']['sha512'])
+
+                archive = cache / ids[1].lower() / '10.0.13' / (
+                    ids[1].lower() + '.10.0.13.nupkg')
+                original_archive = archive.read_bytes()
+                for case in ('missing', 'mutated'):
+                    with self.subTest(archive=case):
+                        if case == 'missing':
+                            archive.unlink()
+                        else:
+                            archive.write_bytes(original_archive + b'changed')
+                        with self.assertRaisesRegex(ValueError, 'archive'):
+                            _native_compiler_origin('dotnet', root, 'local-linux')
+                    archive.write_bytes(original_archive)
+                self.assertEqual(_native_compiler_origin('dotnet', root, 'local-linux'),
+                                 record)
 
                 # SRI sha512- prefix is NOT used in project.assets.json.
                 libraries[ids[0] + '/10.0.13']['sha512'] = (

@@ -617,6 +617,16 @@ def _native_compiler_origin(dotnet: str, root: Path, profile: str) -> dict:
                 raise ValueError('Invalid native compiler package ' + kind + ' SHA512') from exc
             if len(decoded) != 64 or base64.b64encode(decoded).decode('ascii') != digest:
                 raise ValueError('Invalid native compiler package ' + kind + ' SHA512')
+        archive_file = package_dir / (package_id.lower() + '.' + RUNTIME + '.nupkg')
+        if (archive_file.is_symlink() or not archive_file.is_file() or
+                archive_file.stat().st_size == 0):
+            raise ValueError('Missing/invalid native compiler package archive: ' + package_id)
+        archive_hash = hashlib.sha512()
+        with archive_file.open('rb') as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                archive_hash.update(chunk)
+        if base64.b64encode(archive_hash.digest()).decode('ascii') != archive_digest:
+            raise ValueError('Native compiler package archive SHA512 mismatch: ' + package_id)
         if library.get('sha512') != content_digest:
             raise ValueError('Native compiler assets/contentHash SHA512 mismatch: ' + package_id)
         packages.append({'packageId': package_id, 'version': RUNTIME,
