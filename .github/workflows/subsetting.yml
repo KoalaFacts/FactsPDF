@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.402'
       - name: Install independent inspectors and original test fonts
         run: python3 scripts/ubuntu_packages.py packages clang zlib1g-dev poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-fonttools time
       - name: Compile native CLI and separate measurement harness
