@@ -277,8 +277,11 @@ jobs:
           MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           $pythonExe = (Get-Command python).Source
-          & $pythonExe -m unittest discover -s scripts -p test_private_native_archive.py -v
-          if ($LASTEXITCODE -ne 0) { throw "Private native ZIP contract tests failed" }
+          # All POSIX executable-mode/symlink archive tests are mandatory on Linux;
+          # on Windows/NTFS run the Windows PE positive and malformed-header cases.
+          $env:PYTHONPATH = (Resolve-Path scripts).Path
+          & $pythonExe -m unittest -v test_private_native_archive.NativeArchiveTests.test_windows_pe_profile_is_not_retained test_private_native_archive.NativeArchiveTests.test_reject_windows_truncated_wrong_architecture_and_sections
+          if ($LASTEXITCODE -ne 0) { throw "Windows native ZIP contract tests failed" }
           $privateBuild = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-build'
           $privateArchive = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-native'
           & $pythonExe scripts/stage_delivery_candidate.py assemble-native --build $privateBuild --output $privateArchive
