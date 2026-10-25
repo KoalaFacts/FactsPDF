@@ -143,6 +143,55 @@ jobs:
             --dotnet "$(command -v dotnet)" --output "$RUNNER_TEMP/factspdf-private-managed-first-use"
           cp "$RUNNER_TEMP/factspdf-private-managed/managed-archive.json" artifacts/first-use/private-managed-archive.json
           cp "$RUNNER_TEMP/factspdf-private-managed-first-use/report.json" artifacts/first-use/private-managed-first-use.json
+      - name: Assemble and independently exercise extracted private Linux Native AOT software
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_native_archive.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-native --build "$RUNNER_TEMP/factspdf-private-build" --output "$RUNNER_TEMP/factspdf-private-native"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = root / 'factspdf-private-native'
+          report = json.loads((folder / 'native-archive.json').read_text())
+          assert report['identity']['profile'] == 'local-linux'
+          assert not any(report[k] for k in ('candidateAssembled', 'independentlyValidated',
+                                             'published', 'distributionAuthorized'))
+          archive = folder / report['archive']['filename']
+          assert archive.name == 'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip'
+          assert archive.stat().st_size == report['archive']['bytes']
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          allowed = {'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md',
+                     'FactsPDF.Native/CLI-README.md'}
+          assert len(report['members']) == 3 and {r['path'] for r in report['members']} == allowed
+          extracted = root / 'factspdf-private-native-extracted'
+          extracted.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              infos = z.infolist()
+              assert len(infos) == 3 and {i.filename for i in infos} == allowed
+              assert z.testzip() is None
+              for item in infos:
+                  expected, = [r for r in report['members'] if r['path'] == item.filename]
+                  payload = z.read(item)
+                  assert len(payload) == expected['bytes']
+                  assert hashlib.sha256(payload).hexdigest() == expected['sha256']
+                  mode = 0o100755 if item.filename.endswith('/FactsPDF.Cli') else 0o100644
+                  assert item.create_system == 3 and item.external_attr >> 16 == mode
+                  destination = extracted / item.filename
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(payload)
+                  destination.chmod(mode & 0o777)
+          native = extracted / 'FactsPDF.Native/FactsPDF.Cli'
+          build = json.loads((root / 'factspdf-private-build/private-build.json').read_text())
+          record, = [r for r in build['files'] if r['path'] == 'native/FactsPDF.Cli']
+          assert native.read_bytes()[:4] == b'\x7fELF'
+          assert hashlib.sha256(native.read_bytes()).hexdigest() == record['sha256']
+          assert (extracted / 'FactsPDF.Native/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          print('Real private Linux native software ZIP: extracted executable, original license, source-bound SHA and mode verified')
+          PY
+          python3 scripts/verify_native_feature_paths.py \
+            --executable "$RUNNER_TEMP/factspdf-private-native-extracted/FactsPDF.Native/FactsPDF.Cli" \
+            --output "$RUNNER_TEMP/factspdf-private-native-feature-evidence"
+          cp "$RUNNER_TEMP/factspdf-private-native/native-archive.json" artifacts/first-use/private-native-archive.json
+          cp "$RUNNER_TEMP/factspdf-private-native-feature-evidence/report.json" artifacts/first-use/private-native-feature-report.json
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

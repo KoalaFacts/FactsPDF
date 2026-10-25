@@ -449,6 +449,111 @@ def assemble_managed(root: Path, build: Path, output: Path) -> dict:
     return report
 
 
+
+# Real native software payload, not a final validated candidate or a QA archive.
+NATIVE_ARCHIVE_NAME = 'FactsPDF.Cli.' + VERSION + '.native-{rid}.zip'
+NATIVE_DOC = 'docs/private-native-cli-readme.md'
+MAX_NATIVE_MEMBER = 64 * 1024 * 1024
+MAX_NATIVE_ARCHIVE = 96 * 1024 * 1024
+
+
+def assemble_native(root: Path, build: Path, output: Path) -> dict:
+    """Package only the recorded native CLI, original license and usage instructions."""
+    import zipfile
+
+    root = root.resolve(strict=True)
+    if build.is_symlink() or not build.is_dir():
+        raise ValueError('Private build missing or symlinked')
+    build = build.resolve(strict=True)
+    if root == build or root in build.parents:
+        raise ValueError('Private build must be outside source')
+    output = output.absolute()
+    target = output.resolve()
+    if (target == root or root in target.parents or target == build or
+            build in target.parents or output.exists() or output.is_symlink()
+            or not output.parent.is_dir()):
+        raise ValueError('Fresh external native archive directory required')
+    source = current_source(root)
+    receipt_path = build / 'private-build.json'
+    if (receipt_path.is_symlink() or not receipt_path.is_file() or
+            receipt_path.stat().st_size > 128 * 1024):
+        raise ValueError('Missing or oversized private build receipt')
+    receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+    recorded_identity = receipt.get('identity')
+    profile = recorded_identity.get('profile') if isinstance(recorded_identity, dict) else None
+    if profile not in PROFILES:
+        raise ValueError('Unknown private build profile')
+    selected = identity(root, profile)
+    if (receipt.get('schemaVersion') != 1 or
+            receipt.get('phase') != 'private-build-unverified' or
+            receipt.get('sourceHead') != source or recorded_identity != selected or
+            receipt.get('candidateBuilt') is not True or
+            receipt.get('candidateAssembled') is not False or
+            receipt.get('independentlyValidated') is not False or
+            receipt.get('published') is not False or
+            receipt.get('distributionAuthorized') is not False):
+        raise ValueError('Private native build identity/status does not match source')
+    records = receipt.get('files')
+    if (not isinstance(records, list) or not all(isinstance(r, dict) and
+            isinstance(r.get('path'), str) for r in records)):
+        raise ValueError('Malformed native build inventory')
+    by_path = {r['path']: r for r in records}
+    if len(by_path) != len(records):
+        raise ValueError('Duplicate private build record')
+    binary = 'FactsPDF.Cli.exe' if profile == 'win-x64-validation' else 'FactsPDF.Cli'
+    relative = 'native/' + binary
+    expected = by_path.get(relative)
+    if not isinstance(expected, dict):
+        raise ValueError('Unrecorded native executable')
+    sources = ((build / relative, 'FactsPDF.Native/' + binary),
+               (root / 'LICENSE.md', 'FactsPDF.Native/LICENSE.md'),
+               (root / NATIVE_DOC, 'FactsPDF.Native/CLI-README.md'))
+    members = {}
+    for path, archived in sources:
+        if path.is_symlink() or not path.is_file():
+            raise ValueError('Missing or symlinked native member: ' + str(path))
+        size = path.stat().st_size
+        if not 0 < size <= MAX_NATIVE_MEMBER:
+            raise ValueError('Native archive member exceeds size bound')
+        payload = path.read_bytes()
+        if path == build / relative:
+            if len(payload) != expected.get('bytes') or _sha(payload) != expected.get('sha256'):
+                raise ValueError('Private native executable changed after receipt')
+            if profile == 'local-linux':
+                if payload[:4] != b'\x7fELF' or not path.stat().st_mode & 0o111:
+                    raise ValueError('Linux native executable must be executable ELF')
+            elif payload[:2] != b'MZ':
+                raise ValueError('Windows native executable must be PE')
+        members[archived] = payload
+    if current_source(root) != source:
+        raise ValueError('Source changed during native archive preflight')
+    output.mkdir(mode=0o700)
+    archive = output / NATIVE_ARCHIVE_NAME.format(rid=PROFILES[profile])
+    with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=9, allowZip64=False) as stream:
+        for name, payload in sorted(members.items()):
+            item = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            item.create_system = 3
+            item.external_attr = (0o100755 if name.endswith('/FactsPDF.Cli')
+                                  else 0o100644) << 16
+            item.compress_type = zipfile.ZIP_DEFLATED
+            stream.writestr(item, payload, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+    if archive.stat().st_size > MAX_NATIVE_ARCHIVE or current_source(root) != source:
+        raise ValueError('Native archive budget/source changed')
+    report = {'schemaVersion': 1, 'phase': 'partial-native-software-archive-unverified',
+              'sourceHead': source, 'identity': selected,
+              'archive': {'filename': archive.name, 'bytes': archive.stat().st_size,
+                          'sha256': _sha(archive.read_bytes())},
+              'members': [{'path': name, 'bytes': len(data), 'sha256': _sha(data)}
+                          for name, data in sorted(members.items())],
+              'candidateBuilt': True, 'candidateAssembled': False,
+              'independentlyValidated': False, 'published': False,
+              'distributionAuthorized': False}
+    (output / 'native-archive.json').write_text(
+        json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    return report
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -462,9 +567,15 @@ def main() -> None:
     managed = commands.add_parser('assemble-managed', help='Assemble unverified managed CLI software ZIP from an exact private build')
     managed.add_argument('--build', required=True, type=Path)
     managed.add_argument('--output', required=True, type=Path)
+    n = commands.add_parser('assemble-native', help='Assemble unverified native software ZIP')
+    n.add_argument('--build', required=True, type=Path)
+    n.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.command == 'assemble-managed':
+    if args.command == 'assemble-native':
+        result = assemble_native(root, args.build, args.output)
+        print(f"Native private software: {result['sourceHead']}; partial/unverified/unpublished.")
+    elif args.command == 'assemble-managed':
         result = assemble_managed(root, args.build, args.output)
         print(f"Managed private software archive: {result['sourceHead']}; partial/unverified/unpublished.")
     elif args.command == 'build':
