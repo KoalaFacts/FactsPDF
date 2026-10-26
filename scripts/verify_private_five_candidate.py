@@ -158,7 +158,9 @@ def source_inventory(path: Path, head: str, extracted: Path) -> tuple[list[dict]
 
 
 def run_bytes_git(head: str, path: str) -> bytes:
-    return subprocess.check_output(["git", "cat-file", "blob", head + ":" + path], timeout=30)
+    root = Path(__file__).resolve().parents[1]
+    return subprocess.check_output(["git", "cat-file", "blob", head + ":" + path],
+                                   cwd=root, timeout=30)
 
 
 def evidence_path(folder: Path, name: str, obj: dict) -> dict:
@@ -171,6 +173,8 @@ def evidence_path(folder: Path, name: str, obj: dict) -> dict:
 
 
 def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
+    require(not candidate.is_symlink() and not runner.is_symlink() and
+            not output.is_symlink(), "Symlinked private delivery root")
     root = root.resolve(strict=True)
     candidate = candidate.resolve(strict=True)
     runner = runner.resolve(strict=True)
