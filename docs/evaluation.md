@@ -6,8 +6,10 @@ reports for .NET applications and command-line integrations.
 
 The current build is experimental. Evaluate a specific template and deployment
 environment before making a production commitment. The source declares
-`0.1.0-preview.1`, but no independently validated private candidate or public
-package is yet available. The commands below use a source checkout.
+`0.1.0-preview.1`. The repository's current README records private CI
+candidate checks, but no durable, authorised customer-delivery package or
+public CLI/NuGet release is available. The commands below use a source checkout;
+they do not grant evaluation or commercial rights.
 
 **Working with an existing reporting template?** [Open a template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md). Share a redacted layout description, not customer documents or credentials. A public request starts a scope discussion only; see licensing below before building or running FactsPDF.
 
