@@ -112,10 +112,14 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
     candidate = candidate.absolute()
     verification = verification.absolute()
     if (candidate.is_symlink() or not candidate.is_dir() or
-            verification.is_symlink() or not verification.is_file() or
-            candidate == root or root in candidate.parents or
-            candidate == verification.parent or candidate in verification.parents):
+            verification.is_symlink() or not verification.is_file()):
         raise ValueError("Expected separate external stage and verification files")
+    physical_candidate = candidate.resolve(strict=True)
+    physical_verification = verification.resolve(strict=True)
+    if (physical_candidate == root or root in physical_candidate.parents or
+            physical_candidate == physical_verification.parent or
+            physical_candidate in physical_verification.parents):
+        raise ValueError("Expected physically external stage and verification files")
     source_head = current_source(root)
     if not HEX40.fullmatch(source_head):
         raise ValueError("Expected a complete source commit")
@@ -218,7 +222,7 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
                 not isinstance(item["sha256"], str) or not HEX64.fullmatch(item["sha256"])):
             raise ValueError("Invalid independent evidence path/digest for " + name)
         path = evidence_root / rel
-        if path.resolve() == candidate or candidate in path.resolve().parents:
+        if path.resolve() == physical_candidate or physical_candidate in path.resolve().parents:
             raise ValueError("Self-referential independent evidence")
         if (path.parent.is_symlink() or
                 path.resolve(strict=True).parent != path.parent.resolve(strict=True)):
