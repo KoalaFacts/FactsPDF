@@ -612,6 +612,25 @@ jobs:
             --output "$RUNNER_TEMP/factspdf-staged-five-native-features"
           cp "$RUNNER_TEMP/factspdf-staged-five-installed-consumer/report.json" artifacts/first-use/private-five-staged-installed-consumer.json
           cp "$RUNNER_TEMP/factspdf-staged-five-native-features/report.json" artifacts/first-use/private-five-staged-native-features.json
+      - name: Independently finalize the actual five staged private components and read them back
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_private_five_candidate.py verify \
+            --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
+            --runner "$RUNNER_TEMP" \
+            --output "$RUNNER_TEMP/factspdf-private-five-verification"
+          python3 scripts/stage_delivery_candidate.py finalize \
+            --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
+            --verification "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json"
+          python3 scripts/verify_private_five_candidate.py readback \
+            --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
+            --verification "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json" \
+            > artifacts/first-use/private-five-final-readback.json
+          cp "$RUNNER_TEMP/factspdf-private-five-staged/candidate-manifest.json" artifacts/first-use/private-five-candidate-manifest.json
+          cp "$RUNNER_TEMP/factspdf-private-five-staged/SHA256SUMS" artifacts/first-use/private-five-SHA256SUMS
+          cp "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json" artifacts/first-use/private-five-payload-verification.json
+          # Software payloads remain exclusively in this private CI runner.
+          # These receipts do not authorize release, customer delivery or font distribution.
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
