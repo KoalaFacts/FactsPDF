@@ -38,7 +38,8 @@ SCRIPT_FILES = frozenset({
     'scripts/inspect_candidate_assembly.cs',
     'scripts/verify_package.py', 'scripts/verify_package_inspector.py',
     'scripts/verify_release_candidate.py', 'scripts/verify_first_use.py',
-    'scripts/stage_delivery_candidate.py', 'scripts/private_source_payload.py',
+    'scripts/stage_delivery_candidate.py', 'scripts/private_five_finalization.py',
+    'scripts/private_source_payload.py',
     'scripts/private_examples_payload.py',
 })
 REQUIRED = frozenset({
