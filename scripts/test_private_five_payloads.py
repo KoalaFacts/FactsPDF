@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from private_examples_payload import FILES
+from private_five_finalization import REQUIRED_CHECKS, finalize_five
 from stage_delivery_candidate import (
     MANAGED_ARCHIVE_NAME, MANAGED_MEMBERS, NATIVE_ARCHIVE_NAME,
     assemble_five_payloads,
@@ -177,6 +178,126 @@ class FivePayloadStagingTests(unittest.TestCase):
         self.output = self.root / 'candidate'
         with self.assertRaisesRegex(ValueError, 'Fresh external'):
             self.stage()
+
+
+    def verified_receipt(self):
+        """Fixture stands in for an independently generated, successful report.
+
+        These unit tests exercise final linkage only; they do not claim to have
+        run an actual verifier, or to authorize any synthetic payload.
+        """
+        self.stage()
+        parent = self.root.parent / 'verification'
+        reports = parent / 'reports'
+        reports.mkdir(parents=True)
+        evidence = {}
+        for name in sorted(REQUIRED_CHECKS):
+            data = ('FAKE INDEPENDENT UNIT EVIDENCE: ' + name).encode()
+            target = reports / (name + '.json')
+            target.write_bytes(data)
+            evidence[name] = {
+                'status': 'passed', 'evidenceFile': 'reports/' + target.name,
+                'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest(),
+            }
+        payloads = []
+        staging = json.loads((self.output / 'candidate-staging.json').read_text())
+        for item in staging['payloads']:
+            archive_name = item['filename']
+            member = {
+                'path': {'package': 'lib/net10.0/FactsPDF.dll',
+                         'managed': 'FactsPDF.Cli/FactsPDF.Cli.dll',
+                         'native': 'FactsPDF.Native/FactsPDF.Cli'}.get(item['role'], ''),
+                'bytes': item['bytes'], 'sha256': item['sha256'],
+                'identity': {'sourceHead': SOURCE},
+            }
+            payloads.append({
+                'filename': archive_name, 'bytes': item['bytes'],
+                'sha256': item['sha256'],
+                'inventoryDigest': hashlib.sha256(('fixture:' + archive_name).encode()).hexdigest(),
+                'binaryMembers': [member] if member['path'] else [],
+            })
+        proof = {
+            'schemaVersion': 1, 'phase': 'payloads', 'status': 'passed',
+            'candidateStagingSha256': hashlib.sha256(
+                (self.output / 'candidate-staging.json').read_bytes()).hexdigest(),
+            'identity': {
+                'sourceHead': SOURCE, 'profile': 'local-linux',
+                'packageId': 'FactsPDF', 'packageVersion': VERSION,
+                'targetFramework': 'net10.0', 'sdkVersion': '10.0.402',
+                'selectedRuntimeVersion': '10.0.13',
+            },
+            'actualToolchain': {
+                'sdkVersion': '10.0.402', 'managedRuntimeVersion': '10.0.13',
+                'nativeRuntimePackVersion': '10.0.13',
+                'nativeCompilerPackVersion': '10.0.13',
+                'officialSignatureVerified': False,
+                'nativeCompilerPackVerified': False,
+            },
+            'frozenContractDigest': 'd' * 64,
+            'payloads': payloads, 'checks': evidence,
+        }
+        path = parent / 'payload-verification.json'
+        path.write_text(json.dumps(proof))
+        return path
+
+    def finalize_fixture(self, verification):
+        with patch('stage_delivery_candidate.current_source', return_value=SOURCE), \\
+                patch('stage_delivery_candidate.identity', return_value=self.selected), \\
+                patch('private_five_finalization.frozen_contract_digest',
+                      return_value='d' * 64):
+            return finalize_five(self.root, self.output, verification)
+
+    def test_final_checksums_bind_successful_external_payload_report(self):
+        verification = self.verified_receipt()
+        result = self.finalize_fixture(verification)
+        self.assertTrue(result['independentlyValidated'])
+        self.assertFalse(result['distributionAuthorized'])
+        self.assertFalse(result['humanPdfApproved'])
+        self.assertFalse(result['published'])
+        self.assertEqual(result['verificationReceiptSha256'],
+                         hashlib.sha256(verification.read_bytes()).hexdigest())
+        manifest = self.output / 'candidate-manifest.json'
+        self.assertEqual(json.loads(manifest.read_text()), result)
+        sums = dict(line.split('  ', 1)[::-1]
+                    for line in (self.output / 'SHA256SUMS').read_text().splitlines())
+        self.assertEqual(len(sums), 6)
+        for filename, hexdigest in sums.items():
+            self.assertEqual(hexdigest,
+                             hashlib.sha256((self.output / filename).read_bytes()).hexdigest())
+        with self.assertRaisesRegex(ValueError, 'Unexpected, missing or already finalized'):
+            self.finalize_fixture(verification)
+
+    def test_modified_payload_after_same_source_success_is_rejected(self):
+        verification = self.verified_receipt()
+        payload = self.output / ('FactsPDF.' + VERSION + '.nupkg')
+        payload.write_bytes(payload.read_bytes() + b'AFTER-EXTERNAL-VERIFICATION')
+        with self.assertRaisesRegex(ValueError, 'Payload changed after successful'):
+            self.finalize_fixture(verification)
+        self.assertFalse((self.output / 'candidate-manifest.json').exists())
+        self.assertFalse((self.output / 'SHA256SUMS').exists())
+
+    def test_missing_or_modified_independent_evidence_is_rejected(self):
+        verification = self.verified_receipt()
+        report = next((verification.parent / 'reports').iterdir())
+        report.write_bytes(report.read_bytes() + b'POST-VERIFICATION-CHANGE')
+        with self.assertRaisesRegex(ValueError, 'Independent acceptance evidence was changed'):
+            self.finalize_fixture(verification)
+        self.assertFalse((self.output / 'candidate-manifest.json').exists())
+
+    def test_wrong_staged_receipt_or_incomplete_check_set_is_rejected(self):
+        verification = self.verified_receipt()
+        proof = json.loads(verification.read_text())
+        proof['candidateStagingSha256'] = '0' * 64
+        verification.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, 'Missing successful'):
+            self.finalize_fixture(verification)
+        proof['candidateStagingSha256'] = hashlib.sha256(
+            (self.output / 'candidate-staging.json').read_bytes()).hexdigest()
+        proof['checks'].pop(next(iter(proof['checks'])))
+        verification.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, 'Missing required independent'):
+            self.finalize_fixture(verification)
+        self.assertFalse((self.output / 'candidate-manifest.json').exists())
 
 
 if __name__ == '__main__':
