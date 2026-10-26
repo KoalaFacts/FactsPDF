@@ -44,7 +44,7 @@ class FinalCandidateReadbackTests(unittest.TestCase):
         frozen = "b" * 64
         staged = (json.dumps(
             {"sourceHead": source_head, "identity": identity}, sort_keys=True
-        ) + "\\n").encode()
+        ) + "\n").encode()
         (self.candidate / "candidate-staging.json").write_bytes(staged)
         payloads = []
         for role, filename in EXPECTED.items():
@@ -59,7 +59,7 @@ class FinalCandidateReadbackTests(unittest.TestCase):
             "payloads": payloads,
             "checks": {"control": True},
         }
-        self.verification.write_text(json.dumps(report, sort_keys=True) + "\\n")
+        self.verification.write_text(json.dumps(report, sort_keys=True) + "\n")
         self.manifest = {
             "schemaVersion": 1,
             "phase": "private-linux-technically-verified-not-authorized",
@@ -131,7 +131,7 @@ class FinalCandidateReadbackTests(unittest.TestCase):
         staged["identity"]["sourceHead"] = "0" * 40
         # Amend both staging and its manifest receipt, but not the independent
         # verification report that attested to the original staging bytes.
-        modified = (json.dumps(staged, sort_keys=True) + "\\n").encode()
+        modified = (json.dumps(staged, sort_keys=True) + "\n").encode()
         (self.candidate / "candidate-staging.json").write_bytes(modified)
         self.manifest["identity"] = staged["identity"]
         self.manifest["stagingReceiptSha256"] = sha(modified)
