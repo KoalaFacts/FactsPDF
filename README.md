@@ -7,9 +7,10 @@ that control their report templates. It supports English and Chinese text,
 explicit font styles, transparent PNGs, tables and pagination through a
 documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
-> **Current stage: unreleased `0.1.0-preview.1` source with privately verified build paths.**
-> Actual main CI has built and independently exercised the five-component private candidate on Linux, including clean installed API/CLI use; Windows Native AOT also ran. The software payloads are not durably retained for authorized customer delivery. There is no published NuGet package or standalone CLI release, and the API is not stable yet.
-> Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md). Check [licensing](#licensing) before use; CI verification does not grant evaluation rights.
+> **Current stage: unreleased `0.1.0-preview.1`, with an owner-retained private candidate.**
+> [Exact-main CI 40392917028](https://github.com/KoalaFacts/FactsPDF/actions/runs/40392917028) built and exercised five source-bound components at `6a98d707b62edc7116a84e4f37c18a188b882e03`. The owner independently validated and durably retained all five components outside this public repository, then ran the Linux Native AOT CLI offline.
+> **No public NuGet/CLI release, customer delivery, stable API, or evaluation grant exists.** Human PDF approval and legal distribution rights remain separate.
+> Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md). Check [licensing](#licensing) before use; private engineering verification does not grant usage rights.
 
 [Quick start](#generate-your-first-pdf) · [C# API](#use-the-net-api) ·
 [Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
@@ -203,22 +204,32 @@ The [Node subprocess](docs/node-cli-probe.md) and
 not published SDKs. Performance results apply to their documented workloads and
 environments; there is no general speed or resource guarantee.
 
-Structured page furniture is implemented in the development source. The
-private candidate toolchain merged in [PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60).
-[Main CI 40283254200](https://github.com/KoalaFacts/FactsPDF/actions/runs/40283254200)
-verified five source-bound components, six independent evidence reports, extracted
-Linux package/CLI/Native AOT execution and failure recovery from actual main
-`1a81f69a4beaf92a8710e5b79ce355440efb00b0`. Windows Native AOT also passed.
-This **technical CI verification is not a retained, customer-installable private
-bundle**: the software payloads existed in a temporary runner workspace, while
-the persisted CI artifact contains evidence, not the software binaries. No
-NuGet package or standalone CLI was publicly released or distributed. Mechanical
-legacy replay with the managed CLI built from `1a81f69a4beaf92a8710e5b79ce355440efb00b0`
-matched all 52 original PDFs byte for byte (311 pages); subsequent documentation-only
-changes preserve the renderer and replay inputs, not a new execution record.
-Local strict qpdf verification, original styled-CJK font coverage, human page review,
-private software retention and distribution authorization remain open. Follow
-[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for current state.
+Structured page furniture is implemented in the development source. The locked
+`0.1.0-preview.1` candidate toolchain merged in
+[PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60). Actual
+[main CI 40392917028](https://github.com/KoalaFacts/FactsPDF/actions/runs/40392917028)
+built and exercised the five-component candidate, installed .NET API/managed
+CLI, and real Linux/Windows x64 Native AOT at exact source
+`6a98d707b62edc7116a84e4f37c18a188b882e03`.
+
+[PR #63](https://github.com/KoalaFacts/FactsPDF/pull/63) added authenticated
+encrypted retention. The owner verified the GitHub Actions source/digest,
+decrypted the exact 15-member payload, and **privately retained and read back
+all five software components byte-for-byte**. An independent offline run of
+the retained Linux Native AOT CLI generated a searchable two-page PDF with exact
+authored text and target-preserving failure behavior. This closed the private
+software-retention gate, **not** customer distribution or page approval. That
+offline execution was Linux Native AOT only; actual managed consumer and
+Windows Native AOT evidence comes from exact-main CI.
+
+Mechanical managed-CLI replay at earlier engine source
+`1a81f69a4beaf92a8710e5b79ce355440efb00b0` matched all 52 sealed legacy
+PDFs byte for byte (311 pages). Subsequent candidate-transport/documentation
+changes did not change the renderer; this is not a new exact-source replay.
+Strict local qpdf verification, original styled-CJK inputs, new-page human
+approval and legal distribution authority remain open. No public NuGet/CLI,
+Release or customer delivery has occurred. Follow
+[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 | Task | Documentation |
 | --- | --- |
