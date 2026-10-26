@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import tarfile
+import tempfile
 import zipfile
 
 from private_five_finalization import EXPECTED, REQUIRED_CHECKS, frozen_contract_digest
@@ -123,11 +124,17 @@ def source_inventory(path: Path, head: str, extracted: Path) -> tuple[list[dict]
     prefix = "FactsPDF." + VERSION + ".source/"
     records, contents = [], {}
     total = 0
-    with tarfile.open(path, "r:gz") as archive:
-        members = archive.getmembers()
-        require(60 < len(members) <= 513 and members[0].isdir()
-                and members[0].name == prefix[:-1], "Unexpected source root")
-        for member in members[1:]:
+    # Stream headers one at a time: getmembers() loads unbounded metadata
+    # before we can apply the entry-count and expanded-byte budgets.
+    count = 0
+    with tarfile.open(path, "r|gz") as archive:
+        for member in archive:
+            count += 1
+            require(count <= 513, "Source archive entry count exceeded")
+            if count == 1:
+                require(member.isdir() and member.name == prefix[:-1],
+                        "Unexpected source root")
+                continue
             require(member.isfile() and member.name.startswith(prefix), "Unsafe source TAR entry")
             name = member.name[len(prefix):]
             safe_member(name)
@@ -139,6 +146,7 @@ def source_inventory(path: Path, head: str, extracted: Path) -> tuple[list[dict]
             require(len(raw) == member.size, "Incomplete source payload")
             contents[name] = raw
             records.append({"path": name, "bytes": len(raw), "sha256": digest(raw)})
+    require(60 < count <= 513, "Incomplete source archive")
     manifest = json.loads(contents["SOURCE-MANIFEST.json"])
     require(manifest["sourceHead"] == head and manifest["packageVersion"] == VERSION,
             "Corresponding source identity mismatch")
@@ -151,10 +159,20 @@ def source_inventory(path: Path, head: str, extracted: Path) -> tuple[list[dict]
         require(rec["bytes"] == len(contents[name]) and rec["sha256"] == digest(contents[name]),
                 "Source manifest file mismatch")
         require(run_bytes_git(head, name) == contents[name], "Source differs from committed Git object")
-    require(not (extracted / ".git").exists()
-            and (extracted / "SOURCE-MANIFEST.json").read_bytes() == contents["SOURCE-MANIFEST.json"],
-            "Extracted source not isolated or wrong")
+    check_extracted_source(extracted, contents)
     return sorted(records, key=lambda x: x["path"]), contents
+
+
+def check_extracted_source(extracted: Path, contents: dict[str, bytes]) -> None:
+    """Do not accept a manifest-only or mutated extraction as the rebuild source."""
+    require(not (extracted / ".git").exists(), "Extracted source contains Git metadata")
+    for name, original in contents.items():
+        part = extracted
+        for segment in name.split("/"):
+            part = part / segment
+            require(not part.is_symlink(), "Symlink in extracted source")
+        require(file_bytes(part, 8 * 1024 * 1024) == original,
+                "Extracted source content differs from independently verified TAR: " + name)
 
 
 def run_bytes_git(head: str, path: str) -> bytes:
@@ -292,11 +310,24 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
     source_pdf = pdf_witness(runner / "factspdf-private-source-rebuilt.pdf", 1,
                              ("SERVICE REPORT", "Example Client", "Records reviewed"))
     rebuilt = runner / "factspdf-private-source-extracted"
-    for relative in (
-        "src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll",
-        "tools/FactsPDF.PackageInspector/bin/Release/net10.0/FactsPDF.PackageInspector.dll",
-    ):
-        file_bytes(rebuilt / relative, 16 * 1024 * 1024)
+    rebuilt_cli = rebuilt / "src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll"
+    rebuilt_inspector = rebuilt / "tools/FactsPDF.PackageInspector/bin/Release/net10.0/FactsPDF.PackageInspector.dll"
+    rebuilt_library = rebuilt_cli.parent / "FactsPDF.dll"
+    for actual in (rebuilt_cli, rebuilt_inspector, rebuilt_library):
+        file_bytes(actual, 16 * 1024 * 1024)
+    metadata = binary_reader(rebuilt_inspector, "dotnet")(file_bytes(rebuilt_library))
+    require(metadata["name"] == "FactsPDF"
+            and metadata["informationalVersion"] == VERSION + "+" + head
+            and metadata["targetFramework"] == ".NETCoreApp,Version=v10.0",
+            "Offline rebuilt library lost the source revision/target identity")
+    # Run the *extracted-source* CLI again, not just read the earlier CI receipt.
+    with tempfile.TemporaryDirectory(prefix="factspdf-source-reexecution-", dir=runner) as directory:
+        repeated = Path(directory) / "rebuilt-again.pdf"
+        run("dotnet", str(rebuilt_cli), str(rebuilt / "examples/quick-start.html"), str(repeated))
+        repeat_pdf = pdf_witness(repeated, 1,
+                                 ("SERVICE REPORT", "Example Client", "Records reviewed"))
+        require(source_pdf["sha256"] == repeat_pdf["sha256"],
+                "Offline rebuilt source CLI output not reproducible")
     consumer_dir = runner / "factspdf-staged-five-installed-consumer"
     installed = load(consumer_dir / "report.json")
     require(installed["sourceHead"] == head and installed["sdk"] == "10.0.402"
@@ -362,7 +393,10 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
     (output / "reports").mkdir()
     checks_data = {
         "source-offline-rebuild": {"sourceCommit": head, "pdf": source_pdf,
-                                    "builtCliPresent": True, "inspectorPresent": True},
+                                    "reexecutedPdf": repeat_pdf,
+                                    "rebuiltCliSha256": digest(file_bytes(rebuilt_cli)),
+                                    "rebuiltInspectorSha256": digest(file_bytes(rebuilt_inspector)),
+                                    "rebuiltLibrarySha256": digest(file_bytes(rebuilt_library))},
         "examples-extraction": {"sourceCommit": head,
                                  "memberCount": len(inventories["examples"]),
                                  "memberInventorySha256": digest(json.dumps(
@@ -421,6 +455,15 @@ def readback(candidate: Path, verification: Path) -> dict:
     require(manifest["verificationReceiptSha256"] == digest(file_bytes(verification, 4 * 1024 * 1024))
             and manifest["stagingReceiptSha256"] == digest(file_bytes(candidate / "candidate-staging.json")),
             "Final manifest detached from independently verified inputs")
+    staging_bytes = file_bytes(candidate / "candidate-staging.json")
+    staging = json.loads(staging_bytes)
+    require(manifest["sourceHead"] == report["identity"]["sourceHead"]
+            and manifest["sourceHead"] == staging["sourceHead"]
+            and manifest["identity"] == staging["identity"]
+            and report["candidateStagingSha256"] == digest(staging_bytes)
+            and manifest["frozenContractDigest"] == report["frozenContractDigest"]
+            and manifest["actualToolchain"] == report["actualToolchain"],
+            "Final candidate source, frozen contract or toolchain detached from independent verification")
     require(manifest["payloads"] == report["payloads"]
             and manifest["acceptanceChecks"] == report["checks"],
             "Final manifest does not match independently witnessed payloads")
