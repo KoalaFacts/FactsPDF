@@ -7,7 +7,7 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, 'a085085ef161d51a241046839e59a1fd2dab7eea');
+  assert.equal(dataset.commit, '2f9cfd1fac13ab6034ac03a10d03b680f1de4018');
   assert.deepEqual(counts(dataset.features), { full:44, partial:115, none:251, unknown:6, na:2 });
 });
 test('colspan lookup includes the implemented subset without promoting rowspan', () => {
@@ -31,17 +31,25 @@ test('PNG lookup exposes bounded transparency support and unsupported encodings'
     assert.match(images.limitations,unsupported);
   }
 });
-test('page-margin options remain distinct from unsupported header/footer tags and templates', () => {
-  const margins=filterFeatures(dataset.features,{q:'HeaderText',status:'partial'}).find(f=>f.id==='pdf.headers');
+test('structured page furniture is discoverable without enabling HTML header/footer tags', () => {
+  const margins=filterFeatures(dataset.features,{q:'PageFurniture',status:'partial'}).find(f=>f.id==='pdf.headers');
   assert(margins);
+  assert(filterFeatures(dataset.features,{q:'--page-furniture',status:'partial'}).some(f=>f.id==='pdf.headers'));
+  for(const supported of [/\{page\}/,/\{pages\}/,/六区/,/FirstPage/]){
+    assert.match(margins.scope,supported);
+  }
+  assert.match(margins.scope,/HeaderText/);
   assert.match(margins.scope,/FooterText/);
   assert.match(margins.scope,/PageNumbers/);
-  for(const unsupported of [/总页数/,/六区域/,/第一页/]){
-    assert.match(margins.limitations,unsupported);
-  }
+  assert.match(margins.scope,/literal/);
+  assert.match(margins.limitations,/互斥/);
+  assert.match(margins.limitations,/单行/);
+  assert.match(margins.limitations,/@page/);
+  assert.match(margins.example,/--page-furniture/);
   for(const id of ['html.header','html.footer']){
     const tag=dataset.features.find(f=>f.id===id);
     assert.equal(tag.status,'none');
+    assert.match(tag.limitations,/PageFurniture/);
     assert.match(tag.limitations,/HeaderText\/FooterText/);
   }
 });

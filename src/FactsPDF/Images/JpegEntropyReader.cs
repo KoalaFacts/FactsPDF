@@ -40,10 +40,15 @@ internal ref struct JpegEntropyReader
 {
     private readonly ReadOnlySpan<byte> data;
     private readonly CancellationToken cancellation;
+    private readonly Action<int>? onBlockCheckpoint;
     private int position, current, remaining;
 
-    internal JpegEntropyReader(ReadOnlySpan<byte> bytes, CancellationToken token)
-    { data = bytes; cancellation = token; position = current = remaining = 0; }
+    internal JpegEntropyReader(ReadOnlySpan<byte> bytes, CancellationToken token,
+        Action<int>? onBlockCheckpoint = null)
+    {
+        data = bytes; cancellation = token; this.onBlockCheckpoint = onBlockCheckpoint;
+        position = current = remaining = 0;
+    }
 
     internal void Validate(int mcuCount, JpegComponent[] components, JpegHuffmanTable[] dc,
         JpegHuffmanTable[] ac, int restartInterval)
@@ -55,7 +60,11 @@ internal ref struct JpegEntropyReader
             for (var component = 0; component < components.Length; component++)
                 for (var block = 0; block < components[component].Blocks; block++)
                 {
-                    if ((blocks++ & 255) == 0) cancellation.ThrowIfCancellationRequested();
+                    if ((blocks++ & 255) == 0)
+                    {
+                        onBlockCheckpoint?.Invoke(blocks);
+                        cancellation.ThrowIfCancellationRequested();
+                    }
                     Skip(dc[component].Decode(ref this));
                     var coefficient = 1;
                     while (coefficient < 64)

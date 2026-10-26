@@ -7,8 +7,8 @@ that control their report templates. It supports English and Chinese text,
 explicit font styles, transparent PNGs, tables and pagination through a
 documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
-> **Current stage: experimental development build (`0.1.0-dev`).**
-> Run from source or build a local package. There is no published NuGet package
+> **Current stage: experimental private preview source (`0.1.0-preview.1`).**
+> This source version is not a verified installable candidate yet. Run from source or build a local package. There is no published NuGet package
 > or standalone CLI release, and the API is not stable yet.
 > Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md).
 
@@ -192,19 +192,25 @@ and deployment environment to the current scope.
 
 CI runs managed tests on Windows, Linux and macOS, and executes actual Linux x64
 and Windows x64 Native AOT CLIs. Independent PDF checks cover content, geometry,
-fonts, images, pagination and error recovery. Windows native verification currently
-includes the bounded first-document/recovery smoke; execution of the new
-continued-row fixture on Windows Native AOT is still pending.
+fonts, images, pagination and error recovery. The [merged native feature-path gate
+(#58)](https://github.com/KoalaFacts/FactsPDF/pull/58) executes structured page
+furniture and oversized-row continuation on both Linux and Windows Native AOT;
+the [private candidate PR (#60)](https://github.com/KoalaFacts/FactsPDF/pull/60)
+additionally checks native software-ZIP extraction and actual CLI execution.
+These checks apply to their exact tested revisions, not to a released product.
 
 The [Node subprocess](docs/node-cli-probe.md) and
 [browser WASM](docs/browser-wasm-probe.md) integrations are experimental probes,
 not published SDKs. Performance results apply to their documented workloads and
 environments; there is no general speed or resource guarantee.
 
-Structured page furniture is implemented in the development source. Remaining
-delivery work includes exact-revision native feature acceptance and preparation
-of a fixed private `0.1.0-preview.1` .NET/CLI evaluation candidate. That candidate has not been
-produced or published. Follow [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51)
+Structured page furniture is implemented in the development source. Private
+`0.1.0-preview.1` package and CLI components are being staged and tested in
+draft PR #60, but the complete, independently installed evaluation bundle has
+not passed final acceptance and nothing has been published or distributed.
+Outstanding gates include full legacy-PDF replay, original styled-CJK font
+coverage and reference-page review. Follow
+[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51)
 for current implementation and delivery evidence.
 
 | Task | Documentation |

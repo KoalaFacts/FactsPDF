@@ -20,6 +20,7 @@ internal ref struct JpegReader
     private readonly ReadOnlySpan<byte> data;
     private readonly PdfImageLimits limits;
     private readonly CancellationToken cancellation;
+    private readonly Action<int>? onScanBlockCheckpoint, onHeaderByteCheckpoint;
     private readonly bool[] quantizers;
     private readonly JpegHuffmanTable?[,] huffman;
     private JpegComponent[] components;
@@ -27,17 +28,21 @@ internal ref struct JpegReader
     private JpegInfo info;
     private bool hasFrame, hasExif;
 
-    private JpegReader(ReadOnlySpan<byte> bytes, PdfImageLimits bounds, CancellationToken token)
+    private JpegReader(ReadOnlySpan<byte> bytes, PdfImageLimits bounds, CancellationToken token,
+        Action<int>? scanCheckpoint, Action<int>? headerCheckpoint)
     {
         data = bytes; limits = bounds; cancellation = token;
+        onScanBlockCheckpoint = scanCheckpoint; onHeaderByteCheckpoint = headerCheckpoint;
         quantizers = new bool[4]; huffman = new JpegHuffmanTable?[2, 2]; components = [];
         position = 2; segmentCount = metadataBytes = restartInterval = mcuCount = 0;
         info = default; hasFrame = hasExif = false;
     }
 
-    internal static JpegInfo Read(ReadOnlySpan<byte> bytes, PdfImageLimits limits, CancellationToken cancellation)
+    // Optional per-call test checkpoints; public image loading supplies neither.
+    internal static JpegInfo Read(ReadOnlySpan<byte> bytes, PdfImageLimits limits, CancellationToken cancellation,
+        Action<int>? onScanBlockCheckpoint = null, Action<int>? onHeaderByteCheckpoint = null)
     {
-        var reader = new JpegReader(bytes, limits, cancellation);
+        var reader = new JpegReader(bytes, limits, cancellation, onScanBlockCheckpoint, onHeaderByteCheckpoint);
         return reader.Read();
     }
 
@@ -83,7 +88,11 @@ internal ref struct JpegReader
 
     private byte Byte()
     {
-        if ((position & 8191) == 0) cancellation.ThrowIfCancellationRequested();
+        if ((position & 8191) == 0)
+        {
+            onHeaderByteCheckpoint?.Invoke(position);
+            cancellation.ThrowIfCancellationRequested();
+        }
         if (position == data.Length) throw JpegErrors.Invalid("Truncated JPEG marker or header.");
         return data[position++];
     }
@@ -199,7 +208,7 @@ internal ref struct JpegReader
                 && huffman[1, a] is not null, "JPEG scan references an undefined table.");
             dc[i] = huffman[0, d]!; ac[i] = huffman[1, a]!;
         }
-        var entropy = new JpegEntropyReader(data[position..], cancellation);
+        var entropy = new JpegEntropyReader(data[position..], cancellation, onScanBlockCheckpoint);
         entropy.Validate(mcuCount, components, dc, ac, restartInterval);
     }
 }

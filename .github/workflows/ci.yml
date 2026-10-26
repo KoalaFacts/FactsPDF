@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.402'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -38,10 +38,14 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.402'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - name: Gate private candidate source and inspector inputs before build
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_stage_delivery_candidate.py' -v
+          python3 scripts/stage_delivery_candidate.py preflight --profile local-linux --output "$RUNNER_TEMP/factspdf-candidate-preflight"
       - name: Verify Ubuntu package source isolation without network
         run: python3 -m unittest discover -s scripts -p 'test_ubuntu_packages.py' -v
       - name: Install native compiler and independent verification tools
@@ -94,6 +98,552 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_first_use.py' -v
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
           python3 scripts/verify_first_use.py --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll --dotnet "$(command -v dotnet)" --output artifacts/first-use
+      - name: Build private Linux candidate inputs from the pinned clean source (not a release)
+        run: |
+          python3 scripts/stage_delivery_candidate.py build --profile local-linux --output "$RUNNER_TEMP/factspdf-private-build"
+          test -s "$RUNNER_TEMP/factspdf-private-build/private-build.json"
+          cp "$RUNNER_TEMP/factspdf-private-build/private-build.json" artifacts/first-use/private-build.json
+          python3 -c "import json; p=json.load(open('artifacts/first-use/private-build.json')); assert p['candidateBuilt'] and not p['candidateAssembled'] and not p['independentlyValidated'] and not p['published']"
+      - name: Assemble and independently exercise extracted private managed CLI software
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_managed_archive.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-managed --build "$RUNNER_TEMP/factspdf-private-build" --output "$RUNNER_TEMP/factspdf-private-managed"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = root / 'factspdf-private-managed'
+          report = json.loads((folder / 'managed-archive.json').read_text())
+          archive = folder / report['archive']['filename']
+          allowed = {'FactsPDF.Cli/' + name for name in (
+              'FactsPDF.Cli.dll', 'FactsPDF.dll', 'FactsPDF.Cli.deps.json',
+              'FactsPDF.Cli.runtimeconfig.json', 'LICENSE.md', 'CLI-README.md')}
+          assert report['candidateAssembled'] is False and report['independentlyValidated'] is False
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          extraction = root / 'factspdf-private-managed-extracted'
+          extraction.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              members = z.infolist()
+              assert len(members) == len(allowed)
+              assert {m.filename for m in members} == allowed
+              assert all((m.external_attr >> 16) & 0o170000 == 0o100000 for m in members)
+              assert z.testzip() is None
+              assert {m['path'] for m in report['members']} == allowed
+              for m in members:
+                  data = z.read(m)
+                  expected, = [x for x in report['members'] if x['path'] == m.filename]
+                  assert len(data) == expected['bytes'] and hashlib.sha256(data).hexdigest() == expected['sha256']
+              z.extractall(extraction)
+          assert (extraction / 'FactsPDF.Cli/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          print('Exact six-member managed software ZIP extracted outside source, inventory and LICENSE confirmed')
+          PY
+          python3 scripts/verify_release_candidate.py \
+            --cli-dll "$RUNNER_TEMP/factspdf-private-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
+            --package "$RUNNER_TEMP/factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg" \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" --output "$RUNNER_TEMP/factspdf-private-managed-first-use"
+          cp "$RUNNER_TEMP/factspdf-private-managed/managed-archive.json" artifacts/first-use/private-managed-archive.json
+          cp "$RUNNER_TEMP/factspdf-private-managed-first-use/report.json" artifacts/first-use/private-managed-first-use.json
+      - name: Independently install and run the source-bound private examples ZIP
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_examples_payload.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-examples --output "$RUNNER_TEMP/factspdf-private-examples"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, zipfile
+          runner = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = runner / 'factspdf-private-examples'
+          report = json.loads((folder / 'examples-archive.json').read_text())
+          build = json.loads((runner / 'factspdf-private-build/private-build.json').read_text())
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert report['sourceHead'] == build['sourceHead'] == head
+          assert report['version'] == '0.1.0-preview.1'
+          assert report['candidateAssembled'] is False and report['independentlyValidated'] is False
+          assert report['published'] is False and report['distributionAuthorized'] is False
+          archive = folder / report['archive']['filename']
+          assert archive.name == 'FactsPDF.0.1.0-preview.1.examples.zip'
+          assert archive.stat().st_size == report['archive']['bytes'] <= 4 * 1024 * 1024
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          allowed = {'FactsPDF.Examples/' + p for p in (
+              'first-use/FirstUse.csproj', 'first-use/Program.cs', 'first-use/NuGet.Config',
+              'first-use/input.html', 'first-use/unsupported.html',
+              'first-use/expected-pages.json', 'global.json', 'LICENSE.md',
+              'README.md', 'EXAMPLES-MANIFEST.json')}
+          extracted = runner / 'factspdf-private-examples-extracted'
+          extracted.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              entries = z.infolist()
+              assert len(entries) == len(allowed)
+              assert {item.filename for item in entries} == allowed
+              assert z.testzip() is None
+              files = {}
+              for item in entries:
+                  assert item.create_system == 3 and item.external_attr >> 16 == 0o100644
+                  assert item.file_size <= 1024 * 1024 and not (item.flag_bits & 1)
+                  data = z.read(item)
+                  assert len(data) == item.file_size
+                  files[item.filename] = data
+                  target = extracted / item.filename
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(data)
+          assert {'FactsPDF.Examples/' + item['path'] for item in report['members']} == allowed
+          for item in report['members']:
+              data = files['FactsPDF.Examples/' + item['path']]
+              assert len(data) == item['bytes']
+              assert hashlib.sha256(data).hexdigest() == item['sha256']
+          manifest = json.loads(files['FactsPDF.Examples/EXAMPLES-MANIFEST.json'])
+          assert manifest['sourceHead'] == head and manifest['version'] == report['version']
+          assert manifest['generatedMembers'] == ['EXAMPLES-MANIFEST.json']
+          assert {'FactsPDF.Examples/' + rec['path'] for rec in manifest['trackedMembers']} == allowed - {'FactsPDF.Examples/EXAMPLES-MANIFEST.json'}
+          for rec in manifest['trackedMembers']:
+              payload = files['FactsPDF.Examples/' + rec['path']]
+              assert len(payload) == rec['bytes']
+              assert hashlib.sha256(payload).hexdigest() == rec['sha256']
+              assert subprocess.check_output(['git', 'cat-file', 'blob',
+                  head + ':' + rec['sourcePath']]) == payload
+          assert files['FactsPDF.Examples/LICENSE.md'] == pathlib.Path('LICENSE.md').read_bytes()
+          assert files['FactsPDF.Examples/global.json'] == pathlib.Path('global.json').read_bytes()
+          package = runner / 'factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg'
+          record, = (rec for rec in build['files'] if rec['path'] == 'packages/' + package.name)
+          assert package.stat().st_size == record['bytes']
+          assert hashlib.sha256(package.read_bytes()).hexdigest() == record['sha256']
+          assert not (extracted / 'FactsPDF.Examples/.git').exists()
+          print('Real examples ZIP extracted outside checkout; committed example bytes, package source, license and budgets match')
+          PY
+          python3 scripts/verify_release_candidate.py \
+            --cli-dll "$RUNNER_TEMP/factspdf-private-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
+            --package "$RUNNER_TEMP/factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg" \
+            --consumer-source "$RUNNER_TEMP/factspdf-private-examples-extracted/FactsPDF.Examples/first-use" \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" \
+            --output "$RUNNER_TEMP/factspdf-private-examples-first-use"
+          cp "$RUNNER_TEMP/factspdf-private-examples/examples-archive.json" artifacts/first-use/private-examples-archive.json
+          cp "$RUNNER_TEMP/factspdf-private-examples-first-use/report.json" artifacts/first-use/private-examples-installed-first-use.json
+      - name: Assemble and independently exercise extracted private Linux Native AOT software
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_native_archive.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-native --build "$RUNNER_TEMP/factspdf-private-build" --output "$RUNNER_TEMP/factspdf-private-native"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = root / 'factspdf-private-native'
+          report = json.loads((folder / 'native-archive.json').read_text())
+          assert report['identity']['profile'] == 'local-linux'
+          assert not any(report[k] for k in ('candidateAssembled', 'independentlyValidated',
+                                             'published', 'distributionAuthorized'))
+          archive = folder / report['archive']['filename']
+          assert archive.name == 'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip'
+          assert archive.stat().st_size == report['archive']['bytes']
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          allowed = {'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md',
+                     'FactsPDF.Native/CLI-README.md',
+                     'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                     'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'}
+          assert len(report['members']) == 5 and {r['path'] for r in report['members']} == allowed
+          build = json.loads((root / 'factspdf-private-build/private-build.json').read_text())
+          assert report['nativeNoticeOrigin'] == build['nativeNoticeOrigin']
+          # Independently bind resolved ILCompiler packages to the source
+          # assets that the actual native publish left in the checkout.
+          compiler = report['nativeCompilerOrigin']
+          assert compiler == build['nativeCompilerOrigin']
+          assert build['nativeCompilerPackVerified'] is False
+          assert compiler['officialSignatureVerified'] is False
+          assert compiler['projectAssetsSha256'] == hashlib.sha256(
+              pathlib.Path('src/FactsPDF.Cli/obj/project.assets.json').read_bytes()).hexdigest()
+          assert [p['packageId'] for p in compiler['packages']] == [
+              'Microsoft.DotNet.ILCompiler',
+              'runtime.linux-x64.Microsoft.DotNet.ILCompiler']
+          assert all(p['version'] == '10.0.13' for p in compiler['packages'])
+          pinned = {'LICENSE.TXT': 'cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310',
+                    'THIRD-PARTY-NOTICES.TXT': '66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54'}
+          assert {n['filename']: n['sha256'] for n in build['nativeNoticeOrigin']['notices']} == pinned
+          extracted = root / 'factspdf-private-native-extracted'
+          extracted.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              infos = z.infolist()
+              assert len(infos) == 5 and {i.filename for i in infos} == allowed
+              assert z.testzip() is None
+              for item in infos:
+                  expected, = [r for r in report['members'] if r['path'] == item.filename]
+                  payload = z.read(item)
+                  assert len(payload) == expected['bytes']
+                  assert hashlib.sha256(payload).hexdigest() == expected['sha256']
+                  mode = 0o100755 if item.filename.endswith('/FactsPDF.Cli') else 0o100644
+                  assert item.create_system == 3 and item.external_attr >> 16 == mode
+                  destination = extracted / item.filename
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(payload)
+                  destination.chmod(mode & 0o777)
+          native = extracted / 'FactsPDF.Native/FactsPDF.Cli'
+          build = json.loads((root / 'factspdf-private-build/private-build.json').read_text())
+          record, = [r for r in build['files'] if r['path'] == 'native/FactsPDF.Cli']
+          assert native.read_bytes()[:4] == b'\x7fELF'
+          assert hashlib.sha256(native.read_bytes()).hexdigest() == record['sha256']
+          assert (extracted / 'FactsPDF.Native/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          for name, digest in pinned.items():
+              assert hashlib.sha256((extracted / 'FactsPDF.Native/notices/dotnet' / name).read_bytes()).hexdigest() == digest
+          print('Real private Linux native software ZIP: extracted executable, original license, target-pack notices, source SHA and mode verified')
+          PY
+          python3 scripts/verify_native_feature_paths.py \
+            --executable "$RUNNER_TEMP/factspdf-private-native-extracted/FactsPDF.Native/FactsPDF.Cli" \
+            --output "$RUNNER_TEMP/factspdf-private-native-feature-evidence"
+          cp "$RUNNER_TEMP/factspdf-private-native/native-archive.json" artifacts/first-use/private-native-archive.json
+          cp "$RUNNER_TEMP/factspdf-private-native-feature-evidence/report.json" artifacts/first-use/private-native-feature-report.json
+      - name: Assemble and independently extract actual corresponding-source delivery payload
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_private_source_payload.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-source --output "$RUNNER_TEMP/factspdf-private-source"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, tarfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          folder = root / 'factspdf-private-source'
+          receipt = json.loads((folder / 'source-archive.json').read_text())
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert receipt['sourceHead'] == head
+          assert receipt['archive']['filename'] == 'FactsPDF.0.1.0-preview.1.source.tar.gz'
+          assert not any(receipt[key] for key in (
+              'candidateAssembled', 'independentlyValidated', 'published',
+              'distributionAuthorized'))
+          archive = folder / receipt['archive']['filename']
+          assert archive.stat().st_size == receipt['archive']['bytes']
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == receipt['archive']['sha256']
+          prefix = 'FactsPDF.0.1.0-preview.1.source/'
+          extracted = root / 'factspdf-private-source-extracted'
+          extracted.mkdir()
+          # Incrementally bound decompression and TAR-header traversal. Never
+          # call getmembers() before enforcing the 513-entry safety limit.
+          with tarfile.open(archive, 'r|gz') as stream:
+              files = {}
+              count = 0
+              total = 0
+              for item in stream:
+                  count += 1
+                  assert count <= 513, 'Source TAR entry-count budget'
+                  if count == 1:
+                      assert item.isdir() and item.name == prefix.rstrip('/')
+                      continue
+                  assert item.isfile() and not item.issym() and not item.islnk()
+                  assert item.name.startswith(prefix)
+                  relative = item.name[len(prefix):]
+                  assert relative and all(p not in ('', '.', '..') for p in relative.split('/'))
+                  assert '\\' not in relative and ':' not in relative and relative not in files
+                  assert 0 < item.size <= 8 * 1024 * 1024 and item.mode == 0o644
+                  total += item.size
+                  assert total <= 64 * 1024 * 1024, 'Source TAR expanded-byte budget'
+                  payload = stream.extractfile(item).read()
+                  assert len(payload) == item.size
+                  files[relative] = payload
+                  target = extracted / relative
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(payload)
+              assert 60 < count <= 513
+          assert {r['path'] for r in receipt['members']} == set(files)
+          for rec in receipt['members']:
+              payload = files[rec['path']]
+              assert len(payload) == rec['bytes'] and hashlib.sha256(payload).hexdigest() == rec['sha256']
+          assert files['LICENSE.md'] == pathlib.Path('LICENSE.md').read_bytes()
+          assert files['global.json'] == pathlib.Path('global.json').read_bytes()
+          assert files['Directory.Build.props'] == pathlib.Path('Directory.Build.props').read_bytes()
+          assert files['shared/PageFurnitureJson.cs'] == pathlib.Path('shared/PageFurnitureJson.cs').read_bytes()
+          assert 'src/FactsPDF.Cli/FactsPDF.Cli.csproj' in files
+          assert 'src/FactsPDF/FactsPDF.csproj' in files
+          assert 'examples/first-use/FirstUse.csproj' in files
+          manifest = json.loads(files['SOURCE-MANIFEST.json'])
+          assert manifest['sourceHead'] == head and manifest['packageVersion'] == '0.1.0-preview.1'
+          assert manifest['generatedMembers'] == ['SOURCE-BUILD.md', 'SOURCE-MANIFEST.json']
+          expected = {r['path'] for r in manifest['trackedMembers']}
+          assert expected == set(files) - set(manifest['generatedMembers'])
+          for rec in manifest['trackedMembers']:
+              path = rec['path']
+              payload = files[path]
+              assert len(payload) == rec['bytes']
+              assert hashlib.sha256(payload).hexdigest() == rec['sha256']
+              actual_git = subprocess.check_output(['git', 'cat-file', 'blob', head + ':' + path])
+              assert payload == actual_git
+          assert head.encode() in files['SOURCE-BUILD.md']
+          assert not any(name.startswith(('.git', 'bin/', 'obj/')) or name.endswith(
+              ('.ttf', '.otf', '.pdf', '.pdb', '.dll', '.exe')) for name in files)
+          print('Independent source payload extraction, exact Git bytes, build closure, license and budgets verified')
+          PY
+          cp "$RUNNER_TEMP/factspdf-private-source/source-archive.json" artifacts/first-use/private-source-archive.json
+      - name: Rebuild independently extracted corresponding source offline and execute its CLI
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/factspdf-private-source-extracted"
+          test -f "$source_root/SOURCE-MANIFEST.json"
+          test ! -e "$source_root/.git"
+          source_head="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sourceHead"])' "$source_root/SOURCE-MANIFEST.json")"
+          test "$source_head" = "$(git rev-parse HEAD)"
+          test "$(dotnet --version)" = "10.0.402"
+          offline_config="$RUNNER_TEMP/factspdf-private-source-nuget.config"
+          source_feed="$RUNNER_TEMP/factspdf-private-source-feed"
+          mkdir -p "$RUNNER_TEMP/factspdf-private-source-packages" "$source_feed"
+          # SDK 10.0.402 requires the pinned ILLink.Tasks 10.0.13 package.
+          # Copy only its hashed NuGet archive from the earlier clean build into
+          # a local feed; never restore from checkout outputs or the network.
+          python3 - <<'PY'
+          import base64, hashlib, os, pathlib, shutil
+          cache = pathlib.Path.home() / '.nuget/packages/microsoft.net.illink.tasks/10.0.13'
+          archive = cache / 'microsoft.net.illink.tasks.10.0.13.nupkg'
+          digest_file = cache / 'microsoft.net.illink.tasks.10.0.13.nupkg.sha512'
+          for path in (archive, digest_file):
+              if not path.is_file() or path.is_symlink() or not path.stat().st_size:
+                  raise AssertionError('Missing/invalid pinned ILLink package cache member: ' + str(path))
+          digest = hashlib.sha512()
+          with archive.open('rb') as stream:
+              for block in iter(lambda: stream.read(1024 * 1024), b''):
+                  digest.update(block)
+          actual = base64.b64encode(digest.digest()).decode('ascii')
+          if actual != digest_file.read_text(encoding='ascii').strip():
+              raise AssertionError('ILLink package archive differs from recorded NuGet cache SHA512')
+          shutil.copyfile(archive, pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-source-feed' / archive.name)
+          print('Pinned ILLink.Tasks 10.0.13 archive checksum verified for offline extracted-source restore')
+          PY
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<configuration><packageSources><clear /><add key="verified-local" value="'"$source_feed"'" /></packageSources></configuration>' > "$offline_config"
+          (
+            cd "$source_root"
+            export NUGET_PACKAGES="$RUNNER_TEMP/factspdf-private-source-packages"
+            dotnet restore src/FactsPDF.Cli/FactsPDF.Cli.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.13
+            dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.13
+            dotnet restore tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.13
+            dotnet build tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.13
+            dotnet src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll examples/quick-start.html "$RUNNER_TEMP/factspdf-private-source-rebuilt.pdf"
+          )
+          qpdf --check "$RUNNER_TEMP/factspdf-private-source-rebuilt.pdf"
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+          pdf = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-source-rebuilt.pdf'
+          if not pdf.read_bytes().startswith(b'%PDF-'):
+              raise AssertionError('No real PDF from the independently extracted source')
+          info = subprocess.check_output(['pdfinfo', str(pdf)], text=True)
+          if not re.search(r'(?m)^Pages:\s+1\s*$', info):
+              raise AssertionError('Extracted-source CLI quick-start must produce one page')
+          text = subprocess.check_output(['pdftotext', '-layout', str(pdf), '-'], text=True)
+          for expected in ('SERVICE REPORT', 'Example Client', 'Reports prepared',
+                           'Records reviewed', 'Synthetic demonstration data.'):
+              if expected not in text:
+                  raise AssertionError('Missing extractable PDF content: ' + expected)
+          print('Source-only archive: offline CLI and PackageInspector rebuilt outside checkout; real one-page searchable PDF verified')
+          PY
+      - name: Stage exactly five source-bound private Linux software payloads (not a release)
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_private_five_payloads.py' -v
+          python3 scripts/stage_delivery_candidate.py assemble-five \
+            --build "$RUNNER_TEMP/factspdf-private-build" \
+            --managed "$RUNNER_TEMP/factspdf-private-managed" \
+            --native "$RUNNER_TEMP/factspdf-private-native" \
+            --source "$RUNNER_TEMP/factspdf-private-source" \
+            --examples "$RUNNER_TEMP/factspdf-private-examples" \
+            --output "$RUNNER_TEMP/factspdf-private-five-staged"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          folder = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-five-staged'
+          actual = {p.name for p in folder.iterdir()}
+          names = {
+              'FactsPDF.0.1.0-preview.1.nupkg',
+              'FactsPDF.Cli.0.1.0-preview.1.managed.zip',
+              'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip',
+              'FactsPDF.0.1.0-preview.1.source.tar.gz',
+              'FactsPDF.0.1.0-preview.1.examples.zip',
+          }
+          assert actual == names | {'candidate-staging.json'}
+          report = json.loads((folder / 'candidate-staging.json').read_text())
+          assert report['sourceHead'] == subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert report['identity']['profile'] == 'local-linux'
+          assert report['phase'] == 'five-payloads-staged-awaiting-independent-verification'
+          assert report['candidateBuilt'] and report['candidateAssembled']
+          assert not any(report[x] for x in (
+              'independentlyValidated', 'published', 'distributionAuthorized',
+              'windowsBinaryRetained'))
+          assert report['notFinalCandidate'] and len(report['payloads']) == 5
+          assert {r['filename'] for r in report['payloads']} == names
+          assert len({r['producerReceiptSha256'] for r in report['payloads']}) == 5
+          for item in report['payloads']:
+              payload = folder / item['filename']
+              assert payload.stat().st_size == item['bytes']
+              digest = hashlib.sha256()
+              with payload.open('rb') as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b''):
+                      digest.update(block)
+              assert digest.hexdigest() == item['sha256']
+          assert not (folder / 'candidate-manifest.json').exists()
+          assert not (folder / 'SHA256SUMS').exists()
+          print('Five actual source-bound software payloads retained privately; independent final candidate gate still pending')
+          PY
+          cp "$RUNNER_TEMP/factspdf-private-five-staged/candidate-staging.json" artifacts/first-use/private-five-payload-staging.json
+      - name: Independently install and execute the exact staged five-payload copies
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, tarfile, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          staged = root / 'factspdf-private-five-staged'
+          result = json.loads((staged / 'candidate-staging.json').read_text())
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert result['sourceHead'] == head
+          assert result['identity']['profile'] == 'local-linux'
+          assert result['candidateBuilt'] and result['candidateAssembled']
+          assert not any(result[k] for k in ('independentlyValidated', 'published',
+                                            'distributionAuthorized'))
+          assert result['notFinalCandidate'] and not result['windowsBinaryRetained']
+          names = {
+              'package': 'FactsPDF.0.1.0-preview.1.nupkg',
+              'managed': 'FactsPDF.Cli.0.1.0-preview.1.managed.zip',
+              'native': 'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip',
+              'source': 'FactsPDF.0.1.0-preview.1.source.tar.gz',
+              'examples': 'FactsPDF.0.1.0-preview.1.examples.zip',
+          }
+          records = result['payloads']
+          assert len(records) == 5 and {r['role']: r['filename'] for r in records} == names
+          assert {p.name for p in staged.iterdir()} == set(names.values()) | {'candidate-staging.json'}
+          for record in records:
+              path = staged / record['filename']
+              assert path.is_file() and not path.is_symlink() and 0 < path.stat().st_size <= 256 * 1024 * 1024
+              assert path.stat().st_size == record['bytes']
+              digest = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b''):
+                      digest.update(block)
+              assert digest.hexdigest() == record['sha256']
+          members = {
+              'managed': {
+                  'FactsPDF.Cli/FactsPDF.Cli.dll', 'FactsPDF.Cli/FactsPDF.dll',
+                  'FactsPDF.Cli/FactsPDF.Cli.deps.json',
+                  'FactsPDF.Cli/FactsPDF.Cli.runtimeconfig.json',
+                  'FactsPDF.Cli/LICENSE.md', 'FactsPDF.Cli/CLI-README.md',
+              },
+              'native': {
+                  'FactsPDF.Native/FactsPDF.Cli', 'FactsPDF.Native/LICENSE.md',
+                  'FactsPDF.Native/CLI-README.md',
+                  'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                  'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT',
+              },
+              'examples': {
+                  'FactsPDF.Examples/first-use/FirstUse.csproj',
+                  'FactsPDF.Examples/first-use/Program.cs',
+                  'FactsPDF.Examples/first-use/NuGet.Config',
+                  'FactsPDF.Examples/first-use/input.html',
+                  'FactsPDF.Examples/first-use/unsupported.html',
+                  'FactsPDF.Examples/first-use/expected-pages.json',
+                  'FactsPDF.Examples/global.json', 'FactsPDF.Examples/LICENSE.md',
+                  'FactsPDF.Examples/README.md',
+                  'FactsPDF.Examples/EXAMPLES-MANIFEST.json',
+              },
+          }
+          budgets = {'managed': 64 * 1024 * 1024,
+                     'native': 256 * 1024 * 1024,
+                     'examples': 4 * 1024 * 1024}
+          for kind in ('managed', 'native', 'examples'):
+              extracted = root / ('factspdf-staged-' + kind + '-extracted')
+              extracted.mkdir(mode=0o700)
+              with zipfile.ZipFile(staged / names[kind]) as z:
+                  infos = z.infolist()
+                  assert len(infos) == len(members[kind])
+                  assert {info.filename for info in infos} == members[kind]
+                  # Reject oversized expanded content BEFORE testzip decompresses it.
+                  total = 0
+                  for info in infos:
+                      mode = 0o100755 if info.filename == 'FactsPDF.Native/FactsPDF.Cli' else 0o100644
+                      assert info.create_system == 3 and info.external_attr >> 16 == mode
+                      assert 0 < info.file_size <= budgets[kind]
+                      total += info.file_size
+                      assert total <= budgets[kind]
+                  assert z.testzip() is None
+                  for info in infos:
+                      mode = 0o100755 if info.filename == 'FactsPDF.Native/FactsPDF.Cli' else 0o100644
+                      data = z.read(info)
+                      assert len(data) == info.file_size
+                      path = extracted / info.filename
+                      path.parent.mkdir(parents=True, exist_ok=True)
+                      path.write_bytes(data)
+                      path.chmod(mode & 0o777)
+              if kind == 'examples':
+                  manifest = json.loads((extracted / 'FactsPDF.Examples/EXAMPLES-MANIFEST.json').read_text())
+                  assert manifest['sourceHead'] == head
+                  assert manifest['version'] == '0.1.0-preview.1'
+          source_prefix = 'FactsPDF.0.1.0-preview.1.source/'
+          with tarfile.open(staged / names['source'], 'r:gz') as stream:
+              entries = stream.getmembers()
+              assert 60 < len(entries) <= 513
+              assert entries[0].isdir() and entries[0].name == source_prefix[:-1]
+              paths = set()
+              for item in entries[1:]:
+                  assert item.isfile() and item.name.startswith(source_prefix)
+                  relative = item.name[len(source_prefix):]
+                  assert relative and all(part not in ('', '.', '..') for part in relative.split('/'))
+                  assert '\\' not in relative and ':' not in relative and relative not in paths
+                  assert 0 < item.size <= 8 * 1024 * 1024 and item.mode == 0o644
+                  paths.add(relative)
+              assert {'SOURCE-MANIFEST.json', 'LICENSE.md', 'SOURCE-BUILD.md',
+                      'src/FactsPDF.Cli/FactsPDF.Cli.csproj',
+                      'tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj'} <= paths
+              source_manifest = json.load(stream.extractfile(source_prefix + 'SOURCE-MANIFEST.json'))
+              assert source_manifest['sourceHead'] == head
+              assert source_manifest['packageVersion'] == '0.1.0-preview.1'
+          assert (root / 'factspdf-staged-native-extracted/FactsPDF.Native/FactsPDF.Cli').read_bytes()[:4] == b'\x7fELF'
+          assert (root / 'factspdf-staged-managed-extracted/FactsPDF.Cli/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          assert (root / 'factspdf-staged-examples-extracted/FactsPDF.Examples/LICENSE.md').read_bytes() == pathlib.Path('LICENSE.md').read_bytes()
+          print('All five staged software bytes, frozen archive allowlists, source identity, notices and executable modes checked independently')
+          PY
+          # Use the exact freshly compiled, receipt-bound PackageInspector on the
+          # staged nupkg; the clean consumer alone does not check PE metadata.
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, sys
+          sys.path.insert(0, str(pathlib.Path('scripts').resolve()))
+          from verify_package import validate_package, binary_reader
+          root = pathlib.Path.cwd()
+          work = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-build'
+          receipt = json.loads((work / 'private-build.json').read_text())
+          inspector = list((work / 'inspector/bin').rglob('FactsPDF.PackageInspector.dll'))
+          assert len(inspector) == 1
+          assembly = inspector[0]
+          record, = [rec for rec in receipt['files']
+                     if rec['path'] == assembly.relative_to(work).as_posix()]
+          assert assembly.is_file() and not assembly.is_symlink()
+          assert assembly.stat().st_size == record['bytes']
+          assert hashlib.sha256(assembly.read_bytes()).hexdigest() == record['sha256']
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert receipt['sourceHead'] == head and receipt['identity']['profile'] == 'local-linux'
+          package = pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-five-staged/FactsPDF.0.1.0-preview.1.nupkg'
+          validate_package(package, root, '0.1.0-preview.1', head, 'net10.0',
+                           assembly_reader=binary_reader(assembly, 'dotnet'))
+          print('Staged NuGet package validated through actual source-bound compiled PackageInspector PE metadata oracle')
+          PY
+          python3 scripts/verify_release_candidate.py \
+            --cli-dll "$RUNNER_TEMP/factspdf-staged-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
+            --package "$RUNNER_TEMP/factspdf-private-five-staged/FactsPDF.0.1.0-preview.1.nupkg" \
+            --consumer-source "$RUNNER_TEMP/factspdf-staged-examples-extracted/FactsPDF.Examples/first-use" \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" \
+            --output "$RUNNER_TEMP/factspdf-staged-five-installed-consumer"
+          python3 scripts/verify_native_feature_paths.py \
+            --executable "$RUNNER_TEMP/factspdf-staged-native-extracted/FactsPDF.Native/FactsPDF.Cli" \
+            --output "$RUNNER_TEMP/factspdf-staged-five-native-features"
+          cp "$RUNNER_TEMP/factspdf-staged-five-installed-consumer/report.json" artifacts/first-use/private-five-staged-installed-consumer.json
+          cp "$RUNNER_TEMP/factspdf-staged-five-native-features/report.json" artifacts/first-use/private-five-staged-native-features.json
+      - name: Independently finalize the actual five staged private components and read them back
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_private_five_candidate.py' -v
+          python3 scripts/verify_private_five_candidate.py verify \
+            --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
+            --runner "$RUNNER_TEMP" \
+            --output "$RUNNER_TEMP/factspdf-private-five-verification"
+          python3 scripts/stage_delivery_candidate.py finalize \
+            --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
+            --verification "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json"
+          python3 scripts/verify_private_five_candidate.py readback \
+            --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
+            --verification "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json" \
+            > artifacts/first-use/private-five-final-readback.json
+          cp "$RUNNER_TEMP/factspdf-private-five-staged/candidate-manifest.json" artifacts/first-use/private-five-candidate-manifest.json
+          cp "$RUNNER_TEMP/factspdf-private-five-staged/SHA256SUMS" artifacts/first-use/private-five-SHA256SUMS
+          cp "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json" artifacts/first-use/private-five-payload-verification.json
+          # Retain each actual hashed report at the relative location referenced
+          # by the independent verification JSON; do not upload software.
+          cp -R "$RUNNER_TEMP/factspdf-private-five-verification/reports" artifacts/first-use/reports
+          # Software payloads remain exclusively in this private CI runner.
+          # These receipts do not authorize release, customer delivery or font distribution.
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -124,7 +674,14 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.402'
+      - name: Gate Windows private candidate source and inspector inputs before build
+        shell: pwsh
+        run: |
+          python -m unittest discover -s scripts -p test_stage_delivery_candidate.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Candidate source preflight tests failed" }
+          python scripts/stage_delivery_candidate.py preflight --profile win-x64-validation --output (Join-Path $env:RUNNER_TEMP 'factspdf-candidate-preflight')
+          if ($LASTEXITCODE -ne 0) { throw "Candidate source preflight failed" }
       - name: Install independent PDF tools from the official signed MSYS2 repository
         id: msys2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
@@ -137,12 +694,20 @@ jobs:
         run: |
           mkdir -p artifacts
           pacman -Q mingw-w64-ucrt-x86_64-poppler mingw-w64-ucrt-x86_64-fontconfig > artifacts/windows-aot-tools.txt
-      - name: Publish a real Windows x64 Native AOT executable
+      - name: Publish pinned private Windows x64 Native AOT executable
         shell: pwsh
         run: |
           dotnet --info | Out-File artifacts/windows-aot-toolchain.txt
-          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r win-x64 -p:PublishAot=true -o artifacts/windows-native 2>&1 | Tee-Object artifacts/windows-aot-publish.log
-          if ($LASTEXITCODE -ne 0) { throw "Windows Native AOT publish failed" }
+          $privateBuild = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-build'
+          python scripts/stage_delivery_candidate.py build --profile win-x64-validation --output $privateBuild 2>&1 | Tee-Object artifacts/windows-aot-publish.log
+          if ($LASTEXITCODE -ne 0) {
+            $diagnostic = Join-Path $privateBuild 'logs/native-publish.log'
+            if (Test-Path -LiteralPath $diagnostic) { Get-Content -LiteralPath $diagnostic -Tail 120 }
+            throw "Pinned Windows private candidate Native AOT build failed"
+          }
+          New-Item -ItemType Directory -Force -Path artifacts/windows-native | Out-Null
+          Copy-Item -LiteralPath (Join-Path $privateBuild 'native/FactsPDF.Cli.exe') -Destination artifacts/windows-native/FactsPDF.Cli.exe -ErrorAction Stop
+          Copy-Item -LiteralPath (Join-Path $privateBuild 'logs/native-publish.log') -Destination artifacts/windows-aot-private-publish.log -ErrorAction Stop
       - name: Run the isolated native exe and inspect two-page PDF and error recovery
         shell: pwsh
         env:
@@ -158,6 +723,93 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Native feature acceptance guard tests failed" }
           & $pythonExe scripts/verify_native_feature_paths.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-native-feature-evidence
           if ($LASTEXITCODE -ne 0) { throw "Windows Native AOT furniture/long-row acceptance failed" }
+      - name: Independently extract and execute private Windows Native AOT software ZIP
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          $pythonExe = (Get-Command python).Source
+          # All POSIX executable-mode/symlink archive tests are mandatory on Linux;
+          # on Windows/NTFS run the Windows PE positive and malformed-header cases.
+          $env:PYTHONPATH = (Resolve-Path scripts).Path
+          & $pythonExe -m unittest -v test_private_native_archive.NativeArchiveTests.test_windows_pe_profile_is_not_retained test_private_native_archive.NativeArchiveTests.test_reject_windows_truncated_wrong_architecture_and_sections
+          if ($LASTEXITCODE -ne 0) { throw "Windows native ZIP contract tests failed" }
+          $privateBuild = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-build'
+          $privateArchive = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-native'
+          & $pythonExe scripts/stage_delivery_candidate.py assemble-native --build $privateBuild --output $privateArchive
+          if ($LASTEXITCODE -ne 0) { throw "Windows private native ZIP assembly failed" }
+          @'
+          import hashlib, json, os
+          from pathlib import Path
+          import zipfile
+
+          temp = Path(os.environ['RUNNER_TEMP'])
+          build = json.loads((temp / 'factspdf-private-windows-build/private-build.json').read_text())
+          folder = temp / 'factspdf-private-windows-native'
+          report = json.loads((folder / 'native-archive.json').read_text())
+          assert build['candidateBuilt'] is True and build['identity']['profile'] == 'win-x64-validation'
+          assert report['sourceHead'] == build['sourceHead'] and report['identity'] == build['identity']
+          assert not any(report[k] for k in ('candidateAssembled', 'independentlyValidated',
+                                             'published', 'distributionAuthorized'))
+          record, = [r for r in build['files'] if r['path'] == 'native/FactsPDF.Cli.exe']
+          assert report['archive']['filename'] == 'FactsPDF.Cli.0.1.0-preview.1.native-win-x64.zip'
+          archive = folder / report['archive']['filename']
+          assert archive.stat().st_size == report['archive']['bytes']
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == report['archive']['sha256']
+          allowed = {'FactsPDF.Native/FactsPDF.Cli.exe', 'FactsPDF.Native/LICENSE.md',
+                     'FactsPDF.Native/CLI-README.md',
+                     'FactsPDF.Native/notices/dotnet/LICENSE.TXT',
+                     'FactsPDF.Native/notices/dotnet/THIRD-PARTY-NOTICES.TXT'}
+          assert len(report['members']) == 5 and {x['path'] for x in report['members']} == allowed
+          assert report['nativeNoticeOrigin'] == build['nativeNoticeOrigin']
+          compiler = report['nativeCompilerOrigin']
+          assert compiler == build['nativeCompilerOrigin']
+          assert build['nativeCompilerPackVerified'] is False
+          assert compiler['officialSignatureVerified'] is False
+          assert compiler['projectAssetsSha256'] == hashlib.sha256(
+              Path('src/FactsPDF.Cli/obj/project.assets.json').read_bytes()).hexdigest()
+          assert [p['packageId'] for p in compiler['packages']] == [
+              'Microsoft.DotNet.ILCompiler',
+              'runtime.win-x64.Microsoft.DotNet.ILCompiler']
+          assert all(p['version'] == '10.0.13' for p in compiler['packages'])
+          assert report['nativeNoticeOrigin']['packageId'] == 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
+          assert report['nativeNoticeOrigin']['version'] == '10.0.13'
+          extracted = temp / 'factspdf-private-windows-extracted'
+          extracted.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              infos = z.infolist()
+              assert len(infos) == 5 and {x.filename for x in infos} == allowed
+              assert z.testzip() is None
+              for item in infos:
+                  expected, = [x for x in report['members'] if x['path'] == item.filename]
+                  payload = z.read(item)
+                  assert item.create_system == 3 and item.external_attr >> 16 == 0o100644
+                  assert len(payload) == expected['bytes']
+                  assert hashlib.sha256(payload).hexdigest() == expected['sha256']
+                  target = extracted / item.filename
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(payload)
+          native = extracted / 'FactsPDF.Native/FactsPDF.Cli.exe'
+          assert native.read_bytes()[:2] == b'MZ'
+          assert native.stat().st_size == record['bytes']
+          assert hashlib.sha256(native.read_bytes()).hexdigest() == record['sha256']
+          assert (extracted / 'FactsPDF.Native/LICENSE.md').read_bytes() == Path('LICENSE.md').read_bytes()
+          for notice in build['nativeNoticeOrigin']['notices']:
+              name = notice['filename']
+              extracted_file = extracted / 'FactsPDF.Native/notices/dotnet' / name
+              staged_file = temp / 'factspdf-private-windows-build/native-notices' / name
+              assert extracted_file.read_bytes() == staged_file.read_bytes()
+              assert hashlib.sha256(extracted_file.read_bytes()).hexdigest() == notice['sha256']
+          print('Verified Windows native ZIP, executable bytes, original LICENSE and target-pack notices')
+          '@ | & $pythonExe -
+          if ($LASTEXITCODE -ne 0) { throw "Independent Windows native ZIP extraction/inventory failed" }
+          $env:PATH = (Join-Path $env:MSYS2_LOCATION 'ucrt64\bin') + ';' + $env:PATH
+          $extractedCli = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-extracted/FactsPDF.Native/FactsPDF.Cli.exe'
+          & $pythonExe scripts/verify_windows_aot.py --executable $extractedCli --output artifacts/windows-private-native-aot-evidence
+          if ($LASTEXITCODE -ne 0) { throw "Extracted Windows native PDF/recovery verification failed" }
+          & $pythonExe scripts/verify_native_feature_paths.py --executable $extractedCli --output artifacts/windows-private-native-feature-evidence
+          if ($LASTEXITCODE -ne 0) { throw "Extracted Windows native furniture/long-row verification failed" }
+          Copy-Item -LiteralPath (Join-Path $privateArchive 'native-archive.json') -Destination artifacts/windows-private-native-archive.json -ErrorAction Stop
       - name: Retain Windows native acceptance evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -169,5 +821,9 @@ jobs:
             artifacts/windows-aot-publish.log
             artifacts/windows-aot-toolchain.txt
             artifacts/windows-aot-tools.txt
+            artifacts/windows-aot-private-publish.log
+            artifacts/windows-private-native-archive.json
+            artifacts/windows-private-native-aot-evidence/
+            artifacts/windows-private-native-feature-evidence/
           if-no-files-found: warn
           retention-days: 7

@@ -76,6 +76,18 @@ class DeclaredPackageContractTests(unittest.TestCase):
         (packages / 'FactsPDF.0.1.0-dev.nupkg').write_bytes(b'stale')
         with self.assertRaises(AssertionError): package_check.local_package(self.root, '0.2.0')
 
+    def test_checked_in_first_use_reference_matches_current_package(self):
+        # The published local-copy recipe copies the csproj verbatim. Its exact
+        # PackageReference must resolve the package produced by current source,
+        # not an older dev package absent from the isolated local feed.
+        version, target = package_check.expected_contract(ROOT)
+        doc = ET.parse(ROOT / 'examples/first-use/FirstUse.csproj')
+        self.assertEqual(doc.findtext('.//TargetFramework'), target)
+        references = doc.findall('.//PackageReference')
+        self.assertEqual(len(references), 1)
+        self.assertEqual(references[0].attrib,
+                         {'Include': 'FactsPDF', 'Version': f'[{version}]'})
+
     def test_staged_consumer_uses_trusted_declarations_without_changing_example(self):
         source = ROOT / 'examples/first-use'
         original = (source / 'FirstUse.csproj').read_bytes()
