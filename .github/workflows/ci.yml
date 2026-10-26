@@ -615,6 +615,7 @@ jobs:
       - name: Independently finalize the actual five staged private components and read them back
         run: |
           set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_private_five_candidate.py' -v
           python3 scripts/verify_private_five_candidate.py verify \
             --candidate "$RUNNER_TEMP/factspdf-private-five-staged" \
             --runner "$RUNNER_TEMP" \
