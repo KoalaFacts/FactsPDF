@@ -239,6 +239,22 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
             require((base / name).read_bytes() == data, "Extracted executable archive differs: " + role)
     require(unpacked["native"]["FactsPDF.Native/FactsPDF.Cli"][:4] == b"\x7fELF",
             "Native Linux binary missing ELF signature")
+    original_license = file_bytes(root / "LICENSE.md", 1024 * 1024)
+    for role, member in (
+        ("managed", "FactsPDF.Cli/LICENSE.md"),
+        ("native", "FactsPDF.Native/LICENSE.md"),
+        ("examples", "FactsPDF.Examples/LICENSE.md"),
+    ):
+        require(unpacked[role][member] == original_license,
+                "Shipped license differs from committed license: " + role)
+    # Independently frozen upstream Linux NativeAOT 10.0.13 notice hashes.
+    # The runtime-pack texts are not the SDK's or compiler-pack's notices.
+    for filename, expected in {
+        "LICENSE.TXT": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "THIRD-PARTY-NOTICES.TXT": "66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54",
+    }.items():
+        require(digest(unpacked["native"]["FactsPDF.Native/notices/dotnet/" + filename]) == expected,
+                "Native runtime-pack legal notice differs from independently pinned bytes: " + filename)
     require(unpacked["managed"]["FactsPDF.Cli/FactsPDF.dll"] ==
             unpacked["package"]["lib/net10.0/FactsPDF.dll"],
             "Managed and installed library assemblies differ")
