@@ -652,8 +652,16 @@ jobs:
           test -s "$RUNNER_TEMP/factspdf-private-five-staged/candidate-manifest.json"
           test -s "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json"
           openssl x509 -in eng/private-candidate-transport.crt -noout -checkend 0
+          # A public recipient certificate can be replaced without any private
+          # key. Fail closed unless it is the independently handed-off owner cert.
+          cert_sha256="$(openssl x509 -in eng/private-candidate-transport.crt -outform DER | openssl dgst -sha256 | awk '{print $NF}')"
+          if [[ "$cert_sha256" != "c034c93201bf056d2d12142f7fcb616ff3ab00707d7ddd9e382cfacb22ddb585" ]]; then
+            echo "Unexpected private-candidate recipient certificate" >&2
+            exit 1
+          fi
           trap 'rm -f "$RUNNER_TEMP/factspdf-private-transient.tar.gz"' EXIT
-          python3 - <<'PY'
+          # The binding tests below use assert: -I ignores PYTHONOPTIMIZE.
+          python3 -I - <<'PY'
           import hashlib, io, json, os, pathlib, tarfile
           root = pathlib.Path(os.environ['RUNNER_TEMP'])
           staged = root / 'factspdf-private-five-staged'
