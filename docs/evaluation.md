@@ -6,10 +6,11 @@ reports for .NET applications and command-line integrations.
 
 The current build is experimental. Evaluate a specific template and deployment
 environment before making a production commitment. The source declares
-`0.1.0-preview.1`. The repository's current README records private CI
-candidate checks, but no durable, authorised customer-delivery package or
-public CLI/NuGet release is available. The commands below use a source checkout;
-they do not grant evaluation or commercial rights.
+`0.1.0-preview.1`. Five real source-bound software components are now
+privately retained by the owner after independent verification, but **none
+has been authorised for customer installation or distribution**. No public
+CLI/NuGet release or general evaluation grant exists. The commands below use
+a source checkout and do not themselves grant evaluation or commercial rights.
 
 **Working with an existing reporting template?** [Open a template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md). Share a redacted layout description, not customer documents or credentials. A public request starts a scope discussion only; see licensing below before building or running FactsPDF.
 
@@ -140,22 +141,33 @@ software distribution.
 
 ## Delivery status
 
-**Engineering checkpoint (26 October 2026):** Private-candidate code is merged
-in [PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60), and
-[main CI 40283254200](https://github.com/KoalaFacts/FactsPDF/actions/runs/40283254200)
-succeeded for source commit `1a81f69a4beaf92a8710e5b79ce355440efb00b0`.
-It built and independently exercised a five-component Linux candidate, including
-installed .NET API/managed CLI and real Native AOT paths, with six evidence
-reports; Windows Native AOT was also executed. These **runner-local software
-components were not durably retained or made available for customer installation**.
-The retained evidence archive is not a software distribution or an evaluation
-license. Mechanical replay with the managed CLI built from
+**Engineering checkpoint (27 October 2026):** The private-candidate toolchain
+merged in [PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60).
+[PR #63](https://github.com/KoalaFacts/FactsPDF/pull/63) added encrypted
+retention; [exact-main CI 40392917028](https://github.com/KoalaFacts/FactsPDF/actions/runs/40392917028)
+passed at source `6a98d707b62edc7116a84e4f37c18a188b882e03`.
+It exercised installed .NET API, managed CLI and actual Linux/Windows Native AOT
+with six raw verification reports.
+
+**All five real software components are now durably stored in the owner's
+private Library:** the source-bound NuGet package, managed CLI ZIP, Linux x64
+Native AOT CLI ZIP, examples ZIP and source archive. The owner authenticated
+the GitHub Actions origin and sealed payload, verified the 15 members, receipts
+and checksums, then read all five software files back byte-for-byte. A clean
+SDK-free run of the retained Linux Native AOT binary produced a searchable
+two-page PDF with exact expected text and failure/output-preservation checks.
+The independent local run did not repeat managed consumer or Windows Native
+AOT installation; those have exact-main CI evidence.
+
+Mechanical managed-CLI replay at earlier engine source
 `1a81f69a4beaf92a8710e5b79ce355440efb00b0` matched all 52 original PDFs
-byte for byte (311 pages). Subsequent documentation-only changes preserve the
-renderer and replay inputs; this is source-equivalent evidence, not a new run
-or human approval. Local strict qpdf verification, styled-CJK inputs, human page review and
-legal distribution approval remain open; consult
-[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for the latest state.
+byte for byte (311 pages). Later retention/documentation changes preserve the
+renderer but are not a new replay or human approval. Strict local qpdf checking,
+original styled-CJK inputs, changed-page human review and legal authorisation
+remain open. **Owner-only software retention is not a customer-delivery
+package, public Release, evaluation licence or grant of commercial use.**
+Consult [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for the
+current delivery gates.
 
 The accepted product scope is documented in the
 [first usable release design](superpowers/specs/2026-10-11-first-usable-release-scope-design.md).
