@@ -308,24 +308,33 @@ jobs:
           prefix = 'FactsPDF.0.1.0-preview.1.source/'
           extracted = root / 'factspdf-private-source-extracted'
           extracted.mkdir()
-          with tarfile.open(archive, 'r:gz') as stream:
-              entries = stream.getmembers()
-              assert len(entries) > 60 and len(entries) <= 513
-              assert entries[0].isdir() and entries[0].name == prefix.rstrip('/')
+          # Incrementally bound decompression and TAR-header traversal. Never
+          # call getmembers() before enforcing the 513-entry safety limit.
+          with tarfile.open(archive, 'r|gz') as stream:
               files = {}
-              for item in entries[1:]:
+              count = 0
+              total = 0
+              for item in stream:
+                  count += 1
+                  assert count <= 513, 'Source TAR entry-count budget'
+                  if count == 1:
+                      assert item.isdir() and item.name == prefix.rstrip('/')
+                      continue
                   assert item.isfile() and not item.issym() and not item.islnk()
                   assert item.name.startswith(prefix)
                   relative = item.name[len(prefix):]
                   assert relative and all(p not in ('', '.', '..') for p in relative.split('/'))
                   assert '\\' not in relative and ':' not in relative and relative not in files
-                  assert item.size <= 8 * 1024 * 1024 and item.mode == 0o644
+                  assert 0 < item.size <= 8 * 1024 * 1024 and item.mode == 0o644
+                  total += item.size
+                  assert total <= 64 * 1024 * 1024, 'Source TAR expanded-byte budget'
                   payload = stream.extractfile(item).read()
                   assert len(payload) == item.size
                   files[relative] = payload
                   target = extracted / relative
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(payload)
+              assert 60 < count <= 513
           assert {r['path'] for r in receipt['members']} == set(files)
           for rec in receipt['members']:
               payload = files[rec['path']]
@@ -630,6 +639,9 @@ jobs:
           cp "$RUNNER_TEMP/factspdf-private-five-staged/candidate-manifest.json" artifacts/first-use/private-five-candidate-manifest.json
           cp "$RUNNER_TEMP/factspdf-private-five-staged/SHA256SUMS" artifacts/first-use/private-five-SHA256SUMS
           cp "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json" artifacts/first-use/private-five-payload-verification.json
+          # Retain each actual hashed report at the relative location referenced
+          # by the independent verification JSON; do not upload software.
+          cp -R "$RUNNER_TEMP/factspdf-private-five-verification/reports" artifacts/first-use/reports
           # Software payloads remain exclusively in this private CI runner.
           # These receipts do not authorize release, customer delivery or font distribution.
       - name: Retain isolated first-use evidence
