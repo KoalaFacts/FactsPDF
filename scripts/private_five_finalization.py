@@ -140,9 +140,15 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
     stage_payloads = staging.get("payloads")
     if not isinstance(stage_payloads, list) or len(stage_payloads) != 5:
         raise ValueError("Expected exactly five staged payloads")
-    if {p.name for p in candidate.iterdir()} != (
-            set(EXPECTED.values()) | {"candidate-staging.json"}):
+    staged_names = set(EXPECTED.values()) | {"candidate-staging.json"}
+    current_names = {entry.name for entry in candidate.iterdir()}
+    # A process may terminate after linking the manifest but before SHA256SUMS.
+    # Only that exact partial state is recoverable, after full re-verification.
+    interrupted = current_names == staged_names | {"candidate-manifest.json"}
+    if current_names != staged_names and not interrupted:
         raise ValueError("Unexpected, missing or already finalized candidate file")
+    if interrupted and (candidate / "candidate-manifest.json").is_symlink():
+        raise ValueError("Symlinked interrupted manifest cannot be resumed")
 
     proof, proof_bytes = _read_json(verification)
     expected_id = {
@@ -214,6 +220,7 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
     if not isinstance(checks, dict) or set(checks) != REQUIRED_CHECKS:
         raise ValueError("Missing required independent acceptance checks")
     evidence_root = verification.parent.resolve(strict=True)
+    evidence_records = []
     for name, item in checks.items():
         if not isinstance(item, dict) or set(item) != {"status", "evidenceFile", "bytes", "sha256"} or item["status"] != "passed":
             raise ValueError("Incomplete acceptance evidence for " + name)
@@ -223,14 +230,23 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
                 not isinstance(item["sha256"], str) or not HEX64.fullmatch(item["sha256"])):
             raise ValueError("Invalid independent evidence path/digest for " + name)
         path = evidence_root / rel
-        if path.resolve() == physical_candidate or physical_candidate in path.resolve().parents:
-            raise ValueError("Self-referential independent evidence")
-        if (path.parent.is_symlink() or
-                path.resolve(strict=True).parent != path.parent.resolve(strict=True)):
+        # Check each component, not just the immediate parent. An intermediate
+        # symlink can otherwise redirect reports/x/y.json outside the evidence root.
+        component = evidence_root
+        for segment in rel.split("/"):
+            component = component / segment
+            if component.is_symlink():
+                raise ValueError("Symlinked independent evidence path")
+        physically_resolved = path.resolve(strict=True)
+        reports_root = (evidence_root / "reports").resolve(strict=True)
+        if (physically_resolved == physical_candidate or
+                physical_candidate in physically_resolved.parents or
+                reports_root not in physically_resolved.parents):
             raise ValueError("Evidence path leaves verified report folder")
         size, evidence_digest = _sha(path)
         if size != item["bytes"] or evidence_digest != item["sha256"]:
             raise ValueError("Independent acceptance evidence was changed")
+        evidence_records.append((path, size, evidence_digest))
     if current_source(root) != source_head:
         raise ValueError("Source changed during final verification linkage")
 
@@ -268,12 +284,23 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
             raise ValueError("Staging receipt changed before final checksum installation")
         if hashlib.sha256(verification.read_bytes()).hexdigest() != manifest["verificationReceiptSha256"]:
             raise ValueError("Independent verification changed during finalization")
-        os.link(scratch / "candidate-manifest.json", candidate / "candidate-manifest.json")
-        try:
+        # Catch a mutation between initial evidence verification and final files.
+        for path, recorded_size, recorded_sha in evidence_records:
+            if _sha(path) != (recorded_size, recorded_sha):
+                raise ValueError("Independent acceptance evidence changed before finalization")
+        if interrupted:
+            previous = candidate / "candidate-manifest.json"
+            if previous.is_symlink() or previous.read_bytes() != manifest_bytes:
+                raise ValueError("Interrupted finalization manifest is stale or modified")
+            # SHA256SUMS is the last-installed completion marker.
             os.link(scratch / "SHA256SUMS", candidate / "SHA256SUMS")
-        except BaseException:
-            (candidate / "candidate-manifest.json").unlink()
-            raise
+        else:
+            os.link(scratch / "candidate-manifest.json", candidate / "candidate-manifest.json")
+            try:
+                os.link(scratch / "SHA256SUMS", candidate / "SHA256SUMS")
+            except BaseException:
+                (candidate / "candidate-manifest.json").unlink()
+                raise
     return manifest
 
 
