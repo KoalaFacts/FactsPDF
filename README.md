@@ -7,10 +7,9 @@ that control their report templates. It supports English and Chinese text,
 explicit font styles, transparent PNGs, tables and pagination through a
 documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
-> **Current stage: experimental private preview source (`0.1.0-preview.1`).**
-> This source version is not a verified installable candidate yet. Run from source or build a local package. There is no published NuGet package
-> or standalone CLI release, and the API is not stable yet.
-> Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md).
+> **Current stage: unreleased `0.1.0-preview.1` source with privately verified build paths.**
+> Actual main CI has built and independently exercised the five-component private candidate on Linux, including clean installed API/CLI use; Windows Native AOT also ran. The software payloads are not durably retained for authorized customer delivery. There is no published NuGet package or standalone CLI release, and the API is not stable yet.
+> Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md). Check [licensing](#licensing) before use; CI verification does not grant evaluation rights.
 
 [Quick start](#generate-your-first-pdf) · [C# API](#use-the-net-api) ·
 [Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
@@ -204,14 +203,19 @@ The [Node subprocess](docs/node-cli-probe.md) and
 not published SDKs. Performance results apply to their documented workloads and
 environments; there is no general speed or resource guarantee.
 
-Structured page furniture is implemented in the development source. Private
-`0.1.0-preview.1` package and CLI components are being staged and tested in
-draft PR #60, but the complete, independently installed evaluation bundle has
-not passed final acceptance and nothing has been published or distributed.
-Outstanding gates include full legacy-PDF replay, original styled-CJK font
-coverage and reference-page review. Follow
-[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51)
-for current implementation and delivery evidence.
+Structured page furniture is implemented in the development source. The
+private candidate toolchain merged in [PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60).
+[Main CI 40283254200](https://github.com/KoalaFacts/FactsPDF/actions/runs/40283254200)
+verified five source-bound components, six independent evidence reports, extracted
+Linux package/CLI/Native AOT execution and failure recovery from actual main
+`1a81f69a4beaf92a8710e5b79ce355440efb00b0`. Windows Native AOT also passed.
+This **technical CI verification is not a retained, customer-installable private
+bundle**: the software payloads existed in a temporary runner workspace, while
+the persisted CI artifact contains evidence, not the software binaries. No
+NuGet package or standalone CLI was publicly released or distributed. Full
+52-case legacy-PDF replay, original styled-CJK font coverage, human page review,
+private software retention and distribution authorization remain open. Follow
+[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for current state.
 
 | Task | Documentation |
 | --- | --- |
