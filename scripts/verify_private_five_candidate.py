@@ -467,6 +467,37 @@ def readback(candidate: Path, verification: Path) -> dict:
     require(manifest["payloads"] == report["payloads"]
             and manifest["acceptanceChecks"] == report["checks"],
             "Final manifest does not match independently witnessed payloads")
+    # Final readback must verify the actual six source-bound evidence files,
+    # not only their names and hashes inside a receipt. Otherwise the report
+    # bundle can be removed or replaced after successful finalization while
+    # readback still announces a technically verified candidate.
+    checks = report.get("checks")
+    require(isinstance(checks, dict) and set(checks) == REQUIRED_CHECKS,
+            "Final independent evidence report set changed")
+    reports_dir = verification.parent / "reports"
+    require(reports_dir.is_dir() and not reports_dir.is_symlink(),
+            "Missing or symlinked independent evidence folder")
+    for check in sorted(REQUIRED_CHECKS):
+        item = checks[check]
+        expected_path = "reports/" + check + ".json"
+        require(isinstance(item, dict)
+                and set(item) == {"status", "evidenceFile", "bytes", "sha256"}
+                and item.get("status") == "passed"
+                and item.get("evidenceFile") == expected_path
+                and type(item.get("bytes")) is int
+                and 0 < item["bytes"] <= 1024 * 1024
+                and isinstance(item.get("sha256"), str)
+                and HEX.fullmatch(item["sha256"]) is not None,
+                "Final independent evidence record incomplete: " + check)
+        evidence = reports_dir / (check + ".json")
+        require(evidence.is_file() and not evidence.is_symlink(),
+                "Missing or symlinked independent evidence report: " + check)
+        raw = file_bytes(evidence, 1024 * 1024)
+        require(len(raw) == item["bytes"] and digest(raw) == item["sha256"],
+                "Final independent evidence bytes changed: " + check)
+        require(json.loads(raw).get("sourceCommit") == manifest["sourceHead"],
+                "Final independent evidence source identity changed: " + check)
+
     checksum_lines = file_bytes(candidate / "SHA256SUMS", 8 * 1024).decode("ascii").splitlines()
     expected = {p["filename"]: p["sha256"] for p in report["payloads"]}
     expected["candidate-manifest.json"] = digest(manifest_bytes)

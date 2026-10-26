@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from private_five_finalization import EXPECTED
+from private_five_finalization import EXPECTED, REQUIRED_CHECKS
 from verify_private_five_candidate import readback
 
 
@@ -22,7 +22,10 @@ class FinalCandidateReadbackTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.candidate = self.root / "private-candidate"
         self.candidate.mkdir()
-        self.verification = self.root / "independent-verification.json"
+        self.verification = self.root / "independent-verification" / "payload-verification.json"
+        self.verification.parent.mkdir()
+        reports = self.verification.parent / "reports"
+        reports.mkdir()
         source_head = "a" * 40
         identity = {
             "sourceHead": source_head,
@@ -51,13 +54,23 @@ class FinalCandidateReadbackTests(unittest.TestCase):
             content = ("test-only-not-software:" + role).encode()
             (self.candidate / filename).write_bytes(content)
             payloads.append({"filename": filename, "sha256": sha(content), "bytes": len(content)})
+        checks = {}
+        for name in sorted(REQUIRED_CHECKS):
+            evidence = (json.dumps(
+                {"sourceCommit": source_head, "check": name}, sort_keys=True
+            ) + "\n").encode()
+            (reports / (name + ".json")).write_bytes(evidence)
+            checks[name] = {
+                "status": "passed", "evidenceFile": "reports/" + name + ".json",
+                "bytes": len(evidence), "sha256": sha(evidence),
+            }
         report = {
             "identity": identity,
             "candidateStagingSha256": sha(staged),
             "frozenContractDigest": frozen,
             "actualToolchain": toolchain,
             "payloads": payloads,
-            "checks": {"control": True},
+            "checks": checks,
         }
         self.verification.write_text(json.dumps(report, sort_keys=True) + "\n")
         self.manifest = {
@@ -65,7 +78,7 @@ class FinalCandidateReadbackTests(unittest.TestCase):
             "phase": "private-linux-technically-verified-not-authorized",
             "sourceHead": source_head, "identity": identity,
             "frozenContractDigest": frozen, "actualToolchain": toolchain,
-            "payloads": payloads, "acceptanceChecks": {"control": True},
+            "payloads": payloads, "acceptanceChecks": checks,
             "verificationReceiptSha256": sha(self.verification.read_bytes()),
             "stagingReceiptSha256": sha(staged),
             "candidateAssembled": True, "independentlyValidated": True,
@@ -87,6 +100,46 @@ class FinalCandidateReadbackTests(unittest.TestCase):
         result = readback(self.candidate, self.verification)
         self.assertEqual(result["files"], 6)
         self.assertFalse(result["distributionAuthorized"])
+
+    def test_missing_independent_report_is_rejected(self):
+        name = sorted(REQUIRED_CHECKS)[0]
+        (self.verification.parent / "reports" / (name + ".json")).unlink()
+        with self.assertRaisesRegex(ValueError, "independent evidence"):
+            readback(self.candidate, self.verification)
+
+    def test_changed_independent_report_is_rejected(self):
+        name = sorted(REQUIRED_CHECKS)[0]
+        path = self.verification.parent / "reports" / (name + ".json")
+        path.write_bytes(path.read_bytes() + b"changed")
+        with self.assertRaisesRegex(ValueError, "independent evidence"):
+            readback(self.candidate, self.verification)
+
+    def test_symlinked_independent_report_is_rejected(self):
+        name = sorted(REQUIRED_CHECKS)[0]
+        path = self.verification.parent / "reports" / (name + ".json")
+        outside = self.root / "outside-report.json"
+        outside.write_bytes(path.read_bytes())
+        path.unlink()
+        path.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, "independent evidence"):
+            readback(self.candidate, self.verification)
+
+    def test_independent_report_source_identity_is_checked(self):
+        name = sorted(REQUIRED_CHECKS)[0]
+        path = self.verification.parent / "reports" / (name + ".json")
+        modified = (json.dumps(
+            {"sourceCommit": "0" * 40, "check": name}, sort_keys=True
+        ) + "\n").encode()
+        path.write_bytes(modified)
+        report = json.loads(self.verification.read_text())
+        report["checks"][name]["bytes"] = len(modified)
+        report["checks"][name]["sha256"] = sha(modified)
+        self.verification.write_text(json.dumps(report, sort_keys=True) + "\n")
+        self.manifest["acceptanceChecks"] = report["checks"]
+        self.manifest["verificationReceiptSha256"] = sha(self.verification.read_bytes())
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "source identity"):
+            readback(self.candidate, self.verification)
 
     def test_tampered_payload_is_rejected(self):
         (self.candidate / EXPECTED["package"]).write_bytes(b"tampered")
