@@ -241,11 +241,11 @@ class FivePayloadStagingTests(unittest.TestCase):
         return path
 
     def finalize_fixture(self, verification):
-        with patch('stage_delivery_candidate.current_source', return_value=SOURCE), \\
-                patch('stage_delivery_candidate.identity', return_value=self.selected), \\
-                patch('private_five_finalization.frozen_contract_digest',
-                      return_value='d' * 64):
-            return finalize_five(self.root, self.output, verification)
+        with patch('stage_delivery_candidate.current_source', return_value=SOURCE):
+            with patch('stage_delivery_candidate.identity', return_value=self.selected):
+                with patch('private_five_finalization.frozen_contract_digest',
+                           return_value='d' * 64):
+                    return finalize_five(self.root, self.output, verification)
 
     def test_final_checksums_bind_successful_external_payload_report(self):
         verification = self.verified_receipt()
