@@ -284,6 +284,16 @@ class FivePayloadStagingTests(unittest.TestCase):
             self.finalize_fixture(verification)
         self.assertFalse((self.output / 'candidate-manifest.json').exists())
 
+    def test_staging_cannot_alias_checkout_through_symlinked_parent(self):
+        import shutil
+        verification = self.verified_receipt()
+        shutil.copytree(self.output, self.root / 'candidate-inside-checkout')
+        parent_alias = self.root.parent / 'aliased-source'
+        parent_alias.symlink_to(self.root, target_is_directory=True)
+        self.output = parent_alias / 'candidate-inside-checkout'
+        with self.assertRaisesRegex(ValueError, 'physically external'):
+            self.finalize_fixture(verification)
+
     def test_wrong_staged_receipt_or_incomplete_check_set_is_rejected(self):
         verification = self.verified_receipt()
         proof = json.loads(verification.read_text())
