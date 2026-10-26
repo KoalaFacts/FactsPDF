@@ -212,8 +212,11 @@ Linux package/CLI/Native AOT execution and failure recovery from actual main
 This **technical CI verification is not a retained, customer-installable private
 bundle**: the software payloads existed in a temporary runner workspace, while
 the persisted CI artifact contains evidence, not the software binaries. No
-NuGet package or standalone CLI was publicly released or distributed. Full
-52-case legacy-PDF replay, original styled-CJK font coverage, human page review,
+NuGet package or standalone CLI was publicly released or distributed. Mechanical
+legacy replay with the managed CLI built from `1a81f69a4beaf92a8710e5b79ce355440efb00b0`
+matched all 52 original PDFs byte for byte (311 pages); subsequent documentation-only
+changes preserve the renderer and replay inputs, not a new execution record.
+Local strict qpdf verification, original styled-CJK font coverage, human page review,
 private software retention and distribution authorization remain open. Follow
 [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for current state.
 

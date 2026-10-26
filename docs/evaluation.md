@@ -147,7 +147,11 @@ installed .NET API/managed CLI and real Native AOT paths, with six evidence
 reports; Windows Native AOT was also executed. These **runner-local software
 components were not durably retained or made available for customer installation**.
 The retained evidence archive is not a software distribution or an evaluation
-license. The original 52-PDF replay, styled-CJK inputs, human page review and
+license. Mechanical replay with the managed CLI built from
+`1a81f69a4beaf92a8710e5b79ce355440efb00b0` matched all 52 original PDFs
+byte for byte (311 pages). Subsequent documentation-only changes preserve the
+renderer and replay inputs; this is source-equivalent evidence, not a new run
+or human approval. Local strict qpdf verification, styled-CJK inputs, human page review and
 legal distribution approval remain open; consult
 [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for the latest state.
 
