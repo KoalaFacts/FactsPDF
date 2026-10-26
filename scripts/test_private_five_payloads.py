@@ -294,6 +294,13 @@ class FivePayloadStagingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'physically external'):
             self.finalize_fixture(verification)
 
+    def test_success_report_must_also_be_physically_outside_checkout(self):
+        import shutil
+        verification = self.verified_receipt()
+        shutil.copytree(verification.parent, self.root / 'ignored-report')
+        with self.assertRaisesRegex(ValueError, 'physically external'):
+            self.finalize_fixture(self.root / 'ignored-report/payload-verification.json')
+
     def test_wrong_staged_receipt_or_incomplete_check_set_is_rejected(self):
         verification = self.verified_receipt()
         proof = json.loads(verification.read_text())
