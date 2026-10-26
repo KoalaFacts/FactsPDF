@@ -30,7 +30,8 @@ REQUIRED_CHECKS = frozenset({
 FROZEN_INPUTS = (
     ".github/workflows/ci.yml", "Directory.Build.props",
     "eng/delivery-candidate.json", "global.json",
-    "scripts/stage_delivery_candidate.py", "scripts/private_source_payload.py",
+    "scripts/stage_delivery_candidate.py", "scripts/private_five_finalization.py",
+    "scripts/private_source_payload.py",
     "scripts/private_examples_payload.py", "scripts/verify_first_use.py",
     "scripts/verify_native_feature_paths.py",
     "examples/business-page-furniture.json",
