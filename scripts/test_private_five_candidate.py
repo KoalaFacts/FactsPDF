@@ -23,19 +23,49 @@ class FinalCandidateReadbackTests(unittest.TestCase):
         self.candidate = self.root / "private-candidate"
         self.candidate.mkdir()
         self.verification = self.root / "independent-verification.json"
-        staged = b'{"sourceHead":"test-only"}\n'
+        source_head = "a" * 40
+        identity = {
+            "sourceHead": source_head,
+            "profile": "local-linux",
+            "packageId": "FactsPDF",
+            "packageVersion": "0.1.0-preview.1",
+            "targetFramework": "net10.0",
+            "sdkVersion": "10.0.402",
+            "selectedRuntimeVersion": "10.0.13",
+        }
+        toolchain = {
+            "sdkVersion": "10.0.402",
+            "managedRuntimeVersion": "10.0.13",
+            "nativeRuntimePackVersion": "10.0.13",
+            "nativeCompilerPackVersion": "10.0.13",
+            "officialSignatureVerified": False,
+            "nativeCompilerPackVerified": False,
+        }
+        frozen = "b" * 64
+        staged = (json.dumps(
+            {"sourceHead": source_head, "identity": identity}, sort_keys=True
+        ) + "\\n").encode()
         (self.candidate / "candidate-staging.json").write_bytes(staged)
         payloads = []
         for role, filename in EXPECTED.items():
             content = ("test-only-not-software:" + role).encode()
             (self.candidate / filename).write_bytes(content)
             payloads.append({"filename": filename, "sha256": sha(content), "bytes": len(content)})
-        self.verification.write_text(json.dumps({"payloads": payloads, "checks": {"control": True}}))
+        report = {
+            "identity": identity,
+            "candidateStagingSha256": sha(staged),
+            "frozenContractDigest": frozen,
+            "actualToolchain": toolchain,
+            "payloads": payloads,
+            "checks": {"control": True},
+        }
+        self.verification.write_text(json.dumps(report, sort_keys=True) + "\\n")
         self.manifest = {
             "schemaVersion": 1,
             "phase": "private-linux-technically-verified-not-authorized",
-            "sourceHead": "a" * 40, "payloads": payloads,
-            "acceptanceChecks": {"control": True},
+            "sourceHead": source_head, "identity": identity,
+            "frozenContractDigest": frozen, "actualToolchain": toolchain,
+            "payloads": payloads, "acceptanceChecks": {"control": True},
             "verificationReceiptSha256": sha(self.verification.read_bytes()),
             "stagingReceiptSha256": sha(staged),
             "candidateAssembled": True, "independentlyValidated": True,
@@ -73,6 +103,40 @@ class FinalCandidateReadbackTests(unittest.TestCase):
         self.manifest["distributionAuthorized"] = True
         self.write_manifest()
         with self.assertRaisesRegex(ValueError, "rights"):
+            readback(self.candidate, self.verification)
+
+    def test_changed_source_head_with_recomputed_checksums_is_rejected(self):
+        self.manifest["sourceHead"] = "0" * 40
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "detached"):
+            readback(self.candidate, self.verification)
+
+    def test_changed_frozen_contract_with_recomputed_checksums_is_rejected(self):
+        self.manifest["frozenContractDigest"] = "c" * 64
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "detached"):
+            readback(self.candidate, self.verification)
+
+    def test_changed_toolchain_with_recomputed_checksums_is_rejected(self):
+        self.manifest["actualToolchain"] = {
+            **self.manifest["actualToolchain"],
+            "managedRuntimeVersion": "10.0.14",
+        }
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "detached"):
+            readback(self.candidate, self.verification)
+
+    def test_changed_staging_identity_with_matching_manifest_is_rejected(self):
+        staged = json.loads((self.candidate / "candidate-staging.json").read_text())
+        staged["identity"]["sourceHead"] = "0" * 40
+        # Amend both staging and its manifest receipt, but not the independent
+        # verification report that attested to the original staging bytes.
+        modified = (json.dumps(staged, sort_keys=True) + "\\n").encode()
+        (self.candidate / "candidate-staging.json").write_bytes(modified)
+        self.manifest["identity"] = staged["identity"]
+        self.manifest["stagingReceiptSha256"] = sha(modified)
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "detached"):
             readback(self.candidate, self.verification)
 
     def test_extra_untracked_payload_is_rejected(self):
