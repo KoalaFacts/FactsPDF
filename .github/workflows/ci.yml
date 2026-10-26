@@ -644,6 +644,125 @@ jobs:
           cp -R "$RUNNER_TEMP/factspdf-private-five-verification/reports" artifacts/first-use/reports
           # Software payloads remain exclusively in this private CI runner.
           # These receipts do not authorize release, customer delivery or font distribution.
+      - name: Seal independently verified private software for offline owner retention
+        # PR checks exercise sealing, but never upload even the encrypted bytes.
+        # Only a successful main build may retain transport ciphertext.
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/factspdf-private-five-staged/candidate-manifest.json"
+          test -s "$RUNNER_TEMP/factspdf-private-five-verification/payload-verification.json"
+          openssl x509 -in eng/private-candidate-transport.crt -noout -checkend 0
+          trap 'rm -f "$RUNNER_TEMP/factspdf-private-transient.tar.gz"' EXIT
+          python3 - <<'PY'
+          import hashlib, io, json, os, pathlib, tarfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          staged = root / 'factspdf-private-five-staged'
+          evidence = root / 'factspdf-private-five-verification'
+          source = os.environ['GITHUB_SHA']
+          manifest_file = staged / 'candidate-manifest.json'
+          manifest = json.loads(manifest_file.read_bytes())
+          verification_file = evidence / 'payload-verification.json'
+          verification = json.loads(verification_file.read_bytes())
+          assert len(source) == 40 and all(c in '0123456789abcdef' for c in source)
+          identity = manifest['identity']
+          assert manifest['sourceHead'] == source
+          assert identity['profile'] == 'local-linux'
+          assert identity['version'] == '0.1.0-preview.1'
+          assert identity['sdkVersion'] == '10.0.402'
+          assert identity['managedRuntimeVersion'] == '10.0.13'
+          assert manifest['independentlyValidated'] is True
+          assert manifest['candidateAssembled'] is True
+          assert all(manifest[k] is False for k in (
+              'published', 'customerObtained', 'distributionAuthorized',
+              'humanPdfApproved', 'fullLegacyReplayApproved',
+              'windowsBinaryRetained'))
+          assert verification['status'] == 'passed'
+          assert verification['identity']['sourceHead'] == source
+          names = {
+              'FactsPDF.0.1.0-preview.1.nupkg',
+              'FactsPDF.Cli.0.1.0-preview.1.managed.zip',
+              'FactsPDF.Cli.0.1.0-preview.1.native-linux-x64.zip',
+              'FactsPDF.0.1.0-preview.1.source.tar.gz',
+              'FactsPDF.0.1.0-preview.1.examples.zip',
+          }
+          records = manifest['payloads']
+          assert len(records) == 5 and {r['filename'] for r in records} == names
+          allowed = names | {'candidate-staging.json', 'candidate-manifest.json', 'SHA256SUMS'}
+          assert {p.name for p in staged.iterdir()} == allowed
+          def digest(path):
+              h = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for block in iter(lambda: stream.read(1048576), b''):
+                      h.update(block)
+              return h.hexdigest()
+          entries = []
+          for record in records:
+              path = staged / record['filename']
+              assert path.is_file() and not path.is_symlink()
+              assert 0 < path.stat().st_size == record['bytes'] <= 256 * 1024 * 1024
+              assert digest(path) == record['sha256']
+          assert manifest['stagingReceiptSha256'] == digest(staged / 'candidate-staging.json')
+          assert manifest['verificationReceiptSha256'] == digest(verification_file)
+          checksums = {}
+          for line in (staged / 'SHA256SUMS').read_text().splitlines():
+              hash_value, filename = line.split('  ')
+              assert filename not in checksums
+              checksums[filename] = hash_value
+          assert checksums == {
+              **{r['filename']: r['sha256'] for r in records},
+              'candidate-manifest.json': digest(manifest_file),
+          }
+          assert len(verification['checks']) == 6
+          for check in verification['checks'].values():
+              assert check['status'] == 'passed'
+              rel = check['evidenceFile']
+              assert rel.startswith('reports/') and pathlib.PurePosixPath(rel).parts == ('reports', pathlib.PurePosixPath(rel).name)
+              path = evidence / rel
+              assert path.is_file() and not path.is_symlink()
+              assert path.stat().st_size == check['bytes']
+              assert digest(path) == check['sha256']
+              entries.append((path, 'verification/' + rel))
+          for name in sorted(allowed):
+              entries.append((staged / name, 'candidate/' + name))
+          entries.append((verification_file, 'verification/payload-verification.json'))
+          assert len(entries) == 15
+          transient = root / 'factspdf-private-transient.tar.gz'
+          assert not transient.exists()
+          with tarfile.open(transient, 'x:gz') as archive:
+              for path, name in sorted(entries, key=lambda pair: pair[1]):
+                  assert path.is_file() and not path.is_symlink()
+                  info = archive.gettarinfo(str(path), arcname=name)
+                  assert info.isfile() and info.size <= 256 * 1024 * 1024
+                  info.uid = info.gid = 0
+                  info.uname = info.gname = ''
+                  info.mode = 0o644
+                  info.mtime = 0
+                  with path.open('rb') as stream:
+                      archive.addfile(info, stream)
+          print('Prepared verified main-source software and original reports for recipient encryption; not published')
+          PY
+          mkdir -p artifacts/private-sealed
+          openssl cms -encrypt -binary -aes-256-gcm \
+            -in "$RUNNER_TEMP/factspdf-private-transient.tar.gz" \
+            -out "artifacts/private-sealed/factspdf-$GITHUB_SHA.cms" \
+            -outform DER eng/private-candidate-transport.crt
+          openssl cms -cmsout -inform DER \
+            -in "artifacts/private-sealed/factspdf-$GITHUB_SHA.cms" -print \
+            | grep -q 'aes-256-gcm'
+          python3 - <<'PY'
+          import hashlib, os, pathlib
+          file = pathlib.Path('artifacts/private-sealed') / ('factspdf-' + os.environ['GITHUB_SHA'] + '.cms')
+          assert file.is_file() and file.stat().st_size > 1000
+          print('Transport ciphertext SHA256:', hashlib.sha256(file.read_bytes()).hexdigest())
+          PY
+      - name: Retain main-source private transport ciphertext only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: factspdf-private-encrypted-candidate
+          path: artifacts/private-sealed/*.cms
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain isolated first-use evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
