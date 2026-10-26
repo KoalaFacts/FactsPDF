@@ -301,6 +301,69 @@ class FivePayloadStagingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'physically external'):
             self.finalize_fixture(self.root / 'ignored-report/payload-verification.json')
 
+
+    def test_nested_symlink_evidence_escape_is_rejected(self):
+        verification = self.verified_receipt()
+        outside = self.root.parent / 'outside-evidence'
+        nested = outside / 'nested'
+        nested.mkdir(parents=True)
+        external = nested / 'proof.json'
+        data = b'FAKE UNIT OUTSIDE EVIDENCE'
+        external.write_bytes(data)
+        (verification.parent / 'reports/escape').symlink_to(
+            outside, target_is_directory=True)
+        proof = json.loads(verification.read_text())
+        key = next(iter(proof['checks']))
+        proof['checks'][key] = {
+            'status': 'passed',
+            'evidenceFile': 'reports/escape/nested/proof.json',
+            'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest(),
+        }
+        verification.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, 'Symlinked independent evidence path'):
+            self.finalize_fixture(verification)
+        self.assertFalse((self.output / 'candidate-manifest.json').exists())
+
+    def test_evidence_mutated_during_last_revalidation_is_rejected(self):
+        verification = self.verified_receipt()
+        evidence = next((verification.parent / 'reports').iterdir())
+        calls = 0
+
+        def changing_source(_root):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                evidence.write_bytes(evidence.read_bytes() + b'CHANGED')
+            return SOURCE
+
+        with patch('stage_delivery_candidate.current_source', side_effect=changing_source):
+            with patch('stage_delivery_candidate.identity', return_value=self.selected):
+                with patch('private_five_finalization.frozen_contract_digest',
+                           return_value='d' * 64):
+                    with self.assertRaisesRegex(
+                            ValueError, 'Independent acceptance evidence changed before finalization'):
+                        finalize_five(self.root, self.output, verification)
+        self.assertGreaterEqual(calls, 2)
+        self.assertFalse((self.output / 'candidate-manifest.json').exists())
+        self.assertFalse((self.output / 'SHA256SUMS').exists())
+
+    def test_interrupted_checksum_installation_recovers_only_intact_manifest(self):
+        verification = self.verified_receipt()
+        original = self.finalize_fixture(verification)
+        expected_manifest = (self.output / 'candidate-manifest.json').read_bytes()
+        expected_sums = (self.output / 'SHA256SUMS').read_bytes()
+        (self.output / 'SHA256SUMS').unlink()
+        replay = self.finalize_fixture(verification)
+        self.assertEqual(replay, original)
+        self.assertEqual((self.output / 'candidate-manifest.json').read_bytes(),
+                         expected_manifest)
+        self.assertEqual((self.output / 'SHA256SUMS').read_bytes(), expected_sums)
+        (self.output / 'SHA256SUMS').unlink()
+        (self.output / 'candidate-manifest.json').write_bytes(b'INVALID PARTIAL MANIFEST')
+        with self.assertRaisesRegex(ValueError, 'Interrupted finalization manifest is stale'):
+            self.finalize_fixture(verification)
+        self.assertFalse((self.output / 'SHA256SUMS').exists())
+
     def test_wrong_staged_receipt_or_incomplete_check_set_is_rejected(self):
         verification = self.verified_receipt()
         proof = json.loads(verification.read_text())
