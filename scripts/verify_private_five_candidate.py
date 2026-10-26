@@ -260,6 +260,22 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
             "Managed and installed library assemblies differ")
 
     build = load(runner / "factspdf-private-build/private-build.json")
+    require(build["sourceHead"] == head and build["identity"]["profile"] == "local-linux"
+            and build["candidateBuilt"] is True
+            and build["nativeCompilerPackVerified"] is False,
+            "Private build receipt source/status mismatch")
+    compiler_origin = build["nativeCompilerOrigin"]
+    notice_origin = build["nativeNoticeOrigin"]
+    require(compiler_origin["officialSignatureVerified"] is False
+            and re.fullmatch(r"[0-9a-f]{64}", compiler_origin["projectAssetsSha256"]) is not None
+            and [p["packageId"] for p in compiler_origin["packages"]] == [
+                "Microsoft.DotNet.ILCompiler",
+                "runtime.linux-x64.Microsoft.DotNet.ILCompiler"]
+            and all(p["version"] == "10.0.13" and p["packageSha512"]
+                    and p["contentSha512"] for p in compiler_origin["packages"])
+            and notice_origin["packageId"] == "Microsoft.NETCore.App.Runtime.NativeAOT.linux-x64"
+            and notice_origin["version"] == "10.0.13",
+            "Observed private NativeAOT pack origin is not source-bound")
     inspector_paths = list((runner / "factspdf-private-build/inspector/bin").rglob("FactsPDF.PackageInspector.dll"))
     require(build["sourceHead"] == head and len(inspector_paths) == 1, "Wrong compiled inspector")
     inspector = inspector_paths[0]
@@ -275,8 +291,12 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
 
     source_pdf = pdf_witness(runner / "factspdf-private-source-rebuilt.pdf", 1,
                              ("SERVICE REPORT", "Example Client", "Records reviewed"))
-    require((runner / "factspdf-private-source-extracted/src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll").is_file(),
-            "No real rebuilt source CLI")
+    rebuilt = runner / "factspdf-private-source-extracted"
+    for relative in (
+        "src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll",
+        "tools/FactsPDF.PackageInspector/bin/Release/net10.0/FactsPDF.PackageInspector.dll",
+    ):
+        file_bytes(rebuilt / relative, 16 * 1024 * 1024)
     consumer_dir = runner / "factspdf-staged-five-installed-consumer"
     installed = load(consumer_dir / "report.json")
     require(installed["sourceHead"] == head and installed["sdk"] == "10.0.402"
