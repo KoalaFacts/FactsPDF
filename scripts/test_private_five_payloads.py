@@ -1,6 +1,10 @@
 """Five-payload staging tests. Individual archive/member and installed-PDF acceptance are separate CI gates."""
 import hashlib
 import json
+import queue
+import subprocess
+import sys
+import threading
 from pathlib import Path
 import tempfile
 import unittest
@@ -246,6 +250,104 @@ class FivePayloadStagingTests(unittest.TestCase):
                 with patch('private_five_finalization.frozen_contract_digest',
                            return_value='d' * 64):
                     return finalize_five(self.root, self.output, verification)
+
+    def paused_finalizer(self, verification, crash=False, before_link=False):
+        # Real child and filesystem, with only fixture identity mocked. The pipe
+        # barrier fixes the interleaving; timeouts only bound a broken test.
+        code = r"""
+import json, os, sys
+from pathlib import Path
+from unittest.mock import patch
+from test_private_five_payloads import FivePayloadStagingTests
+case = FivePayloadStagingTests()
+case.root, case.output, proof = map(Path, sys.argv[1:4])
+case.selected = json.loads(sys.argv[4])
+link = os.link
+
+def checkpoint(src, dst):
+    before = sys.argv[5] == 'before-link'
+    if not before or Path(dst).name != 'candidate-manifest.json':
+        link(src, dst)
+    if Path(dst).name == 'candidate-manifest.json':
+        print('manifest-barrier', flush=True)
+        if sys.argv[5] == 'crash':
+            os._exit(77)
+        if sys.stdin.readline().strip() != 'continue':
+            raise RuntimeError('Test barrier abandoned')
+        if before:
+            link(src, dst)
+
+with patch('private_five_finalization.os.link', side_effect=checkpoint):
+    case.finalize_fixture(proof)
+"""
+        child = subprocess.Popen(
+            [sys.executable, '-c', code, str(self.root), str(self.output),
+             str(verification), json.dumps(self.selected),
+             'crash' if crash else 'before-link' if before_link else 'overlap'],
+            cwd=Path(__file__).resolve().parent,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True)
+
+        def cleanup():
+            if child.poll() is None:
+                child.kill()
+            child.communicate(timeout=10)
+        self.addCleanup(cleanup)
+        ready = queue.Queue()
+        threading.Thread(target=lambda: ready.put(child.stdout.readline()),
+                         daemon=True).start()
+        self.assertEqual(ready.get(timeout=30).strip(), 'manifest-barrier')
+        return child
+
+    def assert_final_pair(self):
+        manifest = self.output / 'candidate-manifest.json'
+        sums = (self.output / 'SHA256SUMS').read_text()
+        self.assertIn(hashlib.sha256(manifest.read_bytes()).hexdigest() +
+                      '  candidate-manifest.json\n', sums)
+
+    def test_live_recovery_cannot_be_rolled_back_by_original_caller(self):
+        verification = self.verified_receipt()
+        child = self.paused_finalizer(verification)
+        self.finalize_fixture(verification)
+        self.assert_final_pair()
+        before = {name: (self.output / name).read_bytes()
+                  for name in ('candidate-manifest.json', 'SHA256SUMS')}
+        _, error = child.communicate('continue\n', timeout=30)
+        self.assertEqual(child.returncode, 0, error)
+        self.assertEqual(before, {name: (self.output / name).read_bytes()
+                                  for name in before})
+        self.assert_final_pair()
+
+    def test_two_initial_callers_accept_only_matching_completion(self):
+        verification = self.verified_receipt()
+        child = self.paused_finalizer(verification, before_link=True)
+        self.finalize_fixture(verification)
+        before = {name: (self.output / name).read_bytes()
+                  for name in ('candidate-manifest.json', 'SHA256SUMS')}
+        _, error = child.communicate('continue\n', timeout=30)
+        self.assertEqual(child.returncode, 0, error)
+        self.assertEqual(before, {name: (self.output / name).read_bytes()
+                                  for name in before})
+        self.assert_final_pair()
+
+    def test_process_exit_after_manifest_link_is_recoverable(self):
+        verification = self.verified_receipt()
+        child = self.paused_finalizer(verification, crash=True)
+        child.communicate(timeout=30)
+        self.assertEqual(child.returncode, 77)
+        self.assertFalse((self.output / 'SHA256SUMS').exists())
+        self.finalize_fixture(verification)
+        self.assert_final_pair()
+
+    def test_concurrent_mismatched_completion_is_rejected_and_preserved(self):
+        verification = self.verified_receipt()
+        child = self.paused_finalizer(verification)
+        manifest = (self.output / 'candidate-manifest.json').read_bytes()
+        (self.output / 'SHA256SUMS').write_bytes(b'conflicting completion')
+        child.communicate('continue\n', timeout=30)
+        self.assertNotEqual(child.returncode, 0)
+        self.assertEqual((self.output / 'candidate-manifest.json').read_bytes(), manifest)
+        self.assertEqual((self.output / 'SHA256SUMS').read_bytes(), b'conflicting completion')
 
     def test_final_checksums_bind_successful_external_payload_report(self):
         verification = self.verified_receipt()

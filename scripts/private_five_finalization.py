@@ -270,7 +270,8 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
     ) + f"{manifest_digest}  candidate-manifest.json\n"
 
     # Stage both files privately, then install without replacing any existing
-    # entry. On an interrupted second link, roll back the first entry.
+    # entry. Leave an interrupted manifest recoverable; never roll back a
+    # matching completion installed by another live caller.
     with tempfile.TemporaryDirectory(prefix="factspdf-final-", dir=candidate.parent) as temporary:
         scratch = Path(temporary)
         (scratch / "candidate-manifest.json").write_bytes(manifest_bytes)
@@ -288,19 +289,28 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
         for path, recorded_size, recorded_sha in evidence_records:
             if _sha(path) != (recorded_size, recorded_sha):
                 raise ValueError("Independent acceptance evidence changed before finalization")
+        previous = candidate / "candidate-manifest.json"
         if interrupted:
-            previous = candidate / "candidate-manifest.json"
             if previous.is_symlink() or previous.read_bytes() != manifest_bytes:
                 raise ValueError("Interrupted finalization manifest is stale or modified")
-            # SHA256SUMS is the last-installed completion marker.
-            os.link(scratch / "SHA256SUMS", candidate / "SHA256SUMS")
         else:
-            os.link(scratch / "candidate-manifest.json", candidate / "candidate-manifest.json")
             try:
-                os.link(scratch / "SHA256SUMS", candidate / "SHA256SUMS")
-            except BaseException:
-                (candidate / "candidate-manifest.json").unlink()
-                raise
+                os.link(scratch / "candidate-manifest.json", previous)
+            except FileExistsError:
+                if previous.is_symlink() or previous.read_bytes() != manifest_bytes:
+                    raise ValueError("Concurrent finalization manifest is stale or modified")
+        # SHA256SUMS is the last-installed completion marker. Another invocation
+        # may have completed this identical pair since our initial inventory.
+        # On other errors leave the manifest for fully revalidated retry, not
+        # a check-then-unlink rollback that can delete a concurrent completion.
+        try:
+            os.link(scratch / "SHA256SUMS", candidate / "SHA256SUMS")
+        except FileExistsError:
+            checksum = candidate / "SHA256SUMS"
+            if (previous.is_symlink() or checksum.is_symlink() or
+                    previous.read_bytes() != manifest_bytes or
+                    checksum.read_bytes() != (scratch / "SHA256SUMS").read_bytes()):
+                raise ValueError("Concurrent finalization completion is stale or modified")
     return manifest
 
 
