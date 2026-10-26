@@ -138,6 +138,19 @@ software distribution.
 
 ## Delivery status
 
+**Engineering checkpoint (26 October 2026):** Private-candidate code is merged
+in [PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60), and
+[main CI 40283254200](https://github.com/KoalaFacts/FactsPDF/actions/runs/40283254200)
+succeeded for source commit `1a81f69a4beaf92a8710e5b79ce355440efb00b0`.
+It built and independently exercised a five-component Linux candidate, including
+installed .NET API/managed CLI and real Native AOT paths, with six evidence
+reports; Windows Native AOT was also executed. These **runner-local software
+components were not durably retained or made available for customer installation**.
+The retained evidence archive is not a software distribution or an evaluation
+license. The original 52-PDF replay, styled-CJK inputs, human page review and
+legal distribution approval remain open; consult
+[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for the latest state.
+
 The accepted product scope is documented in the
 [first usable release design](superpowers/specs/2026-10-11-first-usable-release-scope-design.md).
 The [commercial-preview delivery issue](https://github.com/KoalaFacts/FactsPDF/issues/51)
