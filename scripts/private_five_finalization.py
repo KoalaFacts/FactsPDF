@@ -117,6 +117,7 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
     physical_candidate = candidate.resolve(strict=True)
     physical_verification = verification.resolve(strict=True)
     if (physical_candidate == root or root in physical_candidate.parents or
+            physical_verification == root or root in physical_verification.parents or
             physical_candidate == physical_verification.parent or
             physical_candidate in physical_verification.parents):
         raise ValueError("Expected physically external stage and verification files")
