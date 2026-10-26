@@ -41,6 +41,7 @@ SCRIPT_FILES = frozenset({
     'scripts/stage_delivery_candidate.py', 'scripts/private_five_finalization.py',
     'scripts/private_source_payload.py',
     'scripts/private_examples_payload.py',
+    'scripts/verify_private_five_candidate.py',
 })
 REQUIRED = frozenset({
     'Directory.Build.props', 'global.json', 'LICENSE.md', 'README.md',
