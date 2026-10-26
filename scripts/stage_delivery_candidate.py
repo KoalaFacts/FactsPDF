@@ -1013,9 +1013,16 @@ def main() -> None:
     staged = commands.add_parser('assemble-five', help='Stage all five private Linux payloads; not verified or released')
     for flag in ('build', 'managed', 'native', 'source', 'examples', 'output'):
         staged.add_argument('--' + flag, required=True, type=Path)
+    final = commands.add_parser('finalize', help='Bind final private checksums to independent payload verification; no publication')
+    final.add_argument('--candidate', required=True, type=Path)
+    final.add_argument('--verification', required=True, type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.command == 'assemble-five':
+    if args.command == 'finalize':
+        from private_five_finalization import finalize_five
+        result = finalize_five(root, args.candidate, args.verification)
+        print(f"Private candidate checksum-linked: {result['sourceHead']}; distribution, customer access and human approval remain unauthorized.")
+    elif args.command == 'assemble-five':
         result = assemble_five_payloads(root, args.build, args.managed, args.native,
                                         args.source, args.examples, args.output)
         print(f"Five real payloads staged: {result['sourceHead']}; independent verification pending; not published.")
