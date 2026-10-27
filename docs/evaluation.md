@@ -141,33 +141,44 @@ software distribution.
 
 ## Delivery status
 
-**Engineering checkpoint (27 October 2026):** The private-candidate toolchain
-merged in [PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60).
-[PR #63](https://github.com/KoalaFacts/FactsPDF/pull/63) added encrypted
-retention; [exact-main CI 40392917028](https://github.com/KoalaFacts/FactsPDF/actions/runs/40392917028)
-passed at source `6a98d707b62edc7116a84e4f37c18a188b882e03`.
-It exercised installed .NET API, managed CLI and actual Linux/Windows Native AOT
-with six raw verification reports.
+**Engineering checkpoint (28 October 2026):** [PR #72](https://github.com/KoalaFacts/FactsPDF/pull/72)
+merged the first-use `FPDF1505` safe recovery guidance. The resulting
+`main` source is `47bc97910843ad6f72f11a285ec5b74e13862623`.
+Its actual [CI 40561057964](https://github.com/KoalaFacts/FactsPDF/actions/runs/40561057964)
+passed installed .NET API/managed CLI and Linux/Windows x64 Native AOT
+execution and recovery checks after a targeted retry of a pre-compilation
+MSYS2 download failure. Six other applicable main workflow groups passed.
 
-**All five real software components are now durably stored in the owner's
-private Library:** the source-bound NuGet package, managed CLI ZIP, Linux x64
-Native AOT CLI ZIP, examples ZIP and source archive. The owner authenticated
-the GitHub Actions origin and sealed payload, verified the 15 members, receipts
-and checksums, then read all five software files back byte-for-byte. A clean
-SDK-free run of the retained Linux Native AOT binary produced a searchable
-two-page PDF with exact expected text and failure/output-preservation checks.
-The independent local run did not repeat managed consumer or Windows Native
-AOT installation; those have exact-main CI evidence.
+The owner separately authenticated the exact-main CI encrypted transport and
+privately retained **five real software components**: the NuGet package,
+managed CLI ZIP, Linux x64 Native AOT CLI ZIP, examples ZIP and corresponding
+source archive. Each was independently checked against its source-bound
+checksum and read back from private storage. An offline run of the retained
+Linux native CLI generated a two-page searchable PDF and verified destination
+preservation; an actual restricted-embedding font produced `FPDF1505` and the
+new licensing-safe diagnostic. Windows native and installed managed/API
+execution are evidenced by exact-main CI, not by a claimed local rerun.
+Fonts are not bundled.
 
-Mechanical managed-CLI replay at earlier engine source
-`1a81f69a4beaf92a8710e5b79ce355440efb00b0` matched all 52 original PDFs
-byte for byte (311 pages). Later retention/documentation changes preserve the
-renderer but are not a new replay or human approval. Strict local qpdf checking,
-original styled-CJK inputs, changed-page human review and legal authorisation
-remain open. **Owner-only software retention is not a customer-delivery
-package, public Release, evaluation licence or grant of commercial use.**
-Consult [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51) for the
-current delivery gates.
+Historically, all **52 sealed original PDFs (311 pages)** were genuinely
+replayed byte for byte through a managed CLI at source
+`1a81f69a4beaf92a8710e5b79ce355440efb00b0` and separately through
+a Linux Native AOT CLI at `e1dfe3b8ea0b5a0cc1cbd612abf22dd8a59748ea`.
+These results are not a new `47bc9791` replay. The original
+10/30/100-record styled-CJK HTML was matched to the committed Unicode
+examples and tested through actual typed API, managed CLI and Linux native
+execution in [the PR #71 acceptance workflow](https://github.com/KoalaFacts/FactsPDF/actions/runs/40497304548).
+Those reports use real Chinese regular/bold; a separate C1 style report
+positively exercises **four distinct Chinese faces**. This does not
+constitute user approval of the changed reference pages.
+
+**No public NuGet/CLI/Release, hosted Pages site, customer software delivery,
+general evaluation grant or production-support commitment exists.** Private
+owner retention is not a legal grant. Human page review, legally valid
+distribution/evaluation rights, documented customer/seller terms, fixed-hardware
+performance budget and unclaimed source/toolchain signature checks remain
+separate gates. Track current decisions in
+[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 The accepted product scope is documented in the
 [first usable release design](superpowers/specs/2026-10-11-first-usable-release-scope-design.md).
