@@ -24,7 +24,7 @@ jobs:
         with:
           dotnet-version: '10.0.402'
       - name: Install explicit verification tools and trusted fixture fonts
-        run: python3 scripts/ubuntu_packages.py packages clang time zlib1g-dev qpdf poppler-utils python3-pil fonts-dejavu-core fonts-droid-fallback
+        run: python3 scripts/ubuntu_packages.py packages clang time zlib1g-dev qpdf poppler-utils python3-pil python3-fonttools python3-pypdf p7zip-full fonts-dejavu-core fonts-droid-fallback
       - name: Test new acceptance machinery without network or real fonts
         run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_acceptance_*.py' -v
       - name: Test reading-sample text integrity
@@ -67,6 +67,39 @@ jobs:
             --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
             --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
             --output artifacts/operations-report
+      - name: Verify actual styled-CJK business reports via .NET, managed CLI and Linux Native AOT
+        run: |
+          # The existing pinned font helper verifies the original 1.0.42 archive and
+          # eight independent regular/bold/italic/bold-italic file hashes and outlines.
+          # Fonts stay in runner temp; never upload them or an unapproved PDF.
+          /usr/bin/python3 scripts/font_style_fonts.py \
+            --sarasa-root "$RUNNER_TEMP/factspdf-sarasa" \
+            --latin-root /usr/share/fonts/truetype/dejavu \
+            --download --output "$RUNNER_TEMP/factspdf-font-manifest.json"
+          dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
+          dotnet build probes/combined-report/FactsPDF.CombinedReport.csproj -c Release
+          /usr/bin/python3 -m unittest discover -s scripts -p 'test_combined_report.py' -v
+          /usr/bin/python3 scripts/verify_combined_report.py \
+            --manifest "$RUNNER_TEMP/factspdf-font-manifest.json" \
+            --output "$RUNNER_TEMP/factspdf-combined-report" \
+            --dotnet "$(command -v dotnet)" \
+            --cli-dll src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll \
+            --api-dll probes/combined-report/bin/Release/net10.0/FactsPDF.CombinedReport.dll \
+            --native-cli artifacts/acceptance-cli/FactsPDF.Cli
+          /usr/bin/python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          import os
+          data = json.loads((Path(os.environ['RUNNER_TEMP']) / 'factspdf-combined-report' / 'report.json').read_text())
+          assert len(data['cases']) == 7 and data['positivePages'] == 10 and data['allGeneratedVariantPages'] == 22
+          assert all(case['apiCliNativeBytesEqual'] for case in data['cases'])
+          assert data['approvals']['newCombinationApproval'] == 'pending-user-review'
+          print('### Styled-CJK report engineering acceptance')
+          print('Pinned original four-role Latin/CJK fonts: SHA and distinct outlines checked.')
+          print('10/30/100-record reports and variants: 7 native/API/managed-equivalent cases, 22 pages.')
+          print('Original unapproved pages and legal/customer permissions remain pending.')
+          print('Full PDFs and font inputs are kept in runner temp, not uploaded.')
+          PY
       - name: Retain operations report review evidence separately
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
