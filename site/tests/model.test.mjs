@@ -7,8 +7,23 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, 'fe622926bbe5a9b83932e09a643c4c9cb7ceb60d');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:116, none:250, unknown:6, na:2 });
+  assert.equal(dataset.commit, '1b6a2076460610e56fd2a6bf366fea391d03f23b');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:118, none:248, unknown:6, na:2 });
+});
+test('print units and scoped vertical margin are discoverable without promising full CSS', () => {
+  const margin=dataset.features.find(f=>f.id==='css.margin');
+  const absolute=dataset.features.find(f=>f.id==='value.length.absolute');
+  assert.equal(margin.status,'partial');
+  assert.match(margin.scope,/左右必须均为零/);
+  assert.match(margin.limitations,/非零左右边距/);
+  assert.match(margin.example,/margin:0 0 3mm/);
+  assert.equal(absolute.status,'partial');
+  assert.match(absolute.scope,/mm\/cm\/in/);
+  assert.match(absolute.limitations,/q\/pc/);
+  assert.equal(dataset.accepted_css_property_count,39);
+  assert.equal(dataset.features.find(f=>f.id==='css.margin-left').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='css.margin-right').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='value.length.relative').status,'none');
 });
 test('colour-only background shorthand is discoverable without claiming CSS backgrounds', () => {
   const match=filterFeatures(dataset.features,{q:'background',status:'partial'}).find(f=>f.id==='css.background');

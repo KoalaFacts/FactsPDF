@@ -217,3 +217,9 @@ coverage). This code-audit snapshot does not assert completion of PR-head CI
 or any public product release; use exact PR/main workflow evidence for that.
 GitHub Pages availability still depends on repository settings and successful
 deployment; a validated static build alone is not a live website.
+
+## 28 October 2026: report print spacing preview audit
+
+Snapshot `audit-2026-10-28.report-print-spacing` audits source `1b6a2076460610e56fd2a6bf366fea391d03f23b`, not a publicly released product. SHA-256: `a9347e19ca77034ab1019cd34c74a3981352fb2eba894d9b8d71747be93b1a2a`. All **418 feature IDs**, ordering, categories, parent IDs and introduction histories remain unchanged. Exactly **22 rows** updated; the other **396 feature objects** retain their previous audit metadata. `css.margin` and `value.length.absolute` change `none` → `partial`. Totals are **44 full, 118 partial, 248 none, 6 unknown, 2 n/a**; **39 accepted CSS property names**. Print units `mm/cm/in` apply to bounded length properties, not `q/pc`, `em/rem/calc` or full CSS. The margin shorthand only renders vertical paragraph/heading margins if horizontal sides resolve to zero; nonzero horizontal offsets fail explicitly.
+
+The implementation source includes actual API/managed CLI/geometry/PDF tests and a fontless business example. Exact PR-head CI results and independent review must be recorded separately. Updating this dataset is not a real test execution, human PDF approval, customer right or GitHub Pages deployment.
