@@ -42,7 +42,7 @@ def verify(cli):
         try:
             install('packages', ['qpdf'], source)
             direct = [json.loads(line) for line in log.read_text().splitlines()]
-            assert [item['args'] for item in direct] == [['update', '-qq'], ['install', '-y', 'qpdf']], direct
+            assert [item['args'] for item in direct] == [['update', '-qq'], ['install', '-y', '--no-install-recommends', 'qpdf']], direct
             assert all('Dir::Etc::sourceparts \"-\";' in item['config'] and str(source) in item['config'] for item in direct)
             log.unlink()
             install('playwright', [str(Path(cli).resolve())], source)
