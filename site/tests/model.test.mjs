@@ -7,22 +7,27 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, '1b6a2076460610e56fd2a6bf366fea391d03f23b');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:118, none:248, unknown:6, na:2 });
+  assert.equal(dataset.commit, 'c8caaa273415a24ad062dd036a90b40ba11c53eb');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:120, none:246, unknown:6, na:2 });
 });
-test('print units and scoped vertical margin are discoverable without promising full CSS', () => {
+test('print units and bounded four-sided report margins remain scoped', () => {
   const margin=dataset.features.find(f=>f.id==='css.margin');
   const absolute=dataset.features.find(f=>f.id==='value.length.absolute');
   assert.equal(margin.status,'partial');
-  assert.match(margin.scope,/左右必须均为零/);
-  assert.match(margin.limitations,/非零左右边距/);
-  assert.match(margin.example,/margin:0 0 3mm/);
+  assert.match(margin.scope,/四边参与真实排版/);
+  assert.match(margin.limitations,/单元格p左右仅零值/);
+  assert.match(margin.example,/margin:2mm 5% 3mm 4mm/);
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,39);
-  assert.equal(dataset.features.find(f=>f.id==='css.margin-left').status,'none');
-  assert.equal(dataset.features.find(f=>f.id==='css.margin-right').status,'none');
+  assert.equal(dataset.accepted_css_property_count,41);
+  for(const id of ['css.margin-left','css.margin-right']){
+    const side=dataset.features.find(f=>f.id===id);
+    assert.equal(side.status,'partial');
+    assert.match(side.scope,/换行/);
+    assert.match(side.limitations,/auto/);
+    assert.equal(side.introduced_release,null);
+  }
   assert.equal(dataset.features.find(f=>f.id==='value.length.relative').status,'none');
 });
 test('colour-only background shorthand is discoverable without claiming CSS backgrounds', () => {
