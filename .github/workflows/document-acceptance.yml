@@ -24,7 +24,7 @@ jobs:
         with:
           dotnet-version: '10.0.402'
       - name: Install explicit verification tools and trusted fixture fonts
-        run: python3 scripts/ubuntu_packages.py packages clang time zlib1g-dev qpdf poppler-utils python3-pil python3-fonttools python3-pypdf p7zip-full fonts-dejavu-core fonts-droid-fallback
+        run: python3 scripts/ubuntu_packages.py packages clang time zlib1g-dev qpdf poppler-utils python3-pil python3-munkres python3-fonttools python3-pypdf p7zip-full fonts-dejavu-core fonts-droid-fallback
       - name: Test new acceptance machinery without network or real fonts
         run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_acceptance_*.py' -v
       - name: Test reading-sample text integrity

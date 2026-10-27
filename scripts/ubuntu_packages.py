@@ -66,7 +66,7 @@ def install(mode, arguments, source):
         prefix = ['sudo', 'env', f'APT_CONFIG={config}']
         if mode == 'packages':
             subprocess.run(prefix + ['apt-get', 'update', '-qq'], check=True)
-            subprocess.run(prefix + ['apt-get', 'install', '-y', *arguments], check=True)
+            subprocess.run(prefix + ['apt-get', 'install', '-y', '--no-install-recommends', *arguments], check=True)
         else:
             cli = Path(arguments[0]).resolve(strict=True)
             node = shutil.which('node')
