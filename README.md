@@ -51,7 +51,7 @@ This reads no report input or resources and prints the assembly's informational
 version, including the source commit suffix when stamped by the build. It does
 not attest toolchain signatures or imply that a public package is released.
 
-Missing fonts, glyphs, style roles or images? The current source CLI keeps the
+Missing fonts, glyphs, style roles, embedding permission or images? The current source CLI keeps the
 original error code and adds an actionable hint. Follow the
 [first-use recovery recipes](docs/first-use-troubleshooting.md); resources remain
 explicit and a failed conversion does not become a partially successful PDF.

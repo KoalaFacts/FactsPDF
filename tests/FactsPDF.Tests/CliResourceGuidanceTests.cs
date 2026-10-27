@@ -97,6 +97,52 @@ public sealed class CliResourceGuidanceTests
         Assert.That(recovered.Output, Is.EqualTo(expected.ToArray()));
     }
 
+    [TestCase(2)] [TestCase(4)] [TestCase(512)]
+    public void RestrictedFontEmbeddingProvidesSafeRecoveryAndPreservesEveryDestination(int fsType)
+    {
+        var restricted = FontFixture.Create(fsType: (ushort)fsType);
+        var rejected = Path.Combine(directory, "restricted.ttf");
+        File.WriteAllBytes(rejected, restricted);
+        var coreError = Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(restricted));
+        Assert.That(coreError!.Code, Is.EqualTo("FPDF1505"));
+
+        const string html = "<p>中文</p>";
+        var existing = Path.Combine(directory, "existing.pdf");
+        var absent = Path.Combine(directory, "absent.pdf");
+        byte[] sentinel = [0x00, 0xff, 0x41, 0x0a];
+        File.WriteAllBytes(existing, sentinel);
+        foreach (var target in new[] { "-", existing, absent })
+        {
+            var failure = Run(["-", target, "--overwrite", "--font", rejected], html);
+            Assert.That(failure.Exit, Is.EqualTo(3));
+            Assert.That(failure.Output, Is.Empty);
+            using var lines = new StringReader(failure.Error);
+            Assert.That(lines.ReadLine(), Is.EqualTo(coreError.Message));
+            var hint = lines.ReadLine();
+            Assert.That(hint, Does.StartWith("Hint: "));
+            Assert.That(hint, Does.Contain("licence"));
+            Assert.That(hint, Does.Contain("OS/2 fsType"));
+            Assert.That(hint, Does.Contain("never alter permission bits"));
+            Assert.That(hint, Does.Contain("docs/first-use-troubleshooting.md"));
+            Assert.That(hint!.Length, Is.LessThanOrEqualTo(512));
+            Assert.That(lines.ReadLine(), Is.Null, "Exactly one static hint on stderr.");
+            Assert.That(File.ReadAllBytes(existing), Is.EqualTo(sentinel));
+            Assert.That(File.Exists(absent), Is.False);
+            Assert.That(Directory.GetFiles(directory, ".factspdf-*.tmp"), Is.Empty);
+            Assert.That(File.ReadAllBytes(rejected), Is.EqualTo(restricted));
+        }
+
+        var allowed = FontFixture.Create(fsType: 8);
+        var replacement = Path.Combine(directory, "approved.ttf");
+        File.WriteAllBytes(replacement, allowed);
+        var recovered = Run(["-", "-", "--font", replacement], html);
+        Assert.That(recovered.Exit, Is.Zero, recovered.Error);
+        Assert.That(recovered.Error, Does.Not.Contain("Hint:"));
+        using var expected = new MemoryStream();
+        PdfConverter.Convert(html, expected, new PdfOptions { Fonts = [PdfFont.LoadTrueType(allowed)] });
+        Assert.That(recovered.Output, Is.EqualTo(expected.ToArray()));
+    }
+
     [Test]
     public void UnsupportedInputIsNotMisdiagnosedAsMissingResources()
     {
