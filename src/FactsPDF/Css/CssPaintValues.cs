@@ -34,7 +34,7 @@ internal static class CssPaintValues
     internal static double BorderWidth(string value, int offset)
     {
         if (!TryBorderWidth(value, out var result))
-            throw new FactsPdfException("FPDF1202", "Border width must be a nonnegative pt/px length or thin/medium/thick.", offset);
+            throw new FactsPdfException("FPDF1202", "Border width must be a nonnegative pt/px/mm/cm/in length or thin/medium/thick.", offset);
         return result;
     }
 }

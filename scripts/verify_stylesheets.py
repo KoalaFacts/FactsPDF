@@ -89,6 +89,47 @@ def main():
             raise AssertionError('Unsupported background syntax was not rejected cleanly')
         if short_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Rejected background syntax modified existing output')
+    # Actual Linux Native AOT: a customer-facing fontless print-unit report,
+    # independent point-value oracle and invalid-margin destination recovery.
+    with tempfile.TemporaryDirectory(prefix='factspdf-report-print-') as folder:
+        temp = Path(folder)
+        sample_pdf = temp / 'report.pdf'
+        run(exe, Path('examples/report-print-spacing.html'), sample_pdf)
+        run('qpdf', '--check', sample_pdf)
+        info = run('pdfinfo', sample_pdf).decode('utf-8')
+        if not re.search(r'^Pages:\s+1$', info, re.M):
+            raise AssertionError('Print spacing expected one A4 page: ' + info)
+        content = ' '.join(run('pdftotext', '-raw', sample_pdf, '-').decode('utf-8').split())
+        for line in ('Service & Maintenance Report', 'Example Facilities Pty Ltd',
+                     'Equipment seals and safety checks', 'Two items require follow-up'):
+            if line not in content:
+                raise AssertionError('Native sample missing text: ' + line)
+
+        short = temp / 'short.html'
+        long = temp / 'long.html'
+        short.write_text("<div style='width:1in;padding:0.125in;border:0.03125in solid red'>"
+                         "<p style='font-size:0.25in;margin:0 0 0.125in'>Native report</p></div>",
+                         encoding='utf-8')
+        long.write_text("<div style='width:72pt;padding:9pt;border:2.25pt solid red'>"
+                        "<p style='font-size:18pt;margin-top:0;margin-bottom:9pt'>Native report</p></div>",
+                        encoding='utf-8')
+        short_pdf, long_pdf = temp / 'short.pdf', temp / 'long.pdf'
+        run(exe, short, short_pdf)
+        run(exe, long, long_pdf)
+        if short_pdf.read_bytes() != long_pdf.read_bytes():
+            raise AssertionError('Native print units and vertical margin differ from explicit point longhands')
+        run('qpdf', '--check', short_pdf)
+
+        bad = temp / 'invalid.html'
+        bad.write_text("<p style='margin:5mm'>Nonzero horizontal margin</p>", encoding='utf-8')
+        sample_pdf.write_bytes(b'keep-existing')
+        proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
+                              capture_output=True, timeout=120)
+        if proc.returncode != 3 or b'FPDF1202' not in proc.stderr or proc.stdout:
+            raise AssertionError('Native CLI did not strictly reject nonzero horizontal margin')
+        if sample_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Invalid native margin changed existing output')
+        print('Native print spacing report, oracle, qpdf, text and recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -98,7 +139,7 @@ def main():
         'font_inputs': [{'name': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in fonts],
         'checks': {'pdf_bytes_equal': True, 'extracted_text_equal': True, 'text_matches_html': True,
                    'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
-                   'native_background_recovery': True},
+                   'native_background_recovery': True, 'native_print_spacing_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

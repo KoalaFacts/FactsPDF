@@ -61,7 +61,10 @@ internal static class InlineCss
         if (value == "0") return 0;
         if (value.EndsWith("pt", StringComparison.Ordinal)) return Number(value[..^2], offset);
         if (value.EndsWith("px", StringComparison.Ordinal)) return Number(value[..^2], offset) * 0.75;
-        throw Invalid("This length requires pt or px units.", offset);
+        if (value.EndsWith("mm", StringComparison.Ordinal)) return Number(value[..^2], offset) * (72d / 25.4d);
+        if (value.EndsWith("cm", StringComparison.Ordinal)) return Number(value[..^2], offset) * (72d / 2.54d);
+        if (value.EndsWith("in", StringComparison.Ordinal)) return Number(value[..^2], offset) * 72d;
+        throw Invalid("This length requires pt, px, mm, cm, or in units.", offset);
     }
 
     private static double Margin(string value, int offset)

@@ -41,6 +41,7 @@ evaluation. Existing templates may need changes to fit the supported subset.
 | Example | Purpose | Resources |
 | --- | --- | --- |
 | [First document](../examples/first-document.html) | Run the shortest end-to-end conversion | ASCII/Courier; no external font files |
+| [Print spacing report](../examples/report-print-spacing.html) | Business panel with physical print units and paragraph margin shorthand (zero left/right only) | ASCII/Courier; no external resources |
 | [Branded business report](../examples/branded-business-report.html) | Transparent logo beside company details, line items and page furniture | Generated synthetic PNG and explicit image binding; no external fonts |
 | [Detailed service report](../examples/business-table-rich-cells.html) | Spanning headings/totals and paragraph/image/caption detail cells | The same generated synthetic logo; no external fonts |
 | [Long service report](../examples/business-table-long-description.html) | One long description continues across pages; a following item and totals remain in order | The same generated synthetic logo; no external fonts |
@@ -101,7 +102,7 @@ Missing resources produce explicit diagnostics.
 | Images | Explicitly bound baseline JPEG and supported static PNG, including alpha/tRNS; standalone or direct image items in cells | No SVG, APNG, interlaced/16-bit PNG, inline/list images, text wrapping around images or automatic URL loading |
 | Fonts | Explicit static TrueType roles and character fallback | No automatic family discovery, synthetic styles, full shaping or RTL |
 | Page furniture | Legacy literal header/footer and current page number, plus structured left/centre/right styled regions with actual total page count and first-page replacement via .NET/CLI | No HTML header templates or general CSS Paged Media |
-| Layout | Documented block/text subset | General flex/grid and arbitrary webpage conversion are outside the current scope |
+| Layout | Documented block/text subset with print-unit lengths (`mm/cm/in`) and paragraph `margin` shorthand when horizontal margins are zero | No nonzero horizontal margins, flex/grid, CSS Paged Media or arbitrary webpage conversion |
 | Integration | .NET library, CLI; actual Linux/Windows x64 Native AOT evidence | Node subprocess and browser WASM are experimental probes; other language SDKs remain planned |
 
 For precise values and diagnostics, see [CSS](css-stylesheets.md),

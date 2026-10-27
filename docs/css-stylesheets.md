@@ -72,13 +72,14 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 
 | Property | Values / applicability |
 | --- | --- |
-| font-size | pt/px lengths, computed range 1-144pt |
+| font-size | pt/px/mm/cm/in lengths, computed range 1-144pt |
 | font-weight | normal/bold or numeric 400/700; explicit role resources required |
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless number 1-10 |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
-| margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px or zero, at most 14400pt |
+| margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
+| margin (bounded shorthand) | Paragraphs/headings only; 1–4 values but both horizontal sides **must resolve to zero**, so use `margin: 0`, `margin: 5mm 0`, `margin: 0 0 3mm`, or `margin: 5mm 0 3mm 0`; full CSS-wide keyword as a single value accepted |
 | break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
@@ -101,6 +102,43 @@ gradients, positioning, repeats, size, multiple layers and function colours
 are still rejected with FPDF1202. There is no change to old PDF bytes unless
 the caller actually uses the newly accepted shorthand. A malformed or
 unsupported declaration still leaves existing output files intact.
+
+## Current-source print-length and vertical-margin authoring
+
+Controlled invoices, maintenance reports and service records can use physical
+print lengths in existing length-bearing CSS properties: `mm`, `cm`, `in`,
+`pt` and `px`. Conversion is fixed at 72pt/in, 25.4mm/in and 96px/in.
+`font-size` (1–144pt after conversion), `margin-top`/`margin-bottom`
+(0–14400pt), `width`, `padding` and solid `border-width` (including
+their existing shorthands) accept these units. `width`/`padding` retain
+their existing percentage semantics; the other lengths do not gain percentage
+support. All existing finite/bounds/containing-block and PDF size guards apply.
+
+The paragraph/heading `margin` shorthand now expands into the existing
+top/bottom margin layout and cascade. **FactsPDF does not yet implement
+horizontal margins**: shorthand forms that would set a nonzero left or right
+margin are rejected with `FPDF1202` instead of pretending to render them.
+For example `margin:5mm 0 3mm` is supported but `margin:5mm` and
+`margin:5mm 2mm` are not. Values on containers, spans and other
+non-paragraph/headline elements continue to fail `FPDF1201`.
+`inherit`, `initial`, `unset` and `!important` use the same existing
+per-side cascade and paragraph margin semantics. Only zero horizontal sides
+are valid even in a 4-value expression. These rules also apply to paragraphs
+inside table cells without introducing box styles or general table CSS.
+
+For a ready-to-run example needing no external images or fonts:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- \
+  examples/report-print-spacing.html report-print-spacing.pdf
+```
+
+This is a renderer/source capability and not a public package release,
+full CSS margin implementation, automatic print/page sizing or support for
+`em`, `rem`, `calc()`, negative margins and `auto` margins.
+Existing reports without these explicit new values retain their old rendering
+path. Results must still respect the chosen page geometry and explicit
+resource contracts.
 
 ## Budgets and diagnostics
 
