@@ -57,11 +57,58 @@ internal static class CssSyntaxAdapter
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
 
-            void Emit(CssProperty target, string value, int offset = -1)
+            void Emit(CssProperty target, string value, int offset = -1, string? targetName = null)
             {
                 var sourceOffset = offset < 0 ? node.Span.Start : offset;
                 var order = budget.Declaration(sourceOffset);
-                output.Add(new(target, name, value, node.Important, order, sourceOffset));
+                output.Add(new(target, targetName ?? name, value, node.Important, order, sourceOffset));
+            }
+            if (name == "margin")
+            {
+                // Paragraph/headline vertical margins already exist. Accept the
+                // CSS shorthand only when the horizontal sides are genuinely
+                // zero: do not silently discard requested horizontal layout.
+                if (terms.Count > 4)
+                    throw new FactsPdfException("FPDF1202", "Margin shorthand takes one to four values.", node.Span.Start);
+                var parts = terms.ToArray();
+                if (parts.Length == 1 && Wide(parts[0]))
+                {
+                    Emit(CssProperty.MarginTop, parts[0], valueTokens[0].Token.Span.Start, "margin-top");
+                    Emit(CssProperty.MarginBottom, parts[0], valueTokens[0].Token.Span.Start, "margin-bottom");
+                    continue;
+                }
+                var sides = ExpandFour(parts);
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    var offset = valueTokens[i].Token.Span.Start;
+                    if (Wide(parts[i]))
+                        throw new FactsPdfException("FPDF1202",
+                            "A CSS-wide margin keyword must be the only value.", offset);
+                    // Use the existing validated margin length and bounds,
+                    // including the new physical print units.
+                    _ = InlineCss.Apply(ValidationStyle, "margin-top:" + parts[i], paragraph: true, inline: false, offset);
+                }
+                var rightSource = parts.Length == 1 ? 0 : 1;
+                var leftSource = parts.Length switch { 4 => 3, 1 => 0, _ => 1 };
+                var right = InlineCss.Apply(ValidationStyle,
+                    "margin-top:" + sides[1], paragraph: true, inline: false,
+                    valueTokens[rightSource].Token.Span.Start).MarginBefore;
+                var left = InlineCss.Apply(ValidationStyle,
+                    "margin-top:" + sides[3], paragraph: true, inline: false,
+                    valueTokens[leftSource].Token.Span.Start).MarginBefore;
+                if (right != 0)
+                    throw new FactsPdfException("FPDF1202",
+                        "Nonzero right/left margin requires unsupported horizontal layout.",
+                        valueTokens[rightSource].Token.Span.Start);
+                if (left != 0)
+                    throw new FactsPdfException("FPDF1202",
+                        "Nonzero right/left margin requires unsupported horizontal layout.",
+                        valueTokens[leftSource].Token.Span.Start);
+                var topSource = 0;
+                var bottomSource = parts.Length switch { 1 => 0, 2 => 0, _ => 2 };
+                Emit(CssProperty.MarginTop, sides[0], valueTokens[topSource].Token.Span.Start, "margin-top");
+                Emit(CssProperty.MarginBottom, sides[2], valueTokens[bottomSource].Token.Span.Start, "margin-bottom");
+                continue;
             }
             if (name is "padding" or "border-width" or "border-style" or "border-color")
             {
@@ -177,7 +224,7 @@ internal static class CssSyntaxAdapter
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
-        "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
+        "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
         "width" => CssProperty.Width, "padding" or "padding-top" => CssProperty.PaddingTop,
         "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,

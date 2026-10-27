@@ -18,11 +18,17 @@ internal static class CssBoxValues
         { number = value[..^2]; scale = 1; percent = false; }
         else if (value.EndsWith("px", StringComparison.Ordinal))
         { number = value[..^2]; scale = 0.75; percent = false; }
+        else if (value.EndsWith("mm", StringComparison.Ordinal))
+        { number = value[..^2]; scale = 72d / 25.4d; percent = false; }
+        else if (value.EndsWith("cm", StringComparison.Ordinal))
+        { number = value[..^2]; scale = 72d / 2.54d; percent = false; }
+        else if (value.EndsWith("in", StringComparison.Ordinal))
+        { number = value[..^2]; scale = 72d; percent = false; }
         else if (value.EndsWith('%'))
         { number = value[..^1]; scale = 1; percent = true; }
         else if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var zero) && zero == 0)
             return new CssLength(0);
-        else throw new FactsPdfException("FPDF1202", "Width and padding require pt, px, %, or unitless zero.", offset);
+        else throw new FactsPdfException("FPDF1202", "Width and padding require pt, px, mm, cm, in, %, or unitless zero.", offset);
 
         if (!double.TryParse(number, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var parsed) || !double.IsFinite(parsed))
