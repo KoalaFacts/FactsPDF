@@ -27,8 +27,9 @@ for supported font formats and script limits.
 
 ## FPDF1504: the supplied fallback chain lacks a character
 
-Read the reported Unicode character/code point and font role. Add a font that
-actually covers that character to the **same role's** ordered fallback chain:
+Read the reported Unicode code point and check the corresponding text's style
+in your template; the normal-font diagnostic does not name a style role. Add
+a font covering that character to the **same role's** ordered fallback chain:
 
 ```sh
 dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --font /path/to/Latin.ttf --font /path/to/Chinese.ttf
