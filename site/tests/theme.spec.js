@@ -72,7 +72,7 @@ test('snapshot load failure offers an accessible high-contrast retry action', as
   const getContrast=()=>retry.evaluate(el=>{
     const style=getComputedStyle(el);
     const luminosity=color=>{
-      const rgb=color.match(/\\d+/g).slice(0,3).map(Number).map(n=>n/255);
+      const rgb=color.match(/\d+/g).slice(0,3).map(Number).map(n=>n/255);
       const linear=rgb.map(n=>n<=0.04045?n/12.92:Math.pow((n+0.055)/1.055,2.4));
       return linear[0]*0.2126+linear[1]*0.7152+linear[2]*0.0722;
     };
