@@ -7,10 +7,9 @@ that control their report templates. It supports English and Chinese text,
 explicit font styles, transparent PNGs, tables and pagination through a
 documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
-> **Current stage: unreleased `0.1.0-preview.1`, with an owner-retained private candidate.**
-> [Exact-main CI 40392917028](https://github.com/KoalaFacts/FactsPDF/actions/runs/40392917028) built and exercised five source-bound components at `6a98d707b62edc7116a84e4f37c18a188b882e03`. The owner independently validated and durably retained all five components outside this public repository, then ran the Linux Native AOT CLI offline.
-> **No public NuGet/CLI release, customer delivery, stable API, or evaluation grant exists.** Human PDF approval and legal distribution rights remain separate.
-> Start with the quick start below or the [business-report evaluation guide](docs/evaluation.md). Check [licensing](#licensing) before use; private engineering verification does not grant usage rights.
+> **Current stage: unreleased `0.1.0-preview.1`; source-bound private candidate retained for maintainer evaluation.**
+> [Merged-main CI 40561057964](https://github.com/KoalaFacts/FactsPDF/actions/runs/40561057964) at `47bc97910843ad6f72f11a285ec5b74e13862623` passed managed/API and actual Linux/Windows x64 Native AOT checks; [six other applicable main workflows](https://github.com/KoalaFacts/FactsPDF/issues/51#issuecomment-6452146222) also passed. The owner separately verified and privately retained the matching NuGet, managed CLI, Linux native CLI, examples and source components, and executed the Linux native first-use and restricted-font recovery paths.
+> **No public NuGet/CLI release, hosted compatibility site, customer software delivery, stable API or general evaluation grant exists.** Human approval of new PDF pages and legal distribution rights remain separate. See the [evaluation guide](docs/evaluation.md) and [licensing](#licensing); private engineering checks do not grant usage rights.
 
 [Quick start](#generate-your-first-pdf) · [C# API](#use-the-net-api) ·
 [Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
@@ -216,31 +215,34 @@ The [Node subprocess](docs/node-cli-probe.md) and
 not published SDKs. Performance results apply to their documented workloads and
 environments; there is no general speed or resource guarantee.
 
-Structured page furniture is implemented in the development source. The locked
-`0.1.0-preview.1` candidate toolchain merged in
-[PR #60](https://github.com/KoalaFacts/FactsPDF/pull/60). Actual
-[main CI 40392917028](https://github.com/KoalaFacts/FactsPDF/actions/runs/40392917028)
-built and exercised the five-component candidate, installed .NET API/managed
-CLI, and real Linux/Windows x64 Native AOT at exact source
-`6a98d707b62edc7116a84e4f37c18a188b882e03`.
+Structured page furniture and the locked `0.1.0-preview.1` candidate toolchain
+are implemented in the development source ([#57](https://github.com/KoalaFacts/FactsPDF/pull/57),
+[#60](https://github.com/KoalaFacts/FactsPDF/pull/60)).
+The owner privately retained all five components built for **merged main
+`47bc97910843ad6f72f11a285ec5b74e13862623`**, with source-bound
+checksums and real offline Linux Native AOT first-use and
+`FPDF1505` font-permission recovery checks. Actual main
+[CI 40561057964](https://github.com/KoalaFacts/FactsPDF/actions/runs/40561057964)
+passed after a targeted retry of a Windows-native dependency-mirror failure
+that occurred before compilation; six other applicable workflow groups
+also passed. CI validation and owner-only retention do **not** mean public
+distribution, independent signature attestation or customer acceptance.
 
-[PR #63](https://github.com/KoalaFacts/FactsPDF/pull/63) added authenticated
-encrypted retention. The owner verified the GitHub Actions source/digest,
-decrypted the exact 15-member payload, and **privately retained and read back
-all five software components byte-for-byte**. An independent offline run of
-the retained Linux Native AOT CLI generated a searchable two-page PDF with exact
-authored text and target-preserving failure behavior. This closed the private
-software-retention gate, **not** customer distribution or page approval. That
-offline execution was Linux Native AOT only; actual managed consumer and
-Windows Native AOT evidence comes from exact-main CI.
-
-Mechanical managed-CLI replay at earlier engine source
-`1a81f69a4beaf92a8710e5b79ce355440efb00b0` matched all 52 sealed legacy
-PDFs byte for byte (311 pages). Subsequent candidate-transport/documentation
-changes did not change the renderer; this is not a new exact-source replay.
-Strict local qpdf verification, original styled-CJK inputs, new-page human
-approval and legal distribution authority remain open. No public NuGet/CLI,
-Release or customer delivery has occurred. Follow
+At earlier engine source `1a81f69a4beaf92a8710e5b79ce355440efb00b0`,
+real managed-CLI replay matched all **52 original PDFs / 311 pages** byte for
+byte. A separate real Linux Native AOT replay at
+`e1dfe3b8ea0b5a0cc1cbd612abf22dd8a59748ea` also matched **52/52**.
+Those are scoped historical executions, not a fresh `47bc9791` replay.
+The original Unicode 10/30/100-record report inputs and positive C1
+four-distinct-Chinese-font-style evidence were inspected in
+[PR #71's actual API/managed/native acceptance artifact](https://github.com/KoalaFacts/FactsPDF/actions/runs/40497304548);
+the original reports exercise Chinese regular/bold, while C1 separately
+exercises Chinese regular/bold/italic/bold-italic.
+Engineering evidence does not approve new PDF pages on the user's behalf.
+New-page human sign-off, the fixed-environment performance budget,
+distribution authority and customer evaluation terms remain open.
+Strict local qpdf checking has not been asserted complete.
+There is no public NuGet/CLI, Release or customer delivery; follow
 [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 | Task | Documentation |
