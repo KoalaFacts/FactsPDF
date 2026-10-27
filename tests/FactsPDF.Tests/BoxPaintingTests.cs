@@ -194,7 +194,7 @@ public sealed class BoxPaintingTests
     [TestCase("border:1pt solid 2pt", "FPDF1202")]
     [TestCase("border-color:red blue green yellow black", "FPDF1202")]
     [TestCase("border-radius:4pt", "FPDF1201")]
-    [TestCase("background:url(foo)", "FPDF1201")]
+    [TestCase("background:url(foo)", "FPDF1202")]
     public void InvalidOrUnsupportedPaintCssFailsBeforePdfWrite(string css, string code)
         => Failure("<div style='" + css + "'>A</div>", code);
 
