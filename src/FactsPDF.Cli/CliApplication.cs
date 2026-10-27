@@ -146,7 +146,7 @@ public static class CliApplication
                 "FPDF1604" => "Bind the exact case-sensitive HTML src name with --image name=path to a supported PNG or baseline JPEG. HTML does not load files or URLs automatically.",
                 _ => null
             };
-            if (hint is not null) error.WriteLine("Hint: " + hint + " See docs/first-use-troubleshooting.md.");
+            if (hint is not null) error.WriteLine("Hint: " + hint + " See https://github.com/KoalaFacts/FactsPDF/blob/main/docs/first-use-troubleshooting.md.");
             return 3;
         }
         catch (DecoderFallbackException) { error.WriteLine("Input must be valid UTF-8."); return 3; }

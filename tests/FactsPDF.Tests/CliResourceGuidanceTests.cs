@@ -59,7 +59,7 @@ public sealed class CliResourceGuidanceTests
             var hint = lines.ReadLine();
             Assert.That(hint, Does.StartWith("Hint: "));
             Assert.That(hint, Does.Contain(remedy));
-            Assert.That(hint, Does.Contain("docs/first-use-troubleshooting.md"));
+            Assert.That(hint, Does.Contain("https://github.com/KoalaFacts/FactsPDF/blob/main/docs/first-use-troubleshooting.md"));
             Assert.That(hint!.Length, Is.LessThanOrEqualTo(512));
             Assert.That(lines.ReadLine(), Is.Null, "Exactly one static hint; no customer input or extra output.");
             Assert.That(File.ReadAllBytes(existing), Is.EqualTo(sentinel));
