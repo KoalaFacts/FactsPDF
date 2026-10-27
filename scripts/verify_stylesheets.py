@@ -89,6 +89,65 @@ def main():
             raise AssertionError('Unsupported background syntax was not rejected cleanly')
         if short_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Rejected background syntax modified existing output')
+    # Execute the customer-visible fontless business example on the actual Linux
+    # Native AOT product and compare a separate hand-authored print-unit oracle.
+    # These temporary outputs are not publicly distributed.
+    with tempfile.TemporaryDirectory(prefix='factspdf-report-spacing-') as tmp:
+        temp = Path(tmp)
+        sample = Path('examples/report-print-spacing.html')
+        actual_pdf = temp / 'print-spacing.pdf'
+        run(exe, sample, actual_pdf)
+        run('qpdf', '--check', actual_pdf)
+        info = run('pdfinfo', actual_pdf).decode('utf-8')
+        if not re.search(r'^Pages:\s+1        'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
+        'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
+        'pages': 2, 'pdf_bytes': pdfs[0].stat().st_size,
+        'pdf_sha256': hashlib.sha256(pdfs[0].read_bytes()).hexdigest(),
+        'input_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
+        'font_inputs': [{'name': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in fonts],
+        'checks': {'pdf_bytes_equal': True, 'extracted_text_equal': True, 'text_matches_html': True,
+                   'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
+                   'native_background_recovery': True, 'native_print_spacing_and_recovery': True},
+        'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
+    }
+    (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == '__main__': main()
+, info, re.M):
+            raise AssertionError('Unexpected native print-spacing page count: ' + info)
+        content = run('pdftotext', '-raw', actual_pdf, '-').decode('utf-8')
+        for expected_text in ('Service & Maintenance Report', 'Example Facilities Pty Ltd',
+                              'Equipment seals and safety checks', 'Two items require follow-up'):
+            if expected_text not in content:
+                raise AssertionError('Native print-spacing report lost ' + expected_text)
+        # 1in = 72pt; 0.125in = 9pt; 0.03125in = 2.25pt;
+        # 0.25in = 18pt. Render the same content, not a shared parser output.
+        short_html = ("<div style='width:1in;padding:0.125in;border:0.03125in solid red'>"
+                      "<p style='font-size:0.25in;margin:0 0 0.125in'>Native report</p></div>")
+        long_html = ("<div style='width:72pt;padding:9pt;border:2.25pt solid red'>"
+                     "<p style='font-size:18pt;margin-top:0;margin-bottom:9pt'>Native report</p></div>")
+        short_path, long_path = temp / 'short.html', temp / 'long.html'
+        short_path.write_text(short_html, encoding='utf-8')
+        long_path.write_text(long_html, encoding='utf-8')
+        short_pdf, long_pdf = temp / 'short.pdf', temp / 'long.pdf'
+        run(exe, short_path, short_pdf)
+        run(exe, long_path, long_pdf)
+        if short_pdf.read_bytes() != long_pdf.read_bytes():
+            raise AssertionError('Native AOT margin shorthand/print units differ from pt longhands')
+        run('qpdf', '--check', short_pdf)
+        bad = temp / 'invalid.html'
+        bad.write_text("<p style='margin:5mm'>Must not silently discard horizontal margins</p>",
+                       encoding='utf-8')
+        actual_pdf.write_bytes(b'preserve-existing-file')
+        invalid = subprocess.run([str(exe), str(bad), str(actual_pdf), '--overwrite'],
+                                 capture_output=True, timeout=120)
+        if invalid.returncode != 3 or b'FPDF1202' not in invalid.stderr or invalid.stdout:
+            raise AssertionError('Native AOT silently accepted unsupported horizontal margin')
+        if actual_pdf.read_bytes() != b'preserve-existing-file':
+            raise AssertionError('Native AOT invalid print margin changed destination')
+        print('Native AOT report print-spacing: real sample, text, qpdf, oracle bytes and recovery PASS')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
