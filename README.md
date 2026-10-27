@@ -44,6 +44,11 @@ The footer reads `Internal | 1`. Existing output files require `--overwrite`;
 conversion failures preserve the existing file. Diagnostics go to stderr, and
 failure returns a nonzero exit code. Use `--help` for the CLI options.
 
+Missing fonts, glyphs, style roles or images? The current source CLI keeps the
+original error code and adds an actionable hint. Follow the
+[first-use recovery recipes](docs/first-use-troubleshooting.md); resources remain
+explicit and a failed conversion does not become a partially successful PDF.
+
 ## Use the .NET API
 
 For a source-based evaluation, create a console app beside the checkout and
