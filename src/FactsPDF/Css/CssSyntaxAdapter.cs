@@ -71,6 +71,18 @@ internal static class CssSyntaxAdapter
                 if (terms.Count > 4)
                     throw new FactsPdfException("FPDF1202", "Margin shorthand takes one to four values.", node.Span.Start);
                 var parts = terms.ToArray();
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    // CSS number tokens may spell the unitless zero as 0.0,
+                    // +0 or -0. Normalize only actual finite numeric zero,
+                    // preserving each source token's original HTML offset.
+                    // Do not accidentally accept unitless nonzero values.
+                    if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
+                        && double.TryParse(parts[i], System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var number)
+                        && double.IsFinite(number) && number == 0)
+                        parts[i] = "0";
+                }
                 if (parts.Length == 1 && Wide(parts[0]))
                 {
                     Emit(CssProperty.MarginTop, parts[0], valueTokens[0].Token.Span.Start, "margin-top");

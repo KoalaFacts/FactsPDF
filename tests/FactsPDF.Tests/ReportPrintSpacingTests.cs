@@ -28,6 +28,10 @@ public sealed class ReportPrintSpacingTests
     }
 
     [TestCase("margin:0", "margin-top:0;margin-bottom:0")]
+    [TestCase("margin:0.0", "margin-top:0;margin-bottom:0")]
+    [TestCase("margin:3mm +0.0", "margin-top:3mm;margin-bottom:3mm")]
+    [TestCase("margin:0 0 3mm -0", "margin-top:0;margin-bottom:3mm")]
+    [TestCase("margin:-0", "margin-top:0;margin-bottom:0")]
     [TestCase("margin:10mm 0", "margin-top:10mm;margin-bottom:10mm")]
     [TestCase("margin:1cm 0 2mm", "margin-top:1cm;margin-bottom:2mm")]
     [TestCase("margin:1in 0 12pt 0", "margin-top:1in;margin-bottom:12pt")]
