@@ -155,6 +155,7 @@ public static class CliApplication
             {
                 "FPDF1301" => "Supply a trusted static TrueType font covering this text with --font path.ttf; fonts are not discovered or downloaded automatically.",
                 "FPDF1504" => "Add a font covering the reported character to the matching fallback chain: --font, --font-bold, --font-italic or --font-bold-italic. Fallback stays within its role.",
+                "FPDF1505" => "Check the font licence and OS/2 fsType. Supply a different trusted TrueType font allowing installable/editable embedding; never alter permission bits or bypass the restriction.",
                 "FPDF1507" => "Supply the requested style with --font-bold, --font-italic or --font-bold-italic. Normal --font does not provide these roles; styles are not synthesized.",
                 "FPDF1604" => "Bind the exact case-sensitive HTML src name with --image name=path to a supported PNG or baseline JPEG. HTML does not load files or URLs automatically.",
                 _ => null
