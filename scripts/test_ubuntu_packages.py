@@ -82,5 +82,23 @@ class UbuntuPackagesTests(unittest.TestCase):
             self.assertNotIn('unrelated.example.invalid', after)
 
 
+    def test_package_install_keeps_ubuntu_sources_and_skips_recommends(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'ubuntu.sources'
+            source.write_text('Types: deb\nURIs: http://archive.ubuntu.com/ubuntu\nSuites: noble\nComponents: main universe\n')
+            with patch.object(installer.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)) as run:
+                installer.install('packages', ['python3-munkres', 'python3-fonttools'], source)
+            self.assertEqual(run.call_count, 2)
+            update, install = [call.args[0] for call in run.call_args_list]
+            self.assertEqual(update[-3:], ['apt-get', 'update', '-qq'])
+            self.assertEqual(install[-6:], ['apt-get', 'install', '-y', '--no-install-recommends',
+                                            'python3-munkres', 'python3-fonttools'])
+            self.assertTrue(all(call.kwargs['check'] for call in run.call_args_list))
+            self.assertTrue(all(cmd[0:2] == ['sudo', 'env'] for cmd in (update, install)))
+            self.assertEqual(update[2], install[2])
+            config = Path(update[2].split('=', 1)[1])
+            self.assertFalse(config.exists())  # transient config is cleaned after use
+
+
 if __name__ == '__main__':
     unittest.main()
