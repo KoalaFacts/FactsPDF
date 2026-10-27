@@ -114,7 +114,7 @@ public sealed class HorizontalParagraphMarginTests
         const string common = "<style>p,h2{font-size:10pt;line-height:2;margin:0;font-weight:normal}</style>";
         var small = Page with { PageWidth = 240, PageHeight = 100, Margin = 10 };
         const string report = "<p>BEFORE<br>BEFORE</p><h2 style='break-after:avoid;margin-left:20pt;margin-right:20pt'>HEADING</h2>" +
-            "<p style='margin-left:35pt;margin-right:35pt'>ALPHA BETA GAMMA DELTA</p>";
+            "<p style='margin-left:35pt;margin-right:35pt'>ALPHA<br>BETA<br>GAMMA</p>";
         var pages = Layout(common + report, small);
         Assert.That(pages.Count, Is.GreaterThanOrEqualTo(2));
         var lines = pages.Select(p => string.Join(",", p.Runs.Select(r => r.Text))).ToArray();
