@@ -60,6 +60,9 @@ jobs:
       - name: Verify original ASCII output
         run: |
           file artifacts/native/FactsPDF.Cli
+          expected="FactsPDF.Cli 0.1.0-preview.1+$(git rev-parse HEAD)"
+          actual="$(artifacts/native/FactsPDF.Cli --version)"
+          test "$actual" = "$expected" || { echo "Linux Native AOT CLI build identity mismatch: $actual" >&2; exit 1; }
           artifacts/native/FactsPDF.Cli examples/first-document.html artifacts/first-document.pdf
           python3 scripts/verify_sample.py artifacts/first-document.pdf
       - name: Verify actual Chinese fonts, searchable text and rendered pages
@@ -97,6 +100,9 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_exact_consumer_probe.py' -v
           python3 -m unittest discover -s scripts -p 'test_first_use.py' -v
           dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
+          expected="FactsPDF.Cli 0.1.0-preview.1+$(git rev-parse HEAD)"
+          actual="$(dotnet artifacts/first-use-cli/FactsPDF.Cli.dll --version)"
+          test "$actual" = "$expected" || { echo "Managed CLI build identity mismatch: $actual" >&2; exit 1; }
           python3 scripts/verify_first_use.py --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll --dotnet "$(command -v dotnet)" --output artifacts/first-use
       - name: Build private Linux candidate inputs from the pinned clean source (not a release)
         run: |
@@ -842,6 +848,9 @@ jobs:
         run: |
           $pythonExe = (Get-Command python).Source
           $env:PATH = (Join-Path $env:MSYS2_LOCATION 'ucrt64\bin') + ';' + $env:PATH
+          $expectedVersion = 'FactsPDF.Cli 0.1.0-preview.1+' + (& git rev-parse HEAD).Trim()
+          $actualVersion = & artifacts/windows-native/FactsPDF.Cli.exe --version
+          if ($LASTEXITCODE -ne 0 -or $actualVersion -ne $expectedVersion) { throw "Windows Native AOT CLI build identity mismatch: $actualVersion" }
           & $pythonExe -m unittest discover -s scripts -p test_windows_aot.py -v
           if ($LASTEXITCODE -ne 0) { throw "Windows acceptance guard tests failed" }
           & $pythonExe scripts/verify_windows_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence

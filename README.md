@@ -44,6 +44,13 @@ The footer reads `Internal | 1`. Existing output files require `--overwrite`;
 conversion failures preserve the existing file. Diagnostics go to stderr, and
 failure returns a nonzero exit code. Use `--help` for the CLI options.
 
+To identify the **actual built CLI** during deployment or a support request,
+run `dotnet run --project src/FactsPDF.Cli -c Release -- --version` from a
+source checkout, or `FactsPDF.Cli --version` for an installed executable.
+This reads no report input or resources and prints the assembly's informational
+version, including the source commit suffix when stamped by the build. It does
+not attest toolchain signatures or imply that a public package is released.
+
 Missing fonts, glyphs, style roles or images? The current source CLI keeps the
 original error code and adds an actionable hint. Follow the
 [first-use recovery recipes](docs/first-use-troubleshooting.md); resources remain

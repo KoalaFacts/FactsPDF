@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using FactsPDF.Configuration;
 
@@ -15,7 +16,8 @@ public static class CliApplication
         "--page-furniture reads one explicit strict UTF-8 JSON file (at most 65536 bytes including BOM) for styled regions, {page}/{pages}, and first-page replacement.\n" +
         "Structured furniture cannot be combined with --page-numbers, --header-text or --footer-text, including empty legacy text.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
-        "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n";
+        "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n" +
+        "--version prints the built CLI informational version for deployment and support; no document or resources are read.\n";
 
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
         CancellationToken cancellationToken = default)
@@ -27,6 +29,15 @@ public static class CliApplication
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (args.Length == 1 && args[0] is "--help" or "-h") { output.Write(Encoding.UTF8.GetBytes(Usage)); return 0; }
+            if (args.Length == 1 && args[0] == "--version")
+            {
+                var version = typeof(CliApplication).Assembly
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+                if (string.IsNullOrWhiteSpace(version))
+                    throw new InvalidOperationException("The CLI assembly has no informational build version.");
+                output.Write(Encoding.UTF8.GetBytes("FactsPDF.Cli " + version + "\n"));
+                return 0;
+            }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
