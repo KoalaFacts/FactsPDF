@@ -73,7 +73,9 @@ public sealed class BackgroundShorthandTests
         using var diagnostics = new StringWriter();
         var code = CliApplication.Run(["-", "-"], input, output, diagnostics);
         Assert.That(code, Is.Zero, diagnostics.ToString());
-        Assert.That(output.ToArray(), Is.EqualTo(Convert(html)));
+        using var direct = new MemoryStream();
+        PdfConverter.Convert(html, direct); // CLI uses the default page geometry.
+        Assert.That(output.ToArray(), Is.EqualTo(direct.ToArray()));
         Assert.That(diagnostics.ToString(), Does.Not.Contain("Hint:"));
     }
 }
