@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('2f9cfd1f',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('fe622926',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('filters and detail links survive refresh without inventing versions',async({page})=>{
