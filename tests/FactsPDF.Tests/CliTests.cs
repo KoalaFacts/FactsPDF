@@ -115,6 +115,25 @@ public sealed class CliTests
     }
 
     [Test]
+    public void HelpAdvertisesImageBindingVersionAndStylesheetsWithoutReadingInput()
+    {
+        var result = Run(["--help"], [0xff]);
+        Assert.That(result.Exit, Is.Zero);
+        Assert.That(result.Error, Is.Empty);
+        var usage = Encoding.UTF8.GetString(result.Output);
+        Assert.That(usage, Does.Contain("[--image name=path ...]"));
+        Assert.That(usage, Does.Contain("Usage: FactsPDF.Cli --help"));
+        Assert.That(usage, Does.Contain("Usage: FactsPDF.Cli --version"));
+        Assert.That(usage, Does.Contain("embedded <style> rules"));
+        Assert.That(usage, Does.Not.Contain("Experimental inline-CSS renderer"));
+        var invalid = Run(["--not-an-option"]);
+        Assert.That(invalid.Exit, Is.EqualTo(2));
+        Assert.That(invalid.Error, Does.Contain("[--image name=path ...]"));
+        Assert.That(invalid.Error, Does.Contain("Usage: FactsPDF.Cli --version"));
+        Assert.That(invalid.Output, Is.Empty);
+    }
+
+    [Test]
     public void HelpDoesNotAttemptConversion()
     {
         var result = Run(["--help"], [0xff]);

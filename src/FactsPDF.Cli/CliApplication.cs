@@ -7,8 +7,10 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...]\n" +
-        "Experimental inline-CSS renderer. Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
+        "Usage: FactsPDF.Cli --help\n" +
+        "Usage: FactsPDF.Cli --version\n" +
+        "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
         "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
