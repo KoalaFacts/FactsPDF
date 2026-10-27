@@ -85,6 +85,23 @@ These properties also accept `inherit`, `initial`, `unset` and `!important`. Mat
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
 
+## Current-source background shorthand (colour only)
+
+The current report renderer also accepts the familiar `background` shorthand **only
+when it contains one supported colour**. For example,
+`<div style="background:#cee8fb">Summary</div>` is byte-for-byte equivalent
+to the same element with `background-color:#cee8fb`. It accepts the same
+`#rgb` / `#rrggbb`, documented colour names, `transparent` and
+`inherit` / `initial` / `unset` keywords. Normal selector precedence,
+`!important`, non-inheritance, element applicability and existing background
+painting/fragmentation apply identically.
+
+This is **not** general CSS background shorthand support: images, URL loading,
+gradients, positioning, repeats, size, multiple layers and function colours
+are still rejected with FPDF1202. There is no change to old PDF bytes unless
+the caller actually uses the newly accepted shorthand. A malformed or
+unsupported declaration still leaves existing output files intact.
+
 ## Budgets and diagnostics
 
 `PdfOptions` includes per-conversion limits:

@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 
 
@@ -64,6 +65,30 @@ def main():
         a = output / f'stylesheet-document-{page}.ppm'; b = output / f'inline-oracle-{page}.ppm'
         if a.read_bytes() != b.read_bytes(): raise AssertionError('Rendered pixels differ')
     run('pdftoppm', '-r', '120', '-png', pdfs[0], pdfs[0].with_suffix(''))
+    # Exercise the newly accepted colour-only shorthand using the real compiled Native AOT CLI.
+    # Intermediate PDFs remain local temporary files, never part of the public evidence artifact.
+    with tempfile.TemporaryDirectory(prefix='factspdf-background-') as tmp:
+        temp = Path(tmp)
+        short = temp / 'short.html'; long = temp / 'long.html'
+        short.write_text("<div style='background:#cee8fb;padding:6pt'><p>Business report</p></div>", encoding='utf-8')
+        long.write_text("<div style='background-color:#cee8fb;padding:6pt'><p>Business report</p></div>", encoding='utf-8')
+        short_pdf = temp / 'short.pdf'; long_pdf = temp / 'long.pdf'
+        run(exe, short, short_pdf)
+        run(exe, long, long_pdf)
+        if short_pdf.read_bytes() != long_pdf.read_bytes():
+            raise AssertionError('Native AOT background shorthand PDF differs from background-color')
+        run('qpdf', '--check', short_pdf)
+        if 'Business report' not in run('pdftotext', '-raw', short_pdf, '-').decode('utf-8'):
+            raise AssertionError('Native AOT shorthand report text was lost')
+        bad = temp / 'bad.html'
+        bad.write_text("<div style='background:url(secret.png)'>Not rendered</div>", encoding='utf-8')
+        short_pdf.write_bytes(b'keep-existing')
+        rejected = subprocess.run([str(exe), str(bad), str(short_pdf), '--overwrite'],
+                                  capture_output=True, timeout=120)
+        if rejected.returncode != 3 or b'FPDF1202' not in rejected.stderr or rejected.stdout:
+            raise AssertionError('Unsupported background syntax was not rejected cleanly')
+        if short_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Rejected background syntax modified existing output')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -72,7 +97,8 @@ def main():
         'input_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
         'font_inputs': [{'name': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in fonts],
         'checks': {'pdf_bytes_equal': True, 'extracted_text_equal': True, 'text_matches_html': True,
-                   'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True},
+                   'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
+                   'native_background_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

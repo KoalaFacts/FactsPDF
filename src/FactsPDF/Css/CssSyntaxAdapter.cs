@@ -182,7 +182,7 @@ internal static class CssSyntaxAdapter
         "width" => CssProperty.Width, "padding" or "padding-top" => CssProperty.PaddingTop,
         "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,
         "padding-left" => CssProperty.PaddingLeft,
-        "background-color" => CssProperty.BackgroundColor,
+        "background" or "background-color" => CssProperty.BackgroundColor,
         "border" or "border-top" or "border-width" or "border-top-width" => CssProperty.BorderTopWidth,
         "border-right" or "border-right-width" => CssProperty.BorderRightWidth,
         "border-bottom" or "border-bottom-width" => CssProperty.BorderBottomWidth,
@@ -238,7 +238,7 @@ internal static class CssSyntaxAdapter
         if (name == "width") { _ = CssBoxValues.Width(token, offset); }
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset);
-        else if (name == "background-color") _ = CssPaintValues.Background(token, offset);
+        else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
         else if (name.Contains("border", StringComparison.Ordinal))
         {
             if (name.EndsWith("width", StringComparison.Ordinal)) _ = CssPaintValues.BorderWidth(token, offset);

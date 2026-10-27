@@ -7,8 +7,18 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, '2f9cfd1fac13ab6034ac03a10d03b680f1de4018');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:115, none:251, unknown:6, na:2 });
+  assert.equal(dataset.commit, 'fe622926bbe5a9b83932e09a643c4c9cb7ceb60d');
+  assert.deepEqual(counts(dataset.features), { full:44, partial:116, none:250, unknown:6, na:2 });
+});
+test('colour-only background shorthand is discoverable without claiming CSS backgrounds', () => {
+  const match=filterFeatures(dataset.features,{q:'background',status:'partial'}).find(f=>f.id==='css.background');
+  assert(match);
+  assert.match(match.scope,/颜色/);
+  assert.match(match.limitations,/url/);
+  assert.match(match.limitations,/渐变/);
+  assert.equal(match.example,'background:#cee8fb');
+  assert.equal(match.introduced_release,null);
+  assert.equal(dataset.features.find(f=>f.id==='css.background-image').status,'none');
 });
 test('colspan lookup includes the implemented subset without promoting rowspan', () => {
   const span=filterFeatures(dataset.features,{q:'colspan',status:'partial'}).find(f=>f.id==='attr.15');
