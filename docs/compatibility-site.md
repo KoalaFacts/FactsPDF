@@ -201,3 +201,19 @@ expectation deliberately remains at `a085085e`, because that row was not
 reaudited. Current site verification belongs to this change's command/CI logs;
 prior passing browser tests or a successful local build do not establish a new
 browser run or successful public deployment.
+
+## 27 October 2026: colour-only CSS `background` shorthand
+
+Snapshot `audit-2026-10-27.color-only-background` audits implementation commit
+`fe622926bbe5a9b83932e09a643c4c9cb7ceb60d` and its independently authored tests. SHA-256: `e0b89783176b492b75fd12731f566971ca6dff1671c27769c3824335059b0633`.
+Of the 418 stable feature IDs, only `css.background` changes from `none`
+to **partial**: one supported colour or `transparent`, with the same cascade,
+background painting and element applicability as `background-color`. No
+background images, gradients, functions, sizing, positioning or repeat.
+The other 417 feature records, source histories and category totals are kept
+unchanged. Counts are **44 full, 116 partial, 250 none, 6 unknown, 2 not
+applicable**; accepted CSS property names become 38 (not whole-standard
+coverage). This code-audit snapshot does not assert completion of PR-head CI
+or any public product release; use exact PR/main workflow evidence for that.
+GitHub Pages availability still depends on repository settings and successful
+deployment; a validated static build alone is not a live website.
