@@ -66,13 +66,14 @@ internal static class BlockLayout
                 {
                     var style = node.BoxStyle;
                     var gutter = node.Name == "li" ? frame.Gutter : 0;
-                    var x = frame.X + gutter;
-                    var width = frame.ContentWidth - gutter;
-                    if (width < -0.000001)
+                    var containing = frame.ContentWidth - gutter;
+                    if (containing < -0.000001)
                         throw new FactsPdfException("FPDF1302", "List marker gutter exceeds containing content width.", node.SourceOffset);
-                    width = Math.Max(0, width);
-                    var markerRight = node.Name == "li" ? x - frame.MarkerGap : frame.MarkerRightX;
-                    var box = ResolveBox(style, width, node.SourceOffset);
+                    containing = Math.Max(0, containing);
+                    var (marginLeft, _, width) = ResolveMargins(style, containing, node.SourceOffset);
+                    var x = frame.X + gutter + marginLeft;
+                    var markerRight = node.Name == "li" ? frame.X + gutter - frame.MarkerGap : frame.MarkerRightX;
+                    var box = ResolveBox(style, width, node.SourceOffset, containing);
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6");
@@ -88,9 +89,20 @@ internal static class BlockLayout
 
     internal readonly record struct ResolvedBox(double PaddingLeft, double Top, double Bottom, double Inner, double OuterWidth);
 
-    internal static ResolvedBox ResolveBox(BoxStyle style, double width, int offset)
+    internal static (double Left, double Right, double Available) ResolveMargins(
+        BoxStyle style, double containingWidth, int offset)
     {
-        double Resolve(CssLength length) => Checked(length.Resolve(width), offset);
+        var left = Checked(style.MarginLeft.Resolve(containingWidth), offset);
+        var right = Checked(style.MarginRight.Resolve(containingWidth), offset);
+        if (left + right > containingWidth + 0.000001)
+            throw new FactsPdfException("FPDF1302", "Paragraph horizontal margins exceed containing width.", offset);
+        return (left, right, Math.Max(0, containingWidth - left - right));
+    }
+
+    internal static ResolvedBox ResolveBox(BoxStyle style, double width, int offset,
+        double? percentageBasis = null)
+    {
+        double Resolve(CssLength length) => Checked(length.Resolve(percentageBasis ?? width), offset);
         var left = Resolve(style.PaddingLeft);
         var right = Resolve(style.PaddingRight);
         var top = Resolve(style.PaddingTop);

@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BorderLeftColor + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.MarginLeft + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -139,14 +139,19 @@ internal sealed class CssStylesheets
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
-            if (cellParagraph && (CssDeclarations.IsBoxProperty(declaration.Property)
+            // Flat table cell paragraphs do not have independent horizontal box
+            // geometry. Preserve existing zero-side shorthands, reject insets.
+            var zeroCellInset = declaration.Property is CssProperty.MarginLeft or CssProperty.MarginRight
+                && (declaration.Value is "inherit" or "initial" or "unset"
+                    || CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
+            if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
                 (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))
                 throw new FactsPdfException("FPDF1201", "break-after:avoid is supported only on headings outside lists.", declaration.Offset);
-            if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.BreakBefore or CssProperty.BreakAfter)
+            if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);

@@ -66,7 +66,8 @@ internal static class HeadingKeep
                 cancellation.ThrowIfCancellationRequested();
                 var node = (BlockNode)group.Children[i];
                 var paragraph = ((ParagraphNode)node.Children[0]).Paragraph;
-                var box = BlockLayout.ResolveBox(node.BoxStyle, group.ContentWidth, node.SourceOffset);
+                var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle, group.ContentWidth, node.SourceOffset);
+                var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset, group.ContentWidth);
                 var before = paragraph.Style.MarginBefore;
                 var freshBefore = i == group.Start ? 0 : before;
                 if (HasTextContent(paragraph, cancellation)) ensureCommands(commands + 1, node.SourceOffset);

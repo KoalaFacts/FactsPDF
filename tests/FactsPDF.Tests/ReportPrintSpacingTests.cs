@@ -124,9 +124,6 @@ public sealed class ReportPrintSpacingTests
         Assert.That(actual.ToArray(), Is.EqualTo(expected.ToArray()));
     }
 
-    [TestCase("margin:12pt")] // One side actually means four sides in standard CSS.
-    [TestCase("margin:2pt 1pt")]
-    [TestCase("margin:2pt 0 3pt 4pt")]
     [TestCase("margin:0 0 auto")]
     [TestCase("margin:0 0 -1mm")]
     [TestCase("margin:0%")]
@@ -148,7 +145,7 @@ public sealed class ReportPrintSpacingTests
         using var target = new MemoryStream();
         target.Write("still intact"u8);
         var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert("<style>.unmatched{margin:1mm}</style><p>safe</p>", target, Page));
+            PdfConverter.Convert("<style>.unmatched{margin:-1mm}</style><p>safe</p>", target, Page));
         Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
         Assert.That(Encoding.ASCII.GetString(target.ToArray()), Is.EqualTo("still intact"));
     }
