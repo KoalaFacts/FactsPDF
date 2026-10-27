@@ -79,7 +79,8 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
-| margin (bounded shorthand) | Paragraphs/headings only; 1–4 values but both horizontal sides **must resolve to zero**, so use `margin: 0`, `margin: 5mm 0`, `margin: 0 0 3mm`, or `margin: 5mm 0 3mm 0`; full CSS-wide keyword as a single value accepted |
+| margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/% or zero; percentages use containing width |
+| margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/zero and horizontal pt/px/mm/cm/in/%/zero, including `margin: 2mm 5% 3mm 4mm`; a single CSS-wide keyword accepted |
 | break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
@@ -114,18 +115,25 @@ their existing shorthands) accept these units. `width`/`padding` retain
 their existing percentage semantics; the other lengths do not gain percentage
 support. All existing finite/bounds/containing-block and PDF size guards apply.
 
-The paragraph/heading `margin` shorthand now expands into the existing
-top/bottom margin layout and cascade. **FactsPDF does not yet implement
-horizontal margins**: shorthand forms that would set a nonzero left or right
-margin are rejected with `FPDF1202` instead of pretending to render them.
-For example `margin:5mm 0 3mm` is supported but `margin:5mm` and
-`margin:5mm 2mm` are not. Values on containers, spans and other
-non-paragraph/headline elements continue to fail `FPDF1201`.
-`inherit`, `initial`, `unset` and `!important` use the same existing
-per-side cascade and paragraph margin semantics. Only zero horizontal sides
-are valid even in a 4-value expression. These rules also apply to paragraphs
-inside table cells without introducing box styles or general table CSS.
+The paragraph/heading `margin` shorthand now expands into **all four** independently
+cascaded sides. `margin-left` and `margin-right` also work as longhands and accept
+nonnegative `pt/px/mm/cm/in/%` and unitless zero. Percentage sides resolve
+against the original containing content-box width, including when the
+paragraph has padding or an explicit width. Nonzero horizontal margins shift
+the paragraph border/background and reduce line-wrap and alignment width
+on every continued page. Opt-in heading keep also measures the inset width.
 
+For example, `margin:2mm 5% 3mm 4mm`, `margin:5mm`, `margin:0 4mm`, and
+`margin-left:5%` affect real PDF geometry. CSS-wide `inherit`, `initial` and
+`unset` remain per-side; horizontal margins are not inherited by default.
+On flat table-cell paragraphs, only **zero** horizontal margin values are
+allowed (preserving old vertical shorthand); nonzero horizontal values error
+with `FPDF1201`, not silently ignored. Container and span margins remain
+unsupported. Negative and `auto` margins, vertical `%`, `calc()`, `em/rem`
+and full browser margin collapsing are not implemented. Geometry exceeding
+the containing content rectangle fails with `FPDF1302` and preserves output.
+Four-sided shorthand now counts four emitted declarations toward the existing
+CSS budget, rather than the earlier two when both horizontal sides were zero.
 For a ready-to-run example needing no external images or fonts:
 
 ```sh
@@ -134,7 +142,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- \
 ```
 
 This is a renderer/source capability and not a public package release,
-full CSS margin implementation, automatic print/page sizing or support for
+general browser margin collapsing, automatic print/page sizing or support for
 `em`, `rem`, `calc()`, negative margins and `auto` margins.
 Existing reports without these explicit new values retain their old rendering
 path. Results must still respect the chosen page geometry and explicit

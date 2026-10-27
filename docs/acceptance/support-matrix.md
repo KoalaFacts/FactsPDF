@@ -31,6 +31,7 @@ These implemented paths have independent executable evidence. This table neither
 
 | Capability | Executable positive evidence | Approval boundary |
 |---|---|---|
+| Four-sided report margins and print lengths | [Scoped CSS](../css-stylesheets.md), `tests/FactsPDF.Tests/HorizontalParagraphMarginTests.cs`, `examples/report-print-spacing.html` | Test cases cover real wrapping, painting, keep groups and safe recovery; exact-head CI/native and independent review still required |
 | Fixed columns, whole rows, repeated headers | [E1/E2 tables](../tables.md), `scripts/verify_table_pagination.py` | Separate from malformed T-table rejection |
 | Static PNG color and transparency | [PNG image resources](../images.md), `scripts/verify_png.py` | Scoped non-interlaced formats; separate engineering evidence |
 | Image-only table cells and repeated image headers | [Branded table composition](../tables.md#image-only-cells-and-branded-layouts), `scripts/verify_table_images.py` | Literal geometry/pixels, reuse and actual mutated-PDF rejection; new pages pending reference review |
