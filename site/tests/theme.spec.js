@@ -62,3 +62,27 @@ test('theme desktop, detail, mobile and English review captures',async({page})=>
   await page.screenshot({path:'test-results/caniuse-mobile.png',fullPage:true});
   expect(errors).toEqual([]);
 });
+
+
+test('snapshot load failure offers an accessible high-contrast retry action', async({page})=>{
+  await page.route('**/data/compatibility.json',route=>route.fulfill({status:503,body:'unavailable'}));
+  await page.goto(base);
+  const retry=page.getByRole('button',{name:'重试',exact:true});
+  await expect(retry).toBeVisible();
+  const getContrast=()=>retry.evaluate(el=>{
+    const style=getComputedStyle(el);
+    const luminosity=color=>{
+      const rgb=color.match(/\\d+/g).slice(0,3).map(Number).map(n=>n/255);
+      const linear=rgb.map(n=>n<=0.04045?n/12.92:Math.pow((n+0.055)/1.055,2.4));
+      return linear[0]*0.2126+linear[1]*0.7152+linear[2]*0.0722;
+    };
+    const a=luminosity(style.color),b=luminosity(style.backgroundColor);
+    return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+  });
+  expect(await getContrast()).toBeGreaterThanOrEqual(4.5);
+  await retry.hover();
+  expect(await getContrast()).toBeGreaterThanOrEqual(4.5);
+  await page.unroute('**/data/compatibility.json');
+  await retry.click();
+  await expect(page.locator('[data-total]')).toHaveText('418');
+});
