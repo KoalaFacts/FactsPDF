@@ -3,7 +3,8 @@ on:
   pull_request:
     paths: ['site/**', '.github/workflows/compatibility-pages.yml']
   push:
-    branches: [main]
+    # Temporary isolated design-preview trigger; remove before main integration.
+    branches: [main, design/caniuse-style-preview]
     paths: ['site/**', '.github/workflows/compatibility-pages.yml']
   workflow_dispatch:
 permissions:
