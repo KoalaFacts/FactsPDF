@@ -134,7 +134,21 @@ public static class CliApplication
             error.WriteLine($"Wrote {result.PageCount} page(s), {result.BytesWritten} bytes."); return 0;
         }
         catch (OperationCanceledException) { error.WriteLine("Conversion cancelled."); return 130; }
-        catch (FactsPdfException ex) { error.WriteLine(ex.Message); return 3; }
+        catch (FactsPdfException ex)
+        {
+            error.WriteLine(ex.Message);
+            // Static, code-based guidance only: never interpret customer text as a command.
+            var hint = ex.Code switch
+            {
+                "FPDF1301" => "Supply a trusted static TrueType font covering this text with --font path.ttf; fonts are not discovered or downloaded automatically.",
+                "FPDF1504" => "Add a font covering the reported character to the matching fallback chain: --font, --font-bold, --font-italic or --font-bold-italic. Fallback stays within its role.",
+                "FPDF1507" => "Supply the requested style with --font-bold, --font-italic or --font-bold-italic. Normal --font does not provide these roles; styles are not synthesized.",
+                "FPDF1604" => "Bind the exact case-sensitive HTML src name with --image name=path to a supported PNG or baseline JPEG. HTML does not load files or URLs automatically.",
+                _ => null
+            };
+            if (hint is not null) error.WriteLine("Hint: " + hint + " See docs/first-use-troubleshooting.md.");
+            return 3;
+        }
         catch (DecoderFallbackException) { error.WriteLine("Input must be valid UTF-8."); return 3; }
         catch (ArgumentException ex) { error.WriteLine(ex.Message); error.Write(Usage); return 2; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
