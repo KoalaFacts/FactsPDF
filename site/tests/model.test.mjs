@@ -42,7 +42,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:128, none:238, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:129, none:237, unknown:6, na:2 });
 });
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
@@ -54,7 +54,8 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.limitations,/span/);
   assert.match(feature.limitations,/FPDF1302/);
   assert.equal(feature.example,'white-space:nowrap');
-  assert.equal(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
+    ['css.white-space','css.word-spacing']);
 });
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
