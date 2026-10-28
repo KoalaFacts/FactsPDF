@@ -99,7 +99,9 @@ The original stylesheet increment and later box-layout increments are distinct; 
 on supported report paragraphs/headings, container-inherited text and inline
 spans increase the PDF character advance. Each text run emits the matching
 PDF `Tc` text-state command for both built-in ASCII Courier and the explicitly
-supplied CID TrueType fonts; the same spacing is counted during word measurement,
+supplied CID TrueType fonts. Since `Tc` persists across PDF text objects, a
+transition back to zero emits an explicit `0 Tc` while documents with no
+tracking preserve the old byte path. The same spacing is counted during word measurement,
 normal/nowrap overflow checks, alignment, paragraph pagination and decoration
 widths. No external font or browser layout is inferred. CJK fallback glyph
 selection and content bytes are unchanged. Ordered list markers that inherit

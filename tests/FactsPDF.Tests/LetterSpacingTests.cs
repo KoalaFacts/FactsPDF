@@ -74,6 +74,40 @@ public sealed class LetterSpacingTests
     }
 
     [Test]
+    public void TrackedSpanFollowedByNormalTextResetsPersistentPdfTextState()
+    {
+        // Tc is not reset by BT/ET. A missing explicit 0 Tc after AB would
+        // paint CD too wide even though layout measured the normal advance.
+        const string html = "<p><span style='letter-spacing:3pt'>AB</span>CD</p>";
+        var runs = Layout(html).Single().Runs;
+        Assert.That(runs.Select(run => run.Text), Is.EqualTo(new[] { "AB", "CD" }));
+        Assert.That(runs.Select(run => run.Width), Is.EqualTo(new[] { 20.4, 14.4 }).Within(0.001));
+        Assert.That(runs[1].X, Is.EqualTo(runs[0].X + runs[0].Width).Within(0.001));
+        var text = Encoding.Latin1.GetString(Pdf(html));
+        var tracked = text.IndexOf("3 Tc", StringComparison.Ordinal);
+        var restored = text.IndexOf("0 Tc", StringComparison.Ordinal);
+        Assert.That(tracked, Is.GreaterThanOrEqualTo(0));
+        Assert.That(restored, Is.GreaterThan(tracked));
+        Assert.That(Pdf("<p>CD</p>"), Is.EqualTo(Pdf("<p style='letter-spacing:normal'>CD</p>")));
+    }
+
+    [Test]
+    public void TrueTypeTrackedSpanAlsoResetsTcBeforeUntrackedGlyphs()
+    {
+        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var options = Page with { Fonts = [font] };
+        var html = "<p><span style='letter-spacing:2pt'>中文</span>中文</p>";
+        var runs = Layout(html, options).Single().Runs;
+        Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "中文", "中文" }));
+        Assert.That(runs[0].Width - runs[1].Width, Is.EqualTo(4).Within(0.001));
+        var bytes = Encoding.Latin1.GetString(Pdf(html, options));
+        var tracked = bytes.IndexOf("2 Tc", StringComparison.Ordinal);
+        var restored = bytes.IndexOf("0 Tc", StringComparison.Ordinal);
+        Assert.That(tracked, Is.GreaterThanOrEqualTo(0));
+        Assert.That(restored, Is.GreaterThan(tracked));
+    }
+
+    [Test]
     public void TrackingChangesRealWrapAndRetainsAllTextAcrossPages()
     {
         var narrow = Page with { PageWidth = 120, PageHeight = 68, Margin = 20 };
