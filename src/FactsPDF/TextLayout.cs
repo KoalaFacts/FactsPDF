@@ -7,7 +7,8 @@ internal static class TextLayout
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
-        bool HasParagraphDescendant = false, bool TopConsumed = false);
+        bool HasParagraphDescendant = false, bool TopConsumed = false,
+        double MarginTop = 0);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -132,10 +133,14 @@ internal static class TextLayout
                 if (begin.IsParagraph)
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { HasParagraphDescendant = true };
-                var start = y + pendingTopPadding + pendingClosedPadding + after;
+                var start = y + pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
-                    pages.Count - 1, start, paintOrder++, begin.IsParagraph));
+                    pages.Count - 1, start, paintOrder++, begin.IsParagraph,
+                    MarginTop: begin.MarginTop));
+                // Outside the border: only first-page placement and the
+                // containing ancestor's occupied content change, never paint.
+                pendingClosedPadding += begin.MarginTop;
                 pendingTopPadding += begin.PaddingTop;
                 continue;
             }
@@ -222,13 +227,14 @@ internal static class TextLayout
                     pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
                     pendingClosedPadding += scope.Top;
                 }
-                pendingClosedPadding += closing.PaddingBottom;
+                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom;
                 // An unpainted empty child can still consume page geometry
                 // through padding, borders or margins. If it has already
                 // occupied space on a page, a painted ancestor cannot be
                 // moved intact to another page before its first text line.
                 var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
-                    scope.Top > 0 || closing.PaddingBottom > 0 ||
+                    scope.Top > 0 || scope.MarginTop > 0 ||
+                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
                     (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
                     for (var i = 0; i < opened.Count; i++)

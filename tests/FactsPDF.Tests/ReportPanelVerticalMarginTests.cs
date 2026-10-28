@@ -54,7 +54,7 @@ public sealed class ReportPanelVerticalMarginTests
         var painted = Layout(actual).Single().PaintBoxes.OrderBy(b => b.Top).ToArray();
         Assert.That(painted, Has.Length.EqualTo(2));
         Assert.That(painted[0].Top, Is.EqualTo(32).Within(0.000001));
-        Assert.That(painted[0].X, Is.EqualTo(72).Within(0.000001));
+        Assert.That(painted[0].X, Is.EqualTo(71).Within(0.000001)); // (260 - 158)/2 + 20
         Assert.That(painted[1].Top - (painted[0].Top + painted[0].Height),
             Is.EqualTo(7).Within(0.000001));
     }

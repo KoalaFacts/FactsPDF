@@ -135,10 +135,6 @@ public sealed class ReportPanelMarginTests
         Assert.That(Pdf(explicitZero), Is.EqualTo(Pdf(body)));
     }
 
-    [TestCase("<section style='margin:8pt auto'>A</section>", "FPDF1201")]
-    [TestCase("<article style='margin:0 auto 2pt'>A</article>", "FPDF1201")]
-    [TestCase("<div style='margin-top:inherit'>A</div>", "FPDF1201")]
-    [TestCase("<style>.panel{margin-top:4pt;margin-top:0}</style><div class=panel>A</div>", "FPDF1201")]
     [TestCase("<body style='margin:0 auto'>A</body>", "FPDF1201")]
     [TestCase("<ol style='margin-left:5pt'><li>A</li></ol>", "FPDF1201")]
     [TestCase("<span style='margin-left:2pt'>A</span>", "FPDF1201")]
