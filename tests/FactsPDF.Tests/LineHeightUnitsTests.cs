@@ -127,6 +127,21 @@ public sealed class LineHeightUnitsTests
         => Reject("<p style='line-height:" + value + "'>Protected</p>");
 
     [Test]
+    public void ValidSmallRelativeHeightUsesActualComputedFontSizeNotValidationStyle()
+    {
+        var paragraphs = Read(
+            "body{font-size:30pt}p{line-height:0.005em}",
+            "<p>Actual computed line height</p>");
+        Assert.That(paragraphs, Has.Count.EqualTo(1));
+        Assert.That(paragraphs[0].Style.AbsoluteLineHeight,
+            Is.EqualTo(0.15).Within(0.000001));
+
+        // The same winning value is invalid when the computed font shrinks.
+        Reject("<style>body{font-size:12pt}p{line-height:0.005em}</style>"
+            + "<body><p>Destination remains intact</p></body>");
+    }
+
+    [Test]
     public void InvalidUnmatchedStylesheetRuleStillFailsClosed()
         => Reject("<style>#never{line-height:-1em}</style><p>Protected</p>");
 

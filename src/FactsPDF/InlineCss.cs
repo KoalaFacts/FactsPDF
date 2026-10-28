@@ -52,15 +52,15 @@ internal static class InlineCss
                         style = style with { LineHeight = 1.2, AbsoluteLineHeight = null };
                         break;
                     }
-                    var relative = value.EndsWith('%') || value.EndsWith("em", StringComparison.Ordinal);
+                    var relativeScale = RelativeLineHeightScale(value, offset);
                     var physical = value.EndsWith("pt", StringComparison.Ordinal)
                         || value.EndsWith("px", StringComparison.Ordinal)
                         || value.EndsWith("mm", StringComparison.Ordinal)
                         || value.EndsWith("cm", StringComparison.Ordinal)
                         || value.EndsWith("in", StringComparison.Ordinal);
-                    if (relative || physical)
+                    if (relativeScale.HasValue || physical)
                     {
-                        var computed = physical ? Length(value, offset) : RelativeLineHeight(value, style.FontSize, offset);
+                        var computed = physical ? Length(value, offset) : style.FontSize * relativeScale!.Value;
                         // Protect page progression and conversion budgets from
                         // zero/tiny or unbounded line boxes.
                         if (!double.IsFinite(computed) || computed is < 0.1 or > 1440)
@@ -112,16 +112,19 @@ internal static class InlineCss
         return scale;
     }
 
-    // This is evaluated on the winning declaration's computed font-size,
-    // after the cascade. The absolute result is inherited unchanged by children.
-    private static double RelativeLineHeight(string value, double fontSize, int offset)
+    // Validate percentage/em syntax without assuming a 12pt parent. Unmatched
+    // rules are checked here, but only the winning declaration has an actual
+    // computed font size from which a bounded absolute height can be derived.
+    internal static double? RelativeLineHeightScale(string value, int offset)
     {
         var percent = value.EndsWith('%');
+        var em = !percent && value.EndsWith("em", StringComparison.Ordinal);
+        if (!percent && !em) return null;
         var number = Number(percent ? value[..^1] : value[..^2], offset);
         var multiple = percent ? number / 100 : number;
         if (multiple <= 0 || multiple > 10)
             throw Invalid("Percentage/em line-height must be positive and at most 10 times the font-size.", offset);
-        return fontSize * multiple;
+        return multiple;
     }
 
     private static double Length(string value, int offset)

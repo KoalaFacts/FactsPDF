@@ -391,6 +391,15 @@ internal static class CssSyntaxAdapter
                 _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
                     paragraph: true, inline: false, offset);
         }
+        else if (name == "line-height")
+        {
+            // A valid relative value may fit a computed 30pt element but not
+            // the static 12pt validation style. Defer computed-height bounds
+            // to the winning declaration, as for relative font-size.
+            if (!InlineCss.RelativeLineHeightScale(token, offset).HasValue)
+                _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
+                    paragraph: true, inline: false, offset);
+        }
         else if (name == "width") { _ = CssBoxValues.Width(token, offset); }
         else if (name is "margin-left" or "margin-right")
         {
