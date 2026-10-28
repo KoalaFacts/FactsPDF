@@ -114,6 +114,34 @@ public sealed class ElementRelativeBoxLengthTests
     }
 
     [Test]
+    public void ExplicitTrueTypeGlyphsAndPaginatedBoxesMatchIndependentPointLengths()
+    {
+        // A generated test-only font resource exercises the real TrueType path.
+        // Neither an external font nor browser rendering is needed.
+        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var body = string.Concat(Enumerable.Repeat("<p>AB WA BA</p>", 18));
+        const string before = "<html style='font-size:15pt'><body>";
+        const string relative = "<section style='font-size:12pt;width:12em;padding:0.5em;" +
+            "background:#e0e9f1'><p style='font-size:12pt;margin:0.25em'>AB WA BA</p>";
+        const string absolute = "<section style='font-size:12pt;width:144pt;padding:6pt;" +
+            "background:#e0e9f1'><p style='font-size:12pt;margin:3pt'>AB WA BA</p>";
+        const string end = "</section></body></html>";
+        // Nested p and a repeated body both use the same own computed font.
+        var em = before + relative + body + end;
+        var pt = before + absolute + body + end;
+        using var actual = new MemoryStream();
+        using var expected = new MemoryStream();
+        PdfConverter.Convert(em, actual, options);
+        PdfConverter.Convert(pt, expected, options);
+        Assert.That(actual.ToArray(), Is.EqualTo(expected.ToArray()));
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(em, options, default),
+            options, default);
+        Assert.That(pages.Count, Is.GreaterThan(1));
+        Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text)
+            .Count(s => s == "AB WA BA"), Is.EqualTo(19));
+    }
+
+    [Test]
     public void ZeroEmMaintainsDefaultPdfBytes()
         => Assert.That(Pdf("<p>Report</p>"), Is.EqualTo(Pdf("<p style='padding:0em'>Report</p>")));
 
