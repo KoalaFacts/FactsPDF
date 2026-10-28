@@ -224,4 +224,22 @@ public sealed class ReportPanelVerticalMarginTests
             Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.000001),
             "An unconsumed parent must not drop its child's own margin-top on relocation");
     }
+
+    [TestCase("p")]
+    [TestCase("h2")]
+    public void CombinedNewPanelAndChildTopMarginMustFitFreshPageWithoutMutatingDestination(string tag)
+    {
+        var options = Page with { PageHeight = 150, MaxPages = 1 };
+        var html = "<section style='margin-top:95pt;background:blue'>" +
+            $"<{tag} style='font-size:12pt;margin-top:12pt;margin-bottom:0'>A</{tag}>" +
+            "</section>";
+        using var destination = new MemoryStream();
+        destination.Write("existing-document"u8);
+        destination.Position = 5;
+        var error = Assert.Throws<FactsPdfException>(() =>
+            PdfConverter.Convert(html, destination, options));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        Assert.That(destination.ToArray(), Is.EqualTo("existing-document"u8.ToArray()));
+        Assert.That(destination.Position, Is.EqualTo(5));
+    }
 }

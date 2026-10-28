@@ -537,16 +537,20 @@ internal static class TextLayout
                 var unconsumedMargin = opened.Any(scope => scope.MarginTop > 0 &&
                     scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
                     !scope.HasOccupiedDescendant);
+                // A new panel's outside margin and its first child's own
+                // non-collapsing top margin both belong on the fresh page.
+                // Previous-page trailing spacing still stays behind.
+                var firstChildMargin = unconsumedMargin ? marginBefore : 0d;
                 if (unconsumedMargin &&
-                    MoveUnconsumedBlocksToNewPage(apply: false) + lines.Current.Height >
-                        bottom - o.Margin + 0.000001)
+                    MoveUnconsumedBlocksToNewPage(apply: false) + firstChildMargin +
+                        lines.Current.Height > bottom - o.Margin + 0.000001)
                     throw new FactsPdfException("FPDF1302",
                         "Report panel top margin and first line cannot fit on a fresh page.");
                 NewPage();
                 MoveUnconsumedBlocksToNewPage();
                 // The previous paragraph's trailing gap remains behind;
                 // first-fragment outside margins and padding travel with it.
-                gap = pendingTopPadding;
+                gap = pendingTopPadding + firstChildMargin;
             }
             if (gap + lines.Current.Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
