@@ -109,3 +109,28 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   assert.match(translate(data.css_inventory_note),/accept 52 CSS property names/);
   assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
 });
+
+test('centred report-panel translations retain the bounded PDF margin contract',async()=>{
+  const {englishFeature,translate}=await localisation();
+  const ids=['css.margin','css.margin-left','css.margin-right'];
+  for(const id of ids){
+    const source=data.features.find(row=>row.id===id);
+    const row=englishFeature(source);
+    assert.equal(row.status,'partial');
+    assert.equal(row.last_audited_commit,'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+    assert.equal(row.introduced_release,null);
+    assert.match(row.scope,/div\/section\/article/);
+    assert.match(row.scope,/auto/);
+    assert.match(row.limitations,/table-cell p|table-cell/);
+    assert.match(row.limitations,/calc|negative/);
+    assert.doesNotMatch([row.scope,row.limitations,row.applicability].join(' '),han);
+  }
+  const margin=englishFeature(data.features.find(row=>row.id==='css.margin'));
+  assert.match(margin.limitations,/vertical margins/);
+  assert.match(margin.limitations,/FPDF1302/);
+  assert.match(translate(data.css_inventory_note),/52 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/margin:0 auto/);
+  assert.match(data.audit_method,/Three-record source-bound report panel/);
+  assert.match(data.audit_method,/415 other stable-ID records remain unchanged/);
+  assert.equal(data.features.length,418);
+});

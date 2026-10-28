@@ -122,7 +122,7 @@ public sealed class HorizontalAutoMarginTests
     [TestCase("<p style='margin:auto'>Invalid vertical auto</p>", "FPDF1202")]
     [TestCase("<p style='margin:0 auto 0 -1pt'>Invalid negative</p>", "FPDF1202")]
     [TestCase("<p style='width:260pt;padding:10pt;margin:0 auto'>Too wide</p>", "FPDF1302")]
-    [TestCase("<div style='margin-left:auto'>Invalid container</div>", "FPDF1201")]
+    [TestCase("<body style='margin-left:auto'>Still unsupported body</body>", "FPDF1201")]
     [TestCase("<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><p style='margin:0 auto'>Invalid cell</p></td></tr></tbody></table>", "FPDF1201")]
     public void InvalidOrUnsupportedGeometryPreservesDestination(string html, string code)
         => Reject(html, code);

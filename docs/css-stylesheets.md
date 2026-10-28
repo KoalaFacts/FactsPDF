@@ -366,7 +366,7 @@ PDF byte equivalence, with managed PDF and explicit TrueType regressions.
 This typography scope itself does not add general CSS Values conformance. A
 separate bounded source implementation now permits `rem` for ordinary report
 box `width`, `min-width`, `max-width` and padding (see below), while a distinct
-scoped implementation supports paragraph/heading `rem` margins. General container
+scoped implementation supports paragraph/heading `rem` margins. General container vertical
 margins, borders, `letter-spacing`, `word-spacing`, table/image/column dimensions,
 `ex/ch/lh/rlh` and `calc()` remain unsupported.
 Real current-head CI, independent code review, installable packaging,
@@ -441,8 +441,8 @@ For example, `margin:2mm 5% 3mm 4mm`, `margin:5mm`, `margin:0 4mm`, and
 `unset` remain per-side; horizontal margins are not inherited by default.
 On flat table-cell paragraphs, only **explicit zero** horizontal margin values
 are allowed (preserving old vertical shorthand); `auto` or nonzero horizontal values error
-with `FPDF1201`, not silently ignored. Container and span margins remain
-unsupported. Scoped paragraph/heading root `rem` is described below.
+with `FPDF1201`, not silently ignored. General container **vertical** margins and span margins remain
+unsupported; the bounded horizontal report-panel exception is below. Scoped paragraph/heading root `rem` is described below.
 Negative margins, vertical `auto`/`%`, `calc()` and full browser margin
 collapsing are not implemented. A bounded `em` source slice below supports only paragraphs/headings. Geometry exceeding
 the containing content rectangle fails with `FPDF1302` and preserves output.
@@ -457,12 +457,61 @@ dotnet run --project src/FactsPDF.Cli -c Release -- \
 
 This is a renderer/source capability and not a public package release,
 general browser margin collapsing, automatic print/page sizing or support for
-general container margins, `calc()`, negative or vertical `auto` margins.
+general container vertical margins, `calc()`, negative or vertical `auto` margins.
 The separate root-`rem` and element-`em` margin features cover only
 paragraphs/headings outside tables.
 Existing reports without these explicit new values retain their old rendering
 path. Results must still respect the chosen page geometry and explicit
 resource contracts.
+
+## Current-source centred report panels
+
+Controlled business-report `div`, `section` and `article` boxes can use
+**horizontal** `margin-left`, `margin-right` and `margin:0 auto` on
+real PDF layout. The 1–4-value shorthand expands independently cascaded
+sides. The top/bottom values on these container kinds must be **exactly
+zero** (including supported zero lengths) or `initial`/`unset`.
+This deliberately does **not** implement vertical container spacing,
+negative margins, margin collapse, `margin-block`, or arbitrary CSS
+margin geometry. Nonzero/auto vertical panel margins and `inherit` on
+vertical container sides reject, even if another declaration would win.
+
+With an explicit `width` or constrained `max-width`,
+`margin:0 auto` divides the free space **outside the painted border
+box** equally. Horizontal lengths accept bounded nonnegative
+`pt`/`px`/`mm`/`cm`/`in`/`%` and scoped root-`rem` or
+element-final-font-`em`; only horizontal sides accept `auto`.
+Percentages resolve against the containing content width, before
+margin subtraction. The existing `box-sizing:border-box`,
+`min-width`/`max-width`, padding, borders, nested wrapping,
+background and multi-page fragment layout all use this resolved X/width.
+
+```css
+.report { box-sizing:border-box; max-width:440pt; margin:0 auto;
+          padding:8pt; border:1pt solid #23446b; background:#f0f6fa; }
+.report article { width:300pt; margin-left:auto; margin-right:auto; }
+```
+
+Horizontal `inherit`/`initial`/`unset`, inline declarations,
+selectors, `!important` and per-side cascade remain supported.
+This exception does **not** extend to `body`, `html`, list
+containers/items, table structure, images, inline spans or flat
+table-cell paragraphs, which retain strict applicability. Negative
+or calculated lengths raise `FPDF1202`; unsupported elements/vertical
+margins raise `FPDF1201`; an outer box too wide for its parent
+raises `FPDF1302`, preserving an existing output destination.
+`margin:0` on a panel produces byte-identical legacy PDF output.
+
+The [50-entry paginated panel report](../examples/report-panel-margins.html)
+and [independently authored fixed-point oracle](../examples/report-panel-margins-oracle.html)
+use identical content but `margin:0 auto` versus explicit point insets.
+Managed regressions exercise byte-equivalent PDF/box X/width, root-`rem`
+and final-font-`em`, percentage sides, border-box, CSS cascade,
+continued fragments and failure recovery. The Linux Native AOT gate
+checks qpdf, PDF-byte equality, searchable first/last entries, page
+progression and original-output protection. This is development-source
+capability, not an updated private preview, approved reference page,
+general browser CSS support, licensing grant or customer release.
 
 ## Current-source element-relative report box and margin lengths
 
@@ -491,7 +540,7 @@ Existing `rem`, percentage, `inherit`/`initial`/`unset`, scoped
 `auto`, default values and zero-value byte stability remain distinct.
 No new units apply to image/table/column/inline box sizing, table-cell
 paragraph margins, borders, `text-indent`, `letter-spacing`,
-`word-spacing`, or general container margins. `calc()`, negative,
+`word-spacing`, or general container vertical margins. `calc()`, negative,
 unbounded and invalid lengths fail with `FPDF1201`/`FPDF1202`; content
 too wide for its resolved geometry fails with `FPDF1302`, leaving an
 existing PDF destination unchanged. This is not full CSS Values/Sizing

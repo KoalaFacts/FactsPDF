@@ -101,7 +101,7 @@ for integration without a source-project reference.
 | --- | --- | --- |
 | Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
 | Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (zero-only vertical margins) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
 | Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
@@ -119,6 +119,17 @@ explicit styles and whole first-page replacement through `PdfOptions.PageFurnitu
 These additions are implemented in the development source and have not been
 released as a package. See the [page-furniture CLI guide](docs/page-furniture-cli.md)
 for configuration and limits.
+
+Controlled `div`, `section` and `article` report panels can now be
+centred using bounded horizontal `margin:0 auto`, including constrained
+`max-width`, nested decorated boxes and page fragments. Vertical panel
+margins remain zero-only; ordinary paragraphs/headings retain their separate
+vertical-margin contract. See the
+[panel-margin CSS scope](docs/css-stylesheets.md#current-source-centred-report-panels),
+[50-entry example](examples/report-panel-margins.html) and
+[independent point oracle](examples/report-panel-margins-oracle.html).
+This is source-only functionality, not a new installable candidate or
+public release.
 
 ## Compatibility lookup
 

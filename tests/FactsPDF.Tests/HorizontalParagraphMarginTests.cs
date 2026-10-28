@@ -138,8 +138,8 @@ public sealed class HorizontalParagraphMarginTests
     }
 
     [Test]
-    public void NonParagraphMarginsStillFailWithoutFallback()
-        => Reject("<section style='margin-left:2pt'>A</section>", "FPDF1201");
+    public void UnsupportedContainerMarginsStillFailWithoutFallback()
+        => Reject("<body style='margin-left:2pt'>A</body>", "FPDF1201");
 
     [Test]
     public void OldZeroHorizontalShorthandRetainsItsExactPdfBytes()

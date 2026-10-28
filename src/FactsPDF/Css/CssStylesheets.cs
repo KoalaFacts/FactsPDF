@@ -186,7 +186,25 @@ internal sealed class CssStylesheets
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
                 (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))
                 throw new FactsPdfException("FPDF1201", "break-after:avoid is supported only on headings outside lists.", declaration.Offset);
-            if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.TextIndent)
+            // Bounded business-report panels share the already verified
+            // horizontal margin/auto-width path used by paragraphs. Vertical
+            // container margins are not implemented: only zero/reset is
+            // permitted, so margin:0 auto is real centring, not a fake gap.
+            var panelMargin = element.Name is ("div" or "section" or "article")
+                && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
+                    or CssProperty.MarginLeft or CssProperty.MarginRight);
+            if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value is not ("initial" or "unset"))
+            {
+                if (declaration.Value == "inherit" ||
+                    CssBoxValues.Length(declaration.Value, declaration.Offset, rootFontSize,
+                        allowRem: true, elementFontSize: defaults.FontSize, allowEm: true).Value != 0)
+                    throw new FactsPdfException("FPDF1201",
+                        "Report panels support horizontal margins only; vertical margins must be zero.", declaration.Offset);
+            }
+            if (!paragraph && !panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
+                or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
+                or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.TextIndent))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
@@ -224,7 +242,12 @@ internal sealed class CssStylesheets
                     && declaration.Property is (CssProperty.LineHeight
                         or CssProperty.LetterSpacing or CssProperty.WordSpacing)
                     ? style.FontSize : rootFontSize;
-                style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph, computedRoot);
+                // Only the verified zero/reset vertical component of a panel
+                // margin shorthand reaches TextStyle. It has no vertical effect.
+                var panelMargin = element.Name is ("div" or "section" or "article")
+                    && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom);
+                style = CssDeclarations.Apply(style, parent, initial, declaration,
+                    paragraph || panelMargin, computedRoot);
             }
         }
         return (style, box);

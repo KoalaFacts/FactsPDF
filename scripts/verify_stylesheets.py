@@ -737,6 +737,45 @@ def main():
                 raise AssertionError('Rejected overflow-wrap damaged prior report')
         print('Native overflow-wrap PDF parity, pagination, searchable content and recovery verified')
 
+    # Native AOT: centred report panels against an independently authored
+    # point-inset oracle, including paginated painting and protected output.
+    with tempfile.TemporaryDirectory(prefix='factspdf-panel-margins-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'centred.pdf', temp / 'points.pdf'
+        run(exe, Path('examples/report-panel-margins.html'), actual)
+        run(exe, Path('examples/report-panel-margins-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native panel PDF differs from independent point inset oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if pages is None or int(pages.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Centred panel did not paginate')
+        content = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
+                       'Service entry 01', 'Service entry 50',
+                       'Outcome: All service entries verified.', 'End of example report.'):
+            if phrase not in content:
+                raise AssertionError('Native centred panel lost text: ' + phrase)
+        bad, dest = temp / 'invalid.html', temp / 'prior.pdf'
+        for html, code in (
+            ("<section style='margin:4pt auto'>A</section>", b'FPDF1201'),
+            ("<article style='margin:0 auto 4pt'>A</article>", b'FPDF1201'),
+            ("<div style='width:240pt;margin-left:400pt'>A</div>", b'FPDF1302'),
+            ("<section style='margin-left:calc(2pt + 1pt)'>A</section>", b'FPDF1202'),
+            ("<body style='margin-left:1pt'>A</body>", b'FPDF1201')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            dest.write_bytes(b'keep-existing')
+            failure = subprocess.run([str(exe), str(bad), str(dest), '--overwrite'],
+                                     capture_output=True, timeout=120)
+            if failure.returncode != 3 or code not in failure.stderr or failure.stdout:
+                raise AssertionError('Native panel margin rejection failed: ' + html)
+            if dest.read_bytes() != b'keep-existing':
+                raise AssertionError('Rejected panel margin damaged existing output')
+        print('Native report panel centring, pagination, PDF parity, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -763,7 +802,8 @@ def main():
                          'native_rem_margin_equivalence_and_recovery': True,
                          'native_element_relative_em_layout_and_recovery': True,
                          'native_font_relative_text_spacing_and_recovery': True,
-                          'native_overflow_wrap_report_and_recovery': True},
+                          'native_overflow_wrap_report_and_recovery': True,
+                           'native_panel_margins_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
