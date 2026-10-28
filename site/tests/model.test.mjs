@@ -208,12 +208,12 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('previous justification provenance remains pinned after the one-row case-transform update', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-28.text-transform-ascii');
+test('historical justification and case-transform provenance remain pinned after the new width audit', () => {
+  assert.equal(dataset.dataset_version, 'audit-2026-10-28.report-minmax-width');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /415 other records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
-  assert.match(dataset.css_inventory_note, /text-align:justify/);
+  assert.match(dataset.css_inventory_note, /U\+0020 justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
   const values=dataset.features.find(x=>x.id==='value.align.justify');
   assert.equal(property.status, 'partial');
@@ -278,7 +278,7 @@ test('ASCII case transform is a scoped PDF glyph capability, not full Unicode ca
   const feature=dataset.features.find(x=>x.id==='css.text-transform');
   assert(feature);
   assert.equal(feature.status, 'partial');
-  assert.equal(feature.last_audited_commit, dataset.commit);
+  assert.equal(feature.last_audited_commit, '69816f7de9112400db4f7ba4902073e5464ac6b1');
   assert.equal(feature.introduced_pr, 88);
   assert.equal(feature.introduced_release, null);
   assert.equal(feature.example, 'text-transform:uppercase');
