@@ -55,6 +55,23 @@ internal static class CssDeclarations
                     return style with { AbsoluteLineHeight = computed };
                 }
             }
+            if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextIndent
+                && declaration.Value.EndsWith("em", StringComparison.Ordinal))
+            {
+                // Compute the winner after font-size; inherit fixed-point metrics.
+                var value = CssBoxValues.Length(declaration.Value, declaration.Offset,
+                    rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true).Value;
+                if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing && value > 24)
+                    throw new FactsPdfException("FPDF1202",
+                        "Computed letter/word spacing must be from 0pt to 24pt.", declaration.Offset);
+                return property switch
+                {
+                    CssProperty.LetterSpacing => style with { LetterSpacing = value },
+                    CssProperty.WordSpacing => style with { WordSpacing = value },
+                    CssProperty.TextIndent => style with { FirstLineIndent = new CssLength(value) },
+                    _ => throw new InvalidOperationException()
+                };
+            }
             if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith("em", StringComparison.Ordinal))
             {

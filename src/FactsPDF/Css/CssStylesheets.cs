@@ -217,11 +217,12 @@ internal sealed class CssStylesheets
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
             else
             {
-                // The html element's font-size:rem refers to the configured
-                // initial size. Its line-height:rem, however, refers to the
-                // already computed root font-size on this same element.
-                // FontSize precedes LineHeight in the fixed property enum.
-                var computedRoot = element.Name == "html" && declaration.Property == CssProperty.LineHeight
+                // html font-size:rem refers to the initial size; other rem
+                // text metrics use the newly computed root font on html.
+                // FontSize precedes these properties in the fixed enum.
+                var computedRoot = element.Name == "html"
+                    && declaration.Property is (CssProperty.LineHeight
+                        or CssProperty.LetterSpacing or CssProperty.WordSpacing)
                     ? style.FontSize : rootFontSize;
                 style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph, computedRoot);
             }

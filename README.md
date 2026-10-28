@@ -148,13 +148,24 @@ npm run dev
 
 Open the local URL printed by Vite, normally `http://127.0.0.1:5173/FactsPDF/`.
 
-For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans, containers and table-cell paragraphs cannot set it; negative/hanging indents and `em`/`calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
+Source-built business report templates can scale **text spacing**
+with typography: `text-indent:0.4em`, `letter-spacing:0.1em`
+and `word-spacing:0.15rem`. Each length uses its element's final font
+or the computed `html` root, then changes actual glyph positioning,
+first-line wrapping and pagination. Letter/word advances remain bounded
+to 0–24pt after computation; percentage letter/word spacing, negative
+values, inline text indentation and general browser CSS remain unsupported.
+See [the contract](docs/css-stylesheets.md#current-source-font-relative-report-text-spacing)
+and [72-entry example](examples/report-relative-text-spacing.html).
+This source feature does not update retained private installable software.
+
+For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans, containers and table-cell paragraphs cannot set it; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
 
 Report headings, labels and inline text can use a bounded, nonnegative
 `letter-spacing:0.75pt` or equivalent `px/mm/cm/in` print length. This changes
 real PDF glyph advances, line breaks, horizontal alignment and text-decoration
 widths, including with explicitly bound Chinese TrueType glyphs. `normal` and
-zero retain legacy PDF bytes. Negative spacing, percentages, `em`, `calc()`
+zero retain legacy PDF bytes. Negative spacing, percentages, `calc()`
 and spacing over 24pt are rejected, rather than silently dropped. See the
 [scoped tracking contract](docs/css-stylesheets.md#current-source-bounded-letter-spacing).
 
@@ -166,7 +177,7 @@ Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` 
 
 Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).
 
-On current source, business report templates can opt into `font-size:1.2rem` and `line-height:1.5rem`. `rem` uses the `<html>` element's computed font size, or `PdfOptions.FontSize` when no `html` element exists. On `html` itself, `font-size:rem` resolves against the initial configured font size to avoid a self-reference; `line-height:rem` uses its newly computed root size. Font sizes resolve to 1–144pt; fixed line heights resolve to 0.1–1440pt and inherit as points. This feeds actual glyph layout, wrapping and pagination (not merely syntax acceptance). This typography feature is separate from the newer scoped `rem` lengths for ordinary report box width/min-max/padding; `rem` margins are now limited to paragraphs/headings outside table cells; borders, image/table/column sizing and text spacing still reject `rem`. See the [root-relative contract](docs/css-stylesheets.md#current-source-root-relative-report-typography) and [runnable multi-page example](examples/report-root-relative-typography.html); these source changes are not the previously retained installable candidate.
+On current source, business report templates can opt into `font-size:1.2rem` and `line-height:1.5rem`. `rem` uses the `<html>` element's computed font size, or `PdfOptions.FontSize` when no `html` element exists. On `html` itself, `font-size:rem` resolves against the initial configured font size to avoid a self-reference; `line-height:rem` uses its newly computed root size. Font sizes resolve to 1–144pt; fixed line heights resolve to 0.1–1440pt and inherit as points. This feeds actual glyph layout, wrapping and pagination (not merely syntax acceptance). This typography feature is separate from the newer scoped `rem` lengths for ordinary report box width/min-max/padding; `rem` margins are now limited to paragraphs/headings outside table cells; borders and image/table/column sizing still reject `rem`; only bounded text-indent/letter-spacing/word-spacing now accept it. See the [root-relative contract](docs/css-stylesheets.md#current-source-root-relative-report-typography) and [runnable multi-page example](examples/report-root-relative-typography.html); these source changes are not the previously retained installable candidate.
 
 Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders. These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](docs/css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](examples/report-print-spacing.html).
 For a fontless case-formatting example with a preserved proper-name span, see the
@@ -178,7 +189,7 @@ computed `html` root font size, or `PdfOptions.FontSize` if there is no
 `html` element. The resulting point lengths drive actual box/content widths,
 text wrap, centring, borders/backgrounds and page continuation. `rem`
 is limited to ordinary blocks, paragraphs and headings for these properties;
-image/table/column lengths and border/text-spacing `rem` still reject; ordinary paragraphs/headings now separately accept `rem` margins.
+image/table/column lengths and border `rem` still reject; bounded text-indent/letter-spacing/word-spacing and paragraph/heading margins accept `rem`.
 Unsupported values and unsafe geometry preserve previous output bytes.
 The separate **element-relative `em` layout** is also available in source-built controlled reports:
 `width:12em`, `min-width:8em`, `max-width:14em`, `padding:0.25em` and

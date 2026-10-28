@@ -79,9 +79,9 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
 | white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
-| letter-spacing | Inherited on supported report text and inline spans: `normal` or nonnegative 0–24pt `pt/px/mm/cm/in` length; fixed advance after each glyph, used by actual PDF wrapping, centring and decorations; negative/relative/calc unsupported |
-| word-spacing | On supported text and inherited spans: `normal` or 0–24pt nonnegative fixed `pt/px/mm/cm/in`; extra advance after each collapsed U+0020 space is included in real PDF text positioning, wrap, alignment, decorations and pagination; negative, relative and calculated input rejected. Not full CSS Text. |
-| text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%` or zero; percentages of the resolved paragraph content width; only first logical line indented, later wrap/`br`/page fragments retain normal x; overwide first segment or a fully consumed line fails `FPDF1302` with output preservation |
+| letter-spacing | Supported report text and inline spans: `normal`, nonnegative 0–24pt print lengths, or scoped `em` (own computed font) / `rem` (computed root); resolved to fixed points before real PDF glyph advances, wrapping, centring and decorations; negative/%/calc unsupported |
+| word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
+| text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%`, scoped own-font `em` / root `rem`, or zero; percentages use resolved content width, `em/rem` fixed at cascade; only first logical line indented, later wrap/`br`/page fragments retain normal x; unfit first words fail `FPDF1302` with output preservation |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in/rem/em or zero, computed at most 14400pt; table-cell rem/em rejected |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
@@ -90,9 +90,43 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
-This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `em`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
+This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+
+## Current-source font-relative report text spacing
+
+Controlled report templates can use `text-indent:0.4em`,
+`letter-spacing:0.1em` and `word-spacing:0.15rem` alongside existing
+fixed print lengths. `em` resolves against the **declaring element's final
+computed font-size** after stylesheet cascade, even if a later or
+higher-priority font-size declaration wins. `rem` uses the computed
+`html` font-size. On `html` itself, spacing `rem` uses its
+newly computed font-size; a document without `html` uses
+`PdfOptions.FontSize`. Inherited spacing stays fixed in points rather
+than recomputing on each child. A child's explicit declaration uses its
+own newly computed font.
+
+Actual PDF glyph advances, U+0020 word-gap `TJ` commands,
+first-line inset, wrapping, alignment, decoration width and pagination
+reflect those lengths. `normal` and zero preserve legacy PDF bytes.
+Letter/word spacing remains **0–24pt after computation**;
+indentation retains its nonnegative box-length limit and first-word-fit
+`FPDF1302`. Invalid values fail before replacing a pre-existing output.
+Percentage text-indent continues to use actual paragraph content width;
+negative/percent letter/word spacing, `calc()`, hanging indentation,
+indent on inline elements/containers/table-cell paragraphs, and browser
+text shaping are unsupported. This is a bounded CSS Text increment,
+not full relative-unit support for borders, table/image sizing, or
+arbitrary browser stylesheets.
+
+The [72-entry native report](../examples/report-relative-text-spacing.html),
+[independently authored point oracle](../examples/report-relative-text-spacing-oracle.html),
+`FontRelativeTextSpacingTests.cs` and Native AOT stylesheet verifier
+exercise actual PDF parity, searchable text, pagination, TrueType glyphs
+and target-preserving rejection. Source code, passing CI and independent
+review remain distinct from an installable candidate, customer grant
+or human PDF approval.
 
 ## Current-source soft-wrapped report justification
 
@@ -131,8 +165,8 @@ reliably to multibyte CID space codes. `normal` and all accepted zero values
 preserve byte-identical prior text drawing commands. The actual printable
 service report exercises this CSS through Linux Native AOT.
 
-This is not general browser CSS Text: negative word spacing, `em`,
-`rem`, percentages, `calc()`, Unicode word segmentation, text shaping
+This is not general browser CSS Text: negative word spacing,
+percentages, `calc()`, Unicode word segmentation, text shaping
 and arbitrary whitespace preservation remain unsupported. Invalid values
 fail with `FPDF1202`, an unbreakable overwide segment with `FPDF1302`;
 both preserve the existing output.
@@ -155,7 +189,7 @@ numbered markers do not intrude into adjacent list-item text.
 `normal`, `0` and `0pt` are zero spacing and preserve the prior byte path.
 CSS cascade, `!important`, `inherit`, `initial` and `unset` select the
 computed fixed point spacing; nonnegative units remain fixed through children.
-Negative tracking, percent/em/rem, `calc()`, and values above 24pt return
+Negative tracking, percentages, `calc()`, and computed values above 24pt return
 `FPDF1202` without altering the destination. This is fixed-positive tracking
 for controlled reports, **not** full CSS Text letter-spacing, complex shaping,
 kerning or word-spacing. The real printable report tracks an invoice reference

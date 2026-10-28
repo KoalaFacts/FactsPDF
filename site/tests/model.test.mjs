@@ -13,7 +13,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0');
+  assert.equal(dataset.commit, '92e2b02c12740cd85f244bf04e57c70e89e5c353');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -29,7 +29,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(entry.introduced_release,null);
   }
   assert.equal(fontSize.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
-  assert.equal(relative.last_audited_commit,'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0');
+  assert.equal(relative.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
   assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
   assert.match(fontSize.limitations,/rem/);
@@ -213,9 +213,9 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-29.em-report-geometry');
+  assert.equal(dataset.dataset_version, 'audit-2026-10-29.font-relative-report-text-spacing');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /404 other stable-ID records unchanged/);
+  assert.match(dataset.audit_method, /414 other stable-ID records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
   assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
@@ -236,10 +236,10 @@ test('historical justification and case-transform provenance remain pinned after
     .map(x=>x.id).sort(), ['css.text-align','value.align.justify']);
 });
 
-test('text-indent is a real limited renderable CSS feature with unchanged 417 other records', () => {
+test('text-indent remains a limited renderable CSS feature after relative audit', () => {
   const f=dataset.features.find(f=>f.id==='css.text-indent');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'ef77adbc52eb498d3f53ffac8db7cb3476cdb930');
+  assert.equal(f.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/实际内容宽度/);
   assert.match(f.scope,/PDF/);
@@ -253,7 +253,7 @@ test('text-indent is a real limited renderable CSS feature with unchanged 417 ot
 test('bounded letter-spacing is a genuine partially supported PDF text capability', () => {
   const f=dataset.features.find(entry=>entry.id==='css.letter-spacing');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'10776e9829ed01380562979af311747d17a761fc');
+  assert.equal(f.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
   assert.equal(f.introduced_release,null);
   assert.equal(f.example,'letter-spacing:0.75pt');
   assert.match(f.scope,/TrueType/);
@@ -269,7 +269,7 @@ test('bounded letter-spacing is a genuine partially supported PDF text capabilit
 test('word-spacing is measured and painted with explicit PDF limits', () => {
   const f=dataset.features.find(x=>x.id==='css.word-spacing');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'10776e9829ed01380562979af311747d17a761fc');
+  assert.equal(f.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
   assert.equal(f.introduced_release,null);
   assert.equal(f.example,'word-spacing:0.72pt');
   assert.match(f.scope,/TrueType CID/);
@@ -279,6 +279,23 @@ test('word-spacing is measured and painted with explicit PDF limits', () => {
   assert.match(f.limitations,/FPDF1302/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).map(f=>f.id).sort(),
     ['css.word-spacing','value.length.relative']);
+});
+
+test('font-relative CSS text spacing remains a narrow audited renderer subset', () => {
+  for(const id of ['css.text-indent','css.letter-spacing','css.word-spacing','value.length.relative']){
+    const feature=dataset.features.find(f=>f.id===id);
+    assert.equal(feature.status,'partial',id);
+    assert.equal(feature.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
+    assert.match(feature.scope,/em/,id);
+    assert.match(feature.scope,/rem/,id);
+    assert.equal(feature.introduced_release,null,id);
+    assert.equal(feature.test_reference,
+      'https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs');
+  }
+  assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
+  assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
+  assert.equal(dataset.features.length,418);
+  assert.deepEqual(counts(dataset.features),{full:44,partial:133,none:233,unknown:6,na:2});
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
@@ -339,7 +356,7 @@ test('root-rem and own-font em box lengths are bounded, evidence-backed partial 
 
 test('bounded rem/em report margins are actual source-bound partial CSS abilities', () => {
   const revised=['css.margin','css.margin-top','css.margin-bottom','css.margin-left',
-    'css.margin-right','value.length.relative'];
+    'css.margin-right'];
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,51);
   assert.deepEqual(counts(dataset.features),{full:44,partial:133,none:233,unknown:6,na:2});
@@ -362,7 +379,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
 });
 
 test('element em geometric scope is audited without weakening rejection',()=>{
-  for(const id of ["css.width","css.min-width","css.max-width","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left","css.margin","css.margin-top","css.margin-bottom","css.margin-left","css.margin-right","value.length.relative"]){
+  for(const id of ["css.width","css.min-width","css.max-width","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left","css.margin","css.margin-top","css.margin-bottom","css.margin-left","css.margin-right"]){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
     assert.equal(feature.last_audited_commit,'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
