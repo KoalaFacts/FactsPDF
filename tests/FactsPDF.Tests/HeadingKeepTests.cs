@@ -118,6 +118,30 @@ public sealed class HeadingKeepTests
         Assert.That(pages[1].PaintBoxes.Select(b => b.Height), Is.EqualTo(new[] { 26d, 46d }));
     }
 
+    [TestCase("h2")]
+    [TestCase("h3")]
+    public void FirstHeadingInUnconsumedMarginedPanelKeepsOwnTopMarginOnGroupPageMove(string tag)
+    {
+        var options = Page with { PageWidth = 300, PageHeight = 150, Margin = 20 };
+        const string css = "<style>p,h2,h3{font-size:12pt;line-height:1;margin-bottom:0}</style>";
+        var lead = "<p style='margin:0'>" + string.Join("<br>", Enumerable.Repeat("LEAD", 7)) + "</p>";
+        var panel = "<section style='margin-top:25pt;background:blue'>" +
+            $"<{tag} style='break-after:avoid;margin-top:12pt;margin-bottom:0'>TITLE</{tag}>" +
+            "<p style='margin:0'>BODY</p></section>";
+        var fresh = TableLayoutTests.Layout(css + panel, options);
+        var moved = TableLayoutTests.Layout(css + lead + panel, options);
+
+        Assert.That(fresh, Has.Count.EqualTo(1));
+        Assert.That(moved, Has.Count.EqualTo(2));
+        Assert.That(moved[0].Runs.Select(run => run.Text), Has.Count.EqualTo(7));
+        Assert.That(moved[1].Runs.Select(run => run.Text), Is.EqualTo(new[] { "TITLE", "BODY" }));
+        Assert.That(moved[1].PaintBoxes.Single().Top,
+            Is.EqualTo(fresh[0].PaintBoxes.Single().Top).Within(0.000001));
+        Assert.That(moved[1].Runs[0].Baseline,
+            Is.EqualTo(fresh[0].Runs[0].Baseline).Within(0.000001),
+            "The first heading's authored 12pt margin must travel with the unconsumed parent panel");
+    }
+
     [Test]
     public void EmptyParagraphSpacingAndPaintAreMeasuredWithoutTextCommands()
     {
