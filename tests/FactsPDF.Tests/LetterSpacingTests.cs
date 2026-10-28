@@ -110,7 +110,7 @@ public sealed class LetterSpacingTests
     [Test]
     public void TrackingChangesRealWrapAndRetainsAllTextAcrossPages()
     {
-        var narrow = Page with { PageWidth = 120, PageHeight = 68, Margin = 20 };
+        var narrow = Page with { PageWidth = 128, PageHeight = 72, Margin = 24 };
         const string text = "AB CD EF GH";
         var normal = Layout("<p>" + text + "</p>", narrow);
         var tracked = Layout("<p style='letter-spacing:3pt'>" + text + "</p>", narrow);
@@ -118,7 +118,7 @@ public sealed class LetterSpacingTests
         Assert.That(tracked.SelectMany(p => p.Runs).Count(), Is.GreaterThan(1));
         Assert.That(tracked.SelectMany(p => p.Runs).Select(r => r.Text).Aggregate("", (a,b) => a+b)
             .Replace(" ", ""), Is.EqualTo(text.Replace(" ", "")));
-        Assert.That(tracked.Count, Is.GreaterThanOrEqualTo(1));
+        Assert.That(tracked.Count, Is.EqualTo(2), "Measured tracking must move the second text line onto a second valid PDF page.");
         Assert.That(Pdf("<p style='letter-spacing:3pt'>" + text + "</p>", narrow), Is.Not.Empty);
     }
 
