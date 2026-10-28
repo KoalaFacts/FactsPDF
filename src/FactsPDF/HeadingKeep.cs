@@ -51,7 +51,7 @@ internal static class HeadingKeep
     }
 
     internal static bool ShouldMove(LayoutHeadingGroup group, PdfOptions options, double remaining,
-        double after, double leading, double closed, double freshLeading,
+        double after, double leading, double closed, double freshLeading, bool retainFirstHeadingMargin,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
         Action<int, int> ensureCommands, CancellationToken cancellation)
     {
@@ -69,7 +69,9 @@ internal static class HeadingKeep
                 var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle, group.ContentWidth, node.SourceOffset);
                 var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset, group.ContentWidth);
                 var before = paragraph.Style.MarginBefore;
-                var freshBefore = i == group.Start ? 0 : before;
+                // The first heading's top margin is normally trimmed after a
+                // keep move, except when a new outer-margined panel moves too.
+                var freshBefore = i == group.Start && !retainFirstHeadingMargin ? 0 : before;
                 if (HasTextContent(paragraph, cancellation)) ensureCommands(commands + 1, node.SourceOffset);
                 var height = 0d;
                 var hasLines = false;
