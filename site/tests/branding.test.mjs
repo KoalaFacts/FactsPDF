@@ -10,7 +10,7 @@ test('browser title uses the requested Can I Render name', () => {
 
 test('hero uses the same exact name without a trailing question mark', () => {
   const heading = read('../src/main.js').match(/<h1>(.*?)<\/h1>/)?.[1];
-  assert.equal(heading?.replace(/<[^>]*>/g, ''), 'Can I Render');
+  assert.equal(heading, 'Can I Render');
 });
 
 test('site entry documentation uses the requested name', () => {
