@@ -44,9 +44,33 @@ internal static class InlineCss
                     } };
                     break;
                 case "line-height":
+                    // Unitless leading remains inherited as a multiplier. A
+                    // percentage, em or fixed length instead computes to points
+                    // on this element and inherits that absolute value.
+                    if (value == "normal")
+                    {
+                        style = style with { LineHeight = 1.2, AbsoluteLineHeight = null };
+                        break;
+                    }
+                    var relativeScale = RelativeLineHeightScale(value, offset);
+                    var physical = value.EndsWith("pt", StringComparison.Ordinal)
+                        || value.EndsWith("px", StringComparison.Ordinal)
+                        || value.EndsWith("mm", StringComparison.Ordinal)
+                        || value.EndsWith("cm", StringComparison.Ordinal)
+                        || value.EndsWith("in", StringComparison.Ordinal);
+                    if (relativeScale.HasValue || physical)
+                    {
+                        var computed = physical ? Length(value, offset) : style.FontSize * relativeScale!.Value;
+                        // Protect page progression and conversion budgets from
+                        // zero/tiny or unbounded line boxes.
+                        if (!double.IsFinite(computed) || computed is < 0.1 or > 1440)
+                            throw Invalid("Computed line-height must be between 0.1pt and 1440pt.", offset);
+                        style = style with { AbsoluteLineHeight = computed };
+                        break;
+                    }
                     var factor = Number(value, offset);
-                    if (factor is < 1 or > 10) throw Invalid("line-height must be a unitless number from 1 to 10.", offset);
-                    style = style with { LineHeight = factor };
+                    if (factor is < 1 or > 10) throw Invalid("Unitless line-height must be from 1 to 10.", offset);
+                    style = style with { LineHeight = factor, AbsoluteLineHeight = null };
                     break;
                 case "text-align" when !inline:
                     style = style with { Alignment = value switch
@@ -86,6 +110,21 @@ internal static class InlineCss
         if (!double.IsFinite(scale) || scale > 144)
             throw Invalid("Relative font-size exceeds the supported 1–144pt computed range.", offset);
         return scale;
+    }
+
+    // Validate percentage/em syntax without assuming a 12pt parent. Unmatched
+    // rules are checked here, but only the winning declaration has an actual
+    // computed font size from which a bounded absolute height can be derived.
+    internal static double? RelativeLineHeightScale(string value, int offset)
+    {
+        var percent = value.EndsWith('%');
+        var em = !percent && value.EndsWith("em", StringComparison.Ordinal);
+        if (!percent && !em) return null;
+        var number = Number(percent ? value[..^1] : value[..^2], offset);
+        var multiple = percent ? number / 100 : number;
+        if (multiple <= 0 || multiple > 10)
+            throw Invalid("Percentage/em line-height must be positive and at most 10 times the font-size.", offset);
+        return multiple;
     }
 
     private static double Length(string value, int offset)

@@ -13,7 +13,15 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'cd9355bbf8c85d31a8f5c08ae8e02d89a3ebe345');
+  assert.equal(dataset.commit, '20566ebb8fc2cfea07e61c65df8e01a95b755140');
+  for (const id of ['css.line-height','value.lineheight.other']) {
+    const line=dataset.features.find(f=>f.id===id);
+    assert.equal(line.status,'partial');
+    assert.equal(line.last_audited_commit,'20566ebb8fc2cfea07e61c65df8e01a95b755140');
+    assert.equal(line.introduced_release,null);
+    assert.match(line.scope,/normal/);
+    assert.match(line.limitations,/calc/);
+  }
   const fontSize=dataset.features.find(f=>f.id==='css.font-size');
   const relative=dataset.features.find(f=>f.id==='value.length.relative');
   for(const entry of [fontSize,relative]){
@@ -34,7 +42,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:123, none:243, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:124, none:242, unknown:6, na:2 });
 });
 test('print units and bounded four-sided report margins remain scoped', () => {
   const margin=dataset.features.find(f=>f.id==='css.margin');

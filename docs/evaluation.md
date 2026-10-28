@@ -16,7 +16,7 @@ a source checkout and do not themselves grant evaluation or commercial rights.
 
 ## Start with a report that fits
 
-The source report-print example now demonstrates parent-relative percentage/em font sizes, opaque CSS RGB-function colours across text, panel backgrounds and solid borders, alongside spacing and decorations. The current engine accepts only integer `rgb()` channels and fully opaque comma-form `rgba()`; it rejects semi-transparent colour rather than silently flattening it. See [the scoped CSS contract](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports). Relative `font-size:125%`/`1.125em` resolves against the computed parent with a 1–144pt result; this does not extend relative units to box geometry. These new source abilities are **not** part of the earlier privately retained binary candidate.
+The source report-print example now demonstrates percent/em/physical line-height with true computed inheritance, parent-relative percentage/em font sizes, opaque CSS RGB-function colours across text, panel backgrounds and solid borders, alongside spacing and decorations. The current engine accepts only integer `rgb()` channels and fully opaque comma-form `rgba()`; it rejects semi-transparent colour rather than silently flattening it. See [the scoped CSS contract](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports). Relative `font-size:125%`/`1.125em` resolves against the computed parent with a 1–144pt result; this does not extend relative units to box geometry. These new source abilities are **not** part of the earlier privately retained binary candidate.
 
 The existing combined report examples exercise these capabilities together:
 
@@ -43,7 +43,7 @@ evaluation. Existing templates may need changes to fit the supported subset.
 | Example | Purpose | Resources |
 | --- | --- | --- |
 | [First document](../examples/first-document.html) | Run the shortest end-to-end conversion | ASCII/Courier; no external font files |
-| [Print spacing report](../examples/report-print-spacing.html) | Business panel with physical print units, four-sided paragraph margins, auto-centred summary, and real strike-through/underline labels | ASCII/Courier; no external resources |
+| [Print spacing report](../examples/report-print-spacing.html) | Business panel with computed line-height, physical print units, four-sided margins, auto-centred summary, and real strike-through/underline labels | ASCII/Courier; no external resources |
 | [Branded business report](../examples/branded-business-report.html) | Transparent logo beside company details, line items and page furniture | Generated synthetic PNG and explicit image binding; no external fonts |
 | [Detailed service report](../examples/business-table-rich-cells.html) | Spanning headings/totals and paragraph/image/caption detail cells | The same generated synthetic logo; no external fonts |
 | [Long service report](../examples/business-table-long-description.html) | One long description continues across pages; a following item and totals remain in order | The same generated synthetic logo; no external fonts |

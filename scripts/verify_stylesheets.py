@@ -184,6 +184,34 @@ def main():
         run('qpdf', '--check', absolute_pdf)
         if rgb_pdf.read_bytes() != absolute_pdf.read_bytes():
             raise AssertionError('Native AOT relative font-size paint differs from resolved pt sizes')
+        # Independently authored resolved-point line heights must create
+        # identical real Native AOT output to percentage, em and inch inputs.
+        # Each target remains local; the test must inspect actual CLI PDFs.
+        line_source = Path('examples/report-print-spacing.html').read_text(encoding='utf-8')
+        line_projection = {
+            'line-height: 160%': 'line-height: 22pt',
+            'line-height: 1.5em': 'line-height: 16.5pt',
+            'line-height: 0.25in': 'line-height: 18pt',
+        }
+        for relative, absolute in line_projection.items():
+            if relative not in line_source:
+                raise AssertionError('Print report does not exercise ' + relative)
+            line_source = line_source.replace(relative, absolute)
+        line_html = temp / 'report-absolute-leading.html'
+        line_html.write_text(line_source, encoding='utf-8')
+        line_pdf = temp / 'report-absolute-leading.pdf'
+        run(exe, line_html, line_pdf)
+        run('qpdf', '--check', line_pdf)
+        if rgb_pdf.read_bytes() != line_pdf.read_bytes():
+            raise AssertionError('Native AOT computed line-height does not match actual pt line boxes')
+        bad.write_text("<p style='line-height:0%'>Invalid zero line height</p>",
+                       encoding='utf-8')
+        proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
+                              capture_output=True, timeout=120)
+        if proc.returncode != 3 or b'FPDF1202' not in proc.stderr or proc.stdout:
+            raise AssertionError('Native AOT accepted invalid percent line-height')
+        if sample_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Rejected line height modified existing PDF')
         bad.write_text("<p style='font-size:200em'>Invalid relative font size</p>",
                        encoding='utf-8')
         proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
@@ -207,7 +235,7 @@ def main():
             raise AssertionError('Native unsupported decoration did not fail cleanly')
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Native unsupported decoration mutated the destination')
-        print('Native print spacing, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
+        print('Native print spacing, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -220,7 +248,8 @@ def main():
                    'native_background_recovery': True, 'native_print_spacing_and_recovery': True,
                     'native_text_decoration_paths_and_recovery': True,
                      'native_opaque_rgb_equivalence_and_recovery': True,
-                     'native_relative_font_sizing_equivalence_and_recovery': True},
+                     'native_relative_font_sizing_equivalence_and_recovery': True,
+                     'native_computed_line_height_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

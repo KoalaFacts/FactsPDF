@@ -172,7 +172,7 @@ internal static class TextLines
             var size = style.FontSize;
             var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
             var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
-            var leading = (size * style.LineHeight - ascent - descent) / 2;
+            var leading = ((style.AbsoluteLineHeight ?? size * style.LineHeight) - ascent - descent) / 2;
             return (ascent + leading, descent + leading);
         }
         Line CurrentLine()
