@@ -193,6 +193,14 @@ internal static class TextLines
                 previousScalar = -1;
                 continue;
             }
+            if (paragraph.Style.BreakWords)
+            {
+                // Emergency breaks are between already resolved glyphs.
+                // A glyph wider than the fresh content line still fails.
+                tooWide |= glyph.Width > available + 0.000001;
+                previousScalar = glyph.Scalar;
+                continue;
+            }
             segmentWidth = previousScalar < 0 || CanBreak(previousScalar, glyph.Scalar)
                 ? glyph.Width : segmentWidth + glyph.Width;
             tooWide |= segmentWidth > available + 0.000001;
@@ -319,7 +327,7 @@ internal static class TextLines
                 var glyph = cursor.Current;
                 word.Add(glyph);
                 wordWidth += glyph.Width;
-                if (wordWidth > available + 0.000001)
+                if (!paragraph.Style.BreakWords && wordWidth > available + 0.000001)
                     throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
                 previous = glyph.Scalar;
                 hasGlyph = cursor.MoveNext();
@@ -327,6 +335,36 @@ internal static class TextLines
             while (hasGlyph && cursor.Current.Scalar is not (32 or 10) && !CanBreak(previous, cursor.Current.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
             var lineAvailable = firstLine ? available - firstIndent : available;
+            // Break only a token that cannot fit a fresh line, or the
+            // indented first line when no earlier text can move. A fitting
+            // word moves as a whole at the preceding ordinary space.
+            if (paragraph.Style.BreakWords &&
+                (wordWidth > available + 0.000001 ||
+                 current.Count == 0 && wordWidth > lineAvailable + 0.000001))
+            {
+                if (current.Count > 0)
+                {
+                    yield return CurrentLine(softWrapped: true);
+                    ResetLine();
+                }
+                foreach (var glyph in word)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    var capacity = firstLine ? available - firstIndent : available;
+                    if (width + glyph.Width > capacity + 0.000001)
+                    {
+                        if (current.Count == 0)
+                            throw new FactsPdfException("FPDF1302",
+                                "An individual glyph cannot fit within the report text width.", glyph.SourceOffset);
+                        yield return CurrentLine(softWrapped: true);
+                        ResetLine();
+                    }
+                    current.Add(glyph);
+                    width += glyph.Width;
+                }
+                space = null;
+                continue;
+            }
             if (width + gap + wordWidth > lineAvailable + 0.000001)
             {
                 if (current.Count > 0)

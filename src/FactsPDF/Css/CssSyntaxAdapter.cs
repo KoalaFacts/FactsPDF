@@ -229,7 +229,7 @@ internal static class CssSyntaxAdapter
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
-        "white-space" => CssProperty.WhiteSpace, "text-indent" => CssProperty.TextIndent,
+        "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap, "text-indent" => CssProperty.TextIndent,
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
