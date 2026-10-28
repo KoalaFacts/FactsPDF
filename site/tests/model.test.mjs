@@ -52,7 +52,7 @@ test('colour-only background shorthand is discoverable without claiming CSS back
   assert.match(match.scope,/颜色/);
   assert.match(match.limitations,/url/);
   assert.match(match.limitations,/渐变/);
-  assert.equal(match.example,'background:#cee8fb');
+  assert.equal(match.example,'background:rgb(240 246 250)');
   assert.equal(match.introduced_release,null);
   assert.equal(dataset.features.find(f=>f.id==='css.background-image').status,'none');
 });
