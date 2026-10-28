@@ -206,6 +206,42 @@ def main():
         if tracked_pt_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Native invalid letter-spacing modified the original file')
 
+        # Real Native AOT word spacing: physical units match independently
+        # authored points, painted TJ changes PDF, and invalid CSS preserves
+        # existing target bytes instead of silently dropping the declaration.
+        if 'word-spacing: 0.01in;' not in source_html:
+            raise AssertionError('Report lacks word-spaced explanatory prose')
+        words_pt = temp / 'word-gap-points.html'
+        words_normal = temp / 'word-gap-normal.html'
+        words_pt.write_text(source_html.replace('word-spacing: 0.01in;', 'word-spacing: 0.72pt;'),
+                            encoding='utf-8')
+        words_normal.write_text(source_html.replace('word-spacing: 0.01in;', 'word-spacing: normal;'),
+                                encoding='utf-8')
+        words_pt_pdf, words_normal_pdf = temp / 'word-gap-points.pdf', temp / 'word-gap-normal.pdf'
+        run(exe, words_pt, words_pt_pdf)
+        run(exe, words_normal, words_normal_pdf)
+        run('qpdf', '--check', words_pt_pdf)
+        if words_pt_pdf.read_bytes() != sample_pdf.read_bytes():
+            raise AssertionError('Native physical word spacing differs from equivalent points')
+        if words_normal_pdf.read_bytes() == sample_pdf.read_bytes():
+            raise AssertionError('Native word spacing did not change PDF paint')
+        if 'Service detail:' not in ' '.join(run('pdftotext', '-raw', words_pt_pdf, '-').decode().split()):
+            raise AssertionError('Native word spacing corrupted searchable report text')
+        word_qdf = temp / 'word-gap-readable.pdf'
+        run('qpdf', '--qdf', '--object-streams=disable', sample_pdf, word_qdf)
+        if b'] TJ' not in word_qdf.read_bytes():
+            raise AssertionError('Native report does not contain PDF TJ word displacement')
+        bad_words = temp / 'word-gap-invalid.html'
+        bad_words.write_text("<p style='word-spacing:-1pt'>Keep the original report</p>",
+                             encoding='utf-8')
+        words_pt_pdf.write_bytes(b'keep-existing')
+        word_failure = subprocess.run([str(exe), str(bad_words), str(words_pt_pdf), '--overwrite'],
+                                      capture_output=True, timeout=120)
+        if word_failure.returncode != 3 or b'FPDF1202' not in word_failure.stderr or word_failure.stdout:
+            raise AssertionError('Native AOT accepted invalid word spacing')
+        if words_pt_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Native invalid word spacing modified original PDF')
+
         # The real Native AOT binary must paint, not just accept, the two
         # current-source text decorations in the runnable business sample.
         for label in ('Previous estimate', 'Revised estimate'):
@@ -370,7 +406,7 @@ def main():
                 raise AssertionError('Native border-box rejection failed for ' + css)
             if recovery.read_bytes() != b'keep-existing':
                 raise AssertionError('Native border-box failure modified existing output')
-        print('Native print spacing, tracked reference, first-line indentation, border-box, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
+        print('Native print spacing, tracked reference, word gaps, first-line indentation, border-box, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -387,7 +423,8 @@ def main():
                      'native_computed_line_height_equivalence_and_recovery': True,
                       'native_border_box_equivalence_and_recovery': True,
                       'native_text_indent_geometry_and_recovery': True,
-                      'native_letter_spacing_geometry_and_recovery': True},
+                      'native_letter_spacing_geometry_and_recovery': True,
+                       'native_word_spacing_geometry_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

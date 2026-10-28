@@ -157,6 +157,8 @@ zero retain legacy PDF bytes. Negative spacing, percentages, `em`, `calc()`
 and spacing over 24pt are rejected, rather than silently dropped. See the
 [scoped tracking contract](docs/css-stylesheets.md#current-source-bounded-letter-spacing).
 
+Controlled report prose can opt into `word-spacing:0.01in` (equivalent to `0.72pt`) at collapsed word spaces. This changes actual PDF word positions, line wrapping, alignment and pagination; the `normal`/zero path preserves legacy PDF bytes. The renderer uses PDF `TJ` displacement for Courier and embedded CID TrueType, not byte-specific `Tw`. Only nonnegative print lengths up to 24pt are supported. See [word-spacing boundaries](docs/css-stylesheets.md#current-source-bounded-word-spacing).
+
 Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` and headings. Spaces still collapse, explicit `<br>` still works, and text that cannot fit fails with `FPDF1302` without replacing the output. `normal` is byte-identical to the default; `pre`, `pre-wrap` and arbitrary inline no-wrap spans remain unsupported. See [bounded white-space](docs/css-stylesheets.md#current-source-nonwrapping-report-labels).
 
 Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).

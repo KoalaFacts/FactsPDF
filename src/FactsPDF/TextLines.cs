@@ -11,7 +11,8 @@ internal static class TextLines
         // PDF Tc adds fixed character spacing after each shown glyph, across
         // ASCII and embedded CID TrueType font runs. Layout must count the
         // identical advance before wrapping, centring or underlining.
-        public double Width => Style.FontSize * Width1000 / 1000 + Style.LetterSpacing;
+        public double Width => Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
+            + (Scalar == 32 ? Style.WordSpacing : 0);
     }
     // Glyph storage is borrowed until the next MoveNext. Each consumer copies
     // every placed text run before advancing; the iterator reuses its glyph storage.

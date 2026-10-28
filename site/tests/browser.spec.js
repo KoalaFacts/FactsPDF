@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('d1ae8037',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('10776e98',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('bounded letter spacing shows real PDF behaviour and strict failure limits',async({page})=>{
@@ -17,7 +17,18 @@ test('bounded letter spacing shows real PDF behaviour and strict failure limits'
   await expect(details).toContainText('PDF Tc');
   await expect(details).toContainText('24pt');
   await expect(details).toContainText('FPDF1202');
-  await expect(details).toContainText('word-spacing');
+  await expect(details).toContainText('kerning');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
+});
+test('word-spacing is discoverable as actual PDF positioning with explicit rejection',async({page})=>{
+  await page.goto(base+'#q=word-spacing');
+  await page.getByRole('button',{name:'word-spacing',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('PDF TJ');
+  await expect(details).toContainText('24pt');
+  await expect(details).toContainText('FPDF1202');
   await page.keyboard.press('Escape');
   await expect(details).not.toBeVisible();
 });

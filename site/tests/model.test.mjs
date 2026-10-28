@@ -7,13 +7,13 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.accepted_css_property_count,47);
+  assert.equal(dataset.accepted_css_property_count,48);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'd1ae8037ba00860fdca22e5aed006e4199d0c320');
+  assert.equal(dataset.commit, '10776e9829ed01380562979af311747d17a761fc');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -42,7 +42,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:128, none:238, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:129, none:237, unknown:6, na:2 });
 });
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
@@ -54,7 +54,8 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.limitations,/span/);
   assert.match(feature.limitations,/FPDF1302/);
   assert.equal(feature.example,'white-space:nowrap');
-  assert.equal(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
+    ['css.white-space','css.word-spacing']);
 });
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
@@ -78,7 +79,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,47);
+  assert.equal(dataset.accepted_css_property_count,48);
   assert.equal(margin.last_audited_commit,'125e7788ac804d9d6960b29717efaf0c151077c0');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
@@ -207,12 +208,12 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('letter-spacing snapshot methodology matches its source and supported spelling count', () => {
-  assert.equal(dataset.dataset_version,'audit-2026-10-28.letter-spacing');
+test('word-spacing snapshot methodology matches source and CSS spelling count', () => {
+  assert.equal(dataset.dataset_version,'audit-2026-10-28.word-spacing');
   assert.match(dataset.audit_method,new RegExp(dataset.commit));
-  assert.match(dataset.audit_method,/only css\.letter-spacing updated/);
-  assert.match(dataset.css_inventory_note,/47个CSS属性/);
-  assert.match(dataset.css_inventory_note,/letter-spacing/);
+  assert.match(dataset.audit_method,/css.word-spacing becomes partial/);
+  assert.match(dataset.css_inventory_note,/48个CSS属性/);
+  assert.match(dataset.css_inventory_note,/word-spacing/);
   assert.match(dataset.css_inventory_note,/段落、标题/);
 });
 
@@ -239,7 +240,21 @@ test('bounded letter-spacing is a genuine partially supported PDF text capabilit
   assert.match(f.scope,/PDF Tc/);
   assert.match(f.scope,/跨页/);
   assert.match(f.limitations,/FPDF1202/);
-  assert.match(f.limitations,/word-spacing/);
-  assert.equal(dataset.features.find(entry=>entry.id==='css.word-spacing').status,'none');
+  assert.match(f.limitations,/复杂字距/);
+  assert.equal(dataset.features.find(entry=>entry.id==='css.word-spacing').status,'partial');
   assert.equal(filterFeatures(dataset.features,{q:'letter-spacing',status:'partial'}).length,1);
+});
+
+test('word-spacing is measured and painted with explicit PDF limits', () => {
+  const f=dataset.features.find(x=>x.id==='css.word-spacing');
+  assert.equal(f.status,'partial');
+  assert.equal(f.last_audited_commit,dataset.commit);
+  assert.equal(f.introduced_release,null);
+  assert.equal(f.example,'word-spacing:0.72pt');
+  assert.match(f.scope,/TrueType CID/);
+  assert.match(f.scope,/PDF TJ/);
+  assert.match(f.scope,/跨页/);
+  assert.match(f.limitations,/FPDF1202/);
+  assert.match(f.limitations,/FPDF1302/);
+  assert.equal(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).length,1);
 });

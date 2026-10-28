@@ -185,8 +185,7 @@ public sealed class LetterSpacingTests
     [TestCase("letter-spacing:10%", "FPDF1202")]
     [TestCase("letter-spacing:calc(1pt + 1pt)", "FPDF1202")]
     [TestCase("letter-spacing:2pt 3pt", "FPDF1202")]
-    [TestCase("word-spacing:2pt", "FPDF1201")]
-    public void UnsupportedTrackingAndUnimplementedWordSpacingAreExplicit(string css, string code)
+    public void UnsupportedTrackingValuesAreExplicit(string css, string code)
         => Rejected("<p style='" + css + "'>ABCD</p>", code);
 
     [Test]

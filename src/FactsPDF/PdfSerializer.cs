@@ -55,7 +55,28 @@ internal static class PdfSerializer
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
                     contents.Append($"BT /F1 {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg ");
-                    contents.Append($"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <{hex}> Tj ET\n");
+                    contents.Append($"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
+                    if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
+                        contents.Append($"<{hex}> Tj ET\n");
+                    else
+                    {
+                        // PDF Tw does not reliably position two-byte CID space codes.
+                        // Explicit TJ displacements match the shared glyph-width model.
+                        contents.Append('[');
+                        var start = 0;
+                        for (var j = 0; j < run.Text.Length; j++)
+                        {
+                            if (run.Text[j] != ' ') continue;
+                            contents.Append('<').Append(System.Convert.ToHexString(
+                                Encoding.ASCII.GetBytes(run.Text[start..(j + 1)]))).Append("> ");
+                            contents.Append(N(-run.Style.WordSpacing * 1000 / run.Style.FontSize)).Append(' ');
+                            start = j + 1;
+                        }
+                        if (start < run.Text.Length)
+                            contents.Append('<').Append(System.Convert.ToHexString(
+                                Encoding.ASCII.GetBytes(run.Text[start..]))).Append('>');
+                        contents.Append("] TJ ET\n");
+                    }
                     PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }

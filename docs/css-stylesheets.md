@@ -80,6 +80,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
 | letter-spacing | Inherited on supported report text and inline spans: `normal` or nonnegative 0–24pt `pt/px/mm/cm/in` length; fixed advance after each glyph, used by actual PDF wrapping, centring and decorations; negative/relative/calc unsupported |
+| word-spacing | On supported text and inherited spans: `normal` or 0–24pt nonnegative fixed `pt/px/mm/cm/in`; extra advance after each collapsed U+0020 space is included in real PDF text positioning, wrap, alignment, decorations and pagination; negative, relative and calculated input rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%` or zero; percentages of the resolved paragraph content width; only first logical line indented, later wrap/`br`/page fragments retain normal x; overwide first segment or a fully consumed line fails `FPDF1302` with output preservation |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
@@ -92,6 +93,27 @@ These properties also accept `inherit`, `initial`, `unset` and `!important`. Mat
 This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `em`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+
+## Current-source bounded word-spacing
+
+`word-spacing:0.01in` (equal to `0.72pt`) is supported on report
+paragraphs, headings and inline spans, including inherited and CSS-wide
+computed values. HTML whitespace still collapses to one U+0020 between words;
+only that retained space gains a fixed nonnegative extra advance, from zero
+through 24pt. Glyph measurement, word wrapping, first-line indentation,
+alignment, text-decoration widths and pagination use the same value.
+
+Both Courier and embedded CID TrueType PDFs place word gaps using a
+`TJ` displacement after the encoded space. PDF `Tw` alone does not apply
+reliably to multibyte CID space codes. `normal` and all accepted zero values
+preserve byte-identical prior text drawing commands. The actual printable
+service report exercises this CSS through Linux Native AOT.
+
+This is not general browser CSS Text: negative word spacing, `em`,
+`rem`, percentages, `calc()`, Unicode word segmentation, text shaping
+and arbitrary whitespace preservation remain unsupported. Invalid values
+fail with `FPDF1202`, an unbreakable overwide segment with `FPDF1302`;
+both preserve the existing output.
 
 ## Current-source bounded letter-spacing
 
