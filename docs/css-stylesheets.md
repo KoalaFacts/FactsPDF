@@ -165,8 +165,8 @@ reliably to multibyte CID space codes. `normal` and all accepted zero values
 preserve byte-identical prior text drawing commands. The actual printable
 service report exercises this CSS through Linux Native AOT.
 
-This is not general browser CSS Text: negative word spacing, `em`,
-`rem`, percentages, `calc()`, Unicode word segmentation, text shaping
+This is not general browser CSS Text: negative word spacing,
+percentages, `calc()`, Unicode word segmentation, text shaping
 and arbitrary whitespace preservation remain unsupported. Invalid values
 fail with `FPDF1202`, an unbreakable overwide segment with `FPDF1302`;
 both preserve the existing output.

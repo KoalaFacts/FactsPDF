@@ -165,7 +165,7 @@ Report headings, labels and inline text can use a bounded, nonnegative
 `letter-spacing:0.75pt` or equivalent `px/mm/cm/in` print length. This changes
 real PDF glyph advances, line breaks, horizontal alignment and text-decoration
 widths, including with explicitly bound Chinese TrueType glyphs. `normal` and
-zero retain legacy PDF bytes. Negative spacing, percentages, `em`, `calc()`
+zero retain legacy PDF bytes. Negative spacing, percentages, `calc()`
 and spacing over 24pt are rejected, rather than silently dropped. See the
 [scoped tracking contract](docs/css-stylesheets.md#current-source-bounded-letter-spacing).
 
@@ -189,7 +189,7 @@ computed `html` root font size, or `PdfOptions.FontSize` if there is no
 `html` element. The resulting point lengths drive actual box/content widths,
 text wrap, centring, borders/backgrounds and page continuation. `rem`
 is limited to ordinary blocks, paragraphs and headings for these properties;
-image/table/column lengths and border/text-spacing `rem` still reject; ordinary paragraphs/headings now separately accept `rem` margins.
+image/table/column lengths and border `rem` still reject; bounded text-indent/letter-spacing/word-spacing and paragraph/heading margins accept `rem`.
 Unsupported values and unsafe geometry preserve previous output bytes.
 The separate **element-relative `em` layout** is also available in source-built controlled reports:
 `width:12em`, `min-width:8em`, `max-width:14em`, `padding:0.25em` and
