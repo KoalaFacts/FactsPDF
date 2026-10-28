@@ -155,7 +155,7 @@ public sealed class TextDecorationTests
     public void PageFurnitureUsesTheSameChargedDecorationBudgetAsBodyLayout()
     {
         const string html = "<p style='text-decoration:underline'>A</p>";
-        var options = Page with { FooterText = "Internal", MaxDisplayCommands = 2 };
+        var options = Page with { Margin = 36, FooterText = "Internal", MaxDisplayCommands = 2 };
         Reject(html, "FPDF1401", options);
         Assert.That(Pdf(html, options with { MaxDisplayCommands = 3 }), Is.Not.Empty);
     }
