@@ -44,7 +44,7 @@ internal static class CssDeclarations
             CssProperty.FontWeight => style with { Bold = source.Bold },
             CssProperty.FontStyle => style with { Italic = source.Italic },
             CssProperty.Color => style with { Color = source.Color },
-            CssProperty.LineHeight => style with { LineHeight = source.LineHeight },
+            CssProperty.LineHeight => style with { LineHeight = source.LineHeight, AbsoluteLineHeight = source.AbsoluteLineHeight },
             CssProperty.TextAlign => style with { Alignment = source.Alignment },
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
             CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore },
