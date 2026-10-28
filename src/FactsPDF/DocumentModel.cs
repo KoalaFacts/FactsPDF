@@ -82,6 +82,8 @@ internal sealed record BoxStyle(
     // Auto is distinguished from an explicit zero without changing legacy lengths.
     public bool MarginLeftAuto { get; init; }
     public bool MarginRightAuto { get; init; }
+    // Explicit width includes padding/borders when requested; defaults unchanged.
+    public bool BorderBoxSizing { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;

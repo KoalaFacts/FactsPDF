@@ -6,8 +6,19 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('20566ebb',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('28d150e5',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
+});
+test('border-box report sizing is discoverable with strict boundaries',async({page})=>{
+  await page.goto(base+'#q=box-sizing');
+  await page.getByRole('button',{name:'box-sizing',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('border-box');
+  await expect(details).toContainText('FPDF1302');
+  await expect(details).toContainText('table');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
 });
 test('computed line-height is discoverable with explicit supported bounds',async({page})=>{
   await page.goto(base+'#q=line-height');

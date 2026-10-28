@@ -131,8 +131,13 @@ internal static class BlockLayout
         var bRight = style.BorderRight.EffectiveWidth;
         var bTop = style.BorderTop.EffectiveWidth;
         var bBottom = style.BorderBottom.EffectiveWidth;
-        var inner = style.Width.HasValue ? Resolve(style.Width.Value) : width - left - right - bLeft - bRight;
-        if (inner < -0.000001 || inner + left + right + bLeft + bRight > width + 0.000001)
+        var edges = left + right + bLeft + bRight;
+        // Explicit border-box width includes border and padding, unlike the
+        // legacy content-box contract. Auto width still fills available space.
+        var inner = style.Width.HasValue
+            ? Resolve(style.Width.Value) - (style.BorderBoxSizing ? edges : 0)
+            : width - edges;
+        if (inner < -0.000001 || inner + edges > width + 0.000001)
             throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", offset);
         inner = Math.Max(0, inner);
         return new(left, top + bTop, bottom + bBottom, inner, inner + left + right + bLeft + bRight);

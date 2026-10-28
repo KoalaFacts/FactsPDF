@@ -254,6 +254,36 @@ count against existing budgets; failing conversions preserve original files.
 Actual feature evidence is in `TextDecorationTests.cs` and the print-spacing
 example; there is no public package or automatic visual approval.
 
+
+## Current-source border-box report panel widths
+
+Ordinary blocks (`body`, `div`, `section`, `article`, `ol`, `ul`, `li`,
+paragraphs and headings) accept `box-sizing:border-box`. With a specified
+`width`, the declared width now includes the resolved padding and solid
+borders; content width is reduced *before* text wrapping, auto-margin centring,
+heading keeps, painting and continued-page fragmentation. Percent width and
+percent padding still resolve against the original parent content width.
+`width:auto` preserves the existing fill-available-width behaviour.
+
+`box-sizing:content-box` is the non-inherited default and preserves existing
+PDF bytes. The normal cascade, `!important`, and explicit `inherit`,
+`initial` and `unset` work independently of width and padding. For example:
+
+    <section style="box-sizing:border-box;width:140mm;padding:5mm;border:0.25mm solid #23446b">
+      <p>Service summary</p>
+    </section>
+
+This implementation does not extend the separate image/table sizing paths:
+`img`, `table`, structural table elements, table-cell paragraphs, inline
+spans and `html` reject the property with `FPDF1201`. Invalid `padding-box`,
+`calc()` and multi-token values are `FPDF1202`, including in unmatched rules.
+A border-box that cannot contain its own padding/borders or fit its containing
+width fails with `FPDF1302` and leaves existing output intact. No general CSS
+height, min/max sizing, flex/grid, column sizing or full box-model conformance.
+`BorderBoxSizingTests.cs` and the real Native AOT stylesheet gate compare actual
+PDF geometry with an independently authored content-box projection; the
+resource-free `examples/report-print-spacing.html` exercises the feature.
+
 ## Budgets and diagnostics
 
 `PdfOptions` includes per-conversion limits:

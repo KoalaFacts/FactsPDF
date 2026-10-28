@@ -234,7 +234,7 @@ internal static class CssSyntaxAdapter
         "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "margin-left" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
-        "width" => CssProperty.Width, "padding" or "padding-top" => CssProperty.PaddingTop,
+        "width" => CssProperty.Width, "box-sizing" => CssProperty.BoxSizing, "padding" or "padding-top" => CssProperty.PaddingTop,
         "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,
         "padding-left" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
@@ -399,6 +399,11 @@ internal static class CssSyntaxAdapter
             if (!InlineCss.RelativeLineHeightScale(token, offset).HasValue)
                 _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
                     paragraph: true, inline: false, offset);
+        }
+        else if (name == "box-sizing")
+        {
+            if (token is not ("content-box" or "border-box"))
+                throw new FactsPdfException("FPDF1202", "box-sizing requires content-box or border-box.", offset);
         }
         else if (name == "width") { _ = CssBoxValues.Width(token, offset); }
         else if (name is "margin-left" or "margin-right")
