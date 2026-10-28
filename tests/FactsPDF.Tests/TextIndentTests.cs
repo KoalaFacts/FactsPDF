@@ -119,9 +119,20 @@ public sealed class TextIndentTests
 
     [TestCase("<div style='text-indent:10pt'><p>A</p></div>")]
     [TestCase("<p><span style='text-indent:10pt'>A</span></p>")]
-    [TestCase("<table><col style='width:80pt'><tr><td><p style='text-indent:5pt'>A</p></td></tr></table>")]
+    [TestCase("<table><colgroup><col style='width:80pt'></colgroup><tbody><tr><td><p style='text-indent:5pt'>A</p></td></tr></tbody></table>")]
     public void UnsupportedElementScopesFailRatherThanSilentlyDiscard(string html)
         => Rejected(html, "FPDF1201");
+
+    [Test]
+    public void NowrapRespectsIndentedFirstLineButNotLaterExplicitBreaks()
+    {
+        var narrow = Page with { PageWidth = 100 };
+        Rejected("<p style='white-space:nowrap;text-indent:15pt'>PAID IN</p>", "FPDF1302", narrow);
+        var layout = Layout("<p style='white-space:nowrap;text-indent:15pt'>OK<br>PAID IN</p>", narrow);
+        var runs = layout.Single().Runs;
+        Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "OK", "PAID IN" }));
+        Assert.That(runs.Select(r => r.X), Is.EqualTo(new[] { 35d, 20d }).Within(0.001));
+    }
 
     [Test]
     public void UnmatchedRuleStillValidatesInvalidValue()
