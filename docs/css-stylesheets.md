@@ -77,7 +77,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless 1–10, `normal` (= this engine's default 1.2), positive `%` or `em` (at most 10× font-size), and `pt/px/mm/cm/in` lengths; computed absolute values 0.1–1440pt; inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
-| text-align | left/center/right; inherited through text containers, controls paragraph layout |
+| text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
 | white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
 | letter-spacing | Inherited on supported report text and inline spans: `normal` or nonnegative 0–24pt `pt/px/mm/cm/in` length; fixed advance after each glyph, used by actual PDF wrapping, centring and decorations; negative/relative/calc unsupported |
 | word-spacing | On supported text and inherited spans: `normal` or 0–24pt nonnegative fixed `pt/px/mm/cm/in`; extra advance after each collapsed U+0020 space is included in real PDF text positioning, wrap, alignment, decorations and pagination; negative, relative and calculated input rejected. Not full CSS Text. |
@@ -93,6 +93,28 @@ These properties also accept `inherit`, `initial`, `unset` and `!important`. Mat
 This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `em`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+
+## Current-source soft-wrapped report justification
+
+`text-align:justify` is an opt-in left-to-right report-text layout mode.
+On each **automatically word-wrapped** line except the final or an explicit
+`<br>` break, the remaining measured content width is divided evenly
+across retained, collapsed U+0020 word spaces. Existing `word-spacing`
+is included first. Indented first lines use their reduced actual content
+width. The PDF emits the additional spacing using the existing Courier/CID
+TrueType `TJ` path; actual glyph placement and text decoration widths
+follow the expanded advances. The behavior continues across pages.
+`left`, `center` and `right` retain their existing behavior and
+default output remains byte-identical.
+
+An unwrapped or `white-space:nowrap` line, explicit break, final
+paragraph line or a line without retained spaces does not expand.
+Explicit `text-align:justify` on inline spans rejects with `FPDF1201`;
+inherited container alignment applies to the actual paragraph.
+Unsupported `start`, `end`, `justify-all`, RTL and CJK
+inter-character justification are not provided. Invalid values fail
+`FPDF1202`, and overwide text retains its `FPDF1302` protection
+of the existing target. This is not full browser CSS Text conformance.
 
 ## Current-source bounded word-spacing
 
