@@ -201,4 +201,27 @@ public sealed class ReportPanelVerticalMarginTests
         Assert.That(pages, Has.Count.EqualTo(1));
         Assert.That(pages[0].PaintBoxes.Single().Top, Is.EqualTo(115.6).Within(0.000001));
     }
+
+    [TestCase("p")]
+    [TestCase("h2")]
+    public void MovingAnUnconsumedPanelPreservesItsChildFirstParagraphMargin(string tag)
+    {
+        var options = Page with { PageHeight = 150 };
+        var leading = "<p style='margin:0'>" + string.Join("<br>",
+            Enumerable.Range(1, 7).Select(index => $"Row-{index:00}")) + "</p>";
+        var panel = "<section style='margin-top:25pt;background:blue'>" +
+            $"<{tag} style='font-size:12pt;margin-top:12pt;margin-bottom:0'>FIRST-PANEL-TEXT</{tag}>" +
+            "</section>";
+        var fresh = Layout(panel, options);
+        var moved = Layout(leading + panel, options);
+        Assert.That(fresh, Has.Count.EqualTo(1));
+        Assert.That(moved, Has.Count.EqualTo(2));
+        Assert.That(moved[1].PaintBoxes.Single().Top,
+            Is.EqualTo(fresh[0].PaintBoxes.Single().Top).Within(0.000001));
+        // No margin collapse: the panel's 25pt and the child's 12pt are
+        // both first-fragment spacing even when earlier content forces a new page.
+        Assert.That(moved[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.000001),
+            "An unconsumed parent must not drop its child's own margin-top on relocation");
+    }
 }
