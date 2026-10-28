@@ -529,22 +529,24 @@ internal static class TextLayout
             var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;
             if (y + gap + lines.Current.Height > bottom && CurrentPageOccupied())
             {
-                // An unconsumed outside margin is not itself painted content.
-                // If this page is otherwise empty, an unfit first fragment must
-                // raise FPDF1302 below, not allocate an empty page (or FPDF1303
-                // at MaxPages=1) and silently discard the margin.
-                var hasPlacedContent = y > o.Margin + 0.000001 ||
-                    pages[^1].Runs.Count > 0 || pages[^1].Discs.Count > 0 ||
-                    pages[^1].Images.Count > 0 ||
-                    pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
-                if (hasPlacedContent)
-                {
-                    NewPage();
-                    MoveUnconsumedBlocksToNewPage();
-                    // Only unconsumed leading margin/padding travels with the
-                    // panel; previous paragraph gaps do not.
-                    gap = pendingTopPadding;
-                }
+                // Existing padded/painted scopes sometimes have deferred paint
+                // even when no runs or boxes have been emitted yet. Preserve
+                // their established move-to-fresh-page behaviour. Only reject
+                // an unconsumed outside margin if it cannot fit on a fresh page
+                // with the actual first line, before MaxPages could mask FPDF1302.
+                var unconsumedMargin = opened.Any(scope => scope.MarginTop > 0 &&
+                    scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
+                    !scope.HasOccupiedDescendant);
+                if (unconsumedMargin &&
+                    MoveUnconsumedBlocksToNewPage(apply: false) + lines.Current.Height >
+                        bottom - o.Margin + 0.000001)
+                    throw new FactsPdfException("FPDF1302",
+                        "Report panel top margin and first line cannot fit on a fresh page.");
+                NewPage();
+                MoveUnconsumedBlocksToNewPage();
+                // The previous paragraph's trailing gap remains behind;
+                // first-fragment outside margins and padding travel with it.
+                gap = pendingTopPadding;
             }
             if (gap + lines.Current.Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
