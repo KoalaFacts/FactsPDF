@@ -80,7 +80,7 @@ public sealed class LetterSpacingTests
         const string text = "AB CD EF GH";
         var normal = Layout("<p>" + text + "</p>", narrow);
         var tracked = Layout("<p style='letter-spacing:3pt'>" + text + "</p>", narrow);
-        Assert.That(normal.SelectMany(p => p.Runs), Has.Count.EqualTo(1));
+        Assert.That(normal.SelectMany(p => p.Runs).ToArray(), Has.Length.EqualTo(1));
         Assert.That(tracked.SelectMany(p => p.Runs).Count(), Is.GreaterThan(1));
         Assert.That(tracked.SelectMany(p => p.Runs).Select(r => r.Text).Aggregate("", (a,b) => a+b)
             .Replace(" ", ""), Is.EqualTo(text.Replace(" ", "")));
