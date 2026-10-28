@@ -13,8 +13,16 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '280212ceea1eb7d0105a5bbb2ee61825364836e8');
-  assert.deepEqual(counts(dataset.features), { full:44, partial:121, none:245, unknown:6, na:2 });
+  assert.equal(dataset.commit, 'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
+  const rgb=dataset.features.find(f=>f.id==='value.color.rgbfunc');
+  assert.equal(rgb.status,'partial');
+  assert.equal(rgb.last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
+  assert.match(rgb.scope,/rgba/);
+  for(const id of ["css.color","css.background","css.background-color","css.border","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color","value.color.rgbfunc"]) {
+    assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
+  }
+
+  assert.deepEqual(counts(dataset.features), { full:44, partial:122, none:244, unknown:6, na:2 });
 });
 test('print units and bounded four-sided report margins remain scoped', () => {
   const margin=dataset.features.find(f=>f.id==='css.margin');
@@ -44,7 +52,7 @@ test('colour-only background shorthand is discoverable without claiming CSS back
   assert.match(match.scope,/颜色/);
   assert.match(match.limitations,/url/);
   assert.match(match.limitations,/渐变/);
-  assert.equal(match.example,'background:#cee8fb');
+  assert.equal(match.example,'background:rgb(240 246 250)');
   assert.equal(match.introduced_release,null);
   assert.equal(dataset.features.find(f=>f.id==='css.background-image').status,'none');
 });

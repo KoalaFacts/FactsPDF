@@ -16,6 +16,8 @@ a source checkout and do not themselves grant evaluation or commercial rights.
 
 ## Start with a report that fits
 
+The source report-print example now demonstrates opaque CSS RGB-function colours across text, panel backgrounds and solid borders, alongside spacing and decorations. The current engine accepts only integer `rgb()` channels and fully opaque comma-form `rgba()`; it rejects semi-transparent colour rather than silently flattening it. See [the scoped CSS contract](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports). This new source ability is **not** part of the earlier privately retained binary candidate.
+
 The existing combined report examples exercise these capabilities together:
 
 - English and Chinese text, with explicit normal, bold, italic and bold-italic

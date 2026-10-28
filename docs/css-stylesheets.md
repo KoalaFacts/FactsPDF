@@ -76,7 +76,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | font-weight | normal/bold or numeric 400/700; explicit role resources required |
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless number 1-10 |
-| color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
+| color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
@@ -101,9 +101,31 @@ painting/fragmentation apply identically.
 
 This is **not** general CSS background shorthand support: images, URL loading,
 gradients, positioning, repeats, size, multiple layers and function colours
-are still rejected with FPDF1202. There is no change to old PDF bytes unless
+are still rejected with FPDF1202, apart from the narrowly supported opaque rgb()/rgba() colours described below. There is no change to old PDF bytes unless
 the caller actually uses the newly accepted shorthand. A malformed or
 unsupported declaration still leaves existing output files intact.
+
+## Current-source opaque RGB colours for reports
+
+Supported text, background and solid-border colour declarations now accept
+`rgb(35, 68, 107)`, `rgb(35 68 107)` or `rgba(35,68,107,1)`. The
+channel values are **integers 0–255**; `rgba()` additionally accepts a finite
+numeric alpha of **exactly 1** in comma syntax. These opaque values are lowered
+to the matching `#rrggbb` colour before normal CSS cascade, box painting and
+PDF serialization. For the same computed colour and declarations, PDF bytes
+and page-fragment painting match the existing hex path. This applies to
+`color`, `background`/`background-color`, `border-color` and its four
+longhands, and solid `border` and per-side shorthands.
+
+This does **not** implement CSS alpha compositing: `rgba(...,0)`,
+`rgba(...,0.5)`, modern slash-alpha syntax, percentage channels, fractional
+RGB channels, `hsl()`, gradients, colour mixing and nested `calc()` are
+rejected with `FPDF1202`. Rejected conversions preserve existing outputs;
+no CSS color-scheme, new colour spaces or implicit image loading is added.
+See `OpaqueRgbCssTests.cs` and the real Linux Native AOT run of
+`examples/report-print-spacing.html` with an independent hex projection.
+This is a source-preview feature, not a public release or general CSS colour
+conformance statement.
 
 ## Current-source print-length and vertical-margin authoring
 
