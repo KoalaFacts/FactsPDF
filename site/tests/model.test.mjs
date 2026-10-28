@@ -13,7 +13,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '10776e9829ed01380562979af311747d17a761fc');
+  assert.equal(dataset.commit, 'b2f798bb71634539976537c5e76279fb12823682');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -42,7 +42,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:129, none:237, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:130, none:236, unknown:6, na:2 });
 });
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
@@ -208,13 +208,28 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('word-spacing snapshot methodology matches source and CSS spelling count', () => {
-  assert.equal(dataset.dataset_version,'audit-2026-10-28.word-spacing');
-  assert.match(dataset.audit_method,new RegExp(dataset.commit));
-  assert.match(dataset.audit_method,/css.word-spacing becomes partial/);
-  assert.match(dataset.css_inventory_note,/48个CSS属性/);
-  assert.match(dataset.css_inventory_note,/word-spacing/);
-  assert.match(dataset.css_inventory_note,/段落、标题/);
+test('measured word-space justification audit preserves old records and the 48 names', () => {
+  assert.equal(dataset.dataset_version, 'audit-2026-10-28.text-align-justify');
+  assert.match(dataset.audit_method, new RegExp(dataset.commit));
+  assert.match(dataset.audit_method, /Other 416 feature records/);
+  assert.match(dataset.css_inventory_note, /48个CSS属性/);
+  assert.match(dataset.css_inventory_note, /text-align:justify/);
+  const property=dataset.features.find(x=>x.id==='css.text-align');
+  const values=dataset.features.find(x=>x.id==='value.align.justify');
+  assert.equal(property.status, 'partial');
+  assert.equal(values.status, 'partial');
+  assert.equal(property.last_audited_commit,dataset.commit);
+  assert.equal(values.last_audited_commit,dataset.commit);
+  assert.equal(values.introduced_release,null);
+  assert.equal(property.example,'text-align:justify');
+  assert.equal(values.example,'text-align:justify');
+  assert.match(property.scope,/PDF TJ/);
+  assert.match(values.scope,/自动换行/);
+  assert.match(values.limitations,/start\/end/);
+  assert.match(values.limitations,/RTL/);
+  assert.match(property.limitations,/FPDF1201/);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'text-align:justify',status:'partial'})
+    .map(x=>x.id).sort(), ['css.text-align','value.align.justify']);
 });
 
 test('text-indent is a real limited renderable CSS feature with unchanged 417 other records', () => {
@@ -233,7 +248,7 @@ test('text-indent is a real limited renderable CSS feature with unchanged 417 ot
 test('bounded letter-spacing is a genuine partially supported PDF text capability', () => {
   const f=dataset.features.find(entry=>entry.id==='css.letter-spacing');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,dataset.commit);
+  assert.equal(f.last_audited_commit,'10776e9829ed01380562979af311747d17a761fc');
   assert.equal(f.introduced_release,null);
   assert.equal(f.example,'letter-spacing:0.75pt');
   assert.match(f.scope,/TrueType/);
@@ -248,7 +263,7 @@ test('bounded letter-spacing is a genuine partially supported PDF text capabilit
 test('word-spacing is measured and painted with explicit PDF limits', () => {
   const f=dataset.features.find(x=>x.id==='css.word-spacing');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,dataset.commit);
+  assert.equal(f.last_audited_commit,'10776e9829ed01380562979af311747d17a761fc');
   assert.equal(f.introduced_release,null);
   assert.equal(f.example,'word-spacing:0.72pt');
   assert.match(f.scope,/TrueType CID/);

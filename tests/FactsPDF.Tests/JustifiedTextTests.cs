@@ -82,7 +82,7 @@ public sealed class JustifiedTextTests
     [Test]
     public void FittingAndNowrapTextRemainByteIdenticalToLeftAlignment()
     {
-        const string text = "Approved by finance";
+        const string text = "Paid in full";
         Assert.That(Pdf("<p style='text-align:justify'>" + text + "</p>"),
             Is.EqualTo(Pdf("<p>" + text + "</p>")));
         Assert.That(Pdf("<p style='text-align:justify;white-space:nowrap'>" + text + "</p>"),
