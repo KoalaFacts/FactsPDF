@@ -9,7 +9,7 @@
   "engine_baseline": "M12 / 1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6",
   "support_scope": "Partial engineering audit of implemented preview capabilities, not release readiness or whole-standard conformance",
   "full_definition": "完整支持仅针对每一行明确定义的能力和适用范围；父级元素/属性的未知部分不自动变绿。",
-  "audit_method": "One-row source-bound report overflow-wrap audit at 052f7a8d3da5f87d9dfb6c7b687dd35b1eb97097: explicit p/heading break-word and fixed-column cell paragraphs. 417 other stable-ID records remain unchanged; 418 total and 52 accepted CSS property names. Final-head CI and independent review, release and human approval remain separate.",
+  "audit_method": "Three-record source-bound report panel horizontal-margin audit at a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2: bounded div/section/article margin-left/right and margin:0 auto with measured PDF width/position and zero-only vertical margins. 415 other stable-ID records remain unchanged; 418 total and 52 accepted CSS property names. Browser/Native AOT and exact-head CI, independent review, private candidate, public release and human approval remain separate.",
   "html_inventory_source": "https://html.spec.whatwg.org/multipage/indices.html",
   "html_inventory_note": "WHATWG 元素索引的 113 个名称（h1–h6展开），另外记录 SVG/MathML/自定义元素；不包括过时标签。",
   "css_inventory_note": "当前语义接受52个CSS属性名称。font-size/line-height支持限定相对值；普通块width/min/max-width/padding及p/h四侧margin可用根rem或元素em真实参与PDF几何、换行与分页；text-indent及letter-spacing/word-spacing支持限定em/rem，字距/词距计算后限0–24pt；新增div/section/article面板支持左右非负长度或auto及margin:0 auto按外框居中，面板上下仅零值/initial/unset；body/列表/表格/图像/内联盒margin及一般容器非零垂直margin仍拒绝；border及img/table/col不接受这些相对盒值；text-align:justify、min/max-width和overflow-wrap:break-word均为限定子集，不是完整CSS支持。",

@@ -19,10 +19,11 @@ English is a display translation, not a new engine audit. The original
 JSON/CSV exports remain unchanged. Examples are labelled as verbatim source.
 Translations do not remove limitations or turn unverified support into support.
 
-The catalogue in `site/src/audit-english-current.mjs` retains the reviewed
-`audit-english.mjs` base and integrates the current overflow-wrap audit. It
-contains one translation per unique
-Chinese display string returned by `collectAuditStrings()` in
+The current catalogue in `site/src/audit-english-panel.mjs` reuses the
+previously reviewed `audit-english-current.mjs` overflow-wrap translations,
+adds the new scoped report-panel margin wording and verifies the full ordered
+source-text SHA-256. It retains one translation per unique Chinese display
+string returned by `collectAuditStrings()` in
 `site/src/localisation.mjs`. Its source SHA-256 binds the ordered original text
 inventory before any translations are used. On intentional audit-text changes,
 update the corresponding translations and digest together; never just change
