@@ -405,6 +405,13 @@ internal static class CssSyntaxAdapter
                 _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
                     paragraph: true, inline: false, offset);
         }
+        else if (name is ("text-indent" or "letter-spacing" or "word-spacing")
+            && token.EndsWith("em", StringComparison.Ordinal))
+        {
+            // Check syntax even for an unmatched selector, but resolve the
+            // final font and bounded glyph advance only for the CSS winner.
+            _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+        }
         else if (name == "box-sizing")
         {
             if (token is not ("content-box" or "border-box"))
