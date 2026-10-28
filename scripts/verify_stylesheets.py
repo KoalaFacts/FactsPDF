@@ -663,6 +663,43 @@ def main():
                 raise AssertionError('Native rejected em document damaged prior PDF output')
         print('Native element-relative em report layout, pagination, search and recovery verified')
 
+    # Native AOT relative text metrics are compared against a separately
+    # authored absolute-point report. Observe PDF geometry, pagination,
+    # searchable text and destination preservation (not parser-only success).
+    with tempfile.TemporaryDirectory(prefix='factspdf-relative-text-spacing-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'relative.pdf', temp / 'points.pdf'
+        run(exe, Path('examples/report-relative-text-spacing.html'), actual)
+        run(exe, Path('examples/report-relative-text-spacing-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native em/rem text spacing differs from authored fixed-point PDF')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if pages is None or int(pages.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Native relative text spacing report did not paginate')
+        content = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
+                       'Service entry 01', 'Service entry 72', 'Outcome: All service entries verified.'):
+            if phrase not in content:
+                raise AssertionError('Native relative text spacing report lost text: ' + phrase)
+        bad, destination = temp / 'invalid.html', temp / 'existing.pdf'
+        for declaration, code in (('letter-spacing:3em', b'FPDF1202'),
+                                  ('word-spacing:-0.1rem', b'FPDF1202'),
+                                  ('word-spacing:10%', b'FPDF1202'),
+                                  ('text-indent:60rem', b'FPDF1302')):
+            bad.write_text("<html style='font-size:14pt'><body><p style='" +
+                           declaration + "'>Keep existing</p></body></html>", encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native relative text spacing rejection failed: ' + declaration)
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Relative text spacing failure modified previous report')
+        print('Native relative text spacing PDF parity, pagination, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -687,7 +724,8 @@ def main():
                        'native_root_relative_typography_equivalence_and_recovery': True,
                         'native_rem_box_length_equivalence_and_recovery': True,
                          'native_rem_margin_equivalence_and_recovery': True,
-                         'native_element_relative_em_layout_and_recovery': True},
+                         'native_element_relative_em_layout_and_recovery': True,
+                         'native_font_relative_text_spacing_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
