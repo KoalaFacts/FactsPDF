@@ -246,7 +246,16 @@ internal sealed class CssStylesheets
                     && declaration.Property is (CssProperty.LineHeight
                         or CssProperty.LetterSpacing or CssProperty.WordSpacing)
                     ? style.FontSize : rootFontSize;
-                style = CssDeclarations.Apply(style, parent, initial, declaration,
+                // Explicit paragraph/heading margin:inherit must read the direct
+                // panel's computed outside margin. Do not alter anonymous text
+                // or the default (non-inherited) paragraph margins.
+                var marginParent = paragraph && path.Count > 1 &&
+                    path[^2].Name is ("div" or "section" or "article") &&
+                    declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
+                    ? parent with { MarginBefore = parentBox.MarginTop.Value,
+                        MarginAfter = parentBox.MarginBottom.Value }
+                    : parent;
+                style = CssDeclarations.Apply(style, marginParent, initial, declaration,
                     paragraph, computedRoot);
             }
         }

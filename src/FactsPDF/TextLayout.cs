@@ -89,8 +89,15 @@ internal static class TextLayout
                 }
                 // Preserve M6's first-text leading-space behavior for purely
                 // unpainted scopes outside any continuing painted ancestor.
-                if (apply) opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
-                leading += scope.Top;
+                // An unconsumed first fragment retains its outside top margin
+                // when moving to a fresh page; a continued fragment never does.
+                var firstMargin = scope.HasOccupiedDescendant ? 0 : scope.MarginTop;
+                if (apply) opened[i] = scope with
+                {
+                    StartPage = pages.Count - 1,
+                    StartY = o.Margin + leading + firstMargin
+                };
+                leading += firstMargin + scope.Top;
             }
             if (apply) pendingTopPadding = leading;
             return leading;
@@ -522,11 +529,22 @@ internal static class TextLayout
             var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;
             if (y + gap + lines.Current.Height > bottom && CurrentPageOccupied())
             {
-                NewPage();
-                MoveUnconsumedBlocksToNewPage();
-                // Paragraph margin and trailing padding belong to the previous
-                // page; only the new box's leading padding travels with text.
-                gap = pendingTopPadding;
+                // An unconsumed outside margin is not itself painted content.
+                // If this page is otherwise empty, an unfit first fragment must
+                // raise FPDF1302 below, not allocate an empty page (or FPDF1303
+                // at MaxPages=1) and silently discard the margin.
+                var hasPlacedContent = y > o.Margin + 0.000001 ||
+                    pages[^1].Runs.Count > 0 || pages[^1].Discs.Count > 0 ||
+                    pages[^1].Images.Count > 0 ||
+                    pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
+                if (hasPlacedContent)
+                {
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
+                    // Only unconsumed leading margin/padding travels with the
+                    // panel; previous paragraph gaps do not.
+                    gap = pendingTopPadding;
+                }
             }
             if (gap + lines.Current.Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",

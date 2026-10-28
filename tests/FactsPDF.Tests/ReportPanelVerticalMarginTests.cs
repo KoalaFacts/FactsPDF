@@ -151,4 +151,54 @@ public sealed class ReportPanelVerticalMarginTests
         Assert.That(Render(updated), Is.EqualTo(Render(original)));
         Reject("<style>section{margin-top:-2pt;margin-top:0}</style><section>A</section>", "FPDF1202");
     }
+
+    [TestCase("p")]
+    [TestCase("h2")]
+    public void ChildParagraphAndHeadingInheritComputedPanelVerticalMargins(string tag)
+    {
+        const string prefix = "<div style='margin-top:11pt;margin-bottom:4pt'>";
+        var actual = prefix + "<" + tag + " style='margin-top:inherit;margin-bottom:inherit'>A</" + tag + "></div>";
+        var oracle = prefix + "<" + tag + " style='margin-top:11pt;margin-bottom:4pt'>A</" + tag + "></div>";
+        Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
+    }
+
+    [Test]
+    public void UnconsumedPanelTopMarginMovesWithFirstPaintedFragment()
+    {
+        var page = Page with { PageHeight = 150 };
+        var leading = "<p style='margin:0'>" + string.Join("<br>",
+            Enumerable.Range(1, 7).Select(index => $"Row-{index:00}")) + "</p>";
+        var document = leading + "<section style='margin-top:25pt;background:blue'>" +
+            "<p style='margin:0'>FIRST-PANEL-TEXT</p></section>";
+        var pages = Layout(document, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        var box = pages[1].PaintBoxes.Single(painted => painted.Style.BackgroundColor.HasValue);
+        Assert.That(box.Top, Is.EqualTo(45).Within(0.000001));
+        Assert.That(pages[0].PaintBoxes, Is.Empty);
+    }
+
+    [Test]
+    public void OversizedFirstPagePanelMarginRejectsInsteadOfDroppingOrBlankPaging()
+    {
+        var options = Page with { PageHeight = 150, MaxPages = 1 };
+        using var target = new MemoryStream();
+        target.Write("existing-document"u8);
+        target.Position = 5;
+        var exception = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
+            "<section style='margin-top:120pt;background:blue'><p style='margin:0'>A</p></section>",
+            target, options));
+        Assert.That(exception!.Code, Is.EqualTo("FPDF1302"));
+        Assert.That(target.ToArray(), Is.EqualTo("existing-document"u8.ToArray()));
+        Assert.That(target.Position, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void ExactPageBoundaryTopMarginDoesNotAllocateExtraPage()
+    {
+        var options = Page with { PageHeight = 150, MaxPages = 1 };
+        var pages = Layout("<section style='margin-top:95.6pt;background:blue'>" +
+            "<p style='margin:0'>A</p></section>", options);
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(pages[0].PaintBoxes.Single().Top, Is.EqualTo(115.6).Within(0.000001));
+    }
 }
