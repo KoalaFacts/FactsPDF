@@ -7,7 +7,7 @@ internal enum CssProperty
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
-    MarginRight, MarginLeft
+    MarginRight, MarginLeft, BoxSizing
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -64,6 +64,8 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : new BoxStyle();
 
+        if (property == CssProperty.BoxSizing)
+            return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };
         if (property == CssProperty.Width)
             return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset) };
         if (property >= CssProperty.PaddingTop && property <= CssProperty.PaddingLeft)
