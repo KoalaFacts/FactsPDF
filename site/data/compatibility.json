@@ -4,12 +4,12 @@
   "dataset_version": "audit-2026-10-29.rem-report-margins",
   "audited_at": "2026-10-29",
   "repository": "KoalaFacts/FactsPDF",
-  "commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
-  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+  "commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
+  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/f14550afd22ca40569998398b9fb8595d9f0e509",
   "engine_baseline": "M12 / 1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6",
   "support_scope": "Partial engineering audit of implemented preview capabilities, not release readiness or whole-standard conformance",
   "full_definition": "完整支持仅针对每一行明确定义的能力和适用范围；父级元素/属性的未知部分不自动变绿。",
-  "audit_method": "Seven-row source-bound re-audit at 79e97bd787d0e8dfdc35df04db9e55dfe2194c83: css.margin and four margin longhands, value.length.relative and css.font-size limitations. 411 other stable-ID records unchanged; 418 records and 51 accepted property spellings. Latest-head CI and independent review are separate.",
+  "audit_method": "Seven-row source-bound re-audit at f14550afd22ca40569998398b9fb8595d9f0e509: css.margin and four margin longhands, value.length.relative and css.font-size limitations. 411 other stable-ID records unchanged; 418 records and 51 accepted property spellings. Latest-head CI and independent review are separate.",
   "html_inventory_source": "https://html.spec.whatwg.org/multipage/indices.html",
   "html_inventory_note": "WHATWG 元素索引的 113 个名称（h1–h6展开），另外记录 SVG/MathML/自定义元素；不包括过时标签。",
   "css_inventory_note": "当前语义接受51个CSS属性名称。font-size/line-height根rem、普通块width/min/max-width/padding及段落/标题margin四侧有界根rem已接入PDF几何、文字换行、背景和分页；一般容器margin、border、图片/表格/列、文字间距仍拒绝rem；text-align:justify、word-spacing、min/max-width各自保持有限子集。",
@@ -3633,15 +3633,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -3744,15 +3744,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -3772,15 +3772,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5145,15 +5145,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5173,15 +5173,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5201,15 +5201,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -7602,15 +7602,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "79e97bd787d0e8dfdc35df04db9e55dfe2194c83",
+      "last_audited_commit": "f14550afd22ca40569998398b9fb8595d9f0e509",
       "last_audited_date": "2026-10-29",
       "evidence_level": "有界根rem间距实现、独立点值PDF样例、NUnit/Native AOT验证路径已推送；最终准确head CI和独立评审、私有候选及人工PDF批准单独核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/src/FactsPDF/BlockLayout.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/src/FactsPDF/BlockLayout.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

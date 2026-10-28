@@ -13,7 +13,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '79e97bd787d0e8dfdc35df04db9e55dfe2194c83');
+  assert.equal(dataset.commit, 'f14550afd22ca40569998398b9fb8595d9f0e509');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -28,8 +28,8 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(entry.status,'partial');
     assert.equal(entry.introduced_release,null);
   }
-  assert.equal(fontSize.last_audited_commit,'79e97bd787d0e8dfdc35df04db9e55dfe2194c83');
-  assert.equal(relative.last_audited_commit,'79e97bd787d0e8dfdc35df04db9e55dfe2194c83');
+  assert.equal(fontSize.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
+  assert.equal(relative.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
   assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
   assert.match(fontSize.limitations,/rem/);
@@ -84,7 +84,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
   assert.equal(dataset.accepted_css_property_count,51);
-  assert.equal(margin.last_audited_commit,'79e97bd787d0e8dfdc35df04db9e55dfe2194c83');
+  assert.equal(margin.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
@@ -345,11 +345,11 @@ test('bounded rem report margins are actual source-bound partial CSS abilities',
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,'79e97bd787d0e8dfdc35df04db9e55dfe2194c83',id);
+    assert.equal(feature.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509',id);
     assert.equal(feature.introduced_release,null,id);
     assert.match(feature.scope+' '+feature.limitations,/rem/,id);
     assert.equal(feature.test_reference,
-      'https://github.com/KoalaFacts/FactsPDF/blob/79e97bd787d0e8dfdc35df04db9e55dfe2194c83/tests/FactsPDF.Tests/RootRelativeMarginTests.cs');
+      'https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs');
   }
   assert.match(dataset.features.find(f=>f.id==='css.margin').scope,/margin:0 auto按实际外框居中/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仅显式零值/);
