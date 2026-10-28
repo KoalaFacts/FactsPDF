@@ -142,6 +142,11 @@ internal sealed class CssStylesheets
             // Flat table cell paragraphs do not have independent horizontal box
             // geometry. Preserve existing explicit zero sides, but auto can
             // consume real space and is not a zero-valued cell margin.
+            if (cellParagraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
+                    or CssProperty.MarginLeft or CssProperty.MarginRight)
+                && declaration.Value.EndsWith("rem", StringComparison.Ordinal))
+                throw new FactsPdfException("FPDF1201",
+                    "Root-relative margins are not supported inside table cells.", declaration.Offset);
             var zeroCellInset = declaration.Property is CssProperty.MarginLeft or CssProperty.MarginRight
                 && (declaration.Value is "inherit" or "initial" or "unset"
                     || declaration.Value != "auto"

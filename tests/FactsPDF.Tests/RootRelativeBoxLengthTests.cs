@@ -143,7 +143,7 @@ public sealed class RootRelativeBoxLengthTests
     [TestCase("<p style='width:20000rem'>AB</p>", "FPDF1202")]
     [TestCase("<html style='font-size:144pt'><body><p style='width:101rem'>AB</p></body></html>", "FPDF1202")]
     [TestCase("<p style='width:1em'>AB</p>", "FPDF1202")]
-    [TestCase("<p style='margin-left:1rem'>AB</p>", "FPDF1202")]
+    [TestCase("<p style='margin-left:1em'>AB</p>", "FPDF1202")]
     [TestCase("<p style='border-width:1rem'>AB</p>", "FPDF1202")]
     [TestCase("<p style='padding:calc(1rem + 1pt)'>AB</p>", "FPDF1202")]
     [TestCase("<p style='box-sizing:border-box;width:1rem;padding:1rem'>AB</p>", "FPDF1302")]

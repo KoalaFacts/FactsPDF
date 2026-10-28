@@ -577,7 +577,7 @@ def main():
         for declaration, error in (
             ('width:20000rem', b'FPDF1202'),
             ('padding:-1rem', b'FPDF1202'),
-            ('margin-left:1rem', b'FPDF1202'),
+            ('margin-left:1em', b'FPDF1202'),
             ('box-sizing:border-box;width:1rem;padding:1rem', b'FPDF1302')
         ):
             bad.write_text("<p style='" + declaration + "'>Protected report</p>", encoding='utf-8')
@@ -589,6 +589,41 @@ def main():
             if destination.read_bytes() != b'keep-existing':
                 raise AssertionError('Native rem box rejection modified the existing destination')
         print('Native rem report box PDF parity, pagination, text and recovery verified')
+
+    # Native AOT root-relative paragraph/heading margins: independently
+    # authored point-value report, real multi-page paint, and protected output.
+    with tempfile.TemporaryDirectory(prefix='factspdf-rem-margins-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'rem-margins.pdf', temp / 'points-margins.pdf'
+        run(exe, Path('examples/report-rem-margins.html'), actual)
+        run(exe, Path('examples/report-rem-margins-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native rem margins differ from independent fixed-point PDF')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if pages is None or int(pages.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Native rem margin report was not paginated: ' + info)
+        text = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
+                       'Service entry 01', 'Service entry 32',
+                       'Outcome: Site inspection completed.'):
+            if phrase not in text:
+                raise AssertionError('Native rem margin report lost text: ' + phrase)
+        bad, dest = temp / 'bad.html', temp / 'existing.pdf'
+        for declaration, code in (('margin:-1rem', b'FPDF1202'),
+                                  ('margin-left:1em', b'FPDF1202'),
+                                  ('width:100pt;margin:0 50rem', b'FPDF1302')):
+            bad.write_text("<p style='" + declaration + "'>Keep existing</p>", encoding='utf-8')
+            dest.write_bytes(b'keep-existing')
+            failure = subprocess.run([str(exe), str(bad), str(dest), '--overwrite'],
+                                     capture_output=True, timeout=120)
+            if failure.returncode != 3 or code not in failure.stderr or failure.stdout:
+                raise AssertionError('Native rem margin rejection failed: ' + declaration)
+            if dest.read_bytes() != b'keep-existing':
+                raise AssertionError('Rejected rem margin damaged existing output')
+        print('Native root-relative paragraph margin PDF geometry and recovery verified')
 
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
@@ -612,7 +647,8 @@ def main():
                        'native_ascii_case_glyph_parity_and_recovery': True,
                        'native_min_max_width_pdf_equivalence_and_recovery': True,
                        'native_root_relative_typography_equivalence_and_recovery': True,
-                        'native_rem_box_length_equivalence_and_recovery': True},
+                        'native_rem_box_length_equivalence_and_recovery': True,
+                         'native_rem_margin_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
