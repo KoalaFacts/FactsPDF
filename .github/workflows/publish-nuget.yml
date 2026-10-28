@@ -146,6 +146,7 @@ jobs:
     env:
       PACKAGE_VERSION: ${{ needs.verify.outputs.version }}
       SOURCE_SHA: ${{ needs.verify.outputs.source }}
+      NUGET_USERNAME: KoalaFacts
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -161,8 +162,6 @@ jobs:
       - name: Recheck the exact package before requesting credentials
         run: python3 scripts/nuget_publish.py verify --bundle artifacts/nuget-publish --version "$PACKAGE_VERSION" --source "$SOURCE_SHA"
       - name: Require configured NuGet username
-        env:
-          NUGET_USERNAME: ${{ secrets.NUGET_USERNAME }}
         shell: bash
         run: |
           if [ -z "$NUGET_USERNAME" ]; then
@@ -177,7 +176,7 @@ jobs:
         id: nuget-login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0; same pin as HeroParser
         with:
-          user: ${{ secrets.NUGET_USERNAME }}
+          user: ${{ env.NUGET_USERNAME }}
       - name: Push one preview package to NuGet.org
         env:
           NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}

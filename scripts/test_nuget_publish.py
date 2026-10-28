@@ -183,7 +183,7 @@ class PublisherTests(unittest.TestCase):
         self.assertNotIn('pull_request_target:', workflow)
         self.assertNotIn('--skip-duplicate', workflow)
         self.assertNotIn('NUGET_API_KEY }}', workflow.split('run:')[0])
-        self.assertIn('secrets.NUGET_USERNAME', workflow)
+        self.assertIn('user: ${{ env.NUGET_USERNAME }}', workflow)
         self.assertIn('NuGet/login@8d196754b4036150537f80ac539e15c2f1028841', workflow)
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
         self.assertIn('inputs.release_gates_confirmed', workflow)
@@ -191,6 +191,18 @@ class PublisherTests(unittest.TestCase):
         self.assertIn('scripts/verify_package.py --assembly-inspector', workflow)
         self.assertIn('nuget_publish.py gate-ci', workflow)
         self.assertIn('nuget_publish.py verify-public', workflow)
+
+
+class NuGetUsernameTests(unittest.TestCase):
+    def test_owner_selected_username_is_used_without_a_secret_override(self):
+        workflow = (ROOT/'.github/workflows/publish-nuget.yml').read_text()
+        publish = workflow.split('\n  publish:\n', 1)[1]
+        self.assertIn('\n      NUGET_USERNAME: KoalaFacts\n', publish)
+        self.assertEqual(workflow.count('NUGET_USERNAME:'), 1)
+        self.assertIn('user: ${{ env.NUGET_USERNAME }}', publish)
+        self.assertNotIn('secrets.NUGET_USERNAME', workflow)
+        self.assertNotIn('vars.NUGET_USERNAME', workflow)
+        self.assertIn('NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}', publish)
 
 
 if __name__ == '__main__':

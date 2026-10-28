@@ -27,10 +27,12 @@ Choose the actual package-owning user or organization; do not infer ownership
 from the GitHub organization name. An existing **HeroParser** trust policy does
 not automatically authorize **FactsPDF**.
 
-Expose `NUGET_USERNAME` to FactsPDF as a repository, selected-repository
-organization, or `production` environment secret. Use the actual **NuGet user
-profile name** associated with the policy, not an email address or an assumed
-GitHub/organization name. A long-lived `NUGET_API_KEY` secret is not needed.
+The owner explicitly selected **`KoalaFacts`** as `NUGET_USERNAME`. The publish
+job sets this public profile name directly in its `env` and passes the same
+value to `NuGet/login`; no `NUGET_USERNAME` secret or variable is required or
+read. This configures the requested identity, not the account-side trust policy.
+The temporary `NUGET_API_KEY` still comes only from the OIDC login output; no
+long-lived API key is stored in source or required as a repository secret.
 
 Configure the GitHub `production` environment for the existing owner/release
 approval process and restrict it to `main`. Merely naming an environment in
