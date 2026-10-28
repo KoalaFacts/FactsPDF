@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('125e7788',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('280212ce',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('filters and detail links survive refresh without inventing versions',async({page})=>{
@@ -166,4 +166,12 @@ test('uppercase identifier search works in a Turkish browser context',async({bro
     await page.getByRole('searchbox').fill('WIDTH');
     await expect(page.getByRole('button',{name:'width',exact:true})).toBeVisible();
   }finally{await context.close();}
+});
+
+test('audited PDF text decoration can be searched and its limitations read',async({page})=>{
+  await page.goto('/FactsPDF/#q=text-decoration');
+  await expect(page.getByRole('button',{name:'text-decoration',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'text-decoration',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('line-through');
+  await expect(page.getByRole('dialog')).toContainText('overline');
 });

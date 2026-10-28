@@ -31,6 +31,7 @@ These implemented paths have independent executable evidence. This table neither
 
 | Capability | Executable positive evidence | Approval boundary |
 |---|---|---|
+| Underline and strike-through text in real PDF | [CSS scope](../css-stylesheets.md), `tests/FactsPDF.Tests/TextDecorationTests.cs`, `examples/report-print-spacing.html` | Measured glyph-run widths, PDF line paint, page wrap, managed CLI and budget/recovery. Exact-head CI and independent review still required. |
 | Four-sided report margins, horizontal auto centring and print lengths | [Scoped CSS](../css-stylesheets.md), `tests/FactsPDF.Tests/HorizontalParagraphMarginTests.cs`, `tests/FactsPDF.Tests/HorizontalAutoMarginTests.cs`, `examples/report-print-spacing.html` | Bounded explicit-width auto sides, wrapping, painted geometry, heading keeps, cell rejection and safe recovery; exact-head CI/native and independent review still required |
 | Fixed columns, whole rows, repeated headers | [E1/E2 tables](../tables.md), `scripts/verify_table_pagination.py` | Separate from malformed T-table rejection |
 | Static PNG color and transparency | [PNG image resources](../images.md), `scripts/verify_png.py` | Scoped non-interlaced formats; separate engineering evidence |

@@ -41,7 +41,7 @@ evaluation. Existing templates may need changes to fit the supported subset.
 | Example | Purpose | Resources |
 | --- | --- | --- |
 | [First document](../examples/first-document.html) | Run the shortest end-to-end conversion | ASCII/Courier; no external font files |
-| [Print spacing report](../examples/report-print-spacing.html) | Business panel with physical print units and four-sided paragraph margin shorthand and actual text insets | ASCII/Courier; no external resources |
+| [Print spacing report](../examples/report-print-spacing.html) | Business panel with physical print units, four-sided paragraph margins, auto-centred summary, and real strike-through/underline labels | ASCII/Courier; no external resources |
 | [Branded business report](../examples/branded-business-report.html) | Transparent logo beside company details, line items and page furniture | Generated synthetic PNG and explicit image binding; no external fonts |
 | [Detailed service report](../examples/business-table-rich-cells.html) | Spanning headings/totals and paragraph/image/caption detail cells | The same generated synthetic logo; no external fonts |
 | [Long service report](../examples/business-table-long-description.html) | One long description continues across pages; a following item and totals remain in order | The same generated synthetic logo; no external fonts |

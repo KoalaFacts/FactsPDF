@@ -124,6 +124,7 @@ internal static class UnicodePdfSerializer
                         content.Append(use is null ? rune.Value.ToString("X2", CultureInfo.InvariantCulture)
                             : use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));
                     content.Append("> Tj ET\n");
+                    PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes);
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R >>"));

@@ -19,8 +19,10 @@ internal static class TextLines
     {
         for (var start = 0; start < line.Glyphs.Count;)
         {
-            charge(1, sourceOffset);
-            var first = line.Glyphs[start]; var width = 0d; var end = start; var utf16Length = 0;
+            var first = line.Glyphs[start];
+            // A decorated run emits one additional filled-path command; charge
+            // before retaining its text, so MaxDisplayCommands remains exact.
+            charge(first.Style.Decoration == TextDecoration.None ? 1 : 2, sourceOffset); var width = 0d; var end = start; var utf16Length = 0;
             while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
@@ -39,7 +41,7 @@ internal static class TextLines
                         offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
                     }
                 });
-            target.Add(new(text, x, baseline, first.Style, first.Font));
+            target.Add(new(text, x, baseline, first.Style, first.Font, width));
             x += width; start = end;
         }
     }

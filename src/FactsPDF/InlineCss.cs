@@ -34,6 +34,15 @@ internal static class InlineCss
                     style = style with { FontSize = size };
                     break;
                 case "color": style = style with { Color = Color(value, offset) }; break;
+                case "text-decoration" or "text-decoration-line":
+                    style = style with { Decoration = value switch
+                    {
+                        "none" => TextDecoration.None,
+                        "underline" => TextDecoration.Underline,
+                        "line-through" => TextDecoration.LineThrough,
+                        _ => throw Invalid("Only none, underline and line-through text decorations are supported.", offset)
+                    } };
+                    break;
                 case "line-height":
                     var factor = Number(value, offset);
                     if (factor is < 1 or > 10) throw Invalid("line-height must be a unitless number from 1 to 10.", offset);

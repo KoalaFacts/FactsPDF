@@ -251,3 +251,18 @@ margins, generic container margins, full CSS conformance or a released package.
 Source tests and rendered PDF evidence belong to their exact PR/head workflows;
 this data-only refresh is not standalone Native AOT, customer approval or Pages
 hosting evidence.
+
+## 28 October 2026: solid real-PDF text decorations
+
+Snapshot `audit-2026-10-28.text-decoration-real-pdf` audits core source
+`280212ceea1eb7d0105a5bbb2ee61825364836e8`. The `text-decoration` and `text-decoration-line` names
+share one bounded text-run paint capability (none, underline, line-through).
+One existing row (`css.text-decoration`) moves none -> partial; the other
+417 rows preserve full provenance and status. Exactly 418 IDs remain, with
+43 accepted CSS property names; totals are 44 full, 121 partial, 245 none,
+6 unknown and 2 not applicable. Snapshot SHA-256: `b788350a7ca6407baf26e8a5601831ef102b8da0917c8574a0a7338ef05ac81f`.
+
+These values generate PDF filled lines, measured from resolved glyph advances
+and budgeted like other drawing commands. The dataset audit is not a substitute
+for exact-head CI, truly independent review, distribution rights, a published
+preview, Pages deployment or human PDF approval.
