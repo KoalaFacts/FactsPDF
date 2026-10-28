@@ -63,10 +63,19 @@ internal static class CssDeclarations
         }
         if (property is CssProperty.MarginLeft or CssProperty.MarginRight)
         {
-            var length = wide ? default : CssBoxValues.Length(value, declaration.Offset);
+            var auto = !wide && value == "auto";
+            var length = wide || auto ? default : CssBoxValues.Length(value, declaration.Offset);
             return property == CssProperty.MarginLeft
-                ? current with { MarginLeft = wide ? from.MarginLeft : length }
-                : current with { MarginRight = wide ? from.MarginRight : length };
+                ? current with
+                {
+                    MarginLeft = wide ? from.MarginLeft : length,
+                    MarginLeftAuto = wide ? from.MarginLeftAuto : auto
+                }
+                : current with
+                {
+                    MarginRight = wide ? from.MarginRight : length,
+                    MarginRightAuto = wide ? from.MarginRightAuto : auto
+                };
         }
         if (property == CssProperty.BackgroundColor)
             return current with { BackgroundColor = wide ? from.BackgroundColor :

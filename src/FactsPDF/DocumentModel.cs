@@ -77,6 +77,9 @@ internal sealed record BoxStyle(
     // Outside the paragraph/heading border box; percentages use the containing width.
     public CssLength MarginLeft { get; init; }
     public CssLength MarginRight { get; init; }
+    // Auto is distinguished from an explicit zero without changing legacy lengths.
+    public bool MarginLeftAuto { get; init; }
+    public bool MarginRightAuto { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
