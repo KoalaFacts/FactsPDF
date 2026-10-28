@@ -487,6 +487,36 @@ def main():
             if destination.read_bytes() != b'keep-existing':
                 raise AssertionError('Rejected native case-transform changed existing report')
 
+    # Executable width-constraint report and independently authored fixed-width
+    # projection: real PDF bytes, searchable text and protected-target failures.
+    with tempfile.TemporaryDirectory(prefix='factspdf-width-constraints-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'constrained.pdf', temp / 'fixed-width.pdf'
+        run(exe, Path('examples/report-width-constraints.html'), actual)
+        run(exe, Path('examples/report-width-constraints-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native min/max-width PDF layout differs from explicit-width projection')
+        searchable = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Service Report', 'Example Facilities Pty Ltd', 'SR-2026-0142', 'Outcome: Site inspection completed.'):
+            if phrase not in searchable:
+                raise AssertionError('Width-constrained report lost searchable text: ' + phrase)
+        bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
+        for invalid_css, code in (
+            ('max-width:auto', b'FPDF1202'),
+            ('min-width:300mm', b'FPDF1302'),
+            ('box-sizing:border-box;max-width:2pt;padding:10pt', b'FPDF1302')
+        ):
+            bad.write_text("<p style='" + invalid_css + "'>Not generated</p>", encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native width-constraint rejection failed: ' + invalid_css)
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Native invalid width constraint replaced an existing report')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -506,7 +536,8 @@ def main():
                       'native_letter_spacing_geometry_and_recovery': True,
                        'native_word_spacing_geometry_and_recovery': True,
                        'native_report_justification_and_recovery': True,
-                       'native_ascii_case_glyph_parity_and_recovery': True},
+                       'native_ascii_case_glyph_parity_and_recovery': True,
+                       'native_min_max_width_pdf_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

@@ -86,6 +86,10 @@ internal sealed record BoxStyle(
     public bool MarginRightAuto { get; init; }
     // Explicit width includes padding/borders when requested; defaults unchanged.
     public bool BorderBoxSizing { get; init; }
+    // Opt-in width constraints. Percentages resolve against the containing
+    // content width; the constrained measure follows box-sizing.
+    public CssLength? MinWidth { get; init; }
+    public CssLength? MaxWidth { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;

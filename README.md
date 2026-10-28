@@ -101,7 +101,7 @@ for integration without a source-project reference.
 | --- | --- | --- |
 | Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
 | Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, computed `line-height:150%`/`1.5em`/physical leading, four-sided paragraph/heading `margin` shorthand, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, computed `line-height:150%`/`1.5em`/physical leading, four-sided paragraph/heading `margin` shorthand, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
 | Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
@@ -168,6 +168,19 @@ Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `l
 Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders. These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](docs/css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](examples/report-print-spacing.html).
 For a fontless case-formatting example with a preserved proper-name span, see the
 [report case labels](examples/report-case-labels.html).
+
+For source-built business reports, `min-width` and `max-width` now constrain
+real used block widths, including `width:auto` panels and horizontal auto
+margins. For example, `max-width:146mm` caps a report panel, while
+`min-width:82mm;max-width:90mm` bounds an invoice-reference box.
+`box-sizing:border-box` applies constraints to the padded/bordered outer box;
+the default `content-box` constrains the content width instead. Supported
+lengths are nonnegative `pt/px/mm/cm/in/%` or zero; `min-width:auto`
+and `max-width:none` remove the constraint. Actual over-constrained geometry
+is rejected without replacing prior output. This is only ordinary report
+blocks/paragraphs/headings; image, table and inline sizing stay separate.
+See [CSS scope](docs/css-stylesheets.md#current-source-bounded-report-minmax-widths)
+and the [runnable report](examples/report-width-constraints.html).
 
 ### Check your template against these boundaries
 

@@ -305,3 +305,23 @@ The SHA-256 of this exact JSON snapshot is `b8bbe04c89cff46d7e9aabf086eb610cff07
 Source audit and site builds do not establish a publicly deployed Pages site,
 independent merged-source approval, a published software package or a customer
 grant.
+
+## 28 October 2026: bounded report min/max widths
+
+Snapshot `audit-2026-10-28.report-minmax-width` is tied to actual engine change
+`bc704aed90b1e5dbdc1deec65a7fd314b626467e`. Of 418 stable IDs, only `css.min-width`,
+`css.max-width` and `css.box-sizing` are reaudited; **415 other complete records
+are unchanged**. Two rows move from none to partial, producing 44 full,
+133 partial, 233 none, 6 unknown and 2 not applicable. The accepted property
+name count increases from 49 to **51**. The exact UTF-8 JSON SHA-256 is
+`2ddafd7804fb4f37c1b838a85f5fb8b2c72e9839f930712e6099faafac47de85`.
+
+The implementation constrains real used report block, paragraph and heading
+widths, including `width:auto`, `margin:auto`, `box-sizing:border-box`,
+text wrapping and page fragments. Nonnegative print units and percentages are
+bounded and measured against the parent content width. It is **not** generic
+intrinsic sizing, table/image/inline layout, or complete CSS Sizing. Real NUnit
+PDF geometry and an independently authored source-built Linux Native AOT PDF
+oracle provide engineering acceptance; exact-head checks, independent code
+review, private software packaging, release rights and Pages deployment are
+separate gates. No customer release or public site is implied by this snapshot.
