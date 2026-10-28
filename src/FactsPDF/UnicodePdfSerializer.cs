@@ -125,11 +125,17 @@ internal static class UnicodePdfSerializer
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
+                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
+                    var spaced = run.Style.WordSpacing != 0 && run.Text.Contains(' ');
+                    content.Append(spaced ? "[<" : "<");
                     foreach (var rune in run.Text.EnumerateRunes())
+                    {
                         content.Append(use is null ? rune.Value.ToString("X2", CultureInfo.InvariantCulture)
                             : use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));
-                    content.Append("> Tj ET\n");
+                        if (spaced && rune.Value == 32)
+                            content.Append("> ").Append(N(-run.Style.WordSpacing * 1000 / run.Style.FontSize)).Append(" <");
+                    }
+                    content.Append(spaced ? ">] TJ ET\n" : "> Tj ET\n");
                     PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes);
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }

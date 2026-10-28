@@ -80,6 +80,13 @@ internal static class InlineCss
                         throw Invalid("letter-spacing must be from 0pt to 24pt.", offset);
                     style = style with { LetterSpacing = tracking };
                     break;
+                case "word-spacing":
+                    // Only collapsed U+0020 space glyphs receive a fixed extra advance.
+                    var wordGap = value == "normal" ? 0 : Length(value, offset);
+                    if (!double.IsFinite(wordGap) || wordGap is < 0 or > 24)
+                        throw Invalid("word-spacing must be from 0pt to 24pt.", offset);
+                    style = style with { WordSpacing = wordGap };
+                    break;
                 case "white-space" when paragraph && !inline:
                     style = style with { NoWrap = value switch
                     {
