@@ -517,6 +517,40 @@ def main():
             if destination.read_bytes() != b'keep-existing':
                 raise AssertionError('Native invalid width constraint replaced an existing report')
 
+    # Real native CLI: root-relative font and line boxes compared with
+    # independent absolute point values on a paginated business report.
+    with tempfile.TemporaryDirectory(prefix='factspdf-rem-typography-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'rem.pdf', temp / 'points.pdf'
+        run(exe, Path('examples/report-root-relative-typography.html'), actual)
+        run(exe, Path('examples/report-root-relative-typography-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native rem PDF differs from point-size projection')
+        info = run('pdfinfo', actual).decode('utf-8')
+        page_line = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if page_line is None or int(page_line.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Native rem report did not paginate: ' + info)
+        visible = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
+                       'AB-WA-1042', 'Service record'):
+            if phrase not in visible:
+                raise AssertionError('Native rem PDF lost searchable text: ' + phrase)
+        bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
+        for declaration in ('font-size:0rem', 'font-size:1000rem',
+                            'line-height:0.001rem', 'line-height:2000rem', 'width:1rem'):
+            bad.write_text("<html style='font-size:15pt'><body><p style='" +
+                           declaration + "'>Invalid</p></body></html>", encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or b'FPDF1202' not in failed.stderr or failed.stdout:
+                raise AssertionError('Native rem negative input accepted: ' + declaration)
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Native rem failure changed the existing target')
+        print('Native root-relative PDF parity, pagination, searchable text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -537,7 +571,8 @@ def main():
                        'native_word_spacing_geometry_and_recovery': True,
                        'native_report_justification_and_recovery': True,
                        'native_ascii_case_glyph_parity_and_recovery': True,
-                       'native_min_max_width_pdf_equivalence_and_recovery': True},
+                       'native_min_max_width_pdf_equivalence_and_recovery': True,
+                       'native_root_relative_typography_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

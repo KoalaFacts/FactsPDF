@@ -72,10 +72,10 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 
 | Property | Values / applicability |
 | --- | --- |
-| font-size | pt/px/mm/cm/in lengths or positive parent-relative percentages and `em`; computed result 1–144pt |
+| font-size | pt/px/mm/cm/in lengths, positive parent-relative percentages and `em`, or positive `rem` relative to the computed `html` root font (configured initial font when absent); computed 1–144pt |
 | font-weight | normal/bold or numeric 400/700; explicit role resources required |
 | font-style | normal/italic; explicit role resources required |
-| line-height | Unitless 1–10, `normal` (= this engine's default 1.2), positive `%` or `em` (at most 10× font-size), and `pt/px/mm/cm/in` lengths; computed absolute values 0.1–1440pt; inherited as fixed points except unitless/normal |
+| line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
 | white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
@@ -265,7 +265,7 @@ precedence, fonts and legacy unitless/default byte stability.
 
 Percentage/em multipliers must be positive and no greater than 10; absolute
 computed line height is bounded to 0.1–1440pt. Negative/zero values,
-`rem`, `lh`, `calc()`, font shorthand, arbitrary CSS and browser text shaping
+`lh`, `rlh`, `calc()`, font shorthand, arbitrary CSS and browser text shaping
 remain unsupported and fail explicitly (`FPDF1202`). The accepted subset
 is not full CSS Line Height conformance, and the changed source has not been
 published as an installable public release.
@@ -290,11 +290,50 @@ use the resolved absolute point size. The runnable print report exercises
 percent and em values against an explicitly authored point-value projection
 in real Linux Native AOT PDF generation.
 
-This does **not** implement `rem`, `ex`, `ch`, `lh`, `calc()`, font-size
+This does **not** implement `ex`, `ch`, `lh`, `rlh`, `calc()`, font-size
 keywords or relative units in margins, width, padding and borders.
 Non-positive, malformed or out-of-range computed values are rejected with
 `FPDF1202`, before replacing an existing output. Unmatched stylesheets are
 still syntax-checked. This is source-preview capability, not public delivery.
+
+## Current-source root-relative report typography
+
+Controlled reports may now author `font-size:1.2rem` and
+`line-height:1.5rem` on supported text elements, including paragraphs,
+headings and inline spans. The base is the **computed font-size of the
+actual `html` element**, not the enclosing `body` or the immediate parent.
+If `html` is omitted, the base is the configured `PdfOptions.FontSize`
+(default 12pt). An `html` element using `font-size:2rem` resolves that
+self-reference against the configured initial size; `line-height:1.5rem`
+on the same root uses its newly computed font size. For example:
+
+```css
+html { font-size: 15pt; }
+body { font-size: 11pt; }
+h1 { font-size: 1.6rem; line-height: 2rem; } /* 24pt font, 30pt leading */
+p { font-size: 1rem; line-height: 1.5rem; }  /* 15pt font, 22.5pt leading */
+p span { font-size: 1.2rem; }                /* 18pt font, 22.5pt inherited leading */
+```
+
+Winning declarations obey the existing cascade, `!important`,
+`inherit`/`initial`/`unset` and explicit stylesheet/inline semantics.
+The size is resolved to 1–144pt; line height is computed to 0.1–1440pt,
+then inherited as **fixed points**. Unmatched rules are still
+syntax-validated without assuming an arbitrary root size. Out-of-range,
+zero or unsupported values fail with `FPDF1202` and preserve an existing
+destination; a layout that cannot fit keeps the original `FPDF1302`
+guards. Defaults and existing absolute/percent/em values retain their
+byte-stable paths.
+
+The [63-record paginated business report](../examples/report-root-relative-typography.html)
+and independently authored [fixed-point PDF oracle](../examples/report-root-relative-typography-oracle.html)
+exercise actual line wrapping, pagination, text extraction and native
+PDF byte equivalence, with managed PDF and explicit TrueType regressions.
+This **does not** add `rem` to box `width`, `min/max-width`, margins,
+padding, borders, `letter-spacing`, `word-spacing` or table/image sizing,
+nor `ex/ch/lh/rlh`, `calc()` or general CSS Values conformance.
+Real current-head CI, independent code review, installable packaging,
+commercial rights and human page approval are separate gates.
 
 ## Current-source print-length and vertical-margin authoring
 

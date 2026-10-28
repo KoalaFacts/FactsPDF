@@ -120,7 +120,7 @@ public sealed class LineHeightUnitsTests
     [TestCase("0pt")]
     [TestCase("-2mm")]
     [TestCase("999999pt")]
-    [TestCase("1rem")]
+    [TestCase("0rem")]
     [TestCase("2vh")]
     [TestCase("calc(1em + 2pt)")]
     public void UnsupportedOrUnboundedLeadingCannotChangeExistingOutput(string value)

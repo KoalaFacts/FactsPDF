@@ -126,6 +126,16 @@ internal static class InlineCss
         return style;
     }
 
+    // Unmatched rules are validated without assuming a synthetic computed root.
+    internal static double? RootRelativeScale(string value, int offset, double maxFactor)
+    {
+        if (!value.EndsWith("rem", StringComparison.Ordinal)) return null;
+        var factor = Number(value[..^3], offset);
+        if (factor <= 0 || factor > maxFactor)
+            throw Invalid("Root-relative rem requires a bounded positive finite multiplier.", offset);
+        return factor;
+    }
+
     // CSS relative font sizing is resolved only after the full cascade chooses
     // a declaration. Syntax validation here intentionally does not assume a
     // particular element or inherited font size.

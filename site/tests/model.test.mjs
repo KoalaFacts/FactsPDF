@@ -13,11 +13,11 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'bc704aed90b1e5dbdc1deec65a7fd314b626467e');
+  assert.equal(dataset.commit, '1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
-    assert.equal(line.last_audited_commit,'20566ebb8fc2cfea07e61c65df8e01a95b755140');
+    assert.equal(line.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
     assert.equal(line.introduced_release,null);
     assert.match(line.scope,/normal/);
     assert.match(line.limitations,/calc/);
@@ -26,13 +26,16 @@ test('418 stable records retain provenance with scoped preview capability update
   const relative=dataset.features.find(f=>f.id==='value.length.relative');
   for(const entry of [fontSize,relative]){
     assert.equal(entry.status,'partial');
-    assert.equal(entry.last_audited_commit,'cd9355bbf8c85d31a8f5c08ae8e02d89a3ebe345');
+    assert.equal(entry.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
     assert.equal(entry.introduced_release,null);
   }
-  assert.match(fontSize.scope,/125%/);
+  assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
   assert.match(fontSize.limitations,/rem/);
   assert.match(relative.scope,/font-size/);
+  assert.match(relative.scope,/rem/);
+  assert.match(dataset.features.find(f=>f.id==='css.line-height').scope,/rem/);
+  assert.match(dataset.features.find(f=>f.id==='value.lineheight.other').scope,/rem/);
   assert.match(relative.limitations,/width/);
   const rgb=dataset.features.find(f=>f.id==='value.color.rgbfunc');
   assert.equal(rgb.status,'partial');
@@ -208,12 +211,12 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('historical justification and case-transform provenance remain pinned after the new width audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-28.report-minmax-width');
+test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
+  assert.equal(dataset.dataset_version, 'audit-2026-10-28.root-relative-typography');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /415 other records unchanged/);
+  assert.match(dataset.audit_method, /414 other stable-ID records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
-  assert.match(dataset.css_inventory_note, /U\+0020 justify/);
+  assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
   const values=dataset.features.find(x=>x.id==='value.align.justify');
   assert.equal(property.status, 'partial');
@@ -257,7 +260,8 @@ test('bounded letter-spacing is a genuine partially supported PDF text capabilit
   assert.match(f.limitations,/FPDF1202/);
   assert.match(f.limitations,/复杂字距/);
   assert.equal(dataset.features.find(entry=>entry.id==='css.word-spacing').status,'partial');
-  assert.equal(filterFeatures(dataset.features,{q:'letter-spacing',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'letter-spacing',status:'partial'}).map(f=>f.id).sort(),
+    ['css.letter-spacing','value.length.relative']);
 });
 
 test('word-spacing is measured and painted with explicit PDF limits', () => {
@@ -271,7 +275,8 @@ test('word-spacing is measured and painted with explicit PDF limits', () => {
   assert.match(f.scope,/跨页/);
   assert.match(f.limitations,/FPDF1202/);
   assert.match(f.limitations,/FPDF1302/);
-  assert.equal(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).map(f=>f.id).sort(),
+    ['css.word-spacing','value.length.relative']);
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {

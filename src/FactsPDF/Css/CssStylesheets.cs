@@ -127,7 +127,7 @@ internal sealed class CssStylesheets
     { if (!index.TryGetValue(key, out var list)) index.Add(key, list = []); list.Add(rule); }
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, TextStyle parent, TextStyle initial,
-        BoxStyle parentBox, IReadOnlyList<CssElement> path,
+        double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, bool allowStyling = true)
     {
         Array.Clear(winners); var element = path[^1];
@@ -197,7 +197,16 @@ internal sealed class CssStylesheets
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration);
-            else style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph);
+            else
+            {
+                // The html element's font-size:rem refers to the configured
+                // initial size. Its line-height:rem, however, refers to the
+                // already computed root font-size on this same element.
+                // FontSize precedes LineHeight in the fixed property enum.
+                var computedRoot = element.Name == "html" && declaration.Property == CssProperty.LineHeight
+                    ? style.FontSize : rootFontSize;
+                style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph, computedRoot);
+            }
         }
         return (style, box);
     }

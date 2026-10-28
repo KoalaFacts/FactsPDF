@@ -21,6 +21,7 @@ internal static class HtmlDocumentReader
         // Compile every source before computing styles: a later style block can affect earlier content.
         var sheets = CssStylesheets.Collect(html, options, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, new BoxStyle(), null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
         var result = new DocumentRoot();
@@ -187,10 +188,11 @@ internal static class HtmlDocumentReader
             if (name == "meta") continue;
             path.Add(CssElement.From(token));
             if (name is not ("head" or "title"))
-                (style, boxStyle) = sheets.Compute(style, parent, root, parentBox, path,
+                (style, boxStyle) = sheets.Compute(style, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
                     token.Offset, allowStyling: name != "br");
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
+            if (name == "html") rootFontSize = style.FontSize;
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             if (name == "table")

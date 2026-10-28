@@ -81,7 +81,7 @@ public sealed class RelativeFontSizingTests
     [TestCase("-1em")]
     [TestCase("15000%")]
     [TestCase("200em")]
-    [TestCase("1rem")]
+    [TestCase("0rem")]
     [TestCase("1vh")]
     [TestCase("calc(2em)")]
     [TestCase("bogus")]

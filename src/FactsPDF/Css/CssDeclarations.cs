@@ -13,7 +13,7 @@ internal sealed record CssDeclaration(CssProperty Property, string Name, string 
 
 internal static class CssDeclarations
 {
-    internal static TextStyle Apply(TextStyle style, TextStyle parent, TextStyle initial, CssDeclaration declaration, bool paragraph)
+    internal static TextStyle Apply(TextStyle style, TextStyle parent, TextStyle initial, CssDeclaration declaration, bool paragraph, double rootFontSize)
     {
         var property = declaration.Property;
         if (!paragraph && property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.TextIndent)
@@ -22,6 +22,15 @@ internal static class CssDeclarations
         {
             if (property == CssProperty.FontSize)
             {
+                var rem = InlineCss.RootRelativeScale(declaration.Value, declaration.Offset, 144);
+                if (rem.HasValue)
+                {
+                    var computed = rootFontSize * rem.Value;
+                    if (!double.IsFinite(computed) || computed is < 1 or > 144)
+                        throw new FactsPdfException("FPDF1202",
+                            "Computed root-relative font-size must be between 1pt and 144pt.", declaration.Offset);
+                    return style with { FontSize = computed };
+                }
                 var relative = InlineCss.RelativeFontSizeScale(declaration.Value, declaration.Offset);
                 if (relative.HasValue)
                 {
@@ -32,6 +41,18 @@ internal static class CssDeclarations
                         throw new FactsPdfException("FPDF1202",
                             "Computed relative font-size must be between 1pt and 144pt.", declaration.Offset);
                     return style with { FontSize = computed };
+                }
+            }
+            if (property == CssProperty.LineHeight)
+            {
+                var rem = InlineCss.RootRelativeScale(declaration.Value, declaration.Offset, 1440);
+                if (rem.HasValue)
+                {
+                    var computed = rootFontSize * rem.Value;
+                    if (!double.IsFinite(computed) || computed is < 0.1 or > 1440)
+                        throw new FactsPdfException("FPDF1202",
+                            "Computed root-relative line-height must be between 0.1pt and 1440pt.", declaration.Offset);
+                    return style with { AbsoluteLineHeight = computed };
                 }
             }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
