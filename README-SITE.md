@@ -1,4 +1,4 @@
-# FactsPDF · Can I render it?
+# FactsPDF · Can I Render
 
 Compatibility lookup built with the published Purity npm packages.
 Source: `site/`. Data: `site/data/compatibility.json`.

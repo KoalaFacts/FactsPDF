@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 const base='/FactsPDF/';
 test('loads the audited snapshot using local npm-built assets without console failures', async({page})=>{
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(base);await expect(page.getByRole('heading',{name:'Can I render it?'})).toBeVisible();
+  await page.goto(base);await expect(page.getByRole('heading',{name:'Can I Render',exact:true})).toBeVisible();
+  await expect(page).toHaveTitle('FactsPDF · Can I Render');
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
@@ -197,6 +198,8 @@ test('closing a directly loaded detail stays on the lookup page',async({page})=>
 
 test('English filters expose translated accessible names',async({page})=>{
   await page.goto(base);await page.getByRole('button',{name:'English',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Can I Render',exact:true})).toBeVisible();
+  await expect(page).toHaveTitle('FactsPDF · Can I Render');
   for(const name of ['Category filter','Support status filter','Introduction milestone filter']){
     await expect(page.getByRole('combobox',{name,exact:true})).toBeVisible();
   }
