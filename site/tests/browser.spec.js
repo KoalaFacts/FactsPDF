@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('f14550af',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('b0e6b53d',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('bounded LTR soft-wrap justification is discoverable without claiming full CSS Text',async({page})=>{
@@ -259,4 +259,17 @@ test('root-rem report box width and padding details disclose current source boun
   await expect(details).toContainText('rem');
   await expect(details).toContainText('表格');
   await expect(details).toContainText('FPDF1202');
+});
+
+test('element em geometry is discoverable without claiming browser CSS sizing',async({page})=>{
+  await page.goto(base+'#feature=css.width');
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('em');
+  await expect(details).toContainText('table');
+  await page.keyboard.press('Escape');
+  await page.goto(base+'#feature=css.margin');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('em');
+  await expect(details).toContainText('FPDF1302');
 });

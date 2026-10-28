@@ -56,13 +56,12 @@ internal static class CssDeclarations
                 }
             }
             if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
-                && declaration.Value.EndsWith("rem", StringComparison.Ordinal))
+                && declaration.Value.EndsWith("em", StringComparison.Ordinal))
             {
-                // Vertical margins already occupy resolved points in TextStyle.
-                // Compute only the winning declaration against the actual
-                // root; do not reinterpret the parent's text font size.
+                // Compute only the winning margin: rem from the root,
+                // em from this element's final font-size, both as points.
                 var margin = CssBoxValues.Length(declaration.Value, declaration.Offset,
-                    rootFontSize, allowRem: true).Value;
+                    rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true).Value;
                 return property == CssProperty.MarginTop
                     ? style with { MarginBefore = margin }
                     : style with { MarginAfter = margin };
@@ -94,7 +93,8 @@ internal static class CssDeclarations
     }
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width;
 
-    internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration, double rootFontSize)
+    internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration,
+        double rootFontSize, double elementFontSize)
     {
         var property = declaration.Property;
         if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
@@ -105,14 +105,17 @@ internal static class CssDeclarations
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };
         if (property == CssProperty.Width)
-            return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset, rootFontSize) };
+            return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset, rootFontSize, elementFontSize) };
         if (property == CssProperty.MinWidth)
-            return current with { MinWidth = wide ? from.MinWidth : value == "auto" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true) };
+            return current with { MinWidth = wide ? from.MinWidth : value == "auto" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
+                elementFontSize: elementFontSize, allowEm: true) };
         if (property == CssProperty.MaxWidth)
-            return current with { MaxWidth = wide ? from.MaxWidth : value == "none" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true) };
+            return current with { MaxWidth = wide ? from.MaxWidth : value == "none" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
+                elementFontSize: elementFontSize, allowEm: true) };
         if (property >= CssProperty.PaddingTop && property <= CssProperty.PaddingLeft)
         {
-            var length = wide ? default : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true);
+            var length = wide ? default : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
+                elementFontSize: elementFontSize, allowEm: true);
             return property switch
             {
                 CssProperty.PaddingTop => current with { PaddingTop = wide ? from.PaddingTop : length },
@@ -126,7 +129,7 @@ internal static class CssDeclarations
         {
             var auto = !wide && value == "auto";
             var length = wide || auto ? default : CssBoxValues.Length(value, declaration.Offset,
-                rootFontSize, allowRem: true);
+                rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
             return property == CssProperty.MarginLeft
                 ? current with
                 {

@@ -104,7 +104,7 @@ internal static class CssSyntaxAdapter
                     if (side % 2 == 0)
                         ValidateComponent("margin-top", sides[side], offset);
                     else if (sides[side] != "auto")
-                        _ = CssBoxValues.Length(sides[side], offset, allowRem: true);
+                        _ = CssBoxValues.Length(sides[side], offset, allowRem: true, allowEm: true);
                 }
                 Emit(CssProperty.MarginTop, sides[0], valueTokens[0].Token.Span.Start, "margin-top");
                 var rightSource = parts.Length == 1 ? 0 : 1;
@@ -413,21 +413,21 @@ internal static class CssSyntaxAdapter
         else if (name == "width") { _ = CssBoxValues.Width(token, offset); }
         else if (name == "min-width")
         {
-            if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true);
+            if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         }
         else if (name == "max-width")
         {
-            if (token != "none") _ = CssBoxValues.Length(token, offset, allowRem: true);
+            if (token != "none") _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         }
         else if (name is "margin-left" or "margin-right")
         {
-            if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true);
+            if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         }
         else if ((name is "margin-top" or "margin-bottom")
-            && token.EndsWith("rem", StringComparison.Ordinal))
-            _ = CssBoxValues.Length(token, offset, allowRem: true);
+            && token.EndsWith("em", StringComparison.Ordinal))
+            _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
-            _ = CssBoxValues.Length(token, offset, allowRem: true);
+            _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
         else if (name.Contains("border", StringComparison.Ordinal))
         {

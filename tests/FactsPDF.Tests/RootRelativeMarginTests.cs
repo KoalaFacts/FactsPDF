@@ -120,7 +120,7 @@ public sealed class RootRelativeMarginTests
     [TestCase("<p style='margin-top:10000rem'>A</p>", "FPDF1202")]
     [TestCase("<html style='font-size:144pt'><body><p style='margin:101rem'>A</p></body></html>", "FPDF1202")]
     [TestCase("<style>.unused{margin-top:-1rem}</style><p>A</p>", "FPDF1202")]
-    [TestCase("<p style='margin-top:1em'>A</p>", "FPDF1202")]
+    [TestCase("<p style='margin-top:1vh'>A</p>", "FPDF1202")]
     [TestCase("<p style='margin-top:10%'>A</p>", "FPDF1202")]
     [TestCase("<p style='margin:1rem auto auto'>A</p>", "FPDF1202")]
     [TestCase("<p style='margin:calc(1rem + 1pt)'>A</p>", "FPDF1202")]
