@@ -703,3 +703,30 @@ The NUnit suite checks selector matching, specificity, inline/important order, g
 The Native AOT fixture compares `examples/stylesheet-document.html` against an independently hand-authored `examples/stylesheet-inline-oracle.html`. Both use the same native FactsPDF executable and complete explicit fonts with native subsetting. Verification requires identical PDF bytes, identical extracted text matching visible HTML, page-contained text, and identical 120 DPI page pixels. qpdf and Poppler inspect outputs; no browser or third-party CSS renderer generates an expected PDF. This validates the authored cases, not every aspect of CSS conformance.
 
 The artifact contains only the public two-page PDF, two PNG previews and a verification JSON record. No standalone font, executable or package is uploaded. Exact-head results belong in [the CSS ledger](css-development-ledger.md) and PR checks. Independent code review, broader standards-based test corpora, fuzzing and performance profiling remain necessary before production.
+
+## Current-source bounded emergency wrapping for report identifiers
+
+`overflow-wrap:break-word` is opt-in for explicit `p` and `h1`–`h6`
+paragraphs/headings. It adds breaks at glyph boundaries **only** when a whole
+otherwise-unbreakable token cannot fit the measured content width (or the
+indented first line). A word that fits a fresh line instead moves whole after
+its preceding collapsed space. Spaces still collapse, explicit `<br>` works
+and `white-space:nowrap` continues to prohibit automatic breaking.
+`overflow-wrap:normal` or omitted retains identical PDF drawing bytes.
+
+Only `normal`, `break-word` and single CSS-wide
+`inherit`/`initial`/`unset` values are accepted. Explicit declarations on
+inline spans, general containers and table markup, the `word-wrap` alias,
+`anywhere`, `break-all`, hyphen insertion, grapheme/complex-script shaping
+and bidirectional text remain outside this scoped increment.
+Unsupported declarations fail `FPDF1201/1202`; a glyph wider than its
+usable line or an impossible first-line indent fails `FPDF1302` without
+replacing any existing output. Breaks are scalar-glyph boundaries in the
+already-supported simple horizontal text model, not full CSS Text support.
+
+The [32-entry real report](../examples/report-overflow-wrap.html) has an
+[independently authored manual-break oracle](../examples/report-overflow-wrap-oracle.html).
+`OverflowWrapTests.cs` and the Native AOT stylesheet verifier test PDF bytes,
+actual glyph positions, pagination, searchable content and error recovery.
+Independent final-head review, audit-data update, candidate binaries and
+human PDF approval remain separate requirements.
