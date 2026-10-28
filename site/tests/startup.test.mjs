@@ -33,7 +33,7 @@ async function loadSite(t, { data=dataset, url='https://example.test/FactsPDF/',
   Object.defineProperty(window.crypto, 'subtle', {value:webcrypto.subtle});
   window.TextEncoder=TextEncoder;
   const errors=[];
-  window.console.error=(...args)=>errors.push(args.map(String).join(' '));
+  window.console.error=(...args)=>{errors.push(args.map(String).join(' '));console.error(...args.map(String));};
   t.after(()=>assert.deepEqual(errors, [], 'no reactive rendering errors'));
   window.fetch = async () => ({ ok: true, json: async () => data });
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
@@ -141,4 +141,50 @@ test('production bundle defaults to English content without a saved preference',
   assert.doesNotMatch(document.querySelector('.detail-scope').textContent,/[\u3400-\u9fff]/u);
   assert.doesNotMatch(document.querySelector('.limitation').textContent,/[\u3400-\u9fff]/u);
   assert.match(document.querySelector('.limitation').textContent,/rejection does not count as support/);
+});
+
+test('clearing empty results restores table, empty state and pager together', async t => {
+  const window=await loadSite(t,{language:null});
+  const document=window.document,query=document.querySelector('#query');
+  for(let cycle=0;cycle<2;cycle++){
+    query.value='zz-no-such-feature-qa';
+    query.dispatchEvent(new window.Event('input',{bubbles:true}));await settled();
+    assert.equal(document.querySelectorAll('tbody tr').length,0);
+    assert.ok(document.querySelector('[data-testid="empty"]'));
+    assert.match(document.querySelector('.pagination').textContent,/0 records/);
+    document.querySelector('[data-testid="empty"] button').click();await settled();
+    assert.equal(query.value,'');assert.equal(window.location.hash,'');
+    assert.equal(document.querySelector('.results-heading h2 span').textContent,'418');
+    assert.equal(document.querySelectorAll('tbody tr').length,25);
+    assert.equal(document.querySelector('[data-testid="empty"]'),null);
+    assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 17 · 418 records/);
+    assert.equal(document.querySelector('[aria-label="Next page"]').disabled,false);
+    document.querySelector('.reset').click();await settled();
+    assert.equal(document.querySelectorAll('tbody tr').length,25);
+  }
+});
+
+test('cached empty state follows locale and route navigation after recovery', async t => {
+  const window=await loadSite(t,{language:null}),document=window.document;
+  async function navigate(hash){
+    const changed=new Promise(resolve=>window.addEventListener('hashchange',resolve,{once:true}));
+    window.location.hash=hash;await changed;await settled();
+  }
+  await navigate('#q=zz-no-such-feature-qa');
+  document.querySelector('.language').click();await settled();
+  assert.equal(document.querySelector('.empty h3').textContent,'没有匹配记录');
+  document.querySelector('.reset').click();await settled();
+  assert.equal(document.querySelector('.empty'),null);
+  await navigate('#q=zz-no-such-feature-qa');
+  document.querySelector('.language').click();await settled();
+  assert.equal(document.querySelector('.empty h3').textContent,'No matching records');
+  await navigate('#q=FPDF1102');
+  assert.equal(document.querySelector('.empty'),null);
+  assert.equal(document.querySelector('.results-heading h2 span').textContent,'82');
+  assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 4 · 82 records/);
+  assert.equal(document.querySelectorAll('tbody tr').length,25);
+  document.querySelector('[aria-label="Next page"]').click();await settled();
+  assert.match(document.querySelector('.pagination').textContent,/Page 2 \/ 4 · 82 records/);
+  document.querySelector('.reset').click();await settled();
+  assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 17 · 418 records/);
 });
