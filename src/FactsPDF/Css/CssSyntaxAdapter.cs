@@ -237,7 +237,8 @@ internal static class CssSyntaxAdapter
         "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "margin-left" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
-        "width" => CssProperty.Width, "box-sizing" => CssProperty.BoxSizing, "padding" or "padding-top" => CssProperty.PaddingTop,
+        "width" => CssProperty.Width, "min-width" => CssProperty.MinWidth, "max-width" => CssProperty.MaxWidth,
+        "box-sizing" => CssProperty.BoxSizing, "padding" or "padding-top" => CssProperty.PaddingTop,
         "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,
         "padding-left" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
@@ -409,6 +410,14 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202", "box-sizing requires content-box or border-box.", offset);
         }
         else if (name == "width") { _ = CssBoxValues.Width(token, offset); }
+        else if (name == "min-width")
+        {
+            if (token != "auto") _ = CssBoxValues.Length(token, offset);
+        }
+        else if (name == "max-width")
+        {
+            if (token != "none") _ = CssBoxValues.Length(token, offset);
+        }
         else if (name is "margin-left" or "margin-right")
         {
             if (token != "auto") _ = CssBoxValues.Length(token, offset);

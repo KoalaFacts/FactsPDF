@@ -137,6 +137,18 @@ internal static class BlockLayout
         var inner = style.Width.HasValue
             ? Resolve(style.Width.Value) - (style.BorderBoxSizing ? edges : 0)
             : width - edges;
+        if (style.MinWidth.HasValue || style.MaxWidth.HasValue)
+        {
+            // CSS min/max constrain the used content or border-box measure,
+            // not just the explicitly declared width. This includes width:auto
+            // and lets max-width create real free space for auto margins.
+            var measure = style.BorderBoxSizing ? inner + edges : inner;
+            if (style.MaxWidth.HasValue)
+                measure = Math.Min(measure, Resolve(style.MaxWidth.Value));
+            if (style.MinWidth.HasValue)
+                measure = Math.Max(measure, Resolve(style.MinWidth.Value)); // min wins over max
+            inner = measure - (style.BorderBoxSizing ? edges : 0);
+        }
         if (inner < -0.000001 || inner + edges > width + 0.000001)
             throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", offset);
         inner = Math.Max(0, inner);

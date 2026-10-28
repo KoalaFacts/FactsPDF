@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BoxSizing + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.MaxWidth + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -150,9 +150,9 @@ internal sealed class CssStylesheets
             // block border-box sizing. Never silently discard a declaration.
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
-            if (declaration.Property == CssProperty.BoxSizing &&
+            if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
                 (element.Name is "img" or "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
-                throw new FactsPdfException("FPDF1201", "box-sizing is supported only on ordinary block boxes.", declaration.Offset);
+                throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary block boxes.", declaration.Offset);
             if (cellParagraph && declaration.Property == CssProperty.TextIndent)
                 throw new FactsPdfException("FPDF1201", "text-indent is not supported inside table cells.", declaration.Offset);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
