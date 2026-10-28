@@ -181,7 +181,7 @@ public sealed class LetterSpacingTests
 
     [TestCase("letter-spacing:-1pt", "FPDF1202")]
     [TestCase("letter-spacing:24.01pt", "FPDF1202")]
-    [TestCase("letter-spacing:1em", "FPDF1202")]
+    [TestCase("letter-spacing:-1em", "FPDF1202")]
     [TestCase("letter-spacing:10%", "FPDF1202")]
     [TestCase("letter-spacing:calc(1pt + 1pt)", "FPDF1202")]
     [TestCase("letter-spacing:2pt 3pt", "FPDF1202")]

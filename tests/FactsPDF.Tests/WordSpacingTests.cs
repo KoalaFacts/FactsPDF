@@ -113,7 +113,7 @@ public sealed class WordSpacingTests
 
     [TestCase("word-spacing:-1pt")]
     [TestCase("word-spacing:24.01pt")]
-    [TestCase("word-spacing:1em")]
+    [TestCase("word-spacing:-1em")]
     [TestCase("word-spacing:12%")]
     [TestCase("word-spacing:calc(1pt + 1pt)")]
     [TestCase("word-spacing:2pt 3pt")]
