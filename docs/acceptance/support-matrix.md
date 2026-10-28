@@ -1,5 +1,12 @@
 # Acceptance support matrix — evidence, not marketing
 
+Current-source parent-relative `font-size` percentages and `em` values
+resolve against the actual computed parent (not a default heading multiplier).
+`RelativeFontSizingTests.cs` and the native print report check explicit-point
+PDF byte equivalence, multiline glyph layout and strict failing-output
+recovery; not `rem`, general relative lengths or a released candidate.
+These checks require exact-head CI and independent review before merger.
+
 Current-source opaque RGB-function additions have a separate real PDF and Native AOT hex-byte-equivalence/rejection path in `OpaqueRgbCssTests.cs` and `scripts/verify_stylesheets.py`; they do not re-approve any historical human reference pages, re-label previously retained binaries, or establish full CSS colour/alpha support.
 
 Engine comparison baseline: M12 `1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6`. Source SHA and every actual outcome come from each run's manifest/environment/report.
