@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('b2f798bb',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('744366cf',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('bounded LTR soft-wrap justification is discoverable without claiming full CSS Text',async({page})=>{

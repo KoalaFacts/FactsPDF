@@ -4,12 +4,12 @@
   "dataset_version": "audit-2026-10-28.text-align-justify",
   "audited_at": "2026-10-28",
   "repository": "KoalaFacts/FactsPDF",
-  "commit": "b2f798bb71634539976537c5e76279fb12823682",
-  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/b2f798bb71634539976537c5e76279fb12823682",
+  "commit": "744366cf5ab206f901bf4ee3b9d014b7bf022e29",
+  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/744366cf5ab206f901bf4ee3b9d014b7bf022e29",
   "engine_baseline": "M12 / 1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6",
   "support_scope": "Partial engineering audit of implemented preview capabilities, not release readiness or whole-standard conformance",
   "full_definition": "完整支持仅针对每一行明确定义的能力和适用范围；父级元素/属性的未知部分不自动变绿。",
-  "audit_method": "Two-record source-bound audit of the measured CSS text-align:justify implementation at b2f798bb71634539976537c5e76279fb12823682: css.text-align remains partial with expanded scope, value.align.justify becomes partial (justify only, not start/end). Other 416 feature records and accepted 48 property spellings unchanged. CI, independent review and a release remain separate gates.",
+  "audit_method": "Two-record source-bound audit of the measured CSS text-align:justify implementation at 744366cf5ab206f901bf4ee3b9d014b7bf022e29: css.text-align remains partial with expanded scope, value.align.justify becomes partial (justify only, not start/end). Other 416 feature records and accepted 48 property spellings unchanged. CI, independent review and a release remain separate gates.",
   "html_inventory_source": "https://html.spec.whatwg.org/multipage/indices.html",
   "html_inventory_note": "WHATWG 元素索引的 113 个名称（h1–h6展开），另外记录 SVG/MathML/自定义元素；不包括过时标签。",
   "css_inventory_note": "当前语义接受48个CSS属性名称。text-align:justify 对段落/标题/继承容器里的自动换行行按折叠的 U+0020 空格分配剩余宽度，并通过 Courier/TrueType PDF TJ 绘制；末行、显式br及不换行行不扩展，不支持 start/end、RTL、CJK逐字两端对齐；不代表完整CSS Text。",
@@ -3715,14 +3715,14 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "b2f798bb71634539976537c5e76279fb12823682",
+      "last_audited_commit": "744366cf5ab206f901bf4ee3b9d014b7bf022e29",
       "last_audited_date": "2026-10-28",
       "evidence_level": "独立于完整验收的源码、NUnit布局及真实PDF路径审计；CI和审查另核",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/763b9e12858f92a60cf3e982cd514f22510cc534/tests/FactsPDF.Tests/JustifiedTextTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/tests/FactsPDF.Tests/JustifiedTextTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/b2f798bb71634539976537c5e76279fb12823682/src/FactsPDF/TextLines.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/b2f798bb71634539976537c5e76279fb12823682/src/FactsPDF/InlineCss.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/b2f798bb71634539976537c5e76279fb12823682/src/FactsPDF/Css/CssStylesheets.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/src/FactsPDF/TextLines.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/src/FactsPDF/InlineCss.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/src/FactsPDF/Css/CssStylesheets.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -8084,14 +8084,14 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "b2f798bb71634539976537c5e76279fb12823682",
+      "last_audited_commit": "744366cf5ab206f901bf4ee3b9d014b7bf022e29",
       "last_audited_date": "2026-10-28",
       "evidence_level": "有界源码/NUnit/真实PDF路径审计；待最终精确head CI和独立评审",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/763b9e12858f92a60cf3e982cd514f22510cc534/tests/FactsPDF.Tests/JustifiedTextTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/tests/FactsPDF.Tests/JustifiedTextTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/b2f798bb71634539976537c5e76279fb12823682/src/FactsPDF/TextLines.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/b2f798bb71634539976537c5e76279fb12823682/src/FactsPDF/InlineCss.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/b2f798bb71634539976537c5e76279fb12823682/src/FactsPDF/Css/CssStylesheets.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/src/FactsPDF/TextLines.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/src/FactsPDF/InlineCss.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/744366cf5ab206f901bf4ee3b9d014b7bf022e29/src/FactsPDF/Css/CssStylesheets.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
