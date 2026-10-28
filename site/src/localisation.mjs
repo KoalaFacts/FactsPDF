@@ -1,4 +1,5 @@
 import { sourceDigest, englishAudit } from './audit-english.mjs';
+import { diagnosticEnglish } from './diagnostic-english.mjs';
 
 export const auditFields = ['feature','scope','limitations','stage','applicability','planning_bucket','evidence_level','test_reference'];
 const han = /[\u3400-\u9fff]/u;
@@ -37,6 +38,15 @@ export async function prepareTranslations(data) {
   if (englishAudit.some(value => typeof value !== 'string' || !value.trim() || han.test(value)))
     throw new Error('Invalid English audit translation.');
   const translations = new Map(source.map((value, index) => [value, englishAudit[index]]));
+  // Some failure_code fields contain prose as well as identifiers. Translate
+  // their exact original wording for display, without touching the raw field.
+  for (const [original, display] of Object.entries(diagnosticEnglish)) {
+    if (!display.trim() || han.test(display) ||
+        JSON.stringify(original.match(/FPDF\d{4}(?:–\d{4})?/g)) !==
+        JSON.stringify(display.match(/FPDF\d{4}(?:–\d{4})?/g)))
+      throw new Error('Invalid English diagnostic translation.');
+    translations.set(original, display);
+  }
   function translate(value) {
     if (typeof value !== 'string' || !han.test(value)) return value;
     if (!translations.has(value)) throw new Error(`Missing English audit translation: ${value}`);
@@ -44,6 +54,7 @@ export async function prepareTranslations(data) {
   }
   function validateTranslations(snapshot) {
     for (const value of collectAuditStrings(snapshot)) translate(value);
+    for (const feature of snapshot.features) translate(feature.failure_code);
   }
   function englishFeature(feature) {
     return { ...feature, ...Object.fromEntries(auditFields.map(field => [field, translate(feature[field])])) };

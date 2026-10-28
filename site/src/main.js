@@ -38,7 +38,7 @@ function Tracker(data,translations){
   const text=value=>locale()==='zh'?value:translations.translate(value);
   const originals=new Map(data.features.map(feature=>[feature.id,feature]));
   // Search both languages; displayed rows and raw downloads keep audit identity.
-  const searchRows=data.features.map(feature=>({...feature,scope:[feature.scope,...auditFields.map(field=>translations.translate(feature[field]))].join(' ')}));
+  const searchRows=data.features.map(feature=>({...feature,scope:[feature.scope,...auditFields.map(field=>translations.translate(feature[field])),translations.translate(feature.failure_code)].join(' ')}));
   const filtered=compute(()=>filterFeatures(searchRows,route()).map(feature=>originals.get(feature.id)));
   const pagination=compute(()=>pageSlice(filtered(),route().page));
   const selected=compute(()=>data.features.find(f=>f.id===route().feature)||null);
@@ -101,7 +101,7 @@ function Tracker(data,translations){
           <div><dt>${()=>t('适用范围','Applies to')}</dt><dd>${()=>text(f.applicability)}</dd></div>
           <div><dt>${()=>t('解析 / 渲染阶段','Implementation layer')}</dt><dd>${()=>text(f.stage)}</dd></div>
           <div><dt>${()=>t('规划归属（不代表支持）','Planning (not support)')}</dt><dd>${()=>text(f.planning_bucket)}</dd></div>
-          <div><dt>${()=>t('错误代码','Diagnostic')}</dt><dd><code>${f.failure_code||'—'}</code></dd></div>
+          <div><dt>${()=>t('错误代码','Diagnostic')}</dt><dd><code>${()=>text(f.failure_code)||'—'}</code></dd></div>
         </dl>
         ${parent?html`<div class="related"><h3>${()=>t('上级能力','Parent capability')}</h3><button @click=${e=>open(parent.id,e)}>${()=>text(parent.feature)}</button></div>`:null}
         ${children.length?html`<div class="related"><h3>${()=>t('分项能力','Subfeatures')}</h3>${children.map(child=>html`<button @click=${e=>open(child.id,e)}>${()=>text(child.feature)} · ${()=>statusText[locale()][child.status]}</button>`)}</div>`:null}

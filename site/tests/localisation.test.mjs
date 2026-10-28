@@ -79,3 +79,19 @@ test('source catalogue binding rejects stale text even when the string count is 
   for (const row of changed.features) if (row.scope === data.features[0].scope) row.scope='A replaced original scope';
   await assert.rejects(prepareTranslations(changed), /translations need updating/);
 });
+
+test('all diagnostic annotations display in English without changing error codes or raw data', async () => {
+  const {translate} = await localisation();
+  const before = JSON.stringify(data);
+  for (const row of data.features) {
+    const original=row.failure_code;
+    if (typeof original !== 'string') continue;
+    const display=translate(original);
+    assert.doesNotMatch(display, han, `${row.id} diagnostic is fully translated`);
+    assert.deepEqual(display.match(/FPDF\d{4}/g), original.match(/FPDF\d{4}/g), `${row.id} error code identity/order`);
+  }
+  assert.match(translate(data.features.find(row=>row.id==='css.letter-spacing').failure_code), /FPDF1202 \(unsupported value\)/);
+  assert.match(translate(data.features.find(row=>row.id==='pdf.headers').failure_code), /1304–1306/);
+  assert.match(translate(data.features.find(row=>row.id==='pdf.headers').failure_code), /return 2/);
+  assert.equal(JSON.stringify(data), before);
+});
