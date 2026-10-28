@@ -166,7 +166,8 @@ Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` 
 Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).
 
 Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders. These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](docs/css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](examples/report-print-spacing.html).
-| [Report case labels](examples/report-case-labels.html) | ASCII uppercase/lowercase invoice and status labels with an explicitly unchanged proper-name span | Courier; no external files |
+For a fontless case-formatting example with a preserved proper-name span, see the
+[report case labels](examples/report-case-labels.html).
 
 ### Check your template against these boundaries
 

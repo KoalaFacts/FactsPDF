@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('744366cf',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('8c946a29',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('bounded LTR soft-wrap justification is discoverable without claiming full CSS Text',async({page})=>{
@@ -230,4 +230,17 @@ test('audited PDF text decoration can be searched and its limitations read',asyn
   await page.getByRole('button',{name:'text-decoration',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('line-through');
   await expect(page.getByRole('dialog')).toContainText('overline');
+});
+
+test('ASCII report casing shows real render limits and source-linked evidence',async({page})=>{
+  await page.goto(base+'#q=text-transform%3Auppercase');
+  await page.getByRole('button',{name:'text-transform',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('ASCII');
+  await expect(details).toContainText('FPDF1305');
+  await expect(details).toContainText('capitalize');
+  await expect(details).toContainText('FPDF1504');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
 });
