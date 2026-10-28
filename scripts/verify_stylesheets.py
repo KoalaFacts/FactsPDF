@@ -235,7 +235,41 @@ def main():
             raise AssertionError('Native unsupported decoration did not fail cleanly')
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Native unsupported decoration mutated the destination')
-        print('Native print spacing, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
+        # Verify that an authored border-box width changes actual native PDF
+        # geometry, by comparing with an independently specified content width.
+        border_html = temp / 'border-box.html'
+        content_html = temp / 'content-box.html'
+        border_html.write_text(
+            "<div style='box-sizing:border-box;width:160pt;padding:10pt;"
+            "border:2pt solid blue;background:#f0f6fa'>BORDER BOX</div>",
+            encoding='utf-8')
+        content_html.write_text(
+            "<div style='width:136pt;padding:10pt;"
+            "border:2pt solid blue;background:#f0f6fa'>BORDER BOX</div>",
+            encoding='utf-8')
+        native_border = temp / 'border-box.pdf'
+        native_content = temp / 'content-box.pdf'
+        run(exe, border_html, native_border)
+        run(exe, content_html, native_content)
+        run('qpdf', '--check', native_border)
+        if native_border.read_bytes() != native_content.read_bytes():
+            raise AssertionError('Native border-box/content-box PDF equivalence failed')
+        if 'BORDER BOX' not in run('pdftotext', '-raw', native_border, '-').decode('utf-8'):
+            raise AssertionError('Native border-box text is not searchable')
+        recovery = temp / 'border-box-recovery.pdf'
+        for css, code in (
+            ("box-sizing:padding-box", b'FPDF1202'),
+            ("box-sizing:border-box;width:10pt;padding:6pt", b'FPDF1302')
+        ):
+            bad.write_text("<div style='" + css + "'>Invalid</div>", encoding='utf-8')
+            recovery.write_bytes(b'keep-existing')
+            rejected = subprocess.run([str(exe), str(bad), str(recovery), '--overwrite'],
+                                      capture_output=True, timeout=120)
+            if rejected.returncode != 3 or code not in rejected.stderr or rejected.stdout:
+                raise AssertionError('Native border-box rejection failed for ' + css)
+            if recovery.read_bytes() != b'keep-existing':
+                raise AssertionError('Native border-box failure modified existing output')
+        print('Native print spacing, border-box, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -249,7 +283,8 @@ def main():
                     'native_text_decoration_paths_and_recovery': True,
                      'native_opaque_rgb_equivalence_and_recovery': True,
                      'native_relative_font_sizing_equivalence_and_recovery': True,
-                     'native_computed_line_height_equivalence_and_recovery': True},
+                     'native_computed_line_height_equivalence_and_recovery': True,
+                      'native_border_box_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
