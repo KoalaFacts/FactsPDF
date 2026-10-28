@@ -122,7 +122,7 @@ for configuration and limits.
 
 ## Compatibility lookup
 
-The **Can I render it?** site provides searchable support records for HTML,
+The **Can I Render** site provides searchable support records for HTML,
 CSS, text, PDF behavior and runtime integration. Filter by category or status,
 open a feature's precise scope and limitations, and follow its source/test
 evidence. It supports Chinese/English interface labels, shareable feature links
@@ -134,7 +134,7 @@ unknown. A supported subfeature does not make its whole parent standard supporte
 
 - [Read the current support data](site/data/compatibility.json).
 - [Run, verify or deploy the site](docs/compatibility-site.md).
-- [Browse Can I render it?](https://koalafacts.github.io/FactsPDF/).
+- [Browse Can I Render](https://koalafacts.github.io/FactsPDF/).
 - [Site build and deployment status](https://github.com/KoalaFacts/FactsPDF/actions/workflows/compatibility-pages.yml).
   Pages publishing is configured; the public site is separate from engine package releases.
 
