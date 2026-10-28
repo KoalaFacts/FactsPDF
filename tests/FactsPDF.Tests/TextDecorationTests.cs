@@ -59,6 +59,27 @@ public sealed class TextDecorationTests
         Assert.That(Pdf(html), Is.Not.EqualTo(Pdf("<p style='font-size:10pt'>AB</p>")));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ExplicitTrueTypePaintUsesActualResolvedAdvanceAndBothPdfSerializers(bool subset)
+    {
+        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var options = Page with { Fonts = [font], BoldFonts = [font], SubsetFonts = subset };
+        const string html = "<p style='font-size:10pt;text-decoration:underline'>A<b>B</b>A</p>";
+        var runs = Layout(html, options).Single().Runs;
+        Assert.That(runs.Select(x => x.Text), Is.EqualTo(new[] { "A", "B", "A" }));
+        Assert.That(runs.All(x => ReferenceEquals(x.Font, font)), Is.True);
+        foreach (var run in runs)
+        {
+            var glyph = font.GlyphFor(run.Text[0]);
+            Assert.That(glyph, Is.GreaterThan(0));
+            Assert.That(run.Width, Is.EqualTo(font.Width1000(glyph) * 0.01).Within(0.000001));
+        }
+        var result = Encoding.Latin1.GetString(Pdf(html, options));
+        Assert.That(result, Does.Contain("/Subtype /Type0"));
+        Assert.That(Regex.Matches(result, @" re f Q").Count, Is.EqualTo(3));
+        Assert.That(Pdf(html, options), Is.Not.EqualTo(Pdf("<p style='font-size:10pt'>A<b>B</b>A</p>", options)));
+    }
     [Test]
     public void DecorationLineAndShorthandFollowOneCascadeAndImportantOrder()
     {
