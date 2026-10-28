@@ -1,0 +1,194 @@
+name: FactsPDF NuGet preview
+run-name: FactsPDF NuGet preview (${{ inputs.publish && 'publish' || 'verify only' }})
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/publish-nuget.yml'
+      - 'scripts/nuget_publish.py'
+      - 'scripts/test_nuget_publish.py'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact prerelease declared in Directory.Build.props'
+        type: string
+        required: true
+        default: '0.1.0-preview.1'
+      publish:
+        description: 'Publish the verified package to NuGet.org (main only)'
+        type: boolean
+        required: true
+        default: false
+      release_gates_confirmed:
+        description: 'Owner confirms existing licensing, rights and human acceptance gates are satisfied'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factspdf-nuget-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.identity.outputs.PACKAGE_VERSION }}
+      source: ${{ steps.identity.outputs.SOURCE_SHA }}
+      artifact: ${{ steps.bundle.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify publisher boundaries
+        run: python3 -m unittest discover -s scripts -p 'test_nuget_publish.py' -v
+      - name: Validate source identity and publication request
+        id: identity
+        env:
+          REQUESTED_VERSION: ${{ inputs.version || '' }}
+          REQUESTED_PUBLISH: ${{ inputs.publish || false }}
+          RELEASE_GATES_CONFIRMED: ${{ inputs.release_gates_confirmed || false }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/nuget_publish.py request \
+            --version "$REQUESTED_VERSION" --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" \
+            --publish "$REQUESTED_PUBLISH" --approved "$RELEASE_GATES_CONFIRMED" --source "$GITHUB_SHA" \
+            | tee -a "$GITHUB_OUTPUT" >> "$GITHUB_ENV"
+      - name: Require successful exact-main CI before a real publication
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs?branch=main&event=push&head_sha=${SOURCE_SHA}&per_page=100" > "$RUNNER_TEMP/nuget-main-ci.json"
+          python3 scripts/nuget_publish.py gate-ci --runs "$RUNNER_TEMP/nuget-main-ci.json" --source "$SOURCE_SHA"
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.402'
+      - name: Install existing independent PDF verification dependencies
+        run: python3 scripts/ubuntu_packages.py packages poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-munkres python3-fonttools
+      - name: Run managed regression tests
+        run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
+      - name: Pack the declared preview and inspect actual assembly metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages \
+            -p:SourceRevisionId="$SOURCE_SHA" -p:ContinuousIntegrationBuild=true
+          dotnet build tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj -c Release -o artifacts/package-inspector
+          python3 scripts/verify_package.py --assembly-inspector artifacts/package-inspector/FactsPDF.PackageInspector.dll
+          python3 scripts/verify_package_inspector.py --assembly-inspector artifacts/package-inspector/FactsPDF.PackageInspector.dll
+      - name: Exercise an isolated installed package and managed CLI on the exact runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained \
+            -p:SourceRevisionId="$SOURCE_SHA" -p:ContinuousIntegrationBuild=true \
+            -p:RuntimeFrameworkVersion=10.0.13 -p:RollForward=Disable -o artifacts/nuget-test-cli
+          python3 scripts/verify_release_candidate.py \
+            --package "artifacts/packages/FactsPDF.${PACKAGE_VERSION}.nupkg" \
+            --cli-dll artifacts/nuget-test-cli/FactsPDF.Cli.dll \
+            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --dotnet "$(command -v dotnet)" --output artifacts/nuget-first-use
+      - name: Seal only the tested NuGet package (no fonts or CLI binaries)
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/nuget_publish.py seal --package "artifacts/packages/FactsPDF.${PACKAGE_VERSION}.nupkg" \
+            --bundle artifacts/nuget-publish --version "$PACKAGE_VERSION" --source "$SOURCE_SHA"
+          python3 scripts/nuget_publish.py verify --bundle artifacts/nuget-publish \
+            --version "$PACKAGE_VERSION" --source "$SOURCE_SHA"
+          echo "artifact=factspdf-nuget-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+      - name: Transfer package only for an explicitly approved publication
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.release_gates_confirmed && github.ref == 'refs/heads/main' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.bundle.outputs.artifact }}
+          path: |
+            artifacts/nuget-publish/*.nupkg
+            artifacts/nuget-publish/manifest.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record verification (not a publication claim)
+        shell: bash
+        run: |
+          printf '## NuGet preview verified\n\nVersion: `%s`\n\nSource: `%s`\n\nPackage/consumer verification passed. This job does not publish.\n' "$PACKAGE_VERSION" "$SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: verify
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.release_gates_confirmed && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://www.nuget.org/packages/FactsPDF/${{ needs.verify.outputs.version }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    env:
+      PACKAGE_VERSION: ${{ needs.verify.outputs.version }}
+      SOURCE_SHA: ${{ needs.verify.outputs.source }}
+      NUGET_USERNAME: KoalaFacts
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.402'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.verify.outputs.artifact }}
+          path: artifacts/nuget-publish
+      - name: Recheck the exact package before requesting credentials
+        run: python3 scripts/nuget_publish.py verify --bundle artifacts/nuget-publish --version "$PACKAGE_VERSION" --source "$SOURCE_SHA"
+      - name: Require configured NuGet username
+        shell: bash
+        run: |
+          if [ -z "$NUGET_USERNAME" ]; then
+            echo '::error::Set NUGET_USERNAME and the FactsPDF trusted-publishing policy described in docs/nuget-publishing.md'
+            exit 1
+          fi
+      - name: Attest the exact tested package
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2; same pin as HeroParser
+        with:
+          subject-path: artifacts/nuget-publish/*.nupkg
+      - name: Obtain a short-lived NuGet API key through OIDC
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0; same pin as HeroParser
+        with:
+          user: ${{ env.NUGET_USERNAME }}
+      - name: Push one preview package to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet nuget push "artifacts/nuget-publish/FactsPDF.${PACKAGE_VERSION}.nupkg" \
+            --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --no-symbols
+          printf 'NuGet push accepted for `%s`; public-feed verification follows.\n' "$PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify public package content (allowing NuGet repository signing)
+        run: python3 scripts/nuget_publish.py verify-public --bundle artifacts/nuget-publish --version "$PACKAGE_VERSION" --source "$SOURCE_SHA" --destination "$RUNNER_TEMP/published.nupkg"
+      - name: Record verified public availability
+        shell: bash
+        run: |
+          printf '## NuGet preview published and verified\n\n`dotnet add package FactsPDF --version %s`\n\nSource: `%s`\n' "$PACKAGE_VERSION" "$SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"

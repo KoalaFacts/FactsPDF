@@ -111,6 +111,26 @@ internal static class CssDeclarations
     }
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width;
 
+    // Vertical panel margins have a distinct box-level meaning: they sit
+    // outside decorations. Paragraphs/headings retain TextStyle margins.
+    internal static BoxStyle ApplyPanelVerticalMargin(BoxStyle current, BoxStyle parent,
+        CssDeclaration declaration, double rootFontSize, double elementFontSize)
+    {
+        var wide = declaration.Value is "inherit" or "initial" or "unset";
+        var inherited = declaration.Value == "inherit" ? parent : new BoxStyle();
+        var length = wide ? default : CssBoxValues.Length(declaration.Value, declaration.Offset,
+            rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
+        if (length.IsPercent)
+            throw new FactsPdfException("FPDF1202",
+                "Report-panel vertical margins do not support percentages.", declaration.Offset);
+        return declaration.Property switch
+        {
+            CssProperty.MarginTop => current with { MarginTop = wide ? inherited.MarginTop : length },
+            CssProperty.MarginBottom => current with { MarginBottom = wide ? inherited.MarginBottom : length },
+            _ => throw new InvalidOperationException("Expected vertical panel margin.")
+        };
+    }
+
     internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration,
         double rootFontSize, double elementFontSize)
     {

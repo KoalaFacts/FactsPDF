@@ -79,6 +79,11 @@ internal sealed record BoxStyle(
     CssLength PaddingBottom = default,
     CssLength PaddingLeft = default)
 {
+    // Report panel vertical margins are outside paint and have no general CSS
+    // collapsing behaviour. Existing paragraph/heading vertical margins remain
+    // in TextStyle, where their historical overlap rules are preserved.
+    public CssLength MarginTop { get; init; }
+    public CssLength MarginBottom { get; init; }
     // Outside the paragraph/heading border box; percentages use the containing width.
     public CssLength MarginLeft { get; init; }
     public CssLength MarginRight { get; init; }

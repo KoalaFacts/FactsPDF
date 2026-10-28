@@ -184,8 +184,9 @@ public sealed class StylesheetTests
         Assert.That(ex.SourceOffset, Is.GreaterThanOrEqualTo(12)); Assert.That(ex.SourceOffset, Is.LessThan(30));
     }
     [Test]
-    public void UnsupportedParagraphLayoutOnAContainerIsNotSilentlyIgnored()
-        => Fails("<style>div{margin-top:12pt}</style><div><p>A</p></div>", "FPDF1201");
+    public void UnsupportedParagraphBreakOnAContainerIsNotSilentlyIgnored()
+        // Report-panel margins now render, but paragraph-only breaks cannot.
+        => Fails("<style>div{break-after:page}</style><div><p>A</p></div>", "FPDF1201");
     [Test]
     public void AggregateCssCharacterBudgetIncludesInlineAndEmbeddedStyles()
         => Fails("<style>p{color:red}</style><p style='color:blue'>A</p>", "FPDF1205", new() { MaxCssCharacters = 18 });

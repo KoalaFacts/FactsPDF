@@ -117,7 +117,8 @@ test('centred report-panel translations retain the bounded PDF margin contract',
     const source=data.features.find(row=>row.id===id);
     const row=englishFeature(source);
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+    assert.equal(row.last_audited_commit,
+      id==='css.margin' ? 'f5aba206ca30c86dca8bd4b465182d5cea436dcc' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/auto/);
@@ -126,11 +127,37 @@ test('centred report-panel translations retain the bounded PDF margin contract',
     assert.doesNotMatch([row.scope,row.limitations,row.applicability].join(' '),han);
   }
   const margin=englishFeature(data.features.find(row=>row.id==='css.margin'));
-  assert.match(margin.limitations,/vertical margins/);
+  assert.match(margin.limitations,/vertical percentage\/auto/);
   assert.match(margin.limitations,/FPDF1302/);
   assert.match(translate(data.css_inventory_note),/52 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin:0 auto/);
-  assert.match(data.audit_method,/Three-record source-bound report panel/);
-  assert.match(data.audit_method,/415 other stable-ID records remain unchanged/);
+  assert.match(data.audit_method,/Five-record source-bound report panel/);
+  assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
   assert.equal(data.features.length,418);
+});
+
+
+test('real vertical panel margins retain exact English scope and source identity', async()=>{
+  const {englishFeature,translate}=await localisation();
+  for(const id of ['css.margin-top','css.margin-bottom']){
+    const row=englishFeature(data.features.find(f=>f.id===id));
+    assert.equal(row.status,'partial');
+    assert.equal(row.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
+    assert.equal(row.introduced_release,null);
+    assert.match(row.scope,/div\/section\/article/);
+    assert.match(row.scope,/outside the box/);
+    assert.match(row.limitations,/FPDF1201/);
+    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.limitations,/collaps/);
+    assert.doesNotMatch(row.scope+' '+row.limitations,han);
+  }
+  const margin=englishFeature(data.features.find(f=>f.id==='css.margin'));
+  assert.equal(margin.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
+  assert.match(margin.scope,/margin:0 auto/);
+  assert.match(margin.scope,/margin:12pt auto 7pt/);
+  assert.match(margin.limitations,/table-cell p/);
+  assert.match(translate(data.css_inventory_note),/52 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/without repeating margins/);
+  assert.equal(data.features.length,418);
+  assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
 });

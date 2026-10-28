@@ -2,8 +2,9 @@ namespace FactsPDF;
 
 internal abstract record BlockLayoutStep;
 internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
-    double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph) : BlockLayoutStep;
-internal sealed record EndBlock(double PaddingBottom) : BlockLayoutStep;
+    double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph,
+    double MarginTop = 0) : BlockLayoutStep;
+internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
 internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, double ContentTop,
@@ -21,7 +22,7 @@ internal static class BlockLayout
 {
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
         double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
-        double MarkerRightX = 0, int KeepUntil = 0);
+        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
         CancellationToken cancellation, ListLayout? lists = null)
@@ -35,7 +36,7 @@ internal static class BlockLayout
             var frame = frames.Pop();
             if (frame.Index == frame.Children.Count)
             {
-                if (!frame.IsRoot) yield return new EndBlock(frame.Bottom);
+                if (!frame.IsRoot) yield return new EndBlock(frame.Bottom, frame.MarginBottom);
                 continue;
             }
             if (frame.Index >= frame.KeepUntil && frame.Children[frame.Index] is BlockNode candidate &&
@@ -74,11 +75,16 @@ internal static class BlockLayout
                     var x = frame.X + gutter + marginLeft;
                     var markerRight = node.Name == "li" ? frame.X + gutter - frame.MarkerGap : frame.MarkerRightX;
                     var box = ResolveBox(style, width, node.SourceOffset, containing);
+                    // Margins live outside the painted box. They advance the
+                    // vertical cursor once, unlike continuation-page padding.
+                    var marginTop = Checked(style.MarginTop.Resolve(containing), node.SourceOffset);
+                    var marginBottom = Checked(style.MarginBottom.Resolve(containing), node.SourceOffset);
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
-                        node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6");
+                        node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
+                        marginTop);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
-                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight));
+                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight, MarginBottom: marginBottom));
                     break;
                 }
                 default:

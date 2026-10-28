@@ -7,7 +7,8 @@ internal static class TextLayout
     private readonly record struct OpenBlock(double Top, int ContentEpoch, BoxStyle Style,
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
-        bool HasParagraphDescendant = false, bool TopConsumed = false);
+        bool HasParagraphDescendant = false, bool TopConsumed = false,
+        double MarginTop = 0);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -88,8 +89,15 @@ internal static class TextLayout
                 }
                 // Preserve M6's first-text leading-space behavior for purely
                 // unpainted scopes outside any continuing painted ancestor.
-                if (apply) opened[i] = scope with { StartPage = pages.Count - 1, StartY = o.Margin + leading };
-                leading += scope.Top;
+                // An unconsumed first fragment retains its outside top margin
+                // when moving to a fresh page; a continued fragment never does.
+                var firstMargin = scope.HasOccupiedDescendant ? 0 : scope.MarginTop;
+                if (apply) opened[i] = scope with
+                {
+                    StartPage = pages.Count - 1,
+                    StartY = o.Margin + leading + firstMargin
+                };
+                leading += firstMargin + scope.Top;
             }
             if (apply) pendingTopPadding = leading;
             return leading;
@@ -132,10 +140,14 @@ internal static class TextLayout
                 if (begin.IsParagraph)
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { HasParagraphDescendant = true };
-                var start = y + pendingTopPadding + pendingClosedPadding + after;
+                var start = y + pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
-                    pages.Count - 1, start, paintOrder++, begin.IsParagraph));
+                    pages.Count - 1, start, paintOrder++, begin.IsParagraph,
+                    MarginTop: begin.MarginTop));
+                // Outside the border: only first-page placement and the
+                // containing ancestor's occupied content change, never paint.
+                pendingClosedPadding += begin.MarginTop;
                 pendingTopPadding += begin.PaddingTop;
                 continue;
             }
@@ -222,13 +234,14 @@ internal static class TextLayout
                     pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
                     pendingClosedPadding += scope.Top;
                 }
-                pendingClosedPadding += closing.PaddingBottom;
+                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom;
                 // An unpainted empty child can still consume page geometry
                 // through padding, borders or margins. If it has already
                 // occupied space on a page, a painted ancestor cannot be
                 // moved intact to another page before its first text line.
                 var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
-                    scope.Top > 0 || closing.PaddingBottom > 0 ||
+                    scope.Top > 0 || scope.MarginTop > 0 ||
+                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
                     (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
                     for (var i = 0; i < opened.Count; i++)
@@ -516,11 +529,28 @@ internal static class TextLayout
             var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;
             if (y + gap + lines.Current.Height > bottom && CurrentPageOccupied())
             {
+                // Existing padded/painted scopes sometimes have deferred paint
+                // even when no runs or boxes have been emitted yet. Preserve
+                // their established move-to-fresh-page behaviour. Only reject
+                // an unconsumed outside margin if it cannot fit on a fresh page
+                // with the actual first line, before MaxPages could mask FPDF1302.
+                var unconsumedMargin = opened.Any(scope => scope.MarginTop > 0 &&
+                    scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
+                    !scope.HasOccupiedDescendant);
+                // A new panel's outside margin and its first child's own
+                // non-collapsing top margin both belong on the fresh page.
+                // Previous-page trailing spacing still stays behind.
+                var firstChildMargin = unconsumedMargin ? marginBefore : 0d;
+                if (unconsumedMargin &&
+                    MoveUnconsumedBlocksToNewPage(apply: false) + firstChildMargin +
+                        lines.Current.Height > bottom - o.Margin + 0.000001)
+                    throw new FactsPdfException("FPDF1302",
+                        "Report panel top margin and first line cannot fit on a fresh page.");
                 NewPage();
                 MoveUnconsumedBlocksToNewPage();
-                // Paragraph margin and trailing padding belong to the previous
-                // page; only the new box's leading padding travels with text.
-                gap = pendingTopPadding;
+                // The previous paragraph's trailing gap remains behind;
+                // first-fragment outside margins and padding travel with it.
+                gap = pendingTopPadding + firstChildMargin;
             }
             if (gap + lines.Current.Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",

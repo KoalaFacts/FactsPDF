@@ -14,15 +14,15 @@ explicit option; the browser remembers a visitor's choice when storage is
 available. Blocked storage does not prevent the lookup or language switching.
 Search accepts both English display wording and the original Chinese wording.
 
-English is a display translation, not a new engine audit. The original
+English is a display translation, not a new engine audit. The source-language
 418-record JSON, IDs, support states, dates, source links, code examples and
 JSON/CSV exports remain unchanged. Examples are labelled as verbatim source.
 Translations do not remove limitations or turn unverified support into support.
 
-The current catalogue in `site/src/audit-english-panel.mjs` reuses the
-previously reviewed `audit-english-current.mjs` overflow-wrap translations,
-adds the new scoped report-panel margin wording and verifies the full ordered
-source-text SHA-256. It retains one translation per unique Chinese display
+The catalogue in `site/src/audit-english-panel-vertical.mjs` reuses the
+previous English audit by exact source-text index and adds nine explicitly
+reviewable translations for the bounded vertical panel margins. All 675
+ordered original source strings are bound to an exact SHA-256 before display. It retains one translation per unique Chinese display
 string returned by `collectAuditStrings()` in
 `site/src/localisation.mjs`. Its source SHA-256 binds the ordered original text
 inventory before any translations are used. On intentional audit-text changes,

@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-/// <summary>Print-unit lengths plus the truthful vertical-only paragraph margin shorthand.</summary>
+/// <summary>Print-unit lengths with scoped paragraph and report-panel margins.</summary>
 [TestFixture]
 public sealed class ReportPrintSpacingTests
 {
@@ -139,9 +139,10 @@ public sealed class ReportPrintSpacingTests
         => Reject(css);
 
     [Test]
-    public void MarginRemainsParagraphOnlyAndUnmatchedRulesStillValidate()
+    public void MarginsRemainOutOfScopeOnBodyAndUnmatchedRulesStillValidate()
     {
-        Reject("margin:2mm 0", "div", "FPDF1201");
+        // Ordinary panels now render margins; body still rejects them.
+        Reject("margin:2mm 0", "body", "FPDF1201");
         using var target = new MemoryStream();
         target.Write("still intact"u8);
         var error = Assert.Throws<FactsPdfException>(() =>

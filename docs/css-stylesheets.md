@@ -83,12 +83,12 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%`, scoped own-font `em` / root `rem`, or zero; percentages use resolved content width, `em/rem` fixed at cascade; only first logical line indented, later wrap/`br`/page fragments retain normal x; unfit first words fail `FPDF1302` with output preservation |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
-| margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in/rem/em or zero, computed at most 14400pt; table-cell rem/em rejected |
+| margin-top, margin-bottom | Paragraphs/headings plus ordinary div/section/article report panels; nonnegative pt/px/mm/cm/in/rem/em or zero (up to 14400pt); panels create real outside-border vertical spacing, without margin collapse; table-cell p rem/em still reject |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
-| margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/em/zero and horizontal pt/px/mm/cm/in/%/rem/em/zero/`auto`, including `margin:0.25rem 0.5em`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
+| margin (bounded shorthand) | Paragraphs/headings and scoped div/section/article panels; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/em/zero and horizontal pt/px/mm/cm/in/%/rem/em/zero/`auto`, including `margin:0.25rem 0.5em`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
 | break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
-These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
+These properties also accept `inherit`, `initial`, `unset` and `!important`. Paragraph-only breaks and text styles remain inapplicable on containers/spans, even for losing declarations; report-panel margins are a separate bounded exception. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
 This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
 
@@ -469,12 +469,12 @@ resource contracts.
 Controlled business-report `div`, `section` and `article` boxes can use
 **horizontal** `margin-left`, `margin-right` and `margin:0 auto` on
 real PDF layout. The 1–4-value shorthand expands independently cascaded
-sides. The top/bottom values on these container kinds must be **exactly
-zero** (including supported zero lengths) or `initial`/`unset`.
-This deliberately does **not** implement vertical container spacing,
-negative margins, margin collapse, `margin-block`, or arbitrary CSS
-margin geometry. Nonzero/auto vertical panel margins and `inherit` on
-vertical container sides reject, even if another declaration would win.
+sides. The top/bottom values on these container kinds also accept nonnegative
+physical lengths and scoped root-`rem`/element-`em` as **real spacing
+outside painted borders**. This deliberately does not implement negative
+margins, vertical percent/auto, `calc()`, `margin-block`, CSS margin
+collapse or arbitrary browser flow. Matching invalid values still reject,
+even if a stronger declaration would win.
 
 With an explicit `width` or constrained `max-width`,
 `margin:0 auto` divides the free space **outside the painted border
@@ -492,13 +492,13 @@ background and multi-page fragment layout all use this resolved X/width.
 .report article { width:300pt; margin-left:auto; margin-right:auto; }
 ```
 
-Horizontal `inherit`/`initial`/`unset`, inline declarations,
+Horizontal and vertical `inherit`/`initial`/`unset`, inline declarations,
 selectors, `!important` and per-side cascade remain supported.
 This exception does **not** extend to `body`, `html`, list
 containers/items, table structure, images, inline spans or flat
 table-cell paragraphs, which retain strict applicability. Negative
-or calculated lengths raise `FPDF1202`; unsupported elements/vertical
-margins raise `FPDF1201`; an outer box too wide for its parent
+or calculated lengths (including vertical percent/auto) raise `FPDF1202`;
+unsupported elements raise `FPDF1201`; an outer box too wide for its parent
 raises `FPDF1302`, preserving an existing output destination.
 `margin:0` on a panel produces byte-identical legacy PDF output.
 
@@ -781,3 +781,31 @@ The [32-entry real report](../examples/report-overflow-wrap.html) has an
 actual glyph positions, pagination, searchable content and error recovery.
 Independent final-head review, audit-data update, candidate binaries and
 human PDF approval remain separate requirements.
+
+
+## Current-source real vertical report-panel margins
+
+Scoped `div`, `section` and `article` report panels now accept nonnegative
+`margin-top`/`margin-bottom` lengths in `pt`, `px`, `mm`, `cm`, `in`,
+root-`rem` or final-element-font-`em`, as well as zero, shorthand and explicit
+`inherit`/`initial`/`unset` with normal per-side cascade/`!important`.
+A top margin precedes the first painted border and its text; a bottom margin
+separates the following flow after the last painted border. Nested margins
+occupy the painted ancestor's content area, without colouring the margin;
+continuation pages do not repeat them. Adjacent panel margins **add** (no CSS
+margin collapse). Unspecified/zero values retain existing PDF bytes.
+
+Negative values, vertical percentages/`auto`, `calc()`, and unsupported
+contexts (`body`, lists, tables, images, inline boxes) fail explicitly with
+`FPDF1202`/`FPDF1201` as appropriate. Geometry overflow retains
+`FPDF1302` and protects existing destinations. No full CSS box model,
+`margin-block`, CSS Paged Media, or cross-element margin-collapsing claim.
+
+The [50-entry real PDF report](../examples/report-panel-vertical-margins.html)
+and [independently authored fixed-point spacer oracle](../examples/report-panel-vertical-margins-oracle.html)
+check nested painted panels, inherited horizontal centring, ordered searchable
+rows and cross-page fragments. `ReportPanelVerticalMarginTests.cs` verifies
+PDF byte parity, exact positions, rem/em, cascade, margins on long rows and
+protected output; `scripts/verify_stylesheets.py` runs an actual Linux Native
+AOT CLI report and invalid-value recovery. Source change is not an already
+released candidate or human-approved PDF evidence.

@@ -370,3 +370,25 @@ uses ordered source-text SHA-256
 `f500d4849945d36e581bb6c1ec34bd75a623399e576d47b93f93a5604092fb23`.
 Actual CI, independent review, human page approval and commercial
 distribution remain separate and must not be inferred from the audit.
+
+
+## 29 October 2026: scoped vertical report-panel margins (current source)
+
+The newer `f5aba206ca30c86dca8bd4b465182d5cea436dcc` source extends the
+previous horizontal-panel support to nonnegative `margin-top` and
+`margin-bottom` on ordinary `div`/`section`/`article` panels. These
+margins change actual painted PDF geometry outside the borders, including
+nested box heights and cross-page continuation; they do not implement
+margin collapsing or general browser flow. Vertical `auto`, percentages,
+negative lengths, `calc()`, unsupported elements and overwide geometry
+remain explicit errors. The [50-entry report](../examples/report-panel-vertical-margins.html)
+uses an independently authored [fixed-spacer oracle](../examples/report-panel-vertical-margins-oracle.html).
+
+The existing 418 stable records and 52 accepted CSS property names are
+preserved. Five scoped margin rows are revised; the remaining 413 records
+are not re-scored. English content is bound to the new source text through
+`site/src/audit-english-panel-vertical.mjs`; raw JSON/CSV, status identities,
+code examples and evidence links retain their provenance. Historical
+horizontal-only snapshot hashes above are not the new snapshot digest.
+Exact-head CI, Native AOT checks, independent review and human PDF approval
+remain separate, not inferred from this documentation change.
