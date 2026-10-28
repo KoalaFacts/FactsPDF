@@ -7594,7 +7594,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "font-size接受父元素em/%与html根rem；line-height接受%/em/rem；普通报告块width/min-width/max-width/padding及段落/标题margin四侧有限接受根rem，真实参与PDF布局、文字与背景分页",
-      "limitations": "普通容器margin、border、文本间距及img/table/col的rem仍拒绝；em盒子/边距、ex/ch/lh/rlh、calc或全部CSS Values均不支持；表格单元格rem margin报FPDF1201",
+      "limitations": "普通容器margin、border、letter-spacing/word-spacing及img/table/col的rem仍拒绝；em盒子/边距、ex/ch/lh/rlh、calc或全部CSS Values均不支持；表格单元格rem margin报FPDF1201",
       "stage": "font-size 语义/实际渲染；其他相对长度拒绝",
       "applicability": "受支持的文字 font-size/line-height；普通 block/paragraph/heading 的 width/min-max/padding，不含表格/图片",
       "example": "html{font-size:15pt}p{width:13rem;margin:0.25rem 0.5rem}",
