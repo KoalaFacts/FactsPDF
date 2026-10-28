@@ -87,6 +87,15 @@ internal static class InlineCss
                         throw Invalid("word-spacing must be from 0pt to 24pt.", offset);
                     style = style with { WordSpacing = wordGap };
                     break;
+                case "text-transform":
+                    style = style with { Transform = value switch
+                    {
+                        "none" => TextTransform.None,
+                        "uppercase" => TextTransform.Uppercase,
+                        "lowercase" => TextTransform.Lowercase,
+                        _ => throw Invalid("text-transform supports only none, uppercase and lowercase for ASCII letters.", offset)
+                    } };
+                    break;
                 case "white-space" when paragraph && !inline:
                     style = style with { NoWrap = value switch
                     {

@@ -2,12 +2,13 @@ namespace FactsPDF;
 
 internal enum TextAlignment { Left, Center, Right, Justify }
 internal enum TextDecoration { None, Underline, LineThrough }
+internal enum TextTransform { None, Uppercase, Lowercase }
 internal readonly record struct Rgb(double R, double G, double B);
 internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
     double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
     bool Bold = false, bool Italic = false, bool KeepWithNext = false,
     TextDecoration Decoration = TextDecoration.None, double? AbsoluteLineHeight = null,
-    bool NoWrap = false, CssLength FirstLineIndent = default, double LetterSpacing = 0, double WordSpacing = 0);
+    bool NoWrap = false, CssLength FirstLineIndent = default, double LetterSpacing = 0, double WordSpacing = 0, TextTransform Transform = TextTransform.None);
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
