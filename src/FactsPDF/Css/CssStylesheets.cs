@@ -144,12 +144,12 @@ internal sealed class CssStylesheets
             // consume real space and is not a zero-valued cell margin.
             if (cellParagraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight)
-                && declaration.Value.EndsWith("rem", StringComparison.Ordinal))
+                && declaration.Value.EndsWith("em", StringComparison.Ordinal))
                 throw new FactsPdfException("FPDF1201",
-                    "Root-relative margins are not supported inside table cells.", declaration.Offset);
+                    "Relative em/rem margins are not supported inside table cells.", declaration.Offset);
             // Only flat table-cell paragraphs need zero-inset recognition.
             // Do not parse the general block's margin through this legacy
-            // absolute-only helper before its root-rem winner can resolve.
+            // absolute-only helper before its relative-value winner can resolve.
             var zeroCellInset = cellParagraph
                 && declaration.Property is (CssProperty.MarginLeft or CssProperty.MarginRight)
                 && (declaration.Value is "inherit" or "initial" or "unset"
@@ -158,14 +158,14 @@ internal sealed class CssStylesheets
             // Images and tables use separate width contracts and cannot honour
             // block border-box sizing. Never silently discard a declaration.
             // Table/standalone-image lengths have separate sizing and resource
-            // contracts. Do not silently introduce rem into those paths.
-            if (declaration.Value.EndsWith("rem", StringComparison.Ordinal)
+            // contracts. Do not silently introduce rem/em into those paths.
+            if (declaration.Value.EndsWith("em", StringComparison.Ordinal)
                 && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth
                     or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft)
                 && element.Name is ("img" or "table" or "col" or "td" or "th"
                     or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201",
-                    "Root-relative report box lengths are supported only on ordinary block boxes.", declaration.Offset);
+                    "Relative em/rem report box lengths are supported only on ordinary block boxes.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
@@ -214,7 +214,7 @@ internal sealed class CssStylesheets
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
-                box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize);
+                box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
             else
             {
                 // The html element's font-size:rem refers to the configured

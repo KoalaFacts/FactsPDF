@@ -539,7 +539,7 @@ def main():
                 raise AssertionError('Native rem PDF lost searchable text: ' + phrase)
         bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
         for declaration in ('font-size:0rem', 'font-size:1000rem',
-                            'line-height:0.001rem', 'line-height:2000rem', 'width:1em'):
+                            'line-height:0.001rem', 'line-height:2000rem', 'width:1vh'):
             bad.write_text("<html style='font-size:15pt'><body><p style='" +
                            declaration + "'>Invalid</p></body></html>", encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -577,7 +577,7 @@ def main():
         for declaration, error in (
             ('width:20000rem', b'FPDF1202'),
             ('padding:-1rem', b'FPDF1202'),
-            ('margin-left:1em', b'FPDF1202'),
+            ('margin-left:1vh', b'FPDF1202'),
             ('box-sizing:border-box;width:1rem;padding:1rem', b'FPDF1302')
         ):
             bad.write_text("<p style='" + declaration + "'>Protected report</p>", encoding='utf-8')
@@ -613,7 +613,7 @@ def main():
                 raise AssertionError('Native rem margin report lost text: ' + phrase)
         bad, dest = temp / 'bad.html', temp / 'existing.pdf'
         for declaration, code in (('margin:-1rem', b'FPDF1202'),
-                                  ('margin-left:1em', b'FPDF1202'),
+                                  ('margin-left:1vh', b'FPDF1202'),
                                   ('width:100pt;margin:0 50rem', b'FPDF1302')):
             bad.write_text("<p style='" + declaration + "'>Keep existing</p>", encoding='utf-8')
             dest.write_bytes(b'keep-existing')
