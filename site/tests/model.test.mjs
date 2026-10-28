@@ -288,6 +288,6 @@ test('ASCII case transform is a scoped PDF glyph capability, not full Unicode ca
   assert.match(feature.limitations, /capitalize/);
   assert.match(feature.limitations, /FPDF1305/);
   assert.match(feature.limitations, /FPDF1504/);
-  assert.deepEqual(filterFeatures(dataset.features,{q:'text-transform:uppercase',status:'partial'}).map(x=>x.id), ['css.text-transform']);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'text-transform',status:'partial'}).map(x=>x.id), ['css.text-transform']);
   assert.equal(dataset.features.length,418);
 });

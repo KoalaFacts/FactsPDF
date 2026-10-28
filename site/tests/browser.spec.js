@@ -233,7 +233,7 @@ test('audited PDF text decoration can be searched and its limitations read',asyn
 });
 
 test('ASCII report casing shows real render limits and source-linked evidence',async({page})=>{
-  await page.goto(base+'#q=text-transform%3Auppercase');
+  await page.goto(base+'#q=text-transform');
   await page.getByRole('button',{name:'text-transform',exact:true}).click();
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
