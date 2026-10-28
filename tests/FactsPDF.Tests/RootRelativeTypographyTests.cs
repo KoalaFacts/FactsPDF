@@ -128,8 +128,10 @@ public sealed class RootRelativeTypographyTests
     [TestCase("line-height:2000rem")]
     [TestCase("line-height:0.001rem")]
     [TestCase("font-size:2vh")]
-    [TestCase("width:1rem")]
-    [TestCase("padding:2rem")]
+    [TestCase("width:1em")]
+    [TestCase("padding:2em")]
+    [TestCase("margin-left:1rem")]
+    [TestCase("border-width:1rem")]
     public void UnsupportedOrUnboundedInputPreservesExistingDestination(string css)
         => Reject("<html style='font-size:15pt'><body><p style='" + css + "'>AB</p></body></html>");
 

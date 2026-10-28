@@ -414,18 +414,18 @@ internal static class CssSyntaxAdapter
         else if (name == "width") { _ = CssBoxValues.Width(token, offset); }
         else if (name == "min-width")
         {
-            if (token != "auto") _ = CssBoxValues.Length(token, offset);
+            if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true);
         }
         else if (name == "max-width")
         {
-            if (token != "none") _ = CssBoxValues.Length(token, offset);
+            if (token != "none") _ = CssBoxValues.Length(token, offset, allowRem: true);
         }
         else if (name is "margin-left" or "margin-right")
         {
             if (token != "auto") _ = CssBoxValues.Length(token, offset);
         }
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
-            _ = CssBoxValues.Length(token, offset);
+            _ = CssBoxValues.Length(token, offset, allowRem: true);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
         else if (name.Contains("border", StringComparison.Ordinal))
         {
