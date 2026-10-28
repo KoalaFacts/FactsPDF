@@ -1,6 +1,17 @@
 import { test, expect } from '@playwright/test';
 const base='/FactsPDF/';
 
+test('selected category keeps its readable colours while hovered', async({page})=>{
+  await page.goto(base+'#category=CSS%E5%B1%9E%E6%80%A7');
+  const selected=page.locator('.sidebar .category.selected');
+  await expect(selected).toBeVisible();
+  await expect(selected).toHaveCSS('color','rgb(36, 29, 22)');
+  await expect(selected).toHaveCSS('background-color','rgb(217, 119, 54)');
+  await selected.hover();
+  await expect(selected).toHaveCSS('color','rgb(36, 29, 22)');
+  await expect(selected).toHaveCSS('background-color','rgb(217, 119, 54)');
+});
+
 test('feature-led support panels use readable titles and solid status tiles',async({page})=>{
   await page.goto(base+'#q=border-style');
   const row=page.locator('tbody tr').first();
