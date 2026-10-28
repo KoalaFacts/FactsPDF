@@ -242,6 +242,54 @@ def main():
         if words_pt_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Native invalid word spacing modified original PDF')
 
+        # Independent Native AOT fixture: added TJ word displacements occur
+        # only when a line wraps naturally, and report text stays searchable.
+        if 'text-align: justify;' not in source_html:
+            raise AssertionError('Print report lacks a justified paragraph')
+        report_left = temp / 'report-left-aligned.html'
+        report_left.write_text(source_html.replace('text-align: justify;', 'text-align: left;'),
+                               encoding='utf-8')
+        report_left_pdf = temp / 'report-left-aligned.pdf'
+        run(exe, report_left, report_left_pdf)
+        run('qpdf', '--check', report_left_pdf)
+        if report_left_pdf.read_bytes() == sample_pdf.read_bytes():
+            raise AssertionError('Native justified report prose did not alter PDF geometry')
+        if ' '.join(run('pdftotext', '-raw', report_left_pdf, '-').decode().split()) != content:
+            raise AssertionError('Justification lost or altered business report text')
+        words = 'One two three four five six seven eight nine ten eleven'
+        source_justify = temp / 'standalone-justify.html'
+        source_left = temp / 'standalone-left.html'
+        source_justify.write_text("<p style='width:116pt;text-align:justify'>" + words + "</p>",
+                                  encoding='utf-8')
+        source_left.write_text("<p style='width:116pt;text-align:left'>" + words + "</p>",
+                               encoding='utf-8')
+        justify_pdf, left_pdf = temp / 'standalone-justify.pdf', temp / 'standalone-left.pdf'
+        run(exe, source_justify, justify_pdf)
+        run(exe, source_left, left_pdf)
+        run('qpdf', '--check', justify_pdf)
+        if justify_pdf.read_bytes() == left_pdf.read_bytes():
+            raise AssertionError('Soft-wrap justification missing from Native AOT PDF')
+        for source, qdf_target in ((justify_pdf, temp / 'justify-qdf.pdf'),
+                                   (left_pdf, temp / 'left-qdf.pdf')):
+            run('qpdf', '--qdf', '--object-streams=disable', source, qdf_target)
+        if b'] TJ' not in (temp / 'justify-qdf.pdf').read_bytes():
+            raise AssertionError('Native justified word spaces lack PDF TJ')
+        if b'] TJ' in (temp / 'left-qdf.pdf').read_bytes():
+            raise AssertionError('Left-aligned fixture unexpectedly uses TJ')
+        if ' '.join(run('pdftotext', '-raw', justify_pdf, '-').decode().split()) != ' '.join(
+                run('pdftotext', '-raw', left_pdf, '-').decode().split()):
+            raise AssertionError('Native justification changed searchable words')
+        invalid = temp / 'invalid-justify.html'
+        invalid.write_text("<p style='text-align:justify-all'>Protected report</p>",
+                           encoding='utf-8')
+        left_pdf.write_bytes(b'keep-existing')
+        rejected = subprocess.run([str(exe), str(invalid), str(left_pdf), '--overwrite'],
+                                  capture_output=True, timeout=120)
+        if rejected.returncode != 3 or b'FPDF1202' not in rejected.stderr or rejected.stdout:
+            raise AssertionError('Native invalid justify value was accepted')
+        if left_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Rejected justify value overwrote the original PDF')
+
         # The real Native AOT binary must paint, not just accept, the two
         # current-source text decorations in the runnable business sample.
         for label in ('Previous estimate', 'Revised estimate'):
@@ -424,7 +472,8 @@ def main():
                       'native_border_box_equivalence_and_recovery': True,
                       'native_text_indent_geometry_and_recovery': True,
                       'native_letter_spacing_geometry_and_recovery': True,
-                       'native_word_spacing_geometry_and_recovery': True},
+                       'native_word_spacing_geometry_and_recovery': True,
+                       'native_report_justification_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

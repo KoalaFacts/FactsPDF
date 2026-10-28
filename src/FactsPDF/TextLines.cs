@@ -200,8 +200,34 @@ internal static class TextLines
             var leading = ((style.AbsoluteLineHeight ?? size * style.LineHeight) - ascent - descent) / 2;
             return (ascent + leading, descent + leading);
         }
-        Line CurrentLine()
+        Line CurrentLine(bool softWrapped = false)
         {
+            // Only a real automatic word wrap may justify. Explicit <br>,
+            // final paragraph lines and nowrap content retain their measured
+            // ragged end. Stretch existing collapsed U+0020 space advances;
+            // this uses the same WordSpacing/TJ paint path as authored gaps.
+            var paintedWidth = width;
+            if (softWrapped && paragraph.Style.Alignment == TextAlignment.Justify)
+            {
+                var spaces = 0;
+                foreach (var glyph in current)
+                    if (glyph.Scalar == 32) spaces++;
+                var remaining = (firstLine ? available - firstIndent : available) - width;
+                if (spaces > 0 && remaining > 0.000001)
+                {
+                    var extra = remaining / spaces;
+                    for (var i = 0; i < current.Count; i++)
+                    {
+                        var glyph = current[i];
+                        if (glyph.Scalar == 32)
+                            current[i] = glyph with
+                            {
+                                Style = glyph.Style with { WordSpacing = glyph.Style.WordSpacing + extra }
+                            };
+                    }
+                    paintedWidth = width + extra * spaces;
+                }
+            }
             var (ascent, descent) = Metrics(paragraph.Style, paragraph.SourceOffset);
             if (firstLine && firstMarker is { } marker)
             {
@@ -220,7 +246,7 @@ internal static class TextLines
                 ascent = Math.Max(ascent, glyphAscent);
                 descent = Math.Max(descent, glyphDescent);
             }
-            return new(current, width, ascent + descent, ascent, descent, firstLine ? firstIndent : 0);
+            return new(current, paintedWidth, ascent + descent, ascent, descent, firstLine ? firstIndent : 0);
         }
         void ResetLine()
         {
@@ -282,7 +308,7 @@ internal static class TextLines
             {
                 if (current.Count > 0)
                 {
-                    yield return CurrentLine();
+                    yield return CurrentLine(softWrapped: true);
                     ResetLine();
                 }
                 else

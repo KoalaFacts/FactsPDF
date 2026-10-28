@@ -103,7 +103,8 @@ internal static class InlineCss
                     style = style with { Alignment = value switch
                     {
                         "left" => TextAlignment.Left, "center" => TextAlignment.Center, "right" => TextAlignment.Right,
-                        _ => throw Invalid("Only left, center and right alignment are supported.", offset)
+                        "justify" => TextAlignment.Justify,
+                        _ => throw Invalid("Only left, center, right and word-space justify alignment are supported.", offset)
                     } };
                     break;
                 case "margin-top" when paragraph: style = style with { MarginBefore = Margin(value, offset) }; break;

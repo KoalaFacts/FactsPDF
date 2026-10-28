@@ -6,8 +6,19 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('10776e98',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('744366cf',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
+});
+test('bounded LTR soft-wrap justification is discoverable without claiming full CSS Text',async({page})=>{
+  await page.goto(base+'#q=text-align%3Ajustify');
+  await page.getByRole('button',{name:'text-align',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('PDF TJ');
+  await expect(details).toContainText('start/end');
+  await expect(details).toContainText('RTL');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
 });
 test('bounded letter spacing shows real PDF behaviour and strict failure limits',async({page})=>{
   await page.goto(base+'#q=letter-spacing');

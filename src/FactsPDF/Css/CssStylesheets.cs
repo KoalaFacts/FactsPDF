@@ -156,6 +156,12 @@ internal sealed class CssStylesheets
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
+            // Inline elements cannot independently align paragraph lines.
+            // Do not key this off BoxTag/block: <html> and some table
+            // structures carry inherited text style without painted boxes.
+            if (declaration.Property == CssProperty.TextAlign && declaration.Value == "justify"
+                && (element.Name is "span" or "b" or "strong" or "i" or "em"))
+                throw new FactsPdfException("FPDF1201", "text-align:justify cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
                 (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))
