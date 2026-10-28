@@ -4,12 +4,12 @@
   "dataset_version": "audit-2026-10-28.root-relative-typography",
   "audited_at": "2026-10-28",
   "repository": "KoalaFacts/FactsPDF",
-  "commit": "4392249934dff9e7ef94e415727e618f45f49140",
-  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/4392249934dff9e7ef94e415727e618f45f49140",
+  "commit": "1aba07ce42ccd8b2ae9eade4a71204818984cb9c",
+  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/1aba07ce42ccd8b2ae9eade4a71204818984cb9c",
   "engine_baseline": "M12 / 1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6",
   "support_scope": "Partial engineering audit of implemented preview capabilities, not release readiness or whole-standard conformance",
   "full_definition": "完整支持仅针对每一行明确定义的能力和适用范围；父级元素/属性的未知部分不自动变绿。",
-  "audit_method": "Four-row source-bound re-audit of root-relative rem font-size/line-height at 4392249934dff9e7ef94e415727e618f45f49140: css.font-size, css.line-height, value.length.relative and value.lineheight.other remain partial with real computed PDF text and page layout. 414 other stable-ID records unchanged, total 418, 51 accepted CSS property names. Exact-head CI and independent code review are separate.",
+  "audit_method": "Four-row source-bound re-audit of root-relative rem font-size/line-height at 1aba07ce42ccd8b2ae9eade4a71204818984cb9c: css.font-size, css.line-height, value.length.relative and value.lineheight.other remain partial with real computed PDF text and page layout. 414 other stable-ID records unchanged, total 418, 51 accepted CSS property names. Exact-head CI and independent code review are separate.",
   "html_inventory_source": "https://html.spec.whatwg.org/multipage/indices.html",
   "html_inventory_note": "WHATWG 元素索引的 113 个名称（h1–h6展开），另外记录 SVG/MathML/自定义元素；不包括过时标签。",
   "css_inventory_note": "当前语义接受51个CSS属性名称。font-size 与 line-height 新增严格有界 rem，基于 html 计算字号（缺失 html 则用 PdfOptions.FontSize），真正作用于文字和跨页排版；其余长度属性仍不接受 rem。min/max-width、word-spacing、text-align:justify 和 ASCII-only text-transform 各自保持原有部分支持边界。",
@@ -3633,14 +3633,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "4392249934dff9e7ef94e415727e618f45f49140",
+      "last_audited_commit": "1aba07ce42ccd8b2ae9eade4a71204818984cb9c",
       "last_audited_date": "2026-10-28",
       "evidence_level": "真实 C# 样式计算和 PDF 多页等价/负向恢复测试已提交；精确 head CI 和真正独立审查须另行核实；非公共发布或人工批准",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/58721bc70b54f9b29b59037d93be5d44d2f79856/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/HtmlDocumentReader.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssStylesheets.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -3688,14 +3689,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "4392249934dff9e7ef94e415727e618f45f49140",
+      "last_audited_commit": "1aba07ce42ccd8b2ae9eade4a71204818984cb9c",
       "last_audited_date": "2026-10-28",
       "evidence_level": "真实 C# 样式计算和 PDF 多页等价/负向恢复测试已提交；精确 head CI 和真正独立审查须另行核实；非公共发布或人工批准",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/58721bc70b54f9b29b59037d93be5d44d2f79856/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/HtmlDocumentReader.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssStylesheets.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -7585,14 +7587,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "4392249934dff9e7ef94e415727e618f45f49140",
+      "last_audited_commit": "1aba07ce42ccd8b2ae9eade4a71204818984cb9c",
       "last_audited_date": "2026-10-28",
       "evidence_level": "真实 C# 样式计算和 PDF 多页等价/负向恢复测试已提交；精确 head CI 和真正独立审查须另行核实；非公共发布或人工批准",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/58721bc70b54f9b29b59037d93be5d44d2f79856/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/HtmlDocumentReader.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssStylesheets.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -8143,14 +8146,15 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "4392249934dff9e7ef94e415727e618f45f49140",
+      "last_audited_commit": "1aba07ce42ccd8b2ae9eade4a71204818984cb9c",
       "last_audited_date": "2026-10-28",
       "evidence_level": "真实 C# 样式计算和 PDF 多页等价/负向恢复测试已提交；精确 head CI 和真正独立审查须另行核实；非公共发布或人工批准",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/58721bc70b54f9b29b59037d93be5d44d2f79856/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/tests/FactsPDF.Tests/RootRelativeTypographyTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/4392249934dff9e7ef94e415727e618f45f49140/src/FactsPDF/HtmlDocumentReader.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssDeclarations.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/1aba07ce42ccd8b2ae9eade4a71204818984cb9c/src/FactsPDF/Css/CssStylesheets.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

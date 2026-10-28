@@ -13,11 +13,11 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '4392249934dff9e7ef94e415727e618f45f49140');
+  assert.equal(dataset.commit, '1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
-    assert.equal(line.last_audited_commit,'4392249934dff9e7ef94e415727e618f45f49140');
+    assert.equal(line.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
     assert.equal(line.introduced_release,null);
     assert.match(line.scope,/normal/);
     assert.match(line.limitations,/calc/);
@@ -26,7 +26,7 @@ test('418 stable records retain provenance with scoped preview capability update
   const relative=dataset.features.find(f=>f.id==='value.length.relative');
   for(const entry of [fontSize,relative]){
     assert.equal(entry.status,'partial');
-    assert.equal(entry.last_audited_commit,'4392249934dff9e7ef94e415727e618f45f49140');
+    assert.equal(entry.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
     assert.equal(entry.introduced_release,null);
   }
   assert.match(fontSize.scope,/rem/);

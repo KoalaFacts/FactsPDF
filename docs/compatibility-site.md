@@ -329,13 +329,13 @@ separate gates. No customer release or public site is implied by this snapshot.
 ## 28 October 2026: root-relative report typography
 
 Snapshot `audit-2026-10-28.root-relative-typography` audits the actual
-C# engine implementation at `4392249934dff9e7ef94e415727e618f45f49140`.
+C# engine implementation at `1aba07ce42ccd8b2ae9eade4a71204818984cb9c`.
 Exactly four of the existing 418 stable records were revised:
 `css.font-size`, `css.line-height`, `value.length.relative` and
 `value.lineheight.other`. All four remain **partial**, the other 414
 records retain their original provenance, 51 accepted CSS property names
 remain, and statuses remain **44 full / 133 partial / 233 none / 6 unknown /
-2 not applicable**. The byte-exact UTF-8 JSON SHA-256 is `7fb6e2a088b50ea1da417600a789f4b53d60e6a062d8270f80a445f07fe8c21d`.
+2 not applicable**. The byte-exact UTF-8 JSON SHA-256 is `06bbe7bedfb47613abe6d0431b721fae5bc6d0189ee76e121a1d39207c86ae10`.
 
 Positive `rem` now resolves `font-size` and `line-height` against the
 real computed `html` root font (initial configured size if `html` is
