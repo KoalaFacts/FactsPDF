@@ -266,3 +266,22 @@ These values generate PDF filled lines, measured from resolved glyph advances
 and budgeted like other drawing commands. The dataset audit is not a substitute
 for exact-head CI, truly independent review, distribution rights, a published
 preview, Pages deployment or human PDF approval.
+
+## 28 October 2026: bounded opaque RGB colour rendering
+
+Snapshot `audit-2026-10-28.opaque-rgb-colours` audits the actual RGB semantic/rendering
+implementation commit `b35413c2a5a4cdc584d03374c964fc3ed6ccee43`. Its SHA-256 is
+`3eb369e3559f4b29c2369ee5dc13ede0c822cdf5e0450bf25e12f36c3d8928c5`. **All 418 IDs, order, introduction/release fields and 43
+accepted CSS property spellings remain unchanged.** Exactly 10 colour rows were
+reaudited; the remaining 408 full records retain their prior provenance. The
+function-family row `value.color.rgbfunc` moves from none to partial, so counts
+are **44 full, 122 partial, 244 none, 6 unknown, 2 not applicable**.
+
+Only opaque integer `rgb()` (comma/space) and comma `rgba(r,g,b,1)` are
+supported for existing text/background/border colour inputs; the function AST
+is lowered to the exact existing `#rrggbb` paint semantics. Fractional or
+percentage channels, transparency, HSL, slash-alpha, gradients and nested
+functions still fail explicitly. The implementation adds actual PDF/browser-free
+CLI and Linux Native AOT hex-equivalence/recovery checks; audit data does not
+claim that still-running CI or a future independent review has passed. This is
+not a public package or Pages deployment.
