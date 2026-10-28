@@ -539,9 +539,10 @@ internal static class TextLayout
                 var line = lines.Current;
                 if (line.Height > bottom - o.Margin) throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.");
                 if (y + line.Height > bottom + 0.000001) NewPage();
-                var x = item.ContentX + (paragraph.Style.Alignment switch
-                { TextAlignment.Center => (item.ContentWidth - line.Width) / 2,
-                  TextAlignment.Right => item.ContentWidth - line.Width, _ => 0 });
+                var lineWidth = item.ContentWidth - line.FirstLineIndent;
+                var x = item.ContentX + line.FirstLineIndent + (paragraph.Style.Alignment switch
+                { TextAlignment.Center => (lineWidth - line.Width) / 2,
+                  TextAlignment.Right => lineWidth - line.Width, _ => 0 });
                 var baseline = o.PageHeight - y - line.Ascent;
                 if (pendingMarker is { } marker)
                 {
