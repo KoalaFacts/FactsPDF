@@ -167,3 +167,11 @@ test('uppercase identifier search works in a Turkish browser context',async({bro
     await expect(page.getByRole('button',{name:'width',exact:true})).toBeVisible();
   }finally{await context.close();}
 });
+
+test('audited PDF text decoration can be searched and its limitations read',async({page})=>{
+  await page.goto('/FactsPDF/#q=text-decoration');
+  await expect(page.getByRole('button',{name:'text-decoration',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'text-decoration',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('line-through');
+  await expect(page.getByRole('dialog')).toContainText('overline');
+});
