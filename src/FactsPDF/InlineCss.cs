@@ -72,6 +72,14 @@ internal static class InlineCss
                     if (factor is < 1 or > 10) throw Invalid("Unitless line-height must be from 1 to 10.", offset);
                     style = style with { LineHeight = factor, AbsoluteLineHeight = null };
                     break;
+                case "letter-spacing":
+                    // A deliberately bounded fixed advance; no font metrics,
+                    // relative units or shaping are inferred at parse time.
+                    var tracking = value == "normal" ? 0 : Length(value, offset);
+                    if (!double.IsFinite(tracking) || tracking is < 0 or > 24)
+                        throw Invalid("letter-spacing must be from 0pt to 24pt.", offset);
+                    style = style with { LetterSpacing = tracking };
+                    break;
                 case "white-space" when paragraph && !inline:
                     style = style with { NoWrap = value switch
                     {

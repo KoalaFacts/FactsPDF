@@ -119,7 +119,8 @@ internal static class UnicodePdfSerializer
                 foreach (var run in pages[i].Runs)
                 {
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
-                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
+                    var tracking = run.Style.LetterSpacing == 0 ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
+                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
                     foreach (var rune in run.Text.EnumerateRunes())
                         content.Append(use is null ? rune.Value.ToString("X2", CultureInfo.InvariantCulture)
                             : use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));

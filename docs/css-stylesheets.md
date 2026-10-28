@@ -79,6 +79,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
+| letter-spacing | Inherited on supported report text and inline spans: `normal` or nonnegative 0–24pt `pt/px/mm/cm/in` length; fixed advance after each glyph, used by actual PDF wrapping, centring and decorations; negative/relative/calc unsupported |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%` or zero; percentages of the resolved paragraph content width; only first logical line indented, later wrap/`br`/page fragments retain normal x; overwide first segment or a fully consumed line fails `FPDF1302` with output preservation |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
@@ -91,6 +92,26 @@ These properties also accept `inherit`, `initial`, `unset` and `!important`. Mat
 This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `em`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+
+## Current-source bounded letter-spacing
+
+`letter-spacing:0.75pt` and positive `px/mm/cm/in` print lengths (up to 24pt)
+on supported report paragraphs/headings, container-inherited text and inline
+spans increase the PDF character advance. Each text run emits the matching
+PDF `Tc` text-state command for both built-in ASCII Courier and the explicitly
+supplied CID TrueType fonts; the same spacing is counted during word measurement,
+normal/nowrap overflow checks, alignment, paragraph pagination and decoration
+widths. No external font or browser layout is inferred. CJK fallback glyph
+selection and content bytes are unchanged.
+
+`normal`, `0` and `0pt` are zero spacing and preserve the prior byte path.
+CSS cascade, `!important`, `inherit`, `initial` and `unset` select the
+computed fixed point spacing; nonnegative units remain fixed through children.
+Negative tracking, percent/em/rem, `calc()`, and values above 24pt return
+`FPDF1202` without altering the destination. This is fixed-positive tracking
+for controlled reports, **not** full CSS Text letter-spacing, complex shaping,
+kerning or word-spacing. The real printable report tracks an invoice reference
+and the native oracle checks unit equivalence, actual `Tc` paint and recovery.
 
 ## Current-source nonwrapping report labels
 

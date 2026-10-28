@@ -8,7 +8,10 @@ internal static class TextLines
 {
     internal readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000, int SourceOffset = -1)
     {
-        public double Width => Style.FontSize * Width1000 / 1000;
+        // PDF Tc adds fixed character spacing after each shown glyph, across
+        // ASCII and embedded CID TrueType font runs. Layout must count the
+        // identical advance before wrapping, centring or underlining.
+        public double Width => Style.FontSize * Width1000 / 1000 + Style.LetterSpacing;
     }
     // Glyph storage is borrowed until the next MoveNext. Each consumer copies
     // every placed text run before advancing; the iterator reuses its glyph storage.
