@@ -246,7 +246,8 @@ test('text-indent is a real limited renderable CSS feature with unchanged 417 ot
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/表格单元格/);
   assert.equal(f.example,'text-indent:0.25in');
-  assert.equal(filterFeatures(dataset.features,{q:'text-indent',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'text-indent',status:'partial'})
+    .map(f=>f.id).sort(), ['css.text-indent','value.length.relative']);
 });
 
 test('bounded letter-spacing is a genuine partially supported PDF text capability', () => {
