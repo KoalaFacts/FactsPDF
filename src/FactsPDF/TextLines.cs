@@ -124,8 +124,15 @@ internal static class TextLines
                         // expand a character or change the font's glyph count.
                         // Do not silently misrender cased Unicode letters:
                         // full casing/locale rules and shaping are out of scope.
-                        if (scalar > 127 && Rune.GetUnicodeCategory(rune) is
-                            (UnicodeCategory.LowercaseLetter or UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter))
+                        if (scalar > 127 &&
+                            (Rune.GetUnicodeCategory(rune) is
+                                (UnicodeCategory.LowercaseLetter or UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter)
+                             // Unicode also maps some LetterNumber and OtherSymbol
+                             // scalars, e.g. Roman numerals and circled letters.
+                             // ASCII-only output must never leave those silently
+                             // unchanged when case conversion is requested.
+                             || Rune.ToUpperInvariant(rune) != rune
+                             || Rune.ToLowerInvariant(rune) != rune))
                             throw new FactsPdfException("FPDF1305",
                                 "Non-ASCII cased text requires Unicode case conversion beyond the supported ASCII report subset.",
                                 run.SourceOffset);

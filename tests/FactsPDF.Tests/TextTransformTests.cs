@@ -97,6 +97,16 @@ public sealed class TextTransformTests
         Assert.That(Encoding.Latin1.GetString(Pdf(transformed, options)), Does.Contain("/FontFile2"));
     }
 
+    [TestCase("\u2170")]
+    [TestCase("\u24d0")]
+    public void OtherUnicodeCasedSymbolsWithRealSuppliedGlyphsRejectExplicitly(string input)
+    {
+        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create(unicodeCaseSymbols: true))] };
+        Assert.That(Pdf("<p>" + input + "</p>", options), Is.Not.Empty,
+            "The synthetic supplied font genuinely contains the untransformed scalar.");
+        Reject("<p style='text-transform:uppercase'>" + input + "</p>", "FPDF1305", options);
+    }
+
     [Test]
     public void CaseChangeSelectsActualGlyphInsteadOfCheckingOnlyTheInputCodepoint()
     {
