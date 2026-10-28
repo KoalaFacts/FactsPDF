@@ -325,3 +325,25 @@ PDF geometry and an independently authored source-built Linux Native AOT PDF
 oracle provide engineering acceptance; exact-head checks, independent code
 review, private software packaging, release rights and Pages deployment are
 separate gates. No customer release or public site is implied by this snapshot.
+
+## 28 October 2026: root-relative report typography
+
+Snapshot `audit-2026-10-28.root-relative-typography` audits the actual
+C# engine implementation at `4392249934dff9e7ef94e415727e618f45f49140`.
+Exactly four of the existing 418 stable records were revised:
+`css.font-size`, `css.line-height`, `value.length.relative` and
+`value.lineheight.other`. All four remain **partial**, the other 414
+records retain their original provenance, 51 accepted CSS property names
+remain, and statuses remain **44 full / 133 partial / 233 none / 6 unknown /
+2 not applicable**. The byte-exact UTF-8 JSON SHA-256 is `7fb6e2a088b50ea1da417600a789f4b53d60e6a062d8270f80a445f07fe8c21d`.
+
+Positive `rem` now resolves `font-size` and `line-height` against the
+real computed `html` root font (initial configured size if `html` is
+absent); root font self-reference uses initial size while root line-height
+uses computed size. It actually changes PDF glyph width, line boxes and
+pagination in a runnable 63-record report, with a separately authored
+fixed-point PDF oracle and failure-output preservation. Width, padding,
+margin, border, letter/word spacing and general CSS Values `rem` remain
+unsupported. Matching PR-head CI, independent review, new private binary
+candidate, Pages administration, licensing/customer distribution and human
+PDF approval are independent, not inferred from this audit.
