@@ -10,6 +10,18 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.getByText('f5aba206',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
+test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
+  await page.goto(base+'#q=font-weight');
+  await page.getByRole('button',{name:'font-weight',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('100–500');
+  await expect(details).toContainText('600–900');
+  await expect(details).toContainText('FPDF1507');
+  await expect(details).toContainText('variable font');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
+});
 test('bounded LTR soft-wrap justification is discoverable without claiming full CSS Text',async({page})=>{
   await page.goto(base+'#q=text-align%3Ajustify');
   await page.getByRole('button',{name:'text-align',exact:true}).click();

@@ -392,3 +392,16 @@ code examples and evidence links retain their provenance. Historical
 horizontal-only snapshot hashes above are not the new snapshot digest.
 Exact-head CI, Native AOT checks, independent review and human PDF approval
 remain separate, not inferred from this documentation change.
+
+## 29 October 2026: bounded numeric report font weights
+
+The `audit-2026-10-29.numeric-report-font-weights` snapshot audits implemented
+engine/report source `7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750`. It updates **only**
+the existing `css.font-weight` stable-ID record to describe numeric CSS hundred
+steps 100–900 selecting the explicit normal (100–500) or bold (600–900) font role.
+Other **417 complete records** retain their historical per-feature provenance.
+All 418 IDs, category/status counts, 52 accepted CSS property names and unknown
+introduction/release versions are preserved. Dataset SHA-256:
+`ce2002e73db8f829820605c5cf4b599703ea77e8d67144052a667571efe9ce62`; ordered bilingual source-text SHA-256:
+`0cf781f2c0cffa4521ebddb7e01c8de962aafbc35a781dc2db0f300a9f84e9ab`. This is a code-audit update, not a new release, independent
+final-head review, human page acceptance or a font distribution.

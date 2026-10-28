@@ -237,7 +237,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-29.report-panel-vertical-margins');
+  assert.equal(dataset.dataset_version, 'audit-2026-10-29.numeric-report-font-weights');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /52个CSS属性/);
@@ -429,4 +429,19 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
   assert.deepEqual(counts(dataset.features),{full:44,partial:134,none:232,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
+});
+
+test('numeric hundred-step report font weights use the explicit source-audited role scope', () => {
+  const row=dataset.features.find(x=>x.id==='css.font-weight');
+  assert.equal(row.status,'partial');
+  assert.equal(row.last_audited_commit,'7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750');
+  assert.equal(row.introduced_release,null);
+  assert.match(row.scope,/100–900/);
+  assert.match(row.scope,/100–500/);
+  assert.match(row.scope,/600–900/);
+  assert.match(row.limitations,/FPDF1507/);
+  assert.match(row.limitations,/bolder\/lighter/);
+  assert.match(dataset.audit_method,/417 full feature records preserve/);
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,52);
 });
