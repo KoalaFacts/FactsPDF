@@ -206,3 +206,12 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.equal(routeHash(route),'#q=all');
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
+
+test('nowrap snapshot methodology matches its source and supported spelling count', () => {
+  assert.equal(dataset.dataset_version,'audit-2026-10-28.white-space-nowrap');
+  assert.match(dataset.audit_method,new RegExp(dataset.commit));
+  assert.match(dataset.audit_method,/only css\.white-space updated/);
+  assert.match(dataset.css_inventory_note,/45个CSS属性/);
+  assert.match(dataset.css_inventory_note,/white-space:normal\/nowrap/);
+  assert.match(dataset.css_inventory_note,/段落\/标题/);
+});
