@@ -1,6 +1,28 @@
 import { test, expect } from '@playwright/test';
 const base='/FactsPDF/';
 
+test('selected category remains readable through filtering, hover and clear', async({page})=>{
+  await page.goto(base);
+  await page.getByRole('searchbox').fill('margin');
+  await page.getByLabel('类别筛选').selectOption('CSS属性');
+  await expect(page.getByRole('button',{name:'margin-left',exact:true})).toBeVisible();
+  const selected=page.locator('.sidebar .category.selected');
+  await expect(selected).toBeVisible();
+  await expect(selected).toHaveCSS('color','rgb(36, 29, 22)');
+  await expect(selected).toHaveCSS('background-color','rgb(217, 119, 54)');
+  await selected.hover();
+  await expect(selected).toHaveCSS('color','rgb(36, 29, 22)');
+  await expect(selected).toHaveCSS('background-color','rgb(217, 119, 54)');
+  await page.screenshot({path:'test-results/selected-category-hover.png',fullPage:true});
+  await page.getByRole('button',{name:'清除筛选',exact:true}).first().click();
+  await expect(page.getByRole('searchbox')).toHaveValue('');
+  await expect(page.getByLabel('类别筛选')).toHaveValue('all');
+  await expect(selected).toContainText('全部能力');
+  await expect(page.locator('tbody tr')).toHaveCount(25);
+  await expect(page.locator('.results-heading h2 span')).toHaveText('418');
+  await page.screenshot({path:'test-results/selected-category-cleared.png',fullPage:true});
+});
+
 test('feature-led support panels use readable titles and solid status tiles',async({page})=>{
   await page.goto(base+'#q=border-style');
   const row=page.locator('tbody tr').first();

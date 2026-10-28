@@ -83,6 +83,7 @@ html body { background: var(--lookup-canvas); }
 #app .category b { color: #d9c8ad; background: #484035; border-radius: 0; font-size: 11px; }
 #app .category:hover:not(:disabled) { background: #383127; }
 #app .category.selected { background: #d97736; color: #241d16; font-weight: 750; }
+#app .category.selected:hover:not(:disabled) { background: #d97736; color: #241d16; }
 #app .category.selected b { color: #241d16; background: #f1b07d; }
 #app .scope-note { border-color: #60513e; }
 #app .scope-note h3 { color: #dfc7a7; font-size: 12px; }
