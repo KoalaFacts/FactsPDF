@@ -12,7 +12,8 @@ internal static class TextLines
     }
     // Glyph storage is borrowed until the next MoveNext. Each consumer copies
     // every placed text run before advancing; the iterator reuses its glyph storage.
-    internal readonly record struct Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent);
+    internal readonly record struct Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent,
+        double FirstLineIndent = 0);
 
     internal static void AppendLine(Line line, double x, double baseline, List<PlacedText> target,
         Action<int, int> charge, CancellationToken cancellation, int sourceOffset = -1)
@@ -134,6 +135,10 @@ internal static class TextLines
                 }
             }
         }
+        // The opt-in first-line inset is relative to the paragraph's resolved
+        // content width, not to the page or its painted border box. It belongs
+        // only to the first logical line; continuation pages never re-indent.
+        var firstIndent = paragraph.Style.FirstLineIndent.Resolve(available);
         // Resolve the complete paragraph before reporting width errors, and
         // validate every word before yielding a line to pagination. Recording
         // a width failure (rather than throwing immediately) keeps the legacy
@@ -141,6 +146,7 @@ internal static class TextLines
         var segmentWidth = 0d;
         var previousScalar = -1;
         var tooWide = false;
+        var firstSegment = true;
         foreach (var glyph in ReadGlyphs())
         {
             cancellation.ThrowIfCancellationRequested();
@@ -149,9 +155,9 @@ internal static class TextLines
                 // Collapsed spaces remain advance widths, but only an explicit
                 // <br> starts a new line. Validate the whole forced-break
                 // segment before painting any page.
-                if (glyph.Scalar == 10) { segmentWidth = 0; continue; }
+                if (glyph.Scalar == 10) { segmentWidth = 0; firstSegment = false; continue; }
                 segmentWidth += glyph.Width;
-                tooWide |= segmentWidth > available + 0.000001;
+                tooWide |= segmentWidth > (firstSegment ? available - firstIndent : available) + 0.000001;
                 continue;
             }
             if (glyph.Scalar is 32 or 10)
@@ -165,6 +171,11 @@ internal static class TextLines
             tooWide |= segmentWidth > available + 0.000001;
             previousScalar = glyph.Scalar;
         }
+        // Keep the legacy resource/diagnostic priority: resolve every glyph
+        // before reporting indentation geometry, including for overwide boxes.
+        if (!double.IsFinite(firstIndent) || firstIndent < 0 ||
+            firstIndent > 0 && firstIndent >= available - 0.000001)
+            throw new FactsPdfException("FPDF1302", "First-line indentation leaves no usable text width.", paragraph.SourceOffset);
         if (tooWide)
             throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
 
@@ -205,7 +216,7 @@ internal static class TextLines
                 ascent = Math.Max(ascent, glyphAscent);
                 descent = Math.Max(descent, glyphDescent);
             }
-            return new(current, width, ascent + descent, ascent, descent);
+            return new(current, width, ascent + descent, ascent, descent, firstLine ? firstIndent : 0);
         }
         void ResetLine()
         {
@@ -262,13 +273,17 @@ internal static class TextLines
             }
             while (hasGlyph && cursor.Current.Scalar is not (32 or 10) && !CanBreak(previous, cursor.Current.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
-            if (width + gap + wordWidth > available + 0.000001)
+            var lineAvailable = firstLine ? available - firstIndent : available;
+            if (width + gap + wordWidth > lineAvailable + 0.000001)
             {
                 if (current.Count > 0)
                 {
                     yield return CurrentLine();
                     ResetLine();
                 }
+                else
+                    throw new FactsPdfException("FPDF1302",
+                        "The first word cannot fit after first-line indentation.", paragraph.SourceOffset);
                 gap = 0;
             }
             if (gap > 0) { current.Add(space!.Value); width += gap; }

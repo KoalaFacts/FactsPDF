@@ -7,7 +7,7 @@ internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, 
     double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
     bool Bold = false, bool Italic = false, bool KeepWithNext = false,
     TextDecoration Decoration = TextDecoration.None, double? AbsoluteLineHeight = null,
-    bool NoWrap = false);
+    bool NoWrap = false, CssLength FirstLineIndent = default);
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);

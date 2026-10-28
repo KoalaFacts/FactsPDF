@@ -79,6 +79,11 @@ internal static class InlineCss
                         _ => throw Invalid("Only collapsing normal and nowrap white-space are supported.", offset)
                     } };
                     break;
+                case "text-indent" when paragraph && !inline:
+                    // Resolve percentages against this paragraph's actual text
+                    // content width at layout time, after margins/padding.
+                    style = style with { FirstLineIndent = CssBoxValues.Length(value, offset) };
+                    break;
                 case "text-align" when !inline:
                     style = style with { Alignment = value switch
                     {

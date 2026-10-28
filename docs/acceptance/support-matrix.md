@@ -1,5 +1,7 @@
 # Acceptance support matrix — evidence, not marketing
 
+Current-source `text-indent` is limited to explicit paragraphs/headings outside tables. Actual first-line glyph x and wrapping differ, while later lines/page fragments and painted boxes keep their original x. `TextIndentTests.cs` and `verify_stylesheets.py` cover point/physical/percent parity, rejection and output preservation. Evidence is source-specific, not a new retained candidate or a human-approved PDF comparison.
+
 Current-source parent-relative `font-size` percentages and `em` values
 resolve against the actual computed parent (not a default heading multiplier).
 `RelativeFontSizingTests.cs` and the native print report check explicit-point
