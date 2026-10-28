@@ -386,10 +386,54 @@ spans and `html` reject the property with `FPDF1201`. Invalid `padding-box`,
 `calc()` and multi-token values are `FPDF1202`, including in unmatched rules.
 A border-box that cannot contain its own padding/borders or fit its containing
 width fails with `FPDF1302` and leaves existing output intact. No general CSS
-height, min/max sizing, flex/grid, column sizing or full box-model conformance.
+height, flex/grid, column sizing or full box-model conformance.
 `BorderBoxSizingTests.cs` and the real Native AOT stylesheet gate compare actual
 PDF geometry with an independently authored content-box projection; the
 resource-free `examples/report-print-spacing.html` exercises the feature.
+
+## Current-source bounded report min/max widths
+
+Ordinary block boxes, paragraphs and headings can now use `min-width` and
+`max-width` for real PDF layout. `min-width:auto` (the unchanged default)
+and `max-width:none` (the unchanged default) impose no extra constraint;
+bounded nonnegative `pt`, `px`, `mm`, `cm`, `in`, `%` and unitless
+zero are accepted. Percentages resolve against the **containing block content
+width**, including inside nested sections, not a post-margin box. Bounds are
+resolved after `width` (including `auto`) and before auto margins are
+distributed; max-width can therefore centre a content panel without requiring
+a fixed width. `min-width` takes precedence if it exceeds `max-width`.
+
+For `box-sizing:content-box`, min/max constrain the *content* width; for
+`box-sizing:border-box`, they constrain the outer width including padding
+and solid borders. The adjusted content width drives real text wrapping,
+backgrounds, border geometry, heading keeps and page fragments, and does not
+change unstyled or unconstrained output bytes. For example:
+
+```html
+<section style="max-width:146mm;padding:4mm">
+  <p style="box-sizing:border-box;min-width:82mm;max-width:90mm;width:70mm">
+    Reference: SR-2026-0142
+  </p>
+  <p style="max-width:95mm;margin:0 auto">Approved service summary</p>
+</section>
+```
+
+The scope does **not** add intrinsic `min-content`/`max-content`/`fit-content`,
+height constraints, negative lengths, `em`/`rem`, `calc()`, text-overflow,
+CSS flex/grid, image sizing, table and cell width constraints, or inline span
+boxes. Unsupported values reject with `FPDF1202`, unsupported elements with
+`FPDF1201`, and boxes that cannot fit their content area with `FPDF1302`;
+conversion preserves any prior destination. The existing independent
+stylesheet cascade, `!important`, `inherit`/`initial`/`unset`, and box
+fragments apply. Scope is **source-only**, not a published engine release.
+
+The resource-free [actual report](../examples/report-width-constraints.html),
+[hand-authored fixed-width oracle](../examples/report-width-constraints-oracle.html),
+`MinMaxWidthTests.cs` and Native AOT stylesheet check compare PDF bytes,
+searchable content, layout positions, real multi-page painting and invalid
+output recovery. Engine implementation starts at
+`bc704aed90b1e5dbdc1deec65a7fd314b626467e`; introduction in a
+distributed version remains unknown.
 
 ## Current-source ASCII report text-transform
 

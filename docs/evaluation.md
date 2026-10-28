@@ -107,7 +107,7 @@ Missing resources produce explicit diagnostics.
 | Images | Explicitly bound baseline JPEG and supported static PNG, including alpha/tRNS; standalone or direct image items in cells | No SVG, APNG, interlaced/16-bit PNG, inline/list images, text wrapping around images or automatic URL loading |
 | Fonts | Explicit static TrueType roles and character fallback | No automatic family discovery, synthetic styles, full shaping or RTL |
 | Page furniture | Legacy literal header/footer and current page number, plus structured left/centre/right styled regions with actual total page count and first-page replacement via .NET/CLI | No HTML header templates or general CSS Paged Media |
-| Layout | Documented block/text subset with print-unit lengths (`mm/cm/in`) and real horizontal/vertical paragraph/heading margins and explicit-width `margin:0 auto` centring | No negative/vertical-auto or general container/cell paragraph horizontal margins, flex/grid, CSS Paged Media or arbitrary webpage conversion |
+| Layout | Documented block/text subset with print-unit lengths (`mm/cm/in`) and real horizontal/vertical paragraph/heading margins and explicit-width `margin:0 auto` centring; bounded `min-width`/`max-width` on ordinary report blocks drive actual width/centred panels | No negative/vertical-auto or general container/cell paragraph horizontal margins, flex/grid, CSS Paged Media or arbitrary webpage conversion |
 | Integration | .NET library, CLI; actual Linux/Windows x64 Native AOT evidence | Node subprocess and browser WASM are experimental probes; other language SDKs remain planned |
 
 For precise values and diagnostics, see [CSS](css-stylesheets.md),
