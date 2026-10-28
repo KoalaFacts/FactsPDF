@@ -347,3 +347,26 @@ margin, border, letter/word spacing and general CSS Values `rem` remain
 unsupported. Matching PR-head CI, independent review, new private binary
 candidate, Pages administration, licensing/customer distribution and human
 PDF approval are independent, not inferred from this audit.
+
+## 2026-10-29 source audit: scoped horizontal report-panel margins
+
+Snapshot `audit-2026-10-29.report-panel-horizontal-margins` is bound to
+actual renderer change `a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2`. Exactly **three**
+existing CSS IDs (`css.margin`, `css.margin-left`, `css.margin-right`)
+were reaudited; **415** other entries preserve their prior provenance.
+The **418** stable records, category and status totals, and **52**
+accepted CSS property names are unchanged.
+
+Only `div`, `section`, `article` gain bounded nonnegative
+horizontal margins and real `margin:0 auto`. Vertical panel margins
+remain zero/reset-only, including losing declarations. No margin
+collapse, nonzero container vertical margins, generalized body/list,
+table/image/inline box margins or new release is claimed. The rows
+link the actual code, tests, source PDF example and native evidence.
+
+Exact JSON SHA-256 `8cbf4b3d2c649e4ddae44f288ec3c389ac427b74f0cdbe5f7926e4222e42a8db`
+is checked by the original fail-closed validator; English display
+uses ordered source-text SHA-256
+`f500d4849945d36e581bb6c1ec34bd75a623399e576d47b93f93a5604092fb23`.
+Actual CI, independent review, human page approval and commercial
+distribution remain separate and must not be inferred from the audit.

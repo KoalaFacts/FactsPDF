@@ -130,6 +130,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
   assert.match(margin.limitations,/FPDF1302/);
   assert.match(translate(data.css_inventory_note),/52 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin:0 auto/);
-  assert.match(data.audit_method,/3 stable-ID records/);
+  assert.match(data.audit_method,/Three-record source-bound report panel/);
+  assert.match(data.audit_method,/415 other stable-ID records remain unchanged/);
   assert.equal(data.features.length,418);
 });

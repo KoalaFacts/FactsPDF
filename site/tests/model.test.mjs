@@ -381,14 +381,18 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
+    assert.equal(feature.last_audited_commit, ['css.margin','css.margin-left','css.margin-right'].includes(id)
+      ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2' : 'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
     assert.equal(feature.introduced_release,null,id);
     assert.match(feature.scope+' '+feature.limitations,/rem/,id);
     assert.equal(feature.test_reference,
-      'https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs');
+      'https://github.com/KoalaFacts/FactsPDF/blob/' +
+        (['css.margin','css.margin-left','css.margin-right'].includes(id)
+          ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'
+          : '76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs'));
   }
-  assert.match(dataset.features.find(f=>f.id==='css.margin').scope,/margin:0 auto按实际外框居中/);
-  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仅显式零值/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').scope,/margin:0 auto/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img\/table/);
   for(const id of ['css.margin-top','css.margin-bottom'])
     assert.match(dataset.features.find(f=>f.id===id).limitations,/auto/);
@@ -400,15 +404,19 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   for(const id of ["css.width","css.min-width","css.max-width","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left","css.margin","css.margin-top","css.margin-bottom","css.margin-left","css.margin-right"]){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
-    assert.equal(feature.test_reference,'https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs',id);
+    assert.equal(feature.last_audited_commit, ['css.margin','css.margin-left','css.margin-right'].includes(id)
+      ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2' : 'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
+    assert.equal(feature.test_reference,'https://github.com/KoalaFacts/FactsPDF/blob/' +
+      (['css.margin','css.margin-left','css.margin-right'].includes(id)
+        ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'
+        : '76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs'),id);
     assert.match(feature.scope,/em/,id);
     assert.equal(feature.introduced_release,null,id);
   }
   assert.equal(dataset.features.find(f=>f.id==='css.font-size').last_audited_commit,
     'f14550afd22ca40569998398b9fb8595d9f0e509');
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
-  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仅显式零值/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
   assert.deepEqual(counts(dataset.features),{full:44,partial:134,none:232,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
