@@ -94,13 +94,17 @@ public sealed class BorderBoxSizingTests
     [Test]
     public void ContinuedPaintedBoxAndPageTextMatchIndependentContentWidthProjection()
     {
-        var options = Page with { PageHeight = 115 };
+        // Leave room for the closing 4pt padding and 1pt border on the
+        // final page; this still forces multiple real painted page slices.
+        var options = Page with { PageHeight = 155 };
         const string body = "<p style='margin:0'>Line 01<br>Line 02<br>Line 03<br>Line 04<br>Line 05<br>Line 06<br>Line 07<br>Line 08<br>Line 09</p>";
         var border = "<section style='box-sizing:border-box;width:160pt;padding:4pt;border:1pt solid blue;background:#f0f6fa'>" + body + "</section>";
         var content = "<section style='width:150pt;padding:4pt;border:1pt solid blue;background:#f0f6fa'>" + body + "</section>";
         Assert.That(Pdf(border, options), Is.EqualTo(Pdf(content, options)));
         var pages = Layout(border, options);
         Assert.That(pages.Count, Is.GreaterThan(1));
+        Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text),
+            Is.EqualTo(Enumerable.Range(1, 9).Select(i => $"Line {i:00}")));
         Assert.That(pages.SelectMany(p => p.PaintBoxes).Where(p => p.Style.BackgroundColor.HasValue)
             .All(p => Math.Abs(p.Width - 160) < .00001), Is.True);
     }
