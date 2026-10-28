@@ -4,6 +4,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash, pageSlice, csv } from '../src/model.mjs';
 const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', import.meta.url), 'utf8'));
+function marginEvidence(id) {
+  if(['css.margin','css.margin-top','css.margin-bottom'].includes(id))
+    return {sha:'f5aba206ca30c86dca8bd4b465182d5cea436dcc',path:'f5aba206ca30c86dca8bd4b465182d5cea436dcc/tests/FactsPDF.Tests/ReportPanelVerticalMarginTests.cs'};
+  if(['css.margin-left','css.margin-right'].includes(id))
+    return {sha:'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2',path:'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'};
+  return {sha:'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',
+    path:'76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs'};
+}
+
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
@@ -13,7 +22,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+  assert.equal(dataset.commit, 'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -98,7 +107,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
   assert.equal(dataset.accepted_css_property_count,52);
-  assert.equal(margin.last_audited_commit,'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+  assert.equal(margin.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
@@ -228,9 +237,9 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-29.report-panel-horizontal-margins');
+  assert.equal(dataset.dataset_version, 'audit-2026-10-29.report-panel-vertical-margins');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /415 other stable-ID records remain unchanged/);
+  assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /52个CSS属性/);
   assert.doesNotMatch(dataset.css_inventory_note, /letter-spacing\/word-spacing仍拒绝/);
   assert.match(dataset.css_inventory_note, /text-indent.*letter-spacing\/word-spacing.*em\/rem/);
@@ -381,17 +390,20 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit, ['css.margin','css.margin-left','css.margin-right'].includes(id)
-      ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2' : 'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
+    assert.equal(feature.last_audited_commit, marginEvidence(id).sha, id);
     assert.equal(feature.introduced_release,null,id);
     assert.match(feature.scope+' '+feature.limitations,/rem/,id);
     assert.equal(feature.test_reference,
-      'https://github.com/KoalaFacts/FactsPDF/blob/' +
-        (['css.margin','css.margin-left','css.margin-right'].includes(id)
-          ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'
-          : '76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs'));
+      'https://github.com/KoalaFacts/FactsPDF/blob/' + marginEvidence(id).path);
   }
   assert.match(dataset.features.find(f=>f.id==='css.margin').scope,/margin:0 auto/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').scope,/margin:12pt auto 7pt/);
+  for(const id of ['css.margin-top','css.margin-bottom']) {
+    const row=dataset.features.find(f=>f.id===id);
+    assert.match(row.scope,/div\/section\/article/);
+    assert.match(row.limitations,/margin collapse/);
+    assert.match(row.limitations,/FPDF1302/);
+  }
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img\/table/);
   for(const id of ['css.margin-top','css.margin-bottom'])
@@ -404,12 +416,9 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   for(const id of ["css.width","css.min-width","css.max-width","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left","css.margin","css.margin-top","css.margin-bottom","css.margin-left","css.margin-right"]){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit, ['css.margin','css.margin-left','css.margin-right'].includes(id)
-      ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2' : 'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
+    assert.equal(feature.last_audited_commit, marginEvidence(id).sha, id);
     assert.equal(feature.test_reference,'https://github.com/KoalaFacts/FactsPDF/blob/' +
-      (['css.margin','css.margin-left','css.margin-right'].includes(id)
-        ? 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'
-        : '76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs'),id);
+      marginEvidence(id).path,id);
     assert.match(feature.scope,/em/,id);
     assert.equal(feature.introduced_release,null,id);
   }

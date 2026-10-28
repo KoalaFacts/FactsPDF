@@ -36,6 +36,14 @@ zero-only. This is **source-only** and does not change the retained
 private candidate, new-page approval, customer distribution rights or
 supported CSS surface beyond [the bounded scope](css-stylesheets.md#current-source-centred-report-panels).
 
+Nonnegative `margin-top`/`margin-bottom` on `div`, `section` and
+`article` now create real outside-the-border report-panel spacing, alongside
+existing horizontal `margin:0 auto`. A [50-row report](../examples/report-panel-vertical-margins.html)
+and independent [fixed-spacer oracle](../examples/report-panel-vertical-margins-oracle.html)
+check PDF geometry, text and page continuation; source-only, not a retained
+candidate, general CSS margin collapse or customer release.
+[Scoped details](css-stylesheets.md#current-source-real-vertical-report-panel-margins).
+
 ## Start with a report that fits
 
 Long invoice/reference identifiers can opt into scoped `overflow-wrap:break-word` on report paragraphs/headings, including flat p inside fixed-column cells. Oversized tokens split at measured glyph boundaries and continue across pages, while ordinary words still move whole and `white-space:nowrap` takes precedence. `anywhere`, complex shaping, automatic hyphenation and full CSS Text are outside scope. The [32-entry report](../examples/report-overflow-wrap.html) has a separate [manual-break oracle](../examples/report-overflow-wrap-oracle.html) and protected-output errors. Source-only, not a customer grant or human PDF approval. See the [scope](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers).

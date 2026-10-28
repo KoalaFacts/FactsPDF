@@ -760,8 +760,8 @@ def main():
                 raise AssertionError('Native centred panel lost text: ' + phrase)
         bad, dest = temp / 'invalid.html', temp / 'prior.pdf'
         for html, code in (
-            ("<section style='margin:4pt auto'>A</section>", b'FPDF1201'),
-            ("<article style='margin:0 auto 4pt'>A</article>", b'FPDF1201'),
+            ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
+            ("<article style='margin-bottom:10%'>A</article>", b'FPDF1202'),
             ("<div style='width:240pt;margin-left:400pt'>A</div>", b'FPDF1302'),
             ("<section style='margin-left:calc(2pt + 1pt)'>A</section>", b'FPDF1202'),
             ("<body style='margin-left:1pt'>A</body>", b'FPDF1201')
@@ -775,6 +775,78 @@ def main():
             if dest.read_bytes() != b'keep-existing':
                 raise AssertionError('Rejected panel margin damaged existing output')
         print('Native report panel centring, pagination, PDF parity, text and recovery verified')
+
+    # Native AOT scope: non-collapsing vertical margins outside painted panels.
+    # Independently authored oracle uses explicit empty fixed-point spacers.
+    with tempfile.TemporaryDirectory(prefix='factspdf-panel-vertical-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'panel-vertical.pdf', temp / 'manual-spacers.pdf'
+        run(exe, Path('examples/report-panel-vertical-margins.html'), actual)
+        run(exe, Path('examples/report-panel-vertical-margins-oracle.html'), oracle)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', oracle)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Native vertical panel PDF differs from manual fixed spacers')
+        pages = re.search(r'^Pages:\s*(\d+)\s*
+        'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
+        'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
+        'pages': 2, 'pdf_bytes': pdfs[0].stat().st_size,
+        'pdf_sha256': hashlib.sha256(pdfs[0].read_bytes()).hexdigest(),
+        'input_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
+        'font_inputs': [{'name': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in fonts],
+        'checks': {'pdf_bytes_equal': True, 'extracted_text_equal': True, 'text_matches_html': True,
+                   'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
+                   'native_background_recovery': True, 'native_print_spacing_and_recovery': True,
+                    'native_text_decoration_paths_and_recovery': True,
+                     'native_opaque_rgb_equivalence_and_recovery': True,
+                     'native_relative_font_sizing_equivalence_and_recovery': True,
+                     'native_computed_line_height_equivalence_and_recovery': True,
+                      'native_border_box_equivalence_and_recovery': True,
+                      'native_text_indent_geometry_and_recovery': True,
+                      'native_letter_spacing_geometry_and_recovery': True,
+                       'native_word_spacing_geometry_and_recovery': True,
+                       'native_report_justification_and_recovery': True,
+                       'native_ascii_case_glyph_parity_and_recovery': True,
+                       'native_min_max_width_pdf_equivalence_and_recovery': True,
+                       'native_root_relative_typography_equivalence_and_recovery': True,
+                        'native_rem_box_length_equivalence_and_recovery': True,
+                         'native_rem_margin_equivalence_and_recovery': True,
+                         'native_element_relative_em_layout_and_recovery': True,
+                         'native_font_relative_text_spacing_and_recovery': True,
+                          'native_overflow_wrap_report_and_recovery': True,
+                           'native_panel_margins_and_recovery': True,
+                           'native_panel_vertical_margins_and_recovery': True},
+        'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
+    }
+    (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == '__main__': main()
+, run('pdfinfo', actual).decode(), re.M)
+        if not pages or int(pages.group(1)) < 2:
+            raise AssertionError('Vertical panel report did not continue across PDF pages')
+        content = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Service entry 01', 'Service entry 50',
+                       'Outcome: All service entries verified.', 'End of example report.'):
+            if phrase not in content:
+                raise AssertionError('Native vertical panel lost searchable report text: ' + phrase)
+        bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
+        for html, code in (
+            ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
+            ("<article style='margin-bottom:10%'>A</article>", b'FPDF1202'),
+            ("<div style='margin-top:-1pt'>A</div>", b'FPDF1202'),
+            ("<body style='margin-top:4pt'>A</body>", b'FPDF1201')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            destination.write_bytes(b'previous-report')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native vertical margin was not rejected: ' + html)
+            if destination.read_bytes() != b'previous-report':
+                raise AssertionError('Native invalid vertical margin replaced original PDF')
+        print('Native vertical panel margins, multipage PDF, text, oracle and recovery verified')
 
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
