@@ -109,7 +109,7 @@ public sealed class TextDecorationTests
     [Test]
     public void StyledTextStillWrapsAndRepaintsAcrossPhysicalPages()
     {
-        var options = Page with { PageWidth = 90, PageHeight = 62, Margin = 10 };
+        var options = Page with { PageWidth = 90, PageHeight = 72, Margin = 10 };
         var html = "<p style='font-size:10pt;line-height:1.2;text-decoration:underline'>" +
             string.Join(" ", Enumerable.Repeat("AB", 24)) + "</p>";
         var pages = Layout(html, options);
@@ -151,6 +151,14 @@ public sealed class TextDecorationTests
         Assert.That(Pdf(html, Page with { MaxDisplayCommands = 2 }), Is.Not.Empty);
     }
 
+    [Test]
+    public void PageFurnitureUsesTheSameChargedDecorationBudgetAsBodyLayout()
+    {
+        const string html = "<p style='text-decoration:underline'>A</p>";
+        var options = Page with { FooterText = "Internal", MaxDisplayCommands = 2 };
+        Reject(html, "FPDF1401", options);
+        Assert.That(Pdf(html, options with { MaxDisplayCommands = 3 }), Is.Not.Empty);
+    }
     [Test]
     public void ManagedCliAndLibraryEmitSamePaintedPdf()
     {
