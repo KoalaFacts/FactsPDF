@@ -7,13 +7,13 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.accepted_css_property_count,43);
+  assert.equal(dataset.accepted_css_property_count,44);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '20566ebb8fc2cfea07e61c65df8e01a95b755140');
+  assert.equal(dataset.commit, '28d150e570797e1247fe8fff9a9b030d1724f047');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -42,7 +42,19 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:124, none:242, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:125, none:241, unknown:6, na:2 });
+});
+test('scoped border-box CSS affects report geometry without misreporting tables', () => {
+  const feature=dataset.features.find(f=>f.id==='css.box-sizing');
+  assert.equal(feature.status,'partial');
+  assert.equal(feature.last_audited_commit,'28d150e570797e1247fe8fff9a9b030d1724f047');
+  assert.equal(feature.introduced_release,null);
+  assert.match(feature.scope,/border-box/);
+  assert.match(feature.scope,/padding/);
+  assert.match(feature.limitations,/img/);
+  assert.match(feature.limitations,/table/);
+  assert.match(feature.limitations,/FPDF1302/);
+  assert.equal(feature.example,'box-sizing:border-box;width:140mm;padding:5mm;border:0.25mm solid #23446b');
 });
 test('print units and bounded four-sided report margins remain scoped', () => {
   const margin=dataset.features.find(f=>f.id==='css.margin');
@@ -54,7 +66,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,43);
+  assert.equal(dataset.accepted_css_property_count,44);
   assert.equal(margin.last_audited_commit,'125e7788ac804d9d6960b29717efaf0c151077c0');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
