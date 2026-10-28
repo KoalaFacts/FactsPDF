@@ -105,6 +105,18 @@ def main():
             if line not in content:
                 raise AssertionError('Native sample missing text: ' + line)
 
+        # The real Native AOT binary must paint, not just accept, the two
+        # current-source text decorations in the runnable business sample.
+        for label in ('Previous estimate', 'Revised estimate'):
+            if label not in content:
+                raise AssertionError('Native decorated report lost ' + label)
+        qdf = temp / 'report-readable.pdf'
+        run('qpdf', '--qdf', '--object-streams=disable', sample_pdf, qdf)
+        # Both 11pt paragraph decorations are 0.66pt solid fills; painted
+        # borders/panels use other thicknesses. qdf uncompresses page streams.
+        lines = re.findall(rb'\b[0-9]+(?:\.[0-9]+)? 0\.66 re f Q\n', qdf.read_bytes())
+        if len(lines) != 2:
+            raise AssertionError(f'Expected two actual Native AOT decoration paths, found {len(lines)}')
         short = temp / 'short.html'
         long = temp / 'long.html'
         short.write_text("<div style='width:2in;padding:0.125in;border:0.03125in solid red'>"
@@ -129,7 +141,15 @@ def main():
             raise AssertionError('Native CLI did not strictly reject invalid negative margin')
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Invalid native margin changed existing output')
-        print('Native print spacing report, oracle, qpdf, text and recovery verified')
+        # A rejected decoration cannot corrupt a previous PDF, even in AOT.
+        bad.write_text("<p style='text-decoration:overline'>Unsupported</p>", encoding='utf-8')
+        proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
+                              capture_output=True, timeout=120)
+        if proc.returncode != 3 or b'FPDF1202' not in proc.stderr or proc.stdout:
+            raise AssertionError('Native unsupported decoration did not fail cleanly')
+        if sample_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Native unsupported decoration mutated the destination')
+        print('Native print spacing and text decoration PDF paths, qpdf, text, recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -139,7 +159,8 @@ def main():
         'font_inputs': [{'name': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in fonts],
         'checks': {'pdf_bytes_equal': True, 'extracted_text_equal': True, 'text_matches_html': True,
                    'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
-                   'native_background_recovery': True, 'native_print_spacing_and_recovery': True},
+                   'native_background_recovery': True, 'native_print_spacing_and_recovery': True,
+                    'native_text_decoration_paths_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
