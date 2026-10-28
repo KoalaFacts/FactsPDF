@@ -5054,7 +5054,7 @@
       "feature": "max-width",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "max-width:none（无额外约束）或非负 pt/px/mm/cm/in/%/零，普通块另接受根 rem；max 可限制 width:auto 的报告面板；使用 html 的计算根字号，真实约束 content-box/border-box、margin:auto、换行、背景与分页；百分比仍以父内容宽度为基准",
+      "scope": "max-width:none（无额外约束）或非负 pt/px/mm/cm/in/%/零，普通块另接受根 rem；max 可限制 width:auto 的报告面板；使用 html 的计算根字号，真实约束 content-box/border-box、margin:0 auto、换行、背景与分页；百分比仍以父内容宽度为基准",
       "limitations": "仅普通报告块/段落/标题；无 min-content/max-content/fit-content、em/calc/负长度、表格/图片/inline rem；非法值 FPDF1202、不适用元素 FPDF1201、超限几何 FPDF1302，原目标 PDF 保留；不代表完整 CSS Sizing",
       "stage": "源码范围内支持；尚未公开发布",
       "applicability": "普通 block/paragraph/heading；图片、表格、单元格段落、inline 不适用",

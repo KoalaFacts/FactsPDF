@@ -72,13 +72,13 @@ public sealed class RootRelativeBoxLengthTests
     public void ExplicitInheritAndImportantUseResolvedRootValuesWithoutImplicitInheritance()
     {
         const string relative = "<html style='font-size:15pt'><style>" +
-            "section{width:6rem}p.a{width:inherit!important}p.b{width:4rem!important}" +
+            "section{width:6rem}p.a{width:inherit!important}p.b{width:5rem!important}" +
             "</style><body><section>" +
             "<p class=a style='width:8rem'>INHERITED</p>" +
             "<p class=b style='width:8rem'>IMPORTANT</p>" +
             "<p style='padding:0.5rem'>PADDED</p></section></body></html>";
         const string absolute = "<html style='font-size:15pt'><style>" +
-            "section{width:90pt}p.a{width:inherit!important}p.b{width:60pt!important}" +
+            "section{width:90pt}p.a{width:inherit!important}p.b{width:75pt!important}" +
             "</style><body><section>" +
             "<p class=a style='width:120pt'>INHERITED</p>" +
             "<p class=b style='width:120pt'>IMPORTANT</p>" +
