@@ -816,6 +816,55 @@ def main():
                 raise AssertionError('Invalid vertical margin replaced previous report')
         print('Native vertical panel margins, multi-page PDF and recovery verified')
 
+    # Native AOT: numeric font-weight must select actual explicit normal/bold
+    # TrueType faces, paginate and preserve old destination bytes on failures.
+    # The separately authored role oracle uses 400/700, not numeric synonyms.
+    with tempfile.TemporaryDirectory(prefix='factspdf-numeric-weights-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'numeric.pdf', temp / 'roles.pdf'
+        normal_font = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
+        bold_font = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
+        inputs = (Path('examples/report-numeric-font-weights.html'),
+                  Path('examples/report-numeric-font-weights-oracle.html'))
+        for html, pdf in zip(inputs, (actual, expected)):
+            run(exe, html, pdf, '--subset-fonts',
+                '--font', normal_font, '--font-bold', bold_font)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Numeric font-weight PDF differs from explicit normal/bold role oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        page_count = next((int(line.split(':', 1)[1].strip())
+                           for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if page_count < 2:
+            raise AssertionError('Numeric font-weight business report did not paginate: ' + info)
+        font_rows = run('pdffonts', actual).decode('utf-8').splitlines()[2:]
+        if len(font_rows) != 2 or not all('CID TrueType' in row for row in font_rows):
+            raise AssertionError('Expected both actually embedded normal and bold font roles')
+        text = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for marker in ('Quarterly Facilities Service Report', 'Service entry 01',
+                       'Service entry 64', 'Outcome: All 64 service entries approved.',
+                       'End of example report.'):
+            if marker not in text:
+                raise AssertionError('Numeric weights report lost searchable content: ' + marker)
+        bad, destination = temp / 'bad.html', temp / 'protected.pdf'
+        for html, code, font_role in (
+            ("<p style='font-weight:650'>Invalid</p>", b'FPDF1202', True),
+            ("<style>.unused{font-weight:550}</style><p>Invalid</p>", b'FPDF1202', True),
+            ("<p style='font-weight:bolder'>Invalid</p>", b'FPDF1202', True),
+            ("<p style='font-weight:600'>Missing bold chain</p>", b'FPDF1507', False)
+        ):
+            bad.write_text(html, encoding='utf-8')
+            destination.write_bytes(b'previous-report')
+            args = [str(exe), str(bad), str(destination), '--overwrite', '--font', str(normal_font)]
+            if font_role:
+                args += ['--font-bold', str(bold_font)]
+            failure = subprocess.run(args, capture_output=True, timeout=120)
+            if failure.returncode != 3 or code not in failure.stderr or failure.stdout:
+                raise AssertionError('Numeric font-weight rejection failed: ' + html)
+            if destination.read_bytes() != b'previous-report':
+                raise AssertionError('Invalid weight or missing font replaced existing PDF')
+        print('Native numeric font-weight PDF role parity, pagination, fonts, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -844,7 +893,8 @@ def main():
                          'native_font_relative_text_spacing_and_recovery': True,
                           'native_overflow_wrap_report_and_recovery': True,
                            'native_panel_margins_and_recovery': True,
-                           'native_panel_vertical_margins_and_recovery': True},
+                           'native_panel_vertical_margins_and_recovery': True,
+                           'native_numeric_font_weights_pdf_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
