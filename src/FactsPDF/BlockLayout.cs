@@ -92,10 +92,30 @@ internal static class BlockLayout
     internal static (double Left, double Right, double Available) ResolveMargins(
         BoxStyle style, double containingWidth, int offset)
     {
-        var left = Checked(style.MarginLeft.Resolve(containingWidth), offset);
-        var right = Checked(style.MarginRight.Resolve(containingWidth), offset);
+        var left = style.MarginLeftAuto ? 0 : Checked(style.MarginLeft.Resolve(containingWidth), offset);
+        var right = style.MarginRightAuto ? 0 : Checked(style.MarginRight.Resolve(containingWidth), offset);
         if (left + right > containingWidth + 0.000001)
             throw new FactsPdfException("FPDF1302", "Paragraph horizontal margins exceed containing width.", offset);
+        var available = Math.Max(0, containingWidth - left - right);
+        if (!style.MarginLeftAuto && !style.MarginRightAuto)
+            return (left, right, available);
+
+        // Auto margins consume the *remaining outer-box* width, after the
+        // explicit content width, padding and borders have been resolved.
+        // With width:auto, the box already fills the available width, so an
+        // auto side resolves to zero, preserving existing full-width behavior.
+        var box = ResolveBox(style, available, offset, containingWidth);
+        var free = available - box.OuterWidth;
+        if (free < -0.000001)
+            throw new FactsPdfException("FPDF1302", "Auto margins cannot fit the specified box width.", offset);
+        free = Math.Max(0, free);
+        if (style.MarginLeftAuto && style.MarginRightAuto)
+        {
+            left += free / 2;
+            right += free / 2;
+        }
+        else if (style.MarginLeftAuto) left += free;
+        else right += free;
         return (left, right, Math.Max(0, containingWidth - left - right));
     }
 

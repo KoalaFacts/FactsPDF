@@ -140,10 +140,12 @@ internal sealed class CssStylesheets
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
             // Flat table cell paragraphs do not have independent horizontal box
-            // geometry. Preserve existing zero-side shorthands, reject insets.
+            // geometry. Preserve existing explicit zero sides, but auto can
+            // consume real space and is not a zero-valued cell margin.
             var zeroCellInset = declaration.Property is CssProperty.MarginLeft or CssProperty.MarginRight
                 && (declaration.Value is "inherit" or "initial" or "unset"
-                    || CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
+                    || declaration.Value != "auto"
+                        && CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);

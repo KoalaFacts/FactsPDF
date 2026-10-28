@@ -7,16 +7,16 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.commit, 'c8caaa273415a24ad062dd036a90b40ba11c53eb');
+  assert.equal(dataset.commit, '125e7788ac804d9d6960b29717efaf0c151077c0');
   assert.deepEqual(counts(dataset.features), { full:44, partial:120, none:246, unknown:6, na:2 });
 });
 test('print units and bounded four-sided report margins remain scoped', () => {
   const margin=dataset.features.find(f=>f.id==='css.margin');
   const absolute=dataset.features.find(f=>f.id==='value.length.absolute');
   assert.equal(margin.status,'partial');
-  assert.match(margin.scope,/四边参与真实排版/);
-  assert.match(margin.limitations,/单元格p左右仅零值/);
-  assert.match(margin.example,/margin:2mm 5% 3mm 4mm/);
+  assert.match(margin.scope,/margin:0 auto按实际外框居中/);
+  assert.match(margin.limitations,/单元格p左右仅显式零值/);
+  assert.equal(margin.example,'margin:0 auto');
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
@@ -24,8 +24,9 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
-    assert.match(side.scope,/换行/);
-    assert.match(side.limitations,/auto/);
+    assert.match(side.scope,/auto/);
+    assert.match(side.scope,/(实际|真实)/);
+    assert.match(side.limitations,/表格单元格p/);
     assert.equal(side.introduced_release,null);
   }
   assert.equal(dataset.features.find(f=>f.id==='value.length.relative').status,'none');

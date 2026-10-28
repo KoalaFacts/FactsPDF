@@ -100,7 +100,7 @@ internal static class CssSyntaxAdapter
                     if (side % 2 == 0)
                         _ = InlineCss.Apply(ValidationStyle, "margin-top:" + sides[side],
                             paragraph: true, inline: false, offset);
-                    else
+                    else if (sides[side] != "auto")
                         _ = CssBoxValues.Length(sides[side], offset);
                 }
                 Emit(CssProperty.MarginTop, sides[0], valueTokens[0].Token.Span.Start, "margin-top");
@@ -286,7 +286,10 @@ internal static class CssSyntaxAdapter
     private static void ValidateComponent(string name, string token, int offset)
     {
         if (name == "width") { _ = CssBoxValues.Width(token, offset); }
-        else if (name is "margin-left" or "margin-right") _ = CssBoxValues.Length(token, offset);
+        else if (name is "margin-left" or "margin-right")
+        {
+            if (token != "auto") _ = CssBoxValues.Length(token, offset);
+        }
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);

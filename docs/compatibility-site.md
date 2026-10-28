@@ -234,3 +234,20 @@ histories remain untouched. Counts: 44 full, 120 partial, 246 none, 6 unknown,
 Horizontal margins are bounded and only for paragraphs/headings; CSS-wide and
 cascade stay per-side. Native CI/review and Pages are separately gated; this
 audit does not claim any public release, real customer use, or Pages deploy.
+
+## 28 October 2026: bounded horizontal auto margins
+
+The `audit-2026-10-28.horizontal-auto-report-margins` snapshot reaudits exactly
+three CSS records (`css.margin`, `css.margin-left`, `css.margin-right`) against
+implemented engine source `125e7788ac804d9d6960b29717efaf0c151077c0`. The other 415 complete feature objects,
+including source attribution and unknown introduction versions, are preserved.
+All 418 IDs, category/status totals and 41 accepted CSS property names remain
+unchanged. New audit SHA-256: `ba62f3b3eda709cab9d53c2bb922f69c7e9337ec87a469cb20b4db40e6c507a4`.
+
+For explicitly sized paragraphs/headings outside table cells, horizontal
+`auto` values consume remaining outer-box space (accounting for border and
+padding); two `auto` sides divide it. This is not vertical auto, negative
+margins, generic container margins, full CSS conformance or a released package.
+Source tests and rendered PDF evidence belong to their exact PR/head workflows;
+this data-only refresh is not standalone Native AOT, customer approval or Pages
+hosting evidence.
