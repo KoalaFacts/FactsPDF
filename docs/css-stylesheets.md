@@ -102,7 +102,9 @@ PDF `Tc` text-state command for both built-in ASCII Courier and the explicitly
 supplied CID TrueType fonts; the same spacing is counted during word measurement,
 normal/nowrap overflow checks, alignment, paragraph pagination and decoration
 widths. No external font or browser layout is inferred. CJK fallback glyph
-selection and content bytes are unchanged.
+selection and content bytes are unchanged. Ordered list markers that inherit
+tracking reserve their actual wider glyph advances in the list gutter, so
+numbered markers do not intrude into adjacent list-item text.
 
 `normal`, `0` and `0pt` are zero spacing and preserve the prior byte path.
 CSS cascade, `!important`, `inherit`, `initial` and `unset` select the

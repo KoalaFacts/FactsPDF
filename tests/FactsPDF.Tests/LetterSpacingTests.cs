@@ -116,6 +116,20 @@ public sealed class LetterSpacingTests
     }
 
     [Test]
+    public void InheritedListTrackingReservesTheActuallyRenderedMarkerWidth()
+    {
+        var runs = Layout("<ol style='letter-spacing:3pt'><li>A</li></ol>")[0].Runs;
+        var marker = runs.Single(run => run.Text == "1.");
+        var item = runs.Single(run => run.Text == "A");
+        Assert.That(marker.Width, Is.EqualTo(20.4).Within(0.001));
+        Assert.That(marker.X, Is.EqualTo(20).Within(0.001));
+        Assert.That(item.X - (marker.X + marker.Width), Is.EqualTo(6).Within(0.001),
+            "An inherited tracked decimal marker must not intrude into item content.");
+        Assert.That(Encoding.Latin1.GetString(Pdf("<ol style='letter-spacing:3pt'><li>A</li></ol>")),
+            Does.Contain("3 Tc"));
+    }
+
+    [Test]
     public void NowrapCountsTrackingAndRejectsAnOtherwiseFittingReference()
     {
         var options = Page with { PageWidth = 140, Margin = 20 };
