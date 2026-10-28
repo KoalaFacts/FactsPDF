@@ -9,7 +9,7 @@ documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
 > **Current stage: unreleased `0.1.0-preview.1`; source-bound private candidate retained for maintainer evaluation.**
 > [Merged-main CI 40561057964](https://github.com/KoalaFacts/FactsPDF/actions/runs/40561057964) at `47bc97910843ad6f72f11a285ec5b74e13862623` passed managed/API and actual Linux/Windows x64 Native AOT checks; [six other applicable main workflows](https://github.com/KoalaFacts/FactsPDF/issues/51#issuecomment-6452146222) also passed. The owner separately verified and privately retained the matching NuGet, managed CLI, Linux native CLI, examples and source components, and executed the Linux native first-use and restricted-font recovery paths.
-> **No public NuGet/CLI release, hosted compatibility site, customer software delivery, stable API or general evaluation grant exists.** Human approval of new PDF pages and legal distribution rights remain separate. See the [evaluation guide](docs/evaluation.md) and [licensing](#licensing); private engineering checks do not grant usage rights.
+> **No public NuGet/CLI release, customer software delivery, stable API or general evaluation grant exists.** Human approval of new PDF pages and legal distribution rights remain separate. See the [evaluation guide](docs/evaluation.md) and [licensing](#licensing); private engineering checks do not grant usage rights.
 
 [Quick start](#generate-your-first-pdf) · [C# API](#use-the-net-api) ·
 [Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
@@ -134,8 +134,9 @@ unknown. A supported subfeature does not make its whole parent standard supporte
 
 - [Read the current support data](site/data/compatibility.json).
 - [Run, verify or deploy the site](docs/compatibility-site.md).
-- [Public deployment status](https://github.com/KoalaFacts/FactsPDF/issues/51):
-  GitHub Pages configuration is still pending; the hosted site is not live yet.
+- [Browse Can I render it?](https://koalafacts.github.io/FactsPDF/).
+- [Site build and deployment status](https://github.com/KoalaFacts/FactsPDF/actions/workflows/compatibility-pages.yml).
+  Pages publishing is configured; the public site is separate from engine package releases.
 
 To browse locally, use Node 24 and npm, starting from the repository root:
 

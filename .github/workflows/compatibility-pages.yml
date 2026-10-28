@@ -1,10 +1,10 @@
 name: Compatibility site · Purity npm · GitHub Pages
 on:
   pull_request:
-    paths: ['site/**', '.github/workflows/compatibility-pages.yml']
+    paths: ['site/**', '.github/workflows/**']
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/compatibility-pages.yml']
+    paths: ['site/**', '.github/workflows/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,6 +15,9 @@ jobs:
   verify-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      index-sha256: ${{ steps.site-identity.outputs.index }}
+      data-sha256: ${{ steps.site-identity.outputs.data }}
     defaults:
       run:
         working-directory: site
@@ -35,6 +38,11 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Exercise search, filters, navigation, details and responsive layout
         run: npm run test:browser
+      - name: Record tested site identity
+        id: site-identity
+        run: |
+          echo "index=$(sha256sum dist/index.html | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "data=$(sha256sum dist/data/compatibility.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Retain site test evidence (never node_modules or browsers)
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,3 +73,48 @@ jobs:
       - name: Deploy verified static artifact
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Verify published entrypoint, data and assets
+        timeout-minutes: 3
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_INDEX: ${{ needs.verify-build.outputs.index-sha256 }}
+          EXPECTED_DATA: ${{ needs.verify-build.outputs.data-sha256 }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { setTimeout as delay } from 'node:timers/promises';
+          const base = new URL(process.env.PAGES_URL);
+          assert.equal(base.href, 'https://koalafacts.github.io/FactsPDF/');
+          const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+          async function get(path) {
+            const url = new URL(path, base);
+            assert.equal(url.origin, base.origin);
+            assert.ok(url.pathname.startsWith(base.pathname));
+            const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(10000) });
+            assert.equal(response.status, 200, `${url.pathname}: HTTP ${response.status}`);
+            return Buffer.from(await response.arrayBuffer());
+          }
+          for (let attempt = 1; attempt <= 6; attempt++) {
+            try {
+              const html = await get('./');
+              assert.equal(sha256(html), process.env.EXPECTED_INDEX, 'published HTML differs from tested build');
+              const data = await get('data/compatibility.json');
+              assert.equal(sha256(data), process.env.EXPECTED_DATA, 'published support data differs from tested build');
+              JSON.parse(data.toString('utf8'));
+              const assets = [...html.toString('utf8').matchAll(/(?:src|href)="([^" ]+\.(?:js|css))"/g)].map(match => match[1]);
+              assert.ok(assets.some(path => path.endsWith('.js')), 'built JavaScript entry is missing');
+              assert.ok(assets.some(path => path.endsWith('.css')), 'built stylesheet is missing');
+              for (const asset of assets) {
+                assert.ok(new URL(asset, base).pathname.startsWith('/FactsPDF/assets/'), 'uncompiled asset path');
+                assert.ok((await get(asset)).length > 0, 'empty asset response');
+              }
+              console.log(`Verified published HTML/data SHA256 and ${assets.length} compiled assets at ${base.href}`);
+              break;
+            } catch (error) {
+              if (attempt === 6) throw error;
+              console.warn(`Pages propagation check ${attempt}/6: ${error.message}`);
+              await delay(5000);
+            }
+          }
+          NODE
