@@ -65,7 +65,7 @@ def member_hashes(data: bytes, *, allow_signature: bool = False) -> dict[str, st
             if name == '.signature.p7s' and allow_signature:
                 continue  # NuGet.org may add its repository signature after upload.
             if name not in BASE_MEMBERS and not re.fullmatch(
-                    r'package/services/metadata/core-properties/[0-9a-f]+\.psmdcp', name):
+                    r'package/services/metadata/core-properties/(?:nuget|[0-9a-f]+)\.psmdcp', name):
                 raise ValueError('Unexpected package payload (no fonts, CLI, symbols or paths): ' + name)
             result[name] = digest(archive.read(name))
         return result

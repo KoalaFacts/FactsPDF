@@ -106,6 +106,25 @@ class PublisherTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 self.module.seal(self.package({name: b'extra'}), self.root/'bundle', VERSION, SHA)
 
+    def test_sdk_deterministic_core_metadata_is_allowed_and_hash_bound(self):
+        name = 'package/services/metadata/core-properties/nuget.psmdcp'
+        bundle = self.root/'bundle'
+        self.module.seal(self.package({name: b'actual SDK metadata name fixture'}),
+                         bundle, VERSION, SHA)
+        self.module.verify_bundle(bundle, VERSION, SHA)
+        manifest = json.loads((bundle/'manifest.json').read_text())
+        self.assertIn(name, manifest['members'])
+        with self.assertRaises(ValueError):
+            self.module.verify_published(self.package({name: b'changed metadata'}), manifest)
+
+    def test_core_metadata_exception_does_not_allow_arbitrary_names_or_paths(self):
+        for name in ('package/services/metadata/core-properties/arbitrary.psmdcp',
+                     'package/services/metadata/core-properties/nuget.psmdcp/font.ttf',
+                     'package/services/metadata/core-properties/../nuget.psmdcp',
+                     'nuget.psmdcp'):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                self.module.seal(self.package({name: b'extra'}), self.root/'bundle', VERSION, SHA)
+
     def test_wrong_filename_and_existing_staging_directory_fail(self):
         package = self.package()
         renamed = package.rename(self.root/'Other.nupkg')
