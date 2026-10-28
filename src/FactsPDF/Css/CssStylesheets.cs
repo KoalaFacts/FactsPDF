@@ -197,7 +197,16 @@ internal sealed class CssStylesheets
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration);
-            else style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph, rootFontSize);
+            else
+            {
+                // The html element's font-size:rem refers to the configured
+                // initial size. Its line-height:rem, however, refers to the
+                // already computed root font-size on this same element.
+                // FontSize precedes LineHeight in the fixed property enum.
+                var computedRoot = element.Name == "html" && declaration.Property == CssProperty.LineHeight
+                    ? style.FontSize : rootFontSize;
+                style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph, computedRoot);
+            }
         }
         return (style, box);
     }

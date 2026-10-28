@@ -60,6 +60,30 @@ public sealed class RootRelativeTypographyTests
     }
 
     [Test]
+    public void RootElementLineHeightRemUsesItsOwnComputedFontSize()
+    {
+        var paragraphs = Read("<html style='font-size:2rem;line-height:1.5rem'>" +
+            "<body><p>AB WA</p></body></html>");
+        Assert.That(paragraphs[0].Style.FontSize, Is.EqualTo(24));
+        Assert.That(paragraphs[0].Style.AbsoluteLineHeight, Is.EqualTo(36),
+            "Unlike the root font-size self-reference, line-height uses the computed root size.");
+        var projection = "<html style='font-size:24pt;line-height:36pt'>" +
+            "<body><p>AB WA</p></body></html>";
+        Assert.That(Pdf("<html style='font-size:2rem;line-height:1.5rem'>" +
+            "<body><p>AB WA</p></body></html>"), Is.EqualTo(Pdf(projection)));
+    }
+
+    [Test]
+    public void SmallRemIsValidatedAgainstActualComputedRootNotSyntheticTwelvePoints()
+    {
+        var accepted = Read("<style>html{font-size:30pt}p{line-height:0.005rem}</style>" +
+            "<html><body><p>AB</p></body></html>");
+        Assert.That(accepted[0].Style.AbsoluteLineHeight, Is.EqualTo(0.15).Within(0.000001));
+        Reject("<style>html{font-size:12pt}p{line-height:0.005rem}</style>" +
+            "<html><body><p>AB</p></body></html>");
+    }
+
+    [Test]
     public void ImportantAndWideKeywordUseWinningRootRelativeSize()
     {
         var paragraphs = Read("<style>html{font-size:20pt}p{font-size:0.75rem!important}" +
