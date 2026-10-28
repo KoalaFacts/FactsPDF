@@ -211,12 +211,12 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('historical justification and case-transform provenance remain pinned after the new width audit', () => {
+test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
   assert.equal(dataset.dataset_version, 'audit-2026-10-28.root-relative-typography');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /415 other records unchanged/);
+  assert.match(dataset.audit_method, /414 other stable-ID records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
-  assert.match(dataset.css_inventory_note, /U\+0020 justify/);
+  assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
   const values=dataset.features.find(x=>x.id==='value.align.justify');
   assert.equal(property.status, 'partial');
