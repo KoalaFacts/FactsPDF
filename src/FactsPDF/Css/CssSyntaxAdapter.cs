@@ -208,10 +208,11 @@ internal static class CssSyntaxAdapter
                 if (syntax.Kind == CssSyntaxTokenKind.Number
                     && double.TryParse(syntax.Value, System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out var weight)
-                    && weight is 400 or 700)
-                    token = weight == 400 ? "400" : "700";
+                    && double.IsFinite(weight) && weight is >= 100 and <= 900 && weight % 100 == 0)
+                    token = weight.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
                 else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold"))
-                    throw new FactsPdfException("FPDF1202", "font-weight requires normal/bold or a number equal to 400/700.", tokenOffset);
+                    throw new FactsPdfException("FPDF1202",
+                        "font-weight requires normal/bold or numeric hundreds from 100 through 900.", tokenOffset);
             }
             if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
                 || !(Wide(token) || token is "normal" or "italic")))

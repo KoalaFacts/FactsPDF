@@ -18,8 +18,13 @@ internal static class InlineCss
             {
                 case "font-weight":
                     var weight = value switch { "normal" => 400, "bold" => 700, _ => Number(value, offset) };
-                    if (weight is not (400 or 700)) throw Invalid("font-weight supports only normal/400 and bold/700.", offset);
-                    style = style with { Bold = weight == 700 };
+                    // The engine has only two explicit weight roles, 400 and 700.
+                    // Support the common hundred-step CSS values while resolving
+                    // 100–500 to the provided normal face and 600–900 to bold.
+                    // Do not synthesize intermediate font weights or infer faces.
+                    if (weight is < 100 or > 900 || weight % 100 != 0)
+                        throw Invalid("font-weight accepts normal/bold or numeric hundreds from 100 through 900.", offset);
+                    style = style with { Bold = weight >= 600 };
                     break;
                 case "font-style":
                     style = style with { Italic = value switch
