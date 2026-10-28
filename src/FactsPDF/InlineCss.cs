@@ -65,6 +65,29 @@ internal static class InlineCss
         return style;
     }
 
+    // CSS relative font sizing is resolved only after the full cascade chooses
+    // a declaration. Syntax validation here intentionally does not assume a
+    // particular element or inherited font size.
+    internal static double? RelativeFontSizeScale(string value, int offset)
+    {
+        var percent = value.EndsWith('%');
+        var em = !percent && value.EndsWith("em", StringComparison.Ordinal);
+        if (!percent && !em) return null;
+
+        var numberText = percent ? value[..^1] : value[..^2];
+        if (!double.TryParse(numberText,
+                NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture, out var number) ||
+            !double.IsFinite(number) || number <= 0)
+            throw Invalid("Relative font-size requires a positive finite percentage or em length.", offset);
+        var scale = percent ? number / 100 : number;
+        // The minimum supported parent font size is 1pt; a larger factor can
+        // never yield an allowed computed size even on the smallest parent.
+        if (!double.IsFinite(scale) || scale > 144)
+            throw Invalid("Relative font-size exceeds the supported 1–144pt computed range.", offset);
+        return scale;
+    }
+
     private static double Length(string value, int offset)
     {
         if (value == "0") return 0;

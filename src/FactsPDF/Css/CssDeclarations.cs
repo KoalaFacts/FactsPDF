@@ -19,7 +19,23 @@ internal static class CssDeclarations
         if (!paragraph && property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter)
             throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
         if (declaration.Value is not ("inherit" or "initial" or "unset"))
+        {
+            if (property == CssProperty.FontSize)
+            {
+                var relative = InlineCss.RelativeFontSizeScale(declaration.Value, declaration.Offset);
+                if (relative.HasValue)
+                {
+                    // Relative to the actual computed parent, never the UA
+                    // heading size multiplier or a previous losing declaration.
+                    var computed = parent.FontSize * relative.Value;
+                    if (!double.IsFinite(computed) || computed is < 1 or > 144)
+                        throw new FactsPdfException("FPDF1202",
+                            "Computed relative font-size must be between 1pt and 144pt.", declaration.Offset);
+                    return style with { FontSize = computed };
+                }
+            }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
+        }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         return property switch

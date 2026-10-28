@@ -383,7 +383,15 @@ internal static class CssSyntaxAdapter
 
     private static void ValidateComponent(string name, string token, int offset)
     {
-        if (name == "width") { _ = CssBoxValues.Width(token, offset); }
+        if (name == "font-size")
+        {
+            // Parse relative syntax even for a rule that does not match any
+            // element. Actual parent-relative resolution happens after cascade.
+            if (!InlineCss.RelativeFontSizeScale(token, offset).HasValue)
+                _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
+                    paragraph: true, inline: false, offset);
+        }
+        else if (name == "width") { _ = CssBoxValues.Width(token, offset); }
         else if (name is "margin-left" or "margin-right")
         {
             if (token != "auto") _ = CssBoxValues.Length(token, offset);
