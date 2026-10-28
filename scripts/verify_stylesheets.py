@@ -539,7 +539,7 @@ def main():
                 raise AssertionError('Native rem PDF lost searchable text: ' + phrase)
         bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
         for declaration in ('font-size:0rem', 'font-size:1000rem',
-                            'line-height:0.001rem', 'line-height:2000rem', 'width:1rem'):
+                            'line-height:0.001rem', 'line-height:2000rem', 'width:1em'):
             bad.write_text("<html style='font-size:15pt'><body><p style='" +
                            declaration + "'>Invalid</p></body></html>", encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -550,6 +550,45 @@ def main():
             if destination.read_bytes() != b'keep-existing':
                 raise AssertionError('Native rem failure changed the existing target')
         print('Native root-relative PDF parity, pagination, searchable text and recovery verified')
+
+
+    # Native AOT root-rem box geometry: a separate absolute-point rendering of
+    # the same paginated report, plus fail-closed original-target protection.
+    with tempfile.TemporaryDirectory(prefix='factspdf-rem-box-lengths-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'rem-box.pdf', temp / 'points-box.pdf'
+        run(exe, Path('examples/report-rem-box-lengths.html'), actual)
+        run(exe, Path('examples/report-rem-box-lengths-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native rem box geometry differs from the authored absolute-point report')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if pages is None or int(pages.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Native rem box report did not paginate: ' + info)
+        visible = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
+                       'SR-2026-0142', 'Service entry 01', 'Service entry 69',
+                       'Outcome: Site inspection completed.'):
+            if phrase not in visible:
+                raise AssertionError('Native rem box report lost searchable text: ' + phrase)
+        bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
+        for declaration, error in (
+            ('width:20000rem', b'FPDF1202'),
+            ('padding:-1rem', b'FPDF1202'),
+            ('margin-left:1rem', b'FPDF1202'),
+            ('box-sizing:border-box;width:1rem;padding:1rem', b'FPDF1302')
+        ):
+            bad.write_text("<p style='" + declaration + "'>Protected report</p>", encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or error not in failed.stderr or failed.stdout:
+                raise AssertionError('Native rem box rejection failed: ' + declaration)
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Native rem box rejection modified the existing destination')
+        print('Native rem report box PDF parity, pagination, text and recovery verified')
 
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
@@ -572,7 +611,8 @@ def main():
                        'native_report_justification_and_recovery': True,
                        'native_ascii_case_glyph_parity_and_recovery': True,
                        'native_min_max_width_pdf_equivalence_and_recovery': True,
-                       'native_root_relative_typography_equivalence_and_recovery': True},
+                       'native_root_relative_typography_equivalence_and_recovery': True,
+                        'native_rem_box_length_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
