@@ -79,8 +79,8 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
-| margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/% or zero; percentages use containing width |
-| margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/zero and horizontal pt/px/mm/cm/in/%/zero, including `margin: 2mm 5% 3mm 4mm`; a single CSS-wide keyword accepted |
+| margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/% or zero, plus `auto`; percentages use containing width; one auto side takes available free space |
+| margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/zero and horizontal pt/px/mm/cm/in/%/zero/`auto`, including `margin: 2mm 5% 3mm 4mm`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
 | break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
@@ -124,12 +124,12 @@ the paragraph border/background and reduce line-wrap and alignment width
 on every continued page. Opt-in heading keep also measures the inset width.
 
 For example, `margin:2mm 5% 3mm 4mm`, `margin:5mm`, `margin:0 4mm`, and
-`margin-left:5%` affect real PDF geometry. CSS-wide `inherit`, `initial` and
+`margin-left:5%` and `margin:0 auto` with an explicit `width` affect real PDF geometry. CSS-wide `inherit`, `initial` and
 `unset` remain per-side; horizontal margins are not inherited by default.
-On flat table-cell paragraphs, only **zero** horizontal margin values are
-allowed (preserving old vertical shorthand); nonzero horizontal values error
+On flat table-cell paragraphs, only **explicit zero** horizontal margin values
+are allowed (preserving old vertical shorthand); `auto` or nonzero horizontal values error
 with `FPDF1201`, not silently ignored. Container and span margins remain
-unsupported. Negative and `auto` margins, vertical `%`, `calc()`, `em/rem`
+unsupported. Negative margins, vertical `auto`/`%`, `calc()`, `em/rem`
 and full browser margin collapsing are not implemented. Geometry exceeding
 the containing content rectangle fails with `FPDF1302` and preserves output.
 Four-sided shorthand now counts four emitted declarations toward the existing
@@ -143,7 +143,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- \
 
 This is a renderer/source capability and not a public package release,
 general browser margin collapsing, automatic print/page sizing or support for
-`em`, `rem`, `calc()`, negative margins and `auto` margins.
+`em`, `rem`, `calc()`, negative or vertical `auto` margins.
 Existing reports without these explicit new values retain their old rendering
 path. Results must still respect the chosen page geometry and explicit
 resource contracts.
