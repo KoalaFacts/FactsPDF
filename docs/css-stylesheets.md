@@ -79,6 +79,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
+| text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%` or zero; percentages of the resolved paragraph content width; only first logical line indented, later wrap/`br`/page fragments retain normal x; overwide first segment or a fully consumed line fails `FPDF1302` with output preservation |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/% or zero, plus `auto`; percentages use containing width; one auto side takes available free space |
@@ -86,6 +87,8 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
+
+This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `em`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
 
