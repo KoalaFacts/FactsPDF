@@ -158,7 +158,7 @@ internal sealed class CssStylesheets
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
                 (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))
                 throw new FactsPdfException("FPDF1201", "break-after:avoid is supported only on headings outside lists.", declaration.Offset);
-            if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter)
+            if (!paragraph && declaration.Property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.WhiteSpace)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);

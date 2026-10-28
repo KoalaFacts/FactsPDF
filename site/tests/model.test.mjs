@@ -7,13 +7,13 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.accepted_css_property_count,44);
+  assert.equal(dataset.accepted_css_property_count,45);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '28d150e570797e1247fe8fff9a9b030d1724f047');
+  assert.equal(dataset.commit, '8082791cf059bc10e0c8453156c865170bbed495');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -42,7 +42,19 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:125, none:241, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:126, none:240, unknown:6, na:2 });
+});
+test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
+  const feature=dataset.features.find(f=>f.id==='css.white-space');
+  assert.equal(feature.status,'partial');
+  assert.equal(feature.last_audited_commit,'8082791cf059bc10e0c8453156c865170bbed495');
+  assert.equal(feature.introduced_release,null);
+  assert.match(feature.scope,/nowrap/);
+  assert.match(feature.scope,/br/);
+  assert.match(feature.limitations,/span/);
+  assert.match(feature.limitations,/FPDF1302/);
+  assert.equal(feature.example,'white-space:nowrap');
+  assert.equal(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).length,1);
 });
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
@@ -66,7 +78,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,44);
+  assert.equal(dataset.accepted_css_property_count,45);
   assert.equal(margin.last_audited_commit,'125e7788ac804d9d6960b29717efaf0c151077c0');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
@@ -193,4 +205,13 @@ test('literal all query survives route serialization while enum sentinels remain
   const route={q:'all',category:'all',status:'all',milestone:'all',feature:'',page:1};
   assert.equal(routeHash(route),'#q=all');
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
+});
+
+test('nowrap snapshot methodology matches its source and supported spelling count', () => {
+  assert.equal(dataset.dataset_version,'audit-2026-10-28.white-space-nowrap');
+  assert.match(dataset.audit_method,new RegExp(dataset.commit));
+  assert.match(dataset.audit_method,/only css\.white-space updated/);
+  assert.match(dataset.css_inventory_note,/45个CSS属性/);
+  assert.match(dataset.css_inventory_note,/white-space:normal\/nowrap/);
+  assert.match(dataset.css_inventory_note,/段落\/标题/);
 });

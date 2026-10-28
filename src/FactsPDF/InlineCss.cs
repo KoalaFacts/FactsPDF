@@ -72,6 +72,13 @@ internal static class InlineCss
                     if (factor is < 1 or > 10) throw Invalid("Unitless line-height must be from 1 to 10.", offset);
                     style = style with { LineHeight = factor, AbsoluteLineHeight = null };
                     break;
+                case "white-space" when paragraph && !inline:
+                    style = style with { NoWrap = value switch
+                    {
+                        "normal" => false, "nowrap" => true,
+                        _ => throw Invalid("Only collapsing normal and nowrap white-space are supported.", offset)
+                    } };
+                    break;
                 case "text-align" when !inline:
                     style = style with { Alignment = value switch
                     {

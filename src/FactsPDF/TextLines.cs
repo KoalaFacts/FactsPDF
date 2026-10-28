@@ -144,6 +144,16 @@ internal static class TextLines
         foreach (var glyph in ReadGlyphs())
         {
             cancellation.ThrowIfCancellationRequested();
+            if (paragraph.Style.NoWrap)
+            {
+                // Collapsed spaces remain advance widths, but only an explicit
+                // <br> starts a new line. Validate the whole forced-break
+                // segment before painting any page.
+                if (glyph.Scalar == 10) { segmentWidth = 0; continue; }
+                segmentWidth += glyph.Width;
+                tooWide |= segmentWidth > available + 0.000001;
+                continue;
+            }
             if (glyph.Scalar is 32 or 10)
             {
                 segmentWidth = 0;
@@ -211,6 +221,23 @@ internal static class TextLines
         while (hasGlyph)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (paragraph.Style.NoWrap)
+            {
+                // The paragraph deliberately has no automatic break
+                // opportunities; HTML <br> remains an explicit break.
+                if (cursor.Current.Scalar == 10)
+                {
+                    yield return CurrentLine();
+                    ResetLine();
+                }
+                else
+                {
+                    current.Add(cursor.Current);
+                    width += cursor.Current.Width;
+                }
+                hasGlyph = cursor.MoveNext();
+                continue;
+            }
             if (cursor.Current.Scalar == 10)
             {
                 yield return CurrentLine();

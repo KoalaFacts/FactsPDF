@@ -78,6 +78,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | line-height | Unitless 1–10, `normal` (= this engine's default 1.2), positive `%` or `em` (at most 10× font-size), and `pt/px/mm/cm/in` lengths; computed absolute values 0.1–1440pt; inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
+| white-space | `normal` (default) or `nowrap` on explicit `p` / `h1`–`h6`; collapsed spaces and explicit `br` retained; overwide unbroken lines rejected |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/% or zero, plus `auto`; percentages use containing width; one auto side takes available free space |
@@ -87,6 +88,40 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+
+## Current-source nonwrapping report labels
+
+For controlled report headings, totals and invoice references, `white-space:nowrap`
+on an explicit `p` or `h1`–`h6` prevents automatic breaks at spaces and at the
+existing CJK opportunities. The property operates in actual glyph-based PDF
+line construction, not just CSS parsing. Whitespace is still collapsed as in
+the existing normal text mode. An explicit HTML `<br>` still ends a line;
+that line can continue onto another page using the ordinary pagination rules.
+
+```html
+<p style="white-space:nowrap">Reference: INV-2026-1042</p>
+```
+
+A normal wrapped paragraph and a `nowrap` paragraph with identical content
+produce identical PDF bytes when the content fits on one line. If any forced-break
+segment is wider than its actual containing content width, conversion raises
+`FPDF1302` and preserves any existing destination, rather than clipping,
+shrinking or silently inserting an automatic break. The same strict behaviour
+applies to explicitly sized and nested report blocks. The current scope is
+**whole explicit paragraphs/headings only**: authoring `white-space` on a
+`span`, container, table structural element or image is rejected with
+`FPDF1201`. A paragraph inside a table cell still uses its actual cell width
+and will fail when an unbreakable label does not fit. `pre`, `pre-wrap`,
+`pre-line`, `break-spaces`, `word-break`, non-breaking span fragments and
+full CSS Text conformance are not implemented. Unsupported values are
+`FPDF1202` errors, including unmatched stylesheet declarations. Supported
+CSS-wide `inherit`, `initial`, `unset`, precedence and `!important`
+remain explicit; normal/default output does not change. See
+`WhiteSpaceNowrapTests.cs` and the actual Native AOT verification in
+`scripts/verify_stylesheets.py`.
+
+This is a current-source feature, not an installable release or a promise to
+accept arbitrary browser stylesheet content.
 
 ## Current-source background shorthand (colour only)
 
