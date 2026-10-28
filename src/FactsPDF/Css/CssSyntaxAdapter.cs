@@ -51,8 +51,12 @@ internal static class CssSyntaxAdapter
             // Fail unsupported properties first even when the value contains
             // functions or multiple tokens.
             var property = Property(name, node.Span.Start);
-            var terms = Terms(node);
-            var valueTokens = node.Values.OfType<CssTokenComponent>()
+            // Only opaque RGB functions are lowered to their equivalent hex
+            // colour. All downstream cascade, box paint and PDF serializers
+            // therefore use exactly the already audited solid-colour path.
+            var values = node.Values.Select(CanonicalOpaqueRgb).ToArray();
+            var terms = Terms(node with { Values = values });
+            var valueTokens = values.OfType<CssTokenComponent>()
                 .Where(x => x.Token.Kind != CssSyntaxTokenKind.Whitespace).ToArray();
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
@@ -248,6 +252,67 @@ internal static class CssSyntaxAdapter
         "border-left-color" => CssProperty.BorderLeftColor,
         _ => throw new FactsPdfException("FPDF1201", $"CSS property '{name}' is not supported.", offset)
     };
+
+    // The AST retains CSS functions rather than accepting arbitrary raw text.
+    // Fail closed on alpha blending, percentages, arithmetic and nested functions:
+    // none of them can be painted as a fully opaque PDF RGB colour.
+    private static CssSyntaxComponent CanonicalOpaqueRgb(CssSyntaxComponent component)
+    {
+        if (component is not CssFunctionComponent function) return component;
+        var name = function.Name.ToLowerInvariant();
+        if (name is not ("rgb" or "rgba"))
+            throw new FactsPdfException("FPDF1202", "Only opaque rgb()/rgba() integer colours are supported.", function.Span.Start);
+
+        var tokens = new List<CssSyntaxToken>();
+        var spaced = new List<bool>();
+        var whitespace = false;
+        foreach (var entry in function.Values)
+        {
+            if (entry is not CssTokenComponent item)
+                throw new FactsPdfException("FPDF1202", "Nested colour functions are unsupported.", entry.Span.Start);
+            if (item.Token.Kind == CssSyntaxTokenKind.Whitespace)
+            {
+                whitespace = true;
+                continue;
+            }
+            tokens.Add(item.Token);
+            spaced.Add(whitespace);
+            whitespace = false;
+        }
+
+        // Legacy comma syntax and modern space-delimited rgb(), without alpha.
+        // rgba() is deliberately limited to comma syntax and alpha exactly 1.
+        var commaForm = tokens.Count == (name == "rgb" ? 5 : 7);
+        if (commaForm)
+            for (var i = 1; i < tokens.Count; i += 2)
+                commaForm &= tokens[i].Kind == CssSyntaxTokenKind.Comma;
+        var spaceForm = name == "rgb" && tokens.Count == 3 && spaced[1] && spaced[2];
+        if (!commaForm && !spaceForm)
+            throw new FactsPdfException("FPDF1202", "rgb() needs three integer channels; rgba() requires opaque alpha 1.", function.Span.Start);
+
+        var channels = new byte[3];
+        for (var i = 0; i < channels.Length; i++)
+        {
+            var token = tokens[commaForm ? 2 * i : i];
+            if (token.Kind != CssSyntaxTokenKind.Number || !token.IsInteger ||
+                !byte.TryParse(token.Value, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out channels[i]))
+                throw new FactsPdfException("FPDF1202", "RGB channels must be integers from 0 through 255.", token.Span.Start);
+        }
+        if (name == "rgba")
+        {
+            var alpha = tokens[6];
+            if (alpha.Kind != CssSyntaxTokenKind.Number ||
+                !double.TryParse(alpha.Value, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var opacity) ||
+                !double.IsFinite(opacity) || opacity != 1)
+                throw new FactsPdfException("FPDF1202", "Alpha compositing is not supported; rgba() alpha must be 1.", alpha.Span.Start);
+        }
+
+        var hex = $"{channels[0]:x2}{channels[1]:x2}{channels[2]:x2}";
+        return new CssTokenComponent(new CssSyntaxToken(
+            CssSyntaxTokenKind.Hash, hex, "#" + hex, function.Span));
+    }
 
     private static List<string> Terms(CssDeclarationNode node)
     {
