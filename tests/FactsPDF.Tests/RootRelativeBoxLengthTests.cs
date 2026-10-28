@@ -75,15 +75,24 @@ public sealed class RootRelativeBoxLengthTests
             "section{width:6rem}p.a{width:inherit!important}p.b{width:5rem!important}" +
             "</style><body><section>" +
             "<p class=a style='width:8rem'>INHERITED</p>" +
-            "<p class=b style='width:8rem'>IMPORTANT</p>" +
+            "<p class=b style='width:8rem'>OVERRIDE</p>" +
             "<p style='padding:0.5rem'>PADDED</p></section></body></html>";
         const string absolute = "<html style='font-size:15pt'><style>" +
             "section{width:90pt}p.a{width:inherit!important}p.b{width:75pt!important}" +
             "</style><body><section>" +
             "<p class=a style='width:120pt'>INHERITED</p>" +
-            "<p class=b style='width:120pt'>IMPORTANT</p>" +
+            "<p class=b style='width:120pt'>OVERRIDE</p>" +
             "<p style='padding:7.5pt'>PADDED</p></section></body></html>";
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(absolute)));
+    }
+
+    [Test]
+    public void RemWidthDoesNotSilentlyClipAnUnbreakableTextSegment()
+    {
+        // At a 15pt Courier root, this nine-letter word is 81pt wide;
+        // 5rem gives a real 75pt text box. Reject rather than truncate.
+        Reject("<html style='font-size:15pt'><body>" +
+            "<p style='width:5rem'>IMPORTANT</p></body></html>", "FPDF1302");
     }
 
     [Test]
