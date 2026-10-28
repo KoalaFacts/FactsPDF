@@ -412,7 +412,7 @@ unstyled content retain byte-identical PDF output.
 Locale-specific casing, Unicode multi-character expansions, non-ASCII
 cased letters, `capitalize`, `full-width`, `full-size-kana`, language
 sensitivity and general Unicode text transforms are **not** supported.
-Non-ASCII cased letters under an active transformation explicitly raise
+Non-ASCII cased letters and symbols with Unicode case mappings (including Roman numerals and circled Latin letters) under an active transformation explicitly raise
 `FPDF1305` rather than silently producing incorrectly cased output;
 unsupported CSS values raise `FPDF1202`, and applying this text property
 to a standalone image raises `FPDF1201`. Normal missing-result-glyph
