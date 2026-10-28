@@ -141,8 +141,30 @@ public sealed class JustifiedTextTests
         => Reject("<p style='" + css + "'>One two three</p>", code);
 
     [Test]
-    public void InlineJustifyDoesNotSilentlyAffectAnAncestorParagraph()
-        => Reject("<p>Start <span style='text-align:justify'>end</span></p>", "FPDF1201");
+    public void HtmlRootCanDeclareInheritedJustificationWithoutBeingAPaintedBox()
+    {
+        const string prose = "One two three four five six seven eight nine ten eleven";
+        var inline = "<html style='text-align:justify'><body><p>" + prose + "</p></body></html>";
+        var sheet = "<html><head><style>html{text-align:justify}</style></head><body><p>" +
+            prose + "</p></body></html>";
+        foreach (var html in new[] { inline, sheet })
+        {
+            Assert.That(HtmlDocumentReader.Read(html, Page, default).Single().Style.Alignment,
+                Is.EqualTo(TextAlignment.Justify));
+            var lines = Lines(Layout(html));
+            Assert.That(lines.Length, Is.GreaterThan(2));
+            Assert.That(lines[0].Max(run => run.X + run.Width), Is.EqualTo(136).Within(0.001));
+            Assert.That(Pdf(html), Is.Not.Empty);
+        }
+    }
+
+    [TestCase("span")]
+    [TestCase("b")]
+    [TestCase("strong")]
+    [TestCase("i")]
+    [TestCase("em")]
+    public void InlineJustifyDoesNotSilentlyAffectAnAncestorParagraph(string tag)
+        => Reject("<p>Start <" + tag + " style='text-align:justify'>end</" + tag + "></p>", "FPDF1201");
 
     [Test]
     public void ExistingNowrapOverflowStillFailsAndKeepsDestination()
