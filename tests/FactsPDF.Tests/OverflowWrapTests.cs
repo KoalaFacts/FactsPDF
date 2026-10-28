@@ -119,8 +119,8 @@ public sealed class OverflowWrapTests
     {
         var report = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap.html"));
         var oracle = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap-oracle.html"));
-        Assert.That(Pdf(report), Is.EqualTo(Pdf(oracle)));
         var options = new PdfOptions();
+        Assert.That(Pdf(report, options), Is.EqualTo(Pdf(oracle, options)));
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(report, options, default), options, default);
         Assert.That(pages.Count, Is.GreaterThan(1));
         var rendered = string.Concat(pages.SelectMany(page => page.Runs).Select(run => run.Text));
