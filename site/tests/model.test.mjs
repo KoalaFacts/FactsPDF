@@ -260,7 +260,8 @@ test('bounded letter-spacing is a genuine partially supported PDF text capabilit
   assert.match(f.limitations,/FPDF1202/);
   assert.match(f.limitations,/复杂字距/);
   assert.equal(dataset.features.find(entry=>entry.id==='css.word-spacing').status,'partial');
-  assert.equal(filterFeatures(dataset.features,{q:'letter-spacing',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'letter-spacing',status:'partial'}).map(f=>f.id).sort(),
+    ['css.letter-spacing','value.length.relative']);
 });
 
 test('word-spacing is measured and painted with explicit PDF limits', () => {
@@ -274,7 +275,8 @@ test('word-spacing is measured and painted with explicit PDF limits', () => {
   assert.match(f.scope,/跨页/);
   assert.match(f.limitations,/FPDF1202/);
   assert.match(f.limitations,/FPDF1302/);
-  assert.equal(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).length,1);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).map(f=>f.id).sort(),
+    ['css.word-spacing','value.length.relative']);
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
