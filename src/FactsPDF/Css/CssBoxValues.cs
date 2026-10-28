@@ -5,10 +5,10 @@ namespace FactsPDF;
 /// <summary>Strict bounded CSS width/padding values, independent of culture and browser APIs.</summary>
 internal static class CssBoxValues
 {
-    // Root-relative lengths are scoped to ordinary report width/minmax/padding.
-    // Syntax checks leave rootFontSize null; the winning declaration resolves
-    // against the actual computed html root (or configured initial font-size).
-    // Margins and other callers deliberately keep allowRem=false.
+    // Root-relative lengths are scoped to report width/minmax/padding and to
+    // paragraph/heading margins. Syntax checking leaves rootFontSize null;
+    // the winning declaration resolves against the computed html root (or
+    // configured initial font size). Other callers keep allowRem=false.
     internal static CssLength? Width(string value, int offset, double? rootFontSize = null)
         => value == "auto" ? null : Length(value, offset, rootFontSize, allowRem: true);
 

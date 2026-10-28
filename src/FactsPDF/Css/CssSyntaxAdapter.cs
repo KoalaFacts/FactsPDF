@@ -102,10 +102,9 @@ internal static class CssSyntaxAdapter
                         throw new FactsPdfException("FPDF1202",
                             "A CSS-wide margin keyword must be the only value.", offset);
                     if (side % 2 == 0)
-                        _ = InlineCss.Apply(ValidationStyle, "margin-top:" + sides[side],
-                            paragraph: true, inline: false, offset);
+                        ValidateComponent("margin-top", sides[side], offset);
                     else if (sides[side] != "auto")
-                        _ = CssBoxValues.Length(sides[side], offset);
+                        _ = CssBoxValues.Length(sides[side], offset, allowRem: true);
                 }
                 Emit(CssProperty.MarginTop, sides[0], valueTokens[0].Token.Span.Start, "margin-top");
                 var rightSource = parts.Length == 1 ? 0 : 1;
@@ -422,8 +421,11 @@ internal static class CssSyntaxAdapter
         }
         else if (name is "margin-left" or "margin-right")
         {
-            if (token != "auto") _ = CssBoxValues.Length(token, offset);
+            if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true);
         }
+        else if ((name is "margin-top" or "margin-bottom")
+            && token.EndsWith("rem", StringComparison.Ordinal))
+            _ = CssBoxValues.Length(token, offset, allowRem: true);
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset, allowRem: true);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);

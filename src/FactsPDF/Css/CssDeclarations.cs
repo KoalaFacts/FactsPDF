@@ -55,6 +55,18 @@ internal static class CssDeclarations
                     return style with { AbsoluteLineHeight = computed };
                 }
             }
+            if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith("rem", StringComparison.Ordinal))
+            {
+                // Vertical margins already occupy resolved points in TextStyle.
+                // Compute only the winning declaration against the actual
+                // root; do not reinterpret the parent's text font size.
+                var margin = CssBoxValues.Length(declaration.Value, declaration.Offset,
+                    rootFontSize, allowRem: true).Value;
+                return property == CssProperty.MarginTop
+                    ? style with { MarginBefore = margin }
+                    : style with { MarginAfter = margin };
+            }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform;
@@ -113,7 +125,8 @@ internal static class CssDeclarations
         if (property is CssProperty.MarginLeft or CssProperty.MarginRight)
         {
             var auto = !wide && value == "auto";
-            var length = wide || auto ? default : CssBoxValues.Length(value, declaration.Offset);
+            var length = wide || auto ? default : CssBoxValues.Length(value, declaration.Offset,
+                rootFontSize, allowRem: true);
             return property == CssProperty.MarginLeft
                 ? current with
                 {

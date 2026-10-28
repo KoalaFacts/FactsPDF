@@ -13,7 +13,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '9031871471ee693eb97bd171d512038b5778f742');
+  assert.equal(dataset.commit, 'f14550afd22ca40569998398b9fb8595d9f0e509');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -28,8 +28,8 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(entry.status,'partial');
     assert.equal(entry.introduced_release,null);
   }
-  assert.equal(fontSize.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
-  assert.equal(relative.last_audited_commit,'9031871471ee693eb97bd171d512038b5778f742');
+  assert.equal(fontSize.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
+  assert.equal(relative.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
   assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
   assert.match(fontSize.limitations,/rem/);
@@ -84,7 +84,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
   assert.equal(dataset.accepted_css_property_count,51);
-  assert.equal(margin.last_audited_commit,'125e7788ac804d9d6960b29717efaf0c151077c0');
+  assert.equal(margin.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
@@ -213,9 +213,9 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-28.rem-report-box-lengths');
+  assert.equal(dataset.dataset_version, 'audit-2026-10-29.rem-report-margins');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /408 other stable-ID records unchanged/);
+  assert.match(dataset.audit_method, /411 other stable-ID records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
   assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
@@ -319,7 +319,7 @@ test('bounded report min/max widths are rendered, sourced and discoverable witho
 
 test('root-rem report box lengths are a bounded, evidence-backed partial CSS subset', () => {
   for(const id of ['css.width','css.min-width','css.max-width','css.padding',
-    'css.padding-top','css.padding-right','css.padding-bottom','css.padding-left','value.length.relative']){
+    'css.padding-top','css.padding-right','css.padding-bottom','css.padding-left']){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
     assert.equal(feature.last_audited_commit,'9031871471ee693eb97bd171d512038b5778f742',id);
@@ -334,4 +334,28 @@ test('root-rem report box lengths are a bounded, evidence-backed partial CSS sub
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,51);
   assert.deepEqual(filterFeatures(dataset.features,{q:'width rem',status:'partial'}).filter(f=>f.id==='css.width').map(f=>f.id),['css.width']);
+});
+
+test('bounded rem report margins are actual source-bound partial CSS abilities', () => {
+  const revised=['css.margin','css.margin-top','css.margin-bottom','css.margin-left',
+    'css.margin-right','value.length.relative','css.font-size'];
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,51);
+  assert.deepEqual(counts(dataset.features),{full:44,partial:133,none:233,unknown:6,na:2});
+  for(const id of revised) {
+    const feature=dataset.features.find(f=>f.id===id);
+    assert.equal(feature.status,'partial',id);
+    assert.equal(feature.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509',id);
+    assert.equal(feature.introduced_release,null,id);
+    assert.match(feature.scope+' '+feature.limitations,/rem/,id);
+    assert.equal(feature.test_reference,
+      'https://github.com/KoalaFacts/FactsPDF/blob/f14550afd22ca40569998398b9fb8595d9f0e509/tests/FactsPDF.Tests/RootRelativeMarginTests.cs');
+  }
+  assert.match(dataset.features.find(f=>f.id==='css.margin').scope,/margin:0 auto按实际外框居中/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仅显式零值/);
+  assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img\/table/);
+  for(const id of ['css.margin-top','css.margin-bottom'])
+    assert.match(dataset.features.find(f=>f.id===id).limitations,/auto/);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'margin rem',status:'partial'})
+    .filter(f=>f.id==='css.margin').map(f=>f.id),['css.margin']);
 });
