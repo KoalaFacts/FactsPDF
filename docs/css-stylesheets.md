@@ -83,9 +83,9 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | word-spacing | On supported text and inherited spans: `normal` or 0–24pt nonnegative fixed `pt/px/mm/cm/in`; extra advance after each collapsed U+0020 space is included in real PDF text positioning, wrap, alignment, decorations and pagination; negative, relative and calculated input rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%` or zero; percentages of the resolved paragraph content width; only first logical line indented, later wrap/`br`/page fragments retain normal x; overwide first segment or a fully consumed line fails `FPDF1302` with output preservation |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
-| margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in/rem or zero, computed at most 14400pt; table-cell rem rejected |
-| margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem or zero, plus `auto`; percentages use containing width, rem uses computed html root; auto side takes remaining free space |
-| margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/zero and horizontal pt/px/mm/cm/in/%/rem/zero/`auto`, including `margin:0.25rem 0.5rem`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
+| margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in/rem/em or zero, computed at most 14400pt; table-cell rem/em rejected |
+| margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
+| margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/em/zero and horizontal pt/px/mm/cm/in/%/rem/em/zero/`auto`, including `margin:0.25rem 0.5em`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
 | break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Matching paragraph-only properties on containers or spans is an error, including declarations that would lose to a stronger rule. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
@@ -291,7 +291,7 @@ percent and em values against an explicitly authored point-value projection
 in real Linux Native AOT PDF generation.
 
 This does **not** implement `ex`, `ch`, `lh`, `rlh`, `calc()`, font-size
-keywords or unrestricted relative layout units; separate bounded source slices below permit `rem` for ordinary report width/padding and paragraph/heading margins, not for borders or general layout.
+keywords or unrestricted relative layout units; separate bounded source slices below permit `rem` and element-relative `em` for ordinary report box sizing/padding and paragraph/heading margins, not borders or general browser layout.
 Non-positive, malformed or out-of-range computed values are rejected with
 `FPDF1202`, before replacing an existing output. Unmatched stylesheets are
 still syntax-checked. This is source-preview capability, not public delivery.
@@ -371,8 +371,9 @@ raises `FPDF1201`, even if a different cascade declaration would win.
 The original root box-length slice does not itself change margins, but a
 separately scoped implementation below permits `rem` in paragraph/heading
 margins. General container/table margins, borders, text spacing, image/table/column
-lengths, arbitrary `em` box lengths, `calc()`, negative values, full CSS
-Values/Sizing and browser layout remain unsupported. Legacy templates that do not opt in retain
+lengths, `calc()`, negative values, full CSS Values/Sizing and browser layout
+remain unsupported. A later bounded `em` source slice below covers actual
+ordinary report box widths/padding and paragraph/heading margins. Legacy templates that do not opt in retain
 their existing PDF bytes. The real
 [69-record printable report](../examples/report-rem-box-lengths.html) and
 [independently authored points-only projection](../examples/report-rem-box-lengths-oracle.html)
@@ -408,8 +409,8 @@ On flat table-cell paragraphs, only **explicit zero** horizontal margin values
 are allowed (preserving old vertical shorthand); `auto` or nonzero horizontal values error
 with `FPDF1201`, not silently ignored. Container and span margins remain
 unsupported. Scoped paragraph/heading root `rem` is described below.
-Negative margins, vertical `auto`/`%`, `calc()`, `em` and full browser margin
-collapsing are not implemented. Geometry exceeding
+Negative margins, vertical `auto`/`%`, `calc()` and full browser margin
+collapsing are not implemented. A bounded `em` source slice below supports only paragraphs/headings. Geometry exceeding
 the containing content rectangle fails with `FPDF1302` and preserves output.
 Four-sided shorthand now counts four emitted declarations toward the existing
 CSS budget, rather than the earlier two when both horizontal sides were zero.
@@ -422,11 +423,52 @@ dotnet run --project src/FactsPDF.Cli -c Release -- \
 
 This is a renderer/source capability and not a public package release,
 general browser margin collapsing, automatic print/page sizing or support for
-`em` in margins, `calc()`, negative or vertical `auto` margins. The separate
-root-`rem` margin feature covers only paragraphs/headings outside tables.
+general container margins, `calc()`, negative or vertical `auto` margins.
+The separate root-`rem` and element-`em` margin features cover only
+paragraphs/headings outside tables.
 Existing reports without these explicit new values retain their old rendering
 path. Results must still respect the chosen page geometry and explicit
 resource contracts.
+
+## Current-source element-relative report box and margin lengths
+
+A controlled business report can now use nonnegative `em` lengths for
+`width`, `min-width`, `max-width` and all four `padding` sides on
+ordinary blocks, paragraphs and headings. Paragraphs/headings outside table
+cells additionally accept `em` in `margin-top/right/bottom/left` and
+the 1–4 value `margin` shorthand, including horizontal `auto`.
+
+Unlike `rem` (the computed `html` root), each `em` is computed from
+**that element's own final computed font-size**, after selector specificity,
+inline declarations and `!important` resolution. It is converted to bounded
+0–14400pt before PDF layout. The same resolved point lengths feed content
+width, soft wraps, horizontal placement/auto-centring, painted backgrounds
+and borders, vertical gaps, heading keeps and page fragments.
+
+```css
+html { font-size: 15pt; }
+.report { font-size: 18pt; box-sizing: border-box;
+          width: 12em; padding: .5em; } /* 216pt width; 9pt padding */
+.report p { font-size: 10pt; margin: .2em .5em .3em;
+            padding: .1em; }             /* 2pt/5pt/3pt margins; 1pt padding */
+```
+
+Existing `rem`, percentage, `inherit`/`initial`/`unset`, scoped
+`auto`, default values and zero-value byte stability remain distinct.
+No new units apply to image/table/column/inline box sizing, table-cell
+paragraph margins, borders, `text-indent`, `letter-spacing`,
+`word-spacing`, or general container margins. `calc()`, negative,
+unbounded and invalid lengths fail with `FPDF1201`/`FPDF1202`; content
+too wide for its resolved geometry fails with `FPDF1302`, leaving an
+existing PDF destination unchanged. This is not full CSS Values/Sizing
+or browser margin collapsing.
+
+The source-owned [32-entry service report](../examples/report-em-layout.html)
+and its [independently authored point-value oracle](../examples/report-em-layout-oracle.html)
+exercise actual paginated output. `ElementRelativeBoxLengthTests.cs` and
+the Linux Native AOT stylesheet verifier check PDF-byte/geometry equivalence,
+text and error recovery at the specific source commit; they are not a
+customer-authorised binary release or human PDF approval.
 
 ## Current-source root-relative paragraph margins
 
@@ -450,9 +492,9 @@ real vertical gaps and page progression. Left/right margins move painted
 boxes and text, reduce wrap width, combine with `auto` centring and remain
 stable on continued pages. The normal cascade, `!important`, CSS-wide
 keywords, and non-inheritance apply per side. Computed margins are bounded
-to nonnegative 0–14400pt. Invalid/negative values, `em`, vertical
+to nonnegative 0–14400pt. Invalid/negative values, vertical
 `%`/`auto` and `calc()` reject with `FPDF1202`; oversized geometry
-rejects with `FPDF1302`. General container/inline margins and any `rem`
+rejects with `FPDF1302`. General container/inline margins and any `rem`/`em`
 margin inside table-cell paragraphs reject with `FPDF1201` even when
 another declaration could win. Existing vertical-spacing/collapse rules
 are unchanged; this is not general browser margin collapsing.
@@ -520,7 +562,7 @@ Ordinary block boxes, paragraphs and headings can now use `min-width` and
 `max-width` for real PDF layout. `min-width:auto` (the unchanged default)
 and `max-width:none` (the unchanged default) impose no extra constraint;
 bounded nonnegative `pt`, `px`, `mm`, `cm`, `in`, `%`, scoped root-relative
-`rem` and unitless zero are accepted. Percentages resolve against the **containing block content
+`rem`, scoped own-font `em` and unitless zero are accepted. Percentages resolve against the **containing block content
 width**, including inside nested sections, not a post-margin box. Bounds are
 resolved after `width` (including `auto`) and before auto margins are
 distributed; max-width can therefore centre a content panel without requiring
@@ -542,7 +584,7 @@ change unstyled or unconstrained output bytes. For example:
 ```
 
 The scope does **not** add intrinsic `min-content`/`max-content`/`fit-content`,
-height constraints, negative lengths, `em`, `calc()`, text-overflow,
+height constraints, negative lengths, `calc()`, text-overflow,
 CSS flex/grid, image sizing, table and cell width constraints, or inline span
 boxes. Unsupported values reject with `FPDF1202`, unsupported elements with
 `FPDF1201`, and boxes that cannot fit their content area with `FPDF1302`;
