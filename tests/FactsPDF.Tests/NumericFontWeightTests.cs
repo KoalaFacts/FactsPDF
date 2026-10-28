@@ -55,8 +55,8 @@ public sealed class NumericFontWeightTests
     public void NumericalHundredsSelectActualNormalOrBoldFontRoles(string weight, string role)
     {
         var options = Roles();
-        var html = $"<p style='font-weight:{weight}'>INV-123 <span>REVIEW</span></p>";
-        var oracle = $"<p style='font-weight:{role}'>INV-123 <span>REVIEW</span></p>";
+        var html = $"<p style='font-weight:{weight}'>A B <span>A</span></p>";
+        var oracle = $"<p style='font-weight:{role}'>A B <span>A</span></p>";
         Assert.That(Render(html, options), Is.EqualTo(Render(oracle, options)));
         var expectedFont = role == "700" ? options.BoldFonts[0] : options.Fonts[0];
         Assert.That(Layout(html, options).SelectMany(p => p.Runs).All(r => ReferenceEquals(r.Font, expectedFont)),
@@ -80,13 +80,13 @@ public sealed class NumericFontWeightTests
     {
         var options = Roles();
         const string css = "<style>p{font-weight:500}.badge{font-weight:600}.badge{font-weight:900!important}</style>"
-            + "<p>Normal <span class=badge style='font-weight:400'>Approved</span></p>"
-            + "<p style='font-weight:600'>Parent <span style='font-weight:inherit'>Strong</span>"
-            + "<span style='font-weight:initial'>Regular</span></p>";
+            + "<p>A <span class=badge style='font-weight:400'>B</span></p>"
+            + "<p style='font-weight:600'>A <span style='font-weight:inherit'>B</span>"
+            + "<span style='font-weight:initial'>A</span></p>";
         const string oracle = "<style>p{font-weight:normal}.badge{font-weight:bold}.badge{font-weight:bold!important}</style>"
-            + "<p>Normal <span class=badge style='font-weight:normal'>Approved</span></p>"
-            + "<p style='font-weight:bold'>Parent <span style='font-weight:inherit'>Strong</span>"
-            + "<span style='font-weight:initial'>Regular</span></p>";
+            + "<p>A <span class=badge style='font-weight:normal'>B</span></p>"
+            + "<p style='font-weight:bold'>A <span style='font-weight:inherit'>B</span>"
+            + "<span style='font-weight:initial'>A</span></p>";
         Assert.That(Render(css, options), Is.EqualTo(Render(oracle, options)));
     }
 
@@ -94,7 +94,7 @@ public sealed class NumericFontWeightTests
     public void RealBoldMetricsWrapAndPaginateLikeExplicitBold()
     {
         var options = Roles() with { PageWidth = 105, PageHeight = 105, Margin = 12 };
-        var rows = string.Join(' ', Enumerable.Repeat("APPROVED", 160));
+        var rows = string.Join(' ', Enumerable.Repeat("A", 160));
         var numeric = $"<p style='font-weight:600'>{rows}</p>";
         var explicitBold = $"<p style='font-weight:700'>{rows}</p>";
         var pages = Layout(numeric, options);
@@ -110,10 +110,10 @@ public sealed class NumericFontWeightTests
     public void ANewHeavyWeightRequiresItsOwnFontRoleButFailureDoesNotPoisonRecovery()
     {
         var options = new PdfOptions { Fonts = [Font(220)] };
-        var ex = Reject("<p style='font-weight:600'>APPROVED</p>", options, "FPDF1507");
+        var ex = Reject("<p style='font-weight:600'>A</p>", options, "FPDF1507");
         Assert.That(ex.Message, Does.Contain("bold"));
-        Assert.That(Render("<p style='font-weight:500'>Approved</p>", options),
-            Is.EqualTo(Render("<p style='font-weight:400'>Approved</p>", options)));
+        Assert.That(Render("<p style='font-weight:500'>A B</p>", options),
+            Is.EqualTo(Render("<p style='font-weight:400'>A B</p>", options)));
     }
 
     [TestCase("0")]
