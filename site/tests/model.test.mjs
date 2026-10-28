@@ -217,6 +217,9 @@ test('historical justification and case-transform provenance remain pinned after
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /414 other stable-ID records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
+  assert.doesNotMatch(dataset.css_inventory_note, /letter-spacing\/word-spacing仍拒绝/);
+  assert.match(dataset.css_inventory_note, /text-indent.*letter-spacing\/word-spacing.*em\/rem/);
+  assert.match(dataset.css_inventory_note, /24pt/);
   assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
   const values=dataset.features.find(x=>x.id==='value.align.justify');
