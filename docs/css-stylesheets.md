@@ -78,6 +78,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | line-height | Unitless number 1-10 |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
+| text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
 | margin-top, margin-bottom | Paragraphs/headings only; nonnegative pt/px/mm/cm/in or zero, at most 14400pt |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/% or zero, plus `auto`; percentages use containing width; one auto side takes available free space |
 | margin (bounded shorthand) | Paragraphs/headings only; 1–4 TRBL values, vertical pt/px/mm/cm/in/zero and horizontal pt/px/mm/cm/in/%/zero/`auto`, including `margin: 2mm 5% 3mm 4mm`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
@@ -147,6 +148,26 @@ general browser margin collapsing, automatic print/page sizing or support for
 Existing reports without these explicit new values retain their old rendering
 path. Results must still respect the chosen page geometry and explicit
 resource contracts.
+
+## Current-source underline and strike-through for reports
+
+Report templates can use `text-decoration:underline`, `text-decoration:line-through`
+and the `text-decoration-line` alias on supported text and inline spans.
+The renderer paints actual solid PDF lines with each font-resolved glyph-run
+width and current text colour, including wrapped lines and page fragments.
+Unstyled and explicit `none` output still use the original PDF rendering.
+These values participate in the normal cascade, `!important` and
+`inherit`/`initial`/`unset` handling.
+
+This is **bounded text decoration**, not complete browser CSS. Only one
+decoration per computed run is available. Line offsets/thickness are estimated
+from font size, not complex font metrics. No `overline`, wavy/dotted/dashed
+line, compound decorations, decoration-colour/style/thickness options,
+`<u>`/`<s>` HTML tags, browser subtree-decoration propagation or RTL shaping.
+Unsupported values/attributes error even in unmatched rules. Paint commands
+count against existing budgets; failing conversions preserve original files.
+Actual feature evidence is in `TextDecorationTests.cs` and the print-spacing
+example; there is no public package or automatic visual approval.
 
 ## Budgets and diagnostics
 
