@@ -3,7 +3,7 @@ namespace FactsPDF;
 internal enum CssProperty
 {
     FontSize, FontWeight, FontStyle, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter, TextDecoration,
-    WhiteSpace, TextIndent, Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
+    WhiteSpace, TextIndent, LetterSpacing, Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
@@ -36,7 +36,7 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.TextIndent;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.TextIndent or CssProperty.LetterSpacing;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         return property switch
         {
@@ -49,6 +49,7 @@ internal static class CssDeclarations
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
             CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap },
             CssProperty.TextIndent => style with { FirstLineIndent = source.FirstLineIndent },
+            CssProperty.LetterSpacing => style with { LetterSpacing = source.LetterSpacing },
             CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore },
             CssProperty.MarginBottom => style with { MarginAfter = source.MarginAfter },
             CssProperty.BreakBefore => style with { BreakBefore = source.BreakBefore },

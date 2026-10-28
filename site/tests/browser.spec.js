@@ -6,8 +6,20 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('ef77adbc',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('d1ae8037',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
+});
+test('bounded letter spacing shows real PDF behaviour and strict failure limits',async({page})=>{
+  await page.goto(base+'#q=letter-spacing');
+  await page.getByRole('button',{name:'letter-spacing',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('PDF Tc');
+  await expect(details).toContainText('24pt');
+  await expect(details).toContainText('FPDF1202');
+  await expect(details).toContainText('word-spacing');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
 });
 test('border-box report sizing is discoverable with strict boundaries',async({page})=>{
   await page.goto(base+'#q=box-sizing');

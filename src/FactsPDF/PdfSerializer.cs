@@ -43,11 +43,18 @@ internal static class PdfSerializer
                 PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation);
                 images.Append(contents, pages[i], o, cancellation);
+                // PDF character spacing is persistent graphics text state
+                // across BT/ET. Restore zero explicitly after a tracked run,
+                // but preserve byte-identical legacy PDFs that never track.
+                var previousTracking = 0d;
                 foreach (var run in pages[i].Runs)
                 {
                     var color = run.Style.Color;
                     var hex = System.Convert.ToHexString(Encoding.ASCII.GetBytes(run.Text));
-                    contents.Append($"BT /F1 {N(run.Style.FontSize)} Tf {N(color.R)} {N(color.G)} {N(color.B)} rg ");
+                    var tracking = previousTracking == run.Style.LetterSpacing
+                        ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
+                    previousTracking = run.Style.LetterSpacing;
+                    contents.Append($"BT /F1 {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg ");
                     contents.Append($"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <{hex}> Tj ET\n");
                     PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");

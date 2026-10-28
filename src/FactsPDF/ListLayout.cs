@@ -76,7 +76,10 @@ internal sealed class ListLayout
                     }
                     widths.Add((role, scalar), width);
                 }
-                total += width * style.FontSize / 1000;
+                // Decimal markers are later rendered by TextLines using Tc;
+                // the allocated list gutter must measure the same advance or
+                // inherited tracking can move the marker into the item text.
+                total += width * style.FontSize / 1000 + style.LetterSpacing;
             }
             return total;
         }

@@ -116,10 +116,16 @@ internal static class UnicodePdfSerializer
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation);
                 images.Append(content, pages[i], o, cancellation);
+                // Tc survives BT/ET in PDF text state. Track transitions,
+                // including back to zero, without touching legacy byte output.
+                var previousTracking = 0d;
                 foreach (var run in pages[i].Runs)
                 {
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
-                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
+                    var tracking = previousTracking == run.Style.LetterSpacing
+                        ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
+                    previousTracking = run.Style.LetterSpacing;
+                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <");
                     foreach (var rune in run.Text.EnumerateRunes())
                         content.Append(use is null ? rune.Value.ToString("X2", CultureInfo.InvariantCulture)
                             : use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));

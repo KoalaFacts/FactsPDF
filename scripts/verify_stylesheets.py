@@ -172,6 +172,40 @@ def main():
         if indent_recovery.read_bytes() != b'keep-original':
             raise AssertionError('Native text-indent failure overwrote the destination')
 
+        # Letter spacing is a *measured glyph advance* in the real report,
+        # not merely accepted syntax: physical units must match a separately
+        # authored point projection, with a different zero-spacing PDF.
+        if 'letter-spacing: 0.01in;' not in source_html:
+            raise AssertionError('Print report lacks tracked invoice reference')
+        tracking_pt = temp / 'tracked-points.html'
+        tracking_zero = temp / 'tracked-zero.html'
+        tracking_pt.write_text(source_html.replace('letter-spacing: 0.01in;', 'letter-spacing: 0.72pt;'),
+                               encoding='utf-8')
+        tracking_zero.write_text(source_html.replace('letter-spacing: 0.01in;', 'letter-spacing: normal;'),
+                                 encoding='utf-8')
+        tracked_pt_pdf = temp / 'tracked-points.pdf'
+        tracked_zero_pdf = temp / 'tracked-zero.pdf'
+        run(exe, tracking_pt, tracked_pt_pdf)
+        run(exe, tracking_zero, tracked_zero_pdf)
+        run('qpdf', '--check', tracked_pt_pdf)
+        if tracked_pt_pdf.read_bytes() != sample_pdf.read_bytes():
+            raise AssertionError('Native tracking inches differ from equivalent points')
+        if tracked_zero_pdf.read_bytes() == sample_pdf.read_bytes():
+            raise AssertionError('Native letter spacing did not alter PDF positioning')
+        tracked_qdf = temp / 'tracked-readable.pdf'
+        run('qpdf', '--qdf', '--object-streams=disable', sample_pdf, tracked_qdf)
+        if b'0.72 Tc' not in tracked_qdf.read_bytes():
+            raise AssertionError('Native PDF lacks the measured 0.72pt character-spacing command')
+        tracking_bad = temp / 'tracking-bad.html'
+        tracking_bad.write_text("<p style='letter-spacing:-1pt'>Protected report</p>", encoding='utf-8')
+        tracked_pt_pdf.write_bytes(b'keep-existing')
+        failure = subprocess.run([str(exe), str(tracking_bad), str(tracked_pt_pdf), '--overwrite'],
+                                 capture_output=True, timeout=120)
+        if failure.returncode != 3 or b'FPDF1202' not in failure.stderr or failure.stdout:
+            raise AssertionError('Native invalid letter-spacing was not rejected')
+        if tracked_pt_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Native invalid letter-spacing modified the original file')
+
         # The real Native AOT binary must paint, not just accept, the two
         # current-source text decorations in the runnable business sample.
         for label in ('Previous estimate', 'Revised estimate'):
@@ -336,7 +370,7 @@ def main():
                 raise AssertionError('Native border-box rejection failed for ' + css)
             if recovery.read_bytes() != b'keep-existing':
                 raise AssertionError('Native border-box failure modified existing output')
-        print('Native print spacing, first-line indentation, border-box, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
+        print('Native print spacing, tracked reference, first-line indentation, border-box, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -352,7 +386,8 @@ def main():
                      'native_relative_font_sizing_equivalence_and_recovery': True,
                      'native_computed_line_height_equivalence_and_recovery': True,
                       'native_border_box_equivalence_and_recovery': True,
-                      'native_text_indent_geometry_and_recovery': True},
+                      'native_text_indent_geometry_and_recovery': True,
+                      'native_letter_spacing_geometry_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
