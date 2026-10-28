@@ -25,8 +25,10 @@ For print templates with a root type scale, the source report can use
 `line-height:1.5rem`. The computed `html` root is the base for
 `rem`; in documents with no explicit `html`, `PdfOptions.FontSize`
 is the fallback. Both properties alter actual PDF glyph and page geometry
-with strict invalid-input recovery. Rem-based widths, margins, borders,
-padding and complete CSS Values remain unsupported. See the
+with strict invalid-input recovery. A separate scoped source feature permits
+`rem` for ordinary report `width`/`min-width`/`max-width` and padding,
+including real centring, wrapping and page fragments; `rem` in margins,
+borders, text spacing, images/tables and complete CSS Values remain unsupported. See the
 [runnable multi-page typography example](../examples/report-root-relative-typography.html)
 and [scoped CSS contract](css-stylesheets.md#current-source-root-relative-report-typography);
 the historical private candidate does not contain this new source change.
@@ -58,6 +60,7 @@ evaluation. Existing templates may need changes to fit the supported subset.
 | [First document](../examples/first-document.html) | Run the shortest end-to-end conversion | ASCII/Courier; no external font files |
 | [Print spacing report](../examples/report-print-spacing.html) | Business panel with computed line-height, a bounded nonwrapping invoice reference, physical print units, four-sided margins, auto-centred summary, and real strike-through/underline labels | ASCII/Courier; no external resources |
 | [Root-relative typography report](../examples/report-root-relative-typography.html) | 63-record paginated service report using `font-size:rem` and `line-height:rem`, with an independently authored [fixed-point layout oracle](../examples/report-root-relative-typography-oracle.html) | ASCII/Courier; no external fonts or assets |
+| [Root-relative report boxes](../examples/report-rem-box-lengths.html) | 69-record paginated business report using root `rem` width, min/max and padding with border-box painting, compared against a separately authored [fixed-point oracle](../examples/report-rem-box-lengths-oracle.html) | ASCII/Courier; no external resources; not part of retained candidate |
 | [Case labels report](../examples/report-case-labels.html) | Actual upper/lowercase ASCII invoice and status labels; a proper-name span overrides inherited casing | Courier; no external resources |
 | [Branded business report](../examples/branded-business-report.html) | Transparent logo beside company details, line items and page furniture | Generated synthetic PNG and explicit image binding; no external fonts |
 | [Detailed service report](../examples/business-table-rich-cells.html) | Spanning headings/totals and paragraph/image/caption detail cells | The same generated synthetic logo; no external fonts |

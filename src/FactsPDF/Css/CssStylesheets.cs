@@ -148,6 +148,15 @@ internal sealed class CssStylesheets
                         && CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
             // Images and tables use separate width contracts and cannot honour
             // block border-box sizing. Never silently discard a declaration.
+            // Table/standalone-image lengths have separate sizing and resource
+            // contracts. Do not silently introduce rem into those paths.
+            if (declaration.Value.EndsWith("rem", StringComparison.Ordinal)
+                && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth
+                    or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft)
+                && element.Name is ("img" or "table" or "col" or "td" or "th"
+                    or "tr" or "thead" or "tbody" or "tfoot"))
+                throw new FactsPdfException("FPDF1201",
+                    "Root-relative report box lengths are supported only on ordinary block boxes.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
@@ -196,7 +205,7 @@ internal sealed class CssStylesheets
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
-                box = CssDeclarations.ApplyBox(box, parentBox, declaration);
+                box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize);
             else
             {
                 // The html element's font-size:rem refers to the configured

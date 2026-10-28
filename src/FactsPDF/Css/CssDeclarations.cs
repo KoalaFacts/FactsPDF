@@ -82,7 +82,7 @@ internal static class CssDeclarations
     }
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width;
 
-    internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration)
+    internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration, double rootFontSize)
     {
         var property = declaration.Property;
         if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
@@ -93,14 +93,14 @@ internal static class CssDeclarations
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };
         if (property == CssProperty.Width)
-            return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset) };
+            return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset, rootFontSize) };
         if (property == CssProperty.MinWidth)
-            return current with { MinWidth = wide ? from.MinWidth : value == "auto" ? null : CssBoxValues.Length(value, declaration.Offset) };
+            return current with { MinWidth = wide ? from.MinWidth : value == "auto" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true) };
         if (property == CssProperty.MaxWidth)
-            return current with { MaxWidth = wide ? from.MaxWidth : value == "none" ? null : CssBoxValues.Length(value, declaration.Offset) };
+            return current with { MaxWidth = wide ? from.MaxWidth : value == "none" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true) };
         if (property >= CssProperty.PaddingTop && property <= CssProperty.PaddingLeft)
         {
-            var length = wide ? default : CssBoxValues.Length(value, declaration.Offset);
+            var length = wide ? default : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true);
             return property switch
             {
                 CssProperty.PaddingTop => current with { PaddingTop = wide ? from.PaddingTop : length },

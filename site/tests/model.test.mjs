@@ -13,7 +13,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
+  assert.equal(dataset.commit, '9031871471ee693eb97bd171d512038b5778f742');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -26,9 +26,10 @@ test('418 stable records retain provenance with scoped preview capability update
   const relative=dataset.features.find(f=>f.id==='value.length.relative');
   for(const entry of [fontSize,relative]){
     assert.equal(entry.status,'partial');
-    assert.equal(entry.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
     assert.equal(entry.introduced_release,null);
   }
+  assert.equal(fontSize.last_audited_commit,'1aba07ce42ccd8b2ae9eade4a71204818984cb9c');
+  assert.equal(relative.last_audited_commit,'9031871471ee693eb97bd171d512038b5778f742');
   assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
   assert.match(fontSize.limitations,/rem/);
@@ -36,7 +37,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(relative.scope,/rem/);
   assert.match(dataset.features.find(f=>f.id==='css.line-height').scope,/rem/);
   assert.match(dataset.features.find(f=>f.id==='value.lineheight.other').scope,/rem/);
-  assert.match(relative.limitations,/width/);
+  assert.match(relative.limitations,/img\/table/);
   const rgb=dataset.features.find(f=>f.id==='value.color.rgbfunc');
   assert.equal(rgb.status,'partial');
   assert.equal(rgb.last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
@@ -212,9 +213,9 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-28.root-relative-typography');
+  assert.equal(dataset.dataset_version, 'audit-2026-10-28.rem-report-box-lengths');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /414 other stable-ID records unchanged/);
+  assert.match(dataset.audit_method, /408 other stable-ID records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
   assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
@@ -302,7 +303,7 @@ test('bounded report min/max widths are rendered, sourced and discoverable witho
   const max=dataset.features.find(f=>f.id==='css.max-width');
   for (const f of [min,max]) {
     assert.equal(f.status,'partial');
-    assert.equal(f.last_audited_commit,'bc704aed90b1e5dbdc1deec65a7fd314b626467e');
+    assert.equal(f.last_audited_commit,'9031871471ee693eb97bd171d512038b5778f742');
     assert.equal(f.introduced_release,null);
     assert.match(f.scope,/width/);
     assert.match(f.limitations,/calc/);
@@ -314,4 +315,23 @@ test('bounded report min/max widths are rendered, sourced and discoverable witho
   assert.deepEqual(filterFeatures(dataset.features,{q:'max-width',status:'partial'}).filter(f=>f.id==='css.max-width').map(f=>f.id),['css.max-width']);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,51);
+});
+
+test('root-rem report box lengths are a bounded, evidence-backed partial CSS subset', () => {
+  for(const id of ['css.width','css.min-width','css.max-width','css.padding',
+    'css.padding-top','css.padding-right','css.padding-bottom','css.padding-left','value.length.relative']){
+    const feature=dataset.features.find(f=>f.id===id);
+    assert.equal(feature.status,'partial',id);
+    assert.equal(feature.last_audited_commit,'9031871471ee693eb97bd171d512038b5778f742',id);
+    assert.equal(feature.introduced_release,null,id);
+    assert.match(feature.scope,/rem/,id);
+    assert.match(feature.limitations,/table|表格/,id);
+    assert.equal(feature.test_reference,'https://github.com/KoalaFacts/FactsPDF/blob/08a4df3538d6bb7ef0511c2934de5bee90a9b7a3/tests/FactsPDF.Tests/RootRelativeBoxLengthTests.cs');
+  }
+  assert.match(dataset.features.find(f=>f.id==='css.width').limitations,/col/);
+  assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/FPDF1202/);
+  assert.match(dataset.features.find(f=>f.id==='css.font-size').limitations,/margin/);
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,51);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'width rem',status:'partial'}).filter(f=>f.id==='css.width').map(f=>f.id),['css.width']);
 });
