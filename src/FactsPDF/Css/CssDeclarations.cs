@@ -55,7 +55,7 @@ internal static class CssDeclarations
                     return style with { AbsoluteLineHeight = computed };
                 }
             }
-            if (property is CssProperty.MarginTop or CssProperty.MarginBottom
+            if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith("rem", StringComparison.Ordinal))
             {
                 // Vertical margins already occupy resolved points in TextStyle.

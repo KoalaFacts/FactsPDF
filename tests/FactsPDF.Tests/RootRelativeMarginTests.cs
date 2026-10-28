@@ -88,7 +88,7 @@ public sealed class RootRelativeMarginTests
         const string point = "<html style='font-size:15pt'><style>" +
             "p.audit{margin:15pt 7.5pt!important;margin-left:30pt}" +
             "p.audit{margin-top:3.75pt!important}</style><body>";
-        const string suffix = "<p class=audit style='margin-left:initial;margin-top:2rem'>A</p>" +
+        const string suffix = "<p class=audit style='margin-left:initial!important;margin-top:2rem'>A</p>" +
             "<p style='margin:0'>B</p></body></html>";
         Assert.That(Render(css + suffix), Is.EqualTo(Render(point + suffix)));
         var paragraph = Pages(css + suffix).Single().Runs;

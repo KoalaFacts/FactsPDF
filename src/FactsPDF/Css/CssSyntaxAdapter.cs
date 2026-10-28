@@ -423,7 +423,7 @@ internal static class CssSyntaxAdapter
         {
             if (token != "auto") _ = CssBoxValues.Length(token, offset, allowRem: true);
         }
-        else if (name is "margin-top" or "margin-bottom"
+        else if ((name is "margin-top" or "margin-bottom")
             && token.EndsWith("rem", StringComparison.Ordinal))
             _ = CssBoxValues.Length(token, offset, allowRem: true);
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
