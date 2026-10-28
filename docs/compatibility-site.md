@@ -335,7 +335,7 @@ Exactly four of the existing 418 stable records were revised:
 `value.lineheight.other`. All four remain **partial**, the other 414
 records retain their original provenance, 51 accepted CSS property names
 remain, and statuses remain **44 full / 133 partial / 233 none / 6 unknown /
-2 not applicable**. The byte-exact UTF-8 JSON SHA-256 is `06bbe7bedfb47613abe6d0431b721fae5bc6d0189ee76e121a1d39207c86ae10`.
+2 not applicable**. The byte-exact UTF-8 JSON SHA-256 is `9dd49516aa969982f5c08e487066c6fe6afebd1365e21142d953a505e210ceb3`.
 
 Positive `rem` now resolves `font-size` and `line-height` against the
 real computed `html` root font (initial configured size if `html` is

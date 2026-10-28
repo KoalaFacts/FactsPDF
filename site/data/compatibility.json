@@ -3684,7 +3684,7 @@
       "limitations": "不支持零/负、超范围倍率、lh/rlh/calc、浏览器完整 normal 字体度量或任意 CSS 字体简写；rem 仅此文字长度路径，不适用于盒几何",
       "stage": "语义/渲染",
       "applicability": "受支持文字元素；段落行为在实际段落上执行",
-      "example": "line-height:1.5rem",
+      "example": "line-height:150%; line-height:1.5rem",
       "failure_code": "FPDF1202（取值）/ FPDF1201（元素适用性）",
       "introduced_milestone": null,
       "introduced_pr": null,
