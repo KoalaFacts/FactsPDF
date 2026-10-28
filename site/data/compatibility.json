@@ -5394,7 +5394,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "单一纯颜色背景简写：十六进制/指定命名色/transparent/宽域关键字/不透明整数 rgb()/rgba(...,1)，等价 background-color 的实际填充",
-      "limitations": "仅单一纯颜色，无URL图像、渐变、非不透明 alpha、百分比RGB、hsl()、重复/定位/尺寸/多层背景",
+      "limitations": "仅单一纯颜色，无url图像、渐变、非不透明 alpha、百分比RGB、hsl()、重复/定位/尺寸/多层背景",
       "stage": "CSS值校验/语义/渲染",
       "applicability": "同background-color：限定块元素及表格单元格等；不支持内联元素、列/行组以及单元格内部p的相关声明。",
       "example": "background:rgb(240 246 250)",

@@ -271,7 +271,7 @@ preview, Pages deployment or human PDF approval.
 
 Snapshot `audit-2026-10-28.opaque-rgb-colours` audits the actual RGB semantic/rendering
 implementation commit `b35413c2a5a4cdc584d03374c964fc3ed6ccee43`. Its SHA-256 is
-`3eb369e3559f4b29c2369ee5dc13ede0c822cdf5e0450bf25e12f36c3d8928c5`. **All 418 IDs, order, introduction/release fields and 43
+`18c5f20793c637ca7c43fcfaada1d51838177ba3a39555fe6f0c1d48d4bfaed2`. **All 418 IDs, order, introduction/release fields and 43
 accepted CSS property spellings remain unchanged.** Exactly 10 colour rows were
 reaudited; the remaining 408 full records retain their prior provenance. The
 function-family row `value.color.rgbfunc` moves from none to partial, so counts
