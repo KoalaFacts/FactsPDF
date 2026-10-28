@@ -625,6 +625,44 @@ def main():
                 raise AssertionError('Rejected rem margin damaged existing output')
         print('Native root-relative paragraph margin PDF geometry and recovery verified')
 
+    # Native AOT element-relative report em geometry against a separately
+    # authored absolute-point oracle. No private fonts or customer inputs.
+    with tempfile.TemporaryDirectory(prefix='factspdf-em-layout-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'report-em.pdf', temp / 'report-points.pdf'
+        run(exe, Path('examples/report-em-layout.html'), actual)
+        run(exe, Path('examples/report-em-layout-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native em box/margin PDF differs from independently authored point geometry')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if pages is None or int(pages.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Native element-relative report did not paginate: ' + info)
+        content = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
+                       'Service entry 01', 'Service entry 32', 'Outcome: All entries verified.'):
+            if phrase not in content:
+                raise AssertionError('Native em layout report lost searchable text: ' + phrase)
+        bad, destination = temp / 'bad-em.html', temp / 'previous.pdf'
+        for document, code in (
+            ("<p style='width:-1em'>Keep existing</p>", b'FPDF1202'),
+            ("<p style='font-size:10pt;width:4em'>IMPORTANT</p>", b'FPDF1302'),
+            ("<table><colgroup><col style='width:100pt'></colgroup><tbody>"
+             "<tr><td><p style='margin-left:1em'>A</p></td></tr></tbody></table>",
+             b'FPDF1201')
+        ):
+            bad.write_text(document, encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            result = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if result.returncode != 3 or code not in result.stderr or result.stdout:
+                raise AssertionError('Native em rejection failed: ' + document)
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Native rejected em document damaged prior PDF output')
+        print('Native element-relative em report layout, pagination, search and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -648,7 +686,8 @@ def main():
                        'native_min_max_width_pdf_equivalence_and_recovery': True,
                        'native_root_relative_typography_equivalence_and_recovery': True,
                         'native_rem_box_length_equivalence_and_recovery': True,
-                         'native_rem_margin_equivalence_and_recovery': True},
+                         'native_rem_margin_equivalence_and_recovery': True,
+                         'native_element_relative_em_layout_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
