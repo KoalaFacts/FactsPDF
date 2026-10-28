@@ -109,8 +109,8 @@ public sealed class JustifiedTextTests
     {
         var font = PdfFont.LoadTrueType(FontFixture.Create());
         var options = Page with { Fonts = [font] };
-        const string plain = "<p style='text-align:justify'><span style='color:red'>One two </span>" +
-            "<span style='color:blue'>three four five six seven eight nine ten eleven</span></p>";
+        const string plain = "<p style='text-align:justify'><span style='color:red'>AB AB </span>" +
+            "<span style='color:blue'>AB AB AB AB AB AB AB AB AB AB AB AB</span></p>";
         var layout = Layout(plain, options);
         Assert.That(Lines(layout).Length, Is.GreaterThan(1));
         Assert.That(Lines(layout)[0].Max(r => r.X + r.Width), Is.EqualTo(136).Within(0.001));

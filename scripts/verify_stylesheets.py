@@ -269,9 +269,9 @@ def main():
         run('qpdf', '--check', justify_pdf)
         if justify_pdf.read_bytes() == left_pdf.read_bytes():
             raise AssertionError('Soft-wrap justification missing from Native AOT PDF')
-        for source, output in ((justify_pdf, temp / 'justify-qdf.pdf'),
-                               (left_pdf, temp / 'left-qdf.pdf')):
-            run('qpdf', '--qdf', '--object-streams=disable', source, output)
+        for source, qdf_target in ((justify_pdf, temp / 'justify-qdf.pdf'),
+                                   (left_pdf, temp / 'left-qdf.pdf')):
+            run('qpdf', '--qdf', '--object-streams=disable', source, qdf_target)
         if b'] TJ' not in (temp / 'justify-qdf.pdf').read_bytes():
             raise AssertionError('Native justified word spaces lack PDF TJ')
         if b'] TJ' in (temp / 'left-qdf.pdf').read_bytes():
