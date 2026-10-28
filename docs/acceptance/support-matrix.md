@@ -40,6 +40,7 @@ These implemented paths have independent executable evidence. This table neither
 
 | Capability | Executable positive evidence | Approval boundary |
 |---|---|---|
+| Computed percent/em/print-unit line-height | [CSS contract](../css-stylesheets.md#current-source-computed-report-line-height), `tests/FactsPDF.Tests/LineHeightUnitsTests.cs`, `examples/report-print-spacing.html` | Nested fixed-vs-unitless inheritance, actual PDF baselines and byte-equivalent independent point-oracles, invalid destination recovery; exact-head Native AOT and review required. |
 | Underline and strike-through text in real PDF | [CSS scope](../css-stylesheets.md), `tests/FactsPDF.Tests/TextDecorationTests.cs`, `examples/report-print-spacing.html` | Measured glyph-run widths, PDF line paint, page wrap, managed CLI and budget/recovery. Exact-head CI and independent review still required. |
 | Four-sided report margins, horizontal auto centring and print lengths | [Scoped CSS](../css-stylesheets.md), `tests/FactsPDF.Tests/HorizontalParagraphMarginTests.cs`, `tests/FactsPDF.Tests/HorizontalAutoMarginTests.cs`, `examples/report-print-spacing.html` | Bounded explicit-width auto sides, wrapping, painted geometry, heading keeps, cell rejection and safe recovery; exact-head CI/native and independent review still required |
 | Fixed columns, whole rows, repeated headers | [E1/E2 tables](../tables.md), `scripts/verify_table_pagination.py` | Separate from malformed T-table rejection |

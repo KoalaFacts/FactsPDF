@@ -101,7 +101,7 @@ for integration without a source-project reference.
 | --- | --- | --- |
 | Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
 | Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, four-sided paragraph/heading `margin` shorthand, horizontal `auto` centring for explicit-width boxes, real wrapping, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, computed `line-height:150%`/`1.5em`/physical leading, four-sided paragraph/heading `margin` shorthand, horizontal `auto` centring for explicit-width boxes, real wrapping, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
 | Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
@@ -146,6 +146,8 @@ npm run dev
 ```
 
 Open the local URL printed by Vite, normally `http://127.0.0.1:5173/FactsPDF/`.
+
+Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).
 
 Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders. These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](docs/css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](examples/report-print-spacing.html).
 
@@ -193,7 +195,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/branded-business-re
 | Example | What it demonstrates | Inputs beyond HTML |
 | --- | --- | --- |
 | [Quick start](examples/quick-start.html) | A one-page service report with a styled table | None; ASCII/Courier |
-| [Print spacing report](examples/report-print-spacing.html) | Print units (`mm/cm/in`), four-sided paragraph margins affecting real text layout and the painted report panel | None; ASCII/Courier |
+| [Print spacing report](examples/report-print-spacing.html) | Print units (`mm/cm/in`), real computed line heights and four-sided paragraph margins affecting text, page layout and painted panels | None; ASCII/Courier |
 | [Branded report](examples/branded-business-report.html) | Transparent logo beside company details and line items | The explicit `logo` binding above |
 | [Detailed service report](examples/business-table-rich-cells.html) | Column spans and ordered paragraphs/images inside cells | The same `logo` binding |
 | [Long service report](examples/business-table-long-description.html) | A long description continues across pages; short values occur once and totals follow | The same `logo` binding |

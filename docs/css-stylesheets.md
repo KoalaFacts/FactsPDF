@@ -75,7 +75,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | font-size | pt/px/mm/cm/in lengths or positive parent-relative percentages and `em`; computed result 1–144pt |
 | font-weight | normal/bold or numeric 400/700; explicit role resources required |
 | font-style | normal/italic; explicit role resources required |
-| line-height | Unitless number 1-10 |
+| line-height | Unitless 1–10, `normal` (= this engine's default 1.2), positive `%` or `em` (at most 10× font-size), and `pt/px/mm/cm/in` lengths; computed absolute values 0.1–1440pt; inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; inherited through text containers, controls paragraph layout |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
@@ -126,6 +126,42 @@ See `OpaqueRgbCssTests.cs` and the real Linux Native AOT run of
 `examples/report-print-spacing.html` with an independent hex projection.
 This is a source-preview feature, not a public release or general CSS colour
 conformance statement.
+
+## Current-source computed report line-height
+
+Business reports can specify `line-height:150%`, `line-height:1.5em`,
+`line-height:18pt`, `line-height:24px` or a physical print length
+such as `line-height:0.25in`. The renderer also accepts the existing
+unitless `1–10` multiplier and `normal` (this engine's 1.2 default,
+not an implementation of browser-dependent font normal metrics).
+
+A percent or em line height is calculated **on the element where the winning
+declaration is applied**, after that element's computed font-size. The result,
+like a fixed absolute length, is inherited as a fixed point height by nested
+spans and blocks. In contrast, a unitless multiplier is inherited as a number
+and re-scales when a child changes font size. For example:
+
+```css
+body { font-size: 16pt; line-height: 150%; } /* 24pt inherited as fixed */
+p { font-size: 12pt; }                       /* still 24pt */
+span { font-size: 24pt; }                   /* still 24pt */
+/* With line-height:1.5 instead, p gets 18pt and span gets 36pt. */
+```
+
+The resolved points feed the actual glyph line-box strut, inline metrics and
+page continuation; they are not merely parsed. The runnable ASCII print report
+and the real Linux Native AOT verifier compare three independent relative and
+physical declarations with their handwritten absolute-point PDF projections,
+check PDF structure/text and preserve existing destination bytes on invalid
+zero height. Tests also cover computed inheritance, `inherit/initial/unset`,
+precedence, fonts and legacy unitless/default byte stability.
+
+Percentage/em multipliers must be positive and no greater than 10; absolute
+computed line height is bounded to 0.1–1440pt. Negative/zero values,
+`rem`, `lh`, `calc()`, font shorthand, arbitrary CSS and browser text shaping
+remain unsupported and fail explicitly (`FPDF1202`). The accepted subset
+is not full CSS Line Height conformance, and the changed source has not been
+published as an installable public release.
 
 ## Current-source parent-relative report typography
 
