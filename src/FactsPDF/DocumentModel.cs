@@ -1,6 +1,6 @@
 namespace FactsPDF;
 
-internal enum TextAlignment { Left, Center, Right }
+internal enum TextAlignment { Left, Center, Right, Justify }
 internal enum TextDecoration { None, Underline, LineThrough }
 internal readonly record struct Rgb(double R, double G, double B);
 internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
