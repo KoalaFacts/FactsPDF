@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal enum CssProperty
 {
-    FontSize, FontWeight, FontStyle, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter,
+    FontSize, FontWeight, FontStyle, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter, TextDecoration,
     Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
@@ -30,6 +30,7 @@ internal static class CssDeclarations
             CssProperty.Color => style with { Color = source.Color },
             CssProperty.LineHeight => style with { LineHeight = source.LineHeight },
             CssProperty.TextAlign => style with { Alignment = source.Alignment },
+            CssProperty.TextDecoration => style with { Decoration = source.Decoration },
             CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore },
             CssProperty.MarginBottom => style with { MarginAfter = source.MarginAfter },
             CssProperty.BreakBefore => style with { BreakBefore = source.BreakBefore },

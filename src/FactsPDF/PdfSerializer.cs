@@ -49,6 +49,7 @@ internal static class PdfSerializer
                     var hex = System.Convert.ToHexString(Encoding.ASCII.GetBytes(run.Text));
                     contents.Append($"BT /F1 {N(run.Style.FontSize)} Tf {N(color.R)} {N(color.G)} {N(color.B)} rg ");
                     contents.Append($"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm <{hex}> Tj ET\n");
+                    PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 var content = contents.ToString();

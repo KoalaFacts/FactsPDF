@@ -1,10 +1,12 @@
 namespace FactsPDF;
 
 internal enum TextAlignment { Left, Center, Right }
+internal enum TextDecoration { None, Underline, LineThrough }
 internal readonly record struct Rgb(double R, double G, double B);
 internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
     double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
-    bool Bold = false, bool Italic = false, bool KeepWithNext = false);
+    bool Bold = false, bool Italic = false, bool KeepWithNext = false,
+    TextDecoration Decoration = TextDecoration.None);
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
@@ -12,7 +14,7 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
 {
     public List<TextRun> Runs { get; } = [];
 }
-internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null);
+internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0);
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color);
 internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
 internal sealed class LayoutPage

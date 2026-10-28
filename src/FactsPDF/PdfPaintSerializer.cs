@@ -31,6 +31,29 @@ internal static class PdfPaintSerializer
         }
     }
 
+    // Decorations follow the already wrapped, font-resolved glyph advances.
+    // One opaque filled rectangle is emitted for each decorated placed run,
+    // keeping Courier and embedded TrueType geometry consistent.
+    internal static void AppendTextDecoration(StringBuilder output, PlacedText run,
+        int maxOutputBytes)
+    {
+        if (run.Style.Decoration == TextDecoration.None || run.Width <= 0) return;
+        var size = run.Style.FontSize;
+        var thickness = Math.Max(0.3, size * 0.06);
+        var centre = run.Style.Decoration == TextDecoration.Underline
+            ? run.Baseline - 0.12 * size : run.Baseline + 0.29 * size;
+        var y = centre - thickness / 2;
+        if (!double.IsFinite(run.X + y + run.Width + thickness) || run.Width < 0)
+            throw new InvalidOperationException("Invalid text decoration geometry.");
+        var c = run.Style.Color;
+        output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
+            .Append(N(c.B)).Append(" rg ").Append(N(run.X)).Append(' ').Append(N(y))
+            .Append(' ').Append(N(run.Width)).Append(' ').Append(N(thickness))
+            .Append(" re f Q\\n");
+        if (output.Length > maxOutputBytes)
+            throw new FactsPdfException("FPDF1401", "PDF text decoration exceeds MaxOutputBytes.");
+    }
+
     internal static void Append(StringBuilder output, IReadOnlyList<PaintedBox> boxes,
         double pageHeight, int maxOutputBytes, CancellationToken cancellation)
     {
