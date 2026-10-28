@@ -48,6 +48,20 @@ public sealed class OverflowWrapTests
     }
 
     [Test]
+    public void NarrowFixedTableCellParagraphAlsoBreaksLongIdentifiersWithoutDroppingGlyphs()
+    {
+        // Only the p declaration opts in; td/table CSS sizing remains the
+        // existing fixed-column contract, not general intrinsic table layout.
+        const string html = "<table style='width:60pt'><colgroup><col style='width:60pt'></colgroup>" +
+            "<tbody><tr><td><p style='overflow-wrap:break-word'>ABCDEFGHIJKLMNOPQRSTUVWXYZ</p></td></tr></tbody></table>";
+        var page = Page with { PageWidth = 220, PageHeight = 400 };
+        var lines = Lines(html, page);
+        Assert.That(lines.Count, Is.GreaterThan(1));
+        Assert.That(string.Concat(lines.Select(run => run.Text)), Does.Contain("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        Assert.That(Pdf(html, page), Is.Not.Empty);
+    }
+
+    [Test]
     public void DefaultAndFittingTextRetainLegacyPdfBytes()
     {
         const string text = "Paid in full";

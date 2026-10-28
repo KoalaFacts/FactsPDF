@@ -716,9 +716,11 @@ and `white-space:nowrap` continues to prohibit automatic breaking.
 
 Only `normal`, `break-word` and single CSS-wide
 `inherit`/`initial`/`unset` values are accepted. Explicit declarations on
-inline spans, general containers and table markup, the `word-wrap` alias,
+inline spans, general containers and table elements, the `word-wrap` alias,
 `anywhere`, `break-all`, hyphen insertion, grapheme/complex-script shaping
-and bidirectional text remain outside this scoped increment.
+and bidirectional text remain outside this scoped increment. A flat `p` inside
+a fixed-column table cell may opt in for its own text, but this does not add
+auto column widths or general table layout.
 Unsupported declarations fail `FPDF1201/1202`; a glyph wider than its
 usable line or an impossible first-line indent fails `FPDF1302` without
 replacing any existing output. Breaks are scalar-glyph boundaries in the
