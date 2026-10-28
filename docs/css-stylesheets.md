@@ -329,11 +329,54 @@ The [63-record paginated business report](../examples/report-root-relative-typog
 and independently authored [fixed-point PDF oracle](../examples/report-root-relative-typography-oracle.html)
 exercise actual line wrapping, pagination, text extraction and native
 PDF byte equivalence, with managed PDF and explicit TrueType regressions.
-This **does not** add `rem` to box `width`, `min/max-width`, margins,
-padding, borders, `letter-spacing`, `word-spacing` or table/image sizing,
-nor `ex/ch/lh/rlh`, `calc()` or general CSS Values conformance.
+This typography scope itself does not add general CSS Values conformance. A
+separate bounded source implementation now permits `rem` for ordinary report
+box `width`, `min-width`, `max-width` and padding (see below), while margins,
+borders, `letter-spacing`, `word-spacing`, table/image/column dimensions,
+`ex/ch/lh/rlh` and `calc()` remain unsupported.
 Real current-head CI, independent code review, installable packaging,
 commercial rights and human page approval are separate gates.
+
+## Current-source root-relative report box lengths
+
+Controlled report blocks, paragraphs and headings can now use
+`width:13rem`, `min-width:10rem`, `max-width:14rem`,
+`padding:0.5rem` and corresponding padding longhands. Each length resolves
+to **the computed `html` font size** (or `PdfOptions.FontSize` when
+`html` is absent), including a root self-reference resolved from the initial
+font size. It is a fixed point length after cascade, not a percentage of the
+parent, and does not change with the immediate parent's font size.
+An `html` element cannot itself be a styled box; the root font only
+establishes the scale.
+
+```css
+html { font-size:15pt; }
+.report { box-sizing:border-box; width:13rem; max-width:14rem;
+          padding:0.5rem; border:1pt solid #23446b; }
+.reference { min-width:10rem; max-width:11rem; margin:0 auto; }
+```
+
+This affects real PDF content widths, line wraps, auto centring, background
+and border painting, and page-fragment continuation. Existing percentage
+width/padding and box-sizing/min-max semantics retain the **containing block
+content width** as their own basis. CSS cascade, `!important`,
+`inherit/initial/unset` and non-inheritance continue to apply independently
+per longhand. The supported nonnegative resolved box length range remains
+0–14400pt; invalid/unmatched values raise `FPDF1202` and unfit boxes
+raise `FPDF1302`, leaving an existing output unchanged. Unsupported rem on
+`img`, `table`, `col`, table structure/cells or their child paragraphs
+raises `FPDF1201`, even if a different cascade declaration would win.
+
+Margins, borders, text spacing, image/table/column lengths, arbitrary `em`
+box lengths, `calc()`, negative values, full CSS Values/Sizing and general
+browser layout remain unsupported. Legacy templates that do not opt in retain
+their existing PDF bytes. The real
+[69-record printable report](../examples/report-rem-box-lengths.html) and
+[independently authored points-only projection](../examples/report-rem-box-lengths-oracle.html)
+exercise multi-page boxes, searchable body and exact PDF equivalence through
+`RootRelativeBoxLengthTests.cs` and the Linux Native AOT stylesheet gate.
+This is unshipped source functionality; exact-head CI, independent review,
+human PDF approval and packaging are separate requirements.
 
 ## Current-source print-length and vertical-margin authoring
 
@@ -435,8 +478,8 @@ resource-free `examples/report-print-spacing.html` exercises the feature.
 Ordinary block boxes, paragraphs and headings can now use `min-width` and
 `max-width` for real PDF layout. `min-width:auto` (the unchanged default)
 and `max-width:none` (the unchanged default) impose no extra constraint;
-bounded nonnegative `pt`, `px`, `mm`, `cm`, `in`, `%` and unitless
-zero are accepted. Percentages resolve against the **containing block content
+bounded nonnegative `pt`, `px`, `mm`, `cm`, `in`, `%`, scoped root-relative
+`rem` and unitless zero are accepted. Percentages resolve against the **containing block content
 width**, including inside nested sections, not a post-margin box. Bounds are
 resolved after `width` (including `auto`) and before auto margins are
 distributed; max-width can therefore centre a content panel without requiring
@@ -458,7 +501,7 @@ change unstyled or unconstrained output bytes. For example:
 ```
 
 The scope does **not** add intrinsic `min-content`/`max-content`/`fit-content`,
-height constraints, negative lengths, `em`/`rem`, `calc()`, text-overflow,
+height constraints, negative lengths, `em`, `calc()`, text-overflow,
 CSS flex/grid, image sizing, table and cell width constraints, or inline span
 boxes. Unsupported values reject with `FPDF1202`, unsupported elements with
 `FPDF1201`, and boxes that cannot fit their content area with `FPDF1302`;
