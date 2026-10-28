@@ -95,3 +95,17 @@ test('all diagnostic annotations display in English without changing error codes
   assert.match(translate(data.features.find(row=>row.id==='pdf.headers').failure_code), /return 2/);
   assert.equal(JSON.stringify(data), before);
 });
+
+
+test('merged overflow-wrap audit keeps its exact new support scope in English', async () => {
+  const {englishFeature, translate} = await localisation();
+  const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
+  const display=englishFeature(row);
+  assert.equal(display.status,'partial');
+  assert.equal(display.last_audited_commit,'052f7a8d3da5f87d9dfb6c7b687dd35b1eb97097');
+  assert.match(display.scope,/fixed-column table cells/);
+  assert.match(display.limitations,/nowrap prohibits automatic breaks/);
+  assert.match(display.limitations,/FPDF1302/);
+  assert.match(translate(data.css_inventory_note),/accept 52 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
+});

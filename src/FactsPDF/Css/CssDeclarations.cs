@@ -3,7 +3,7 @@ namespace FactsPDF;
 internal enum CssProperty
 {
     FontSize, FontWeight, FontStyle, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter, TextDecoration,
-    WhiteSpace, TextIndent, LetterSpacing, WordSpacing, TextTransform, Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
+    WhiteSpace, OverflowWrap, TextIndent, LetterSpacing, WordSpacing, TextTransform, Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
@@ -16,7 +16,7 @@ internal static class CssDeclarations
     internal static TextStyle Apply(TextStyle style, TextStyle parent, TextStyle initial, CssDeclaration declaration, bool paragraph, double rootFontSize)
     {
         var property = declaration.Property;
-        if (!paragraph && property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.TextIndent)
+        if (!paragraph && property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.TextIndent)
             throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
         if (declaration.Value is not ("inherit" or "initial" or "unset"))
         {
@@ -85,7 +85,7 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         return property switch
         {
@@ -97,6 +97,7 @@ internal static class CssDeclarations
             CssProperty.TextAlign => style with { Alignment = source.Alignment },
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
             CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap },
+            CssProperty.OverflowWrap => style with { BreakWords = source.BreakWords },
             CssProperty.TextIndent => style with { FirstLineIndent = source.FirstLineIndent },
             CssProperty.LetterSpacing => style with { LetterSpacing = source.LetterSpacing },
             CssProperty.WordSpacing => style with { WordSpacing = source.WordSpacing },

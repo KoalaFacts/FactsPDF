@@ -103,6 +103,15 @@ internal static class InlineCss
                         _ => throw Invalid("Only collapsing normal and nowrap white-space are supported.", offset)
                     } };
                     break;
+                case "overflow-wrap" when paragraph && !inline:
+                    // Emergency breaking applies only to the whole report
+                    // paragraph/heading, never a silently ignored inline span.
+                    style = style with { BreakWords = value switch
+                    {
+                        "normal" => false, "break-word" => true,
+                        _ => throw Invalid("overflow-wrap supports only normal and break-word.", offset)
+                    } };
+                    break;
                 case "text-indent" when paragraph && !inline:
                     // Resolve percentages against this paragraph's actual text
                     // content width at layout time, after margins/padding.

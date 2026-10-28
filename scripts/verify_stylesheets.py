@@ -700,6 +700,43 @@ def main():
                 raise AssertionError('Relative text spacing failure modified previous report')
         print('Native relative text spacing PDF parity, pagination, text and recovery verified')
 
+    # Native AOT: actual long report identifiers must wrap without clipping.
+    # Independently authored explicit breaks are the PDF-byte oracle.
+    with tempfile.TemporaryDirectory(prefix='factspdf-overflow-wrap-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'wrapped.pdf', temp / 'explicit.pdf'
+        run(exe, Path('examples/report-overflow-wrap.html'), actual)
+        run(exe, Path('examples/report-overflow-wrap-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native overflow-wrap PDF differs from the authored line-break oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
+        if pages is None or int(pages.split(':', 1)[1].strip()) < 2:
+            raise AssertionError('Native overflow-wrap report unexpectedly fits one page')
+        content = ''.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for marker in ('INV-01-ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'INV-32-ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                       'Allservicereferencesverified.'):
+            if marker not in content:
+                raise AssertionError('Native overflow-wrap dropped searchable report text: ' + marker)
+        bad, destination = temp / 'invalid.html', temp / 'prior.pdf'
+        for html, code in (
+            ("<p style='width:20pt;overflow-wrap:normal'>ABCDEFGHIJ</p>", b'FPDF1302'),
+            ("<p style='overflow-wrap:anywhere'>A</p>", b'FPDF1202'),
+            ("<span style='overflow-wrap:break-word'>A</span>", b'FPDF1201'),
+            ("<p style='font-size:100pt;width:20pt;overflow-wrap:break-word'>W</p>", b'FPDF1302')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native overflow-wrap rejection failed: ' + html)
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Rejected overflow-wrap damaged prior report')
+        print('Native overflow-wrap PDF parity, pagination, searchable content and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -725,7 +762,8 @@ def main():
                         'native_rem_box_length_equivalence_and_recovery': True,
                          'native_rem_margin_equivalence_and_recovery': True,
                          'native_element_relative_em_layout_and_recovery': True,
-                         'native_font_relative_text_spacing_and_recovery': True},
+                         'native_font_relative_text_spacing_and_recovery': True,
+                          'native_overflow_wrap_report_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
