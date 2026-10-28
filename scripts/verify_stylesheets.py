@@ -141,6 +141,38 @@ def main():
             raise AssertionError('Native CLI did not strictly reject invalid negative margin')
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Invalid native margin changed existing output')
+        # Compare the real, printable customer template against a separate
+        # opaque-hex projection. This tests all paint sites with the compiled
+        # Linux Native AOT executable, not just a CSS parser acceptance.
+        source = Path('examples/report-print-spacing.html').read_text(encoding='utf-8')
+        substitutions = {
+            'rgb(37, 48, 71)': '#253047',
+            'rgb(35, 68, 107)': '#23446b',
+            'rgb(35 68 107)': '#23446b',
+            'rgb(240 246 250)': '#f0f6fa',
+            'rgba(219, 234, 240, 1)': '#dbeaf0',
+        }
+        for old, new in substitutions.items():
+            if old not in source:
+                raise AssertionError('RGB report fixture did not contain ' + old)
+            source = source.replace(old, new)
+        hex_source = temp / 'report-hex.html'
+        hex_source.write_text(source, encoding='utf-8')
+        hex_pdf = temp / 'report-hex.pdf'
+        run(exe, hex_source, hex_pdf)
+        run('qpdf', '--check', hex_pdf)
+        # The report path was already exercised before destination recovery.
+        rgb_pdf = temp / 'report-rgb.pdf'
+        run(exe, Path('examples/report-print-spacing.html'), rgb_pdf)
+        if rgb_pdf.read_bytes() != hex_pdf.read_bytes():
+            raise AssertionError('Native AOT opaque RGB function paint differs from hex')
+        bad.write_text("<div style='background:rgba(1,2,3,0.5)'>Invalid alpha</div>", encoding='utf-8')
+        proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
+                              capture_output=True, timeout=120)
+        if proc.returncode != 3 or b'FPDF1202' not in proc.stderr or proc.stdout:
+            raise AssertionError('Native AOT accepted unsupported alpha channel')
+        if sample_pdf.read_bytes() != b'keep-existing':
+            raise AssertionError('Unsupported RGB alpha modified the destination')
         # A rejected decoration cannot corrupt a previous PDF, even in AOT.
         bad.write_text("<p style='text-decoration:overline'>Unsupported</p>", encoding='utf-8')
         proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
@@ -149,7 +181,7 @@ def main():
             raise AssertionError('Native unsupported decoration did not fail cleanly')
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Native unsupported decoration mutated the destination')
-        print('Native print spacing and text decoration PDF paths, qpdf, text, recovery verified')
+        print('Native print spacing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -160,7 +192,8 @@ def main():
         'checks': {'pdf_bytes_equal': True, 'extracted_text_equal': True, 'text_matches_html': True,
                    'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
                    'native_background_recovery': True, 'native_print_spacing_and_recovery': True,
-                    'native_text_decoration_paths_and_recovery': True},
+                    'native_text_decoration_paths_and_recovery': True,
+                     'native_opaque_rgb_equivalence_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

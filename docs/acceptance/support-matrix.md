@@ -1,5 +1,7 @@
 # Acceptance support matrix — evidence, not marketing
 
+Current-source opaque RGB-function additions have a separate real PDF and Native AOT hex-byte-equivalence/rejection path in `OpaqueRgbCssTests.cs` and `scripts/verify_stylesheets.py`; they do not re-approve any historical human reference pages, re-label previously retained binaries, or establish full CSS colour/alpha support.
+
 Engine comparison baseline: M12 `1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6`. Source SHA and every actual outcome come from each run's manifest/environment/report.
 
 | Cases | Contract | Completion meaning |

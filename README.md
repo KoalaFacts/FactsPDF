@@ -147,6 +147,8 @@ npm run dev
 
 Open the local URL printed by Vite, normally `http://127.0.0.1:5173/FactsPDF/`.
 
+Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders. These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](docs/css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](examples/report-print-spacing.html).
+
 ### Check your template against these boundaries
 
 - Tables need explicit column widths. Short tables and rows that fit a fresh
