@@ -391,7 +391,8 @@ internal static class CssSyntaxAdapter
         {
             // Parse relative syntax even for a rule that does not match any
             // element. Actual parent-relative resolution happens after cascade.
-            if (!InlineCss.RelativeFontSizeScale(token, offset).HasValue)
+            if (!InlineCss.RootRelativeScale(token, offset, 144).HasValue
+                && !InlineCss.RelativeFontSizeScale(token, offset).HasValue)
                 _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
                     paragraph: true, inline: false, offset);
         }
@@ -400,7 +401,8 @@ internal static class CssSyntaxAdapter
             // A valid relative value may fit a computed 30pt element but not
             // the static 12pt validation style. Defer computed-height bounds
             // to the winning declaration, as for relative font-size.
-            if (!InlineCss.RelativeLineHeightScale(token, offset).HasValue)
+            if (!InlineCss.RootRelativeScale(token, offset, 1440).HasValue
+                && !InlineCss.RelativeLineHeightScale(token, offset).HasValue)
                 _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
                     paragraph: true, inline: false, offset);
         }

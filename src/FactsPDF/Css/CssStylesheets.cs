@@ -127,7 +127,7 @@ internal sealed class CssStylesheets
     { if (!index.TryGetValue(key, out var list)) index.Add(key, list = []); list.Add(rule); }
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, TextStyle parent, TextStyle initial,
-        BoxStyle parentBox, IReadOnlyList<CssElement> path,
+        double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, bool allowStyling = true)
     {
         Array.Clear(winners); var element = path[^1];
@@ -197,7 +197,7 @@ internal sealed class CssStylesheets
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration);
-            else style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph);
+            else style = CssDeclarations.Apply(style, parent, initial, declaration, paragraph, rootFontSize);
         }
         return (style, box);
     }
