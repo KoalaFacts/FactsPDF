@@ -16,6 +16,16 @@ a source checkout and do not themselves grant evaluation or commercial rights.
 
 Source-authored first-line insets can now use `text-indent:0.25in` or `text-indent:15%` on explicit paragraphs/headings outside table cells, with real PDF wrapping and retained background geometry. Only the first logical line moves; `FPDF1302` protects the destination if a first word cannot fit after indentation. This source behavior needs current-head native/managed verification and does not change the historical retained private candidate.
 
+Current source accepts bounded font-scaled `text-indent:0.4em`,
+`letter-spacing:0.1em` and `word-spacing:0.15rem` for controlled
+report text. These are measured and painted glyph advances, not just
+accepted CSS tokens. A [72-entry sample](../examples/report-relative-text-spacing.html)
+and separately authored [point oracle](../examples/report-relative-text-spacing-oracle.html)
+exercise positioning/pagination; Native AOT verification covers
+byte parity, text and failure recovery. This source ability is absent
+from the older retained installable candidate and does not imply full
+CSS Text or customer distribution authority.
+
 ## Start with a report that fits
 
 The source report-print example now exercises measured soft-wrapped word-space `text-align:justify` (not final/explicit-break lines or RTL/CJK full justification). It also demonstrates whole-paragraph `white-space:nowrap` for short references (overflow fails rather than breaking/clipping), plus border-box panel sizing and percent/em/physical line-height with true computed inheritance, parent-relative percentage/em font sizes, opaque CSS RGB-function colours across text, panel backgrounds and solid borders, alongside spacing and decorations. The current engine accepts only integer `rgb()` channels and fully opaque comma-form `rgba()`; it rejects semi-transparent colour rather than silently flattening it. See [the scoped CSS contract](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports). Relative `font-size:125%`/`1.125em` resolves against the computed parent with a 1–144pt result; this is distinct from the later scoped `em` report box/margin source slice; neither is a general CSS layout promise. These new source abilities are **not** part of the earlier privately retained binary candidate.
@@ -29,8 +39,8 @@ with strict invalid-input recovery. A separate scoped source feature permits
 `rem` for ordinary report `width`/`min-width`/`max-width` and padding,
 including real centring, wrapping and page fragments; a separate bounded
 source implementation supports `rem` on paragraph/heading margins outside
-tables. Other container margins, borders, text spacing, images/tables and
-complete CSS Values remain unsupported. See the
+tables. Other container margins, borders, general text-spacing values, images/tables and
+complete CSS Values remain unsupported; only scoped text-indent/letter-spacing/word-spacing em/rem are implemented. See the
 [runnable multi-page typography example](../examples/report-root-relative-typography.html)
 and [scoped CSS contract](css-stylesheets.md#current-source-root-relative-report-typography);
 the historical private candidate does not contain this new source change.
