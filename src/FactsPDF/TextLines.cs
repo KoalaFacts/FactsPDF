@@ -139,10 +139,6 @@ internal static class TextLines
         // content width, not to the page or its painted border box. It belongs
         // only to the first logical line; continuation pages never re-indent.
         var firstIndent = paragraph.Style.FirstLineIndent.Resolve(available);
-        if (!double.IsFinite(firstIndent) || firstIndent < 0 ||
-            firstIndent > 0 && firstIndent >= available - 0.000001)
-            throw new FactsPdfException("FPDF1302", "First-line indentation leaves no usable text width.", paragraph.SourceOffset);
-
         // Resolve the complete paragraph before reporting width errors, and
         // validate every word before yielding a line to pagination. Recording
         // a width failure (rather than throwing immediately) keeps the legacy
@@ -175,6 +171,11 @@ internal static class TextLines
             tooWide |= segmentWidth > available + 0.000001;
             previousScalar = glyph.Scalar;
         }
+        // Keep the legacy resource/diagnostic priority: resolve every glyph
+        // before reporting indentation geometry, including for overwide boxes.
+        if (!double.IsFinite(firstIndent) || firstIndent < 0 ||
+            firstIndent > 0 && firstIndent >= available - 0.000001)
+            throw new FactsPdfException("FPDF1302", "First-line indentation leaves no usable text width.", paragraph.SourceOffset);
         if (tooWide)
             throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
 

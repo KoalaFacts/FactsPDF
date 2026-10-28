@@ -135,6 +135,27 @@ public sealed class TextIndentTests
     }
 
     [Test]
+    public void InvalidFirstLineGeometryDoesNotHideLaterMissingFontResource()
+        => Rejected("<p style='text-indent:200pt'>中文</p>", "FPDF1301",
+            Page with { PageWidth = 110 });
+
+    [Test]
+    public void IndentedTrueTypeChineseUsesActualGlyphWidthsAndKeepsEveryCharacter()
+    {
+        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var page = Page with { PageWidth = 120, Margin = 12, Fonts = [font] };
+        const string text = "中文中文中文中文中文中文";
+        var layout = Layout("<p style='text-indent:12pt'>" + text + "</p>", page);
+        var runs = layout.SelectMany(p => p.Runs).ToArray();
+        Assert.That(runs.Length, Is.GreaterThan(1));
+        Assert.That(runs[0].X, Is.EqualTo(24).Within(0.001));
+        Assert.That(runs[1].X, Is.EqualTo(12).Within(0.001));
+        Assert.That(string.Concat(runs.Select(r => r.Text)), Is.EqualTo(text));
+        Assert.That(System.Text.Encoding.Latin1.GetString(Pdf("<p style='text-indent:12pt'>" + text + "</p>", page)),
+            Does.Contain("/FontFile2"));
+    }
+
+    [Test]
     public void UnmatchedRuleStillValidatesInvalidValue()
         => Rejected("<style>.missing{text-indent:-2pt}</style><p>Ready</p>", "FPDF1202");
 }
