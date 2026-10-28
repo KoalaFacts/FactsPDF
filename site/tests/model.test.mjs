@@ -13,7 +13,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '125e7788ac804d9d6960b29717efaf0c151077c0');
+  assert.equal(dataset.commit, '280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.deepEqual(counts(dataset.features), { full:44, partial:121, none:245, unknown:6, na:2 });
 });
 test('print units and bounded four-sided report margins remain scoped', () => {
@@ -26,7 +26,8 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,41);
+  assert.equal(dataset.accepted_css_property_count,43);
+  assert.equal(margin.last_audited_commit,'125e7788ac804d9d6960b29717efaf0c151077c0');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
