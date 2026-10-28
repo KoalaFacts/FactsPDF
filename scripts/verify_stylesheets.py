@@ -105,6 +105,42 @@ def main():
             if line not in content:
                 raise AssertionError('Native sample missing text: ' + line)
 
+        # Verify the actual Native AOT report's bounded nowrap path.
+        # A fitting no-wrap label paints the same bytes as normal, while
+        # an overwide label must reject rather than wrap, clip or overwrite.
+        source_html = Path('examples/report-print-spacing.html').read_text(encoding='utf-8')
+        if 'white-space: nowrap;' not in source_html:
+            raise AssertionError('Print report is missing the nowrap reference case')
+        normal_html = temp / 'report-normal-whitespace.html'
+        normal_html.write_text(source_html.replace('white-space: nowrap;', 'white-space: normal;'),
+                               encoding='utf-8')
+        normal_pdf = temp / 'report-normal-whitespace.pdf'
+        run(exe, normal_html, normal_pdf)
+        run('qpdf', '--check', normal_pdf)
+        if sample_pdf.read_bytes() != normal_pdf.read_bytes():
+            raise AssertionError('A fitting nowrap report label changed normal PDF paint')
+        if 'INV-2026-1042' not in content:
+            raise AssertionError('Native AOT print report lost the no-wrap reference')
+        narrow_normal = temp / 'narrow-normal.html'
+        narrow_normal.write_text("<p style='width:72pt;white-space:normal'>Item paid in full</p>",
+                                 encoding='utf-8')
+        narrow_pdf = temp / 'narrow-normal.pdf'
+        run(exe, narrow_normal, narrow_pdf)
+        run('qpdf', '--check', narrow_pdf)
+        if 'Item paid in full' not in ' '.join(
+                run('pdftotext', '-raw', narrow_pdf, '-').decode('utf-8').split()):
+            raise AssertionError('Normal narrow paragraph failed to wrap its words')
+        narrow_nowrap = temp / 'narrow-nowrap.html'
+        narrow_nowrap.write_text("<p style='width:72pt;white-space:nowrap'>Item paid in full</p>",
+                                 encoding='utf-8')
+        narrow_pdf.write_bytes(b'retained-report')
+        failed = subprocess.run([str(exe), str(narrow_nowrap), str(narrow_pdf), '--overwrite'],
+                                capture_output=True, timeout=120)
+        if failed.returncode != 3 or b'FPDF1302' not in failed.stderr or failed.stdout:
+            raise AssertionError('Native AOT nowrap did not reject a truly overwide label')
+        if narrow_pdf.read_bytes() != b'retained-report':
+            raise AssertionError('Overwide nowrap replaced an existing report')
+
         # The real Native AOT binary must paint, not just accept, the two
         # current-source text decorations in the runnable business sample.
         for label in ('Previous estimate', 'Revised estimate'):
