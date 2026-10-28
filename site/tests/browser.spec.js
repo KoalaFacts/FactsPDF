@@ -6,8 +6,19 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('cd9355bb',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('20566ebb',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
+});
+test('computed line-height is discoverable with explicit supported bounds',async({page})=>{
+  await page.goto(base+'#q=line-height');
+  await page.getByRole('button',{name:'line-height',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('150%');
+  await expect(details).toContainText('1440pt');
+  await expect(details).toContainText('calc()');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
 });
 test('filters and detail links survive refresh without inventing versions',async({page})=>{
   await page.goto(base);await page.getByRole('searchbox').fill('border-style');
