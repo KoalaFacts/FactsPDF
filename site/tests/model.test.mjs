@@ -13,11 +13,11 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'bc704aed90b1e5dbdc1deec65a7fd314b626467e');
+  assert.equal(dataset.commit, '4392249934dff9e7ef94e415727e618f45f49140');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
-    assert.equal(line.last_audited_commit,'20566ebb8fc2cfea07e61c65df8e01a95b755140');
+    assert.equal(line.last_audited_commit,'4392249934dff9e7ef94e415727e618f45f49140');
     assert.equal(line.introduced_release,null);
     assert.match(line.scope,/normal/);
     assert.match(line.limitations,/calc/);
@@ -26,13 +26,16 @@ test('418 stable records retain provenance with scoped preview capability update
   const relative=dataset.features.find(f=>f.id==='value.length.relative');
   for(const entry of [fontSize,relative]){
     assert.equal(entry.status,'partial');
-    assert.equal(entry.last_audited_commit,'cd9355bbf8c85d31a8f5c08ae8e02d89a3ebe345');
+    assert.equal(entry.last_audited_commit,'4392249934dff9e7ef94e415727e618f45f49140');
     assert.equal(entry.introduced_release,null);
   }
-  assert.match(fontSize.scope,/125%/);
+  assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
   assert.match(fontSize.limitations,/rem/);
   assert.match(relative.scope,/font-size/);
+  assert.match(relative.scope,/rem/);
+  assert.match(dataset.features.find(f=>f.id==='css.line-height').scope,/rem/);
+  assert.match(dataset.features.find(f=>f.id==='value.lineheight.other').scope,/rem/);
   assert.match(relative.limitations,/width/);
   const rgb=dataset.features.find(f=>f.id==='value.color.rgbfunc');
   assert.equal(rgb.status,'partial');
@@ -209,7 +212,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after the new width audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-28.report-minmax-width');
+  assert.equal(dataset.dataset_version, 'audit-2026-10-28.root-relative-typography');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /415 other records unchanged/);
   assert.match(dataset.css_inventory_note, /51个CSS属性/);
