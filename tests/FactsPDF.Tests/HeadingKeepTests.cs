@@ -133,7 +133,7 @@ public sealed class HeadingKeepTests
 
         Assert.That(fresh, Has.Count.EqualTo(1));
         Assert.That(moved, Has.Count.EqualTo(2));
-        Assert.That(moved[0].Runs.Select(run => run.Text), Has.Count.EqualTo(7));
+        Assert.That(moved[0].Runs, Has.Count.EqualTo(7));
         Assert.That(moved[1].Runs.Select(run => run.Text), Is.EqualTo(new[] { "TITLE", "BODY" }));
         Assert.That(moved[1].PaintBoxes.Single().Top,
             Is.EqualTo(fresh[0].PaintBoxes.Single().Top).Within(0.000001));
