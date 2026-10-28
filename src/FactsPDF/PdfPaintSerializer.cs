@@ -49,7 +49,7 @@ internal static class PdfPaintSerializer
         output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
             .Append(N(c.B)).Append(" rg ").Append(N(run.X)).Append(' ').Append(N(y))
             .Append(' ').Append(N(run.Width)).Append(' ').Append(N(thickness))
-            .Append(" re f Q\\n");
+            .Append(" re f Q\n");
         if (output.Length > maxOutputBytes)
             throw new FactsPdfException("FPDF1401", "PDF text decoration exceeds MaxOutputBytes.");
     }
