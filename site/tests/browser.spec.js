@@ -260,3 +260,16 @@ test('root-rem report box width and padding details disclose current source boun
   await expect(details).toContainText('表格');
   await expect(details).toContainText('FPDF1202');
 });
+
+test('element em geometry is discoverable without claiming browser CSS sizing',async({page})=>{
+  await page.goto(base+'#feature=css.width');
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('em');
+  await expect(details).toContainText('table');
+  await page.keyboard.press('Escape');
+  await page.goto(base+'#feature=css.margin');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('em');
+  await expect(details).toContainText('FPDF1302');
+});
