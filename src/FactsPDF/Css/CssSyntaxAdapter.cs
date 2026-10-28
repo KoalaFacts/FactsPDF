@@ -206,9 +206,7 @@ internal static class CssSyntaxAdapter
             {
                 var syntax = valueTokens[0].Token;
                 if (syntax.Kind == CssSyntaxTokenKind.Number
-                    && double.TryParse(syntax.Value, System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out var weight)
-                    && double.IsFinite(weight) && weight is >= 100 and <= 900 && weight % 100 == 0)
+                    && TryNumericFontWeight(syntax.Value, out var weight))
                     token = weight.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
                 else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold"))
                     throw new FactsPdfException("FPDF1202",
@@ -221,6 +219,42 @@ internal static class CssSyntaxAdapter
             Emit(property, token, tokenOffset);
         }
         return output.ToArray();
+    }
+
+    // A supported weight is exactly one nonzero decimal digit times 10^2.
+    // Inspect every mantissa digit: floating-point parsing can round an
+    // unsupported fraction (or a value above 900) into a supported weight.
+    private static bool TryNumericFontWeight(string value, out int weight)
+    {
+        weight = 0;
+        var number = value.AsSpan();
+        if (number.Length > 0 && number[0] == '+') number = number[1..];
+        if (number.Length == 0 || number[0] == '-') return false;
+        var exponentIndex = number.IndexOfAny('e', 'E');
+        var exponent = 0;
+        if (exponentIndex >= 0)
+        {
+            if (!int.TryParse(number[(exponentIndex + 1)..],
+                System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out exponent)) return false;
+            number = number[..exponentIndex];
+        }
+        var decimalIndex = number.IndexOf('.');
+        var integerDigits = decimalIndex < 0 ? number.Length : decimalIndex;
+        var digitIndex = 0;
+        var significantIndex = -1;
+        foreach (var digit in number)
+        {
+            if (digit == '.') continue;
+            if (digit != '0')
+            {
+                if (digit is < '1' or > '9' || significantIndex >= 0) return false;
+                significantIndex = digitIndex;
+                weight = (digit - '0') * 100;
+            }
+            digitIndex++;
+        }
+        return significantIndex >= 0 && (long)exponent + integerDigits - significantIndex - 1 == 2;
     }
 
     private static bool Wide(string text) => text is "inherit" or "initial" or "unset";
