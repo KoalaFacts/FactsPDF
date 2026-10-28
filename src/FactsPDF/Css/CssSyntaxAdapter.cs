@@ -65,61 +65,51 @@ internal static class CssSyntaxAdapter
             }
             if (name == "margin")
             {
-                // Paragraph/headline vertical margins already exist. Accept the
-                // CSS shorthand only when the horizontal sides are genuinely
-                // zero: do not silently discard requested horizontal layout.
                 if (terms.Count > 4)
                     throw new FactsPdfException("FPDF1202", "Margin shorthand takes one to four values.", node.Span.Start);
                 var parts = terms.ToArray();
                 for (var i = 0; i < parts.Length; i++)
                 {
-                    // CSS number tokens may spell the unitless zero as 0.0,
-                    // +0 or -0. Normalize only actual finite numeric zero,
-                    // preserving each source token's original HTML offset.
-                    // Do not accidentally accept unitless nonzero values.
+                    // Normalize numeric zero with its original source location.
                     if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
                         && double.TryParse(parts[i], System.Globalization.NumberStyles.Float,
-                            System.Globalization.CultureInfo.InvariantCulture, out var number)
-                        && double.IsFinite(number) && number == 0)
+                            System.Globalization.CultureInfo.InvariantCulture, out var zero)
+                        && double.IsFinite(zero) && zero == 0)
                         parts[i] = "0";
                 }
                 if (parts.Length == 1 && Wide(parts[0]))
                 {
                     Emit(CssProperty.MarginTop, parts[0], valueTokens[0].Token.Span.Start, "margin-top");
+                    Emit(CssProperty.MarginRight, parts[0], valueTokens[0].Token.Span.Start, "margin-right");
                     Emit(CssProperty.MarginBottom, parts[0], valueTokens[0].Token.Span.Start, "margin-bottom");
+                    Emit(CssProperty.MarginLeft, parts[0], valueTokens[0].Token.Span.Start, "margin-left");
                     continue;
                 }
                 var sides = ExpandFour(parts);
-                for (var i = 0; i < parts.Length; i++)
+                for (var side = 0; side < 4; side++)
                 {
-                    var offset = valueTokens[i].Token.Span.Start;
-                    if (Wide(parts[i]))
+                    var source = parts.Length switch
+                    {
+                        1 => 0, 2 => side % 2,
+                        3 => side == 3 ? 1 : side, _ => side
+                    };
+                    var offset = valueTokens[source].Token.Span.Start;
+                    if (Wide(sides[side]))
                         throw new FactsPdfException("FPDF1202",
                             "A CSS-wide margin keyword must be the only value.", offset);
-                    // Use the existing validated margin length and bounds,
-                    // including the new physical print units.
-                    _ = InlineCss.Apply(ValidationStyle, "margin-top:" + parts[i], paragraph: true, inline: false, offset);
+                    if (side % 2 == 0)
+                        _ = InlineCss.Apply(ValidationStyle, "margin-top:" + sides[side],
+                            paragraph: true, inline: false, offset);
+                    else
+                        _ = CssBoxValues.Length(sides[side], offset);
                 }
+                Emit(CssProperty.MarginTop, sides[0], valueTokens[0].Token.Span.Start, "margin-top");
                 var rightSource = parts.Length == 1 ? 0 : 1;
-                var leftSource = parts.Length switch { 4 => 3, 1 => 0, _ => 1 };
-                var right = InlineCss.Apply(ValidationStyle,
-                    "margin-top:" + sides[1], paragraph: true, inline: false,
-                    valueTokens[rightSource].Token.Span.Start).MarginBefore;
-                var left = InlineCss.Apply(ValidationStyle,
-                    "margin-top:" + sides[3], paragraph: true, inline: false,
-                    valueTokens[leftSource].Token.Span.Start).MarginBefore;
-                if (right != 0)
-                    throw new FactsPdfException("FPDF1202",
-                        "Nonzero right/left margin requires unsupported horizontal layout.",
-                        valueTokens[rightSource].Token.Span.Start);
-                if (left != 0)
-                    throw new FactsPdfException("FPDF1202",
-                        "Nonzero right/left margin requires unsupported horizontal layout.",
-                        valueTokens[leftSource].Token.Span.Start);
-                var topSource = 0;
+                Emit(CssProperty.MarginRight, sides[1], valueTokens[rightSource].Token.Span.Start, "margin-right");
                 var bottomSource = parts.Length switch { 1 => 0, 2 => 0, _ => 2 };
-                Emit(CssProperty.MarginTop, sides[0], valueTokens[topSource].Token.Span.Start, "margin-top");
                 Emit(CssProperty.MarginBottom, sides[2], valueTokens[bottomSource].Token.Span.Start, "margin-bottom");
+                var leftSource = parts.Length == 4 ? 3 : rightSource;
+                Emit(CssProperty.MarginLeft, sides[3], valueTokens[leftSource].Token.Span.Start, "margin-left");
                 continue;
             }
             if (name is "padding" or "border-width" or "border-style" or "border-color")
@@ -237,6 +227,7 @@ internal static class CssSyntaxAdapter
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
+        "margin-left" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
         "width" => CssProperty.Width, "padding" or "padding-top" => CssProperty.PaddingTop,
         "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,
@@ -295,6 +286,7 @@ internal static class CssSyntaxAdapter
     private static void ValidateComponent(string name, string token, int offset)
     {
         if (name == "width") { _ = CssBoxValues.Width(token, offset); }
+        else if (name is "margin-left" or "margin-right") _ = CssBoxValues.Length(token, offset);
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);

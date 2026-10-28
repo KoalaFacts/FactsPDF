@@ -74,6 +74,9 @@ internal sealed record BoxStyle(
     CssLength PaddingBottom = default,
     CssLength PaddingLeft = default)
 {
+    // Outside the paragraph/heading border box; percentages use the containing width.
+    public CssLength MarginLeft { get; init; }
+    public CssLength MarginRight { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;

@@ -223,3 +223,14 @@ deployment; a validated static build alone is not a live website.
 Snapshot `audit-2026-10-28.report-print-spacing` audits source `1b6a2076460610e56fd2a6bf366fea391d03f23b`, not a publicly released product. SHA-256: `a9347e19ca77034ab1019cd34c74a3981352fb2eba894d9b8d71747be93b1a2a`. All **418 feature IDs**, ordering, categories, parent IDs and introduction histories remain unchanged. Exactly **22 rows** updated; the other **396 feature objects** retain their previous audit metadata. `css.margin` and `value.length.absolute` change `none` → `partial`. Totals are **44 full, 118 partial, 248 none, 6 unknown, 2 n/a**; **39 accepted CSS property names**. Print units `mm/cm/in` apply to bounded length properties, not `q/pc`, `em/rem/calc` or full CSS. The margin shorthand only renders vertical paragraph/heading margins if horizontal sides resolve to zero; nonzero horizontal offsets fail explicitly.
 
 The implementation source includes actual API/managed CLI/geometry/PDF tests and a fontless business example. Exact PR-head CI results and independent review must be recorded separately. Updating this dataset is not a real test execution, human PDF approval, customer right or GitHub Pages deployment.
+
+## 28 October 2026: scoped horizontal report margins
+
+Snapshot `audit-2026-10-28.horizontal-report-margins` audits engine code `c8caaa273415a24ad062dd036a90b40ba11c53eb`.
+SHA-256 `46e7a5684d4ee24b70a3f7ce4c1bf47f517c57748c63d4d90ba06e24c80b9aa4`. Only three stable IDs (`css.margin`, `css.margin-left`,
+`css.margin-right`) change. Other 415 complete feature objects and their source
+histories remain untouched. Counts: 44 full, 120 partial, 246 none, 6 unknown,
+2 not applicable. 41 accepted property names are not CSS standard coverage.
+Horizontal margins are bounded and only for paragraphs/headings; CSS-wide and
+cascade stay per-side. Native CI/review and Pages are separately gated; this
+audit does not claim any public release, real customer use, or Pages deploy.
