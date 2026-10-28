@@ -6,7 +6,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  await expect(page.getByText('ed86c026',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('640b2bd5',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('bounded letter spacing shows real PDF behaviour and strict failure limits',async({page})=>{
