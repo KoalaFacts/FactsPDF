@@ -285,3 +285,23 @@ functions still fail explicitly. The implementation adds actual PDF/browser-free
 CLI and Linux Native AOT hex-equivalence/recovery checks; audit data does not
 claim that still-running CI or a future independent review has passed. This is
 not a public package or Pages deployment.
+
+## 28 October 2026: bounded parent-relative font sizing
+
+Snapshot `audit-2026-10-28.relative-font-sizing` is tied to implemented engine
+source `cd9355bbf8c85d31a8f5c08ae8e02d89a3ebe345`. Exactly two records (`css.font-size` and
+`value.length.relative`) were reaudited. All **418** IDs and order,
+introduction/release-null values, and the other **416** complete records are
+unchanged. No new CSS property name was introduced: the current property-name
+count stays **43**. The relative-length family moves none to partial (44 full,
+123 partial, 243 none, 6 unknown, 2 not applicable).
+
+Only `font-size` accepts positive percent or `em` lengths relative to the
+computed parent size, with computed 1–144pt limits and real glyph/pagination
+layout. `rem/ex/ch/lh/rlh`, `calc()`, font-size keywords and relative lengths
+for box properties remain unsupported. The real Linux Native AOT print report
+and NUnit tests check equivalent fixed-point PDF bytes and output recovery.
+The SHA-256 of this exact JSON snapshot is `b8bbe04c89cff46d7e9aabf086eb610cff0757e16214ffc9f42c4da9b717ac2c`.
+Source audit and site builds do not establish a publicly deployed Pages site,
+independent merged-source approval, a published software package or a customer
+grant.

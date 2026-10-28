@@ -13,7 +13,19 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
+  assert.equal(dataset.commit, 'cd9355bbf8c85d31a8f5c08ae8e02d89a3ebe345');
+  const fontSize=dataset.features.find(f=>f.id==='css.font-size');
+  const relative=dataset.features.find(f=>f.id==='value.length.relative');
+  for(const entry of [fontSize,relative]){
+    assert.equal(entry.status,'partial');
+    assert.equal(entry.last_audited_commit,'cd9355bbf8c85d31a8f5c08ae8e02d89a3ebe345');
+    assert.equal(entry.introduced_release,null);
+  }
+  assert.match(fontSize.scope,/125%/);
+  assert.match(fontSize.scope,/em/);
+  assert.match(fontSize.limitations,/rem/);
+  assert.match(relative.scope,/font-size/);
+  assert.match(relative.limitations,/width/);
   const rgb=dataset.features.find(f=>f.id==='value.color.rgbfunc');
   assert.equal(rgb.status,'partial');
   assert.equal(rgb.last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
@@ -22,7 +34,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:122, none:244, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:123, none:243, unknown:6, na:2 });
 });
 test('print units and bounded four-sided report margins remain scoped', () => {
   const margin=dataset.features.find(f=>f.id==='css.margin');
@@ -44,7 +56,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
     assert.match(side.limitations,/表格单元格p/);
     assert.equal(side.introduced_release,null);
   }
-  assert.equal(dataset.features.find(f=>f.id==='value.length.relative').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='value.length.relative').status,'partial');
 });
 test('colour-only background shorthand is discoverable without claiming CSS backgrounds', () => {
   const match=filterFeatures(dataset.features,{q:'background',status:'partial'}).find(f=>f.id==='css.background');

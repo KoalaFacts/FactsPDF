@@ -16,7 +16,7 @@ a source checkout and do not themselves grant evaluation or commercial rights.
 
 ## Start with a report that fits
 
-The source report-print example now demonstrates opaque CSS RGB-function colours across text, panel backgrounds and solid borders, alongside spacing and decorations. The current engine accepts only integer `rgb()` channels and fully opaque comma-form `rgba()`; it rejects semi-transparent colour rather than silently flattening it. See [the scoped CSS contract](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports). This new source ability is **not** part of the earlier privately retained binary candidate.
+The source report-print example now demonstrates parent-relative percentage/em font sizes, opaque CSS RGB-function colours across text, panel backgrounds and solid borders, alongside spacing and decorations. The current engine accepts only integer `rgb()` channels and fully opaque comma-form `rgba()`; it rejects semi-transparent colour rather than silently flattening it. See [the scoped CSS contract](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports). Relative `font-size:125%`/`1.125em` resolves against the computed parent with a 1–144pt result; this does not extend relative units to box geometry. These new source abilities are **not** part of the earlier privately retained binary candidate.
 
 The existing combined report examples exercise these capabilities together:
 

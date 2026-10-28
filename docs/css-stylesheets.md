@@ -72,7 +72,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 
 | Property | Values / applicability |
 | --- | --- |
-| font-size | pt/px/mm/cm/in lengths, computed range 1-144pt |
+| font-size | pt/px/mm/cm/in lengths or positive parent-relative percentages and `em`; computed result 1–144pt |
 | font-weight | normal/bold or numeric 400/700; explicit role resources required |
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless number 1-10 |
@@ -127,6 +127,32 @@ See `OpaqueRgbCssTests.cs` and the real Linux Native AOT run of
 This is a source-preview feature, not a public release or general CSS colour
 conformance statement.
 
+## Current-source parent-relative report typography
+
+Controlled report headings, paragraphs and inline spans can use a positive
+`font-size:125%` or `font-size:1.125em`. The scaling factor is applied to the
+**computed font size of that element's actual parent** after the winning
+declaration is chosen in the existing cascade. It is not multiplied by the
+renderer heading's optional default size multiplier, nor by a losing
+declaration. The calculated size must be between 1pt and 144pt inclusive.
+Both inline and embedded stylesheet declarations work with the documented
+selector/importance/inheritance semantics; `inherit`, `initial` and `unset`
+retain their previous meanings.
+
+For example, when `body { font-size:16pt }`, `h1 { font-size:125% }`
+becomes 20pt, and `p { font-size:1.5em }` becomes 24pt. A nested inline
+`span { font-size:125% }` inside that paragraph becomes 30pt. Actual glyph
+width, wrapping, line boxes, page continuation and embedded font selection
+use the resolved absolute point size. The runnable print report exercises
+percent and em values against an explicitly authored point-value projection
+in real Linux Native AOT PDF generation.
+
+This does **not** implement `rem`, `ex`, `ch`, `lh`, `calc()`, font-size
+keywords or relative units in margins, width, padding and borders.
+Non-positive, malformed or out-of-range computed values are rejected with
+`FPDF1202`, before replacing an existing output. Unmatched stylesheets are
+still syntax-checked. This is source-preview capability, not public delivery.
+
 ## Current-source print-length and vertical-margin authoring
 
 Controlled invoices, maintenance reports and service records can use physical
@@ -136,7 +162,8 @@ print lengths in existing length-bearing CSS properties: `mm`, `cm`, `in`,
 (0–14400pt), `width`, `padding` and solid `border-width` (including
 their existing shorthands) accept these units. `width`/`padding` retain
 their existing percentage semantics; the other lengths do not gain percentage
-support. All existing finite/bounds/containing-block and PDF size guards apply.
+support; `font-size` separately supports parent-relative percentages as scoped
+above. All existing finite/bounds/containing-block and PDF size guards apply.
 
 The paragraph/heading `margin` shorthand now expands into **all four** independently
 cascaded sides. `margin-left` and `margin-right` also work as longhands and accept
@@ -166,7 +193,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- \
 
 This is a renderer/source capability and not a public package release,
 general browser margin collapsing, automatic print/page sizing or support for
-`em`, `rem`, `calc()`, negative or vertical `auto` margins.
+`em`/`rem` in margins, `calc()`, negative or vertical `auto` margins.
 Existing reports without these explicit new values retain their old rendering
 path. Results must still respect the chosen page geometry and explicit
 resource contracts.
