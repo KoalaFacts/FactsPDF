@@ -230,6 +230,7 @@ internal static class CssSyntaxAdapter
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
+        "white-space" => CssProperty.WhiteSpace,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "margin-left" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
