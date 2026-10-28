@@ -93,7 +93,7 @@ public sealed class WhiteSpaceNowrapTests
             "<style>p{white-space:nowrap!important}.normal{white-space:normal}" +
             ".reset{white-space:initial!important}.unset{white-space:unset!important}" +
             "</style><p class=normal>First</p><p class=reset>Second</p>" +
-            "<p class=unset>Third</p><p style='white-space:inherit'>Fourth</p>",
+            "<p class=unset>Third</p><h1 style='white-space:inherit'>Fourth</h1>",
             Page, default);
         Assert.That(paragraphs.Select(p => p.Style.NoWrap),
             Is.EqualTo(new[] { true, false, false, false }));
