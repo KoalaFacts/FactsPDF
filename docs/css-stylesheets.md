@@ -391,6 +391,43 @@ height, min/max sizing, flex/grid, column sizing or full box-model conformance.
 PDF geometry with an independently authored content-box projection; the
 resource-free `examples/report-print-spacing.html` exercises the feature.
 
+## Current-source ASCII report text-transform
+
+Business invoice labels, report headings and status fields can opt into
+`text-transform:uppercase` or `text-transform:lowercase`; `none` is the
+unchanged inherited default. These declarations work on styled headings,
+paragraphs, inline spans and text-bearing containers with normal selector
+cascade, `!important`, `inherit`, `initial` and `unset` semantics.
+A nested `span style="text-transform:none"` can preserve a customer's
+proper name inside an uppercase label.
+
+The conversion is deliberately **ASCII Latin letters A–Z/a–z only**.
+Caseless Chinese characters, numerals and punctuation are preserved.
+The operation occurs before actual font/glyph fallback and width measurement:
+searchable PDF glyph text, line wrapping, page positions, decoration widths
+and pagination are based on the *transformed* characters. It does not rely
+on postprocessing a rendered PDF or synthetic font faces. `none` and
+unstyled content retain byte-identical PDF output.
+
+Locale-specific casing, Unicode multi-character expansions, non-ASCII
+cased letters, `capitalize`, `full-width`, `full-size-kana`, language
+sensitivity and general Unicode text transforms are **not** supported.
+Non-ASCII cased letters and symbols with Unicode case mappings (including Roman numerals and circled Latin letters) under an active transformation explicitly raise
+`FPDF1305` rather than silently producing incorrectly cased output;
+unsupported CSS values raise `FPDF1202`, and applying this text property
+to a standalone image raises `FPDF1201`. Normal missing-result-glyph
+diagnostics (`FPDF1504`) still apply. All failures preserve an existing
+destination. No CSS Text standard-compliance claim or publicly distributed
+new engine binary is implied.
+
+Run the fontless [case labels report](../examples/report-case-labels.html)
+from source; the separately authored
+[visible-text oracle](../examples/report-case-labels-oracle.html), NUnit
+`TextTransformTests.cs` and the Linux Native AOT stylesheet verifier compare
+actual PDF bytes, searchable text, mixed spans and negative recovery. The
+engine change starts at source commit `8c946a29423ee3de6c171548fe6f633393ca76b6`;
+introduction in a distributed version is unknown.
+
 ## Budgets and diagnostics
 
 `PdfOptions` includes per-conversion limits:

@@ -455,6 +455,38 @@ def main():
             if recovery.read_bytes() != b'keep-existing':
                 raise AssertionError('Native border-box failure modified existing output')
         print('Native print spacing, tracked reference, word gaps, first-line indentation, border-box, computed line-height, relative font sizing, RGB colour and decoration PDF paths, qpdf, text, recovery verified')
+
+    # Real source-built Linux Native AOT: casing must change emitted glyphs,
+    # not merely CSS parsing or a display-time metadata field. The oracle is
+    # hand-authored visible text with no transformation declarations.
+    with tempfile.TemporaryDirectory(prefix='factspdf-case-labels-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'case-labels.pdf', temp / 'case-oracle.pdf'
+        run(exe, Path('examples/report-case-labels.html'), actual)
+        run(exe, Path('examples/report-case-labels-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native ASCII transformed glyphs differ from authored-case PDF oracle')
+        extracted = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('SERVICE STATUS REPORT', 'REFERENCE: INV-2026-1042',
+                       'status: pending review', 'ASSIGNED TO Example Facilities Pty Ltd'):
+            if phrase not in extracted:
+                raise AssertionError('Native case report lost expected searchable content: ' + phrase)
+        destination = temp / 'preserved.pdf'
+        invalid = temp / 'invalid.html'
+        for content, code in (
+            ("<p style='text-transform:capitalize'>Wrong form</p>", b'FPDF1202'),
+            ("<p style='text-transform:uppercase'>caf\\u00e9</p>".replace('\\u00e9', '\u00e9'), b'FPDF1305')
+        ):
+            invalid.write_text(content, encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(invalid), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native case-transform rejection did not return ' + str(code))
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Rejected native case-transform changed existing report')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -473,7 +505,8 @@ def main():
                       'native_text_indent_geometry_and_recovery': True,
                       'native_letter_spacing_geometry_and_recovery': True,
                        'native_word_spacing_geometry_and_recovery': True,
-                       'native_report_justification_and_recovery': True},
+                       'native_report_justification_and_recovery': True,
+                       'native_ascii_case_glyph_parity_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

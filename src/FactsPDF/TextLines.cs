@@ -118,6 +118,29 @@ internal static class TextLines
                         throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
                     i += consumed;
                     var scalar = rune.Value;
+                    if (run.Style.Transform != TextTransform.None)
+                    {
+                        // ASCII-only case conversion is deterministic and cannot
+                        // expand a character or change the font's glyph count.
+                        // Do not silently misrender cased Unicode letters:
+                        // full casing/locale rules and shaping are out of scope.
+                        if (scalar > 127 &&
+                            (Rune.GetUnicodeCategory(rune) is
+                                (UnicodeCategory.LowercaseLetter or UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter)
+                             // Unicode also maps some LetterNumber and OtherSymbol
+                             // scalars, e.g. Roman numerals and circled letters.
+                             // ASCII-only output must never leave those silently
+                             // unchanged when case conversion is requested.
+                             || Rune.ToUpperInvariant(rune) != rune
+                             || Rune.ToLowerInvariant(rune) != rune))
+                            throw new FactsPdfException("FPDF1305",
+                                "Non-ASCII cased text requires Unicode case conversion beyond the supported ASCII report subset.",
+                                run.SourceOffset);
+                        if (run.Style.Transform == TextTransform.Uppercase && scalar is >= 'a' and <= 'z')
+                            scalar -= 'a' - 'A';
+                        else if (run.Style.Transform == TextTransform.Lowercase && scalar is >= 'A' and <= 'Z')
+                            scalar += 'a' - 'A';
+                    }
                     if (scalar <= 127 && HtmlTokens.Space((char)scalar))
                     {
                         // Resolve at the original point even when a later

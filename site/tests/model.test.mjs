@@ -7,13 +7,13 @@ const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', im
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.accepted_css_property_count,48);
+  assert.equal(dataset.accepted_css_property_count,49);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '744366cf5ab206f901bf4ee3b9d014b7bf022e29');
+  assert.equal(dataset.commit, '69816f7de9112400db4f7ba4902073e5464ac6b1');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -42,7 +42,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:130, none:236, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:131, none:235, unknown:6, na:2 });
 });
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
@@ -79,7 +79,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,48);
+  assert.equal(dataset.accepted_css_property_count,49);
   assert.equal(margin.last_audited_commit,'125e7788ac804d9d6960b29717efaf0c151077c0');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
@@ -208,18 +208,18 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('measured word-space justification audit preserves old records and the 48 names', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-28.text-align-justify');
+test('previous justification provenance remains pinned after the one-row case-transform update', () => {
+  assert.equal(dataset.dataset_version, 'audit-2026-10-28.text-transform-ascii');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
-  assert.match(dataset.audit_method, /Other 416 feature records/);
-  assert.match(dataset.css_inventory_note, /48个CSS属性/);
+  assert.match(dataset.audit_method, /417 other records unchanged/);
+  assert.match(dataset.css_inventory_note, /49个CSS属性/);
   assert.match(dataset.css_inventory_note, /text-align:justify/);
   const property=dataset.features.find(x=>x.id==='css.text-align');
   const values=dataset.features.find(x=>x.id==='value.align.justify');
   assert.equal(property.status, 'partial');
   assert.equal(values.status, 'partial');
-  assert.equal(property.last_audited_commit,dataset.commit);
-  assert.equal(values.last_audited_commit,dataset.commit);
+  assert.equal(property.last_audited_commit,'744366cf5ab206f901bf4ee3b9d014b7bf022e29');
+  assert.equal(values.last_audited_commit,'744366cf5ab206f901bf4ee3b9d014b7bf022e29');
   assert.equal(values.introduced_release,null);
   assert.equal(property.example,'text-align:justify');
   assert.equal(values.example,'text-align:justify');
@@ -272,4 +272,22 @@ test('word-spacing is measured and painted with explicit PDF limits', () => {
   assert.match(f.limitations,/FPDF1202/);
   assert.match(f.limitations,/FPDF1302/);
   assert.equal(filterFeatures(dataset.features,{q:'word-spacing',status:'partial'}).length,1);
+});
+
+test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
+  const feature=dataset.features.find(x=>x.id==='css.text-transform');
+  assert(feature);
+  assert.equal(feature.status, 'partial');
+  assert.equal(feature.last_audited_commit, dataset.commit);
+  assert.equal(feature.introduced_pr, 88);
+  assert.equal(feature.introduced_release, null);
+  assert.equal(feature.example, 'text-transform:uppercase');
+  assert.match(feature.scope, /uppercase\/lowercase/);
+  assert.match(feature.scope, /PDF/);
+  assert.match(feature.scope, /span/);
+  assert.match(feature.limitations, /capitalize/);
+  assert.match(feature.limitations, /FPDF1305/);
+  assert.match(feature.limitations, /FPDF1504/);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'text-transform',status:'partial'}).map(x=>x.id), ['css.text-transform']);
+  assert.equal(dataset.features.length,418);
 });

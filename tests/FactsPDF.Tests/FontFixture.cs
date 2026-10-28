@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false)
+        bool listDigits = false, bool unicodeCaseSymbols = false)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -21,6 +21,14 @@ internal static class FontFixture
         {
             for (var scalar = '0'; scalar <= '9'; scalar++) map[scalar] = 2;
             map['.'] = 4;
+        }
+        if (unicodeCaseSymbols)
+        {
+            // These Unicode scalars have case mappings even though their
+            // general categories are LetterNumber and OtherSymbol, not Ll/Lu/Lt.
+            // Reuse existing synthetic glyph outlines; no font is redistributed.
+            map[0x2170] = 2; // small Roman numeral one
+            map[0x24d0] = 3; // circled small Latin a
         }
         foreach (var cp in map.Keys.ToArray())
             if ((latinOnly && cp > 255) || (!format12 && cp > 65535)) map.Remove(cp);

@@ -148,6 +148,8 @@ internal sealed class CssStylesheets
                         && CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
             // Images and tables use separate width contracts and cannot honour
             // block border-box sizing. Never silently discard a declaration.
+            if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
+                throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.BoxSizing &&
                 (element.Name is "img" or "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201", "box-sizing is supported only on ordinary block boxes.", declaration.Offset);

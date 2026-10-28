@@ -232,6 +232,7 @@ internal static class CssSyntaxAdapter
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "white-space" => CssProperty.WhiteSpace, "text-indent" => CssProperty.TextIndent,
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
+        "text-transform" => CssProperty.TextTransform,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
         "margin-left" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
