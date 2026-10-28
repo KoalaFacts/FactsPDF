@@ -147,7 +147,11 @@ internal sealed class CssStylesheets
                 && declaration.Value.EndsWith("rem", StringComparison.Ordinal))
                 throw new FactsPdfException("FPDF1201",
                     "Root-relative margins are not supported inside table cells.", declaration.Offset);
-            var zeroCellInset = declaration.Property is CssProperty.MarginLeft or CssProperty.MarginRight
+            // Only flat table-cell paragraphs need zero-inset recognition.
+            // Do not parse the general block's margin through this legacy
+            // absolute-only helper before its root-rem winner can resolve.
+            var zeroCellInset = cellParagraph
+                && declaration.Property is (CssProperty.MarginLeft or CssProperty.MarginRight)
                 && (declaration.Value is "inherit" or "initial" or "unset"
                     || declaration.Value != "auto"
                         && CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
