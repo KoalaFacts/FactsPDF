@@ -2,6 +2,7 @@ import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { webcrypto } from 'node:crypto';
 import { join } from 'node:path';
 import { build } from 'vite';
 import { JSDOM } from 'jsdom';
@@ -20,12 +21,17 @@ after(async () => { if (output) await rm(output, { recursive: true, force: true 
 
 // Execute the real production AOT bundle without browser navigation. Layout,
 // native dialogs, downloads and Back/Forward remain covered by Playwright in CI.
-async function loadSite(t, { data=dataset, url='https://example.test/FactsPDF/' } = {}) {
+async function loadSite(t, { data=dataset, url='https://example.test/FactsPDF/', language='zh' } = {}) {
   const dom = new JSDOM('<div id="app"></div>', {
     url, runScripts: 'outside-only'
   });
   t.after(() => dom.window.close());
   const { window } = dom;
+  // Existing interaction tests explicitly exercise the saved Chinese locale.
+  // The no-preference English production path is tested separately below.
+  if(language) window.localStorage.setItem('factspdf.locale', language);
+  Object.defineProperty(window.crypto, 'subtle', {value:webcrypto.subtle});
+  window.TextEncoder=TextEncoder;
   const errors=[];
   window.console.error=(...args)=>errors.push(args.map(String).join(' '));
   t.after(()=>assert.deepEqual(errors, [], 'no reactive rendering errors'));
@@ -33,6 +39,8 @@ async function loadSite(t, { data=dataset, url='https://example.test/FactsPDF/' 
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   window.eval(bundle);
+  for(let attempt=0;attempt<100&&!window.document.querySelector('[data-total],[role=alert]');attempt++)
+    await new Promise(resolve=>setTimeout(resolve,10));
   await settled();
   return window;
 }
@@ -120,4 +128,17 @@ test('English filter accessible names follow the displayed locale', async t => {
   window.document.querySelector('.language').click();await settled();
   assert.deepEqual([...window.document.querySelectorAll('.toolbar select')].map(node=>node.getAttribute('aria-label')),
     ['Category filter','Support status filter','Introduction milestone filter']);
+});
+
+
+test('production bundle defaults to English content without a saved preference', async t => {
+  const window=await loadSite(t,{language:null});
+  const document=window.document;
+  assert.equal(document.documentElement.lang,'en');
+  assert.match(document.querySelector('#query').placeholder,/Search elements/);
+  assert.doesNotMatch(document.querySelector('tbody').textContent,/[\u3400-\u9fff]/u);
+  document.querySelector('.feature-button').click();await settled();
+  assert.doesNotMatch(document.querySelector('.detail-scope').textContent,/[\u3400-\u9fff]/u);
+  assert.doesNotMatch(document.querySelector('.limitation').textContent,/[\u3400-\u9fff]/u);
+  assert.match(document.querySelector('.limitation').textContent,/rejection does not count as support/);
 });
