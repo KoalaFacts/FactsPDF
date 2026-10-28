@@ -303,15 +303,47 @@ internal static class CssSyntaxAdapter
         {
             var alpha = tokens[6];
             if (alpha.Kind != CssSyntaxTokenKind.Number ||
-                !double.TryParse(alpha.Value, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var opacity) ||
-                !double.IsFinite(opacity) || opacity != 1)
+                !IsExactlyOne(alpha.Value))
                 throw new FactsPdfException("FPDF1202", "Alpha compositing is not supported; rgba() alpha must be 1.", alpha.Span.Start);
         }
 
         var hex = $"{channels[0]:x2}{channels[1]:x2}{channels[2]:x2}";
         return new CssTokenComponent(new CssSyntaxToken(
             CssSyntaxTokenKind.Hash, hex, "#" + hex, function.Span));
+    }
+
+    // Compare the decimal Number token without binary/decimal rounding. After
+    // removing zero digits, exactly one significant digit (1) must remain;
+    // its decimal position must be cancelled by the explicit exponent.
+    private static bool IsExactlyOne(string value)
+    {
+        var number = value.AsSpan();
+        if (number.Length > 0 && number[0] == '+') number = number[1..];
+        if (number.Length == 0 || number[0] == '-') return false;
+        var exponentIndex = number.IndexOfAny('e', 'E');
+        var exponent = 0;
+        if (exponentIndex >= 0)
+        {
+            if (!int.TryParse(number[(exponentIndex + 1)..],
+                System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out exponent)) return false;
+            number = number[..exponentIndex];
+        }
+        var decimalIndex = number.IndexOf('.');
+        var integerDigits = decimalIndex < 0 ? number.Length : decimalIndex;
+        var digitIndex = 0;
+        var oneIndex = -1;
+        foreach (var digit in number)
+        {
+            if (digit == '.') continue;
+            if (digit != '0')
+            {
+                if (digit != '1' || oneIndex >= 0) return false;
+                oneIndex = digitIndex;
+            }
+            digitIndex++;
+        }
+        return oneIndex >= 0 && exponent == oneIndex + 1 - integerDigits;
     }
 
     private static List<string> Terms(CssDeclarationNode node)

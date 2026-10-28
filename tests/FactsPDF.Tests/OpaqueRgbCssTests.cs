@@ -41,6 +41,32 @@ public sealed class OpaqueRgbCssTests
         Assert.That(Encoding.Latin1.GetString(actual), Does.Contain("0.137 0.267 0.42 rg"));
     }
 
+    [TestCase("1")]
+    [TestCase("+1.000")]
+    [TestCase("01")]
+    [TestCase("10e-1")]
+    [TestCase(".01e2")]
+    [TestCase("10000000000000000000000000000000000000000e-40")]
+    [TestCase("1e+0000000000000000000000000000000000")]
+    public void ExactOneAlphaSpellingsMatchHex(string alpha)
+    {
+        Assert.That(Pdf("<p style='color:rgba(35,68,107," + alpha + ")'>Alpha</p>"),
+            Is.EqualTo(Pdf("<p style='color:#23446b'>Alpha</p>")));
+    }
+
+    [TestCase("0.99999999999999999")]
+    [TestCase("1.00000000000000001")]
+    [TestCase("0.99999999999999999999999999999999999999999")]
+    [TestCase("1.00000000000000000000000000000000000000001")]
+    [TestCase("99999999999999999e-17")]
+    [TestCase("100000000000000001e-17")]
+    [TestCase("1e9999999999999999999999")]
+    [TestCase("1e-9999999999999999999999")]
+    [TestCase("-1")]
+    [TestCase("0")]
+    public void NonExactOneAlphaPreservesOutput(string alpha) =>
+        Reject("color:rgba(35,68,107," + alpha + ")");
+
     [Test]
     public void OpaqueRgbPaintsBackgroundBorderAndAllFourIndividualSides()
     {
