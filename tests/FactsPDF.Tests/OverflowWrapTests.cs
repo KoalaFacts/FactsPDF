@@ -88,6 +88,25 @@ public sealed class OverflowWrapTests
     }
 
     [Test]
+    public void ExplicitTrueTypeFontIsEmbeddedAndEveryGlyphSurvivesEmergencyWrapping()
+    {
+        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var options = Page with { Fonts = [font], PageHeight = 100, Margin = 10 };
+        const string text = "ABWABWABWABWABW";
+        const string html = "<p style='width:40pt;overflow-wrap:break-word'>" + text + "</p>";
+        var laidOut = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
+        var placed = laidOut.SelectMany(page => page.Runs).ToList();
+        Assert.That(placed.Count, Is.GreaterThan(1));
+        Assert.That(string.Concat(placed.Select(x => x.Text)), Is.EqualTo(text));
+        Assert.That(placed.All(x => x.Font is not null && x.Width <= 40.000001), Is.True);
+        Assert.That(System.Text.Encoding.Latin1.GetString(Pdf(html, options)), Does.Contain("/FontFile2"));
+        // A supplied font is not bypassed merely because an emergency break
+        // could make an otherwise-unsupported character fit the line.
+        Reject("<p style='width:40pt;overflow-wrap:break-word'>ABWC</p>",
+            "FPDF1504", options);
+    }
+
+    [Test]
     public void ExplicitBreaksAndNoWrapKeepTheirExistingSemantics()
     {
         Assert.That(Lines("<p style='width:60pt;overflow-wrap:break-word'>ABCDEFGH<br>IJKLMNOP</p>")
