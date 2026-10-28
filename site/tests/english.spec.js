@@ -92,3 +92,47 @@ test('English display does not rewrite the downloaded original audit',async({pag
   const download=await pending;
   expect(await readFile(await download.path())).toEqual(await readFile(new URL('../data/compatibility.json',import.meta.url)));
 });
+
+test('empty-result clearing keeps rows, empty state and pagination consistent across history',async({page})=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.goto(base);
+  const search=page.getByRole('searchbox');
+  const empty=page.getByTestId('empty');
+  const pager=page.locator('.pagination > span');
+  async function full(){
+    await expect(search).toHaveValue('');
+    await expect(page).toHaveURL(/\/FactsPDF\/$/);
+    await expect(page.locator('.results-heading h2 span')).toHaveText('418');
+    await expect(page.locator('tbody tr')).toHaveCount(25);
+    await expect(empty).toHaveCount(0);
+    await expect(pager).toHaveText('Page 1 / 17 · 418 records');
+    await expect(page.getByRole('button',{name:'Next page',exact:true})).toBeEnabled();
+  }
+  for(let cycle=0;cycle<2;cycle++){
+    await search.fill('zz-no-such-feature-qa');
+    await expect(empty).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(0);
+    await expect(pager).toHaveText('Page 1 / 1 · 0 records');
+    await empty.getByRole('button',{name:'Clear filters',exact:true}).click();
+    await full();
+    await page.locator('.reset').click();await full();
+  }
+  await search.fill('zz-no-such-feature-qa');await expect(empty).toBeVisible();
+  // A real hash navigation creates a history entry; clear replaces that entry.
+  await page.evaluate(()=>{location.hash='#q=FPDF1102';});
+  await expect(empty).toHaveCount(0);
+  await expect(pager).toHaveText('Page 1 / 4 · 82 records');
+  await page.locator('.reset').click();await full();
+  await page.goBack();
+  await expect(search).toHaveValue('zz-no-such-feature-qa');
+  await expect(empty).toBeVisible();
+  await expect(page.locator('tbody tr')).toHaveCount(0);
+  await expect(pager).toHaveText('Page 1 / 1 · 0 records');
+  await page.goForward();await full();
+  await page.getByRole('button',{name:'Next page',exact:true}).click();
+  await expect(pager).toHaveText('Page 2 / 17 · 418 records');
+  await page.locator('.reset').click();await full();
+  expect(errors).toEqual([]);
+});
