@@ -25,7 +25,7 @@ foreach (var (name, input, settings, expected) in new[]
     // list-style-type is now a recognized, bounded property. An unsupported
     // marker VALUE must fail FPDF1202 (rather than the old unknown-property
     // FPDF1201); keep checking the exact diagnostic and untouched destination.
-    ("list-css", "<ul style='list-style-type:square'><li>A</li></ul>", options, "FPDF1202"),
+    ("list-css", "<ul style='list-style-type:diamond'><li>A</li></ul>", options, "FPDF1202"),
     ("marker-style", "<ol><li style='font-weight:bold'><p style='font-weight:normal'>A</p></li></ol>", options, "FPDF1507"),
     ("gutter", "<ol style='width:10pt'><li>A</li></ol>", options, "FPDF1302"),
     ("pages", html, options with { MaxPages = 1 }, "FPDF1303"),
