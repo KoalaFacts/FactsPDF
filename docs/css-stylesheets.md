@@ -1,5 +1,37 @@
 # Embedded CSS stylesheets and selectors
 
+## Current-source bounded quoted-report panels
+
+`blockquote` is a **real block container** at report root or inside ordinary
+body/div/section/article/blockquote contexts. It accepts direct text,
+explicit paragraphs/headings and their existing permitted inline children,
+with the same block CSS properties and positional painting as a `div`.
+Its default non-collapsing outside margins are **8pt top/bottom and 24pt
+left/right**. Those values are actual PDF layout insets, not ornamental
+metadata; an unstyled quote is byte-equivalent to a `div` using
+`margin:8pt 24pt`. The normal per-property cascade can override the
+defaults with physical or LTR logical margin/padding declarations; explicit
+`initial`/ `unset` reset to zero and `inherit` reads the computed parent
+side. Inherited text colour/fonts, backgrounds, solid per-side borders,
+width/min/max-width, `box-sizing:border-box`, alignment and multiline
+pagination reuse their already bounded element contracts.
+
+Unsupported: quote-in-list, quote-in-table/cell, quote-in-inline; `cite`
+and browser citation metadata; CSS generated quote marks; `q`/`cite`
+elements; RTL/vertical writing; margin collapse; negative margins; vertical
+margin percentages/auto; height, arbitrary display, floating and rounded
+border painting. Existing unsupported CSS and unplaceable geometry reject
+with `FPDF1101/1103/1201/1202/1302`, preserving the original PDF output
+on conversion failure. Quoted content is **not** a tagged PDF quotation.
+No separate font download or asset is involved.
+
+[44-item paginated quoted service report](../examples/report-blockquotes.html)
+and its [physical div oracle](../examples/report-blockquotes-oracle.html)
+prove real PDF-byte equivalence, searchable text, page fragments and protected
+failure recovery via `BlockquoteReportTests.cs` and
+`scripts/verify_stylesheets.py` on supported actual CI platforms. New
+source evidence is not a human PDF approval or private candidate rebuild.
+
 ## Current-source LTR logical report spacing
 
 Four logical shorthands are supported for **normal left-to-right horizontal
