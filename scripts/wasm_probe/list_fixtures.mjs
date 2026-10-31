@@ -25,7 +25,7 @@ export const listAscii = {
 };
 export const listErrors = [
   { name: 'lists-third-level', html: '<ol><li><ul><li><ol></ol></li></ul></li></ol>', code: 'FPDF1101' },
-  { name: 'lists-attribute', html: '<ol start="2"><li>A</li></ol>', code: 'FPDF1103' },
+  { name: 'lists-attribute', html: '<ol start="0"><li>A</li></ol>', code: 'FPDF1103' },
   { name: 'lists-gutter', html: '<ol style="width:10pt"><li>A</li></ol>', code: 'FPDF1302' },
   { name: 'lists-marker-style', html: '<ol><li style="font-weight:bold"><p style="font-weight:normal">A</p></li></ol>', code: 'FPDF1507' },
 ];
