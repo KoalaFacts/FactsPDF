@@ -3,6 +3,8 @@ namespace FactsPDF;
 internal enum TextAlignment { Left, Center, Right, Justify }
 internal enum TextDecoration { None, Underline, LineThrough }
 internal enum TextTransform { None, Uppercase, Lowercase }
+// This is the renderer's bounded outside-list marker selection, not CSS counters.
+internal enum ListMarkerKind { Disc, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
 internal readonly record struct Rgb(double R, double G, double B);
 internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
     double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
@@ -95,6 +97,9 @@ internal sealed record BoxStyle(
     // Only ordinary block display:none is modelled. The parser removes the
     // complete validated subtree before any PDF layout or paint commands.
     public bool DisplayNone { get; init; }
+    // Unlike painted box sides, list-style-type is inherited through li and
+    // other containers. The ol/ul HTML defaults are applied in CSS computing.
+    public ListMarkerKind MarkerKind { get; init; } = ListMarkerKind.Disc;
     // Opt-in width constraints. Percentages resolve against the containing
     // content width; the constrained measure follows box-sizing.
     public CssLength? MinWidth { get; init; }

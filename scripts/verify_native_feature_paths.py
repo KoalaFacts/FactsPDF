@@ -184,6 +184,97 @@ def validate_continued_row(pages, expected_notes=None, final_note=None):
                 repeatedHeadersPerPage=[1, 1], followingRowsAfterContinuation=True)
 
 
+def list_marker_label(kind, ordinal):
+    """Independent expected marker oracle, intentionally not using engine code."""
+    if kind == 'alpha':
+        output = ''
+        while ordinal:
+            ordinal -= 1
+            output = chr(97 + ordinal % 26) + output
+            ordinal //= 26
+        return output + '.'
+    output = ''
+    for number, digits in ((1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'),
+                           (100, 'C'), (90, 'XC'), (50, 'L'), (40, 'XL'),
+                           (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')):
+        while ordinal >= number:
+            output += digits
+            ordinal -= number
+    return output + '.'
+
+
+def inspect_list_markers(pages):
+    """Verify real Poppler body/marker attachment, count, page and gutter geometry.
+
+    pages is a list of (width,height,[(text,xMin,yMin,xMax,yMax),...]).
+    A deliberately independent algorithm computes every expected label.
+    """
+    assert len(pages) >= 2, 'The 74-entry marker report must paginate'
+    positioned = [(p, item) for p, (_, _, words) in enumerate(pages) for item in words]
+    expected_ids = [f'CHK-{i:02d}' for i in range(1, 41)] + [
+        f'ACT-{i:02d}' for i in range(1, 26)] + [
+        f'NOTE-{i:02d}' for i in range(1, 10)]
+    actual_ids = [w[0] for _, w in positioned if re.fullmatch(r'(?:CHK|ACT|NOTE)-\d{2}', w[0])]
+    assert actual_ids == expected_ids, 'Report IDs were duplicated, removed or reordered'
+    assert sum(w[0] == 'END-REPORT' for _, w in positioned) == 1, 'Missing report tail'
+    groups = {}
+    for prefix, count, kind in [('CHK', 40, 'alpha'), ('ACT', 25, 'roman')]:
+        x_positions = []
+        found_pages = set()
+        for index in range(1, count + 1):
+            body_id = f'{prefix}-{index:02d}'
+            matches = [(p, word) for p, word in positioned if word[0] == body_id]
+            assert len(matches) == 1, 'Missing body record: ' + body_id
+            page, body = matches[0]
+            found_pages.add(page)
+            marker = list_marker_label(kind, index)
+            candidates = [word for word in pages[page][2]
+                          if word[0] == marker and
+                          abs((word[2]+word[4]) / 2 - (body[2]+body[4]) / 2) < 4.0]
+            assert len(candidates) == 1, 'Missing/duplicate or detached list marker: ' + body_id
+            label = candidates[0]
+            assert 0 < label[1] < label[3] < body[1]-3, 'Marker overlaps body: ' + body_id
+            x_positions.append(body[1])
+        assert max(x_positions) - min(x_positions) < .05, 'List gutter changed between pages: ' + prefix
+        groups[prefix] = {'count': count, 'bodyX': x_positions[0], 'pages': len(found_pages)}
+    notes = [word for _, word in positioned if re.fullmatch(r'NOTE-\d{2}', word[0])]
+    assert len(notes) == 9
+    assert max(w[1] for w in notes)-min(w[1] for w in notes) < .05
+    return {'pages': len(pages), 'records': 74, 'alphaMarkers': 40,
+            'romanMarkers': 25, 'markerFreeNotes': 8, 'vectorDiscOverrides': 1,
+            'markerAttachmentAndGutters': groups}
+
+
+def verify_native_list_markers(executable, root, output, work):
+    source = ROOT / 'examples/report-list-marker-styles.html'
+    assert source.is_file(), 'Missing authored list marker report'
+    pdf = output / 'list-marker-report.pdf'
+    assert not run(executable, source, pdf, cwd=work), 'Native marker conversion wrote stdout'
+    page_count = count_pages(pdf)
+    pages = [page_boxes(pdf, page) for page in range(1, page_count + 1)]
+    evidence = inspect_list_markers(pages)
+    evidence.update({'sha256': sha(pdf), 'sourceSha256': sha(source),
+                     'nativePdf': True, 'nativePdfTextPositions': True})
+    for name, html, code in [
+        ('unknown-type', '<ol style="list-style-type:square"><li>A</li></ol>', 'FPDF1202'),
+        ('invalid-element', '<p style="list-style-type:upper-roman">A</p>', 'FPDF1201')
+    ]:
+        bad = output / f'list-marker-{name}.html'
+        dest = output / f'list-marker-{name}.pdf'
+        bad.write_text(html, encoding='utf-8')
+        dest.write_bytes(b'marker sentinel')
+        failure = subprocess.run([str(executable), str(bad), str(dest), '--overwrite'],
+                                 cwd=work, capture_output=True, timeout=120)
+        assert failure.returncode == 3 and code.encode() in failure.stderr and not failure.stdout, (
+            'Native CSS marker error contract', name, failure.returncode, failure.stderr)
+        assert dest.read_bytes() == b'marker sentinel', 'Native marker failure replaced an existing PDF'
+        assert not run(executable, source, dest, '--overwrite', cwd=work), 'Native recovery wrote stdout'
+        assert dest.read_bytes() == pdf.read_bytes(), 'Marker error recovery altered report PDF bytes'
+    evidence['negativeAndRecovery'] = ['unknown-type', 'invalid-element']
+    return evidence
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -241,6 +332,7 @@ def main():
             run('pdftoppm', '-f', '1', '-l', '2', '-png', '-r', '72', specimen, output / stem)
             assert len(list(output.glob(stem + '-*.png'))) == 2, 'Missing native page preview'
         assert not list(output.glob('.factspdf-*.tmp')), 'Leaked CLI temporary output'
+        list_markers = verify_native_list_markers(isolated, ROOT, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -253,6 +345,7 @@ def main():
                           'repeatBytesEqual': True, 'invalidConfigDestinationPreserved': True,
                           'failureRecoveryBytesEqual': True},
             'continuedRow': {'sha256': sha(continued), **row_result, 'repeatBytesEqual': True},
+            'listMarkers': list_markers,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

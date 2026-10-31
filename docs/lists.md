@@ -19,7 +19,54 @@ The marker stays with its item's first line and appears only once if that item c
 
 Lists contain only direct `li` elements and whitespace. Items may contain the existing supported text/blocks and nested lists. Optional `li` end tags work before a sibling item or the enclosing list end, without repairing unclosed inline/ordinary containers. Third-level lists, orphan items and invalid direct children fail with `FPDF1101`; `start`, `reversed`, `type` and `value` fail with `FPDF1103`. CSS is still validated before HTML structure.
 
-There is no list CSS, counters, image/custom markers, marker pseudo-element, inside placement, whole-item keep, widows or orphans support. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. A line can occur alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
+## Current-source CSS marker selection (bounded)
+
+`list-style-type` is supported **only** on `ol`, `ul` and `li`.
+Accepted single identifiers: `disc`, `decimal`, `lower-alpha`,
+`upper-alpha`, `lower-roman`, `upper-roman`, `none`.
+Default HTML list kinds remain `ol` decimal and `ul` disc. A specified
+`list-style-type` inherits from a parent list or item; the child
+`ul`/`ol` HTML default overrides ordinary inherited kind unless
+the child explicitly requests `inherit` or `unset`.
+`initial` resets to `disc` (the supported CSS initial value).
+Stylesheet specificity, source order, `!important` and inline style
+arbitrate as with existing CSS, and every supplied declaration is strictly
+validated even when it loses the cascade or selector match.
+
+`lower-alpha`/`upper-alpha` count 1=a/A through 26=z/Z,
+27=aa/AA; `lower-roman`/`upper-roman` count 1=i/I,
+4=iv/IV, 9=ix/IX and use standard subtractive notation up to 3999.
+A Roman marker at 4000 fails `FPDF1202`, not a silently incorrect
+label. Individual `li` overrides change just their own marker, not
+the ordered-list item numbering. Text markers are measured with the
+item's explicit font/style chain and tracking, placed at their real PDF
+coordinates and printed once at the first line when an item spans pages.
+Unordered `disc` is the existing coloured PDF vector. `none` removes
+the marker and its paint/display command while retaining the normal
+list-item indentation, body text, and pagination. Existing documents
+without the new declaration retain the old marker bytes.
+
+Unsupported `list-style` shorthand, `list-style-position`,
+`square`/`circle`, list images, CSS counters, custom glyph markers,
+`::marker`, inside placement, whole-item keep, widows or orphans still
+fail as unsupported. Invalid values reject with `FPDF1202`; declarations
+on non-list elements reject with `FPDF1201`, and errors preserve
+existing PDF output. Element and font limits, list nesting and
+cancellation retain their existing contracts.
+
+The [74-entry print report](../examples/report-list-marker-styles.html)
+uses 40 alphabetic inspection rows, 25 Roman corrective actions,
+eight marker-free notes and one vector-disc override. The new
+`ListMarkerStyleTests.cs` exercises true PDF bytes, measured marker
+positions, multi-page layout, cascading rules, font contexts and
+protected-output failures. `scripts/verify_lists.py` independently
+checks report label/marker attachment and consistent gutters from actual
+managed/native PDF extraction. Engine source commit
+`e137e523264d1250702656ee1968c5ff2f61e8fe`;
+this is not the historical private 0.1.0-preview.1 candidate,
+a public NuGet release, or human approval.
+
+There is no other list CSS, counters, image/custom markers, marker pseudo-element, inside placement, whole-item keep, widows or orphans support. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. A line can occur alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
 
 The [design](superpowers/specs/2026-10-17-bounded-lists-design.md) and [plan](superpowers/plans/2026-10-17-bounded-lists.md) specify the precise acceptance contract. Local evidence includes 629 passing core tests and a five-page report from direct API, CLI and freshly built Linux Native AOT with identical PDF bytes. All five first-render pages were opened; independent qpdf/text/geometry/font checks and deliberately corrupted checker inputs passed. These are observed local results, not user reference approval or evidence of completed final-head CI/PR review. Protected browser results and final exact-head gates belong to the PR evidence.
 

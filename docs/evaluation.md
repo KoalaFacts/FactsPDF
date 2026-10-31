@@ -87,6 +87,18 @@ semantics or customer-ready package distribution, and `cite`, lists/tables
 containing quotes, unsupported CSS and arbitrary nested content remain
 outside the tested contract. See the [scoped support](css-stylesheets.md#current-source-bounded-quoted-report-panels).
 
+Current-source maintenance checklists and corrective action lists can
+also use bounded `list-style-type` on `ol`, `ul` or `li`:
+alphabetic or Roman PDF number glyphs, decimal, vector disc or no
+marker. Real glyph advances, per-list gutter width, cross-page marker
+attachment, CSS cascade and unsupported-input recovery are exercised
+by the [74-entry report](../examples/report-list-marker-styles.html)
+and `ListMarkerStyleTests`, with a Native AOT PDF text/geometry
+witness in `scripts/verify_lists.py`. The feature is not custom
+CSS counters, arbitrary marker imagery, a release, a private-candidate
+rebuild, a new licence or a reviewed human PDF reference. See
+[bounded markers](css-stylesheets.md#current-source-bounded-list-marker-types).
+
 ## Start with a report that fits
 
 Long invoice/reference identifiers can opt into scoped `overflow-wrap:break-word` on report paragraphs/headings, including flat p inside fixed-column cells. Oversized tokens split at measured glyph boundaries and continue across pages, while ordinary words still move whole and `white-space:nowrap` takes precedence. `anywhere`, complex shaping, automatic hyphenation and full CSS Text are outside scope. The [32-entry report](../examples/report-overflow-wrap.html) has a separate [manual-break oracle](../examples/report-overflow-wrap-oracle.html) and protected-output errors. Source-only, not a customer grant or human PDF approval. See the [scope](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers).

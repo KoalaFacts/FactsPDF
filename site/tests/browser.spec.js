@@ -9,7 +9,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('tbody tr')).toHaveCount(25);
   // The banner displays the current audited source commit, not the prior
   // numeric-font feature's own historical source identity.
-  await expect(page.getByText('9762e45d',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('e137e523',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -290,4 +290,18 @@ test('element em geometry is discoverable without claiming browser CSS sizing',a
   await expect(details).toBeVisible();
   await expect(details).toContainText('em');
   await expect(details).toContainText('FPDF1302');
+});
+
+test('English lookup describes real bounded PDF list marker support',async({page})=>{
+  // The browser suite runs with a Chinese locale; select English *before*
+  // opening the details modal, which traps clicks outside the dialog.
+  await page.goto(base+'#q=list-style-type');
+  await page.getByRole('button',{name:'English',exact:true}).click();
+  await page.getByRole('button',{name:'list-style-type',exact:true}).click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('upper-roman');
+  await expect(details).toContainText('3999');
+  await expect(details).toContainText('FPDF1202');
+  await expect(details).toContainText('Actual PDF');
 });

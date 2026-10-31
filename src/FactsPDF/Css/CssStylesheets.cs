@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Display + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.ListStyleType + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -146,6 +146,10 @@ internal sealed class CssStylesheets
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "display is supported only on ordinary report blocks outside lists and tables.", declaration.Offset);
+            if (declaration.Property == CssProperty.ListStyleType &&
+                element.Name is not ("ol" or "ul" or "li"))
+                throw new FactsPdfException("FPDF1201",
+                    "list-style-type is supported only on ol, ul and li.", declaration.Offset);
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
@@ -266,12 +270,27 @@ internal sealed class CssStylesheets
             },
             _ => new BoxStyle()
         };
+        // UA list defaults are decimal for ol and disc for ul. Other elements
+        // propagate the inherited marker type, including li and nested panels.
+        box = box with { MarkerKind = element.Name switch
+        {
+            "ol" => ListMarkerKind.Decimal,
+            "ul" => ListMarkerKind.Disc,
+            _ => parentBox.MarkerKind
+        } };
         foreach (var winner in winners)
         {
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
             if (declaration.Property == CssProperty.Display)
                 box = box with { DisplayNone = declaration.Value == "none" };
+            else if (declaration.Property == CssProperty.ListStyleType)
+                box = box with { MarkerKind = declaration.Value switch
+                {
+                    "inherit" or "unset" => parentBox.MarkerKind,
+                    "initial" => ListMarkerKind.Disc,
+                    _ => ListMarkerTypes.Parse(declaration.Value, declaration.Offset)
+                } };
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
             else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
