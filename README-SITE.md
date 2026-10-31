@@ -19,10 +19,12 @@ English is a display translation, not a new engine audit. The source-language
 JSON/CSV exports remain unchanged. Examples are labelled as verbatim source.
 Translations do not remove limitations or turn unverified support into support.
 
-The catalogue in `site/src/audit-english-panel-vertical.mjs` reuses the
-previous English audit by exact source-text index and adds nine explicitly
-reviewable translations for the bounded vertical panel margins. All 675
-ordered original source strings are bound to an exact SHA-256 before display. It retains one translation per unique Chinese display
+The current catalogue in `site/src/audit-english-logical-side-longhands.mjs`
+reuses the previous bounded-blockquote English audit by exact source-text
+index. It updates nine source strings (the eight logical-side scope/limit
+descriptions and the audited CSS inventory note), without retranslating
+unaffected records. All 694 ordered source strings are bound to an exact
+SHA-256 before display. It retains one translation per unique Chinese display
 string returned by `collectAuditStrings()` in
 `site/src/localisation.mjs`. Its source SHA-256 binds the ordered original text
 inventory before any translations are used. On intentional audit-text changes,
