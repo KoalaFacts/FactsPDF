@@ -6203,7 +6203,7 @@
       "example": "<ol style=\"list-style-type:upper-roman\"><li>Review</li></ol>",
       "failure_code": "FPDF1202 (invalid value); FPDF1201 (unsupported element); FPDF1504/FPDF1507 (missing marker font)",
       "introduced_milestone": "C2",
-      "introduced_pr": null,
+      "introduced_pr": 110,
       "introduced_release": null,
       "last_audited_commit": "e137e523264d1250702656ee1968c5ff2f61e8fe",
       "last_audited_date": "2026-11-01",

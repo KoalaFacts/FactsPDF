@@ -3,7 +3,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from verify_native_feature_paths import ROOT, validate_row_fixture, expected_note_texts, validate_continued_row, validate_furniture_words
+from verify_native_feature_paths import ROOT, validate_row_fixture, expected_note_texts, validate_continued_row, validate_furniture_words, inspect_list_markers, list_marker_label
 
 
 class NativeFeaturePathTests(unittest.TestCase):
@@ -166,6 +166,43 @@ class NativeFeaturePathTests(unittest.TestCase):
             pages[0].insert(1, marker)
         with self.assertRaises(AssertionError):
             validate_continued_row(pages)
+
+    @staticmethod
+    def marker_pages():
+        first, second = [], []
+        for prefix, count, kind, x in [('CHK', 40, 'alpha', 72.0),
+                                        ('ACT', 25, 'roman', 82.0)]:
+            for idx in range(1, count+1):
+                page = first if prefix == 'CHK' and idx <= 20 else second
+                y = 35.0 + (idx % 20) * 15
+                mark = list_marker_label(kind, idx)
+                page.extend([(mark, x-25, y, x-8, y+10),
+                             (f'{prefix}-{idx:02d}', x, y, x+50, y+10)])
+        for idx in range(1,10):
+            second.append((f'NOTE-{idx:02d}', 64, 450+idx*15, 120, 460+idx*15))
+        second.append(('END-REPORT', 36, 700, 100, 710))
+        return [(595,842,first),(595,842,second)]
+
+    def test_independent_list_marker_oracle_accepts_real_layout_shape(self):
+        result=inspect_list_markers(self.marker_pages())
+        self.assertEqual(result['records'],74)
+        self.assertEqual(result['alphaMarkers'],40)
+        self.assertEqual(result['romanMarkers'],25)
+        self.assertEqual(list_marker_label('alpha',27),'aa.')
+        self.assertEqual(list_marker_label('roman',9),'IX.')
+
+    def test_independent_list_marker_oracle_rejects_detachment_and_duplication(self):
+        for mode in ('missing','duplicate','moved'):
+            pages=self.marker_pages()
+            words=pages[0][2]
+            if mode=='missing':
+                words.pop(0)
+            elif mode=='duplicate':
+                words.append(words[0])
+            else:
+                marker=words[0]; words[0]=(marker[0],marker[1],marker[2]+40,marker[3],marker[4]+40)
+            with self.subTest(mode=mode), self.assertRaises(AssertionError):
+                inspect_list_markers(pages)
 
 
 if __name__ == '__main__':

@@ -204,7 +204,7 @@ test('category / status / known milestone combine; plans never become supported'
   assert(result.length > 0);
   assert(result.every(f=>f.category==='CSS属性'&&f.status==='partial'&&f.introduced_milestone==='M6'));
   assert.equal(filterFeatures(dataset.features,{category:'HTML元素',status:'full'}).length,0);
-  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,364);
+  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,363);
 });
 test('source links permit HTTPS only without credentials', () => {
   assert.equal(safeUrl('javascript:alert(1)'),null);
@@ -514,6 +514,7 @@ test('bounded list marker audit retains actual PDF scope and 418 provenance rows
   assert.equal(line.status,'partial');
   assert.equal(line.last_audited_commit,'e137e523264d1250702656ee1968c5ff2f61e8fe');
   assert.equal(line.introduced_release,null);
+  assert.equal(line.introduced_pr,110);
   assert.match(line.scope,/lower-roman/);
   assert.match(line.limitations,/3999/);
   assert.match(line.test_reference,/ListMarkerStyleTests/);
