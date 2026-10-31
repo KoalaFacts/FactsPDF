@@ -106,7 +106,7 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   assert.match(display.scope,/fixed-column table cells/);
   assert.match(display.limitations,/nowrap prohibits automatic breaks/);
   assert.match(display.limitations,/FPDF1302/);
-  assert.match(translate(data.css_inventory_note),/accept 56 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/accept 64 CSS property names/);
   assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
 });
 
@@ -129,7 +129,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
   const margin=englishFeature(data.features.find(row=>row.id==='css.margin'));
   assert.match(margin.limitations,/vertical percentage\/auto/);
   assert.match(margin.limitations,/FPDF1302/);
-  assert.match(translate(data.css_inventory_note),/56 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/64 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin:0 auto/);
   assert.match(data.audit_method,/Five-record source-bound report panel/);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
@@ -156,7 +156,7 @@ test('real vertical panel margins retain exact English scope and source identity
   assert.match(margin.scope,/margin:0 auto/);
   assert.match(margin.scope,/margin:12pt auto 7pt/);
   assert.match(margin.limitations,/table-cell p/);
-  assert.match(translate(data.css_inventory_note),/56 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/64 CSS property names/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
   assert.equal(data.features.length,418);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
@@ -194,14 +194,17 @@ test('LTR logical spacing has complete English audit text', async () => {
   for(const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
     const row=englishFeature(data.features.find(f=>f.id==='css.'+name));
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'c60630d7d8584007ebc19cd75c997ffb3b1b4852');
+    assert.equal(row.last_audited_commit,'03c17c1f4f4b3eff556cb7353f356ca70439f59a');
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
+    assert.match(row.scope,new RegExp(name+'-start'));
+    assert.match(row.scope,new RegExp(name+'-end'));
     assert.match(row.limitations,/FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
-  assert.match(translate(data.css_inventory_note),/accept 56 CSS property names/);
-  assert.match(translate(data.css_inventory_note),/margin-inline/);
+  assert.match(translate(data.css_inventory_note),/accept 64 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/margin-inline-start/);
+  assert.match(translate(data.css_inventory_note),/padding-block-end/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
 });
 
