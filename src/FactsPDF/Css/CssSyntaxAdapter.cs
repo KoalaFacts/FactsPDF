@@ -282,6 +282,22 @@ internal static class CssSyntaxAdapter
                 }
                 continue;
             }
+            // Restricted list-style shorthand: exactly one supported marker
+            // type or one CSS-wide keyword. Position/images are not implemented,
+            // so accepting or dropping any other term would falsely render it.
+            // Lower to the existing list-style-type cascade and PDF marker path.
+            if (name == "list-style")
+            {
+                if (terms.Count != 1 || valueTokens.Count() != 1
+                    || valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
+                    throw new FactsPdfException("FPDF1202",
+                        "list-style accepts exactly one supported marker type.", node.Span.Start);
+                var kind = terms[0];
+                var kindOffset = valueTokens[0].Token.Span.Start;
+                if (!Wide(kind)) _ = ListMarkerTypes.Parse(kind, kindOffset);
+                Emit(CssProperty.ListStyleType, kind, kindOffset);
+                continue;
+            }
             if (terms.Count != 1)
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
             var token = terms[0];
@@ -366,7 +382,7 @@ internal static class CssSyntaxAdapter
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "display" => CssProperty.Display,
-        "list-style-type" => CssProperty.ListStyleType,
+        "list-style-type" or "list-style" => CssProperty.ListStyleType,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
         "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,

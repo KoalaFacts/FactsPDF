@@ -255,7 +255,7 @@ public sealed class ListMarkerStyleTests
         Fails("<li style='list-style-type:100'>A</li>", "FPDF1202");
         Fails("<p style='list-style-type:decimal'>A</p>", "FPDF1201");
         Fails("<span style='list-style-type:disc'>A</span>", "FPDF1201");
-        Fails("<ol style='list-style:none'><li>A</li></ol>", "FPDF1201");
+        Fails("<ol style='list-style:disc inside'><li>A</li></ol>", "FPDF1202");
         Fails("<style>.unused {list-style-type:diamond}</style><ol><li>A</li></ol>", "FPDF1202");
         Fails("<ol style='list-style-type:circle square'><li>A</li></ol>", "FPDF1202");
         Fails("<p style='list-style-type:circle'>A</p>", "FPDF1201");

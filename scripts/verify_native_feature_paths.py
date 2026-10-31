@@ -368,6 +368,73 @@ def verify_native_vector_markers(executable, output, work):
             'popplerTextAndPdfPathEvidence': True}
 
 
+
+def verify_native_list_continuations(executable, output, work):
+    """Independent expected ordinals and real native PDF glyph geometry."""
+    source = ROOT / 'examples/report-list-continuations.html'
+    pdf = output / 'list-continuations.pdf'
+    assert not run(executable, source, pdf, cwd=work), 'List continuation wrote stdout'
+    count = count_pages(pdf)
+    assert count >= 2, 'List-continuation register did not actually paginate'
+    pages = [page_boxes(pdf, page) for page in range(1, count + 1)]
+    words = [(page, word) for page, (_, _, entries) in enumerate(pages, 1) for word in entries]
+
+    # Expected counters are independently enumerated here; they are not
+    # inferred from the produced PDF or from the HTML renderer's model.
+    def roman(n):
+        result = ''
+        for value, symbol in ((1000,'M'),(900,'CM'),(500,'D'),(400,'CD'),
+                              (100,'C'),(90,'XC'),(50,'L'),(40,'XL'),
+                              (10,'X'),(9,'IX'),(5,'V'),(4,'IV'),(1,'I')):
+            while n >= value:
+                result += symbol
+                n -= value
+        return result
+    groups = {
+        'RC-A': [str(20 + i) + '.' if i < 10 else str(43 + i - 10) + '.'
+                 for i in range(1, 27)],
+        'RC-B': [roman(21 - i) + '.' for i in range(1, 21)],
+        'RC-C': [str(47 - i) + '.' if i < 8 else str(31 - (i - 8)) + '.'
+                 for i in range(1, 26)]
+    }
+    for prefix, labels in groups.items():
+        body_x = []
+        for index, expected in enumerate(labels, 1):
+            name = f'{prefix}{index:02d}'
+            found = [(page, box) for page, box in words if box[0] == name]
+            assert len(found) == 1, ('Lost or repeated body entry', name, found)
+            page, body = found[0]
+            markers = [box for marker_page, box in words
+                       if marker_page == page and box[0] == expected
+                       and abs(box[2] - body[2]) < 2.0 and box[3] < body[1]]
+            assert len(markers) == 1, ('Wrong, repeated or detached ordinal', name, expected, markers)
+            body_x.append(body[1])
+        assert max(body_x) - min(body_x) < .05, ('Inconsistent marker gutter', prefix, body_x)
+    for index in range(1, 7):
+        name = f'RC-D{index:02d}'
+        assert sum(box[0] == name for _, box in words) == 1, ('Missing marker-free entry', name)
+    for name, html, code in (
+        ('zero', '<ol start="0"><li>A</li></ol>', 'FPDF1103'),
+        ('reverse-underflow', '<ol reversed start="1"><li>A</li><li>B</li></ol>', 'FPDF1103'),
+        ('wrong-target', '<ul><li value="4">A</li></ul>', 'FPDF1103'),
+        ('unsupported-position', '<ol style="list-style:circle inside"><li>A</li></ol>', 'FPDF1202'),
+    ):
+        bad = output / f'list-control-{name}.html'
+        dest = output / f'list-control-{name}.pdf'
+        bad.write_text(html, encoding='utf-8')
+        dest.write_bytes(b'list-control sentinel')
+        failed = subprocess.run([str(executable), str(bad), str(dest), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code.encode() in failed.stderr and not failed.stdout, (
+            'Native list control failure', name, failed.returncode, failed.stderr)
+        assert dest.read_bytes() == b'list-control sentinel', 'Native failure clobbered output'
+        assert not run(executable, source, dest, '--overwrite', cwd=work)
+        assert dest.read_bytes() == pdf.read_bytes(), 'Native recovery changed valid PDF'
+    return {'pages': count, 'numberedItems': sum(map(len, groups.values())),
+            'markerFreeItems': 6, 'sha256': sha(pdf), 'sourceSha256': sha(source),
+            'popplerOrdinalAndGeometry': True, 'protectedFailureRecovery': True}
+
+
 def verify_native_list_markers(executable, root, output, work):
     source = ROOT / 'examples/report-list-marker-styles.html'
     assert source.is_file(), 'Missing authored list marker report'
@@ -395,6 +462,7 @@ def verify_native_list_markers(executable, root, output, work):
         assert dest.read_bytes() == pdf.read_bytes(), 'Marker error recovery altered report PDF bytes'
     evidence['negativeAndRecovery'] = ['unknown-type', 'invalid-element']
     evidence['vectorShapes'] = verify_native_vector_markers(executable, output, work)
+    evidence['numberedContinuation'] = verify_native_list_continuations(executable, output, work)
     return evidence
 
 

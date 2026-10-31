@@ -215,6 +215,8 @@ internal static class HtmlDocumentReader
                 style = style with { FontSize = style.FontSize * (name[1] switch
                 { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 }) };
             var columnSpan = 1;
+            int? listStart = null, listValue = null;
+            var listReversed = false;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
@@ -225,6 +227,17 @@ internal static class HtmlDocumentReader
                 }
                 else if (attribute == "colspan" && name is "td" or "th")
                     columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count, token.Offset, cancellation);
+                else if (attribute == "start" && name == "ol")
+                    listStart = ParseListOrdinal(value, token.Offset, cancellation);
+                else if (attribute == "value" && name == "li" && stack[^1].Name == "ol")
+                    listValue = ParseListOrdinal(value, token.Offset, cancellation);
+                else if (attribute == "reversed" && name == "ol")
+                {
+                    if (value.Length != 0 && !value.Equals("reversed", StringComparison.OrdinalIgnoreCase))
+                        throw new FactsPdfException("FPDF1103",
+                            "ol reversed accepts only an empty boolean attribute or 'reversed'.", token.Offset);
+                    listReversed = true;
+                }
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (attribute is "id" or "class" or "lang" or "title" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
@@ -280,7 +293,10 @@ internal static class HtmlDocumentReader
             BlockNode? box = null;
             if (BoxTag(name) && table?.Cell is null)
             {
-                box = new BlockNode(name, style, boxStyle, token.Offset);
+                box = new BlockNode(name, style, boxStyle, token.Offset)
+                {
+                    ListStart = listStart, ListValue = listValue, ListReversed = listReversed
+                };
                 CurrentChildren().Add(box);
             }
             stack.Add(new(name, style, boxStyle, box, token.Offset));
@@ -300,6 +316,31 @@ internal static class HtmlDocumentReader
         Flush();
         return result;
     }
+    // Bounded positive ASCII decimal list ordinals only. Reject signs,
+    // zero, overflow and decimal/exponent spellings instead of silently
+    // truncating or wrapping generated PDF marker text.
+    private static int ParseListOrdinal(string value, int offset, CancellationToken cancellation)
+    {
+        var start = 0;
+        var end = value.Length;
+        while (start < end && HtmlTokens.Space(value[start])) { cancellation.ThrowIfCancellationRequested(); start++; }
+        while (end > start && HtmlTokens.Space(value[end - 1])) { cancellation.ThrowIfCancellationRequested(); end--; }
+        var ordinal = 0;
+        for (var i = start; i < end; i++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var digit = value[i] - '0';
+            if (digit is < 0 or > 9 || ordinal > (ListMarkerTypes.MaxOrdinal - digit) / 10)
+                throw new FactsPdfException("FPDF1103",
+                    "List ordinals require positive ASCII decimal integers within the supported range.", offset);
+            ordinal = ordinal * 10 + digit;
+        }
+        if (ordinal == 0)
+            throw new FactsPdfException("FPDF1103",
+                "List ordinals require positive ASCII decimal integers within the supported range.", offset);
+        return ordinal;
+    }
+
     private static int ParseColumnSpan(string value, int columns, int offset, CancellationToken cancellation)
     {
         var start = 0;

@@ -102,6 +102,19 @@ CSS counters, arbitrary marker imagery, a release, a private-candidate
 rebuild, a new licence or a reviewed human PDF reference. See
 [bounded markers](css-stylesheets.md#current-source-bounded-list-marker-types).
 
+### Bounded source-only action-list numbering
+
+Existing `ol` report lists now support `start="21"`, `reversed`
+and an individual direct `li value="43"` to continue or restart
+numbered work-order steps. A single marker-kind `list-style` shorthand
+uses the implemented list-style-type layout; it is not support for list
+images, CSS counters or inside/outside. The new
+[77-entry pagination report](../examples/report-list-continuations.html)
+and [contract](lists.md#current-source-ordered-list-sequencing-and-one-token-shorthand)
+cover actual PDF numbering, strict failure and old-output preservation.
+There is no new binary, customer evaluation grant, human PDF approval or
+package publication from this source addition.
+
 ## Start with a report that fits
 
 Long invoice/reference identifiers can opt into scoped `overflow-wrap:break-word` on report paragraphs/headings, including flat p inside fixed-column cells. Oversized tokens split at measured glyph boundaries and continue across pages, while ordinary words still move whole and `white-space:nowrap` takes precedence. `anywhere`, complex shaping, automatic hyphenation and full CSS Text are outside scope. The [32-entry report](../examples/report-overflow-wrap.html) has a separate [manual-break oracle](../examples/report-overflow-wrap-oracle.html) and protected-output errors. Source-only, not a customer grant or human PDF approval. See the [scope](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers).

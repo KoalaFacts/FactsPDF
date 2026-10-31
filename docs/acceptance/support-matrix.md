@@ -103,3 +103,20 @@ at source `7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750`. The Native AOT verifier ch
 two embedded faces, searchable text, pagination and protected output for
 unsupported/missing-role input. This is supplemental source evidence, not a
 new T-bold human approval, private candidate, customer delivery or NuGet release.
+
+
+## Current-source list numbering and one-token shorthand (2026-11-01)
+
+Source `bea39e6d6a55f8a9e77ef8156bf6ca6529494738` implements ordered `start` and direct `li value`
+within 1–999999, reversed counting with bounded positive range, plus
+single-marker-kind `list-style` shorthand. `ReportListControlsTests.cs`
+and the [77-entry report](../../examples/report-list-continuations.html)
+are checked for PDF bytes, source errors, numbering, page continuity,
+font/vector markers and cancellation/recovery. The existing Linux/Windows
+native-feature workflow additionally uses independently enumerated
+ordinal expectations with Poppler text/position extraction.
+Unsupported HTML attributes/targets, numbering underflow, CSS image
+and multi-token position shorthands fail rather than render incorrectly.
+Exact-head CI and independent review are separate required gates; source
+tests cannot approve new human reference pages or relabel the historic
+private `0.1.0-preview.1` binary.

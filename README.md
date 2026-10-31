@@ -217,6 +217,26 @@ explicitly, preserving the existing PDF destination.
 **no preview binary, NuGet publication, commercial grant or human PDF
 approval** follows from this change.
 
+### Current-source report list continuation and numbering
+
+Ordered business report actions can continue from `<ol start="21">`,
+count down via `<ol reversed>`, or reset an item with `<li value="43">`
+inside `ol`. A one-token shorthand such as `list-style:upper-roman`
+or `list-style:square` uses the same real PDF text/vector marker,
+CSS cascade, font measurement and pagination as `list-style-type`.
+Unstyled lists retain byte-identical PDF output.
+
+This is a **bounded subset**: only ASCII positive ordinals 1–999999,
+only direct `ol > li` value overrides, and one existing marker kind or
+CSS-wide keyword per `list-style`. No arbitrary CSS Lists semantics,
+inside/position/images/counters, HTML `type`, negative ordinals or
+list-item `value` on `ul`; invalid inputs fail without overwriting
+a destination. See the
+[77-entry pagination example](examples/report-list-continuations.html)
+and [exact list contract](docs/lists.md#current-source-ordered-list-sequencing-and-one-token-shorthand).
+This is current source, **not** a new retained binary, public NuGet or
+customer distribution grant.
+
 ### Current-source print-only report sections (bounded display)
 
 Use `display:none` to omit a draft, internal note, or unused ordinary

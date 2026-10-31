@@ -209,7 +209,7 @@ def main():
     errors = []
     for mode, command in [('cli', [args.dotnet, args.cli_dll]), ('native', [args.native_cli])]:
         for name, html, code in [('third-level', '<ol><li><ul><li><ol></ol></li></ul></li></ol>', 'FPDF1101'),
-                                ('attribute', '<ol start="2"><li>A</li></ol>', 'FPDF1103'),
+                                ('attribute', '<ol start="0"><li>A</li></ol>', 'FPDF1103'),
                                 ('gutter', '<ol style="width:10pt"><li>A</li></ol>', 'FPDF1302'),
                                 ('marker-style', '<ol><li style="font-weight:bold"><p style="font-weight:normal">A</p></li></ol>', 'FPDF1507')]:
             input_path = out / f'{mode}-{name}.html'; input_path.write_text(html)

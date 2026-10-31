@@ -21,7 +21,7 @@ foreach (var (name, input, settings, expected) in new[]
 {
     ("third-level", "<ol><li><ul><li><ol></ol></li></ul></li></ol>", options, "FPDF1101"),
     ("orphan", "<li>A</li>", options, "FPDF1101"),
-    ("attribute", "<ol start='2'><li>A</li></ol>", options, "FPDF1103"),
+    ("attribute", "<ol start='0'><li>A</li></ol>", options, "FPDF1103"),
     // list-style-type is now a recognized, bounded property. An unsupported
     // marker VALUE must fail FPDF1202 (rather than the old unknown-property
     // FPDF1201); keep checking the exact diagnostic and untouched destination.
