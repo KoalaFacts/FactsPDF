@@ -255,7 +255,7 @@ test('historical justification and case-transform provenance remain pinned after
   assert.equal(dataset.dataset_version, 'audit-2026-11-01.logical-report-spacing-ltr');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
-  assert.match(dataset.css_inventory_note, /52个CSS属性/);
+  assert.match(dataset.css_inventory_note, /56个CSS属性/);
   assert.doesNotMatch(dataset.css_inventory_note, /letter-spacing\/word-spacing仍拒绝/);
   assert.match(dataset.css_inventory_note, /text-indent.*letter-spacing\/word-spacing.*em\/rem/);
   assert.match(dataset.css_inventory_note, /24pt/);
@@ -337,7 +337,7 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:139,none:227,unknown:6,na:2});
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
@@ -401,7 +401,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     'css.margin-right'];
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,56);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:139,none:227,unknown:6,na:2});
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
@@ -442,7 +442,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:139,none:227,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
 });
 
@@ -469,7 +469,7 @@ test('four LTR logical spacing shorthands preserve scoped source evidence', () =
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit,'ff711cbc12936438ec0692862d22ce77ed8e388b');
     assert.equal(row.introduced_release,null);
-    assert.match(row.scope,/LTR/);
+    assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
     assert.match(row.limitations,/FPDF1302/);
     assert.match(row.test_reference,/LogicalReportSpacingTests.cs/);

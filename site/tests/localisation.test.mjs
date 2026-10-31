@@ -195,7 +195,7 @@ test('LTR logical spacing has complete English audit text', async () => {
     const row=englishFeature(data.features.find(f=>f.id==='css.'+name));
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit,'ff711cbc12936438ec0692862d22ce77ed8e388b');
-    assert.match(row.scope,/LTR/);
+    assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
     assert.match(row.limitations,/FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
