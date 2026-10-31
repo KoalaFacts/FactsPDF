@@ -194,7 +194,7 @@ test('LTR logical spacing has complete English audit text', async () => {
   for(const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
     const row=englishFeature(data.features.find(f=>f.id==='css.'+name));
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'ff711cbc12936438ec0692862d22ce77ed8e388b');
+    assert.equal(row.last_audited_commit,'96df6e0d79b99ed37fec1a62250e3eab1038c4ba');
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
     assert.match(row.limitations,/FPDF1302/);
