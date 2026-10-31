@@ -5235,13 +5235,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "96df6e0d79b99ed37fec1a62250e3eab1038c4ba",
+      "last_audited_commit": "9491a029f9b94c23c9f273dbade92bd783caa361",
       "last_audited_date": "2026-11-01",
       "evidence_level": "当前源码已提交真实HTML到PDF的NUnit等价、几何、分页、CLI及失败恢复测试；精确head CI、独立审查和人工PDF批准需另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5261,13 +5261,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "96df6e0d79b99ed37fec1a62250e3eab1038c4ba",
+      "last_audited_commit": "9491a029f9b94c23c9f273dbade92bd783caa361",
       "last_audited_date": "2026-11-01",
       "evidence_level": "当前源码已提交真实HTML到PDF的NUnit等价、几何、分页、CLI及失败恢复测试；精确head CI、独立审查和人工PDF批准需另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5287,13 +5287,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "96df6e0d79b99ed37fec1a62250e3eab1038c4ba",
+      "last_audited_commit": "9491a029f9b94c23c9f273dbade92bd783caa361",
       "last_audited_date": "2026-11-01",
       "evidence_level": "当前源码已提交真实HTML到PDF的NUnit等价、几何、分页、CLI及失败恢复测试；精确head CI、独立审查和人工PDF批准需另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5313,13 +5313,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "96df6e0d79b99ed37fec1a62250e3eab1038c4ba",
+      "last_audited_commit": "9491a029f9b94c23c9f273dbade92bd783caa361",
       "last_audited_date": "2026-11-01",
       "evidence_level": "当前源码已提交真实HTML到PDF的NUnit等价、几何、分页、CLI及失败恢复测试；精确head CI、独立审查和人工PDF批准需另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/96df6e0d79b99ed37fec1a62250e3eab1038c4ba/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/9491a029f9b94c23c9f273dbade92bd783caa361/tests/FactsPDF.Tests/LogicalReportSpacingTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

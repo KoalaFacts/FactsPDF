@@ -467,7 +467,7 @@ test('four LTR logical spacing shorthands preserve scoped source evidence', () =
   for (const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
     const row=dataset.features.find(f=>f.id==='css.'+name);
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'96df6e0d79b99ed37fec1a62250e3eab1038c4ba');
+    assert.equal(row.last_audited_commit,'9491a029f9b94c23c9f273dbade92bd783caa361');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
