@@ -141,6 +141,31 @@ FactsPDF does not synthesize variable weights. See the
 [font role contract](docs/font-styles.md). This source addition is not a new
 public NuGet binary or stable CSS Fonts implementation.
 
+### Current-source business-report quotations
+
+The standard `<blockquote>…</blockquote>` element now creates a **real**
+inset PDF report panel, with default outside margins of **8pt vertically
+and 24pt horizontally**. Quoted paragraphs and inline emphasis inherit the
+existing font styles, while measured text, optional solid borders, backgrounds,
+padding and page continuation use the same renderer as `div` report panels.
+For example:
+
+```html
+<blockquote style="border-left:2pt solid #28557a;padding:7pt">
+  <p>Inspection evidence: all nominated checks were completed.</p>
+</blockquote>
+```
+
+This is a bounded quote **layout** feature, not citation metadata, Tagged PDF
+or browser-complete `blockquote` semantics. `cite` attributes, nesting inside
+lists/tables/inline elements, negative or percentage vertical margins,
+margin collapse, CSS `height`, rounded corners and arbitrary HTML are
+unsupported and explicitly rejected. The quote is source-only: it does not
+update the retained preview binaries or grant customer distribution rights.
+[Real 44-item quote report](examples/report-blockquotes.html),
+[independently authored div oracle](examples/report-blockquotes-oracle.html) and
+[exact CSS/HTML contract](docs/css-stylesheets.md#current-source-bounded-quoted-report-panels).
+
 ### Current-source logical report spacing (LTR only)
 
 Controlled left-to-right business reports can now use

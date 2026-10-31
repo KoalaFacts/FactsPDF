@@ -55,11 +55,11 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:139, none:227, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:140, none:226, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
-  assert.equal(dataset.accepted_html_tag_count,35);
+  assert.equal(dataset.accepted_html_tag_count,36);
   assert.equal(dataset.accepted_css_property_count,56);
   assert.equal(rule.status,'partial');
   assert.equal(rule.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
@@ -252,7 +252,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.logical-report-spacing-ltr');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.blockquote-report-panels');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /56个CSS属性/);
@@ -337,7 +337,7 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:139,none:227,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:140,none:226,unknown:6,na:2});
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
@@ -401,7 +401,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     'css.margin-right'];
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,56);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:139,none:227,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:140,none:226,unknown:6,na:2});
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
@@ -442,7 +442,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:139,none:227,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:140,none:226,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
 });
 
@@ -474,4 +474,20 @@ test('four LTR logical spacing shorthands preserve scoped source evidence', () =
     assert.match(row.limitations,/FPDF1302/);
     assert.match(row.test_reference,/LogicalReportSpacingTests.cs/);
   }
+});
+
+
+test('bounded quoted report panels have one source-bound HTML feature and real PDF evidence', () => {
+  const row=dataset.features.find(f=>f.id==='html.blockquote');
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_html_tag_count,36);
+  assert.equal(row.status,'partial');
+  assert.equal(row.last_audited_commit,'c180ec615123717e0e665e63b84ba8ae8acd48d7');
+  assert.equal(row.introduced_release,null);
+  assert.match(row.scope,/PDF/);
+  assert.match(row.scope,/8pt/);
+  assert.match(row.scope,/24pt/);
+  assert.match(row.limitations,/FPDF1101/);
+  assert.match(row.limitations,/cite/);
+  assert.match(row.test_reference,/BlockquoteReportTests.cs/);
 });

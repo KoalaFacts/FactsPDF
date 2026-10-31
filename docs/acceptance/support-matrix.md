@@ -1,5 +1,16 @@
 # Acceptance support matrix — evidence, not marketing
 
+Current-source `blockquote` is a bounded genuine PDF block container with
+default 8pt vertical and 24pt horizontal margins, inherited text, real
+borders/backgrounds/padding and continued page fragments. Its 44-entry
+report and separately authored physical `div` oracle, source NUnit
+`BlockquoteReportTests.cs` and Native AOT `verify_stylesheets.py` gate
+actual PDF bytes, text, pagination and error recovery. It is not browser
+citation metadata, a `cite` attribute, a Tagged PDF semantic, a human
+approved output or a rebuilt private candidate. Unsupported input still
+fails explicitly. Exact-head CI and independent review must precede
+normal merge.
+
 Current-source `text-indent` is limited to explicit paragraphs/headings outside tables. Actual first-line glyph x and wrapping differ, while later lines/page fragments and painted boxes keep their original x. `TextIndentTests.cs` and `verify_stylesheets.py` cover point/physical/percent parity, rejection and output preservation. Evidence is source-specific, not a new retained candidate or a human-approved PDF comparison.
 
 Current-source parent-relative `font-size` percentages and `em` values

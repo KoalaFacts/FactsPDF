@@ -204,3 +204,17 @@ test('LTR logical spacing has complete English audit text', async () => {
   assert.match(translate(data.css_inventory_note),/margin-inline/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
 });
+
+
+test('new report blockquotes have English default text with bounded limits', async () => {
+  const {englishFeature}=await localisation();
+  const row=englishFeature(data.features.find(f=>f.id==='html.blockquote'));
+  assert.equal(row.status,'partial');
+  assert.equal(row.last_audited_commit,'c180ec615123717e0e665e63b84ba8ae8acd48d7');
+  assert.match(row.scope,/8pt/);
+  assert.match(row.scope,/24pt/);
+  assert.match(row.scope,/PDF/);
+  assert.match(row.limitations,/cite/);
+  assert.match(row.limitations,/FPDF1302/);
+  assert.doesNotMatch([row.scope,row.limitations,row.stage,row.evidence_level].join(' '),han);
+});

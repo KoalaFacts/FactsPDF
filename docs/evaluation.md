@@ -54,6 +54,16 @@ with its [physical-longhand oracle](../examples/report-logical-spacing-oracle.ht
 This is current source, not a newly authorised installable candidate.
 [Exact scope](css-stylesheets.md#current-source-ltr-logical-report-spacing).
 
+Controlled report quotations now accept `<blockquote>` as a true inset,
+paginated block: default 8pt vertical and 24pt horizontal margins, plus
+ordinary report-panel padding, measured text, solid borders and backgrounds.
+The [44-item HTML example](../examples/report-blockquotes.html) has a
+[separate physical-container PDF oracle](../examples/report-blockquotes-oracle.html);
+strict invalid-input recovery remains in place. This is not full HTML citation
+semantics or customer-ready package distribution, and `cite`, lists/tables
+containing quotes, unsupported CSS and arbitrary nested content remain
+outside the tested contract. See the [scoped support](css-stylesheets.md#current-source-bounded-quoted-report-panels).
+
 ## Start with a report that fits
 
 Long invoice/reference identifiers can opt into scoped `overflow-wrap:break-word` on report paragraphs/headings, including flat p inside fixed-column cells. Oversized tokens split at measured glyph boundaries and continue across pages, while ordinary words still move whole and `white-space:nowrap` takes precedence. `anywhere`, complex shaping, automatic hyphenation and full CSS Text are outside scope. The [32-entry report](../examples/report-overflow-wrap.html) has a separate [manual-break oracle](../examples/report-overflow-wrap-oracle.html) and protected-output errors. Source-only, not a customer grant or human PDF approval. See the [scope](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers).
