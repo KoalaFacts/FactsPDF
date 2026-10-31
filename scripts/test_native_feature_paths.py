@@ -21,6 +21,50 @@ class NativeFeaturePathTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     validate_row_fixture(fixture)
 
+
+    def test_vector_marker_pdf_evidence_rejects_offpage_and_wrong_colours(self):
+        from verify_native_feature_paths import inspect_vector_marker_geometry
+        # Test with 40 records of each kind across two pages and a known
+        # 12pt body font. This is a checker mutation, not renderer evidence.
+        def n(value):
+            return f'{value:.3f}'.rstrip('0').rstrip('.') or '0'
+        def circle(cx, y):
+            radius, k = 1.44, 1.44 * .5522847498307936
+            arcs = [
+                (cx+radius,y+k,cx+k,y+radius,cx,y+radius),
+                (cx-k,y+radius,cx-radius,y+k,cx-radius,y),
+                (cx-radius,y-k,cx-k,y-radius,cx,y-radius),
+                (cx+k,y-radius,cx+radius,y-k,cx+radius,y)]
+            return ('q .157 .333 .478 RG .45 w ' + n(cx+radius) + ' ' + n(y) + ' m ' +
+                    ' '.join(' '.join(map(n, arc)) + ' c' for arc in arcs) + ' S Q')
+        def square(cx, y):
+            return 'q .569 .271 .18 rg ' + ' '.join(
+                map(n, (cx-1.8,y-1.8,3.6,3.6))) + ' re f Q'
+        pages = []
+        streams = []
+        for page in range(2):
+            words = []
+            commands = []
+            for idx in range(20):
+                yy = 50 + idx*17
+                i = page*20 + idx+1
+                for prefix, maker in [('CIR',circle),('SQR',square)]:
+                    # Separate kinds vertically to keep each group clear.
+                    top = yy if prefix == 'CIR' else yy+360
+                    words.append((f'{prefix}-{i:02d}',60,top-5,94,top+5))
+                    commands.append(maker(52,841.89-top))
+            pages.append((595.28,841.89,words))
+            streams.append(('\n'.join(commands)+'\n').encode())
+        assert inspect_vector_marker_geometry(pages,streams)['circlesStroked'] == 40
+        changed = list(streams)
+        changed[0] = changed[0].replace(b' RG .45 w ',b' RG .75 w ',1)
+        with self.assertRaises(AssertionError):
+            inspect_vector_marker_geometry(pages,changed)
+        changed = list(streams)
+        changed[0] = changed[0].replace(b' RG ',b' RG ',1).replace(b'746.89 m ',b'946.89 m ',1)
+        with self.assertRaises(AssertionError):
+            inspect_vector_marker_geometry(pages,changed)
+
     @staticmethod
     def words(page):
         body = [('BODY', 120.0, 110.0, 150.0, 120.0)]

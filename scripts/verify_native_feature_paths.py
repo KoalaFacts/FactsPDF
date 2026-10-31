@@ -246,6 +246,100 @@ def inspect_list_markers(pages):
 
 
 
+
+def extract_vector_page_streams(pdf_bytes, page_count):
+    """Read exact uncompressed page-content streams, without platform-specific qpdf."""
+    object_ids = re.findall(rb'/Type /Page /Parent[^\r\n]+?/Contents (\d+) 0 R', pdf_bytes)
+    assert len(object_ids) == page_count, 'Missing or extra PDF page content references'
+    streams = []
+    for object_id in object_ids:
+        header = re.search(rb'(?m)^' + re.escape(object_id) +
+                           rb' 0 obj\r?\n<< /Length (\d+) >>\r?\nstream\r?\n', pdf_bytes)
+        assert header, 'Missing uncompressed PDF page stream object'
+        length = int(header.group(1))
+        start = header.end()
+        content = pdf_bytes[start:start + length]
+        assert len(content) == length and pdf_bytes[start + length:start + length + 10].startswith(
+            b'\nendstream'), 'PDF content length or stream boundary mismatched'
+        streams.append(content)
+    return streams
+
+
+def inspect_vector_marker_geometry(pages, streams):
+    """Match 80 *painted* vectors to 80 Poppler labels on the same page.
+
+    Verify exact drawn centre/extent, inherited RGB, ring stroke width and
+    all four cubic control arcs. Global path counts alone accept off-page
+    markers and cannot satisfy this checker.
+    """
+    assert len(pages) == len(streams) >= 2
+    groups = {'CIR': [], 'SQR': []}
+    for page_idx, ((width, height, words), content) in enumerate(zip(pages, streams)):
+        expected_rows = {key: sorted(
+            (w for w in words if re.fullmatch(key + r'-\d{2}', w[0])),
+            key=lambda item: item[2]) for key in groups}
+        painted = {'CIR': [], 'SQR': []}
+        for raw_line in content.splitlines():
+            parts = raw_line.split()
+            if len(parts) == 40 and parts[:1] == [b'q'] and parts[4:5] == [b'RG'] \
+                    and parts[6:7] == [b'w'] and parts[9:10] == [b'm'] \
+                    and parts[-2:] == [b'S', b'Q']:
+                red, green, blue = map(float, parts[1:4])
+                assert all(abs(actual - expected) < .002 for actual, expected in
+                           zip((red, green, blue), (40/255, 85/255, 122/255))), \
+                    'Circle marker inherited colour differs'
+                stroke = float(parts[5])
+                assert abs(stroke - .45) < .002, 'Circle stroke must be one quarter of 1.8pt marker radius'
+                start_x, centre_y = map(float, parts[7:9])
+                radius = 1.44
+                centre_x = start_x - radius
+                k = radius * .5522847498307936
+                expected_arcs = (
+                    ((centre_x+radius, centre_y+k), (centre_x+k, centre_y+radius), (centre_x, centre_y+radius)),
+                    ((centre_x-k, centre_y+radius), (centre_x-radius, centre_y+k), (centre_x-radius, centre_y)),
+                    ((centre_x-radius, centre_y-k), (centre_x-k, centre_y-radius), (centre_x, centre_y-radius)),
+                    ((centre_x+k, centre_y-radius), (centre_x+radius, centre_y-k), (centre_x+radius, centre_y)),
+                )
+                index = 10
+                for arc in expected_arcs:
+                    for ex, ey in arc:
+                        assert abs(float(parts[index])-ex) < .003 and \
+                            abs(float(parts[index+1])-ey) < .003, 'Malformed hollow circle cubic path'
+                        index += 2
+                    assert parts[index] == b'c', 'Incomplete hollow circle cubic path'
+                    index += 1
+                assert parts[index:] == [b'S', b'Q'], 'Circle must be stroke-only'
+                painted['CIR'].append((centre_x, centre_y, 1.8))
+            elif len(parts) == 12 and parts[:1] == [b'q'] and parts[4:5] == [b'rg'] \
+                    and parts[-3:] == [b're', b'f', b'Q']:
+                red, green, blue = map(float, parts[1:4])
+                assert all(abs(actual-expected) < .002 for actual, expected in
+                           zip((red, green, blue), (145/255, 69/255, 46/255))), \
+                    'Square marker inherited colour differs'
+                left, bottom, side_w, side_h = map(float, parts[5:9])
+                assert abs(side_w-3.6) < .002 and abs(side_h-3.6) < .002, \
+                    'Square must be one filled 3.6pt by 3.6pt marker'
+                painted['SQR'].append((left + side_w/2, bottom + side_h/2, 1.8))
+        for kind in groups:
+            rows = expected_rows[kind]
+            marks = sorted(painted[kind], key=lambda marker: height-marker[1])
+            assert len(rows) == len(marks), ('Missing/duplicate vector on its actual page', kind, page_idx)
+            for row, (centre_x, centre_y, r) in zip(rows, marks):
+                cx_left = centre_x-r
+                cx_right = centre_x+r
+                top = height-centre_y
+                assert 0 < cx_left < cx_right < row[1]-3 and row[1]-cx_right < 12, \
+                    ('Vector horizontally detached or outside page', kind, row[0], centre_x)
+                assert abs(top - (row[2]+row[4])/2) < 7.5, \
+                    ('Vector vertically detached from actual item first line', kind, row[0], top)
+                assert 0 < top-r < top+r < height, 'Vector drawn off-page'
+                groups[kind].append((page_idx, row[0], centre_x, top))
+    assert len(groups['CIR']) == len(groups['SQR']) == 40, 'Expected 40 circles and 40 squares'
+    return {'circlesStroked': len(groups['CIR']), 'squaresFilled': len(groups['SQR']),
+            'perPageMarkerTextAttachment': True, 'markerBoundsAndColours': True,
+            'hollowFourCubicArcsAndStroke': True}
+
+
 def verify_native_vector_markers(executable, output, work):
     """Verify native PDF paths and real Poppler positions, not just CSS acceptance."""
     source = ROOT / 'examples/report-list-vector-shapes.html'
@@ -266,12 +360,11 @@ def verify_native_vector_markers(executable, output, work):
         assert max(word[1] for word in rows) - min(word[1] for word in rows) < .05, 'Vector list gutter not stable'
         positions[prefix] = rows[0][1]
     data = pdf.read_bytes()
-    circles = len(re.findall(rb' c S Q\n', data))
-    squares = len(re.findall(rb' re f Q\n', data))
-    assert circles == squares == 40, 'The native PDF must contain exactly 40 hollow and 40 filled vector marker paths'
+    streams = extract_vector_page_streams(data, page_count)
+    geometry = inspect_vector_marker_geometry(pages, streams)
     assert not re.findall(rb' c f Q\n', data), 'Unrequested legacy filled discs in vector register'
-    return {'pages': page_count, 'records': len(expected), 'circlesStroked': circles,
-            'squaresFilled': squares, 'bodyX': positions, 'sha256': sha(pdf),
+    return {'pages': page_count, 'records': len(expected), **geometry,
+            'bodyX': positions, 'sha256': sha(pdf),
             'popplerTextAndPdfPathEvidence': True}
 
 

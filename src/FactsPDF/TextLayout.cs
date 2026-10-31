@@ -627,7 +627,10 @@ internal static class TextLayout
                     }
                     pendingMarker = null;
                 }
-                PlaceLine(line, x, baseline);
+                // Preserve the owning paragraph's source location when a
+                // line exhausts the display-command budget after a vector
+                // marker. Never mask the real FPDF1401 with unknown offset.
+                PlaceLine(line, x, baseline, paragraph.SourceOffset);
                 y += line.Height;
             }
             while (lines.MoveNext());
