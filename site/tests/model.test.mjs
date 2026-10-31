@@ -256,7 +256,7 @@ test('historical justification and case-transform provenance remain pinned after
   assert.equal(dataset.dataset_version, 'audit-2026-11-01.vector-markers');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
-  assert.match(dataset.css_inventory_note, /66个CSS属性/);
+  assert.match(dataset.css_inventory_note, /67个CSS属性名/);
   assert.doesNotMatch(dataset.css_inventory_note, /letter-spacing\/word-spacing仍拒绝/);
   assert.match(dataset.css_inventory_note, /text-indent.*letter-spacing\/word-spacing.*em\/rem/);
   assert.match(dataset.css_inventory_note, /24pt/);
@@ -506,7 +506,7 @@ test('scoped display suppression is backed by actual source and retains the 418-
   assert.match(f.limitations, /flex\/grid/);
   assert.match(f.limitations, /严格HTML\/CSS/);
   assert.match(f.test_reference, /ReportDisplayTests\.cs/);
-  assert.equal(dataset.accepted_css_property_count, 66);
+  assert.equal(dataset.accepted_css_property_count, 67);
   assert.equal(dataset.features.length, 418);
   assert.deepEqual(counts(dataset.features),{full:44,partial:143,none:223,unknown:6,na:2});
 });
@@ -525,7 +525,7 @@ test('bounded list marker audit retains actual PDF scope and 418 provenance rows
   assert.match(line.test_reference,/ListMarkerStyleTests/);
   for(const id of ['html.ol','html.ul','html.li']){
     const html=dataset.features.find(f=>f.id===id);
-    assert.equal(html.last_audited_commit,'7665f2fbafa34e14f9d792e7e7728d67f268e0e3');
+    assert.equal(html.last_audited_commit,'bea39e6d6a55f8a9e77ef8156bf6ca6529494738');
     assert.match(html.scope,/list-style-type/);
   }
   assert.deepEqual(counts(dataset.features),{full:44,partial:143,none:223,unknown:6,na:2});
