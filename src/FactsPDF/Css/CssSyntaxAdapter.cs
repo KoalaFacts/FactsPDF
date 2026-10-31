@@ -286,6 +286,18 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
             var token = terms[0];
             var tokenOffset = valueTokens[0].Token.Span.Start;
+            if (property == CssProperty.Display)
+            {
+                // The report renderer supports suppression, not CSS display
+                // formatting contexts. CSS-wide initial/unset compute to
+                // inline and are deliberately rejected rather than faked.
+                if (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident ||
+                    token is not ("none" or "block"))
+                    throw new FactsPdfException("FPDF1202",
+                        "Report display supports only block and none.", tokenOffset);
+                Emit(property, token, tokenOffset);
+                continue;
+            }
             if (property == CssProperty.FontWeight)
             {
                 var syntax = valueTokens[0].Token;
@@ -351,6 +363,7 @@ internal static class CssSyntaxAdapter
         "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap, "text-indent" => CssProperty.TextIndent,
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
+        "display" => CssProperty.Display,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
         "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,

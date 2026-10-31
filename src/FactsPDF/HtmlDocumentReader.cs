@@ -56,7 +56,28 @@ internal static class HtmlDocumentReader
             current = null;
             anonymous = false;
         }
-        void Pop() { stack.RemoveAt(stack.Count - 1); path.RemoveAt(path.Count - 1); }
+        void Pop()
+        {
+            var closing = stack[^1];
+            if (closing.Box is { BoxStyle.DisplayNone: true } hidden)
+            {
+                // Validate the hidden subtree normally, then remove it as a
+                // single block. This keeps it out of heading lookahead, font
+                // resolution, page layout and PDF paint/byte budgets.
+                var siblings = result.Children;
+                for (var i = stack.Count - 2; i >= 0; i--)
+                    if (stack[i].Box is { } parentBox)
+                    {
+                        siblings = parentBox.Children;
+                        break;
+                    }
+                if (siblings.Count == 0 || !ReferenceEquals(siblings[^1], hidden))
+                    throw new InvalidOperationException("Hidden report block is not the current sibling.");
+                siblings.RemoveAt(siblings.Count - 1);
+            }
+            stack.RemoveAt(stack.Count - 1);
+            path.RemoveAt(path.Count - 1);
+        }
         void Add(string text, TextStyle style, bool lineBreak = false)
         {
             if (current is null && !lineBreak && text.All(HtmlTokens.Space)) return;
