@@ -89,12 +89,15 @@ outside the tested contract. See the [scoped support](css-stylesheets.md#current
 
 Current-source maintenance checklists and corrective action lists can
 also use bounded `list-style-type` on `ol`, `ul` or `li`:
-alphabetic or Roman PDF number glyphs, decimal, vector disc or no
-marker. Real glyph advances, per-list gutter width, cross-page marker
+alphabetic or Roman PDF number glyphs, decimal, filled disc,
+hollow circle, solid square or no marker. Real glyph advances, per-list gutter width, cross-page marker
 attachment, CSS cascade and unsupported-input recovery are exercised
 by the [74-entry report](../examples/report-list-marker-styles.html)
 and `ListMarkerStyleTests`, with a Native AOT PDF text/geometry
-witness in `scripts/verify_lists.py`. The feature is not custom
+witness in `scripts/verify_lists.py`. The separate
+[80-item vector marker report](../examples/report-list-vector-shapes.html)
+checks PDF ring/rectangle commands and body geometry in real Linux/Windows
+native executions via `scripts/verify_native_feature_paths.py`. The feature is not custom
 CSS counters, arbitrary marker imagery, a release, a private-candidate
 rebuild, a new licence or a reviewed human PDF reference. See
 [bounded markers](css-stylesheets.md#current-source-bounded-list-marker-types).

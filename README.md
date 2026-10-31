@@ -194,9 +194,12 @@ For example:
 <ol class="actions"><li>Assign owner</li><li>Schedule follow-up</li></ol>
 ```
 
-Supported kinds: `disc`, `decimal`, `lower-alpha`, `upper-alpha`,
-`lower-roman`, `upper-roman`, `none`. Ordered lists normally remain
+Supported kinds: `disc`, `circle`, `square`, `decimal`, `lower-alpha`,
+`upper-alpha`, `lower-roman`, `upper-roman`, `none`. Ordered lists normally remain
 decimal and unordered lists remain vector discs, preserving old PDF bytes.
+`circle` paints a transparent-centre stroked ring; `square` paints a filled
+vector square in the item colour. Both honour the measured list gutter,
+first-line marker placement, page continuation and display-command limits.
 Alphabetic labels progress `a`…`z`…`aa` and Roman labels use standard
 subtractive notation through 3999. Text markers use caller-supplied fonts,
 measured per-list gutters, and one marker on the first line even across
@@ -208,6 +211,7 @@ levels, placement on non-list elements and unavailable marker glyphs fail
 explicitly, preserving the existing PDF destination.
 
 [74-entry paginated facilities report](examples/report-list-marker-styles.html),
+[80-entry circle/square multi-page report](examples/report-list-vector-shapes.html),
 [bounded CSS contract](docs/css-stylesheets.md#current-source-bounded-list-marker-types),
 [full list mechanics](docs/lists.md). This is a source-only capability:
 **no preview binary, NuGet publication, commercial grant or human PDF

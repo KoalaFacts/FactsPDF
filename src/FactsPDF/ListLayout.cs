@@ -3,7 +3,7 @@ using System.Text;
 
 namespace FactsPDF;
 
-internal sealed record ListMarker(string? Text, TextStyle Style, double Width, int SourceOffset);
+internal sealed record ListMarker(string? Text, TextStyle Style, double Width, int SourceOffset, ListMarkerKind Kind);
 
 // Explicit bounded CSS marker kinds. No generated content, counter CSS, or
 // network/font inference. The index is local to each list; li may override the
@@ -13,6 +13,8 @@ internal static class ListMarkerTypes
     internal static ListMarkerKind Parse(string value, int offset) => value switch
     {
         "disc" => ListMarkerKind.Disc,
+        "circle" => ListMarkerKind.Circle,
+        "square" => ListMarkerKind.Square,
         "decimal" => ListMarkerKind.Decimal,
         "lower-alpha" => ListMarkerKind.LowerAlpha,
         "upper-alpha" => ListMarkerKind.UpperAlpha,
@@ -20,7 +22,7 @@ internal static class ListMarkerTypes
         "upper-roman" => ListMarkerKind.UpperRoman,
         "none" => ListMarkerKind.None,
         _ => throw new FactsPdfException("FPDF1202",
-            "list-style-type supports disc, decimal, lower/upper-alpha, lower/upper-roman or none.", offset)
+            "list-style-type supports disc, circle, square, decimal, lower/upper-alpha, lower/upper-roman or none.", offset)
     };
 
     internal static string? MarkerText(ListMarkerKind kind, int ordinal, int offset)
@@ -28,7 +30,7 @@ internal static class ListMarkerTypes
         if (ordinal <= 0) throw new ArgumentOutOfRangeException(nameof(ordinal));
         return kind switch
         {
-            ListMarkerKind.Disc or ListMarkerKind.None => null,
+            ListMarkerKind.Disc or ListMarkerKind.Circle or ListMarkerKind.Square or ListMarkerKind.None => null,
             ListMarkerKind.Decimal => ordinal.ToString(CultureInfo.InvariantCulture) + ".",
             ListMarkerKind.LowerAlpha => Alphabetic(ordinal, false) + ".",
             ListMarkerKind.UpperAlpha => Alphabetic(ordinal, true) + ".",
@@ -118,7 +120,7 @@ internal sealed class ListLayout
                     view.AddRange(item.Children);
                     result.children.Add(item, view);
                 }
-                result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset));
+                result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset, kind));
             }
             if (list.Children.Count > 0)
                 result.gutters.Add(list, Math.Max(2 * list.Style.FontSize, maximum + 0.5 * list.Style.FontSize));

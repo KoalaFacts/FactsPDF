@@ -153,7 +153,7 @@ def inspect_marker_styles(root, out, args, flags):
         assert all_words.count(label) == 1, 'Missing/duplicate list note: ' + label
     for mode, command in [('cli', [args.dotnet, args.cli_dll]), ('native', [args.native_cli])]:
         for name, html, code in [
-            ('invalid-type', '<ol style="list-style-type:square"><li>A</li></ol>', 'FPDF1202'),
+            ('invalid-type', '<ol style="list-style-type:diamond"><li>A</li></ol>', 'FPDF1202'),
             ('invalid-target', '<p style="list-style-type:decimal">A</p>', 'FPDF1201'),
         ]:
             input_path = out / f'list-marker-{mode}-{name}.html'
