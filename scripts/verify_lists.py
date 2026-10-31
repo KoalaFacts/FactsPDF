@@ -105,7 +105,7 @@ def inspect_marker_styles(root, out, args, flags):
     assert cli.read_bytes() == native.read_bytes(), 'Native list markers differ from managed output'
     run(tool('qpdf'), '--check', native)
     info = run(tool('pdfinfo'), native).decode()
-    count = re.search(r'^Pages:\\s*(\\d+)', info, re.M)
+    count = re.search(r'^Pages:\s*(\d+)', info, re.M)
     assert count and int(count.group(1)) >= 2, 'Expected a real multi-page marker report'
     bbox = run(tool('pdftotext'), '-bbox', native, '-').decode()
     root_xml = ET.fromstring(bbox)

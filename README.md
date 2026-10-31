@@ -166,6 +166,40 @@ update the retained preview binaries or grant customer distribution rights.
 [independently authored div oracle](examples/report-blockquotes-oracle.html) and
 [exact CSS/HTML contract](docs/css-stylesheets.md#current-source-bounded-quoted-report-panels).
 
+### Current-source selectable report-list markers
+
+Business reports may set `list-style-type` on an existing `ol`, `ul`
+or individual `li` to render actual numbered or unnumbered PDF lists.
+For example:
+
+```html
+<style>
+  ol.inspections { list-style-type: lower-alpha; }
+  ol.actions { list-style-type: upper-roman; }
+</style>
+<ol class="inspections"><li>Inspect equipment</li><li>Record outcome</li></ol>
+<ol class="actions"><li>Assign owner</li><li>Schedule follow-up</li></ol>
+```
+
+Supported kinds: `disc`, `decimal`, `lower-alpha`, `upper-alpha`,
+`lower-roman`, `upper-roman`, `none`. Ordered lists normally remain
+decimal and unordered lists remain vector discs, preserving old PDF bytes.
+Alphabetic labels progress `a`…`z`…`aa` and Roman labels use standard
+subtractive notation through 3999. Text markers use caller-supplied fonts,
+measured per-list gutters, and one marker on the first line even across
+pages. `none` removes the marker, not the item's text; it retains the
+existing list layout indentation. CSS cascade, `!important`, and
+`inherit/initial/unset` apply; nested lists retain their own defaults
+unless explicitly overridden. Unsupported marker kinds, lists over two
+levels, placement on non-list elements and unavailable marker glyphs fail
+explicitly, preserving the existing PDF destination.
+
+[74-entry paginated facilities report](examples/report-list-marker-styles.html),
+[bounded CSS contract](docs/css-stylesheets.md#current-source-bounded-list-marker-types),
+[full list mechanics](docs/lists.md). This is a source-only capability:
+**no preview binary, NuGet publication, commercial grant or human PDF
+approval** follows from this change.
+
 ### Current-source print-only report sections (bounded display)
 
 Use `display:none` to omit a draft, internal note, or unused ordinary

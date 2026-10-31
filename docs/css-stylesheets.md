@@ -245,6 +245,49 @@ This engine's bounded `text-indent` does **not** implement negative/hanging inde
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
 
+## Current-source bounded list marker types
+
+An `ol`, `ul`, or direct `li` may specify one CSS
+`list-style-type` identifier from `disc`, `decimal`,
+`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`
+and `none`. Defaults remain `ol` decimal and `ul` solid disc,
+with no byte change for an unstyled existing list. CSS-wide
+`inherit`/`unset` read the computed parent kind; `initial`
+resolves to disc. An explicit nested list overrides the enclosing
+list's kind by its own default unless it asks for inheritance. List
+items inherit the parent kind, and individual item overrides do not
+renumber later siblings. The existing specificity, source order,
+inline origin and `!important` cascade apply. Even unmatched
+or losing declarations must have an accepted value.
+
+The marker is part of actual PDF layout, not just an accepted CSS
+token: decimal/alphabetic/Roman glyphs use the item's caller-supplied
+TrueType role or built-in Courier with fallback, measured width and
+tracking. The marker gutter reserves each list's widest text marker;
+the list's body X, line wrapping and page continuation are accordingly
+computed. A marker occurs only once alongside its first body line,
+including continued items; `disc` remains the original vector
+circle. `none` removes the marker and paint command but leaves
+the list-item's ordinary content/gutter geometry intact.
+Alphabetic labels continue after `z` as `aa`; Roman notation is
+subtractive and deliberately supported only up to 3999 items
+(`FPDF1202` beyond). Missing requested-font marker glyphs fail
+with the existing FPDF1504/1507 paths rather than being substituted.
+
+This is not full CSS Lists: `list-style` shorthand,
+`list-style-position`, `circle`/`square`, images, counters,
+`::marker`, arbitrary nesting, or declarations on non-list elements
+are unsupported and rejected. Invalid values reject FPDF1202,
+invalid target elements FPDF1201, and failed output leaves an
+existing PDF unchanged. No HTML `ol start`/`li value` or new
+fonts/platforms are implied. Source implementation
+`e137e523264d1250702656ee1968c5ff2f61e8fe`;
+actual first-use evidence requires final CI/independent code review
+on the completed PR head. See [list contract](lists.md),
+[74-entry example](../examples/report-list-marker-styles.html),
+`tests/FactsPDF.Tests/ListMarkerStyleTests.cs` and
+`scripts/verify_lists.py`. Historical private binaries are unchanged.
+
 ## Current-source font-relative report text spacing
 
 Controlled report templates can use `text-indent:0.4em`,
