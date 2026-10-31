@@ -880,15 +880,22 @@ distributed version remains unknown.
 ## Current-source ASCII report text-transform
 
 Business invoice labels, report headings and status fields can opt into
-`text-transform:uppercase` or `text-transform:lowercase`; `none` is the
-unchanged inherited default. These declarations work on styled headings,
+`text-transform:uppercase`, `text-transform:lowercase` or
+`text-transform:capitalize`; `none` is the unchanged inherited default. These declarations work on styled headings,
 paragraphs, inline spans and text-bearing containers with normal selector
 cascade, `!important`, `inherit`, `initial` and `unset` semantics.
 A nested `span style="text-transform:none"` can preserve a customer's
 proper name inside an uppercase label.
 
 The conversion is deliberately **ASCII Latin letters A–Z/a–z only**.
-Caseless Chinese characters, numerals and punctuation are preserved.
+`capitalize` uppercases only the first lowercase ASCII letter of a word;
+the rest of that token retains its original case. A word here is a maximal
+run of ASCII letters/digits. Hyphens, punctuation, whitespace and non-ASCII
+scalars separate words, while leading digits belong to the word. Inline
+spans do not create word boundaries, including spans with `none`; `<br>`
+starts a new word. This is a deterministic report-token subset, **not**
+CSS Text's Unicode word segmentation. Caseless Chinese, numbers and
+punctuation remain unchanged.
 The operation occurs before actual font/glyph fallback and width measurement:
 searchable PDF glyph text, line wrapping, page positions, decoration widths
 and pagination are based on the *transformed* characters. It does not rely
@@ -896,8 +903,8 @@ on postprocessing a rendered PDF or synthetic font faces. `none` and
 unstyled content retain byte-identical PDF output.
 
 Locale-specific casing, Unicode multi-character expansions, non-ASCII
-cased letters, `capitalize`, `full-width`, `full-size-kana`, language
-sensitivity and general Unicode text transforms are **not** supported.
+cased letters, `full-width`, `full-size-kana`, language-specific
+casing and general Unicode text transforms are **not** supported.
 Non-ASCII cased letters and symbols with Unicode case mappings (including Roman numerals and circled Latin letters) under an active transformation explicitly raise
 `FPDF1305` rather than silently producing incorrectly cased output;
 unsupported CSS values raise `FPDF1202`, and applying this text property
@@ -907,12 +914,15 @@ destination. No CSS Text standard-compliance claim or publicly distributed
 new engine binary is implied.
 
 Run the fontless [case labels report](../examples/report-case-labels.html)
-from source; the separately authored
+and [54-entry capitalized service register](../examples/report-capitalized-register.html)
+from source; the [independent literal-case register oracle](../examples/report-capitalized-register-oracle.html)
+and separately authored
 [visible-text oracle](../examples/report-case-labels-oracle.html), NUnit
 `TextTransformTests.cs` and the Linux Native AOT stylesheet verifier compare
 actual PDF bytes, searchable text, mixed spans and negative recovery. The
-engine change starts at source commit `8c946a29423ee3de6c171548fe6f633393ca76b6`;
-introduction in a distributed version is unknown.
+original uppercase/lowercase support began at `8c946a29423ee3de6c171548fe6f633393ca76b6`;
+ASCII capitalize extends it in source commit `06d0be5aab6fcdf15e20f8f1e6b7432e27a4ed35`.
+Neither establishes a published version or new installable candidate.
 
 ## Budgets and diagnostics
 

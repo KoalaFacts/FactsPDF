@@ -475,7 +475,7 @@ def main():
         destination = temp / 'preserved.pdf'
         invalid = temp / 'invalid.html'
         for content, code in (
-            ("<p style='text-transform:capitalize'>Wrong form</p>", b'FPDF1202'),
+            ("<p style='text-transform:full-width'>Wrong form</p>", b'FPDF1202'),
             ("<p style='text-transform:uppercase'>caf\\u00e9</p>".replace('\\u00e9', '\u00e9'), b'FPDF1305')
         ):
             invalid.write_text(content, encoding='utf-8')
@@ -486,6 +486,40 @@ def main():
                 raise AssertionError('Native case-transform rejection did not return ' + str(code))
             if destination.read_bytes() != b'keep-existing':
                 raise AssertionError('Rejected native case-transform changed existing report')
+
+    # Capitalize must transform emitted glyphs before wrapping and pagination;
+    # the separate literal-case oracle has all 54 expected record labels.
+    with tempfile.TemporaryDirectory(prefix='factspdf-capitalized-register-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'capitalized.pdf', temp / 'literal-oracle.pdf'
+        run(exe, Path('examples/report-capitalized-register.html'), actual)
+        run(exe, Path('examples/report-capitalized-register-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Native capitalize glyphs/positions differ from literal-case PDF oracle')
+        if int(run('qpdf', '--show-npages', actual).strip()) < 2:
+            raise AssertionError('Capitalized register did not exercise pagination')
+        searchable = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Inspection Task 01: Asset-A01 REVIEWed By Operations Team',
+                       'Inspection Task 54: Asset-A54 REVIEWed By Operations Team',
+                       'Assigned To Acme Facilities Pty Ltd'):
+            if phrase not in searchable:
+                raise AssertionError('Native capitalize PDF lost searchable content: ' + phrase)
+        destination = temp / 'preserved.pdf'
+        invalid = temp / 'invalid.html'
+        for content, code in (
+            ("<p style='text-transform:full-width'>Bad</p>", b'FPDF1202'),
+            ("<p style='text-transform:capitalize'>caf\u00e9</p>", b'FPDF1305'),
+        ):
+            invalid.write_text(content, encoding='utf-8')
+            destination.write_bytes(b'keep-existing')
+            failed = subprocess.run([str(exe), str(invalid), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native capitalize rejection missing ' + str(code))
+            if destination.read_bytes() != b'keep-existing':
+                raise AssertionError('Rejected capitalize changed an existing PDF')
+        print('Native 54-record ASCII capitalize PDF parity, pages, text and recovery verified')
 
     # Executable width-constraint report and independently authored fixed-width
     # projection: real PDF bytes, searchable text and protected-target failures.

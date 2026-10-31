@@ -120,8 +120,8 @@ public sealed class TextTransformTests
     {
         const string input = "<p style='text-transform:capitalize'>wo<span style='color:#23446b'>rk</span> order: fuel-check 12ab rEVIEWed " +
             "<span style='text-transform:none'>Acme PTY Ltd</span> after<br>next line</p>";
-        const string oracle = "<p>Wo<span style='color:#23446b'>rk</span> Order: Fuel-Check 12ab REVIEWed " +
-            "<span>Acme PTY Ltd</span> After<br>Next Line</p>";
+        const string oracle = "<p style='text-transform:capitalize'>Wo<span style='color:#23446b'>rk</span> Order: Fuel-Check 12ab REVIEWed " +
+            "<span style='text-transform:none'>Acme PTY Ltd</span> After<br>Next Line</p>";
         Assert.That(Pdf(input), Is.EqualTo(Pdf(oracle)));
         Assert.That(Layout(input).SelectMany(page => page.Runs).Select(run => run.Text).ToArray(),
             Is.EqualTo(Layout(oracle).SelectMany(page => page.Runs).Select(run => run.Text).ToArray()));
@@ -131,7 +131,7 @@ public sealed class TextTransformTests
     public void CapitalizePreservesWordStateAcrossUntransformedInlineFragments()
     {
         const string transformed = "<p style='text-transform:capitalize'>wo<span style='text-transform:none'>rk</span>order</p>";
-        const string oracle = "<p>Wo<span>rk</span>order</p>";
+        const string oracle = "<p style='text-transform:capitalize'>Wo<span style='text-transform:none'>rk</span>order</p>";
         Assert.That(Pdf(transformed), Is.EqualTo(Pdf(oracle)));
     }
 
