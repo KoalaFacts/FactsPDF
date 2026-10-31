@@ -101,6 +101,9 @@ internal static class TextLines
         {
             Glyph? pendingSpace = null;
             var afterText = false;
+            // An ASCII word can cross differently styled inline spans, even
+            // when one span explicitly resets text-transform to none.
+            var insideAsciiWord = false;
             foreach (var run in paragraph.Runs)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -108,6 +111,7 @@ internal static class TextLines
                 {
                     pendingSpace = null;
                     afterText = false;
+                    insideAsciiWord = false;
                     yield return new Glyph(10, run.Style, null, 0, run.SourceOffset);
                     continue;
                 }
@@ -118,6 +122,9 @@ internal static class TextLines
                         throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
                     i += consumed;
                     var scalar = rune.Value;
+                    // Scoped word definition: ASCII letters/digits form tokens;
+                    // punctuation, spaces and non-ASCII scalars delimit them.
+                    var wordCharacter = scalar is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
                     if (run.Style.Transform != TextTransform.None)
                     {
                         // ASCII-only case conversion is deterministic and cannot
@@ -140,7 +147,10 @@ internal static class TextLines
                             scalar -= 'a' - 'A';
                         else if (run.Style.Transform == TextTransform.Lowercase && scalar is >= 'A' and <= 'Z')
                             scalar += 'a' - 'A';
+                        else if (run.Style.Transform == TextTransform.Capitalize && !insideAsciiWord && scalar is >= 'a' and <= 'z')
+                            scalar -= 'a' - 'A';
                     }
+                    insideAsciiWord = wordCharacter;
                     if (scalar <= 127 && HtmlTokens.Space((char)scalar))
                     {
                         // Resolve at the original point even when a later

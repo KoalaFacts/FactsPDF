@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal enum TextAlignment { Left, Center, Right, Justify }
 internal enum TextDecoration { None, Underline, LineThrough }
-internal enum TextTransform { None, Uppercase, Lowercase }
+internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
 internal readonly record struct Rgb(double R, double G, double B);

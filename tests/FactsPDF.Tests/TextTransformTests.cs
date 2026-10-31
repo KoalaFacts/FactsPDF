@@ -115,7 +115,53 @@ public sealed class TextTransformTests
         Reject("<p style='text-transform:lowercase'>A</p>", "FPDF1504", options);
     }
 
-    [TestCase("capitalize")]
+    [Test]
+    public void CapitalizePaintsFirstAsciiWordLetterAcrossStyledSpanBoundaries()
+    {
+        const string input = "<p style='text-transform:capitalize'>wo<span style='color:#23446b'>rk</span> order: fuel-check 12ab rEVIEWed " +
+            "<span style='text-transform:none'>Acme PTY Ltd</span> after<br>next line</p>";
+        const string oracle = "<p style='text-transform:capitalize'>Wo<span style='color:#23446b'>rk</span> Order: Fuel-Check 12ab REVIEWed " +
+            "<span style='text-transform:none'>Acme PTY Ltd</span> After<br>Next Line</p>";
+        Assert.That(Pdf(input), Is.EqualTo(Pdf(oracle)));
+        Assert.That(Layout(input).SelectMany(page => page.Runs).Select(run => run.Text).ToArray(),
+            Is.EqualTo(Layout(oracle).SelectMany(page => page.Runs).Select(run => run.Text).ToArray()));
+    }
+
+    [Test]
+    public void CapitalizePreservesWordStateAcrossUntransformedInlineFragments()
+    {
+        const string transformed = "<p style='text-transform:capitalize'>wo<span style='text-transform:none'>rk</span>order</p>";
+        const string oracle = "<p style='text-transform:capitalize'>Wo<span style='text-transform:none'>rk</span>order</p>";
+        Assert.That(Pdf(transformed), Is.EqualTo(Pdf(oracle)));
+        // An oracle that runs the same transformation cannot alone prove
+        // word-state preservation: assert the actual emitted glyph runs.
+        Assert.That(Layout(transformed).Single().Runs.Select(run => run.Text),
+            Is.EqualTo(new[] { "Wo", "rk", "order" }));
+    }
+
+    [Test]
+    public void CapitalizePrecedesTrueTypeGlyphResolutionAndRejectsUnicodeCasing()
+    {
+        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        // The synthetic font contains A and lowercase i, but no a or capital I.
+        Assert.That(Pdf("<p style='text-transform:capitalize'>a</p>", options),
+            Is.EqualTo(Pdf("<p>A</p>", options)));
+        Reject("<p style='text-transform:capitalize'>i</p>", "FPDF1504", options);
+        Reject("<p style='text-transform:capitalize'>caf\u00e9</p>", "FPDF1305");
+    }
+
+    [Test]
+    public void CapitalizeAffectsActualWrapAndPageFragments()
+    {
+        var narrow = Page with { PageWidth = 110, PageHeight = 90, Margin = 18 };
+        var source = string.Concat(Enumerable.Range(1, 42).Select(i =>
+            $"<p style='text-transform:capitalize'>inspection task {i}: asset-a{i}</p>"));
+        var oracle = string.Concat(Enumerable.Range(1, 42).Select(i =>
+            $"<p>Inspection Task {i}: Asset-A{i}</p>"));
+        Assert.That(Layout(source, narrow).Count, Is.GreaterThan(1));
+        Assert.That(Pdf(source, narrow), Is.EqualTo(Pdf(oracle, narrow)));
+    }
+
     [TestCase("full-width")]
     [TestCase("uppercase lowercase")]
     [TestCase("auto")]
@@ -125,7 +171,7 @@ public sealed class TextTransformTests
 
     [Test]
     public void UnmatchedUnsupportedValueIsNotSilentlyIgnored()
-        => Reject("<style>.missing{text-transform:capitalize}</style><p>Invoice</p>", "FPDF1202");
+        => Reject("<style>.missing{text-transform:full-width}</style><p>Invoice</p>", "FPDF1202");
 
     [Test]
     public void NonAsciiCasedLettersAreExplicitlyOutsideThisAsciiOnlyFeature()

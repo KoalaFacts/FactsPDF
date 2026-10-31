@@ -98,7 +98,8 @@ internal static class InlineCss
                         "none" => TextTransform.None,
                         "uppercase" => TextTransform.Uppercase,
                         "lowercase" => TextTransform.Lowercase,
-                        _ => throw Invalid("text-transform supports only none, uppercase and lowercase for ASCII letters.", offset)
+                        "capitalize" => TextTransform.Capitalize,
+                        _ => throw Invalid("text-transform supports only none, uppercase, lowercase and capitalize for ASCII letters.", offset)
                     } };
                     break;
                 case "white-space" when paragraph && !inline:

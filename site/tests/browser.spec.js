@@ -9,7 +9,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('tbody tr')).toHaveCount(25);
   // The banner displays the current audited source commit, not the prior
   // numeric-font feature's own historical source identity.
-  await expect(page.getByText('e137e523',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('06d0be5a',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -253,12 +253,16 @@ test('audited PDF text decoration can be searched and its limitations read',asyn
 
 test('ASCII report casing shows real render limits and source-linked evidence',async({page})=>{
   await page.goto(base+'#q=text-transform');
+  // The persistent test browser locale is Chinese; select the translated
+  // English snapshot before opening the modal (which traps outside clicks).
+  await page.getByRole('button',{name:'English',exact:true}).click();
   await page.getByRole('button',{name:'text-transform',exact:true}).click();
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
   await expect(details).toContainText('ASCII');
   await expect(details).toContainText('FPDF1305');
   await expect(details).toContainText('capitalize');
+  await expect(details).toContainText('ASCII letters');
   await expect(details).toContainText('FPDF1504');
   await page.keyboard.press('Escape');
   await expect(details).not.toBeVisible();

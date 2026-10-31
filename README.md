@@ -101,7 +101,7 @@ for integration without a source-project reference.
 | --- | --- | --- |
 | Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
 | Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase/capitalize` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
 | Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
@@ -165,6 +165,19 @@ update the retained preview binaries or grant customer distribution rights.
 [Real 44-item quote report](examples/report-blockquotes.html),
 [independently authored div oracle](examples/report-blockquotes-oracle.html) and
 [exact CSS/HTML contract](docs/css-stylesheets.md#current-source-bounded-quoted-report-panels).
+
+### Current-source ASCII capitalized report labels
+
+`text-transform:capitalize` now formats English service-register labels as
+actual PDF glyphs before font selection, wrapping and pagination. Only the
+first lowercase ASCII letter in each ASCII letters/digits token is capitalized;
+punctuation starts another token while styled inline spans do not. Mixed-case
+remainder stays unchanged. Non-ASCII cased Unicode text fails explicitly
+rather than being silently transformed. See the
+[54-entry report](examples/report-capitalized-register.html),
+[independently authored literal-case PDF oracle](examples/report-capitalized-register-oracle.html)
+and [bounded CSS contract](docs/css-stylesheets.md#current-source-ascii-report-text-transform).
+This source capability is not a rebuilt binary or a public NuGet release.
 
 ### Current-source selectable report-list markers
 
