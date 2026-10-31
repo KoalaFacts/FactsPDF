@@ -293,8 +293,9 @@ test('element em geometry is discoverable without claiming browser CSS sizing',a
 });
 
 test('English lookup describes real bounded PDF list marker support',async({page})=>{
+  // A deep link opens a modal immediately; clicking locale behind that
+  // modal would block on its overlay. First-visit locale is English.
   await page.goto(base+'#feature=css.list-style-type');
-  await page.getByRole('button',{name:'English',exact:true}).click();
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
   await expect(details).toContainText('upper-roman');
