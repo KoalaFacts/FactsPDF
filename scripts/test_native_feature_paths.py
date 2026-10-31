@@ -61,7 +61,8 @@ class NativeFeaturePathTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             inspect_vector_marker_geometry(pages,changed)
         changed = list(streams)
-        changed[0] = changed[0].replace(b' RG ',b' RG ',1).replace(b'746.89 m ',b'946.89 m ',1)
+        changed[0] = changed[0].replace(b'791.89 m ',b'991.89 m ',1)
+        self.assertNotEqual(changed[0], streams[0], 'Off-page mutation must alter the actual vector coordinates')
         with self.assertRaises(AssertionError):
             inspect_vector_marker_geometry(pages,changed)
 
