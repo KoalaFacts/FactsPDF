@@ -623,11 +623,14 @@ internal static class TextLayout
                         ChargeDisplayCommands(1, marker.SourceOffset);
                         var radius = marker.Width / 2;
                         pages[^1].Discs.Add(new(item.MarkerRightX - radius,
-                            baseline + 0.3 * marker.Style.FontSize, radius, marker.Style.Color));
+                            baseline + 0.3 * marker.Style.FontSize, radius, marker.Style.Color, marker.Kind));
                     }
                     pendingMarker = null;
                 }
-                PlaceLine(line, x, baseline);
+                // Preserve the owning paragraph's source location when a
+                // line exhausts the display-command budget after a vector
+                // marker. Never mask the real FPDF1401 with unknown offset.
+                PlaceLine(line, x, baseline, paragraph.SourceOffset);
                 y += line.Height;
             }
             while (lines.MoveNext());

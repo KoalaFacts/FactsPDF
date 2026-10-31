@@ -9,7 +9,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('tbody tr')).toHaveCount(25);
   // The banner displays the current audited source commit, not the prior
   // numeric-font feature's own historical source identity.
-  await expect(page.getByText('06d0be5a',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('7665f2fb',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -305,6 +305,8 @@ test('English lookup describes real bounded PDF list marker support',async({page
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
   await expect(details).toContainText('upper-roman');
+  await expect(details).toContainText('hollow-circle');
+  await expect(details).toContainText('solid-square');
   await expect(details).toContainText('3999');
   await expect(details).toContainText('FPDF1202');
   await expect(details).toContainText('Actual PDF');

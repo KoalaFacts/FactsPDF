@@ -248,9 +248,9 @@ The original stylesheet increment and later box-layout increments are distinct; 
 ## Current-source bounded list marker types
 
 An `ol`, `ul`, or direct `li` may specify one CSS
-`list-style-type` identifier from `disc`, `decimal`,
-`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`
-and `none`. Defaults remain `ol` decimal and `ul` solid disc,
+`list-style-type` identifier from `disc`, `circle`, `square`,
+`decimal`, `lower-alpha`, `upper-alpha`, `lower-roman`,
+`upper-roman` and `none`. Defaults remain `ol` decimal and `ul` solid disc,
 with no byte change for an unstyled existing list. CSS-wide
 `inherit`/`unset` read the computed parent kind; `initial`
 resolves to disc. An explicit nested list overrides the enclosing
@@ -266,8 +266,11 @@ TrueType role or built-in Courier with fallback, measured width and
 tracking. The marker gutter reserves each list's widest text marker;
 the list's body X, line wrapping and page continuation are accordingly
 computed. A marker occurs only once alongside its first body line,
-including continued items; `disc` remains the original vector
-circle. `none` removes the marker and paint command but leaves
+including continued items; `disc` remains the original filled vector
+circle, `circle` draws a hollow stroked outline without painting over
+any underlying background, and `square` paints a solid vector box.
+Each uses the same list gutter, item colour, pagination and display-command
+budget. The default disc PDF bytes are unchanged. `none` removes the marker and paint command but leaves
 the list-item's ordinary content/gutter geometry intact.
 Alphabetic labels continue after `z` as `aa`; Roman notation is
 subtractive and deliberately supported only up to 3999 items
@@ -275,13 +278,15 @@ subtractive and deliberately supported only up to 3999 items
 with the existing FPDF1504/1507 paths rather than being substituted.
 
 This is not full CSS Lists: `list-style` shorthand,
-`list-style-position`, `circle`/`square`, images, counters,
+`list-style-position`, images, counters,
 `::marker`, arbitrary nesting, or declarations on non-list elements
 are unsupported and rejected. Invalid values reject FPDF1202,
 invalid target elements FPDF1201, and failed output leaves an
 existing PDF unchanged. No HTML `ol start`/`li value` or new
 fonts/platforms are implied. Source implementation
-`e137e523264d1250702656ee1968c5ff2f61e8fe`;
+`e137e523264d1250702656ee1968c5ff2f61e8fe` (initial list types),
+`7665f2fbafa34e14f9d792e7e7728d67f268e0e3` (circle/square shapes),
+with an [80-item Native AOT report](../examples/report-list-vector-shapes.html);
 actual first-use evidence requires final CI/independent code review
 on the completed PR head. See [list contract](lists.md),
 [74-entry example](../examples/report-list-marker-styles.html),

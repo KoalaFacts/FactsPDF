@@ -19,14 +19,33 @@ internal static class PdfPaintSerializer
             var x = disc.X; var y = disc.Y; var r = disc.Radius;
             if (!double.IsFinite(x + y + r) || r <= 0)
                 throw new InvalidOperationException("Invalid list disc geometry.");
-            // Four cubic arcs; one filled path is one retained display command.
-            var k = r * 0.5522847498307936;
+            // Every vector marker consumes exactly one retained paint command.
+            // Keep the legacy disc byte path identical for unstyled reports.
             var color = disc.Color;
-            output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x + r)} {N(y)} m ");
-            output.Append($"{N(x + r)} {N(y + k)} {N(x + k)} {N(y + r)} {N(x)} {N(y + r)} c ");
-            output.Append($"{N(x - k)} {N(y + r)} {N(x - r)} {N(y + k)} {N(x - r)} {N(y)} c ");
-            output.Append($"{N(x - r)} {N(y - k)} {N(x - k)} {N(y - r)} {N(x)} {N(y - r)} c ");
-            output.Append($"{N(x + k)} {N(y - r)} {N(x + r)} {N(y - k)} {N(x + r)} {N(y)} c f Q\n");
+            if (disc.Kind == ListMarkerKind.Square)
+            {
+                output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x - r)} {N(y - r)} {N(2 * r)} {N(2 * r)} re f Q\n");
+            }
+            else
+            {
+                if (disc.Kind is not (ListMarkerKind.Disc or ListMarkerKind.Circle))
+                    throw new InvalidOperationException("Invalid vector list marker kind.");
+                // A stroked outline, not a white fill: the open centre leaves
+                // existing painted backgrounds visible. Inset the curve so
+                // the full stroke stays within the measured marker width.
+                var hollow = disc.Kind == ListMarkerKind.Circle;
+                var radius = hollow ? r * 0.8 : r;
+                var k = radius * 0.5522847498307936;
+                if (hollow)
+                    output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} RG {N(r * 0.25)} w {N(x + radius)} {N(y)} m ");
+                else
+                    output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x + r)} {N(y)} m ");
+                output.Append($"{N(x + radius)} {N(y + k)} {N(x + k)} {N(y + radius)} {N(x)} {N(y + radius)} c ");
+                output.Append($"{N(x - k)} {N(y + radius)} {N(x - radius)} {N(y + k)} {N(x - radius)} {N(y)} c ");
+                output.Append($"{N(x - radius)} {N(y - k)} {N(x - k)} {N(y - radius)} {N(x)} {N(y - radius)} c ");
+                output.Append($"{N(x + k)} {N(y - radius)} {N(x + radius)} {N(y - k)} {N(x + radius)} {N(y)} c");
+                output.Append(hollow ? " S Q\n" : " f Q\n");
+            }
             if (output.Length > maxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
         }
     }
