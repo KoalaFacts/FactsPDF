@@ -214,7 +214,7 @@ def inspect_list_markers(pages):
     expected_ids = [f'CHK-{i:02d}' for i in range(1, 41)] + [
         f'ACT-{i:02d}' for i in range(1, 26)] + [
         f'NOTE-{i:02d}' for i in range(1, 10)]
-    actual_ids = [w[0] for _, w in positioned if re.fullmatch(r'(?:CHK|ACT|NOTE)-\\d{2}', w[0])]
+    actual_ids = [w[0] for _, w in positioned if re.fullmatch(r'(?:CHK|ACT|NOTE)-\d{2}', w[0])]
     assert actual_ids == expected_ids, 'Report IDs were duplicated, removed or reordered'
     assert sum(w[0] == 'END-REPORT' for _, w in positioned) == 1, 'Missing report tail'
     groups = {}
@@ -237,7 +237,7 @@ def inspect_list_markers(pages):
             x_positions.append(body[1])
         assert max(x_positions) - min(x_positions) < .05, 'List gutter changed between pages: ' + prefix
         groups[prefix] = {'count': count, 'bodyX': x_positions[0], 'pages': len(found_pages)}
-    notes = [word for _, word in positioned if re.fullmatch(r'NOTE-\\d{2}', word[0])]
+    notes = [word for _, word in positioned if re.fullmatch(r'NOTE-\d{2}', word[0])]
     assert len(notes) == 9
     assert max(w[1] for w in notes)-min(w[1] for w in notes) < .05
     return {'pages': len(pages), 'records': 74, 'alphaMarkers': 40,
