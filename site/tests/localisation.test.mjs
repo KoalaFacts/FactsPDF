@@ -183,7 +183,7 @@ test('English display describes a truly painted scoped horizontal rule', async (
   assert.equal(display.status,'partial');
   assert.match(display.scope,/1pt solid currentcolor/);
   assert.match(display.scope,/PDF/);
-  assert.match(display.limitations,/FPDF1101\\/1103\\/1201\\/1202\\/1302/);
+  assert.match(display.limitations,/FPDF1101\/1103\/1201\/1202\/1302/);
   assert.match(display.failure_code,/FPDF1302/);
   assert.match(display.limitations,/not inside paragraphs/);
   assert.equal(display.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
