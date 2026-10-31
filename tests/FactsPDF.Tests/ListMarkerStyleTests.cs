@@ -196,12 +196,13 @@ public sealed class ListMarkerStyleTests
     }
 
 
-    [TestCase("circle", ListMarkerKind.Circle, " c S Q")]
-    [TestCase("square", ListMarkerKind.Square, " re f Q")]
+    [TestCase("circle", "Circle", " c S Q")]
+    [TestCase("square", "Square", " re f Q")]
     public void HollowAndSquareVectorMarkersPaintInRealMultipagePdfs(
-        string value, ListMarkerKind kind, string paintTerminator)
+        string value, string expectedKind, string paintTerminator)
     {
         var options = Page with { PageHeight = 95 };
+        var kind = Enum.Parse<ListMarkerKind>(expectedKind);
         var html = "<ul style='list-style-type:" + value + ";color:#28557a'>" +
             string.Concat(Enumerable.Range(1, 18).Select(i => "<li>Entry" + i + "</li>")) + "</ul>";
         var pages = Layout(html, options);
