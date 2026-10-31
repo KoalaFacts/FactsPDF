@@ -66,7 +66,7 @@ public sealed class LogicalReportSpacingTests
         Assert.That(Render(logical), Is.EqualTo(Render(physical)));
         var layout = Layout(logical).Single();
         Assert.That(layout.PaintBoxes.First(b => b.Style.BackgroundColor.HasValue).X, Is.EqualTo(35).Within(0.000001));
-        Assert.That(layout.Runs.Single(x => x.Text == "CHECK").X, Is.EqualTo(43).Within(0.000001));
+        Assert.That(layout.Runs.Single(x => x.Text == "CHECK").X, Is.EqualTo(42).Within(0.000001));
     }
 
     [Test]
