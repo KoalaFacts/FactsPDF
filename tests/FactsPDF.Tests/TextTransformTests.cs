@@ -133,6 +133,10 @@ public sealed class TextTransformTests
         const string transformed = "<p style='text-transform:capitalize'>wo<span style='text-transform:none'>rk</span>order</p>";
         const string oracle = "<p style='text-transform:capitalize'>Wo<span style='text-transform:none'>rk</span>order</p>";
         Assert.That(Pdf(transformed), Is.EqualTo(Pdf(oracle)));
+        // An oracle that runs the same transformation cannot alone prove
+        // word-state preservation: assert the actual emitted glyph runs.
+        Assert.That(Layout(transformed).Single().Runs.Select(run => run.Text),
+            Is.EqualTo(new[] { "Wo", "rk", "order" }));
     }
 
     [Test]
