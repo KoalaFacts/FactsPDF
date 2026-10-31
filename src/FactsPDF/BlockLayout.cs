@@ -79,10 +79,17 @@ internal static class BlockLayout
                     // vertical cursor once, unlike continuation-page padding.
                     var marginTop = Checked(style.MarginTop.Resolve(containing), node.SourceOffset);
                     var marginBottom = Checked(style.MarginBottom.Resolve(containing), node.SourceOffset);
+                    // The standalone hr and independent empty painted-block oracle
+                    // both need the same physical fit check before opening a box.
+                    // Otherwise an empty decorated div can overflow at page end
+                    // even when the equivalent hr is correctly moved intact.
+                    var requiredEmptyPaintHeight = node.Name == "hr" ||
+                        (node.Children.Count == 0 && style.HasPaint)
+                        ? box.Top + box.Bottom : 0;
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
-                        marginTop, node.Name == "hr" ? box.Top + box.Bottom : 0);
+                        marginTop, requiredEmptyPaintHeight);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight, MarginBottom: marginBottom));
                     break;

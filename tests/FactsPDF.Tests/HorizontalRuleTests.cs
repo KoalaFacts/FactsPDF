@@ -92,8 +92,8 @@ public sealed class HorizontalRuleTests
 
     [Test]
     public void NewPageThatCannotContainSeparatorFailsWithoutReplacingPdf()
-        => Reject("<hr style='margin-top:25pt;border-top:5pt solid red'>",
-            "FPDF1302", Page with { PageHeight = 60, Margin = 20, MaxPages = 2 });
+        => Reject("<hr style='margin-top:30pt;border-top:5pt solid red'>",
+            "FPDF1302", Page with { PageHeight = 72, Margin = 20, MaxPages = 2 });
 
     [Test]
     public void InheritedPanelMarginAndCurrentColourMatchExplicitFixedOracle()
