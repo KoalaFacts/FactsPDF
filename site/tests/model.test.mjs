@@ -252,8 +252,8 @@ test('literal all query survives route serialization while enum sentinels remain
   assert.deepEqual(parseRoute(routeHash(route),dataset),route);
 });
 
-test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.list-sequence-controls');
+test('bounded LTR alignment provenance and historical justification remain precise', () => {
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.ltr-text-align');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /67个CSS属性名/);
@@ -265,13 +265,14 @@ test('historical justification and case-transform provenance remain pinned after
   const values=dataset.features.find(x=>x.id==='value.align.justify');
   assert.equal(property.status, 'partial');
   assert.equal(values.status, 'partial');
-  assert.equal(property.last_audited_commit,'744366cf5ab206f901bf4ee3b9d014b7bf022e29');
-  assert.equal(values.last_audited_commit,'744366cf5ab206f901bf4ee3b9d014b7bf022e29');
+  assert.equal(property.last_audited_commit,'748867bb7ece222cc552a4d315143572fb1bd642');
+  assert.equal(values.last_audited_commit,'748867bb7ece222cc552a4d315143572fb1bd642');
   assert.equal(values.introduced_release,null);
   assert.equal(property.example,'text-align:justify');
   assert.equal(values.example,'text-align:justify');
   assert.match(property.scope,/PDF TJ/);
-  assert.match(values.scope,/自动换行/);
+  assert.match(values.scope,/自动折行/);
+  assert.match(values.scope,/start\/end/);
   assert.match(values.limitations,/start\/end/);
   assert.match(values.limitations,/RTL/);
   assert.match(property.limitations,/FPDF1201/);

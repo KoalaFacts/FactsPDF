@@ -1,5 +1,37 @@
 # Embedded CSS stylesheets and selectors
 
+## Current-source LTR text-align start/end
+
+The engine renders `text-align:start` and `text-align:end` on the same
+supported paragraphs, headings and inherited text containers as physical
+`text-align:left/right`. In the **existing left-to-right horizontal-only**
+report model, `start` resolves to `Left` and `end` to `Right` as computed
+text styles. Embedded selectors, inline styles, specificity, `!important`,
+inheritance and `inherit/initial/unset` continue to select the resulting
+physical side. No declaration is accepted then ignored: the measured
+per-line PDF glyph start X, font advances, padding/width/indent and
+pagination use the same renderer as explicit left/right. Default/no-CSS
+output bytes remain unchanged.
+
+Scope intentionally excludes RTL, bidirectional or vertical writing:
+`direction` and HTML `dir` are still rejected, and `text-align:start/end`
+do not request either writing mode. Inline spans cannot specify alignment;
+unknown/multi-token values such as `match-parent`, `justify-all` and
+`start end` fail `FPDF1202`, unsupported `direction`/inline alignment
+fail `FPDF1201`, and geometric failures retain `FPDF1302`. The prior
+destination PDF and stream position remain protected. Existing
+`text-align:justify` behavior and its final-line/space limitations are
+unchanged; this is **not** full CSS Text support.
+
+The [46-entry paginated LTR example](../examples/report-logical-text-align.html)
+and separately authored [left/right oracle](../examples/report-logical-text-align-oracle.html)
+are compared as real equal PDF bytes by Native AOT with qpdf, searchable
+first/last markers and protected-error recovery. Source
+`LogicalTextAlignmentTests.cs` also covers glyph coordinates, cascade,
+inheritance, explicit TrueType metrics, page continuation and negatives.
+Exact-head CI, independent review, private candidate distribution and
+human page approval remain separate gates.
+
 ## Current-source bounded quoted-report panels
 
 `blockquote` is a **real block container** at report root or inside ordinary

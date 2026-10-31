@@ -316,6 +316,24 @@ See the [scoped CSS contract](docs/css-stylesheets.md#current-source-html-horizo
 [independently authored painted-box oracle](examples/report-horizontal-rules-oracle.html).
 This source feature is not a public NuGet/CLI release or a new private binary.
 
+### Current-source LTR text alignment for report labels
+
+Common report templates can now write `text-align:start` or
+`text-align:end` on paragraphs, headings and inherited ordinary
+containers. In the engine's **left-to-right horizontal** text model,
+these correspond respectively to `left` and `right`: the actual PDF
+glyph X coordinates, font measurement, first-line indentation, wrapping and
+cross-page continuation follow the existing physical-alignment renderer.
+
+This applies through embedded stylesheets, inline declarations, normal
+cascade and inheritance; it does **not** add RTL, `direction`, HTML `dir`,
+vertical writing, inline-span alignment or full CSS Text behavior.
+Unsupported values and directions fail without replacing an existing PDF.
+Compare the [46-entry printable report](examples/report-logical-text-align.html)
+with its [physical alignment oracle](examples/report-logical-text-align-oracle.html)
+and the [exact CSS contract](docs/css-stylesheets.md#current-source-ltr-text-align-startend).
+This is current source only, not an updated package or distribution grant.
+
 ## Compatibility lookup
 
 The **Can I Render** site provides searchable support records for HTML,
