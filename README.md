@@ -141,6 +141,27 @@ FactsPDF does not synthesize variable weights. See the
 [font role contract](docs/font-styles.md). This source addition is not a new
 public NuGet binary or stable CSS Fonts implementation.
 
+### Current-source logical report spacing (LTR only)
+
+Controlled left-to-right business reports can now use
+`margin-inline`, `margin-block`, `padding-inline` and
+`padding-block` with one or two values, as alternatives to the corresponding
+physical longhands. For example, `margin-inline:auto` centres an explicitly
+sized panel, while `padding-inline:8pt 12pt` adds measurable left/right
+insets and `margin-block:6pt 9pt` creates real vertical gaps. The existing
+per-side cascade, `!important`, `inherit/initial/unset`, print and
+font-relative lengths, box painting, page continuation and failure restoration
+apply without silently skipping invalid values.
+
+This is **LTR normal-flow mapping only**: inline-start = left, inline-end =
+right, block-start = top, block-end = bottom. `direction`, RTL/vertical writing
+modes, negative values, CSS margin collapse, general logical longhands,
+`calc()` and unsupported elements remain outside scope. Body/list/table/
+image/inline margins remain rejected, as with their physical longhands.
+See the [CSS contract](docs/css-stylesheets.md#current-source-ltr-logical-report-spacing)
+and [real report + physical-longhand oracle](examples/report-logical-spacing.html).
+This source change does not update the historical private binary candidate.
+
 ### Current-source horizontal report dividers
 
 A standalone HTML `<hr>` now paints a real **1pt current-text-colour rule**
