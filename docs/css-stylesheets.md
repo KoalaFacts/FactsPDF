@@ -893,7 +893,8 @@ the rest of that token retains its original case. A word here is a maximal
 run of ASCII letters/digits. Hyphens, punctuation, whitespace and non-ASCII
 scalars separate words, while leading digits belong to the word. Inline
 spans do not create word boundaries, including spans with `none`; `<br>`
-starts a new word. This is a deterministic report-token subset, **not**
+starts a new word. Existing alphabetic/Roman list markers also measure and
+paint their first ASCII letter consistently under inherited `capitalize`. This is a deterministic report-token subset, **not**
 CSS Text's Unicode word segmentation. Caseless Chinese, numbers and
 punctuation remain unchanged.
 The operation occurs before actual font/glyph fallback and width measurement:

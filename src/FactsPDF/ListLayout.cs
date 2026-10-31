@@ -137,6 +137,11 @@ internal sealed class ListLayout
             {
                 TextTransform.Uppercase => text.ToUpperInvariant(),
                 TextTransform.Lowercase => text.ToLowerInvariant(),
+                // Generated marker labels begin with ASCII letters or digits;
+                // capitalize must measure the same first-letter glyph that
+                // TextLines.Wrap will paint (not the narrow original 'i'/'a').
+                TextTransform.Capitalize when text[0] is >= 'a' and <= 'z' =>
+                    char.ToUpperInvariant(text[0]) + text[1..],
                 _ => text
             };
             var role = FontRoles.Role(style);

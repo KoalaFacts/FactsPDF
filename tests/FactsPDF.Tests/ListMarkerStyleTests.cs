@@ -105,6 +105,27 @@ public sealed class ListMarkerStyleTests
     }
 
     [Test]
+    public void CapitalizedRomanListMarkersReserveTheActualMeasuredFontWidths()
+    {
+        var fonts = Page with
+        {
+            Fonts = [PdfFont.LoadTrueType(FontFixture.Create(listCaseMarkers: true))]
+        };
+        // A proportional uppercase I is 900 units, lowercase i 200 units.
+        // The second marker must be Ii. and its final width must determine
+        // the gutter; measuring the untransformed ii. causes FPDF1302.
+        const string html = "<ol style='list-style-type:lower-roman;text-transform:capitalize'>" +
+            "<li>A</li><li>A</li></ol>";
+        var page = Layout(html, fonts).Single();
+        var markers = page.Runs.Where(r => r.Text.EndsWith(".", StringComparison.Ordinal)).ToArray();
+        Assert.That(markers.Select(r => r.Text), Is.EqualTo(new[] { "I.", "Ii." }));
+        Assert.That(markers[0].Width, Is.EqualTo(1.1 * fonts.FontSize).Within(0.000001));
+        Assert.That(markers[1].Width, Is.EqualTo(1.3 * fonts.FontSize).Within(0.000001));
+        Assert.That(page.Runs.Where(r => r.Text == "A").Select(r => r.X).Distinct().Count(), Is.EqualTo(1));
+        Assert.That(Pdf(html, fonts).AsSpan(0, 4).SequenceEqual("%PDF"u8), Is.True);
+    }
+
+    [Test]
     public void DefaultDecimalAndDiscRemainByteIdenticalToExplicitStyle()
     {
         Assert.That(Pdf("<ol style='list-style-type:decimal'><li>A</li><li>B</li></ol>"),
