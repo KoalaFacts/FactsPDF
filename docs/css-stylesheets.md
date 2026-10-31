@@ -1,3 +1,5 @@
+# Embedded CSS stylesheets and selectors
+
 ## Current-source HTML horizontal report rules
 
 A standalone void `<hr>` or `<hr />` in an ordinary report box now
@@ -39,8 +41,6 @@ protected-output failure in `scripts/verify_stylesheets.py`.
 selector precedence, computed lengths, page edges and budgets. New source,
 CI and review evidence do not relabel old private candidates or provide
 human page approval.
-
-# Embedded CSS stylesheets and selectors
 
 FactsPDF now accepts embedded CSS stylesheets in addition to inline styles. This is a bounded, strict implementation for controlled document templates, not full browser CSS. It does not add a new markup language or a browser dependency. The previous font, Unicode and optional subsetting paths are reused.
 
