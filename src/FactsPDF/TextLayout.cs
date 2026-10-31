@@ -149,6 +149,15 @@ internal static class TextLayout
                 // opening it, rather than discovering an overflow at closure.
                 if (begin.RequiredRuleHeight > 0)
                 {
+                    // Match the established paint-budget precedence before
+                    // rejecting an oversized empty box. A zero-width/zero-paint
+                    // preview must not manufacture a display command.
+                    if (displayCommands == o.MaxDisplayCommands)
+                    {
+                        var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
+                            begin.RequiredRuleHeight, begin.Style, begin.TextColor, paintOrder);
+                        EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
+                    }
                     var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
                     if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001 &&
                         CurrentPageOccupied())
