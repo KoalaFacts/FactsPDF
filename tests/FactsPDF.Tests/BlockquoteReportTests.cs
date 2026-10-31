@@ -52,12 +52,12 @@ public sealed class BlockquoteReportTests
     public void StylesheetCascadesPaintAndAutoCentresTheActualPdfQuoteBox()
     {
         const string css = "<style>blockquote.quote{width:170pt;margin:7pt auto 11pt;" +
-            "padding:6pt 8pt;border-left:3pt solid #225588;background:#edf4f8}" +
+            "box-sizing:border-box;padding:6pt 8pt;border-left:3pt solid #225588;background:#edf4f8}" +
             "blockquote.quote p{margin:0}blockquote.quote{margin-top:10pt!important}</style>";
         const string actual = css + "<blockquote class='quote' style='margin-top:1pt'>" +
             "<p>Audited quote</p></blockquote>";
         const string oracle = "<div style='width:170pt;margin:10pt auto 11pt;" +
-            "padding:6pt 8pt;border-left:3pt solid #225588;background:#edf4f8'>" +
+            "box-sizing:border-box;padding:6pt 8pt;border-left:3pt solid #225588;background:#edf4f8'>" +
             "<p style='margin:0'>Audited quote</p></div>";
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
         var page = Layout(actual).Single();
