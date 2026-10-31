@@ -255,7 +255,7 @@ test('historical justification and case-transform provenance remain pinned after
   assert.equal(dataset.dataset_version, 'audit-2026-11-01.report-display-none');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
-  assert.match(dataset.css_inventory_note, /64个CSS属性/);
+  assert.match(dataset.css_inventory_note, /65个CSS属性/);
   assert.doesNotMatch(dataset.css_inventory_note, /letter-spacing\/word-spacing仍拒绝/);
   assert.match(dataset.css_inventory_note, /text-indent.*letter-spacing\/word-spacing.*em\/rem/);
   assert.match(dataset.css_inventory_note, /24pt/);
