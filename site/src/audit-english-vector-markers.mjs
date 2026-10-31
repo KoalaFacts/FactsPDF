@@ -275,7 +275,7 @@ export const englishAudit = Object.freeze([
   prior[268],
   prior[269],
   prior[270],
-  "Only ol/ul/li: disc, hollow-circle, solid-square, decimal, lower/upper-alpha, lower/upper-roman and none. Actual PDF vector outlines/fills or searchable text labels, gutter width and first-line placement across pages; cascade, inheritance and !important supported.",
+  "Only ol/ul/li: disc, hollow-circle, solid-square, decimal, lower-alpha, upper-alpha, lower-roman, upper-roman and none. Actual PDF vector outlines/fills or searchable text labels, gutter width and first-line placement across pages; cascade, inheritance and !important supported.",
   "Two list levels only; Roman markers up to 3999; none preserves indentation. No list-style shorthand, inside positioning, counters, images or arbitrary custom markers. Invalid values and non-list targets fail without replacing an existing PDF.",
   prior[273],
   "Source 7665f2fb: hollow rings preserve underlying backgrounds, solid square vectors render in the PDF, legacy discs retain their bytes. Real multipage regressions and an 80-entry Native AOT PDF-path/position witness. Exact-head CI and independent review remain separate.",
