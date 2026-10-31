@@ -5,7 +5,7 @@ internal static class HtmlDocumentReader
     private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
     private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
-    private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li";
+    private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
     private static bool BoxTag(string name) => name is "img" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 
@@ -115,7 +115,7 @@ internal static class HtmlDocumentReader
                 insideStyle = true; continue;
             }
             if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
-                || name is "img" or "br" or "head" or "title" or "meta"))
+                || name is "img" or "br" or "head" or "title" or "meta") or "hr")
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -134,7 +134,7 @@ internal static class HtmlDocumentReader
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
-            if (token.SelfClosing && name is not ("img" or "br" or "meta" or "col"))
+            if (token.SelfClosing && name is not ("img" or "br" or "meta" or "col") or "hr")
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && (table is not null || stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
