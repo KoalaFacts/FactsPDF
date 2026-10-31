@@ -960,3 +960,50 @@ PDF byte parity, exact positions, rem/em, cascade, margins on long rows and
 protected output; `scripts/verify_stylesheets.py` runs an actual Linux Native
 AOT CLI report and invalid-value recovery. Source change is not an already
 released candidate or human-approved PDF evidence.
+
+
+## Current-source bounded report display suppression
+
+This source-only print-report subset accepts `display:none` and
+`display:block` (single identifier each) on ordinary `p`/`h1`–`h6`,
+`div`/`section`/`article` and `blockquote`, outside lists/tables.
+A winning `none` suppresses the entire parsed block subtree. `block`
+retains that element's existing block formatting. No other formatting
+context is implemented.
+
+**CSS semantics:** Embedded `<style>` rules and inline declarations share
+the existing specificity, source-order and `!important` cascade. `display`
+does not inherit; a descendant `display:block` cannot resurrect an
+ancestor whose whole subtree has been suppressed. CSS-wide `inherit`,
+`initial`, `unset` are deliberately rejected (`FPDF1202`): their full
+standard computed behavior would include unsupported inline formatting.
+Unknown `display` values (`inline`, `flex`, `grid`, `contents`, etc.),
+multi-token values and functions also reject `FPDF1202`, including unmatched
+selectors. All applicable declarations are validated even if they lose the
+cascade. `html`/`body`, spans/emphasis, `img`, `hr`, all list/table
+structures and ordinary paragraphs/blocks *inside* lists or tables reject
+`FPDF1201` when they declare `display`.
+
+**Actual rendering:** The reader parses and validates a hidden block and all
+descendants first, then removes it from the parent document tree when closing
+the element. It never reaches heading-keep lookahead, PDF font/glyph
+measurement, width/height layout, outside margins, paint-command accounting,
+decorations or page fragments. Visible siblings have the same positions, page
+count and PDF bytes as a separately authored document that omits the hidden
+block. Nested hidden sections, suppressed quotes and headings leave no blank
+space. However, invalid markup/declarations, unavailable image resources,
+CSS/input/depth budgets and other errors inside hidden markup are **not**
+ignored: they fail using the pre-existing error codes and preserve any prior
+destination bytes and position. The feature hides rendered output, not the
+original source data; it is not an information-security boundary for HTML
+input documents.
+
+**Excluded:** HTML `hidden`, CSS `visibility`/`opacity`, list/table row
+suppression, general `display` layout, flex/grid, CSS media queries, scripts,
+reflow or animations. See the
+[40-entry visible report](../examples/report-display-visibility.html),
+[separate visible-only oracle](../examples/report-display-visibility-oracle.html),
+`ReportDisplayTests` and the Native AOT stylesheet gate for measured
+multi-page PDF parity and output-preserving failure cases. This source change
+does not create a retained preview binary, customer distribution right, or
+human-approved PDF reference.

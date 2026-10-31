@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.MaxWidth + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Display + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -136,6 +136,16 @@ internal sealed class CssStylesheets
         {
             budget.Work(declaration.Offset);
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
+            // Only existing ordinary block-flow elements can be suppressed.
+            // Lists/tables/images/inline/metadata have different layout and
+            // resource contracts; their display declarations fail explicitly.
+            if (declaration.Property == CssProperty.Display &&
+                (element.Name is not ("p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                    or "div" or "section" or "article" or "blockquote") ||
+                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                    or "td" or "th" or "thead" or "tbody" or "tfoot")))
+                throw new FactsPdfException("FPDF1201",
+                    "display is supported only on ordinary report blocks outside lists and tables.", declaration.Offset);
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
@@ -260,7 +270,9 @@ internal sealed class CssStylesheets
         {
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
-            if (CssDeclarations.IsBoxProperty(declaration.Property))
+            if (declaration.Property == CssProperty.Display)
+                box = box with { DisplayNone = declaration.Value == "none" };
+            else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
             else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))

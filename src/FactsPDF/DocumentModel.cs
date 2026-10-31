@@ -92,6 +92,9 @@ internal sealed record BoxStyle(
     public bool MarginRightAuto { get; init; }
     // Explicit width includes padding/borders when requested; defaults unchanged.
     public bool BorderBoxSizing { get; init; }
+    // Only ordinary block display:none is modelled. The parser removes the
+    // complete validated subtree before any PDF layout or paint commands.
+    public bool DisplayNone { get; init; }
     // Opt-in width constraints. Percentages resolve against the containing
     // content width; the constrained measure follows box-sizing.
     public CssLength? MinWidth { get; init; }

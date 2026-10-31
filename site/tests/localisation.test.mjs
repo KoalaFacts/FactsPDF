@@ -106,7 +106,7 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   assert.match(display.scope,/fixed-column table cells/);
   assert.match(display.limitations,/nowrap prohibits automatic breaks/);
   assert.match(display.limitations,/FPDF1302/);
-  assert.match(translate(data.css_inventory_note),/accept 64 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/accept 65 CSS property names/);
   assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
 });
 
@@ -129,7 +129,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
   const margin=englishFeature(data.features.find(row=>row.id==='css.margin'));
   assert.match(margin.limitations,/vertical percentage\/auto/);
   assert.match(margin.limitations,/FPDF1302/);
-  assert.match(translate(data.css_inventory_note),/64 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/65 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin:0 auto/);
   assert.match(data.audit_method,/Five-record source-bound report panel/);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
@@ -156,7 +156,7 @@ test('real vertical panel margins retain exact English scope and source identity
   assert.match(margin.scope,/margin:0 auto/);
   assert.match(margin.scope,/margin:12pt auto 7pt/);
   assert.match(margin.limitations,/table-cell p/);
-  assert.match(translate(data.css_inventory_note),/64 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/65 CSS property names/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
   assert.equal(data.features.length,418);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
@@ -202,7 +202,7 @@ test('LTR logical spacing has complete English audit text', async () => {
     assert.match(row.limitations,/FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
-  assert.match(translate(data.css_inventory_note),/accept 64 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/accept 65 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin-inline-start/);
   assert.match(translate(data.css_inventory_note),/padding-block-end/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
@@ -220,4 +220,18 @@ test('new report blockquotes have English default text with bounded limits', asy
   assert.match(row.limitations,/cite/);
   assert.match(row.limitations,/FPDF1302/);
   assert.doesNotMatch([row.scope,row.limitations,row.stage,row.evidence_level].join(' '),han);
+});
+
+
+test('real display:none source limitations are completely translated into English', async () => {
+  const { englishFeature, translate } = await localisation();
+  const feature = englishFeature(data.features.find(row => row.id === 'css.display'));
+  assert.equal(feature.status,'partial');
+  assert.equal(feature.last_audited_commit,'9762e45dac1907eb77234132c2e14c348aa55264');
+  assert.match(feature.scope,/display:none/);
+  assert.match(feature.scope,/pagination space/);
+  assert.match(feature.limitations,/hidden attribute/);
+  assert.match(feature.limitations,/strict HTML\/CSS/);
+  assert.match(translate(data.css_inventory_note),/65 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/Scoped display:block\/none/);
 });
