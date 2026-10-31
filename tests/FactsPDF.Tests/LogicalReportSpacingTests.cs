@@ -84,6 +84,24 @@ public sealed class LogicalReportSpacingTests
             Is.EqualTo(Render(open + physical + close)));
     }
 
+    [TestCase("margin-block:1e-999")]
+    [TestCase("margin-inline:-1e-999")]
+    [TestCase("padding-block:1e-999")]
+    [TestCase("padding-inline:-1e-999")]
+    [TestCase("margin:1e-999")]
+    public void UnderflowingButNonzeroUnitlessLengthsAreRejected(string declaration)
+        => Reject("<section style='" + declaration + "'>TEXT</section>", "FPDF1202");
+
+    [TestCase("margin-block:0e-999", "margin-top:0;margin-bottom:0")]
+    [TestCase("padding-inline:-0e999 +0e-999", "padding-left:0;padding-right:0")]
+    public void ExtremeExponentExactZeroStillMatchesPhysicalLengths(string logical, string physical)
+    {
+        const string prefix = "<section style='width:120pt;";
+        const string suffix = "'><p style='margin:0'>EXACT ZERO</p></section>";
+        Assert.That(Render(prefix + logical + suffix),
+            Is.EqualTo(Render(prefix + physical + suffix)));
+    }
+
     [Test]
     public void ScopedStylesheetCascadeImportantAndWideKeywordsMatchLonghands()
     {
