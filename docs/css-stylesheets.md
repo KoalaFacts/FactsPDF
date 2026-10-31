@@ -65,8 +65,8 @@ and pagination all use the existing longhand layout. Unsupported values
 vertical `auto`/`%` margins or impossible geometry) fail with
 `FPDF1201/1202/1205/1302` as appropriate and preserve any existing
 output. This feature does **not** implement `direction`, RTL, vertical
-writing, logical `*-inline-start/end` longhands, general margin collapsing,
-`gap`, Flex/Grid or Paged Media.
+writing, logical properties beyond the eight scoped side longhands, general
+margin collapsing, `gap`, Flex/Grid or Paged Media.
 
 [Logical 36-entry report](../examples/report-logical-spacing.html) and
 [separately specified physical-longhand oracle](../examples/report-logical-spacing-oracle.html)
@@ -74,6 +74,40 @@ exercise equivalent actual PDF bytes; `LogicalReportSpacingTests.cs`
 covers full conversion, geometry, cascade, computed lengths, CLI parity,
 fragmentation, invalid input and output recovery. Existing SDK/native CI
 remains the authoritative platform gate for the exact source commit.
+
+### Individual LTR logical margin/padding sides (eight names)
+
+Current source additionally renders all eight **one-value** logical side
+longhands: `margin-inline-start/end`, `margin-block-start/end`,
+`padding-inline-start/end`, and `padding-block-start/end`. The parser lowers
+**each** to exactly one existing physical side in LTR horizontal writing:
+left/right for inline-start/end and top/bottom for block-start/end. They may
+appear in embedded stylesheets or inline CSS alongside physical longhands and
+one/two-value logical shorthands. Normal property-by-property specificity,
+source order, `!important` and `inherit/initial/unset` apply; no shorthand
+silently overwrites an unrelated side. A single emitted declaration consumes
+one `MaxCssDeclarations` slot. All other supported element/value restrictions
+are **exactly** those of the equivalent physical side, including the bounded
+font-relative `rem/em` and percentage geometry.
+
+Numeric exact-zero spellings (`-0`, `0.0`, `0e999`) normalize to zero.
+Unitless nonzero or underflowing numeric forms, negative physical lengths,
+multiple values, `calc()`, unsupported elements, vertical `auto/%` margins,
+RTL and vertical writing reject with the existing `FPDF1201/1202/1205` or
+unfit geometry `FPDF1302`, preserving any previous destination bytes. The
+existing physical length parser also rejects nonzero unit values that would
+round to zero in a floating-point conversion, rather than accepting them as
+accidental zero box lengths. No new CSS layout model, margin collapse, browser
+logical properties or private software candidate is introduced.
+
+The [40-reference source report](../examples/report-logical-longhands.html)
+and independently written [physical longhand oracle](../examples/report-logical-longhands-oracle.html)
+are compared as **real multipage PDF bytes** by Linux Native AOT, with
+qpdf, searchable text markers and protected invalid-target recovery;
+`LogicalReportLonghandTests.cs` also asserts actual run X, painted boxes,
+per-side cascade, root/element fonts, page continuation, CLI parity and
+strict declaration budgets. Exact-head CI and truly independent code review
+remain separate merge gates; this is source, not a public binary release.
 
 ## Current-source HTML horizontal report rules
 

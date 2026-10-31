@@ -54,6 +54,15 @@ with its [physical-longhand oracle](../examples/report-logical-spacing-oracle.ht
 This is current source, not a newly authorised installable candidate.
 [Exact scope](css-stylesheets.md#current-source-ltr-logical-report-spacing).
 
+The same LTR report subset now also accepts **eight individual logical side
+longhands** such as `margin-inline-start:auto`, `margin-block-end:8pt` and
+`padding-inline-start:6pt`, each mapped to the corresponding existing
+physical side before actual CSS cascade. The [40-entry source HTML](../examples/report-logical-longhands.html)
+and [separate physical-side oracle](../examples/report-logical-longhands-oracle.html)
+are compared using real paginated PDF/Native AOT output and invalid-target
+recovery. This does not enable RTL, vertical writing, unsupported table/list
+contexts, automatic margin collapsing or a new installable software candidate.
+
 Controlled report quotations now accept `<blockquote>` as a true inset,
 paginated block: default 8pt vertical and 24pt horizontal margins, plus
 ordinary report-panel padding, measured text, solid borders and backgrounds.

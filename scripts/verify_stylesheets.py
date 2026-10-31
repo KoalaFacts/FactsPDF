@@ -950,6 +950,51 @@ def main():
                 raise AssertionError('Native invalid logical spacing changed the previous PDF')
         print('Native 36-entry LTR logical spacing PDF parity, pagination, text and recovery verified')
 
+
+    # Source-built Native AOT: eight logical *side* longhands, not merely
+    # shorthand parsing. Compare two independently written CSS layouts that
+    # generate the same real, searchable and multi-page PDF geometry.
+    with tempfile.TemporaryDirectory(prefix='factspdf-logical-longhands-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'longhands.pdf', temp / 'physical.pdf'
+        for html, pdf in (
+            (Path('examples/report-logical-longhands.html'), actual),
+            (Path('examples/report-logical-longhands-oracle.html'), oracle)
+        ):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Logical side longhand report differs from physical PDF oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Logical longhand report did not paginate: ' + info)
+        text = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for marker in ('Regional inspection register', 'Service reference 01',
+                       'Service reference 40', 'TOTAL: 40 verified service references',
+                       'Signed by regional operations.', 'END OF REPORT'):
+            if marker not in text:
+                raise AssertionError('Native logical longhand report lost text: ' + marker)
+        bad, existing = temp / 'invalid.html', temp / 'existing.pdf'
+        for html, code in (
+            ("<section style='margin-block-start:auto'>A</section>", b'FPDF1202'),
+            ("<section style='padding-inline-end:calc(1pt + 2pt)'>A</section>", b'FPDF1202'),
+            ("<section style='margin-inline-start:1e-999pt'>A</section>", b'FPDF1202'),
+            ("<section style='padding-inline-start:1e-999px'>A</section>", b'FPDF1202'),
+            ("<span style='padding-block-end:2pt'>A</span>", b'FPDF1201'),
+            ("<section style='width:999pt;margin-inline-end:auto'>A</section>", b'FPDF1302')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            existing.write_bytes(b'original-logical-longhand-report')
+            failure = subprocess.run([str(exe), str(bad), str(existing), '--overwrite'],
+                                     capture_output=True, timeout=120)
+            if failure.returncode != 3 or code not in failure.stderr or failure.stdout:
+                raise AssertionError('Invalid logical longhand was not rejected: ' + html)
+            if existing.read_bytes() != b'original-logical-longhand-report':
+                raise AssertionError('Invalid logical longhand replaced prior PDF')
+        print('Native 40-entry LTR logical side longhand PDF parity, pagination and recovery verified')
+
     # Native AOT source-quote report; independent div-based physical layout
     # oracle confirms actual PDF geometry, fragments and text, not parsing.
     with tempfile.TemporaryDirectory(prefix='factspdf-quote-report-') as folder:
@@ -1022,6 +1067,7 @@ def main():
                            'native_numeric_font_weights_pdf_equivalence_and_recovery': True,
                            'native_horizontal_rules_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True,
+                            'native_ltr_logical_side_longhands_pdf_parity_pagination_and_recovery': True,
                              'native_quote_report_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }

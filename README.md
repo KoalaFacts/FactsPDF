@@ -173,14 +173,24 @@ Controlled left-to-right business reports can now use
 `padding-block` with one or two values, as alternatives to the corresponding
 physical longhands. For example, `margin-inline:auto` centres an explicitly
 sized panel, while `padding-inline:8pt 12pt` adds measurable left/right
-insets and `margin-block:6pt 9pt` creates real vertical gaps. The existing
-per-side cascade, `!important`, `inherit/initial/unset`, print and
-font-relative lengths, box painting, page continuation and failure restoration
-apply without silently skipping invalid values.
+insets and `margin-block:6pt 9pt` creates real vertical gaps. The same ordinary report boxes also support **eight individual LTR logical
+side longhands**: `margin-inline-start`/`margin-inline-end`,
+`margin-block-start`/`margin-block-end`,
+`padding-inline-start`/`padding-inline-end`, and
+`padding-block-start`/`padding-block-end`. For example,
+`margin-inline-start:auto;margin-inline-end:auto` centres a fixed-width
+report card; `padding-inline-start:6pt` changes the actual first glyph X;
+and `margin-block-end:8pt` adds real space below a paragraph or card.
+Each longhand takes **exactly one** value and participates independently in
+normal physical-side cascade, `!important`, `inherit/initial/unset`,
+print and font-relative lengths, box painting, page continuation and strict
+failure restoration. A 40-reference paginated report has a separately
+written physical-side [PDF oracle](examples/report-logical-longhands-oracle.html)
+for the [logical-side example](examples/report-logical-longhands.html).
 
 This is **LTR normal-flow mapping only**: inline-start = left, inline-end =
 right, block-start = top, block-end = bottom. `direction`, RTL/vertical writing
-modes, negative values, CSS margin collapse, general logical longhands,
+modes, negative values, CSS margin collapse, other logical properties,
 `calc()` and unsupported elements remain outside scope. Body/list/table/
 image/inline margins remain rejected, as with their physical longhands.
 See the [CSS contract](docs/css-stylesheets.md#current-source-ltr-logical-report-spacing)

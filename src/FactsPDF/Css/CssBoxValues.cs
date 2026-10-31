@@ -81,9 +81,12 @@ internal static class CssBoxValues
         if (!double.TryParse(number, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var parsed) || !double.IsFinite(parsed))
             throw new FactsPdfException("FPDF1202", "Box length must be a finite decimal.", offset);
-        if (parsed == 0 && number.StartsWith("-", StringComparison.Ordinal)
-            && !IsExactlyUnitlessZero(number))
-            throw new FactsPdfException("FPDF1202", "Negative nonzero box length underflow is unsupported.", offset);
+        // Values such as 1e-999pt or -1e-999px are nonzero CSS numbers,
+        // even when double.TryParse rounds their magnitude to zero. Never
+        // silently turn them into a supported zero-length declaration.
+        if (parsed == 0 && !IsExactlyUnitlessZero(number))
+            throw new FactsPdfException("FPDF1202",
+                "Nonzero box length underflow is unsupported.", offset);
         var length = parsed * scale;
         if (!double.IsFinite(length) || length < 0 || length > (percent ? 10_000 : 14_400))
             throw new FactsPdfException("FPDF1202", "Box length is outside the bounded nonnegative range.", offset);
