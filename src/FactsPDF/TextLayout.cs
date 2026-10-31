@@ -149,16 +149,16 @@ internal static class TextLayout
                 // If needed move the rule with its own outside top margin.
                 if (begin.RequiredRuleHeight > 0)
                 {
-                    var gap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
-                    if (y + gap + begin.RequiredRuleHeight > bottom + 0.000001 &&
+                    var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
+                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001 &&
                         CurrentPageOccupied())
                     {
                         NewPage();
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
-                        gap = pendingTopPadding + begin.MarginTop;
+                        ruleGap = pendingTopPadding + begin.MarginTop;
                     }
-                    if (y + gap + begin.RequiredRuleHeight > bottom + 0.000001)
+                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
                             "Horizontal rule and leading spacing cannot fit on a page.", begin.SourceOffset);
                 }

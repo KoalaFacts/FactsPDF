@@ -66,7 +66,8 @@ test('standalone horizontal rules are real scoped PDF separators, not full HTML/
   assert.equal(rule.introduced_release,null);
   assert.match(rule.scope,/1pt.*currentcolor/);
   assert.match(rule.scope,/PDF/);
-  assert.match(rule.limitations,/FPDF1302/);
+  assert.match(rule.limitations,/FPDF1101\/1103\/1201\/1202\/1302/);
+  assert.match(rule.failure_code,/FPDF1302/);
   assert.match(rule.limitations,/表格/);
   assert.match(rule.example,/<hr style=/);
   assert.match(rule.test_reference,/HorizontalRuleTests.cs/);
