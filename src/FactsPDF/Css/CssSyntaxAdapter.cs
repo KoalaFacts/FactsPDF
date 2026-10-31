@@ -132,8 +132,20 @@ internal static class CssSyntaxAdapter
                     "padding-inline" => ["padding-left", "padding-right"],
                     _ => ["padding-top", "padding-bottom"]
                 };
-                var first = terms[0];
-                var second = terms.Count == 1 ? first : terms[1];
+                var parts = terms.ToArray();
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    // Like the existing physical margin shorthand, retain
+                    // the source offset but normalize any finite unitless
+                    // numeric zero before checking the physical side.
+                    if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
+                        && double.TryParse(parts[i], System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var zero)
+                        && double.IsFinite(zero) && zero == 0)
+                        parts[i] = "0";
+                }
+                var first = parts[0];
+                var second = parts.Length == 1 ? first : parts[1];
                 var firstOffset = valueTokens[0].Token.Span.Start;
                 var secondOffset = valueTokens[terms.Count - 1].Token.Span.Start;
                 if (terms.Count == 1 && Wide(first))

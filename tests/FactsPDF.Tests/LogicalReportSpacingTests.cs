@@ -69,6 +69,21 @@ public sealed class LogicalReportSpacingTests
         Assert.That(layout.Runs.Single(x => x.Text == "CHECK").X, Is.EqualTo(42).Within(0.000001));
     }
 
+    [TestCase("margin-block:0.0", "margin-top:0;margin-bottom:0")]
+    [TestCase("margin-block:-0 +0.000", "margin-top:0;margin-bottom:0")]
+    [TestCase("margin-inline:+0.0 -0", "margin-left:0;margin-right:0")]
+    [TestCase("padding-inline:-0.000 +0", "padding-left:0;padding-right:0")]
+    [TestCase("padding-block:0.0 2pt", "padding-top:0;padding-bottom:2pt")]
+    [TestCase("padding-inline:1pt 0e2", "padding-left:1pt;padding-right:0")]
+    public void AllFiniteUnitlessZeroSpellingsMatchPhysicalLonghandsInRealPdf(
+        string logical, string physical)
+    {
+        const string open = "<section style='width:140pt;border:1pt solid blue;background:#e4eff7;";
+        const string close = "'><p style='margin:0'>ZERO SPACING</p></section>";
+        Assert.That(Render(open + logical + close),
+            Is.EqualTo(Render(open + physical + close)));
+    }
+
     [Test]
     public void ScopedStylesheetCascadeImportantAndWideKeywordsMatchLonghands()
     {
