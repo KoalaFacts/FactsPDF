@@ -160,7 +160,7 @@ public sealed class ConversionTests
     [TestCase("<table><tr><td>A</td></tr></table>", "FPDF1101")]
     [TestCase("<svg></svg>", "FPDF1102")]
     [TestCase("<p onclick='x()'>A</p>", "FPDF1103")]
-    [TestCase("<p style='display:flex'>A</p>", "FPDF1201")]
+    [TestCase("<p style='display:flex'>A</p>", "FPDF1202")]
     [TestCase("<p style='font-size:banana'>A</p>", "FPDF1202")]
     [TestCase("<p style='font-size:-1pt'>A</p>", "FPDF1202")]
     [TestCase("<p style='font-size:NaNpt'>A</p>", "FPDF1202")]

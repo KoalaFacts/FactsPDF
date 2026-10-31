@@ -137,7 +137,7 @@ public sealed class ReportDisplayTests
     [TestCase("<body style='display:none'><p>A</p></body>")]
     [TestCase("<hr style='display:none'>")]
     [TestCase("<ul><li><p style='display:none'>A</p></li></ul>")]
-    [TestCase("<table><tr><td><p style='display:none'>A</p></td></tr></table>")]
+    [TestCase("<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td><p style='display:none'>A</p></td></tr></tbody></table>")]
     public void UnsupportedElementContextsRejectDisplay(string html)
         => Reject(html, "FPDF1201");
 

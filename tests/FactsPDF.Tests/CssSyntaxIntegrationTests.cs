@@ -47,7 +47,7 @@ public sealed class CssSyntaxIntegrationTests
     public void UnknownOrUnimplementedValueRemainsAnExplicitStrictError()
     {
         Failure("<style>p{color:calc(1)}</style><p>A</p>", "FPDF1202");
-        Failure("<style>p{display:grid}</style><p>A</p>", "FPDF1201");
+        Failure("<style>p{display:grid}</style><p>A</p>", "FPDF1202");
     }
 
     [Test]
