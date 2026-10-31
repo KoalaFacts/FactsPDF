@@ -94,6 +94,85 @@ def inspect(pdf, manifest):
             'geometry': geometry, 'fonts': fonts, 'discCount': 2}, pages, text
 
 
+
+def inspect_marker_styles(root, out, args, flags):
+    """Source-built CLI/Native AOT marker witness with independent expected labels."""
+    source = root / 'examples/report-list-marker-styles.html'
+    cli = out / 'report-list-marker-styles-managed.pdf'
+    native = out / 'report-list-marker-styles-native.pdf'
+    run(args.dotnet, args.cli_dll, source, cli, *flags)
+    run(args.native_cli, source, native, *flags)
+    assert cli.read_bytes() == native.read_bytes(), 'Native list markers differ from managed output'
+    run(tool('qpdf'), '--check', native)
+    info = run(tool('pdfinfo'), native).decode()
+    count = re.search(r'^Pages:\\s*(\\d+)', info, re.M)
+    assert count and int(count.group(1)) >= 2, 'Expected a real multi-page marker report'
+    bbox = run(tool('pdftotext'), '-bbox', native, '-').decode()
+    root_xml = ET.fromstring(bbox)
+    ns = '{http://www.w3.org/1999/xhtml}'
+    pages = [[dict(text=w.text or '', **{k: float(v) for k, v in w.attrib.items()})
+              for w in p.iter(ns + 'word')] for p in root_xml.iter(ns + 'page')]
+    assert len(pages) == int(count.group(1))
+    all_words = [word['text'] for p in pages for word in p]
+    assert all_words.count('END-REPORT') == 1
+    def alphabetic(index):
+        output = ''
+        while index:
+            index -= 1
+            output = chr(ord('a') + index % 26) + output
+            index //= 26
+        return output + '.'
+    def roman(index):
+        output = ''
+        for value, symbol in ((1000, 'M'), (900, 'CM'), (500, 'D'),
+                              (400, 'CD'), (100, 'C'), (90, 'XC'),
+                              (50, 'L'), (40, 'XL'), (10, 'X'),
+                              (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')):
+            while index >= value:
+                output += symbol
+                index -= value
+        return output + '.'
+    measurements = {}
+    for prefix, count, mark in [('CHK', 40, alphabetic), ('ACT', 25, roman)]:
+        body_x = []
+        for idx in range(1, count + 1):
+            label = f'{prefix}-{idx:02d}'
+            match = [(page, word) for page, words in enumerate(pages) for word in words if word['text'] == label]
+            assert len(match) == 1, 'Missing/duplicate report record: ' + label
+            page, body = match[0]
+            matching_markers = [w for w in pages[page]
+                                if w['text'] == mark(idx) and abs(w['yMin'] - body['yMin']) < .03]
+            assert len(matching_markers) == 1, 'Marker missing/duplicated or detached: ' + label
+            marker = matching_markers[0]
+            assert marker['xMin'] < marker['xMax'] < body['xMin'] - 3, 'Marker overlaps item text: ' + label
+            body_x.append(body['xMin'])
+        assert max(body_x) - min(body_x) < .03, 'Nonuniform list gutter for ' + prefix
+        measurements[prefix] = {'records': count, 'bodyX': body_x[0]}
+    for idx in range(1, 10):
+        label = f'NOTE-{idx:02d}'
+        assert all_words.count(label) == 1, 'Missing/duplicate list note: ' + label
+    for mode, command in [('cli', [args.dotnet, args.cli_dll]), ('native', [args.native_cli])]:
+        for name, html, code in [
+            ('invalid-type', '<ol style="list-style-type:square"><li>A</li></ol>', 'FPDF1202'),
+            ('invalid-target', '<p style="list-style-type:decimal">A</p>', 'FPDF1201'),
+        ]:
+            input_path = out / f'list-marker-{mode}-{name}.html'
+            target = out / f'list-marker-{mode}-{name}.pdf'
+            input_path.write_text(html)
+            target.write_bytes(b'sentinel')
+            completed = subprocess.run([str(x) for x in
+                [*command, input_path, target, '--overwrite', *flags]],
+                capture_output=True, timeout=60)
+            assert completed.returncode == 3 and code.encode() in completed.stderr, name
+            assert target.read_bytes() == b'sentinel', 'Failed marker conversion clobbered a PDF'
+        restored = out / f'list-marker-{mode}-recovery.pdf'
+        run(*command, source, restored, *flags)
+        assert restored.read_bytes() == cli.read_bytes(), 'Marker conversion failed to recover'
+    return {'pages': len(pages), 'records': 74, 'markerCounts': {'alpha': 40, 'roman': 25, 'none': 8, 'disc': 1},
+            'geometry': measurements, 'managedNativeByteEquality': True,
+            'invalidStylesProtectExistingOutput': True, 'sha256': sha(cli.read_bytes())}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--manifest', type=Path, required=True)
@@ -145,10 +224,12 @@ def main():
         recovery = out / f'{mode}-recovery.pdf'
         run(*command, source, recovery, *flags)
         assert recovery.read_bytes() == api_pdf.read_bytes()
+    marker_styles = inspect_marker_styles(root, out, args, flags)
     report = {'sourceSha': run('git', '-C', root, 'rev-parse', 'HEAD').decode().strip(),
               'dirty': bool(run('git', '-C', root, 'status', '--porcelain').strip()), 'inputSha256': sha(source.read_bytes()),
               'fontInputs': [f for f in manifest['fonts'] if f['role'] == 'normal'], 'api': api,
-              'inspection': inspection, 'apiCliNativeByteEquality': True, 'cliErrors': errors, 'checkerRejects': mutations,
+              'inspection': inspection, 'markerStyles': marker_styles,
+              'apiCliNativeByteEquality': True, 'cliErrors': errors, 'checkerRejects': mutations,
               'browser': 'pending-protected-CI', 'visualReview': 'pending-final-artifact-review'}
     (out / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps({'pages': inspection['pages'], 'sha256': inspection['sha256'], 'parity': True,
