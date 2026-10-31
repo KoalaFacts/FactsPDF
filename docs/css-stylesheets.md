@@ -1,5 +1,48 @@
 # Embedded CSS stylesheets and selectors
 
+## Current-source LTR logical report spacing
+
+Four logical shorthands are supported for **normal left-to-right horizontal
+writing only**: `margin-inline` maps inline-start/inline-end to
+`margin-left`/`margin-right`; `margin-block` maps block-start/end to
+`margin-top`/`margin-bottom`; `padding-inline` and `padding-block`
+map to their analogous physical sides. One value supplies both sides; two
+values supply start and end in that order. A CSS-wide `inherit`, `initial`
+or `unset` must be alone; `!important` and the existing stylesheet/
+inline per-longhand cascade apply normally. Expansion counts both emitted
+declarations against `MaxCssDeclarations`, including unmatched rules.
+
+This is a **rendered geometry feature**, not an accepted-but-ignored alias:
+on `p`/`h1`–`h6`, `margin-block` uses nonnegative
+`pt/px/mm/cm/in/rem/em` (or zero), and `margin-inline` uses the existing
+bounded nonnegative physical lengths plus percentage/auto outside table cells.
+On normal `div`/`section`/`article` panels and standalone `hr`, the
+same physical outside-box margins are applied: horizontal `auto` can centre
+an explicit width; vertical percentages/auto are rejected. Padding maps to
+the existing box model on permitted painted boxes, using nonnegative
+`pt/px/mm/cm/in/%/rem/em`, with vertical percentages resolved from the
+containing **width**. Relative `em` uses the element's final computed font,
+and `rem` the computed root font. Zero values retain original geometry.
+All limits, table-cell restrictions and prohibited elements remain those of
+the equivalent physical side. `inherit` reads the appropriate computed
+parent side; neither margins nor padding become implicitly inherited.
+
+The box widths, painted PDF backgrounds/borders, text starting X positions
+and pagination all use the existing longhand layout. Unsupported values
+(negative lengths, mixed wide keywords, three-plus terms, `calc()`,
+vertical `auto`/`%` margins or impossible geometry) fail with
+`FPDF1201/1202/1205/1302` as appropriate and preserve any existing
+output. This feature does **not** implement `direction`, RTL, vertical
+writing, logical `*-inline-start/end` longhands, general margin collapsing,
+`gap`, Flex/Grid or Paged Media.
+
+[Logical 36-entry report](../examples/report-logical-spacing.html) and
+[separately specified physical-longhand oracle](../examples/report-logical-spacing-oracle.html)
+exercise equivalent actual PDF bytes; `LogicalReportSpacingTests.cs`
+covers full conversion, geometry, cascade, computed lengths, CLI parity,
+fragmentation, invalid input and output recovery. Existing SDK/native CI
+remains the authoritative platform gate for the exact source commit.
+
 ## Current-source HTML horizontal report rules
 
 A standalone void `<hr>` or `<hr />` in an ordinary report box now

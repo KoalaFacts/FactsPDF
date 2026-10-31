@@ -905,6 +905,51 @@ def main():
                 raise AssertionError('Rejected hr damaged the previous PDF')
         print('Native horizontal-rule PDF geometry, pagination, text and recovery verified')
 
+
+    # Actual Native AOT end-to-end acceptance for LTR logical spacing.
+    # The independent HTML oracle spells the identical used physical values.
+    # Both source variants are truly painted/paginated PDFs, not parser checks.
+    with tempfile.TemporaryDirectory(prefix='factspdf-logical-spacing-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'logical.pdf', temp / 'physical.pdf'
+        for html, pdf in (
+            (Path('examples/report-logical-spacing.html'), actual),
+            (Path('examples/report-logical-spacing-oracle.html'), oracle)
+        ):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('LTR logical report PDF differs from independently authored physical longhands')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('LTR logical spacing service report did not paginate: ' + info)
+        text = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for marker in ('Regional inspection services', 'Service item 01',
+                       'Service item 36', 'TOTAL: 36 completed service items',
+                       'END OF REPORT'):
+            if marker not in text:
+                raise AssertionError('LTR logical spacing report lost searchable content: ' + marker)
+        bad = temp / 'bad.html'
+        protected = temp / 'protected.pdf'
+        for html, code in (
+            ("<section style='margin-block:0 auto'>A</section>", b'FPDF1202'),
+            ("<section style='padding-inline:calc(1pt + 2pt)'>A</section>", b'FPDF1202'),
+            ("<section style='margin-inline:-1pt'>A</section>", b'FPDF1202'),
+            ("<body style='margin-inline:4pt'>A</body>", b'FPDF1201'),
+            ("<p style='width:540pt;margin-inline:20pt'>A</p>", b'FPDF1302')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            protected.write_bytes(b'original-pdf')
+            failed = subprocess.run([str(exe), str(bad), str(protected), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Native LTR logical spacing failed strict rejection: ' + html)
+            if protected.read_bytes() != b'original-pdf':
+                raise AssertionError('Native invalid logical spacing changed the previous PDF')
+        print('Native 36-entry LTR logical spacing PDF parity, pagination, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -935,7 +980,8 @@ def main():
                            'native_panel_margins_and_recovery': True,
                            'native_panel_vertical_margins_and_recovery': True,
                            'native_numeric_font_weights_pdf_equivalence_and_recovery': True,
-                           'native_horizontal_rules_pdf_parity_pagination_and_recovery': True},
+                           'native_horizontal_rules_pdf_parity_pagination_and_recovery': True,
+                            'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

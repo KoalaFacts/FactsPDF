@@ -76,9 +76,7 @@ internal static class CssSyntaxAdapter
                 {
                     // Normalize numeric zero with its original source location.
                     if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
-                        && double.TryParse(parts[i], System.Globalization.NumberStyles.Float,
-                            System.Globalization.CultureInfo.InvariantCulture, out var zero)
-                        && double.IsFinite(zero) && zero == 0)
+                        && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
                         parts[i] = "0";
                 }
                 if (parts.Length == 1 && Wide(parts[0]))
@@ -113,6 +111,53 @@ internal static class CssSyntaxAdapter
                 Emit(CssProperty.MarginBottom, sides[2], valueTokens[bottomSource].Token.Span.Start, "margin-bottom");
                 var leftSource = parts.Length == 4 ? 3 : rightSource;
                 Emit(CssProperty.MarginLeft, sides[3], valueTokens[leftSource].Token.Span.Start, "margin-left");
+                continue;
+            }
+
+            // Logical spacing is intentionally limited to horizontal LTR
+            // documents in normal flow. Expand into physical longhands here
+            // so the *same* per-side cascade, box geometry, page fragmentation
+            // and explicit failure behavior are used by the renderer.
+            if (name is "margin-inline" or "margin-block" or "padding-inline" or "padding-block")
+            {
+                if (terms.Count > 2)
+                    throw new FactsPdfException("FPDF1202",
+                        "Logical spacing shorthand takes one or two values.", node.Span.Start);
+                string[] longhands = name switch
+                {
+                    "margin-inline" => ["margin-left", "margin-right"],
+                    "margin-block" => ["margin-top", "margin-bottom"],
+                    "padding-inline" => ["padding-left", "padding-right"],
+                    _ => ["padding-top", "padding-bottom"]
+                };
+                var parts = terms.ToArray();
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    // Like the existing physical margin shorthand, retain
+                    // the source offset but normalize exactly zero-valued
+                    // unitless Number tokens before checking the physical side.
+                    if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
+                        && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                        parts[i] = "0";
+                }
+                var first = parts[0];
+                var second = parts.Length == 1 ? first : parts[1];
+                var firstOffset = valueTokens[0].Token.Span.Start;
+                var secondOffset = valueTokens[terms.Count - 1].Token.Span.Start;
+                if (terms.Count == 1 && Wide(first))
+                {
+                    Emit(Property(longhands[0], firstOffset), first, firstOffset, longhands[0]);
+                    Emit(Property(longhands[1], firstOffset), first, firstOffset, longhands[1]);
+                    continue;
+                }
+                if (Wide(first) || Wide(second))
+                    throw new FactsPdfException("FPDF1202",
+                        "A CSS-wide logical spacing keyword must be the only value.",
+                        Wide(first) ? firstOffset : secondOffset);
+                ValidateComponent(longhands[0], first, firstOffset);
+                ValidateComponent(longhands[1], second, secondOffset);
+                Emit(Property(longhands[0], firstOffset), first, firstOffset, longhands[0]);
+                Emit(Property(longhands[1], secondOffset), second, secondOffset, longhands[1]);
                 continue;
             }
             if (name is "padding" or "border-width" or "border-style" or "border-color")
@@ -268,13 +313,13 @@ internal static class CssSyntaxAdapter
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
-        "margin" or "margin-top" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
-        "margin-left" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
+        "margin" or "margin-top" or "margin-block" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
+        "margin-left" or "margin-inline" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
         "width" => CssProperty.Width, "min-width" => CssProperty.MinWidth, "max-width" => CssProperty.MaxWidth,
-        "box-sizing" => CssProperty.BoxSizing, "padding" or "padding-top" => CssProperty.PaddingTop,
+        "box-sizing" => CssProperty.BoxSizing, "padding" or "padding-top" or "padding-block" => CssProperty.PaddingTop,
         "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,
-        "padding-left" => CssProperty.PaddingLeft,
+        "padding-left" or "padding-inline" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
         "border" or "border-top" or "border-width" or "border-top-width" => CssProperty.BorderTopWidth,
         "border-right" or "border-right-width" => CssProperty.BorderRightWidth,

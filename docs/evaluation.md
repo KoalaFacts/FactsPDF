@@ -44,6 +44,16 @@ check PDF geometry, text and page continuation; source-only, not a retained
 candidate, general CSS margin collapse or customer release.
 [Scoped details](css-stylesheets.md#current-source-real-vertical-report-panel-margins).
 
+Controlled LTR reports may use `margin-inline`, `margin-block`,
+`padding-inline` and `padding-block` instead of physical side
+declarations. These one/two-value shorthands affect real painted box
+position, measured text and page continuation; they preserve existing
+invalid-input protection and are **not** RTL, vertical-writing or general
+CSS logical-property support. Compare the [36-entry report](../examples/report-logical-spacing.html)
+with its [physical-longhand oracle](../examples/report-logical-spacing-oracle.html).
+This is current source, not a newly authorised installable candidate.
+[Exact scope](css-stylesheets.md#current-source-ltr-logical-report-spacing).
+
 ## Start with a report that fits
 
 Long invoice/reference identifiers can opt into scoped `overflow-wrap:break-word` on report paragraphs/headings, including flat p inside fixed-column cells. Oversized tokens split at measured glyph boundaries and continue across pages, while ordinary words still move whole and `white-space:nowrap` takes precedence. `anywhere`, complex shaping, automatic hyphenation and full CSS Text are outside scope. The [32-entry report](../examples/report-overflow-wrap.html) has a separate [manual-break oracle](../examples/report-overflow-wrap-oracle.html) and protected-output errors. Source-only, not a customer grant or human PDF approval. See the [scope](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers).
