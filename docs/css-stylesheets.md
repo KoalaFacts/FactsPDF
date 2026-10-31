@@ -1,3 +1,45 @@
+## Current-source HTML horizontal report rules
+
+A standalone void `<hr>` or `<hr />` in an ordinary report box now
+produces a **visible PDF separator**: 1pt solid `currentcolor` top border
+over the containing content width, with 8pt non-collapsing outside margins
+above and below. Its box is really painted and affects following text
+positioning. The rule creates no text runs, new font resource or remote load.
+
+A controlled rule accepts the existing scoped box `width`, `min-width`,
+`max-width`, `box-sizing`, `padding`, `background` and solid
+`border` properties, `color` and four-sided `margin` with nonnegative
+`pt/px/mm/cm/in/rem/em` top/bottom and nonnegative horizontal
+`pt/px/mm/cm/in/%/rem/em` or `auto`. Only `font-size` is accepted
+from typography, as a scale for rule-local `em` values. The existing
+selector/inline cascade, importance and `inherit/initial/unset` apply.
+The rule's actual height is vertical padding plus effective top/bottom
+solid border widths. Explicit `border-top:none` removes the default
+ink; no minimum synthetic content height is added.
+
+A separator moves as one box to a fresh page if it cannot fit after prior
+report content. A rule too tall for a fresh page fails `FPDF1302`
+without altering any existing target PDF. Its painting is charged against
+display command limits and preserves containing panel fragments.
+
+`hr` is rejected inside paragraphs/headings, spans, lists or tables
+(`FPDF1101`), as are explicit `</hr>` closing tags; unrecognised
+attributes fail `FPDF1103`. Text-only declarations such as
+`text-align`, `font-weight` or `line-height` reject with
+`FPDF1201`. Negative/percentage vertical margins, unsupported functions
+and dashed/rounded borders fail `FPDF1201/1202`. This does not
+implement margin collapsing, `height`, pseudo-elements, `display`,
+complex rules, table/inline separators or general CSS conformance.
+
+The [44-entry report](../examples/report-horizontal-rules.html) and
+[independent painted-div oracle](../examples/report-horizontal-rules-oracle.html)
+are compared via native CLI PDF bytes, qpdf, extracted text, pagination and
+protected-output failure in `scripts/verify_stylesheets.py`.
+`HorizontalRuleTests.cs` covers managed PDF equality, exact geometry,
+selector precedence, computed lengths, page edges and budgets. New source,
+CI and review evidence do not relabel old private candidates or provide
+human page approval.
+
 # Embedded CSS stylesheets and selectors
 
 FactsPDF now accepts embedded CSS stylesheets in addition to inline styles. This is a bounded, strict implementation for controlled document templates, not full browser CSS. It does not add a new markup language or a browser dependency. The previous font, Unicode and optional subsetting paths are reused.
