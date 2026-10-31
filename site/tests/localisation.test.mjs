@@ -174,3 +174,16 @@ test('numeric font weights are described in English without claiming variable fo
   assert.match(translate(data.css_inventory_note),/hundred-step values 100–900/);
   assert.doesNotMatch(feature.scope+' '+feature.limitations,han);
 });
+
+test('English display describes a truly painted scoped horizontal rule', async () => {
+  const { englishFeature } = await localisation();
+  const raw=data.features.find(row => row.id==='html.hr');
+  const display=englishFeature(raw);
+  assert.equal(raw.status,'partial');
+  assert.equal(display.status,'partial');
+  assert.match(display.scope,/1pt solid currentcolor/);
+  assert.match(display.scope,/PDF/);
+  assert.match(display.limitations,/FPDF1302/);
+  assert.match(display.limitations,/not inside paragraphs/);
+  assert.equal(display.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
+});

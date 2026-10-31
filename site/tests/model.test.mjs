@@ -22,7 +22,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750');
+  assert.equal(dataset.commit, '8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -55,7 +55,21 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:134, none:232, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:135, none:231, unknown:6, na:2 });
+});
+test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
+  const rule=dataset.features.find(f=>f.id==='html.hr');
+  assert.equal(dataset.accepted_html_tag_count,35);
+  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(rule.status,'partial');
+  assert.equal(rule.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
+  assert.equal(rule.introduced_release,null);
+  assert.match(rule.scope,/1pt.*currentcolor/);
+  assert.match(rule.scope,/PDF/);
+  assert.match(rule.limitations,/FPDF1302/);
+  assert.match(rule.limitations,/表格/);
+  assert.match(rule.example,/<hr style=/);
+  assert.match(rule.test_reference,/HorizontalRuleTests.cs/);
 });
 test('bounded report overflow-wrap audit has real scope and exact source evidence', () => {
   const f=dataset.features.find(x=>x.id==='css.overflow-wrap');
@@ -237,7 +251,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-10-29.numeric-report-font-weights');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.horizontal-report-rules');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /52个CSS属性/);
@@ -322,7 +336,7 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:134,none:232,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
@@ -386,7 +400,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     'css.margin-right'];
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,52);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:134,none:232,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
@@ -427,7 +441,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:134,none:232,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
 });
 
