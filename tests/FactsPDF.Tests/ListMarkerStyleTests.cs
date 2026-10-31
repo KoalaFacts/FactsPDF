@@ -71,6 +71,40 @@ public sealed class ListMarkerStyleTests
     }
 
     [Test]
+    public void MarkerTextTransformMeasuresThePaintedProportionalGlyphs()
+    {
+        // A and a have deliberately different advances (600 vs 200).
+        // Previously a. was measured before casing, and then A. could not
+        // fit into the marker's reserved width: FPDF1302 on a valid report.
+        var fonts = Page with
+        {
+            Fonts = [PdfFont.LoadTrueType(FontFixture.Create(listCaseMarkers: true))]
+        };
+        const string transform = "<ol style='list-style-type:lower-alpha;text-transform:uppercase'><li>A</li></ol>";
+        const string literal = "<ol style='list-style-type:upper-alpha'><li>A</li></ol>";
+        var rendered = Layout(transform, fonts);
+        var expected = Layout(literal, fonts);
+        Assert.That(rendered.Single().Runs.Select(run => (run.Text, run.X, run.Width)),
+            Is.EqualTo(expected.Single().Runs.Select(run => (run.Text, run.X, run.Width))));
+        Assert.That(rendered.Single().Runs.Any(run => run.Text == "A."), Is.True);
+        Assert.That(Pdf(transform, fonts), Is.EqualTo(Pdf(literal, fonts)));
+    }
+
+    [Test]
+    public void MarkerLowercaseTransformUsesFinalGlyphAdvance()
+    {
+        var fonts = Page with
+        {
+            Fonts = [PdfFont.LoadTrueType(FontFixture.Create(listCaseMarkers: true))]
+        };
+        const string transform = "<ol style='list-style-type:upper-roman;text-transform:lowercase'><li>i</li></ol>";
+        const string literal = "<ol style='list-style-type:lower-roman'><li>i</li></ol>";
+        Assert.That(Layout(transform, fonts).Single().Runs.Select(run => (run.Text, run.X, run.Width)),
+            Is.EqualTo(Layout(literal, fonts).Single().Runs.Select(run => (run.Text, run.X, run.Width))));
+        Assert.That(Pdf(transform, fonts), Is.EqualTo(Pdf(literal, fonts)));
+    }
+
+    [Test]
     public void DefaultDecimalAndDiscRemainByteIdenticalToExplicitStyle()
     {
         Assert.That(Pdf("<ol style='list-style-type:decimal'><li>A</li><li>B</li></ol>"),

@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false, bool unicodeCaseSymbols = false)
+        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -20,6 +20,15 @@ internal static class FontFixture
         if (listDigits)
         {
             for (var scalar = '0'; scalar <= '9'; scalar++) map[scalar] = 2;
+            map['.'] = 4;
+        }
+        if (listCaseMarkers)
+        {
+            // A 600-unit, a 200-unit, I 900-unit and i 200-unit:
+            // exposes marker-width errors under uppercase/lowercase without
+            // depending on a platform's installed font files.
+            map['a'] = 4;
+            map['I'] = 5;
             map['.'] = 4;
         }
         if (unicodeCaseSymbols)

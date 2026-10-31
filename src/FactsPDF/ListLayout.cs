@@ -127,10 +127,22 @@ internal sealed class ListLayout
 
         double Measure(string text, TextStyle style, int offset)
         {
+            // TextLines.Wrap applies ASCII-only text-transform before glyph
+            // resolution. Measure those *same rendered glyphs*: otherwise
+            // lower-alpha + text-transform:uppercase can reserve the narrow
+            // advance of 'a.' then overflow when painting the wider 'A.'.
+            // Marker strings are generated ASCII only, so invariant casing
+            // is exactly the renderer's supported transformation subset.
+            var paintedText = style.Transform switch
+            {
+                TextTransform.Uppercase => text.ToUpperInvariant(),
+                TextTransform.Lowercase => text.ToLowerInvariant(),
+                _ => text
+            };
             var role = FontRoles.Role(style);
             var fonts = FontRoles.Chain(options, role, offset);
             var total = 0d;
-            foreach (var scalar in text)
+            foreach (var scalar in paintedText)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (!widths.TryGetValue((role, scalar), out var width))
