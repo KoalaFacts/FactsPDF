@@ -144,6 +144,24 @@ internal static class TextLayout
                     pendingClosedPadding = 0;
                     breakNext = false;
                 }
+                // An hr is a void painted separator. Before opening it,
+                // ensure the complete border/padding height fits on one page.
+                // If needed move the rule with its own outside top margin.
+                if (begin.RequiredRuleHeight > 0)
+                {
+                    var gap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
+                    if (y + gap + begin.RequiredRuleHeight > bottom + 0.000001 &&
+                        CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
+                        gap = pendingTopPadding + begin.MarginTop;
+                    }
+                    if (y + gap + begin.RequiredRuleHeight > bottom + 0.000001)
+                        throw new FactsPdfException("FPDF1302",
+                            "Horizontal rule and leading spacing cannot fit on a page.", begin.SourceOffset);
+                }
                 // Even an empty paragraph has a bottom margin that belongs to
                 // its containing block's content height, not its own border.
                 if (begin.IsParagraph)

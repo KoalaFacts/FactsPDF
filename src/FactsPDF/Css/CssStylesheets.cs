@@ -139,6 +139,16 @@ internal sealed class CssStylesheets
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
+            // hr has physical box geometry but no text. Its local font-size
+            // can scale em lengths; colour supplies currentcolor borders.
+            // Never pretend that text-only declarations rendered on a void rule.
+            if (element.Name == "hr" &&
+                declaration.Property is not (CssProperty.FontSize or CssProperty.Color
+                    or CssProperty.MarginTop or CssProperty.MarginBottom
+                    or CssProperty.MarginLeft or CssProperty.MarginRight) &&
+                !CssDeclarations.IsBoxProperty(declaration.Property))
+                throw new FactsPdfException("FPDF1201",
+                    $"CSS property '{declaration.Name}' does not apply to horizontal rules.", declaration.Offset);
             // Flat table cell paragraphs do not have independent horizontal box
             // geometry. Preserve existing explicit zero sides, but auto can
             // consume real space and is not a zero-valued cell margin.
@@ -190,7 +200,7 @@ internal sealed class CssStylesheets
             // Validate all matching declarations, even losing ones. Vertical
             // percentages and auto are not quietly reinterpreted as points;
             // CSS-wide inheritance/reset is resolved for the winner below.
-            var panelMargin = element.Name is ("div" or "section" or "article")
+            var panelMargin = element.Name is ("div" or "section" or "article" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
@@ -226,14 +236,23 @@ internal sealed class CssStylesheets
         foreach (var name in element.Classes) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
         var style = defaults;
-        var box = new BoxStyle();
+        // UA-style report separator defaults; the normal cascade can override
+        // each component. CSS-wide initial resets to the ordinary box initial.
+        var box = element.Name == "hr"
+            ? new BoxStyle
+            {
+                BorderTop = new BorderEdge(1, true, null),
+                MarginTop = new CssLength(8),
+                MarginBottom = new CssLength(8)
+            }
+            : new BoxStyle();
         foreach (var winner in winners)
         {
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
-            else if (element.Name is ("div" or "section" or "article")
+            else if (element.Name is ("div" or "section" or "article" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 box = CssDeclarations.ApplyPanelVerticalMargin(box, parentBox, declaration,
                     rootFontSize, style.FontSize);
