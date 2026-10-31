@@ -865,6 +865,46 @@ def main():
                 raise AssertionError('Invalid weight or missing font replaced existing PDF')
         print('Native numeric font-weight PDF role parity, pagination, fonts, text and recovery verified')
 
+    # Native AOT: standalone hr dividers render actual geometry on a
+    # paginated 44-entry service report. Independently authored ordinary
+    # painted div boxes provide an exact PDF byte/paint oracle.
+    with tempfile.TemporaryDirectory(prefix='factspdf-horizontal-rules-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'actual.pdf', temp / 'oracle.pdf'
+        inputs = (Path('examples/report-horizontal-rules.html'),
+                  Path('examples/report-horizontal-rules-oracle.html'))
+        for html, pdf in zip(inputs, (actual, oracle)):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Native hr separators differ from established painted-block oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Service dividers did not exercise report pagination: ' + info)
+        text = run('pdftotext', '-raw', actual, '-').decode('utf-8')
+        for marker in ('Quarterly Facilities Service Report', 'Service entry 01',
+                       'Service entry 44', 'End of audited service report.'):
+            if marker not in text:
+                raise AssertionError('Native rule report lost searchable content: ' + marker)
+        bad = temp / 'bad.html'
+        destination = temp / 'existing.pdf'
+        for html, code in (
+            ("<p>Invalid<hr></p>", b'FPDF1101'),
+            ("<hr style='margin-top:-2pt'>", b'FPDF1202'),
+            ("<hr style='text-align:center'>", b'FPDF1201')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            destination.write_bytes(b'previous-report')
+            failed = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Invalid hr was not rejected cleanly: ' + html)
+            if destination.read_bytes() != b'previous-report':
+                raise AssertionError('Rejected hr damaged the previous PDF')
+        print('Native horizontal-rule PDF geometry, pagination, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -894,7 +934,8 @@ def main():
                           'native_overflow_wrap_report_and_recovery': True,
                            'native_panel_margins_and_recovery': True,
                            'native_panel_vertical_margins_and_recovery': True,
-                           'native_numeric_font_weights_pdf_equivalence_and_recovery': True},
+                           'native_numeric_font_weights_pdf_equivalence_and_recovery': True,
+                           'native_horizontal_rules_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

@@ -144,6 +144,33 @@ internal static class TextLayout
                     pendingClosedPadding = 0;
                     breakNext = false;
                 }
+                // A void rule or other empty decorated box must fit in one
+                // page fragment. Move it with its outside top margin before
+                // opening it, rather than discovering an overflow at closure.
+                if (begin.RequiredRuleHeight > 0)
+                {
+                    // Match the established paint-budget precedence before
+                    // rejecting an oversized empty box. A zero-width/zero-paint
+                    // preview must not manufacture a display command.
+                    if (displayCommands == o.MaxDisplayCommands)
+                    {
+                        var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
+                            begin.RequiredRuleHeight, begin.Style, begin.TextColor, paintOrder);
+                        EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
+                    }
+                    var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
+                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001 &&
+                        CurrentPageOccupied())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
+                        ruleGap = pendingTopPadding + begin.MarginTop;
+                    }
+                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001)
+                        throw new FactsPdfException("FPDF1302",
+                            "Empty decorated box and leading spacing cannot fit on a page.", begin.SourceOffset);
+                }
                 // Even an empty paragraph has a bottom margin that belongs to
                 // its containing block's content height, not its own border.
                 if (begin.IsParagraph)

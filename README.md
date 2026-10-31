@@ -141,6 +141,26 @@ FactsPDF does not synthesize variable weights. See the
 [font role contract](docs/font-styles.md). This source addition is not a new
 public NuGet binary or stable CSS Fonts implementation.
 
+### Current-source horizontal report dividers
+
+A standalone HTML `<hr>` now paints a real **1pt current-text-colour rule**
+with 8pt non-collapsing outside spacing above and below. `<hr />` is
+equivalent. Templates may customise the separator through the existing
+bounded `width`, `min-width`, `max-width`, `margin` (nonnegative
+vertical lengths and horizontal `auto`), `padding`, `box-sizing`,
+`color`, `background` and solid `border` declarations. The rule
+follows its containing width and moves intact to the next page when needed.
+`font-size` affects only supported rule-local `em` box lengths.
+
+This is a **void block separator**, not unrestricted HTML or CSS: no
+content, table/paragraph/list/inline nesting, arbitrary `height`,
+pseudo-elements, dashed/rounded borders, margin collapse or resource URLs.
+Unsupported declarations fail explicitly and preserve an existing output.
+See the [scoped CSS contract](docs/css-stylesheets.md#current-source-html-horizontal-report-rules),
+[44-entry report](examples/report-horizontal-rules.html), and the
+[independently authored painted-box oracle](examples/report-horizontal-rules-oracle.html).
+This source feature is not a public NuGet/CLI release or a new private binary.
+
 ## Compatibility lookup
 
 The **Can I Render** site provides searchable support records for HTML,
