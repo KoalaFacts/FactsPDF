@@ -200,7 +200,7 @@ internal sealed class CssStylesheets
             // Validate all matching declarations, even losing ones. Vertical
             // percentages and auto are not quietly reinterpreted as points;
             // CSS-wide inheritance/reset is resolved for the winner below.
-            var panelMargin = element.Name is ("div" or "section" or "article" or "hr")
+            var panelMargin = element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
@@ -236,23 +236,33 @@ internal sealed class CssStylesheets
         foreach (var name in element.Classes) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
         var style = defaults;
-        // UA-style report separator defaults; the normal cascade can override
-        // each component. CSS-wide initial resets to the ordinary box initial.
-        var box = element.Name == "hr"
-            ? new BoxStyle
+        // Bounded report defaults. A quote is a real inset block rather
+        // than an ignored tag; author CSS overrides each side normally.
+        // CSS-wide initial resets to the zero-margin ordinary box initial.
+        var box = element.Name switch
+        {
+            "hr" => new BoxStyle
             {
                 BorderTop = new BorderEdge(1, true, null),
                 MarginTop = new CssLength(8),
                 MarginBottom = new CssLength(8)
-            }
-            : new BoxStyle();
+            },
+            "blockquote" => new BoxStyle
+            {
+                MarginTop = new CssLength(8),
+                MarginBottom = new CssLength(8),
+                MarginLeft = new CssLength(24),
+                MarginRight = new CssLength(24)
+            },
+            _ => new BoxStyle()
+        };
         foreach (var winner in winners)
         {
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
             if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
-            else if (element.Name is ("div" or "section" or "article" or "hr")
+            else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 box = CssDeclarations.ApplyPanelVerticalMargin(box, parentBox, declaration,
                     rootFontSize, style.FontSize);
@@ -269,7 +279,7 @@ internal sealed class CssStylesheets
                 // panel's computed outside margin. Do not alter anonymous text
                 // or the default (non-inherited) paragraph margins.
                 var marginParent = paragraph && path.Count > 1 &&
-                    path[^2].Name is ("div" or "section" or "article") &&
+                    path[^2].Name is ("div" or "section" or "article" or "blockquote") &&
                     declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                     ? parent with { MarginBefore = parentBox.MarginTop.Value,
                         MarginAfter = parentBox.MarginBottom.Value }

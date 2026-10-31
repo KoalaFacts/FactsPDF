@@ -950,6 +950,46 @@ def main():
                 raise AssertionError('Native invalid logical spacing changed the previous PDF')
         print('Native 36-entry LTR logical spacing PDF parity, pagination, text and recovery verified')
 
+    # Native AOT source-quote report; independent div-based physical layout
+    # oracle confirms actual PDF geometry, fragments and text, not parsing.
+    with tempfile.TemporaryDirectory(prefix='factspdf-quote-report-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'quote.pdf', temp / 'physical.pdf'
+        for html, pdf in (
+            (Path('examples/report-blockquotes.html'), actual),
+            (Path('examples/report-blockquotes-oracle.html'), oracle)
+        ):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Quoted-report PDF differs from independent physical div oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Quoted service report did not paginate: ' + info)
+        text = run('pdftotext', '-raw', actual, '-').decode('utf-8')
+        for marker in ('Quarterly service quotation', 'Quoted service item 01',
+                       'Quoted service item 44', 'End of signed quotation register.'):
+            if marker not in text:
+                raise AssertionError('Native quote report lost searchable text: ' + marker)
+        bad = temp / 'bad.html'
+        existing = temp / 'existing.pdf'
+        for html, code in (
+            ("<ol><blockquote>Bad list nesting</blockquote></ol>", b'FPDF1101'),
+            ("<blockquote style='margin-top:-2pt'>Bad margin</blockquote>", b'FPDF1202'),
+            ("<blockquote style='width:990pt'>Bad width</blockquote>", b'FPDF1302')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            existing.write_bytes(b'previous-quote-report')
+            failed = subprocess.run([str(exe), str(bad), str(existing), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Invalid quote was not rejected cleanly: ' + html)
+            if existing.read_bytes() != b'previous-quote-report':
+                raise AssertionError('Invalid quote modified existing PDF')
+        print('Native 44-entry quoted-report PDF parity, pagination, searchable text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -981,7 +1021,8 @@ def main():
                            'native_panel_vertical_margins_and_recovery': True,
                            'native_numeric_font_weights_pdf_equivalence_and_recovery': True,
                            'native_horizontal_rules_pdf_parity_pagination_and_recovery': True,
-                            'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True},
+                            'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True,
+                             'native_quote_report_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
