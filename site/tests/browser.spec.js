@@ -253,6 +253,9 @@ test('audited PDF text decoration can be searched and its limitations read',asyn
 
 test('ASCII report casing shows real render limits and source-linked evidence',async({page})=>{
   await page.goto(base+'#q=text-transform');
+  // The persistent test browser locale is Chinese; select the translated
+  // English snapshot before opening the modal (which traps outside clicks).
+  await page.getByRole('button',{name:'English',exact:true}).click();
   await page.getByRole('button',{name:'text-transform',exact:true}).click();
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
