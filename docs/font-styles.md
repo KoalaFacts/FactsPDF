@@ -35,10 +35,10 @@ Full embedding remains the default. Four complete CJK fonts can exceed the exist
 ## HTML and CSS
 
 - `b` / `strong` default to absolute bold; `i` / `em` default to italic. Nesting selects bold-italic. Repeated tags do not add extra weight/slant.
-- `font-weight`: `normal`, `bold`, numeric `400` / `700` (including equivalent CSS number tokens), `inherit`, `initial`, `unset`.
+- `font-weight`: `normal`, `bold`, integer hundred-step `100`, `200`, ... `900` (including equivalent CSS number tokens), `inherit`, `initial`, `unset`. Values `100`–`500` select the explicitly supplied **normal** role, while `600`–`900` select the explicitly supplied **bold** role. This selects a real font chain; it does not synthesize intermediate weights or interpolate variable-font axes.
 - `font-style`: `normal`, `italic`, `inherit`, `initial`, `unset`.
 - Both properties inherit independently and use the existing cascade and `!important`. Author CSS can override a tag's default. Headings retain the previous font-weight default.
-- `oblique`, relative weights, other numeric weights, font-family matching, `font` shorthand, `@font-face`, variable fonts, shaping and font synthesis remain unsupported.
+- `oblique`, relative `bolder`/`lighter`, non-hundred or out-of-range numeric weights, font-family matching, `font` shorthand, `@font-face`, variable fonts, shaping and font synthesis remain unsupported.
 
 Style boundaries do not add whitespace or word breaks. Paragraph struts and inline line metrics use the first font of the selected role chain, preserving the previous fallback metric model. Empty inline elements do not require resources. The existing break-only inline boundary remains: `<p><i><br></i></p>` does not contribute an italic metric, but `<p style="font-style:italic"><br></p>` creates an italic paragraph strut and requires that chain. Anonymous paragraphs retain the first inline style as their paragraph style.
 
@@ -55,3 +55,16 @@ The four lists are snapshotted; do not modify them concurrently during conversio
 The local reviewed sample set has a two-page report, five pages of 60 ordered records, three pages of long italic/bold-italic text, Latin full/subset output and Courier mixing. Records can split naturally across pages; keep-together behavior is not added. Agent page inspection is separate from user approval of frozen reference pages. Same-head CI supplies actual protected Chromium execution; local WASM publication alone is not browser acceptance.
 
 The private browser probe retains its old two-font normal export and adds explicit role bytes. Its host errors (`B2_INPUT_FONTS`, `B2_RESOURCE_HTTP`, `B2_RESOURCE_EMPTY`, `B2_RESOURCE_LIMIT`) are distinct from unchanged core error codes. It remains single-threaded non-AOT and is not a public JavaScript SDK. Native AOT claims apply only to the actual tested build/platform. The nine product-target denominator and separate list work are unchanged; this stage does not claim the full Developer Preview is complete.
+
+## Numeric font-weight report example (source only)
+
+The [64-line facilities report](../examples/report-numeric-font-weights.html) uses
+`font-weight:300/500/600/800/900` for ordinary labels, IDs, approvals and totals.
+The separately authored [normal/bold role oracle](../examples/report-numeric-font-weights-oracle.html)
+uses only 400/700; the Native AOT test verifies exact real PDF bytes, two
+explicitly provided static TrueType roles, pagination, searchable text, and
+FPDF1202/FPDF1507 output protection. For CLI first use, supply both
+`--font path-to-regular.ttf` and `--font-bold path-to-bold.ttf`; no font files
+are distributed with FactsPDF. Existing 400/700/default outputs are unchanged.
+This is a strict two-role mapping, not full CSS Fonts/variable-weight support
+or a publicly released installable candidate.

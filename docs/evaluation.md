@@ -242,3 +242,15 @@ tracks candidate artifacts, current page review, release preparation and the
 evaluation/quote process. Performance observations remain specific to their
 measured workload and environment.
 
+
+## Source-only numeric report weights (29 October 2026)
+
+The engine's current source accepts `font-weight` hundreds 100–900 for supported
+report text (100–500 normal, 600–900 bold), selecting the caller's explicit
+normal/bold chains with actual font advances and pagination. A 64-entry report,
+separate 400/700 oracle, NUnit tests and Linux Native AOT validation are bound to
+the source implementation at `7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750`. Non-hundred values, `bolder`,
+`lighter`, variable-weight interpolation and missing bold roles do not silently
+fall back. This is **not** evidence that the older retained
+`0.1.0-preview.1` software candidate was rebuilt, that a NuGet package was
+published, or that page/reference, licence and distribution gates were approved.

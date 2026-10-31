@@ -76,3 +76,15 @@ These implemented paths have independent executable evidence. This table neither
 
 F4 configures four font-role chains for its combined report, but the **original Chinese spans exercise regular and bold only**; the separate C1 styles report supplies positive evidence for all four genuine Chinese faces. F4 also combines nested lists, explicit JPEGs, fixed-column tables, whole-row pagination/repeated headers, heading keeps, page numbers and static page text. Its positive evidence is additional to the original 6 baseline / 12 negative / 9 target cases. New combination PDFs are not automatically frozen as human truth. Current-head user reference approval, remaining release gates, fixed hardware and numerical performance budgets stay separate and incomplete.
 
+
+### Numeric font-weight source validation (29 October 2026)
+
+The C1 four-role font implementation now also resolves exact CSS numeric hundred
+weights 100–900: 100–500 selects the explicit normal chain and 600–900 the
+explicit bold chain; italic composition remains the existing independent role.
+The `NumericFontWeightTests` real PDF/cascade/page/failure regression suite and
+64-entry report against a separately authored 400/700 role oracle are recorded
+at source `7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750`. The Native AOT verifier checks a real report,
+two embedded faces, searchable text, pagination and protected output for
+unsupported/missing-role input. This is supplemental source evidence, not a
+new T-bold human approval, private candidate, customer delivery or NuGet release.

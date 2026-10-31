@@ -63,6 +63,10 @@ internal static class TextLayout
             || pages[^1].Images.Count > 0
             || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
 
+        bool HasUnconsumedPanelTopMargin() => opened.Any(scope => scope.MarginTop > 0 &&
+            scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
+            !scope.HasOccupiedDescendant);
+
         double MoveUnconsumedBlocksToNewPage(bool apply = true)
         {
             // Recompute leading space from its owning scopes, not the old
@@ -108,14 +112,19 @@ internal static class TextLayout
             if (step is LayoutHeadingGroup group)
             {
                 var first = (BlockNode)group.Children[group.Start];
+                // Moving a fresh panel retains both its outside margin and the
+                // first heading's authored margin. A normally moved heading
+                // still discards its top margin as before.
+                var retainFirstHeadingMargin = HasUnconsumedPanelTopMargin();
                 if (!breakNext && !first.Style.BreakBefore && CurrentPageOccupied() &&
                     HeadingKeep.ShouldMove(group, o, bottom - y, after, pendingTopPadding, pendingClosedPadding,
-                        MoveUnconsumedBlocksToNewPage(apply: false), resolved, EnsureDisplayCommands, cancellation))
+                        MoveUnconsumedBlocksToNewPage(apply: false), retainFirstHeadingMargin,
+                        resolved, EnsureDisplayCommands, cancellation))
                 {
                     NewPage();
                     MoveUnconsumedBlocksToNewPage();
                     pendingClosedPadding = 0;
-                    trimNextMargin = true;
+                    trimNextMargin = !retainFirstHeadingMargin;
                 }
                 continue;
             }
@@ -534,9 +543,7 @@ internal static class TextLayout
                 // their established move-to-fresh-page behaviour. Only reject
                 // an unconsumed outside margin if it cannot fit on a fresh page
                 // with the actual first line, before MaxPages could mask FPDF1302.
-                var unconsumedMargin = opened.Any(scope => scope.MarginTop > 0 &&
-                    scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
-                    !scope.HasOccupiedDescendant);
+                var unconsumedMargin = HasUnconsumedPanelTopMargin();
                 // A new panel's outside margin and its first child's own
                 // non-collapsing top margin both belong on the fresh page.
                 // Previous-page trailing spacing still stays behind.

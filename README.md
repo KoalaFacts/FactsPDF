@@ -131,6 +131,16 @@ vertical-margin contract. See the
 This is source-only functionality, not a new installable candidate or
 public release.
 
+**Current source typography:** report templates may use numeric `font-weight`
+in exact hundred steps from `100` to `900`. Values `100`–`500` select the
+caller-supplied normal font chain and `600`–`900` the caller-supplied bold
+chain, including inline labels, CSS selectors and cascade. Real font advances
+affect PDF line wrapping and pagination. Missing bold resources fail explicitly;
+FactsPDF does not synthesize variable weights. See the
+[64-entry example](examples/report-numeric-font-weights.html) and
+[font role contract](docs/font-styles.md). This source addition is not a new
+public NuGet binary or stable CSS Fonts implementation.
+
 ## Compatibility lookup
 
 The **Can I Render** site provides searchable support records for HTML,

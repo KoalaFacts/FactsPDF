@@ -198,7 +198,7 @@ public sealed class FontStyleRoleTests
         Fails(html, options with { MaxOutputBytes = 100 }, "FPDF1401");
     }
 
-    [TestCase("font-weight:600")][TestCase("font-weight:bolder")][TestCase("font-weight:400%")]
+    [TestCase("font-weight:650")][TestCase("font-weight:bolder")][TestCase("font-weight:400%")]
     [TestCase("font-style:oblique")][TestCase("font-style:oblique 10deg")]
     [TestCase("font-style:bold")][TestCase("font-weight:lighter")]
     public void UnsupportedValuesAreRejectedEvenInUnmatchedRules(string css)
@@ -215,6 +215,34 @@ public sealed class FontStyleRoleTests
     [TestCase("4e2", "400")][TestCase("7e+2", "700")][TestCase(".7e3", "700")]
     [TestCase(@"b\6fld", "700")][TestCase(@"\6e ormal", "400")]
     public void EquivalentNumberTokensAndEscapedKeywordsAreAccepted(string value, string canonical)
+    {
+        var options = AllRoles();
+        Assert.That(Pdf($"<p style='font-weight:{value}'>A</p>", options),
+            Is.EqualTo(Pdf($"<p style='font-weight:{canonical}'>A</p>", options)));
+    }
+
+    [TestCase("599.99999999999999")]
+    [TestCase("900.00000000000001")]
+    [TestCase("100.0000000000000000000000000000000000001")]
+    [TestCase("99.9999999999999999999999999999999999999")]
+    [TestCase("6.0000000000000000000000000000000000001e2")]
+    [TestCase("899999999999999999999999999999999999999e-36")]
+    [TestCase("6e2147483647")]
+    [TestCase("6e-2147483648")]
+    public void InexactNumericWeightRejectsWithoutChangingOutput(string value)
+    {
+        Fails($"<p style='font-weight:{value}'>A</p>", AllRoles(), "FPDF1202");
+        Fails($"<style>.unused{{font-weight:{value}}}</style><p>A</p>", AllRoles(), "FPDF1202");
+    }
+
+    [TestCase("+000600.000", "600")]
+    [TestCase(".006e5", "600")]
+    [TestCase("60000e-2", "600")]
+    [TestCase("0009.000E+00002", "900")]
+    [TestCase("100.0000000000000000000000000000000000000", "100")]
+    [TestCase("0.000000000000000000000000000000000000006e41", "600")]
+    [TestCase("600000000000000000000000000000000000000e-36", "600")]
+    public void ExactNumericWeightRetainsDecimalAndExponentSpellings(string value, string canonical)
     {
         var options = AllRoles();
         Assert.That(Pdf($"<p style='font-weight:{value}'>A</p>", options),

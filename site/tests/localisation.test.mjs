@@ -161,3 +161,16 @@ test('real vertical panel margins retain exact English scope and source identity
   assert.equal(data.features.length,418);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
 });
+
+test('numeric font weights are described in English without claiming variable font support',async()=>{
+  const {englishFeature,translate}=await localisation();
+  const feature=englishFeature(data.features.find(f=>f.id==='css.font-weight'));
+  assert.equal(feature.last_audited_commit,'7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750');
+  assert.equal(feature.introduced_release,null);
+  assert.match(feature.scope,/100–500/);
+  assert.match(feature.scope,/600–900/);
+  assert.match(feature.limitations,/FPDF1507/);
+  assert.match(feature.limitations,/variable font/);
+  assert.match(translate(data.css_inventory_note),/hundred-step values 100–900/);
+  assert.doesNotMatch(feature.scope+' '+feature.limitations,han);
+});

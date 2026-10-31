@@ -73,7 +73,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | Property | Values / applicability |
 | --- | --- |
 | font-size | pt/px/mm/cm/in lengths, positive parent-relative percentages and `em`, or positive `rem` relative to the computed `html` root font (configured initial font when absent); computed 1–144pt |
-| font-weight | normal/bold or numeric 400/700; explicit role resources required |
+| font-weight | normal/bold or numeric hundred steps 100–900 (100–500 normal role; 600–900 bold role), including equivalent CSS number tokens; explicit normal/bold font-chain resources required |
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
