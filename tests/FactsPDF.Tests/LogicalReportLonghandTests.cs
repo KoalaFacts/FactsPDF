@@ -171,6 +171,8 @@ public sealed class LogicalReportLonghandTests
     [TestCase("margin-inline-start:99999pt", "FPDF1202")]
     [TestCase("padding-inline-start:1e-999pt", "FPDF1202")]
     [TestCase("margin-inline-start:1e-999px", "FPDF1202")]
+    [TestCase("margin-left:1e-999pt", "FPDF1202")]
+    [TestCase("padding-top:1e-999px", "FPDF1202")]
     public void UnsupportedOrNonzeroUnderflowInputCannotOverwritePriorPdf(string css, string code)
         => Reject("<section style='" + css + "'><p>NO</p></section>", code);
 
