@@ -311,6 +311,8 @@ internal static class CssSyntaxAdapter
             if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
                 || !(Wide(token) || token is "normal" or "italic")))
                 throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
+            if (property == CssProperty.ListStyleType && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
+                throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
         }
@@ -364,6 +366,7 @@ internal static class CssSyntaxAdapter
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "display" => CssProperty.Display,
+        "list-style-type" => CssProperty.ListStyleType,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
         "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,
@@ -548,6 +551,8 @@ internal static class CssSyntaxAdapter
             // final font and bounded glyph advance only for the CSS winner.
             _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         }
+        else if (name == "list-style-type")
+            _ = ListMarkerTypes.Parse(token, offset);
         else if (name == "box-sizing")
         {
             if (token is not ("content-box" or "border-box"))
