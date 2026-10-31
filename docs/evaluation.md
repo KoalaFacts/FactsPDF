@@ -44,6 +44,20 @@ check PDF geometry, text and page continuation; source-only, not a retained
 candidate, general CSS margin collapse or customer release.
 [Scoped details](css-stylesheets.md#current-source-real-vertical-report-panel-margins).
 
+### Current-source report display suppression
+
+Templates can use `display:none` to remove a whole validated ordinary report
+block before PDF layout, including invisible words, paint commands, margins and
+pagination space. `display:block` preserves existing block behavior.
+Scope: `p`/`h1`–`h6`, `div`/`section`/`article` and `blockquote`,
+outside lists/tables. The [40-entry source report](../examples/report-display-visibility.html)
+has a [separately authored visible-only oracle](../examples/report-display-visibility-oracle.html)
+for real PDF byte/text/page parity, with Native AOT and output-preserving
+negative acceptance. Selectors and `!important` use the ordinary cascade;
+hidden invalid CSS, markup and resources still reject. Not general CSS
+display, a hidden attribute implementation, a release or an evaluation grant.
+[Complete source boundary](css-stylesheets.md#current-source-bounded-report-display-suppression).
+
 Controlled LTR reports may use `margin-inline`, `margin-block`,
 `padding-inline` and `padding-block` instead of physical side
 declarations. These one/two-value shorthands affect real painted box

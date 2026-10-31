@@ -1035,6 +1035,50 @@ def main():
                 raise AssertionError('Invalid quote modified existing PDF')
         print('Native 44-entry quoted-report PDF parity, pagination, searchable text and recovery verified')
 
+    # Source-built Native AOT: hidden ordinary report subtrees are not
+    # rendered, spaced or paginated. The independent visible-only document
+    # is the physical/searchable PDF byte oracle.
+    with tempfile.TemporaryDirectory(prefix='factspdf-report-display-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'suppressed.pdf', temp / 'visible.pdf'
+        for html, pdf in (
+            (Path('examples/report-display-visibility.html'), actual),
+            (Path('examples/report-display-visibility-oracle.html'), oracle)
+        ):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Report display:none changed visible PDF text, spacing or pagination')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Suppressed service report failed to paginate: ' + info)
+        extracted = run('pdftotext', '-raw', actual, '-').decode('utf-8')
+        for marker in ('Quarterly service invoice', 'Invoice service reference 01',
+                       'Invoice service reference 40', 'Signed and issued for customer review.'):
+            if marker not in extracted:
+                raise AssertionError('Suppressed report lost searchable text: ' + marker)
+        for forbidden in ('SECRET', 'PRIVATE_ACCOUNT', 'REDACTED', 'SUPPRESSED', 'DO NOT PRINT'):
+            if forbidden in extracted:
+                raise AssertionError('Hidden report content leaked into the PDF: ' + forbidden)
+        bad, existing = temp / 'bad.html', temp / 'existing.pdf'
+        for html, code in (
+            ("<section style='display:flex'>BAD</section>", b'FPDF1202'),
+            ("<style>.unused{display:grid}</style><p>GOOD</p>", b'FPDF1202'),
+            ("<span style='display:none'>BAD</span>", b'FPDF1201'),
+            ("<section style='display:none'><img src=unknown /></section>", b'FPDF1604')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            existing.write_bytes(b'prior-report-displayed')
+            failure = subprocess.run([str(exe), str(bad), str(existing), '--overwrite',
+                                     ], capture_output=True, timeout=120)
+            if failure.returncode != 3 or code not in failure.stderr or failure.stdout:
+                raise AssertionError('Native report display rejected incorrectly: ' + html)
+            if existing.read_bytes() != b'prior-report-displayed':
+                raise AssertionError('Invalid hidden report replaced the original PDF')
+        print('Native display:none 40-entry PDF parity, pagination, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -1068,7 +1112,8 @@ def main():
                            'native_horizontal_rules_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_side_longhands_pdf_parity_pagination_and_recovery': True,
-                             'native_quote_report_pdf_parity_pagination_and_recovery': True},
+                             'native_quote_report_pdf_parity_pagination_and_recovery': True,
+                             'native_report_display_none_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

@@ -166,6 +166,34 @@ update the retained preview binaries or grant customer distribution rights.
 [independently authored div oracle](examples/report-blockquotes-oracle.html) and
 [exact CSS/HTML contract](docs/css-stylesheets.md#current-source-bounded-quoted-report-panels).
 
+### Current-source print-only report sections (bounded display)
+
+Use `display:none` to omit a draft, internal note, or unused ordinary
+report block from the generated PDF **without leaving blank space**;
+`display:block` preserves the ordinary block layout. Embedded stylesheets,
+inline rules, specificity, source order and `!important` participate in the
+same CSS cascade.
+
+```html
+<style>.internal-only { display: none; }</style>
+<section class="internal-only"><p>Draft for internal approval</p></section>
+<section><p>Customer-facing report</p></section>
+```
+
+Supported targets are `p`/`h1`–`h6`, `div`/`section`/`article`
+and `blockquote` **outside lists/tables**. A hidden block and its complete
+validated subtree never reach PDF glyph layout, margin/padding geometry,
+pagination or painted backgrounds/borders. Invalid HTML/CSS, absent resources
+and input budgets are **still checked inside hidden markup**; this is not
+a validator bypass. The HTML `hidden` attribute, CSS-wide display keywords,
+inline/flex/grid layout, image/`hr`/table/list suppression, JavaScript and
+media-query display switches are not supported.
+
+See [exact source contract](docs/css-stylesheets.md#current-source-bounded-report-display-suppression),
+[40-entry example](examples/report-display-visibility.html), and
+[visible-only PDF oracle](examples/report-display-visibility-oracle.html).
+Source implementation is not a published NuGet binary or customer licence.
+
 ### Current-source logical report spacing (LTR only)
 
 Controlled left-to-right business reports can now use
