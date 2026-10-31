@@ -67,6 +67,45 @@ internal static class CssSyntaxAdapter
                 var order = budget.Declaration(sourceOffset);
                 output.Add(new(target, targetName ?? name, value, node.Important, order, sourceOffset));
             }
+            // Eight LTR logical *longhands* name the same physical sides as
+            // the existing two-sided logical shorthands. Lowering before
+            // cascade preserves physical/logical declaration ordering and
+            // !important, including individual inherit/initial/unset sides.
+            // No RTL or vertical writing is accepted by this renderer.
+            if (name is "margin-inline-start" or "margin-inline-end"
+                or "margin-block-start" or "margin-block-end"
+                or "padding-inline-start" or "padding-inline-end"
+                or "padding-block-start" or "padding-block-end")
+            {
+                if (terms.Count != 1)
+                    throw new FactsPdfException("FPDF1202",
+                        "Logical side longhands require exactly one value.", node.Span.Start);
+                var physical = name switch
+                {
+                    "margin-inline-start" => "margin-left",
+                    "margin-inline-end" => "margin-right",
+                    "margin-block-start" => "margin-top",
+                    "margin-block-end" => "margin-bottom",
+                    "padding-inline-start" => "padding-left",
+                    "padding-inline-end" => "padding-right",
+                    "padding-block-start" => "padding-top",
+                    _ => "padding-bottom"
+                };
+                var sourceToken = valueTokens[0].Token;
+                var value = terms[0];
+                if (sourceToken.Kind == CssSyntaxTokenKind.Number)
+                {
+                    if (!CssBoxValues.IsExactlyUnitlessZero(value))
+                        throw new FactsPdfException("FPDF1202",
+                            "Logical box lengths require a supported unit or exact numeric zero.",
+                            sourceToken.Span.Start);
+                    value = "0";
+                }
+                if (!Wide(value)) ValidateComponent(physical, value, sourceToken.Span.Start);
+                Emit(Property(physical, sourceToken.Span.Start), value,
+                    sourceToken.Span.Start, physical);
+                continue;
+            }
             if (name == "margin")
             {
                 if (terms.Count > 4)
@@ -313,13 +352,17 @@ internal static class CssSyntaxAdapter
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
-        "margin" or "margin-top" or "margin-block" => CssProperty.MarginTop, "margin-bottom" => CssProperty.MarginBottom,
-        "margin-left" or "margin-inline" => CssProperty.MarginLeft, "margin-right" => CssProperty.MarginRight,
+        "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
+        "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,
+        "margin-left" or "margin-inline" or "margin-inline-start" => CssProperty.MarginLeft,
+        "margin-right" or "margin-inline-end" => CssProperty.MarginRight,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
         "width" => CssProperty.Width, "min-width" => CssProperty.MinWidth, "max-width" => CssProperty.MaxWidth,
-        "box-sizing" => CssProperty.BoxSizing, "padding" or "padding-top" or "padding-block" => CssProperty.PaddingTop,
-        "padding-right" => CssProperty.PaddingRight, "padding-bottom" => CssProperty.PaddingBottom,
-        "padding-left" or "padding-inline" => CssProperty.PaddingLeft,
+        "box-sizing" => CssProperty.BoxSizing,
+        "padding" or "padding-top" or "padding-block" or "padding-block-start" => CssProperty.PaddingTop,
+        "padding-right" or "padding-inline-end" => CssProperty.PaddingRight,
+        "padding-bottom" or "padding-block-end" => CssProperty.PaddingBottom,
+        "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
         "border" or "border-top" or "border-width" or "border-top-width" => CssProperty.BorderTopWidth,
         "border-right" or "border-right-width" => CssProperty.BorderRightWidth,
