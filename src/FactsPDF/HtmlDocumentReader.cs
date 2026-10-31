@@ -74,6 +74,18 @@ internal static class HtmlDocumentReader
                 if (siblings.Count == 0 || !ReferenceEquals(siblings[^1], hidden))
                     throw new InvalidOperationException("Hidden report block is not the current sibling.");
                 siblings.RemoveAt(siblings.Count - 1);
+                // Hiding a block must not leave a phantom paragraph boundary
+                // between adjacent direct text. The block's opening tag
+                // flushed the preceding anonymous paragraph; resume it here
+                // so subsequent direct text/inline runs behave exactly as
+                // if the hidden block had never existed.
+                if (current is null && table is null && siblings.Count > 0
+                    && siblings[^1] is ParagraphNode { IsAnonymous: true } before)
+                {
+                    siblings.RemoveAt(siblings.Count - 1);
+                    current = before.Paragraph;
+                    anonymous = true;
+                }
             }
             stack.RemoveAt(stack.Count - 1);
             path.RemoveAt(path.Count - 1);

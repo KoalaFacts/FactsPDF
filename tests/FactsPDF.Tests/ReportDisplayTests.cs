@@ -59,6 +59,24 @@ public sealed class ReportDisplayTests
             Is.False);
     }
 
+    [TestCase("<div>FIRST<section style='display:none'><p>SECRET</p></section>SECOND</div>",
+        "<div>FIRSTSECOND</div>")]
+    [TestCase("<div><span>FIRST</span><blockquote style='display:none'>SECRET</blockquote><span>SECOND</span></div>",
+        "<div><span>FIRST</span><span>SECOND</span></div>")]
+    [TestCase("<div>FIRST<section style='display:none'>SECRET</section><p>SECOND</p></div>",
+        "<div>FIRST<p>SECOND</p></div>")]
+    [TestCase("<div>FIRST<section style='display:none'>SECRET</section><section style='display:none'>SECRET2</section>SECOND</div>",
+        "<div>FIRSTSECOND</div>")]
+    public void HiddenBlocksDoNotSplitSurroundingAnonymousText(string source, string oracle)
+    {
+        // Compare actual PDF glyphs and page/layout bytes, not merely a
+        // tree or extracted text assertion. No invisible gap may survive.
+        Assert.That(Render(source), Is.EqualTo(Render(oracle)));
+        var text = HtmlDocumentReader.Read(source, Page, default);
+        Assert.That(text.SelectMany(p => p.Runs).Any(r =>
+            r.Text.Contains("SECRET", StringComparison.Ordinal)), Is.False);
+    }
+
     [Test]
     public void HiddenParagraphAndQuoteDoNotLeaveBlankLineOrOutsideMargins()
     {
