@@ -16,7 +16,7 @@ function marginEvidence(id) {
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
@@ -55,12 +55,12 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:135, none:231, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:139, none:227, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
   assert.equal(dataset.accepted_html_tag_count,35);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
   assert.equal(rule.status,'partial');
   assert.equal(rule.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
   assert.equal(rule.introduced_release,null);
@@ -83,7 +83,7 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/anywhere/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.overflow-wrap']);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
 });
 
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
@@ -121,7 +121,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
   assert.equal(margin.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
@@ -252,7 +252,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.horizontal-report-rules');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.logical-report-spacing-ltr');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /52个CSS属性/);
@@ -374,7 +374,7 @@ test('bounded report min/max widths are rendered, sourced and discoverable witho
   assert.deepEqual(filterFeatures(dataset.features,{q:'min-width',status:'partial'}).filter(f=>f.id==='css.min-width').map(f=>f.id),['css.min-width']);
   assert.deepEqual(filterFeatures(dataset.features,{q:'max-width',status:'partial'}).filter(f=>f.id==='css.max-width').map(f=>f.id),['css.max-width']);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
 });
 
 test('root-rem and own-font em box lengths are bounded, evidence-backed partial CSS subsets', () => {
@@ -392,7 +392,7 @@ test('root-rem and own-font em box lengths are bounded, evidence-backed partial 
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.font-size').limitations,/margin/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
   assert.deepEqual(filterFeatures(dataset.features,{q:'width rem',status:'partial'}).filter(f=>f.id==='css.width').map(f=>f.id),['css.width']);
 });
 
@@ -400,7 +400,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
   const revised=['css.margin','css.margin-top','css.margin-bottom','css.margin-left',
     'css.margin-right'];
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
   assert.deepEqual(counts(dataset.features),{full:44,partial:135,none:231,unknown:6,na:2});
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
@@ -458,5 +458,20 @@ test('numeric hundred-step report font weights use the explicit source-audited r
   assert.match(row.limitations,/bolder\/lighter/);
   assert.match(dataset.audit_method,/417 full feature records preserve/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,52);
+  assert.equal(dataset.accepted_css_property_count,56);
+});
+
+test('four LTR logical spacing shorthands preserve scoped source evidence', () => {
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,56);
+  for (const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
+    const row=dataset.features.find(f=>f.id==='css.'+name);
+    assert.equal(row.status,'partial');
+    assert.equal(row.last_audited_commit,'ff711cbc12936438ec0692862d22ce77ed8e388b');
+    assert.equal(row.introduced_release,null);
+    assert.match(row.scope,/LTR/);
+    assert.match(row.scope,/PDF/);
+    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.test_reference,/LogicalReportSpacingTests.cs/);
+  }
 });
