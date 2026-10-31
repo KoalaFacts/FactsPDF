@@ -12,7 +12,8 @@ const additions={
   "272": "Bounded list shorthand and real PDF markers",
   "273": "Source one-token shorthand maps to the existing list-style-type CSS winner and real PDF glyph/vector marker path. PDF byte parity, cascade, 77-row multi-page report, Native AOT and protected-output tests; CI, independent review and publishing are distinct.",
   "275": "Only two list levels; Roman numbers at most 3999; none preserves indentation. One-marker-kind list-style shorthand is additionally supported, but no inside, counters, images or custom glyphs. Invalid values and non-list targets reject without changing existing PDF output.",
-  "702": "Current semantics accept 67 CSS property names. Bounded one-token list-style shorthand supports the nine existing list-style-type marker kinds or a CSS-wide value on ol/ul/li, using the real PDF marker path, not inside/images/counters. Positive ASCII ordinals 1–999999 with ol start, reversed and direct-li value count marker-free items too. Underflow and invalid values preserve existing output. This is not full CSS Lists or a new binary release."
+  "702": previous[698].replace('66 CSS property names', '67 CSS property names') +
+    " Bounded one-token list-style shorthand now supports the nine existing list-style-type marker kinds or a CSS-wide value on ol/ul/li, using the real PDF marker path, not inside/images/counters. Positive ASCII ordinals 1–999999 with ol start, reversed and direct-li value count marker-free items too. Underflow and invalid values preserve existing output. This is not full CSS Lists or a binary release."
 };
 export const englishAudit=Object.freeze(indices.map((old,i)=>old>=0?previous[old]:additions[i]));
 if (englishAudit.length!==706 || englishAudit.some(x=>typeof x!=='string'||!x.trim()))
