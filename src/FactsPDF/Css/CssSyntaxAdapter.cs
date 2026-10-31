@@ -76,7 +76,7 @@ internal static class CssSyntaxAdapter
                 {
                     // Normalize numeric zero with its original source location.
                     if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
-                        && IsExactlyUnitlessZero(parts[i]))
+                        && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
                         parts[i] = "0";
                 }
                 if (parts.Length == 1 && Wide(parts[0]))
@@ -137,7 +137,7 @@ internal static class CssSyntaxAdapter
                     // the source offset but normalize exactly zero-valued
                     // unitless Number tokens before checking the physical side.
                     if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
-                        && IsExactlyUnitlessZero(parts[i]))
+                        && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
                         parts[i] = "0";
                 }
                 var first = parts[0];
@@ -264,24 +264,6 @@ internal static class CssSyntaxAdapter
             Emit(property, token, tokenOffset);
         }
         return output.ToArray();
-    }
-
-    // A CSS Number is zero only when every mantissa digit is literally zero.
-    // Floating-point underflow must not turn a nonzero unitless length such as
-    // 1e-999 into an accepted zero. Syntax has already been tokenised.
-    private static bool IsExactlyUnitlessZero(string token)
-    {
-        var number = token.AsSpan();
-        var exponentIndex = number.IndexOfAny('e', 'E');
-        if (exponentIndex >= 0) number = number[..exponentIndex];
-        var hasDigit = false;
-        foreach (var digit in number)
-        {
-            if (digit == '0') { hasDigit = true; continue; }
-            if (digit is '+' or '-' or '.') continue;
-            return false;
-        }
-        return hasDigit;
     }
 
     // A supported weight is exactly one nonzero decimal digit times 10^2.

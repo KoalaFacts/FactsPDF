@@ -13,6 +13,42 @@ internal static class CssBoxValues
         => value == "auto" ? null : Length(value, offset, rootFontSize, allowRem: true,
             elementFontSize: elementFontSize, allowEm: true);
 
+    // Exact CSS Number zero, without floating-point rounding or underflow.
+    // Works for direct longhands as well as syntax-lowered shorthand sides.
+    internal static bool IsExactlyUnitlessZero(string value)
+    {
+        var source = value.AsSpan();
+        var index = 0;
+        if (index < source.Length && source[index] is '+' or '-') index++;
+        var digits = 0;
+        while (index < source.Length && source[index] is >= '0' and <= '9')
+        {
+            if (source[index] != '0') return false;
+            digits++;
+            index++;
+        }
+        if (index < source.Length && source[index] == '.')
+        {
+            index++;
+            while (index < source.Length && source[index] is >= '0' and <= '9')
+            {
+                if (source[index] != '0') return false;
+                digits++;
+                index++;
+            }
+        }
+        if (digits == 0) return false;
+        if (index < source.Length && source[index] is 'e' or 'E')
+        {
+            index++;
+            if (index < source.Length && source[index] is '+' or '-') index++;
+            var exponentStart = index;
+            while (index < source.Length && source[index] is >= '0' and <= '9') index++;
+            if (index == exponentStart) return false;
+        }
+        return index == source.Length;
+    }
+
     internal static CssLength Length(string value, int offset,
         double? rootFontSize = null, bool allowRem = false,
         double? elementFontSize = null, bool allowEm = false)
@@ -38,13 +74,16 @@ internal static class CssBoxValues
         { number = value[..^2]; scale = elementFontSize ?? 1; percent = false; }
         else if (value.EndsWith('%'))
         { number = value[..^1]; scale = 1; percent = true; }
-        else if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var zero) && zero == 0)
+        else if (IsExactlyUnitlessZero(value))
             return new CssLength(0);
         else throw new FactsPdfException("FPDF1202", "Box lengths require pt, px, mm, cm, in, %, scoped rem/em, or unitless zero.", offset);
 
         if (!double.TryParse(number, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var parsed) || !double.IsFinite(parsed))
             throw new FactsPdfException("FPDF1202", "Box length must be a finite decimal.", offset);
+        if (parsed == 0 && number.StartsWith("-", StringComparison.Ordinal)
+            && !IsExactlyUnitlessZero(number))
+            throw new FactsPdfException("FPDF1202", "Negative nonzero box length underflow is unsupported.", offset);
         var length = parsed * scale;
         if (!double.IsFinite(length) || length < 0 || length > (percent ? 10_000 : 14_400))
             throw new FactsPdfException("FPDF1202", "Box length is outside the bounded nonnegative range.", offset);

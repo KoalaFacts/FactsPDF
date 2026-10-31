@@ -88,6 +88,9 @@ public sealed class LogicalReportSpacingTests
     [TestCase("margin-inline:-1e-999")]
     [TestCase("padding-block:1e-999")]
     [TestCase("padding-inline:-1e-999")]
+    [TestCase("margin-left:1e-999")]
+    [TestCase("padding-right:-1e-999")]
+    [TestCase("padding-top:-1e-999pt")]
     [TestCase("margin:1e-999")]
     public void UnderflowingButNonzeroUnitlessLengthsAreRejected(string declaration)
         => Reject("<section style='" + declaration + "'>TEXT</section>", "FPDF1202");
