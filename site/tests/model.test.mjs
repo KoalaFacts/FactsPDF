@@ -22,7 +22,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '06d0be5aab6fcdf15e20f8f1e6b7432e27a4ed35');
+  assert.equal(dataset.commit, '7665f2fbafa34e14f9d792e7e7728d67f268e0e3');
+  assert.match(dataset.commit_url, /7665f2fbafa34e14f9d792e7e7728d67f268e0e3/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');

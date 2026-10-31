@@ -240,7 +240,10 @@ test('bounded CSS list markers have complete English source-bound translations',
   const {englishFeature,translate}=await localisation();
   const entry=englishFeature(data.features.find(f=>f.id==='css.list-style-type'));
   assert.equal(entry.status,'partial');
-  assert.equal(entry.last_audited_commit,'e137e523264d1250702656ee1968c5ff2f61e8fe');
+  assert.equal(entry.last_audited_commit,'7665f2fbafa34e14f9d792e7e7728d67f268e0e3');
+  assert.match(entry.scope,/hollow-circle/);
+  assert.match(entry.scope,/solid-square/);
+  assert.doesNotMatch(entry.limitations,/circle\/square/);
   assert.match(entry.scope,/lower-roman/);
   assert.match(entry.scope,/Actual PDF/);
   assert.match(entry.limitations,/3999/);
