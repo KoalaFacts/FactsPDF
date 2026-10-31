@@ -245,6 +245,36 @@ def inspect_list_markers(pages):
             'markerAttachmentAndGutters': groups}
 
 
+
+def verify_native_vector_markers(executable, output, work):
+    """Verify native PDF paths and real Poppler positions, not just CSS acceptance."""
+    source = ROOT / 'examples/report-list-vector-shapes.html'
+    pdf = output / 'vector-marker-report.pdf'
+    assert not run(executable, source, pdf, cwd=work), 'Native vector marker CLI wrote stdout'
+    page_count = count_pages(pdf)
+    assert page_count >= 2, 'Vector marker register must span pages'
+    pages = [page_boxes(pdf, page) for page in range(1, page_count + 1)]
+    words = [word for _, _, page_words in pages for word in page_words]
+    expected = [f'CIR-{i:02d}' for i in range(1, 41)] + [f'SQR-{i:02d}' for i in range(1, 41)]
+    actual = [word[0] for word in words if re.fullmatch(r'(?:CIR|SQR)-\\d{2}', word[0])]
+    assert actual == expected, 'Vector marker report text missing, duplicated or reordered'
+    assert sum(word[0] == 'END-VECTOR-REPORT' for word in words) == 1
+    positions = {}
+    for prefix in ('CIR', 'SQR'):
+        rows = [word for word in words if re.fullmatch(prefix + r'-\\d{2}', word[0])]
+        assert len(rows) == 40
+        assert max(word[1] for word in rows) - min(word[1] for word in rows) < .05, 'Vector list gutter not stable'
+        positions[prefix] = rows[0][1]
+    data = pdf.read_bytes()
+    circles = len(re.findall(rb' c S Q\\n', data))
+    squares = len(re.findall(rb' re f Q\\n', data))
+    assert circles == squares == 40, 'The native PDF must contain exactly 40 hollow and 40 filled vector marker paths'
+    assert not re.findall(rb' c f Q\\n', data), 'Unrequested legacy filled discs in vector register'
+    return {'pages': page_count, 'records': len(expected), 'circlesStroked': circles,
+            'squaresFilled': squares, 'bodyX': positions, 'sha256': sha(pdf),
+            'popplerTextAndPdfPathEvidence': True}
+
+
 def verify_native_list_markers(executable, root, output, work):
     source = ROOT / 'examples/report-list-marker-styles.html'
     assert source.is_file(), 'Missing authored list marker report'
@@ -256,7 +286,7 @@ def verify_native_list_markers(executable, root, output, work):
     evidence.update({'sha256': sha(pdf), 'sourceSha256': sha(source),
                      'nativePdf': True, 'nativePdfTextPositions': True})
     for name, html, code in [
-        ('unknown-type', '<ol style="list-style-type:square"><li>A</li></ol>', 'FPDF1202'),
+        ('unknown-type', '<ol style="list-style-type:diamond"><li>A</li></ol>', 'FPDF1202'),
         ('invalid-element', '<p style="list-style-type:upper-roman">A</p>', 'FPDF1201')
     ]:
         bad = output / f'list-marker-{name}.html'
@@ -271,6 +301,7 @@ def verify_native_list_markers(executable, root, output, work):
         assert not run(executable, source, dest, '--overwrite', cwd=work), 'Native recovery wrote stdout'
         assert dest.read_bytes() == pdf.read_bytes(), 'Marker error recovery altered report PDF bytes'
     evidence['negativeAndRecovery'] = ['unknown-type', 'invalid-element']
+    evidence['vectorShapes'] = verify_native_vector_markers(executable, output, work)
     return evidence
 
 

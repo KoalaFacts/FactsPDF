@@ -4,7 +4,7 @@ internal enum TextAlignment { Left, Center, Right, Justify }
 internal enum TextDecoration { None, Underline, LineThrough }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
-internal enum ListMarkerKind { Disc, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
+internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
 internal readonly record struct Rgb(double R, double G, double B);
 internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
     double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
@@ -20,7 +20,7 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
     public List<TextRun> Runs { get; } = [];
 }
 internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0);
-internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color);
+internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc);
 internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
 internal sealed class LayoutPage
 {

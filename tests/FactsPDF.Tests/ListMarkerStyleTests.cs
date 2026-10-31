@@ -195,16 +195,69 @@ public sealed class ListMarkerStyleTests
         Assert.That(error.SourceOffset, Is.EqualTo(20));
     }
 
+
+    [TestCase("circle", ListMarkerKind.Circle, " c S Q")]
+    [TestCase("square", ListMarkerKind.Square, " re f Q")]
+    public void HollowAndSquareVectorMarkersPaintInRealMultipagePdfs(
+        string value, ListMarkerKind kind, string paintTerminator)
+    {
+        var options = Page with { PageHeight = 95 };
+        var html = "<ul style='list-style-type:" + value + ";color:#28557a'>" +
+            string.Concat(Enumerable.Range(1, 18).Select(i => "<li>Entry" + i + "</li>")) + "</ul>";
+        var pages = Layout(html, options);
+        var markers = pages.SelectMany(p => p.Discs).ToArray();
+        var body = pages.SelectMany(p => p.Runs)
+            .Where(r => r.Text.StartsWith("Entry", StringComparison.Ordinal)).ToArray();
+        Assert.That(pages.Count, Is.GreaterThan(2));
+        Assert.That(markers, Has.Length.EqualTo(18));
+        Assert.That(markers.Select(m => m.Kind), Is.All.EqualTo(kind));
+        Assert.That(markers.All(m => Math.Abs(m.Radius - 0.15 * options.FontSize) < 0.000001), Is.True);
+        Assert.That(body, Has.Length.EqualTo(18));
+        Assert.That(body.Select(r => r.X).Distinct().Count(), Is.EqualTo(1));
+        Assert.That(markers.All(m => m.X + m.Radius < body[0].X - 3), Is.True);
+        var pdf = Encoding.ASCII.GetString(Pdf(html, options));
+        Assert.That(pdf.Split(paintTerminator, StringSplitOptions.None).Length - 1, Is.EqualTo(18));
+        Assert.That(pdf, Does.Contain("%PDF-1.7"));
+        if (kind == ListMarkerKind.Circle)
+            Assert.That(pdf, Does.Contain(" RG ").And.Contain(" w "));
+    }
+
+    [Test]
+    public void CircleAndSquareParticipateInCascadeInheritanceAndOneItemOverrides()
+    {
+        const string source = "<style>ul {list-style-type:circle!important}</style>" +
+            "<ul style='list-style-type:square'><li>A</li><li style='list-style-type:square'>B</li>" +
+            "<li style='list-style-type:initial'>C</li><li style='list-style-type:inherit'>D</li></ul>";
+        var shapes = Layout(source).SelectMany(p => p.Discs).ToArray();
+        Assert.That(shapes.Select(m => m.Kind),
+            Is.EqualTo(new[] { ListMarkerKind.Circle, ListMarkerKind.Square, ListMarkerKind.Disc, ListMarkerKind.Circle }));
+        Assert.That(Pdf(source).Length, Is.GreaterThan(300));
+        var none = "<ul style='list-style-type:square'><li style='list-style-type:none'>A</li></ul>";
+        Assert.That(Layout(none).Sum(p => p.Discs.Count), Is.Zero);
+    }
+
+    [Test]
+    public void VectorMarkerPaintUsesTheSameDisplayCommandBudgetAndRecoversAfterFailure()
+    {
+        Fails("<ul style='list-style-type:circle'><li>A</li></ul>", "FPDF1401",
+            Page with { MaxDisplayCommands = 1 });
+        Fails("<ul style='list-style-type:square'><li>A</li></ul>", "FPDF1401",
+            Page with { MaxDisplayCommands = 1 });
+        Assert.That(Pdf("<ul style='list-style-type:circle'><li>A</li></ul>").Length, Is.GreaterThan(300));
+    }
+
     [Test]
     public void InvalidValuesContextsAndUnmatchedRulesFailWithoutClobberingOutput()
     {
-        Fails("<ol style='list-style-type:square'><li>A</li></ol>", "FPDF1202");
+        Fails("<ol style='list-style-type:diamond'><li>A</li></ol>", "FPDF1202");
         Fails("<ul style='list-style-type:lower-alpha upper-alpha'><li>A</li></ul>", "FPDF1202");
         Fails("<li style='list-style-type:100'>A</li>", "FPDF1202");
         Fails("<p style='list-style-type:decimal'>A</p>", "FPDF1201");
         Fails("<span style='list-style-type:disc'>A</span>", "FPDF1201");
         Fails("<ol style='list-style:none'><li>A</li></ol>", "FPDF1201");
-        Fails("<style>.unused {list-style-type:square}</style><ol><li>A</li></ol>", "FPDF1202");
+        Fails("<style>.unused {list-style-type:diamond}</style><ol><li>A</li></ol>", "FPDF1202");
+        Fails("<ol style='list-style-type:circle square'><li>A</li></ol>", "FPDF1202");
+        Fails("<p style='list-style-type:circle'>A</p>", "FPDF1201");
     }
 
     [Test]
