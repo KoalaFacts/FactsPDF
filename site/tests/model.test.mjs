@@ -252,7 +252,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('historical justification and case-transform provenance remain pinned after root-relative audit', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.ascii-capitalize');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.vector-markers');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /66个CSS属性/);
@@ -513,7 +513,10 @@ test('scoped display suppression is backed by actual source and retains the 418-
 test('bounded list marker audit retains actual PDF scope and 418 provenance rows',()=>{
   const line=dataset.features.find(f=>f.id==='css.list-style-type');
   assert.equal(line.status,'partial');
-  assert.equal(line.last_audited_commit,'e137e523264d1250702656ee1968c5ff2f61e8fe');
+  assert.equal(line.last_audited_commit,'7665f2fbafa34e14f9d792e7e7728d67f268e0e3');
+  assert.match(line.scope,/circle/);
+  assert.match(line.scope,/square/);
+  assert.doesNotMatch(line.limitations,/circle\/square/);
   assert.equal(line.introduced_release,null);
   assert.equal(line.introduced_pr,110);
   assert.match(line.scope,/lower-roman/);
@@ -521,7 +524,7 @@ test('bounded list marker audit retains actual PDF scope and 418 provenance rows
   assert.match(line.test_reference,/ListMarkerStyleTests/);
   for(const id of ['html.ol','html.ul','html.li']){
     const html=dataset.features.find(f=>f.id===id);
-    assert.equal(html.last_audited_commit,'e137e523264d1250702656ee1968c5ff2f61e8fe');
+    assert.equal(html.last_audited_commit,'7665f2fbafa34e14f9d792e7e7728d67f268e0e3');
     assert.match(html.scope,/list-style-type/);
   }
   assert.deepEqual(counts(dataset.features),{full:44,partial:142,none:224,unknown:6,na:2});

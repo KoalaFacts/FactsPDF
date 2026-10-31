@@ -305,6 +305,8 @@ test('English lookup describes real bounded PDF list marker support',async({page
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
   await expect(details).toContainText('upper-roman');
+  await expect(details).toContainText('hollow-circle');
+  await expect(details).toContainText('solid-square');
   await expect(details).toContainText('3999');
   await expect(details).toContainText('FPDF1202');
   await expect(details).toContainText('Actual PDF');

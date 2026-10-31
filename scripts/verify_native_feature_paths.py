@@ -256,20 +256,20 @@ def verify_native_vector_markers(executable, output, work):
     pages = [page_boxes(pdf, page) for page in range(1, page_count + 1)]
     words = [word for _, _, page_words in pages for word in page_words]
     expected = [f'CIR-{i:02d}' for i in range(1, 41)] + [f'SQR-{i:02d}' for i in range(1, 41)]
-    actual = [word[0] for word in words if re.fullmatch(r'(?:CIR|SQR)-\\d{2}', word[0])]
+    actual = [word[0] for word in words if re.fullmatch(r'(?:CIR|SQR)-\d{2}', word[0])]
     assert actual == expected, 'Vector marker report text missing, duplicated or reordered'
     assert sum(word[0] == 'END-VECTOR-REPORT' for word in words) == 1
     positions = {}
     for prefix in ('CIR', 'SQR'):
-        rows = [word for word in words if re.fullmatch(prefix + r'-\\d{2}', word[0])]
+        rows = [word for word in words if re.fullmatch(prefix + r'-\d{2}', word[0])]
         assert len(rows) == 40
         assert max(word[1] for word in rows) - min(word[1] for word in rows) < .05, 'Vector list gutter not stable'
         positions[prefix] = rows[0][1]
     data = pdf.read_bytes()
-    circles = len(re.findall(rb' c S Q\\n', data))
-    squares = len(re.findall(rb' re f Q\\n', data))
+    circles = len(re.findall(rb' c S Q\n', data))
+    squares = len(re.findall(rb' re f Q\n', data))
     assert circles == squares == 40, 'The native PDF must contain exactly 40 hollow and 40 filled vector marker paths'
-    assert not re.findall(rb' c f Q\\n', data), 'Unrequested legacy filled discs in vector register'
+    assert not re.findall(rb' c f Q\n', data), 'Unrequested legacy filled discs in vector register'
     return {'pages': page_count, 'records': len(expected), 'circlesStroked': circles,
             'squaresFilled': squares, 'bodyX': positions, 'sha256': sha(pdf),
             'popplerTextAndPdfPathEvidence': True}

@@ -22,8 +22,8 @@ Lists contain only direct `li` elements and whitespace. Items may contain the ex
 ## Current-source CSS marker selection (bounded)
 
 `list-style-type` is supported **only** on `ol`, `ul` and `li`.
-Accepted single identifiers: `disc`, `decimal`, `lower-alpha`,
-`upper-alpha`, `lower-roman`, `upper-roman`, `none`.
+Accepted single identifiers: `disc`, `circle`, `square`, `decimal`,
+`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, `none`.
 Default HTML list kinds remain `ol` decimal and `ul` disc. A specified
 `list-style-type` inherits from a parent list or item; the child
 `ul`/`ol` HTML default overrides ordinary inherited kind unless
@@ -41,13 +41,17 @@ label. Individual `li` overrides change just their own marker, not
 the ordered-list item numbering. Text markers are measured with the
 item's explicit font/style chain and tracking, placed at their real PDF
 coordinates and printed once at the first line when an item spans pages.
-Unordered `disc` is the existing coloured PDF vector. `none` removes
+Unordered `disc` is the existing solid-colour PDF vector; `circle` paints
+an outlined ring with an unfilled, background-transparent centre, and
+`square` paints a same-colour filled rectangle. All three occupy the
+same measured vector marker gutter, remain attached to the first body
+line across pages and consume one display command each. `none` removes
 the marker and its paint/display command while retaining the normal
 list-item indentation, body text, and pagination. Existing documents
 without the new declaration retain the old marker bytes.
 
 Unsupported `list-style` shorthand, `list-style-position`,
-`square`/`circle`, list images, CSS counters, custom glyph markers,
+list images, CSS counters, custom glyph markers,
 `::marker`, inside placement, whole-item keep, widows or orphans still
 fail as unsupported. Invalid values reject with `FPDF1202`; declarations
 on non-list elements reject with `FPDF1201`, and errors preserve
@@ -61,9 +65,12 @@ eight marker-free notes and one vector-disc override. The new
 positions, multi-page layout, cascading rules, font contexts and
 protected-output failures. `scripts/verify_lists.py` independently
 checks report label/marker attachment and consistent gutters from actual
-managed/native PDF extraction. Engine source commit
-`e137e523264d1250702656ee1968c5ff2f61e8fe`;
-this is not the historical private 0.1.0-preview.1 candidate,
+managed/native PDF extraction. Original text-marker source `e137e523264d1250702656ee1968c5ff2f61e8fe`;
+vector shape implementation source `7665f2fbafa34e14f9d792e7e7728d67f268e0e3`;
+[80-entry cross-page vector register](../examples/report-list-vector-shapes.html)
+and Linux/Windows Native AOT Poppler/PDF-path evidence in
+`scripts/verify_native_feature_paths.py`. This still
+is not the historical private 0.1.0-preview.1 candidate,
 a public NuGet release, or human approval.
 
 There is no other list CSS, counters, image/custom markers, marker pseudo-element, inside placement, whole-item keep, widows or orphans support. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. A line can occur alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
