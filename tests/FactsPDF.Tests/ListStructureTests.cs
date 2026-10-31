@@ -74,10 +74,10 @@ public sealed class ListStructureTests
     [TestCase("<ol><li/></ol>")]
     public void InvalidListStructureProtectsOutput(string html) => Fails(html, "FPDF1101");
 
-    [TestCase("<ol start='2'><li>A</li></ol>")]
-    [TestCase("<ol reversed><li>A</li></ol>")]
+    [TestCase("<ol start='0'><li>A</li></ol>")]
+    [TestCase("<ol reversed='false'><li>A</li></ol>")]
     [TestCase("<ul type='square'><li>A</li></ul>")]
-    [TestCase("<ol><li value='4'>A</li></ol>")]
+    [TestCase("<ul><li value='4'>A</li></ul>")]
     public void UnsupportedListAttributesProtectOutput(string html) => Fails(html, "FPDF1103");
 
     [TestCase("<ol style='margin-top:1pt'><li>A</li></ol>")]

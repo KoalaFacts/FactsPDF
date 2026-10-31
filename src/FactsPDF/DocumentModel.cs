@@ -119,6 +119,11 @@ internal abstract record BlockChild;
 internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChild
 {
     public List<BlockChild> Children { get; } = [];
+    // Bounded HTML ordered-list sequence metadata. These are parsed values,
+    // never generated child nodes; a tree may be laid out repeatedly.
+    public int? ListStart { get; init; }
+    public int? ListValue { get; init; }
+    public bool ListReversed { get; init; }
 }
 
 internal sealed record ParagraphNode(Paragraph Paragraph, bool IsAnonymous) : BlockChild;

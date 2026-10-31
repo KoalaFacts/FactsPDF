@@ -10,6 +10,8 @@ internal sealed record ListMarker(string? Text, TextStyle Style, double Width, i
 // inherited type without changing its siblings' counter positions.
 internal static class ListMarkerTypes
 {
+    internal const int MaxOrdinal = 999_999;
+
     internal static ListMarkerKind Parse(string value, int offset) => value switch
     {
         "disc" => ListMarkerKind.Disc,
@@ -96,15 +98,24 @@ internal sealed class ListLayout
         {
             if (child is not BlockNode list || list.Name is not ("ol" or "ul")) continue;
             var maximum = 0d;
+            // Both forward and reverse sequence positions advance for every
+            // direct li, including marker-free items. Nested lists compute
+            // their own counters. The parsed tree remains immutable.
+            long ordinal = list.ListStart ?? (list.ListReversed ? list.Children.Count : 1);
             for (var index = 0; index < list.Children.Count; index++)
             {
                 cancellation.ThrowIfCancellationRequested();
                 var item = (BlockNode)list.Children[index];
+                if (item.ListValue.HasValue) ordinal = item.ListValue.Value;
+                if (ordinal < 1 || ordinal > ListMarkerTypes.MaxOrdinal)
+                    throw new FactsPdfException("FPDF1103",
+                        "Ordered-list numbering exceeds the supported positive range.", item.SourceOffset);
+                var itemOrdinal = (int)ordinal;
+                ordinal += list.ListReversed ? -1 : 1;
                 var kind = item.BoxStyle.MarkerKind;
-                // list-style-type:none suppresses the marker entirely, not
-                // just its paint. Empty li items do not gain a fake strut.
+                // list-style:none suppresses painting only, never counting.
                 if (kind == ListMarkerKind.None) continue;
-                var text = ListMarkerTypes.MarkerText(kind, index + 1, item.SourceOffset);
+                var text = ListMarkerTypes.MarkerText(kind, itemOrdinal, item.SourceOffset);
                 var width = text is null ? 0.3 * item.Style.FontSize : Measure(text, item.Style, item.SourceOffset);
                 maximum = Math.Max(maximum, width);
                 Paragraph? paragraph = null;
