@@ -4061,7 +4061,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "最多三个分量：width + solid/none/dashed/dotted + color（可换序）（长度也接受 mm/cm/in）；纯颜色分量可用不透明整数 rgb()/rgba(...,1)",
-      "limitations": "分量取值均受限；无圆角或图片边框；border 展开 12 个长属性；单元格内 p 的相关声明即使被覆盖也拒绝；不支持半透明边框色、HSL、函数嵌套",
+      "limitations": "分量取值均受限；无圆角或图片边框；border 展开 12 个长属性；单元格内 p 的相关声明即使被覆盖也拒绝；不支持半透明边框色、HSL、函数嵌套；不支持 double 边框样式",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/td/th；不适用于 html/行内元素/col/表格分组或行；其中 p 仅指单元格外段落",
       "example": "border:2pt solid rgb(35,68,107)",

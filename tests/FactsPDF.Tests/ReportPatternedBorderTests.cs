@@ -108,6 +108,18 @@ public sealed class ReportPatternedBorderTests
     }
 
     [Test]
+    public void StandaloneHrUsesPatternedTopStrokeWithoutChangingFollowingText()
+    {
+        const string dashed = "<hr style='border-top:3pt dashed red'>";
+        const string solid = "<hr style='border-top:3pt solid red'>";
+        var first = Layout(dashed + "<p style='margin:0'>After</p>")[0];
+        var second = Layout(solid + "<p style='margin:0'>After</p>")[0];
+        Assert.That(first.Runs.Single().X, Is.EqualTo(second.Runs.Single().X));
+        Assert.That(first.Runs.Single().Baseline, Is.EqualTo(second.Runs.Single().Baseline));
+        Assert.That(Encoding.ASCII.GetString(Pdf(dashed)), Does.Contain("[9 9] 0 d"));
+    }
+
+    [Test]
     public void ZeroAndNoneDoNotPaintOrConsumeCommands()
     {
         var html = "<div style='border:2pt none red'>EMPTY</div>";
