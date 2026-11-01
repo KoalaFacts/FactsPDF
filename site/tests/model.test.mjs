@@ -669,7 +669,7 @@ test('bounded report height is a real PDF layout feature with a precise source i
   assert.match(height.scope,/div\/section\/article\/blockquote/);
   assert.match(height.scope,/content-box\/border-box/);
   assert.match(height.limitations,/FPDF1302/);
-  assert.match(height.test_reference,/ReportPanelFixedHeightTests.cs/);
+  assert.match(height.test_reference,/ImageHeightSizingTests.cs/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,81);
 });
