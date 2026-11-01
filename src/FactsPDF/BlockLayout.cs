@@ -14,6 +14,8 @@ internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, do
 internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, int Start, int End,
     double ContentWidth) : BlockLayoutStep;
 internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
+internal sealed record LayoutKeepPanel(BlockNode Node, double ContentWidth,
+    double Top, double Bottom, double MarginTop) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
@@ -107,6 +109,32 @@ internal static class BlockLayout
                     if (!double.IsFinite(fixedOuterHeight ?? 0) || fixedOuterHeight > 14_400)
                         throw new FactsPdfException("FPDF1302",
                             "Computed fixed panel height exceeds supported bounds.", node.SourceOffset);
+                    if (style.AvoidBreakInside)
+                    {
+                        // Only a root-level flat text card has the bounded,
+                        // measurable footprint promised by break-inside:avoid.
+                        // Reject unsupported nested/forced/sized contents instead
+                        // of claiming an arbitrary block can be kept together.
+                        if (!frame.IsRoot || style.MinHeight.HasValue || style.Height.HasValue ||
+                            node.Children.Count is < 1 or > 8)
+                            throw new FactsPdfException("FPDF1201",
+                                "Kept report card requires one to eight direct text paragraphs and no fixed/minimum height.",
+                                node.SourceOffset);
+                        foreach (var child in node.Children)
+                        {
+                            if (child is not BlockNode item ||
+                                item.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6") ||
+                                item.Children.Count != 1 ||
+                                item.Children[0] is not ParagraphNode paragraph ||
+                                item.Style.BreakBefore || item.Style.BreakAfter ||
+                                paragraph.Paragraph.Style.BreakBefore || paragraph.Paragraph.Style.BreakAfter ||
+                                !TextLines.HasTextContent(paragraph.Paragraph, cancellation))
+                                throw new FactsPdfException("FPDF1201",
+                                    "Kept report card supports only nonempty, direct flat paragraphs/headings without inner page breaks.",
+                                    node.SourceOffset);
+                        }
+                        yield return new LayoutKeepPanel(node, box.Inner, box.Top, box.Bottom, marginTop);
+                    }
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",

@@ -358,6 +358,6 @@ public sealed class SectionPageBreakTests
         RejectAndRecover("<section style='page-break-before:avoid'>NO</section>", "FPDF1202");
         RejectAndRecover("<p>YES<span style='page-break-before:always'>NO</span></p>", "FPDF1201");
         RejectAndRecover("<ol style='break-before:page'><li>NO</li></ol>", "FPDF1201");
-        RejectAndRecover("<section style='break-inside:avoid'>NO</section>", "FPDF1201");
+        RejectAndRecover("<section style='break-inside:left'>NO</section>", "FPDF1202");
     }
 }
