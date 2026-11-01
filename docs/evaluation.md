@@ -1,3 +1,21 @@
+## Source-only scoped break-all report identifiers
+
+Author whole paragraphs/headings with `word-break:break-all` when narrow
+invoice columns should fill a line with as many ordinary glyphs as actually
+fit; unlike emergency `overflow-wrap:break-word`, a word that would fit on
+a new line may split at the remaining PDF width. The identical source text,
+exact PDF glyph positions, multi-page order, bounded table-cell paragraphs
+and protected failure recovery are exercised by
+[48-record report](../examples/report-word-break-identifiers.html),
+[manually broken PDF control](../examples/report-word-break-identifiers-oracle.html),
+`WordBreakTests.cs` and the Native AOT/Poppler/qpdf gate.
+
+Only `normal/break-all`, explicit paragraph/heading scope and already
+supported simple horizontal glyphs. No whole-page CSS Text engine,
+`keep-all`, hyphenation, grapheme shaping, inline span declarations or
+silent clipping. Source ac6cec7000b308b403dd95abcd14441240b1f791 is separate from final-head CI,
+independent review, the retained private preview and human/customer rights.
+
 ## Source-only fixed-height inspection cards
 
 Business reports may size ordinary panels using `height:85pt`,
