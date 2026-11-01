@@ -115,7 +115,7 @@ public sealed class WhiteSpacePreLineTests
     public void TrueTypeFontsAndPageGeometryMatchAnIndependentExplicitBreakTemplate()
     {
         var font = PdfFont.LoadTrueType(FontFixture.Create());
-        var options = SmallPage with { Fonts = [font], PageHeight = 130 };
+        var options = SmallPage with { Fonts = [font], PageHeight = 80 };
         var source = "<p style='font-size:12pt;white-space:pre-line'>AB\nWA\nBA\nAB</p>";
         var oracle = "<p style='font-size:12pt'>AB<br>WA<br>BA<br>AB</p>";
         var bytes = Pdf(source, options);

@@ -95,6 +95,23 @@ cancellation token. See the [API guide](docs/development.md#library-api) and the
 [local-package consumer recipe](docs/development.md#first-use-from-local-artifacts)
 for integration without a source-project reference.
 
+### Current-source multiline report notes
+
+For controlled invoices, inspections and customer notes, explicit paragraphs and
+headings can use `white-space:pre-line` to **retain authored line breaks** from
+LF, CRLF, CR and form-feed while continuing to collapse ordinary spaces/tabs.
+Lines still soft-wrap to the measured PDF content width and continue across pages;
+the final source segment break is discarded. An explicit `<br>` remains a break.
+Scoped stylesheet/inline CSS, cascade and explicit p-in-table-cell width work,
+but container/span declarations, `pre`, `pre-wrap`, `break-spaces`, whitespace
+preservation, RTL/shaping and unrestricted CSS Text do not.
+
+The [72-record report](examples/report-pre-line-notes.html) has an
+[independently authored explicit-break oracle](examples/report-pre-line-notes-oracle.html).
+Source and Native AOT PDF text, position, pagination and output restoration
+are checked by `WhiteSpacePreLineTests` and `verify_native_feature_paths.py`.
+This source feature is not a released package or evaluation grant.
+
 ### Current-source dashed and dotted report borders
 
 Business report panels and existing decorated text, image and table boxes may
@@ -117,7 +134,7 @@ No public binary or customer distribution rights follow from this source change.
 | --- | --- | --- |
 | Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
 | Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap` with explicit `<br>` breaks and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase/capitalize` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap` or `white-space:pre-line` with real authored breaks and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase/capitalize` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
 | Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
@@ -405,7 +422,7 @@ Controlled report prose can opt into `word-spacing:0.01in` (equivalent to `0.72p
 
 Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](docs/css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](examples/report-overflow-wrap.html), and [independent manual-break oracle](examples/report-overflow-wrap-oracle.html).
 
-Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` and headings. Spaces still collapse, explicit `<br>` still works, and text that cannot fit fails with `FPDF1302` without replacing the output. `normal` is byte-identical to the default; `pre`, `pre-wrap` and arbitrary inline no-wrap spans remain unsupported. See [bounded white-space](docs/css-stylesheets.md#current-source-nonwrapping-report-labels).
+Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` and headings; multiline inspection notes can use `white-space:pre-line` instead. Spaces still collapse, explicit `<br>` works, and content too wide for the measured line fails with `FPDF1302` without replacing the output. `normal` is byte-identical to the default; `pre`, `pre-wrap` and arbitrary inline white-space spans remain unsupported. See [bounded white-space](docs/css-stylesheets.md#current-source-nonwrapping-report-labels) and [multiline notes](docs/css-stylesheets.md#current-source-multiline-report-notes).
 
 Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).
 
