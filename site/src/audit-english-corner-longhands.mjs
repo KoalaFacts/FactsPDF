@@ -1,0 +1,20 @@
+import { englishAudit as previous } from './audit-english-min-height.mjs';
+// Preserve all unchanged source-string translations. This file updates
+// only source-bound audited longhand/corner inventory strings.
+if (previous.length !== 722) throw new Error('Corner-longhand audit baseline changed.');
+export const sourceDigest = '97ac226942022c284d57048b5aaf607f3307880e19c979a6a78f66d490f103cd';
+const replacements = {
+  "14": "Ordinary LTR blockquotes retain 8pt vertical and 24pt horizontal default margins, nested paragraphs, inherited fonts, optional width, opaque background, uniform borders, padding and searchable paginated PDF text. One-to-four physical border-radius shorthand values and four independent single-corner longhands draw actual separate cubic PDF corners, with normal per-corner CSS cascade and first/last page caps.",
+  "15": "Ordinary LTR block quotes only; not browser-complete quotations, cite/q metadata, Tagged PDF or nested table/list/inline contexts. No negative/auto/percent vertical margins, margin collapse, elliptical two-axis single-corner values, asymmetric/dashed/dotted rounded borders, calc or unplaceable geometry. The four physical single-corner longhands stay within the same box scope. FPDF1101/1103/1201/1202/1302 preserve the original document.",
+  "17": "Original blockquote tests, 44-record report, independent div oracle and native recovery retain original identities. The new source feature at 16b235a85b57159b3b7ac2182b38487b6a22f6eb adds four independently cascaded real PDF corner longhands, a 50-card longhand-to-shorthand Native AOT byte comparator, multipage paint and protected negative behavior. CI/review for this head, customer binary rights and human PDF approval remain separate.",
+  "240": "Ordinary p/pre/h1–h6/div/section/article/blockquote report blocks outside tables/lists support one-to-four physical border-radius corners (zero or 0.25–72pt), clockwise TL/TR/BR/BL; four independent border-top-left/right and border-bottom-right/left-radius longhands compete with shorthand per corner using CSS specificity, source order, !important, explicit inherit/initial/unset. PDF Bezier opaque backgrounds and uniform solid border rings paint all real distinct corners, fit narrow boxes and cap first/last page fragments without shifting text.",
+  "241": "No percent, elliptical slash radius, two-axis single-corner longhands, em/rem, image/list/table/inline rounding, asymmetric or patterned round borders, image clipping or complete browser CSS Borders. Shorthand accepts one-to-four physical values or one CSS-wide keyword; individual longhands accept one physical value/zero or CSS-wide keyword, not an ellipse. Nonzero rounded borders require four equal solid same-ink edges. FPDF1201/1202/1302/1401 protect existing customer PDF bytes.",
+  "243": "Real PDF TL/TR/BR/BL Bezier paint, proportional/natural page fragment fitting and original four-corner shorthand regression remain. At 16b235a85b57159b3b7ac2182b38487b6a22f6eb the four single-corner longhands add independent normal/important CSS winners, explicit inherit/reset, actual glyph/geometry tests, 50-card native PDF byte parity with a separately authored shorthand control, and strict protected error recovery. This is source evidence pending exact-head CI and genuine independent review, not a released/approved customer binary."
+};
+const extended = new Set([718]);
+export const englishAudit = Object.freeze(previous.map((text,index) =>
+  replacements[index] ?? (extended.has(index) ?
+    text + ' New 2026-11-01 source-only independent corner-radius longhands at 16b235a85b57159b3b7ac2182b38487b6a22f6eb: four physical per-corner CSS names genuinely paint PDFs, with 50-card native byte equivalence to shorthand and strict errors. Current total is 76 scoped CSS property names across 418 stable records; no prior binary or customer release changes.' : text)));
+if (englishAudit.length !== 722 || englishAudit.some(x =>
+  typeof x !== 'string' || !x.trim() || /[\u3400-\u9fff]/u.test(x)))
+  throw new Error('Invalid English corner-radius translations.');
