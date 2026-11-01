@@ -2,6 +2,29 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+
+## Have a PDF report template to assess?
+
+FactsPDF is a **source-available, experimental .NET report renderer** for controlled
+HTML/CSS templates such as invoices, inspection reports and status summaries.
+It is **not** a general webpage-to-PDF converter.
+
+**Current availability:** source version `0.1.0-preview.1`; no publicly released
+NuGet/CLI package, stable SDK, general evaluation permission or guaranteed
+template compatibility. The [Community and Commercial licensing rules](LICENSING.md)
+apply **before** building or running the engine.
+
+**Start with your report, not a sales call:** read the
+[template and runtime fit checklist](docs/evaluation.md#check-template-fit-before-integration),
+then [open a non-confidential template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md)
+describing the report layout, required behaviour and target .NET environment.
+Use synthetic examples only; **do not attach customer documents, passwords,
+private templates or proprietary business data**. A request starts a scope
+discussion, not a software trial, licence grant or support contract.
+
+The detailed source-only feature notes and test evidence follow.
+
+
 ### Bounded image height limits for report logos and photos (source-only)
 
 Explicitly bound JPEG/PNG images now accept nonnegative physical
