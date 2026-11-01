@@ -714,6 +714,49 @@ def verify_native_table_vertical_align(executable, output, work):
             'failureRecovery': True, 'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
 
+def verify_native_decoration_paint(executable, output, work):
+    """Verify 60 authored report rows and real clipped vector ink in Native AOT PDF."""
+    source = ROOT / 'examples/report-text-decoration-paint.html'
+    assert source.is_file()
+    authored = source.read_text(encoding='utf-8')
+    assert len(re.findall(r'<p class="entry"', authored)) == 60
+    pdf = output / 'text-decoration-paint.pdf'
+    assert not run(executable, source, pdf, cwd=work)
+    pages = count_pages(pdf)
+    assert pages >= 2, 'Source report must exercise text decoration across pages'
+    words = [word for index in range(1, pages + 1)
+             for word in page_boxes(pdf, index)[2]]
+    assert [word[0] for word in words if re.fullmatch(r'R\d{3}', word[0])] == [
+        f'R{number:03d}' for number in range(1, 61)], 'PDF record order/count differs from source'
+    assert sum(word[0] == 'FINALCHECK' for word in words) == 1, 'Missing final painted note'
+    streams = extract_vector_page_streams(pdf.read_bytes(), pages)
+    paths = b'\n'.join(streams)
+    dashed = paths.count(b'] 0 d ')
+    dotted = paths.count(b'1 J [0.001 ')
+    clipped = paths.count(b' re W n ')
+    solid = paths.count(b' re f Q')
+    assert dashed >= 20 and dotted >= 21 and solid >= 20, (
+        'PDF is missing decorated glyph-run paint', dashed, dotted, solid)
+    assert clipped == dashed + dotted, 'Patterned text must be clipped once per actual stroke'
+    assert b'0.686 0.125 0.251 RG ' in paths, 'Red source decoration ink not painted'
+    assert b'0 0.376 0.627 RG ' in paths, 'Blue source decoration ink not painted'
+    assert b'0.086 0.502 0.286 rg ' in paths, 'Green solid decoration ink not painted'
+    bad = output / 'text-decoration-paint-invalid.html'
+    bad.write_text(authored.replace('underline dashed', 'underline wavy', 1), encoding='utf-8')
+    preserved = output / 'text-decoration-paint-preserved.pdf'
+    preserved.write_bytes(b'previous pdf bytes')
+    failure = subprocess.run([str(executable), str(bad), str(preserved), '--overwrite'],
+                             cwd=work, capture_output=True, timeout=120)
+    assert failure.returncode == 3 and b'FPDF1202' in failure.stderr, (
+        'Unsupported decoration was accepted', failure.returncode, failure.stderr)
+    assert preserved.read_bytes() == b'previous pdf bytes', 'Invalid input overwrote PDF'
+    assert not run(executable, source, preserved, '--overwrite', cwd=work)
+    assert preserved.read_bytes() == pdf.read_bytes(), 'Native retry changed PDF bytes'
+    return {'pages': pages, 'rows': 60, 'realPdfPathStrokes': clipped + solid,
+            'redBlueGreenInk': True, 'protectedFailureRecovery': True,
+            'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -777,6 +820,7 @@ def main():
         preserved_spaces = verify_native_preserved_space_notes(isolated, output, work)
         preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
         table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
+        decoration_paint = verify_native_decoration_paint(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -795,6 +839,7 @@ def main():
             'preservedSpaces': preserved_spaces,
             'preformattedAudit': preformatted_audit,
             'tableVerticalAlign': table_vertical_align,
+            'decorationPaint': decoration_paint,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }
