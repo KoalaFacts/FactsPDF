@@ -4,8 +4,9 @@ using System.Text;
 namespace FactsPDF;
 
 /// <summary>
-/// Shared ASCII/Unicode PDF painter. Solid borders are filled rectangles,
-/// with independent side widths/colors. All boxes are painted before text.
+/// Shared ASCII/Unicode PDF painter. Legacy solid borders are filled
+/// rectangles; bounded dashed/dotted borders are measured PDF strokes.
+/// All boxes are painted before text.
 /// Coordinates are PDF points; layout's top-origin becomes PDF bottom-origin.
 /// </summary>
 internal static class PdfPaintSerializer
@@ -97,19 +98,63 @@ internal static class PdfPaintSerializer
             var bottom = box.BottomBorderHeight;
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
-                Rect(output, s.BorderTop.Color ?? box.TextColor, x, y, width, top, pageHeight, maxOutputBytes);
+                Border(output, s.BorderTop, box.TextColor, x, y, width, top,
+                    horizontal: true, pageHeight, maxOutputBytes);
             if (bottom > 0)
-                Rect(output, s.BorderBottom.Color ?? box.TextColor,
-                    x, y + height - bottom, width, bottom, pageHeight, maxOutputBytes);
+                Border(output, s.BorderBottom, box.TextColor, x, y + height - bottom, width, bottom,
+                    horizontal: true, pageHeight, maxOutputBytes);
             var middleTop = y + top;
             var middleHeight = Math.Max(0, height - top - bottom);
             if (left > 0)
-                Rect(output, s.BorderLeft.Color ?? box.TextColor,
-                    x, middleTop, left, middleHeight, pageHeight, maxOutputBytes);
+                Border(output, s.BorderLeft, box.TextColor, x, middleTop, left, middleHeight,
+                    horizontal: false, pageHeight, maxOutputBytes);
             if (right > 0)
-                Rect(output, s.BorderRight.Color ?? box.TextColor,
-                    x + width - right, middleTop, right, middleHeight, pageHeight, maxOutputBytes);
+                Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
+                    horizontal: false, pageHeight, maxOutputBytes);
         }
+    }
+
+    // A stroked edge replaces exactly one solid-border rectangle in the
+    // display-command budget. Each stroke is independently enclosed in q/Q,
+    // so PDF dash state never leaks into later text, images or panel borders.
+    // Stroke centre lines are inset by half the visible width, including the
+    // round caps on dotted strokes. Top/bottom are omitted on middle fragments;
+    // side patterns restart on each retained page fragment (no CSS slice clone).
+    private static void Border(StringBuilder output, BorderEdge edge, Rgb textColor,
+        double x, double top, double width, double height, bool horizontal,
+        double pageHeight, int maxOutputBytes)
+    {
+        if (width <= 0 || height <= 0 || edge.EffectiveWidth <= 0) return;
+        var color = edge.Color ?? textColor;
+        if (edge.Pattern == BorderPattern.Solid)
+        {
+            Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes);
+            return;
+        }
+        var stroke = horizontal ? height : width;
+        // Sub-millipoint widths round to zero in this serializer. Reject rather
+        // than unexpectedly emitting a zero-width hairline or invisible dots.
+        if (stroke < 0.001)
+            throw new FactsPdfException("FPDF1302", "Patterned border is too thin to paint.");
+        var inset = Math.Min(stroke / 2, (horizontal ? width : height) / 2);
+        var x1 = horizontal ? x + inset : x + width / 2;
+        var x2 = horizontal ? x + width - inset : x1;
+        var y1 = horizontal ? pageHeight - top - height / 2 : pageHeight - top - inset;
+        var y2 = horizontal ? y1 : pageHeight - top - height + inset;
+        if (!double.IsFinite(x1 + x2 + y1 + y2 + stroke))
+            throw new InvalidOperationException("Invalid patterned border geometry.");
+        output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
+            .Append(N(color.B)).Append(" RG ").Append(N(stroke)).Append(" w ");
+        if (edge.Pattern == BorderPattern.Dashed)
+            output.Append('[').Append(N(3 * stroke)).Append(' ').Append(N(3 * stroke)).Append("] 0 d ");
+        else if (edge.Pattern == BorderPattern.Dotted)
+            output.Append("1 J [0.001 ").Append(N(2 * stroke)).Append("] 0 d ");
+        else
+            throw new InvalidOperationException("Invalid patterned border kind.");
+        output.Append(N(x1)).Append(' ').Append(N(y1)).Append(" m ")
+            .Append(N(x2)).Append(' ').Append(N(y2)).Append(" l S Q\n");
+        if (output.Length > maxOutputBytes)
+            throw new FactsPdfException("FPDF1401", "PDF patterned border exceeds MaxOutputBytes.");
     }
 
     private static void Rect(StringBuilder output, Rgb color, double x, double top,
