@@ -137,7 +137,7 @@ public sealed class MinMaxWidthTests
     [TestCase("<p style='min-width:300pt'>Too wide</p>", "FPDF1302")]
     [TestCase("<p style='box-sizing:border-box;max-width:5pt;padding:10pt'>Too small</p>", "FPDF1302")]
     [TestCase("<span style='max-width:50pt'>Inline</span>", "FPDF1201")]
-    [TestCase("<img src='logo' style='min-width:50pt'>", "FPDF1201")]
+    [TestCase("<img src='logo' style='min-width:1rem'>", "FPDF1201")]
     [TestCase("<table style='max-width:50pt'>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:80pt'></colgroup><tbody><tr><td><p style='max-width:50pt'>Bad cell</p></td></tr></tbody></table>", "FPDF1201")]
     public void InvalidOrInapplicableConstraintsPreserveExistingOutput(string html, string code)

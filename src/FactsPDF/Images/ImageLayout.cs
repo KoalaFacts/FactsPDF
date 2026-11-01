@@ -14,9 +14,21 @@ internal static class ImageLayout
         var right = Resolve(style.PaddingRight) + style.BorderRight.EffectiveWidth;
         var top = Resolve(style.PaddingTop) + style.BorderTop.EffectiveWidth;
         var bottom = Resolve(style.PaddingBottom) + style.BorderBottom.EffectiveWidth;
-        var width = style.Width is { } specified ? Resolve(specified) : image.Image.PixelWidth * 0.75;
+        // A direct image retains its pixel aspect ratio. The used width is first
+        // chosen from its natural or specified measure, then bounded in the
+        // declared box-sizing space. min-width wins over max-width, as for
+        // report panels. Percentages always use the actual containing width,
+        // including the combined track width for a colspan image cell.
+        var edges = Checked(left + right, image.SourceOffset);
+        var width = style.Width is { } specified
+            ? Resolve(specified) - (style.BorderBoxSizing ? edges : 0)
+            : image.Image.PixelWidth * 0.75;
+        var measure = style.BorderBoxSizing ? width + edges : width;
+        if (style.MaxWidth is { } max) measure = Math.Min(measure, Resolve(max));
+        if (style.MinWidth is { } min) measure = Math.Max(measure, Resolve(min));
+        width = Checked(measure - (style.BorderBoxSizing ? edges : 0), image.SourceOffset);
         var height = Checked(width * image.Image.PixelHeight / image.Image.PixelWidth, image.SourceOffset);
-        var outerWidth = Checked(width + left + right, image.SourceOffset);
+        var outerWidth = Checked(width + edges, image.SourceOffset);
         var outerHeight = Checked(height + top + bottom, image.SourceOffset);
         if (width <= 0 || outerWidth > containingWidth + 0.000001)
             throw new FactsPdfException("FPDF1302", "Image outer width exceeds containing content width or is zero.", image.SourceOffset);
