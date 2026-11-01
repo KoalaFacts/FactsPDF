@@ -114,7 +114,7 @@ public sealed class BorderBoxSizingTests
     [TestCase("<div style='box-sizing:border-box;width:10pt;padding:6pt'>Too narrow</div>", "FPDF1302")]
     [TestCase("<div style='box-sizing:border-box;width:270pt'>Too wide</div>", "FPDF1302")]
     [TestCase("<span style='box-sizing:border-box'>Inline</span>", "FPDF1201")]
-    [TestCase("<img src='logo' style='box-sizing:border-box'>", "FPDF1201")]
+    [TestCase("<img src='logo' style='box-sizing:padding-box'>", "FPDF1202")]
     [TestCase("<table style='box-sizing:border-box'>", "FPDF1201")]
     public void InvalidOrUnsupportedBoxSizingKeepsExistingOutput(string html, string error)
         => FailClosed(html, error);

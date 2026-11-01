@@ -447,7 +447,9 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   for(const id of ["css.width","css.min-width","css.max-width","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left","css.margin","css.margin-top","css.margin-bottom","css.margin-left","css.margin-right"]){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit, marginEvidence(id).sha, id);
+    assert.equal(feature.last_audited_commit,
+      ['css.min-width','css.max-width'].includes(id)
+        ? 'b6bebe8e3b97f13190148c6f53bed49ec2678ede' : marginEvidence(id).sha, id);
     assert.equal(feature.test_reference,'https://github.com/KoalaFacts/FactsPDF/blob/' +
       marginEvidence(id).path,id);
     assert.match(feature.scope,/em/,id);
