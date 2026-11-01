@@ -107,7 +107,7 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.evidence_level,/原有 pre-wrap 测试/,
     'The new preformatted audit must retain explicit evidence of the prior pre-wrap regressions.');
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
-    ['css.white-space','css.word-spacing']);
+    ['css.white-space','css.word-spacing','html.pre']);
 });
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
