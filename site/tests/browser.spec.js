@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('b6bebe8e',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('7afae6b5',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -347,4 +347,16 @@ test('minimum-height business cards show actual PDF scope and limits in English'
   await expect(dialog).toContainText('Not general CSS Sizing');
   await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
+});
+
+
+test('English image-height view distinguishes measured physical PDF from general CSS Sizing', async({page})=>{
+  await page.goto('/FactsPDF/');
+  await page.getByRole('button',{name:'English',exact:true}).click();
+  await page.goto('/FactsPDF/#feature=css.height');
+  const detail=page.getByRole('dialog');
+  await expect(detail).toBeVisible();
+  await expect(detail).toContainText('native-aspect width');
+  await expect(detail).toContainText('object-fit');
+  await expect(detail).toContainText('FPDF1302');
 });

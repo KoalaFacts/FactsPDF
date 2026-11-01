@@ -1,3 +1,17 @@
+## Current-source bound image height PDF geometry
+
+Physical CSS `height` now changes the real PDF image matrix for explicitly
+bound standalone/direct fixed-column JPEG/PNG images. Height alone derives
+intrinsic-ratio width; two explicitly specified axes can stretch the image.
+Border-box subtracts vertical padding/border once; unsupported percentage,
+em/rem, calc, object-fit and zero/overfull geometry fail strictly.
+`ImageHeightSizingTests.cs`, the [36-record report](../../examples/report-image-heights.html)
+and [independent width oracle](../../examples/report-image-heights-oracle.html)
+provide source NUnit and Linux/Windows Native AOT/qpdf/Poppler PDF-byte,
+searchable-text, pagination and protected-error evidence. Source `7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd`
+does not relabel the retained private candidate or constitute human approval,
+rights grant, final-head CI success or independent review.
+
 ## Current-source bounded image min/max and border-box PDF geometry
 
 Standalone and direct fixed-column cell images support `min-width`,

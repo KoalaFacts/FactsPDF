@@ -1,3 +1,18 @@
+## Current-source physical CSS height for bound report images
+
+The existing `height` name now affects actual PDF image matrices on
+explicitly supplied JPEG/PNG `img`, standalone or as direct fixed-column
+cell items: `auto` or bounded `pt/px/mm/cm/in`. Image percentages, em/rem,
+calc and object-fit remain rejected. Height alone derives width using the
+resource pixel ratio; explicit width and height set the PDF axes separately.
+Min/max-width affect width only; border-box deducts vertical edges once.
+Real text/image placement, page movement, PNG reuse, strict diagnostics and
+protected output are tested with the [36-record report](../examples/report-image-heights.html)
+and its [independent point-width control](../examples/report-image-heights-oracle.html)
+through NUnit and Linux/Windows Native AOT/qpdf/Poppler. This is bounded
+source `7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd`, not a new private candidate, human approval or release.
+[Full image scope](images.md#explicit-physical-image-heights).
+
 ## Current-source bounded responsive report image widths
 
 The existing `min-width`, `max-width` and `box-sizing` CSS subset now

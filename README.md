@@ -2,6 +2,24 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Explicit physical image heights for logos and report photos (source-only)
+
+Explicitly bound JPEG/PNG images now support `height:36pt` for standalone
+images and direct fixed-column `td/th` image items. With automatic width,
+the used PDF image width follows the source image's intrinsic pixel ratio.
+Specifying both width and height independently controls the PDF image matrix.
+`box-sizing:border-box` deducts vertical padding and borders once, and
+existing min/max-width only constrains the width axis when height is fixed.
+
+The [36-record report](examples/report-image-heights.html) and
+[independently authored physical-width oracle](examples/report-image-heights-oracle.html)
+are exercised through NUnit and Linux/Windows Native AOT/qpdf/Poppler PDF
+geometry, searchable text and recovery gates. No percentages, image em/rem,
+object-fit, implicit auto-shrink or network loading. Unsupported or unplaceable
+dimensions fail without replacing a previous PDF. This is current **source**
+at `7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd`, not a rebuilt private preview, human approval or customer grant.
+[Precise image contract](docs/images.md#explicit-physical-image-heights).
+
 ### Bounded image sizing for report logos and evidence photos (source-only)
 
 Explicitly bound JPEG/PNG images can now use `max-width:100%` and

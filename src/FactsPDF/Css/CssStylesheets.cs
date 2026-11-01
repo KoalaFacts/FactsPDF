@@ -158,14 +158,22 @@ internal sealed class CssStylesheets
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "border-radius is supported only on ordinary report boxes outside lists and tables.", declaration.Offset);
-            // Minimum heights consume real vertical layout and are confined
-            // to ordinary report panels, including declarations that lose cascade.
-            if (declaration.Property is (CssProperty.MinHeight or CssProperty.Height) &&
-                (element.Name is not ("div" or "section" or "article" or "blockquote") ||
-                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
-                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
-                throw new FactsPdfException("FPDF1201",
-                    "height/min-height are supported only on ordinary report panels outside lists and tables.", declaration.Offset);
+            // The panel height path reserves box space; explicitly bound images
+            // consume height in their separate atomic image geometry path.
+            // Validate every matched declaration, including losing cascade values.
+            if (declaration.Property is (CssProperty.MinHeight or CssProperty.Height))
+            {
+                var imageHeight = declaration.Property == CssProperty.Height && element.Name == "img";
+                var panelHeight = element.Name is ("div" or "section" or "article" or "blockquote")
+                    && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                        or "td" or "th" or "thead" or "tbody" or "tfoot");
+                if (!imageHeight && !panelHeight)
+                    throw new FactsPdfException("FPDF1201",
+                        "height/min-height apply only to scoped report panels; height also applies to direct images.", declaration.Offset);
+                if (imageHeight && declaration.Value.EndsWith("em", StringComparison.Ordinal))
+                    throw new FactsPdfException("FPDF1201",
+                        "CSS image height does not support em or rem.", declaration.Offset);
+            }
             if (declaration.Property == CssProperty.ListStyleType &&
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
