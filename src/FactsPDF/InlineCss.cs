@@ -45,7 +45,22 @@ internal static class InlineCss
                         "none" => TextDecoration.None,
                         "underline" => TextDecoration.Underline,
                         "line-through" => TextDecoration.LineThrough,
-                        _ => throw Invalid("Only none, underline and line-through text decorations are supported.", offset)
+                        "overline" => TextDecoration.Overline,
+                        _ => throw Invalid("Only none, underline, overline and line-through text decorations are supported.", offset)
+                    } };
+                    break;
+                case "text-decoration-color":
+                    // Nullable means CSS currentColor, resolved at paint time
+                    // so an inline colour can still affect the line naturally.
+                    style = style with { DecorationColor = value == "currentcolor" ? null : Color(value, offset) };
+                    break;
+                case "text-decoration-style":
+                    style = style with { DecorationPattern = value switch
+                    {
+                        "solid" => TextDecorationPattern.Solid,
+                        "dashed" => TextDecorationPattern.Dashed,
+                        "dotted" => TextDecorationPattern.Dotted,
+                        _ => throw Invalid("Only solid, dashed and dotted decoration strokes are supported.", offset)
                     } };
                     break;
                 case "line-height":
