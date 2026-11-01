@@ -1042,6 +1042,56 @@ def verify_native_word_break(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_image_heights(executable, output, work, logo):
+    """Measure actual Native AOT PDF image height against a separately authored width oracle."""
+    source = ROOT / 'examples/report-image-heights.html'
+    oracle = ROOT / 'examples/report-image-heights-oracle.html'
+    assert source.is_file() and oracle.is_file(), 'Missing height image source or oracle'
+    actual = output / 'report-image-heights.pdf'
+    control = output / 'report-image-heights-oracle.pdf'
+    for html, pdf in ((source, actual), (oracle, control)):
+        assert not run(executable, html, pdf, '--image', f'logo={logo}', cwd=work)
+        run('qpdf', '--check', pdf)
+    assert actual.read_bytes() == control.read_bytes(), (
+        'Image CSS height does not agree with independent physical-width PDF geometry')
+    pages = count_pages(actual)
+    assert pages >= 2, 'Height image report should paginate'
+    words = []
+    for page in range(1, pages + 1):
+        width, height, located = page_boxes(actual, page)
+        assert all(0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height
+                   for _, x0, y0, x1, y1 in located), 'Image height report text outside page'
+        words.extend(word for word, *_ in located)
+    records = [word for word in words if re.fullmatch(r'REC-\d{2}', word)]
+    assert records == [f'REC-{n:02d}' for n in range(1, 37)], (
+        'Missing, duplicated or reordered image height report record', records)
+    assert words.count('Inspection') == 36, 'Image height report lost inspected text'
+    assert len(re.findall(rb'/Im\d+ Do', actual.read_bytes())) == 36, (
+        'Image height report must draw each explicitly bound resource once per record')
+    invalid = work / 'image-height-invalid.html'
+    retained = output / 'image-height-retained.pdf'
+    for markup, code in (
+        ('<img src=logo style="height:50%">', b'FPDF1202'),
+        ('<img src=logo style="height:1rem">', b'FPDF1201'),
+        ('<img src=logo style="height:0">', b'FPDF1302'),
+        ('<img src=logo style="height:999pt">', b'FPDF1302'),
+    ):
+        invalid.write_text(markup, encoding='utf-8')
+        retained.write_bytes(b'previous customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained),
+                                 '--overwrite', '--image', f'logo={logo}'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Invalid image height accepted', markup, failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'previous customer PDF', (
+            'Invalid image height overwrote retained PDF')
+    assert not run(executable, source, retained, '--overwrite', '--image', f'logo={logo}', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Valid retry differs from source PDF'
+    return {'records': 36, 'pages': pages, 'pdfSha256': sha(actual),
+            'sourceSha256': sha(source), 'oracleSha256': sha(oracle),
+            'nativePdfByteParity': True, 'protectedFailureRecovery': True}
+
+
 def verify_native_responsive_images(executable, output, work, logo):
     """Compare actual PDF image matrices, positions and page breaks to explicit point-width control."""
     source = ROOT / 'examples/report-responsive-images.html'
@@ -1164,6 +1214,7 @@ def main():
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
+        image_heights = verify_native_image_heights(isolated, output, work, logo)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1189,6 +1240,7 @@ def main():
             'sectionPageBreaks': section_breaks,
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
+            'imageHeights': image_heights,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

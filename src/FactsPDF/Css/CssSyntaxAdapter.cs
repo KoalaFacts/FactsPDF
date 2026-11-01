@@ -737,7 +737,7 @@ internal static class CssSyntaxAdapter
                 var length = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
                 if (length.IsPercent)
                     throw new FactsPdfException("FPDF1202",
-                        "Report panel height accepts only auto or a bounded physical, em or rem length.", offset);
+                        "Height accepts only auto or a bounded physical length (em/rem are panel-only).", offset);
             }
         }
         else if (name is "margin-left" or "margin-right")
