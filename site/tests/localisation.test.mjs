@@ -39,12 +39,12 @@ test('responsive image audit preserves the full historic methodology and transla
   const displayed = translate(raw);
   assert.ok(displayed.startsWith(originalEnglish + ' '),
     'Never silently replace the historical English methodology with an audit suffix');
-  assert.doesNotMatch(displayed, /undefined|[\\u3400-\\u9fff]/u);
+  assert.doesNotMatch(displayed, /undefined|[\u3400-\u9fff]/u);
   assert.match(displayed, /Incremental 2 November 2026 source audit updates five existing stable records/);
   assert.match(displayed, /other 413 stable IDs are unchanged/);
   const inventory = translate(data.css_inventory_note);
   assert.match(inventory, /80 scoped CSS property names/);
-  assert.match(inventory, /image.*min\\/max-width|bounded.*image/i);
+  assert.match(inventory, /bounded min.max-width/);
 });
 
 test('all 418 feature descriptions and methodology have complete English translations', async () => {
