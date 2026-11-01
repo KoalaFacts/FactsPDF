@@ -7,9 +7,9 @@ test('loads the audited snapshot using local npm-built assets without console fa
   await expect(page.locator('[data-total]')).toHaveText('418');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.locator('tbody tr')).toHaveCount(25);
-  // The banner displays the current audited source commit, not the prior
-  // numeric-font feature's own historical source identity.
-  await expect(page.getByText('a767c950',{exact:true}).first()).toBeVisible();
+  // The banner displays the current source audit, not the earlier pre-wrap
+  // feature's independent historical source identity (asserted in model tests).
+  await expect(page.getByText('d8d1a9e0',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{

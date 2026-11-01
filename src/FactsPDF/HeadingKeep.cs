@@ -16,11 +16,11 @@ internal static class HeadingKeep
         {
             cancellation.ThrowIfCancellationRequested();
             if (children[i] is not BlockNode node ||
-                !(node.Name == "p" || IsHeading(node.Name) && node.Style.KeepWithNext) ||
+                !(node.Name is "p" or "pre" || IsHeading(node.Name) && node.Style.KeepWithNext) ||
                 node.Children.Count != 1 || node.Children[0] is not ParagraphNode paragraph)
                 return (Math.Max(start + 1, i), false);
             if (i > start && node.Style.BreakBefore) canceled = true;
-            if (node.Name == "p" && HasTextContent(paragraph.Paragraph, cancellation))
+            if (node.Name is "p" or "pre" && HasTextContent(paragraph.Paragraph, cancellation))
                 return (i + 1, !canceled);
             if (node.Style.BreakAfter) canceled = true;
         }
