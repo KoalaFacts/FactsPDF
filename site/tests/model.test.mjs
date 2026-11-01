@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '2fc993d83ec2c7f4159e03e002f2a15a139e8c04');
-  assert.match(dataset.commit_url, /2fc993d83ec2c7f4159e03e002f2a15a139e8c04/);
+  assert.equal(dataset.commit, '765421a3a21457197a55e93f91029f60e07ee9d9');
+  assert.match(dataset.commit_url, /765421a3a21457197a55e93f91029f60e07ee9d9/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -263,7 +263,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.rounded-report-panels');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.rounded-report-panels-quote-cascade');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /71个CSS属性名/);
@@ -497,11 +497,13 @@ test('bounded quoted report panels have one source-bound HTML feature and real P
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_html_tag_count,37);
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'c180ec615123717e0e665e63b84ba8ae8acd48d7');
+  assert.equal(row.last_audited_commit,'765421a3a21457197a55e93f91029f60e07ee9d9');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/PDF/);
   assert.match(row.scope,/8pt/);
   assert.match(row.scope,/24pt/);
+  assert.match(row.scope,/border-radius/);
+  assert.match(row.limitations,/椭圆/);
   assert.match(row.limitations,/FPDF1101/);
   assert.match(row.limitations,/cite/);
   assert.match(row.test_reference,/BlockquoteReportTests.cs/);
@@ -606,7 +608,7 @@ test('whole-row table-cell vertical alignment stays a scoped, source-proven CSS 
 
 test('rounded report card radius is bounded real PDF paint, not full CSS Borders',()=>{
  const f=dataset.features.find(x=>x.id==='css.border-radius');
- assert.equal(f.status,'partial');assert.equal(f.last_audited_commit,'2fc993d83ec2c7f4159e03e002f2a15a139e8c04');
+ assert.equal(f.status,'partial');assert.equal(f.last_audited_commit,'765421a3a21457197a55e93f91029f60e07ee9d9');
  assert.equal(f.introduced_release,null);assert.match(f.scope,/贝塞尔.*真实绘制/);
  assert.match(f.scope,/跨页/);assert.match(f.limitations,/百分比.*椭圆/);
  assert.match(f.limitations,/FPDF1201\/1202\/1302\/1401/);

@@ -153,6 +153,8 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.match(row.scope,/outside the box/);
     assert.match(row.limitations,/FPDF1201/);
     assert.match(row.limitations,/FPDF1302/);
+  assert.match(row.scope,/border-radius/);
+  assert.match(row.limitations,/elliptical/);
     assert.match(row.limitations,/collaps/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
@@ -218,7 +220,7 @@ test('new report blockquotes have English default text with bounded limits', asy
   const {englishFeature}=await localisation();
   const row=englishFeature(data.features.find(f=>f.id==='html.blockquote'));
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'c180ec615123717e0e665e63b84ba8ae8acd48d7');
+  assert.equal(row.last_audited_commit,'765421a3a21457197a55e93f91029f60e07ee9d9');
   assert.match(row.scope,/8pt/);
   assert.match(row.scope,/24pt/);
   assert.match(row.scope,/PDF/);

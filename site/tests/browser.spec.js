@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('41c6f957',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('765421a3',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -317,4 +317,16 @@ test('English lookup describes real bounded PDF list marker support',async({page
   await expect(details).toContainText('3999');
   await expect(details).toContainText('FPDF1202');
   await expect(details).toContainText('Actual PDF');
+});
+
+test('rounded quote/report cards show real source-painted PDF scope and explicit unsupported values',async({page})=>{
+  await page.goto('/FactsPDF/#q=border-radius');
+  await page.getByRole('button',{name:'English',exact:true}).click();
+  await page.getByRole('button',{name:'border-radius',exact:true}).click();
+  const detail=page.getByRole('dialog');
+  await expect(detail).toContainText('Bezier');
+  await expect(detail).toContainText('72pt');
+  await expect(detail).toContainText('ellipses');
+  await expect(detail).toContainText('FPDF1201');
+  await expect(detail).toContainText('FPDF1401');
 });

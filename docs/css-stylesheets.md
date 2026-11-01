@@ -112,7 +112,7 @@ no global dash continuity across pages or CSS background clipping.
 
 Only the supported patterns are painted. `double`, `hidden`, `groove`,
 `ridge`, `inset`, `outset`, arbitrary `border-image`,
-`border-radius`, invalid mixed shorthand terms and out-of-scope elements
+`border-radius` with dashed/dotted/asymmetric borders, invalid mixed shorthand terms and out-of-scope elements
 fail with existing `FPDF1201/1202`; impossible widths with `FPDF1302`,
 display-command limits with `FPDF1401`. Sub-millipoint patterned strokes
 that would round to an invisible PDF linewidth fail `FPDF1302` instead
@@ -293,8 +293,9 @@ pagination reuse their already bounded element contracts.
 Unsupported: quote-in-list, quote-in-table/cell, quote-in-inline; `cite`
 and browser citation metadata; CSS generated quote marks; `q`/`cite`
 elements; RTL/vertical writing; margin collapse; negative margins; vertical
-margin percentages/auto; height, arbitrary display, floating and rounded
-border painting. Existing unsupported CSS and unplaceable geometry reject
+margin percentages/auto; height, arbitrary display, floating and elliptical/per-corner
+rounded border painting. A single physical radius with a uniform solid ring
+is separately supported. Existing unsupported CSS and unplaceable geometry reject
 with `FPDF1101/1103/1201/1202/1302`, preserving the original PDF output
 on conversion failure. Quoted content is **not** a tagged PDF quotation.
 No separate font download or asset is involved.
