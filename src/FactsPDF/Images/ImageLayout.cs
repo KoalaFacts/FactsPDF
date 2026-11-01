@@ -62,9 +62,16 @@ internal static class ImageLayout
             // rather than silently throwing away either author's constraint.
             width = Checked(height * image.Image.PixelWidth / image.Image.PixelHeight, image.SourceOffset);
             var resultingWidth = width + (style.BorderBoxSizing ? edges : 0);
-            if (style.MinWidth is { } minWidth && resultingWidth + 0.000001 < Resolve(minWidth)
-                || style.MaxWidth is { } maxWidth && resultingWidth > Resolve(maxWidth) + 0.000001
-                   && (style.MinWidth is not { } minimum || Resolve(minimum) <= Resolve(maxWidth)))
+            // The existing width clamp applies max first, then min: when
+            // min-width exceeds max-width the effective upper bound is the
+            // minimum, not infinity. Otherwise vertical constraints would
+            // silently override both specified horizontal limits.
+            var minBound = style.MinWidth is { } minWidth ? Resolve(minWidth) : 0;
+            var maxBound = style.MaxWidth is { } maxWidth
+                ? Math.Max(Resolve(maxWidth), minBound)
+                : double.PositiveInfinity;
+            if (resultingWidth + 0.000001 < minBound ||
+                resultingWidth > maxBound + 0.000001)
                 throw new FactsPdfException("FPDF1302",
                     "Image height and width constraints cannot preserve the intrinsic aspect ratio.", image.SourceOffset);
         }
