@@ -1,3 +1,19 @@
+## Current-source bounded image min/max and border-box PDF geometry
+
+Standalone and direct fixed-column cell images support `min-width`,
+`max-width` and `box-sizing:border-box` using the shared actual PDF
+image matrix resolver. Images keep original resource aspect ratio; explicit
+bounds depend on parent/cell content width (including colspan). An
+independent [36-record point-width control](../../examples/report-responsive-images-oracle.html)
+is compared against the [responsive report](../../examples/report-responsive-images.html)
+through NUnit and the Linux/Windows Native AOT CLI/qpdf/Poppler gate,
+including searchable content, page movement, strict failures and retained
+output/recovery. No implicit shrinking, CSS height, object-fit, em/rem image
+sizing, auto columns or general CSS Sizing. Engine source
+`b6bebe8e3b97f13190148c6f53bed49ec2678ede`;
+actual head CI, independent review, held candidate, human approval and
+customer rights are separate.
+
 ## Current-source scoped word-break PDF glyph wrapping
 
 `word-break:normal | break-all` accepts explicit p/heading (including

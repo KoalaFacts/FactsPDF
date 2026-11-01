@@ -23,6 +23,43 @@ dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --imag
 
 Repeat `--image name=path` for up to 16 resources. The first `=` separates the name; quote arguments with spaces. Relative paths use the process working directory. Extensions are not format evidence. Each file is read through the bounded loader; no network download is provided. Output paths cannot equal the supplied HTML, font or image path. Existing CLI temporary-file, stdout and exit-code rules still apply, including the documented trusted-directory limitation for filesystem aliases.
 
+## Responsive standalone and cell image widths
+
+Explicit JPEG/PNG resources now support `min-width` and `max-width` on
+standalone `img` and direct `td/th` image items. Values are nonnegative
+`pt/px/mm/cm/in/%` or exactly unitless zero; `min-width:auto` and
+`max-width:none` remove constraints. Percentages use the **current
+containing content width**, not the image's own width. `max-width:100%`
+therefore caps a bound image to its panel or (for cell items) available
+fixed-track area. `min-width` wins when its specified bound exceeds the
+`max-width`, and otherwise the already-authored `width` (or natural
+96-dpi width) is the starting measure.
+
+The shared `ImageLayout.Resolve` applies these bounds to **actual PDF
+image width and height**, retaining pixel aspect ratio; it does not just
+accept CSS declarations. Default `box-sizing:content-box` constrains
+content width and adds any existing padding/borders. Opt-in
+`box-sizing:border-box` measures width and min/max constraints **including**
+those edges, subtracts them once and scales content proportionally.
+Selectors, `!important`, non-inheritance and explicit CSS-wide
+`inherit/initial/unset` use the existing engine cascade. Images remain
+atomic; the current page/row movement, resource sharing, budgets and output
+protection are unchanged. No CSS `height`, auto-scale in the absence of a
+constraint, `object-fit`, intrinsic sizing keywords, `calc()`,
+`em/rem` on images, parent table/column sizing or general CSS Sizing is
+claimed. Invalid values/elements give `FPDF1201/1202`; zero/overfull
+effective content or an unplaceable image gives `FPDF1302` before output.
+
+Try the [36-entry report](../examples/report-responsive-images.html) with
+the repository's generated `brand-mark.png` bound as `--image logo=...`.
+The [fixed-width control](../examples/report-responsive-images-oracle.html)
+independently expresses exactly the expected box widths. NUnit and the
+Linux/Windows Native AOT verifier compare real PDF bytes, PDF content,
+Poppler text and pagination, qpdf validity and failure/retry preservation.
+Source `b6bebe8e3b97f13190148c6f53bed49ec2678ede`; final-head CI,
+independent review, separately retained software, page approval and rights
+remain distinct.
+
 ## Supported bytes and layout
 
 JPEG requires a first JFIF APP0, 8-bit SOF0, one complete interleaved sequential scan, explicit nonredefined quantization/Huffman tables and an exact EOI/EOF. Grayscale is 1×1; YCbCr supports 4:4:4, 4:2:2 and 4:2:0 with standard component IDs/order. Restart intervals and legal marker fill are checked. Entropy validation visits every expected MCU/block, decodes Huffman symbols and checks coefficient runs, amplitude availability, stuffing, all-one padding and restart sequence. It does not perform IDCT or allocate a decoded pixel buffer.
@@ -31,7 +68,7 @@ Progressive/multiscan, CMYK/RGB-coded JPEG, arithmetic/lossless, ICC/Adobe trans
 
 `img` is a void block at the root/body or inside ordinary supported containers, or a direct image item in a [table cell](tables.md#rich-and-spanning-cells). Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
 
-CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Standalone images remain left-aligned. Cell images use their cell's text alignment and available content width, including any covered tracks from `colspan`. Paragraphs and images may share a cell as separate vertical items. No automatic shrinking, independent height, transforms, float, text wrapping around images, or inline/list images are implemented.
+CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Standalone images remain left-aligned. Cell images use their cell's text alignment and available content width, including any covered tracks from `colspan`. Paragraphs and images may share a cell as separate vertical items. No unrequested automatic shrinking, independent height, transforms, float, text wrapping around images, or inline/list images are implemented.
 
 The complete image outer box moves to the next page if necessary. An image plus required leading ancestor decoration that cannot fit an empty page fails `FPDF1302`. Its own padding/borders never split; ancestor decorations retain existing slice behavior. Each image draw costs one display command, plus normal decoration commands.
 

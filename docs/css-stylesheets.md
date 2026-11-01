@@ -1,3 +1,21 @@
+## Current-source bounded responsive report image widths
+
+The existing `min-width`, `max-width` and `box-sizing` CSS subset now
+also applies to explicitly supplied standalone images and direct fixed-column
+cell images. `max-width:100%` caps the **actual PDF content/image matrix**
+to available parent/cell content width, and `box-sizing:border-box`
+includes the image's padding/borders in the used width. `min-width`
+can enlarge the used image width and wins above `max-width` when both
+conflict. Image height always preserves resource aspect ratio. CSS-wide
+keywords, selector specificity, source order and `!important` use the
+existing block property pipeline. No implicit shrink, image height,
+intrinsic keywords, `calc()`, `em/rem` image dimensions, automatic resource
+fetch, table/column sizing or image splitting. Explicit errors preserve
+the existing destination. [Image contract](images.md#responsive-standalone-and-cell-image-widths)
+and the [36-record actual PDF comparison](../examples/report-responsive-images.html)
+are at source `b6bebe8e3b97f13190148c6f53bed49ec2678ede`.
+This is not a private package rebuild, publication or full CSS Sizing.
+
 ## Current-source word-break for invoice identifiers
 
 **Bounded supported values:** `word-break:normal | break-all` on explicit

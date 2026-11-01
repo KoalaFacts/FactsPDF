@@ -1042,6 +1042,58 @@ def verify_native_word_break(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_responsive_images(executable, output, work, logo):
+    """Compare actual PDF image matrices, positions and page breaks to explicit point-width control."""
+    source = ROOT / 'examples/report-responsive-images.html'
+    oracle = ROOT / 'examples/report-responsive-images-oracle.html'
+    assert source.is_file() and oracle.is_file(), 'Missing responsive image templates'
+    actual = output / 'responsive-images.pdf'
+    control = output / 'responsive-images-oracle.pdf'
+    for html, pdf in ((source, actual), (oracle, control)):
+        assert not run(executable, html, pdf, '--image', f'logo={logo}', cwd=work)
+        run('qpdf', '--check', pdf)
+    assert actual.read_bytes() == control.read_bytes(), (
+        'Bounded image min/max/border-box geometry differs from explicit PDF-width control')
+    pages = count_pages(actual)
+    assert pages >= 2, '36 records must paginate'
+    all_words = []
+    for page in range(1, pages + 1):
+        width, height, words = page_boxes(actual, page)
+        assert words, ('No independently extractable text on image report page', page)
+        assert all(0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height
+                   for _, x0, y0, x1, y1 in words), 'PDF text outside the page'
+        all_words.extend(word for word, *_ in words)
+    records = [word for word in all_words if re.fullmatch(r'REC-\d{2}', word)]
+    assert records == [f'REC-{n:02d}' for n in range(1, 37)], (
+        'Responsive report records missing, reordered or duplicated', records)
+    assert all_words.count('Inspection') == 36, 'A report row was lost'
+    assert len(re.findall(rb'/Im\d+ Do', actual.read_bytes())) == 36, (
+        'Explicit bound PNG was not placed exactly once per record')
+    invalid = work / 'responsive-image-invalid.html'
+    retained = output / 'responsive-images-retained.pdf'
+    for markup, code in (
+        ('<img src=logo style="width:200pt;min-width:900pt">', b'FPDF1302'),
+        ('<img src=logo style="max-width:calc(100% - 1pt)">', b'FPDF1202'),
+        ('<img src=logo style="max-width:1rem">', b'FPDF1201'),
+        ('<img src=logo style="box-sizing:border-box;max-width:4pt;padding:4pt">', b'FPDF1302'),
+    ):
+        invalid.write_text(markup, encoding='utf-8')
+        retained.write_bytes(b'previous customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained),
+                                 '--overwrite', '--image', f'logo={logo}'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Invalid native image constraint was accepted', markup, failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'previous customer PDF', (
+            'Invalid native image constraint replaced retained output')
+    assert not run(executable, source, retained, '--overwrite', '--image', f'logo={logo}', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Valid native retry changed PDF bytes'
+    return {'records': 36, 'pages': pages, 'sourceSha256': sha(source),
+            'oracleSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'realImagePlacementAndByteParity': True, 'popplerSearchableText': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1111,6 +1163,7 @@ def main():
         fixed_height = verify_native_fixed_height(isolated, output, work)
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
         word_break = verify_native_word_break(isolated, output, work)
+        responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1135,6 +1188,7 @@ def main():
             'fixedHeight': fixed_height,
             'sectionPageBreaks': section_breaks,
             'wordBreak': word_break,
+            'responsiveImages': responsive_images,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }
