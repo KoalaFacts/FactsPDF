@@ -53,7 +53,7 @@ public static class CliApplication
                 else if (arg == "--landscape" && !landscape) landscape = true;
                 else if (arg == "--page-size" && pageSize is null)
                 {
-                    if (++i >= args.Length || args[i] is not ("a4" or "A4" or "letter" or "Letter" or "LETTER"))
+                    if (++i >= args.Length || !(args[i].Equals("a4", StringComparison.OrdinalIgnoreCase) || args[i].Equals("letter", StringComparison.OrdinalIgnoreCase)))
                         throw new ArgumentException("--page-size requires a4 or letter.");
                     pageSize = args[i].ToLowerInvariant();
                 }
