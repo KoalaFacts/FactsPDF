@@ -522,6 +522,7 @@ internal static class CssSyntaxAdapter
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
         "width" => CssProperty.Width, "min-width" => CssProperty.MinWidth, "max-width" => CssProperty.MaxWidth,
         "min-height" => CssProperty.MinHeight, "height" => CssProperty.Height,
+        "max-height" => CssProperty.MaxHeight,
         "box-sizing" => CssProperty.BoxSizing,
         "padding" or "padding-top" or "padding-block" or "padding-block-start" => CssProperty.PaddingTop,
         "padding-right" or "padding-inline-end" => CssProperty.PaddingRight,
@@ -729,6 +730,16 @@ internal static class CssSyntaxAdapter
             if (length.IsPercent)
                 throw new FactsPdfException("FPDF1202",
                     "Report panel min-height requires a nonnegative physical, em or rem length.", offset);
+        }
+        else if (name == "max-height")
+        {
+            if (token != "none")
+            {
+                var length = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+                if (length.IsPercent)
+                    throw new FactsPdfException("FPDF1202",
+                        "Image max-height requires a bounded physical length or none.", offset);
+            }
         }
         else if (name == "height")
         {

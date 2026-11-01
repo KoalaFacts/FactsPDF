@@ -123,6 +123,8 @@ internal sealed record BoxStyle(
     // Nonnegative minimum content-box height, or border-box with box-sizing.
     // Only ordinary report panels consume it during PDF page placement.
     public CssLength? MinHeight { get; init; }
+    // Only explicitly bound images consume a physical maximum height.
+    public CssLength? MaxHeight { get; init; }
     // Fixed, non-fragmented report panels reject overflow instead of clipping.
     public CssLength? Height { get; init; }
     // Explicit before/after page boundaries for ordinary report panels.
