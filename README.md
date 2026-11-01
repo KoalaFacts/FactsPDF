@@ -24,6 +24,27 @@ discussion, not a software trial, licence grant or support contract.
 
 The detailed source-only feature notes and test evidence follow.
 
+### Choose a physical report margin in the CLI (source-only)
+
+The CLI accepts `--margin 15mm` (or `0`, `pt`, `px`, `cm`, `in`) alongside
+`--page-size a4|letter` and `--landscape`. It sets **all four physical page
+margins** before actual PDF text wrapping, pagination, images and page
+furniture are laid out. The default remains 36pt on every side, preserving
+the existing PDF bytes when no new flag is provided. For example:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -- examples/first-document.html report.pdf --page-size a4 --margin 15mm
+```
+
+Lengths are invariant-culture, nonnegative and strictly less than half the
+shorter selected page dimension. Unsupported, repeated or impossible
+arguments fail with exit code 2; file output uses the existing atomic
+replacement guard. This is not CSS `@page`, different margins per side,
+printer bleed, an automatic paper fit or a released CLI. See
+`CliPageMarginTests.cs` and the real Linux/Windows Native AOT
+`verify_native_feature_paths.py` Poppler/qpdf geometry and text gates.
+
+
 
 ### Keep multi-paragraph sign-off cards together (source-only)
 

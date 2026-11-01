@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text;
 using FactsPDF.Configuration;
@@ -7,11 +8,13 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--margin 0|length] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--page-size selects A4 (default, 595.28 x 841.89pt) or US Letter (612 x 792pt); --landscape swaps the physical page axes.\n" +
+        "--margin sets one uniform margin (0 or pt/px/mm/cm/in; default 36pt) in the selected physical page size.\n" +
+        "This does not implement CSS @page, asymmetric margins, printer bleed or content scaling.\n" +
         "Only the CLI page geometry changes, not the CSS @page support or PDF content scaling.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
@@ -43,7 +46,7 @@ public static class CliApplication
                 return 0;
             }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
-            string? pageSize = null; var landscape = false;
+            string? pageSize = null; var landscape = false; double? requestedMargin = null;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
@@ -56,6 +59,12 @@ public static class CliApplication
                     if (++i >= args.Length || !(args[i].Equals("a4", StringComparison.OrdinalIgnoreCase) || args[i].Equals("letter", StringComparison.OrdinalIgnoreCase)))
                         throw new ArgumentException("--page-size requires a4 or letter.");
                     pageSize = args[i].ToLowerInvariant();
+                }
+                else if (arg == "--margin" && requestedMargin is null)
+                {
+                    if (++i >= args.Length)
+                        throw new ArgumentException("--margin requires 0 or a nonnegative length in pt, px, mm, cm or in.");
+                    requestedMargin = ParseMargin(args[i]);
                 }
                 else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
                 else if (arg == "--page-numbers" && !pageNumbers) pageNumbers = true;
@@ -121,7 +130,10 @@ public static class CliApplication
             }
             var (pageWidth, pageHeight) = pageSize == "letter" ? (612d, 792d) : (595.28d, 841.89d);
             if (landscape) (pageWidth, pageHeight) = (pageHeight, pageWidth);
-            var options = new PdfOptions { PageWidth = pageWidth, PageHeight = pageHeight,
+            var margin = requestedMargin ?? 36d;
+            if (2 * margin >= Math.Min(pageWidth, pageHeight))
+                throw new ArgumentException("--margin must be less than half the shorter physical page dimension.");
+            var options = new PdfOptions { PageWidth = pageWidth, PageHeight = pageHeight, Margin = margin,
                 SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText,
                 FooterText = footerText, PageFurniture = furniture }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
@@ -190,6 +202,30 @@ public static class CliApplication
                 { error.WriteLine("Could not remove temporary file: " + temporary); }
             }
         }
+    }
+
+    // This is a CLI physical-page argument, not a CSS declaration. It is
+    // intentionally invariant-culture and rejects units/keywords we cannot
+    // measure, rather than silently falling back to a default report margin.
+    private static double ParseMargin(string value)
+    {
+        if (value == "0") return 0;
+        double? scale = value.EndsWith("pt", StringComparison.OrdinalIgnoreCase) ? 1d
+            : value.EndsWith("px", StringComparison.OrdinalIgnoreCase) ? 0.75d
+            : value.EndsWith("mm", StringComparison.OrdinalIgnoreCase) ? 72d / 25.4d
+            : value.EndsWith("cm", StringComparison.OrdinalIgnoreCase) ? 72d / 2.54d
+            : value.EndsWith("in", StringComparison.OrdinalIgnoreCase) ? 72d
+            : null;
+        if (!scale.HasValue || value.Length <= 2 ||
+            !double.TryParse(value.AsSpan(0, value.Length - 2),
+                NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture, out var amount) ||
+            !double.IsFinite(amount) || amount < 0)
+            throw new ArgumentException("--margin requires 0 or a nonnegative finite length in pt, px, mm, cm or in.");
+        var points = amount * scale.Value;
+        if (!double.IsFinite(points) || points > 14_400)
+            throw new ArgumentException("--margin exceeds the supported physical-page limit.");
+        return points;
     }
 
     // Keep CLI parameter errors distinct from the core's resource diagnostics.
