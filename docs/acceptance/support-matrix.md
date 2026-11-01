@@ -1,3 +1,18 @@
+## Current-source bounded minimum-height card geometry
+
+`min-height` on `div/section/article/blockquote` outside lists/tables
+reserves real PDF-height space and painted panel area, including empty cards.
+Positive physical/em/rem lengths and exact zero, non-inheritance, CSS-wide
+reset/explicit inheritance and `!important` cascade follow the scoped box
+model; `border-box` includes padding/borders, `content-box` adds them.
+Actual glyph positions, panel rectangles, following rows, page relocation and
+multi-page natural content are covered by `ReportPanelMinHeightTests.cs`,
+the inspection example and 40-card Native AOT qpdf/Poppler physical-padding
+oracle in `verify_native_feature_paths.py`. Indefinite percentages, auto,
+height/max-height, table/list/inline targets and unplaceable geometry
+explicitly fail with protected original output. No general CSS Sizing,
+human reference approval, public/private candidate rebadge or customer licence.
+
 ## Current-source rounded report-card PDF painting
 
 `border-radius` now accepts one to four physical corner lengths (each zero

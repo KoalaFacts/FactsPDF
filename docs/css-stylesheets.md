@@ -1,3 +1,45 @@
+## Current-source minimum-height report panels
+
+**Supported:** Ordinary `div`, `section`, `article` and `blockquote` outside
+lists and tables can set `min-height` to a bounded nonnegative `pt`, `px`,
+`mm`, `cm` or `in` length, unitless exactly zero, a root-computed `rem`
+or own-final-font `em`. All lengths resolve to PDF points before layout.
+Only actual CSS winners resolve against computed font sizes; unmatched and
+losing declarations still undergo syntax/value/applicability validation.
+The default initial `min-height` imposes no minimum. It does not inherit by
+default. Explicit `inherit` takes the direct parent's computed minimum;
+`initial` and `unset` reset to no minimum. Ordinary selector specificity,
+source order and `!important` apply without a separate cascade.
+
+**Visible PDF behavior:** The chosen minimum reserves actual vertical page
+space for the panel, including empty unpainted panels. For
+`box-sizing:content-box` (the default), the specified minimum is inside
+vertical padding and borders; with `box-sizing:border-box`, the minimum
+includes those decorations (never less than their combined thickness).
+Normal content that naturally occupies more height remains the winner:
+text lines, fonts, backgrounds, borders and page continuations keep existing
+behavior. A short minimum-height panel moves whole to a fresh page when it
+cannot fit at the current cursor. A minimum too tall for a fresh page and
+its required leading spacing fails `FPDF1302` rather than silently
+overflowing. Naturally long boxes can still fragment across pages, with
+no extra phantom minimum-height pages. Existing `MaxPages`,
+`MaxDisplayCommands`, CSS work and destination protection remain active.
+
+**Excluded:** `height` and `max-height` remain unsupported; this is not
+a general CSS sizing engine. Percentages (indefinite paged content height),
+`auto`, negative values, `calc()`, viewport/`lh` lengths, implicit
+table/list/image/inline sizing, and `min-height` on `p`/headings/body,
+tables or any list/table descendant explicitly fail
+`FPDF1201`/`FPDF1202`. Overlarge or unplaceable minimum geometry rejects
+`FPDF1302`; the previous caller PDF bytes/position are preserved.
+A scoped [inspection example](../examples/report-min-height-cards.html),
+`ReportPanelMinHeightTests.cs`, and
+[a 40-card Native AOT comparison](../examples/report-min-height-cards-native.html)
+against an independently specified `padding-top` PDF oracle verify true
+text/paint geometry, font-unit parity, page movement, native output,
+failures and recovery. This source addition does not rebuild the retained
+preview, approve unseen reference pages or grant customer rights.
+
 
 ## Current-source rounded business-report cards (2026-11-01)
 

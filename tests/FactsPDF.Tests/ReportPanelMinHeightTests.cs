@@ -179,8 +179,8 @@ public sealed class ReportPanelMinHeightTests
     [Test]
     public void MinimumHeightCountsTowardTheExistingCssDeclarationBudget()
     {
-        Reject("<section style='min-height:20pt'>A</section>", "FPDF1205",
-            Page with { MaxCssDeclarations = 0 });
+        Reject("<section style='min-height:20pt;background:blue'>A</section>", "FPDF1205",
+            Page with { MaxCssDeclarations = 1 });
     }
 
     [Test]
