@@ -56,6 +56,7 @@ internal static class CssSyntaxAdapter
             {
                 "page-break-before" => "break-before",
                 "page-break-after" => "break-after",
+                "page-break-inside" => "break-inside",
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -520,6 +521,7 @@ internal static class CssSyntaxAdapter
         "margin-left" or "margin-inline" or "margin-inline-start" => CssProperty.MarginLeft,
         "margin-right" or "margin-inline-end" => CssProperty.MarginRight,
         "break-before" => CssProperty.BreakBefore, "break-after" => CssProperty.BreakAfter,
+        "break-inside" => CssProperty.BreakInside,
         "width" => CssProperty.Width, "min-width" => CssProperty.MinWidth, "max-width" => CssProperty.MaxWidth,
         "min-height" => CssProperty.MinHeight, "height" => CssProperty.Height,
         "max-height" => CssProperty.MaxHeight,
@@ -702,6 +704,12 @@ internal static class CssSyntaxAdapter
         }
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);
+        else if (name == "break-inside")
+        {
+            if (token is not ("auto" or "avoid"))
+                throw new FactsPdfException("FPDF1202",
+                    "Report break-inside accepts only auto or avoid.", offset);
+        }
         else if (name == "vertical-align")
         {
             if (token is not ("top" or "middle" or "bottom"))

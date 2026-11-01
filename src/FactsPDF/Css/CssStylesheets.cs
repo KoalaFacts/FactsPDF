@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.MaxHeight + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BreakInside + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -175,6 +175,15 @@ internal sealed class CssStylesheets
                     throw new FactsPdfException("FPDF1201",
                         "CSS image height limits do not support em or rem.", declaration.Offset);
             }
+            // A keep-together card must be an ordinary top-level report panel.
+            // Validate losing declarations too; nested/table/list/inline usage
+            // must never be accepted as an unimplemented decoration.
+            if (declaration.Property == CssProperty.BreakInside &&
+                (element.Name is not ("div" or "section" or "article" or "blockquote")
+                 || path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
+                throw new FactsPdfException("FPDF1201",
+                    "break-inside is supported only on ordinary report panels outside lists/tables.", declaration.Offset);
             if (declaration.Property == CssProperty.ListStyleType &&
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
@@ -365,6 +374,14 @@ internal sealed class CssStylesheets
                     ? box with { BreakBefore = value }
                     : box with { BreakAfter = value };
             }
+            else if (declaration.Property == CssProperty.BreakInside)
+                box = box with { AvoidBreakInside = declaration.Value switch
+                {
+                    "avoid" => true,
+                    "auto" or "initial" or "unset" => false,
+                    "inherit" => parentBox.AvoidBreakInside,
+                    _ => throw new InvalidOperationException("Unvalidated break-inside.")
+                } };
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
             else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")

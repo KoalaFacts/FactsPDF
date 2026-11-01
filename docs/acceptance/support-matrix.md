@@ -82,6 +82,25 @@ not full CSS Sizing, an installable package, approved pages or a
 customer distribution grant. Final-head CI and independent review
 must be verified separately.
 
+## Current-source bounded report-card keep-together
+
+A top-level div/section/article/blockquote with one-to-eight direct
+nonempty p/pre/h1–h6 children can use `break-inside:avoid` (also
+`page-break-inside:avoid`); preflight measures actual PDF glyph wraps,
+padding, borders and margins, moving the whole card intact to a new page
+when needed. `ReportKeepTogetherTests.cs` asserts PDF-byte parity with
+a manually forced page, no spurious page when it fits, cascade/aliases,
+unfit-card failure and untouched existing output. The
+[printable report](../../examples/report-keep-together.html) and
+[authored forced-break control](../../examples/report-keep-together-oracle.html)
+are separately converted with real Native AOT and qpdf/Poppler page/text
+verification in `scripts/verify_native_feature_paths.py`.
+Not general break-inside, nested panels, tables/lists/images, fixed/minimum
+height, arbitrary descendants, or a card taller than one PDF page.
+Source implementation: `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`.
+Exact final CI, independent review, human PDF approval, separately retained
+software and publication rights are independent gates.
+
 ## Current-source bounded report-section page boundaries
 
 The source at `67566764419232585632d8ea6f2106aeeeff2f70`
@@ -97,8 +116,9 @@ and searchable qpdf/Poppler output from the authored source
 [report](../../examples/report-section-page-breaks.html) and a separate
 [modern-break oracle](../../examples/report-section-page-breaks-oracle.html),
 including protected PDF recovery after rejected input.
-Not break-inside, avoid on panels, general keep, Paged Media, table/list/
-inline or unsupported left/right page selection. Exact-head CI, independent
+Not general keep, Paged Media, table/list/inline or unsupported left/right
+page selection; a separate bounded top-level flat-card break-inside subset
+does not alter forced section breaks. Exact-head CI, independent
 review, private candidate, customer rights and human page approvals are
 separate; no previous binary is relabelled.
 

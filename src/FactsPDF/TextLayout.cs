@@ -10,7 +10,7 @@ internal static class TextLayout
         bool HasParagraphDescendant = false, bool TopConsumed = false,
         double MarginTop = 0, double MinimumOuterHeight = 0,
         int OpeningMarginPage = -1, int OpeningPaddingPage = -1,
-        double? FixedOuterHeight = null);
+        double? FixedOuterHeight = null, bool AvoidBreakInside = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -159,6 +159,71 @@ internal static class TextLayout
                 }
                 continue;
             }
+            if (step is LayoutKeepPanel keep)
+            {
+                // Every eligible card contains actual glyphs. If an earlier
+                // block exhausted the command budget, fail before decoding or
+                // wrapping this card's future text (as ordinary paragraphs do).
+                // This is a check, not a charge: real rendering counts once.
+                if (displayCommands == o.MaxDisplayCommands)
+                    EnsureDisplayCommands(1, keep.Node.SourceOffset);
+                // Preflight only the exact bounded flat card shape validated
+                // by BlockLayout. Measure with the same font/glyph wrap and
+                // resolved child content widths used by actual PDF layout.
+                // No extra PDF draw commands are emitted or charged here.
+                var intrinsic = keep.Top + keep.Bottom;
+                var previousAfter = 0d;
+                var firstBefore = 0d;
+                var firstChild = true;
+                var usable = bottom - o.Margin;
+                foreach (var child in keep.Node.Children)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    var node = (BlockNode)child;
+                    var keptParagraph = ((ParagraphNode)node.Children[0]).Paragraph;
+                    var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle,
+                        keep.ContentWidth, node.SourceOffset);
+                    var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset,
+                        keep.ContentWidth);
+                    if (firstChild)
+                    {
+                        firstBefore = keptParagraph.Style.MarginBefore;
+                        firstChild = false;
+                    }
+                    else intrinsic += Math.Max(previousAfter, keptParagraph.Style.MarginBefore);
+                    intrinsic += box.Top + box.Bottom;
+                    var sawLine = false;
+                    foreach (var line in Wrap(keptParagraph, box.Inner, o, resolved, cancellation))
+                    {
+                        sawLine = true;
+                        intrinsic += line.Height;
+                        if (intrinsic > usable + 0.000001)
+                            throw new FactsPdfException("FPDF1302",
+                                "Kept report card is taller than the usable PDF page.",
+                                keep.Node.SourceOffset);
+                    }
+                    if (!sawLine)
+                        throw new FactsPdfException("FPDF1201",
+                            "Kept report card requires nonempty text.", node.SourceOffset);
+                    previousAfter = keptParagraph.Style.MarginAfter;
+                }
+                intrinsic += previousAfter;
+                var fresh = keep.MarginTop + firstBefore + intrinsic;
+                if (fresh > usable + 0.000001)
+                    throw new FactsPdfException("FPDF1302",
+                        "Kept report card cannot fit intact on one page.",
+                        keep.Node.SourceOffset);
+                var neededHere = keep.MarginTop + Math.Max(after, firstBefore) +
+                    intrinsic + pendingTopPadding + pendingClosedPadding;
+                if (!breakNext && !keep.Node.BoxStyle.BreakBefore &&
+                    CurrentPageOccupied() && y + neededHere > bottom + 0.000001)
+                {
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
+                    pendingClosedPadding = 0;
+                }
+                continue;
+            }
             if (step is BeginBlock begin)
             {
                 // A previous break-after must precede a painted or
@@ -231,7 +296,8 @@ internal static class TextLayout
                     MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight,
                     OpeningMarginPage: pages.Count - 1,
                     OpeningPaddingPage: pages.Count - 1,
-                    FixedOuterHeight: begin.FixedOuterHeight));
+                    FixedOuterHeight: begin.FixedOuterHeight,
+                    AvoidBreakInside: begin.Style.AvoidBreakInside));
                 // Outside the border: only first-page placement and the
                 // containing ancestor's occupied content change, never paint.
                 pendingClosedPadding += begin.MarginTop;
@@ -246,6 +312,11 @@ internal static class TextLayout
                 // page before opening. A panel that actually spans pages has
                 // already occupied the bounded single-page minimum.
                 var minimumExtra = 0d;
+                // A kept report card must never silently fragment if a new
+                // layout interaction exceeds its measured one-page budget.
+                if (scope.AvoidBreakInside && scope.StartPage != pages.Count - 1)
+                    throw new FactsPdfException("FPDF1302",
+                        "Kept report card cannot fragment across pages.", scope.SourceOffset);
                 // Fixed-height report panels intentionally do not fragment.
                 // Reject oversize content before PDF emission rather than clipping.
                 if (scope.FixedOuterHeight.HasValue && scope.StartPage != pages.Count - 1)

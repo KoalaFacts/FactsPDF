@@ -25,6 +25,29 @@ discussion, not a software trial, licence grant or support contract.
 The detailed source-only feature notes and test evidence follow.
 
 
+### Keep multi-paragraph sign-off cards together (source-only)
+
+Use `break-inside:avoid` (or legacy `page-break-inside:avoid`)
+on a **top-level** `div/section/article/blockquote` containing one to eight
+direct, nonempty `p/pre/h1–h6` children. FactsPDF measures actual glyph wraps,
+padding, borders and text margins **before** PDF placement; if a card does not
+fit at the current page end, its whole painted box and text move to the next
+page. A card taller than one usable page rejects with `FPDF1302`, retaining
+the previous PDF. `auto`, `inherit/initial/unset`, `!important`
+and the existing cascade apply. No new page for a card that fits.
+
+This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
+explicit inner page breaks, fixed/minimum-height cards, more than eight direct
+children, arbitrary children, left/right pages, or widows/orphans are not
+implemented. Inapplicable structures reject `FPDF1201`; unsupported values
+reject `FPDF1202`. [Exact CSS contract](docs/css-stylesheets.md#current-source-keep-together-business-report-cards),
+[printable card](examples/report-keep-together.html),
+[independently authored forced-page control](examples/report-keep-together-oracle.html),
+`ReportKeepTogetherTests.cs`, and Linux/Windows Native AOT/qpdf/Poppler
+witness are provided for review. Source first implemented at
+`ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
+private software, human PDF approval and customer rights are separate.
+
 ### Bounded image height limits for report logos and photos (source-only)
 
 Explicitly bound JPEG/PNG images now accept nonnegative physical
@@ -143,8 +166,9 @@ The [three-page facilities report](examples/report-section-page-breaks.html)
 and [independently authored modern-break control](examples/report-section-page-breaks-oracle.html)
 are checked as actual Native AOT PDFs, not accepted syntax alone.
 `break-after:avoid` remains **heading-only**, not a section keep-together;
-left/right, break-inside, RTL, tables/lists and general CSS Paged Media
-are unsupported and fail explicitly, preserving existing output. This is
+left/right, RTL, tables/lists and general CSS Paged Media are unsupported.
+A separately documented top-level flat-card `break-inside:avoid` subset
+does not change these forced-boundary semantics. This is
 source-only at `67566764419232585632d8ea6f2106aeeeff2f70`, pending
 exact-head CI, independent review and the separate private/customer gates.
 [Precise CSS scope](docs/css-stylesheets.md#current-source-print-section-page-boundaries).

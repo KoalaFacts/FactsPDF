@@ -67,6 +67,24 @@ the retained software candidate, exact-head CI, independent review,
 human page approval and customer rights.
 [CSS contract](css-stylesheets.md#current-source-fixed-height-report-panels).
 
+## Source-only intact approval cards
+
+`break-inside:avoid` and the legacy `page-break-inside:avoid` now
+preflight one-to-eight direct nonempty text paragraphs/headings inside a
+top-level ordinary report panel. When the true wrapped PDF box cannot fit,
+the complete card begins on the next page, including painted borders.
+Oversize and unsupported structures fail without overwriting an earlier PDF.
+This is a source-only scoped card helper, **not** generic break-inside or
+CSS Fragmentation. Actual PDF byte parity with an independently authored
+forced-page control, searchable/native page text, invalid-input recovery,
+and Linux/Windows Native AOT are exercised by the
+[card template](../examples/report-keep-together.html),
+[control](../examples/report-keep-together-oracle.html) and
+[limited CSS rules](css-stylesheets.md#current-source-keep-together-business-report-cards).
+Source first implemented `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`;
+the retained preview is older, and exact-head CI, separate review, human
+approval and customer usage remain independent.
+
 ## Source-only report-section page boundaries
 
 Controlled facilities, billing and inspection reports can place whole ordinary
@@ -79,8 +97,9 @@ Linux/Windows Native AOT CLI witness comparing the
 [independently authored modern-break oracle](../examples/report-section-page-breaks-oracle.html).
 Nested continuation, CSS cascade, invalid/unsupported values, protected
 output and recovery are included in this bounded scope. This is a **print
-page boundary**, not automatic break-inside:avoid, table/list/inline
-pagination or full Paged Media. Source `67566764419232585632d8ea6f2106aeeeff2f70`
+page boundary**, separate from the newly scoped, top-level flat-card
+`break-inside:avoid`; it does not add table/list/inline pagination or
+full Paged Media. Source `67566764419232585632d8ea6f2106aeeeff2f70`
 is not the previously retained private candidate or a human-approved/customer
 deliverable; exact-head CI and separate independent review remain required.
 

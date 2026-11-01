@@ -131,6 +131,9 @@ internal sealed record BoxStyle(
     // These never inherit unless the winning CSS keyword is inherit.
     public bool BreakBefore { get; init; }
     public bool BreakAfter { get; init; }
+    // A bounded, top-level flat report card can be preflighted and moved
+    // intact rather than letting its paragraphs split between PDF pages.
+    public bool AvoidBreakInside { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     // Rounded-corner shorthand computes TL / TR / BR / BL physical radii.
     // CornerRadius keeps the original TL member so one-value reports retain

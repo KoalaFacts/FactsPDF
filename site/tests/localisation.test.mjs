@@ -381,3 +381,20 @@ test('new English image height limit scope accurately separates bound img from p
   assert.doesNotMatch(max.scope+max.limitations,han);
   assert.match(translate(data.css_inventory_note),/81 scoped CSS property names/);
 });
+
+test('kept-card source scope has complete English while preserving all old methodology', async () => {
+  const {englishFeature,translate}=await localisation();
+  for(const id of ['css.break-inside','css.page-break-inside']){
+    const row=englishFeature(data.features.find(f=>f.id===id));
+    assert.equal(row.status,'partial');
+    assert.equal(row.last_audited_commit,'ecdef6d8745caa3d2b527197c5767e25f89ba6b0');
+    assert.match(row.scope,/PDF/);
+    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.limitations,/top-level|nested/);
+    assert.doesNotMatch(row.scope+' '+row.limitations,han);
+  }
+  assert.match(translate(data.audit_method),/historical source\/release identities are preserved/);
+  assert.match(translate(data.audit_method),/Incremental 2 November 2026 source audit updates five/);
+  assert.match(translate(data.css_inventory_note),/83 scoped CSS property names/);
+  assert.doesNotMatch(translate(data.css_inventory_note),han);
+});
