@@ -81,7 +81,7 @@ public sealed class WhiteSpacePreLineTests
             "The second trailing segment break must contribute a blank line.");
         var placed = Pages(actual).SelectMany(page => page.Runs).ToArray();
         Assert.That(placed.Select(item => item.Text), Is.EqualTo(new[] { "A", "B" }));
-        Assert.That(placed[1].Baseline - placed[0].Baseline, Is.GreaterThan(20));
+        Assert.That(placed[0].Baseline - placed[1].Baseline, Is.GreaterThan(20));
     }
 
     [Test]
