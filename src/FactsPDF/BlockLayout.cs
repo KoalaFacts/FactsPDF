@@ -3,7 +3,8 @@ namespace FactsPDF;
 internal abstract record BlockLayoutStep;
 internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph,
-    double MarginTop = 0, double RequiredRuleHeight = 0) : BlockLayoutStep;
+    double MarginTop = 0, double RequiredRuleHeight = 0,
+    double MinimumOuterHeight = 0) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
@@ -86,10 +87,20 @@ internal static class BlockLayout
                     var requiredEmptyPaintHeight = node.Name == "hr" ||
                         (node.Children.Count == 0 && style.HasPaint)
                         ? box.Top + box.Bottom : 0;
+                    // min-height is genuine reserved page space. Content-box
+                    // adds vertical decoration; border-box counts it inside.
+                    var minimumOuterHeight = style.MinHeight is { } minimum
+                        ? (style.BorderBoxSizing
+                            ? Math.Max(minimum.Value, box.Top + box.Bottom)
+                            : minimum.Value + box.Top + box.Bottom)
+                        : 0;
+                    if (!double.IsFinite(minimumOuterHeight) || minimumOuterHeight > 14_400)
+                        throw new FactsPdfException("FPDF1302",
+                            "Computed minimum panel height exceeds supported bounds.", node.SourceOffset);
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
-                        marginTop, requiredEmptyPaintHeight);
+                        marginTop, requiredEmptyPaintHeight, minimumOuterHeight);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight, MarginBottom: marginBottom));
                     break;

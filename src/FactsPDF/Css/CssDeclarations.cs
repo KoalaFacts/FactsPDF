@@ -8,7 +8,7 @@ internal enum CssProperty
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
-    TextDecorationColor, TextDecorationStyle, BorderRadius
+    TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -112,7 +112,7 @@ internal static class CssDeclarations
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }
-    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property == CssProperty.BorderRadius;
+    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight;
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -156,6 +156,15 @@ internal static class CssDeclarations
                 CornerBottomRightRadius = corners.Item3,
                 CornerBottomLeftRadius = corners.Item4
             };
+        }
+        if (property == CssProperty.MinHeight)
+        {
+            var length = wide ? null : CssBoxValues.Length(value, declaration.Offset,
+                rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
+            if (length?.IsPercent == true)
+                throw new FactsPdfException("FPDF1202",
+                    "Report panel min-height does not support percentages.", declaration.Offset);
+            return current with { MinHeight = wide ? from.MinHeight : length };
         }
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };

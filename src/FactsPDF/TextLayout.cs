@@ -8,7 +8,7 @@ internal static class TextLayout
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
         bool HasParagraphDescendant = false, bool TopConsumed = false,
-        double MarginTop = 0);
+        double MarginTop = 0, double MinimumOuterHeight = 0);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -147,7 +147,8 @@ internal static class TextLayout
                 // A void rule or other empty decorated box must fit in one
                 // page fragment. Move it with its outside top margin before
                 // opening it, rather than discovering an overflow at closure.
-                if (begin.RequiredRuleHeight > 0)
+                var requiredHeight = Math.Max(begin.RequiredRuleHeight, begin.MinimumOuterHeight);
+                if (requiredHeight > 0)
                 {
                     // Match the established paint-budget precedence before
                     // rejecting an oversized empty box. A zero-width/zero-paint
@@ -155,11 +156,11 @@ internal static class TextLayout
                     if (displayCommands == o.MaxDisplayCommands)
                     {
                         var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
-                            begin.RequiredRuleHeight, begin.Style, begin.TextColor, paintOrder);
+                            requiredHeight, begin.Style, begin.TextColor, paintOrder);
                         EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
                     }
                     var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
-                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001 &&
+                    if (y + ruleGap + requiredHeight > bottom + 0.000001 &&
                         CurrentPageOccupied())
                     {
                         NewPage();
@@ -167,7 +168,7 @@ internal static class TextLayout
                         pendingClosedPadding = 0;
                         ruleGap = pendingTopPadding + begin.MarginTop;
                     }
-                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001)
+                    if (y + ruleGap + requiredHeight > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
                             "Empty decorated box and leading spacing cannot fit on a page.", begin.SourceOffset);
                 }
@@ -180,7 +181,7 @@ internal static class TextLayout
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
                     pages.Count - 1, start, paintOrder++, begin.IsParagraph,
-                    MarginTop: begin.MarginTop));
+                    MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight));
                 // Outside the border: only first-page placement and the
                 // containing ancestor's occupied content change, never paint.
                 pendingClosedPadding += begin.MarginTop;
@@ -191,6 +192,20 @@ internal static class TextLayout
             {
                 var scope = opened[^1];
                 opened.RemoveAt(opened.Count - 1);
+                // Preflight moves a short minimum-height panel to a fresh
+                // page before opening. A panel that actually spans pages has
+                // already occupied the bounded single-page minimum.
+                var minimumExtra = 0d;
+                if (scope.MinimumOuterHeight > 0 && scope.StartPage == pages.Count - 1)
+                {
+                    var childMargin = !scope.IsParagraph &&
+                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
+                        ? after : 0d;
+                    var naturalEnd = Math.Max(scope.StartY + scope.Top,
+                        y + pendingTopPadding + pendingClosedPadding + childMargin)
+                        + closing.PaddingBottom;
+                    minimumExtra = Math.Max(0, scope.StartY + scope.MinimumOuterHeight - naturalEnd);
+                }
                 var emittedPaint = false;
                 if (scope.Style.HasPaint)
                 {
@@ -209,7 +224,7 @@ internal static class TextLayout
                         ? scope.StartY + scope.Top : o.Margin;
                     var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
-                    finish += closing.PaddingBottom;
+                    finish += closing.PaddingBottom + minimumExtra;
                     if (displayCommands == o.MaxDisplayCommands)
                     {
                         // With no allowance left, a definitely nonzero paint
@@ -270,14 +285,14 @@ internal static class TextLayout
                     pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
                     pendingClosedPadding += scope.Top;
                 }
-                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom;
+                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom + minimumExtra;
                 // An unpainted empty child can still consume page geometry
                 // through padding, borders or margins. If it has already
                 // occupied space on a page, a painted ancestor cannot be
                 // moved intact to another page before its first text line.
                 var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
                     scope.Top > 0 || scope.MarginTop > 0 ||
-                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
+                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 || minimumExtra > 0 ||
                     (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
                     for (var i = 0; i < opened.Count; i++)
