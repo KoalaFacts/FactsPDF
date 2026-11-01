@@ -161,3 +161,13 @@ test('fixed-height PDF business cards show complete en-AU limits, not Chinese fa
     expect(await dialog.locator(selector).innerText()).not.toMatch(han);
   }
 });
+
+test('bounded report word-break appears in English with real PDF limits',async({page})=>{
+  await page.goto(base+'#feature=css.word-break');
+  const detail=page.getByRole('dialog');
+  await expect(detail).toBeVisible();
+  await expect(detail).toContainText('break-all');
+  await expect(detail).toContainText('glyph');
+  await expect(detail).toContainText('FPDF1302');
+  expect(await detail.innerText()).not.toMatch(han);
+});
