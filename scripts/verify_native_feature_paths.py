@@ -1367,7 +1367,8 @@ def verify_native_page_margin(executable, source, output, work, baseline_pdf):
                 'Margin changed the physical page dimensions', value, page)
             assert words, ('Unexpected blank report page with margin', value, page)
             for word, x1, y1, x2, y2 in words:
-                assert word and inset - 1 < x1 < x2 < width - inset + 1 and                     inset - 1 < y1 < y2 < height - inset + 1, (
+                assert (word and inset - 1 < x1 < x2 < width - inset + 1
+                        and inset - 1 < y1 < y2 < height - inset + 1), (
                     'Text outside user-selected physical print area', value, page, word, x1, y1, x2, y2)
                 observed_words[word] += 1
         assert observed_words == expected_words, (
