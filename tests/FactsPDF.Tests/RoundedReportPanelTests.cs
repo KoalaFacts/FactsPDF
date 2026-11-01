@@ -125,7 +125,7 @@ public sealed class RoundedReportPanelTests
     [TestCase("<section style='border-radius:4pt / 2pt'>Invalid</section>", "FPDF1202")]
     [TestCase("<section style='border-radius:4pt -2pt'>Invalid</section>", "FPDF1202")]
     [TestCase("<style>.unused{border-radius:6pt 0.1pt}</style><section>Invalid even unmatched</section>", "FPDF1202")]
-    [TestCase("<section style='border-top-left-radius:6pt'>Unsupported longhand</section>", "FPDF1201")]
+    [TestCase("<section style='border-top-left-radius:6pt 7pt'>Unsupported two-length corner</section>", "FPDF1202")]
     [TestCase("<section style='border-radius:3'>Invalid</section>", "FPDF1202")]
     [TestCase("<section style='border-radius:0.1pt'>Invalid</section>", "FPDF1202")]
     [TestCase("<section style='border-radius:73pt'>Invalid</section>", "FPDF1202")]

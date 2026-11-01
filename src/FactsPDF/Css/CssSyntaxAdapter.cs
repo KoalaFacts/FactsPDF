@@ -109,7 +109,9 @@ internal static class CssSyntaxAdapter
             // CSS four-corner order is top-left, top-right, bottom-right,
             // bottom-left. Validate *all* components, including unmatched
             // selectors; preserve one cascade winner for the full shorthand.
-            // Elliptical slash syntax and per-corner longhands remain rejected.
+            // Elliptical slash syntax remains rejected. Lower all four corners
+            // before winner selection so each longhand competes with its
+            // shorthand side under the normal cascade and !important.
             if (name == "border-radius")
             {
                 if (terms.Count > 4)
@@ -130,7 +132,27 @@ internal static class CssSyntaxAdapter
                     }
                     else _ = CssPaintValues.BorderRadius(parts[i], source.Span.Start);
                 }
-                Emit(property, string.Join(" ", parts), node.Span.Start);
+                var corners = ExpandFour(parts);
+                var targets = new[] { CssProperty.BorderTopLeftRadius, CssProperty.BorderTopRightRadius,
+                    CssProperty.BorderBottomRightRadius, CssProperty.BorderBottomLeftRadius };
+                var names = new[] { "border-top-left-radius", "border-top-right-radius",
+                    "border-bottom-right-radius", "border-bottom-left-radius" };
+                for (var i = 0; i < corners.Length; i++)
+                    Emit(targets[i], corners[i], node.Span.Start, names[i]);
+                continue;
+            }
+            if (name is "border-top-left-radius" or "border-top-right-radius"
+                or "border-bottom-right-radius" or "border-bottom-left-radius")
+            {
+                if (terms.Count != 1)
+                    throw new FactsPdfException("FPDF1202",
+                        "A corner-radius longhand requires exactly one physical length.", node.Span.Start);
+                var source = valueTokens[0].Token;
+                var radius = terms[0];
+                if (source.Kind == CssSyntaxTokenKind.Number && CssBoxValues.IsExactlyUnitlessZero(radius))
+                    radius = "0";
+                if (!Wide(radius)) _ = CssPaintValues.BorderRadius(radius, source.Span.Start);
+                Emit(property, radius, source.Span.Start);
                 continue;
             }
             if (name == "margin")
@@ -477,6 +499,10 @@ internal static class CssSyntaxAdapter
         "text-decoration-color" => CssProperty.TextDecorationColor,
         "text-decoration-style" => CssProperty.TextDecorationStyle,
         "border-radius" => CssProperty.BorderRadius,
+        "border-top-left-radius" => CssProperty.BorderTopLeftRadius,
+        "border-top-right-radius" => CssProperty.BorderTopRightRadius,
+        "border-bottom-right-radius" => CssProperty.BorderBottomRightRadius,
+        "border-bottom-left-radius" => CssProperty.BorderBottomLeftRadius,
         "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
         "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,
         "margin-left" or "margin-inline" or "margin-inline-start" => CssProperty.MarginLeft,

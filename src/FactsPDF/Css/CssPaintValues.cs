@@ -17,9 +17,8 @@ internal static class CssPaintValues
         return length.Value;
     }
 
-    // One-to-four value rectangular radii: TL, TR, BR, BL, with ordinary
-    // CSS repeated-side expansion. This is a shorthand, not four exposed
-    // longhands or elliptical radius syntax.
+    // One-to-four rectangular radii: TL, TR, BR, BL, in the legacy
+    // shorthand-compatible order. No elliptical radius syntax.
     internal static (double TopLeft, double TopRight, double BottomRight, double BottomLeft)
         BorderRadii(string value, int offset)
     {
