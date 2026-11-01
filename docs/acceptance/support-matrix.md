@@ -1,3 +1,17 @@
+## Current source: bounded image min/max-height PDF matrices
+
+Direct bound PNG/JPEG images and fixed-column td/th image items consume
+physical `max-height` and `min-height` constraints. Auto-height scales both
+PDF image axes from intrinsic pixel ratio; explicitly set CSS height can
+stretch independently, while min overrides max and border-box counts vertical
+edges once. Existing image resource, pagination and protected-output
+semantics remain. A 36-record Native AOT/qpdf/Poppler source-versus-physical
+PDF oracle and `ImageHeightConstraintsTests.cs` validate this bounded scope,
+including invalid input, conflicting axis geometry and retry preservation.
+Not a general CSS Sizing/max-height implementation: no percentages,
+em/rem/calc, SVG, object-fit, auto shrink or image page fragmentation.
+No new software package, reference approval, licensed grant or public release.
+
 ## Current-source bound image height PDF geometry
 
 Physical CSS `height` now changes the real PDF image matrix for explicitly

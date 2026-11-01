@@ -1042,6 +1042,56 @@ def verify_native_word_break(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_image_height_limits(executable, output, work, logo):
+    """Compare 36 real image-bound PDF records with a separate physical-width control."""
+    source = ROOT / 'examples/report-image-height-limits.html'
+    oracle = ROOT / 'examples/report-image-height-limits-oracle.html'
+    actual = output / 'report-image-height-limits.pdf'
+    control = output / 'report-image-height-limits-control.pdf'
+    for html, pdf in ((source, actual), (oracle, control)):
+        assert not run(executable, html, pdf, '--image', f'logo={logo}', cwd=work)
+        run('qpdf', '--check', pdf)
+    assert actual.read_bytes() == control.read_bytes(), (
+        'Bounded CSS image min/max-height differs from physical PDF image matrix oracle')
+    pages = count_pages(actual)
+    assert pages >= 2, '36 image height-bound report records must paginate'
+    words = []
+    for page in range(1, pages + 1):
+        width, height, placed = page_boxes(actual, page)
+        assert all(0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height
+                   for _, x0, y0, x1, y1 in placed), 'Image height-bound text outside page'
+        words.extend(label for label, *_ in placed)
+    records = [token for token in words if re.fullmatch(r'REC-\d{2}', token)]
+    assert records == [f'REC-{n:02d}' for n in range(1, 37)], (
+        'Missing, duplicated or reordered height-bound records', records)
+    assert words.count('Inspection') == 36, 'Height-bound report lost searchable text'
+    assert len(re.findall(rb'/Im\d+ Do', actual.read_bytes())) == 36, (
+        'Height-bound images missing or resource duplicated unexpectedly')
+    invalid = work / 'image-height-limit-invalid.html'
+    retained = output / 'image-height-limit-preserved.pdf'
+    for markup, code in (
+        ('<img src=logo style="max-height:50%">', b'FPDF1202'),
+        ('<img src=logo style="min-height:2rem">', b'FPDF1201'),
+        ('<img src=logo style="max-height:0">', b'FPDF1302'),
+        ('<img src=logo style="min-height:999pt">', b'FPDF1302'),
+        ('<section style="max-height:40pt">Invalid</section>', b'FPDF1201'),
+    ):
+        invalid.write_text(markup, encoding='utf-8')
+        retained.write_bytes(b'previous customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained),
+                                 '--overwrite', '--image', f'logo={logo}'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Invalid image height limit was accepted', markup, failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'previous customer PDF', (
+            'Rejected height constraint damaged customer PDF')
+    assert not run(executable, source, retained, '--overwrite', '--image', f'logo={logo}', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Height-bound retry PDF differs'
+    return {'records': 36, 'pages': pages, 'pdfSha256': sha(actual),
+            'sourceSha256': sha(source), 'oracleSha256': sha(oracle),
+            'nativePdfByteParity': True, 'protectedFailureRecovery': True}
+
+
 def verify_native_image_heights(executable, output, work, logo):
     """Measure actual Native AOT PDF image height against a separately authored width oracle."""
     source = ROOT / 'examples/report-image-heights.html'
@@ -1215,6 +1265,7 @@ def main():
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
+        image_height_limits = verify_native_image_height_limits(isolated, output, work, logo)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1241,6 +1292,7 @@ def main():
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,
+            'imageHeightLimits': image_height_limits,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

@@ -10,7 +10,7 @@ internal enum CssProperty
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
-    WordBreak
+    WordBreak, MaxHeight
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -115,7 +115,7 @@ internal static class CssDeclarations
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }
-    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height
+    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius;
 
@@ -198,6 +198,15 @@ internal static class CssDeclarations
                 throw new FactsPdfException("FPDF1202",
                     "Report panel height does not support percentages.", declaration.Offset);
             return current with { Height = wide ? from.Height : length };
+        }
+        if (property == CssProperty.MaxHeight)
+        {
+            CssLength? length = wide || value == "none" ? null
+                : CssBoxValues.Length(value, declaration.Offset);
+            if (length?.IsPercent == true)
+                throw new FactsPdfException("FPDF1202",
+                    "Image max-height does not support percentages.", declaration.Offset);
+            return current with { MaxHeight = wide ? from.MaxHeight : length };
         }
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };

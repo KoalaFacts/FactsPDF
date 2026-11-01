@@ -78,8 +78,11 @@ public sealed class ImageStructureTests
     {
         var error = Assert.Throws<FactsPdfException>(() => Tree("<img src=\"chart\" src=\"chart\">"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1101")); Assert.That(error.SourceOffset, Is.EqualTo(17));
-        Assert.That(Assert.Throws<FactsPdfException>(() => Tree("<img><style>.absent{max-height:10pt}</style>"))!.Code,
-            Is.EqualTo("FPDF1201"));
+        // max-height:10pt is now valid for bound images; an unmatched
+        // percentage declaration must still fail CSS preflight before the
+        // unrelated missing src attribute on this input.
+        Assert.That(Assert.Throws<FactsPdfException>(() => Tree("<img><style>.absent{max-height:10%}</style>"))!.Code,
+            Is.EqualTo("FPDF1202"));
     }
 
     [Test]

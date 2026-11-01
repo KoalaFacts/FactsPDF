@@ -38,7 +38,43 @@ internal static class ImageLayout
         if (style.MaxWidth is { } max) measure = Math.Min(measure, Resolve(max));
         if (style.MinWidth is { } min) measure = Math.Max(measure, Resolve(min));
         width = Checked(measure - (style.BorderBoxSizing ? edges : 0), image.SourceOffset);
-        var height = fixedHeight ?? Checked(width * image.Image.PixelHeight / image.Image.PixelWidth, image.SourceOffset);
+        // A vertical limit measures the same content-box/border-box space as
+        // height. With auto height, limit the PDF matrix proportionally on
+        // both axes; with explicit height, preserve the independent width.
+        // The minimum wins over a contradictory maximum, as for width.
+        var unconstrainedHeight = fixedHeight ?? width * image.Image.PixelHeight / image.Image.PixelWidth;
+        var heightMeasure = unconstrainedHeight + (style.BorderBoxSizing ? verticalEdges : 0);
+        if (style.MaxHeight is { } maxHeight)
+            heightMeasure = Math.Min(heightMeasure, Resolve(maxHeight));
+        if (style.MinHeight is { } minHeight)
+            heightMeasure = Math.Max(heightMeasure, Resolve(minHeight));
+        // Preserve the legacy height:auto computation byte-for-byte when no
+        // vertical bound is present; border-box arithmetic can otherwise
+        // introduce a rounding difference in every existing image PDF.
+        var height = style.MinHeight.HasValue || style.MaxHeight.HasValue
+            ? Checked(heightMeasure - (style.BorderBoxSizing ? verticalEdges : 0), image.SourceOffset)
+            : Checked(unconstrainedHeight, image.SourceOffset);
+        if (fixedHeight is null && (style.MinHeight.HasValue || style.MaxHeight.HasValue)
+            && Math.Abs(height - unconstrainedHeight) > 0.00000001)
+        {
+            // Height:auto preserves pixel aspect even after a CSS width cap.
+            // Reject mutually unsatisfiable min/max-width versus height bounds
+            // rather than silently throwing away either author's constraint.
+            width = Checked(height * image.Image.PixelWidth / image.Image.PixelHeight, image.SourceOffset);
+            var resultingWidth = width + (style.BorderBoxSizing ? edges : 0);
+            // The existing width clamp applies max first, then min: when
+            // min-width exceeds max-width the effective upper bound is the
+            // minimum, not infinity. Otherwise vertical constraints would
+            // silently override both specified horizontal limits.
+            var minBound = style.MinWidth is { } minWidth ? Resolve(minWidth) : 0;
+            var maxBound = style.MaxWidth is { } maxWidth
+                ? Math.Max(Resolve(maxWidth), minBound)
+                : double.PositiveInfinity;
+            if (resultingWidth + 0.000001 < minBound ||
+                resultingWidth > maxBound + 0.000001)
+                throw new FactsPdfException("FPDF1302",
+                    "Image height and width constraints cannot preserve the intrinsic aspect ratio.", image.SourceOffset);
+        }
         var outerWidth = Checked(width + edges, image.SourceOffset);
         var outerHeight = Checked(height + verticalEdges, image.SourceOffset);
         if (width <= 0 || height <= 0 || outerWidth > containingWidth + 0.000001)

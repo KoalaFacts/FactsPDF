@@ -1,3 +1,18 @@
+## Source-only bounded image min/max-height report layout
+
+Physical `min-height`/`max-height` now constrain directly bound standalone
+JPEG/PNG and direct fixed-column cell images in the actual PDF matrix.
+A vertical cap/minimum resizes auto-height images in native aspect ratio;
+explicit height permits independent width. Border-box and contradictory
+limits retain existing CSS cascade and failure-protection rules.
+[36 independent report records](../examples/report-image-height-limits.html)
+are checked against a [physical PDF control](../examples/report-image-height-limits-oracle.html)
+through the shared native CLI/qpdf/Poppler evidence gate, source NUnit and
+protected output recovery. Percent/em/rem/calc, unknown content resources,
+impossible width/height intersections, and arbitrary object-fit are unsupported.
+The retained preview, human PDF reference, actual CI, independent review and
+commercial grants remain separate.
+
 ## Source-only image width constraints for report logos
 
 Authors who bind a PNG/JPEG explicitly can write `max-width:100%` on an

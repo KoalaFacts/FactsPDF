@@ -2,6 +2,29 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Bounded image height limits for report logos and photos (source-only)
+
+Explicitly bound JPEG/PNG images now accept nonnegative physical
+`max-height` and `min-height` in `pt/px/mm/cm/in`, or `max-height:none`
+and `min-height:initial` to remove a constraint. With `height:auto`,
+the **actual PDF image matrix** preserves native pixel aspect ratio when a
+vertical limit changes height; with an explicit physical `height`, the
+width axis remains independently authored. `min-height` wins contradictory
+`max-height`, and `box-sizing:border-box` includes vertical
+padding/borders exactly once. Applicable to standalone images and direct
+fixed-column table-cell items; no network resources, percentage/em/rem
+height limits, `calc`, `object-fit`, arbitrary aspect-ratio fitting
+or silently violated horizontal constraints. Impossible dimensions
+fail `FPDF1201/1202/1302` while preserving existing PDFs.
+
+The [36-record height-constrained report](examples/report-image-height-limits.html)
+and [separately authored physical matrix control](examples/report-image-height-limits-oracle.html)
+exercise multiple PDF pages, searchable text, PNG resources, Linux/Windows
+Native AOT, qpdf/Poppler geometry, and failure recovery. This is a current
+**source** capability under review; it is not a rebuilt private candidate,
+human-approved page or customer licence.
+[Exact boundary](docs/images.md#bounded-image-height-limits).
+
 ### Explicit physical image heights for logos and report photos (source-only)
 
 Explicitly bound JPEG/PNG images now support `height:36pt` for standalone

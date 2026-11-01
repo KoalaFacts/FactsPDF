@@ -356,7 +356,7 @@ test('physical image height has complete English audit, with original methodolog
   const {englishFeature,translate}=await localisation();
   for(const id of ['html.img','pdf.images','css.box-sizing','css.height']){
     const f=englishFeature(data.features.find(x=>x.id===id));
-    assert.equal(f.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd',id);
+    assert.equal(f.last_audited_commit,'6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae',id);
     assert.match(f.scope,/height/i,id);
     assert.match(f.limitations,/percent|em\/rem/i,id);
     assert.doesNotMatch(f.scope+' '+f.limitations,han,id);
@@ -366,5 +366,18 @@ test('physical image height has complete English audit, with original methodolog
   assert.match(method,/414 other records retain historic source\/release identities/);
   assert.match(method,/Incremental 2 November 2026 source audit updates five existing stable records/);
   assert.doesNotMatch(method,/undefined|[\u3400-\u9fff]/u);
-  assert.match(translate(data.css_inventory_note),/418 stable records and 80 scoped CSS property names/);
+  assert.match(translate(data.css_inventory_note),/418 audit records and 81 scoped CSS property names/);
+});
+
+
+test('new English image height limit scope accurately separates bound img from panels', async () => {
+  const { englishFeature, translate } = await localisation();
+  const max = englishFeature(data.features.find(row => row.id === 'css.max-height'));
+  assert.equal(max.status,'partial');
+  assert.equal(max.last_audited_commit,'6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae');
+  assert.match(max.scope,/real PDF image matrix/);
+  assert.match(max.limitations,/object-fit/);
+  assert.match(max.limitations,/FPDF1302/);
+  assert.doesNotMatch(max.scope+max.limitations,han);
+  assert.match(translate(data.css_inventory_note),/81 scoped CSS property names/);
 });
