@@ -65,7 +65,9 @@ test('translated text keeps important scope restrictions and failure codes', asy
   const byId = id => englishFeature(data.features.find(row=>row.id===id));
   assert.match(byId('css.white-space').scope, /pre-line/);
   assert.match(byId('css.white-space').scope, /CRLF\/CR\/LF/);
-  assert.match(byId('css.white-space').limitations, /pre-wrap/);
+  assert.match(byId('css.white-space').scope, /pre-wrap/);
+  assert.match(byId('css.white-space').limitations, /tab stops/);
+  assert.match(byId('css.white-space').limitations, /FPDF1305/);
   assert.match(byId('css.white-space').limitations, /nowrap/);
   assert.match(byId('css.white-space').limitations, /FPDF1302/);
   assert.match(byId('css.letter-spacing').scope, /0–24pt/);
