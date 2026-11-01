@@ -367,16 +367,22 @@ internal sealed class CssStylesheets
                     && declaration.Property is (CssProperty.LineHeight
                         or CssProperty.LetterSpacing or CssProperty.WordSpacing)
                     ? style.FontSize : rootFontSize;
-                // Explicit paragraph/heading margin:inherit must read the direct
-                // panel's computed outside margin. Do not alter anonymous text
-                // or the default (non-inherited) paragraph margins.
-                var marginParent = paragraph && path.Count > 1 &&
-                    path[^2].Name is ("div" or "section" or "article" or "blockquote") &&
+                // Explicit paragraph/heading margin/break:inherit must read
+                // the direct panel's computed BoxStyle. Neither property is
+                // inherited by default; do not change anonymous text or the
+                // normal reset of non-inherited paragraph declarations.
+                var hasReportPanelParent = paragraph && path.Count > 1 &&
+                    path[^2].Name is ("div" or "section" or "article" or "blockquote");
+                var inheritedParent = hasReportPanelParent &&
                     declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                     ? parent with { MarginBefore = parentBox.MarginTop.Value,
                         MarginAfter = parentBox.MarginBottom.Value }
-                    : parent;
-                style = CssDeclarations.Apply(style, marginParent, initial, declaration,
+                    : hasReportPanelParent &&
+                        declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
+                        ? parent with { BreakBefore = parentBox.BreakBefore,
+                            BreakAfter = parentBox.BreakAfter }
+                        : parent;
+                style = CssDeclarations.Apply(style, inheritedParent, initial, declaration,
                     paragraph, computedRoot);
             }
         }

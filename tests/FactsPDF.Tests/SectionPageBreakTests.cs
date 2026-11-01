@@ -161,6 +161,63 @@ public sealed class SectionPageBreakTests
             "<p style='margin:0'>BEFORE</p><p style='margin:0'>AFTER</p>")));
     }
 
+
+    [TestCase("min-height:80pt")]
+    [TestCase("padding-top:22pt;padding-bottom:5pt")]
+    [TestCase("margin-top:19pt;margin-bottom:3pt")]
+    public void AClosedEmptyUnpaintedPanelStillOccupiesThePageBeforeAForcedBreak(string css)
+    {
+        var html = "<div style='" + css + "'></div>" +
+            "<section style='break-before:page'><p style='margin:0'>SECOND</p></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs, Is.Empty);
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 2"));
+        Assert.That(Render(html), Is.Not.EqualTo(Render(
+            "<section style='break-before:page'><p style='margin:0'>SECOND</p></section>")));
+    }
+
+    [Test]
+    public void AStillOpenAncestorTopMarginDoesNotCreateAnEmptyLeadingPage()
+    {
+        const string html = "<div style='margin-top:12pt'>" +
+            "<section style='break-before:page'><p style='margin:0'>FIRST</p>" +
+            "</section></div>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("FIRST"));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 1"));
+    }
+
+    [Test]
+    public void ParagraphExplicitInheritReadsContainingPanelPageBreak()
+    {
+        const string inherit = "<section style='break-after:page'>" +
+            "<p style='margin:0;break-after:inherit'>A</p>" +
+            "<p style='margin:0'>B</p></section>";
+        var pages = Layout(inherit);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("A"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("B"));
+        Assert.That(Encoding.ASCII.GetString(Render(inherit)), Does.Contain("/Count 2"));
+        var reset = inherit.Replace("break-after:inherit", "break-after:unset");
+        Assert.That(Layout(reset), Has.Count.EqualTo(1));
+        Assert.That(Render(inherit), Is.Not.EqualTo(Render(reset)));
+    }
+
+    [Test]
+    public void ParagraphExplicitBeforeInheritUsesPanelComputedPageBoundary()
+    {
+        const string html = "<p style='margin:0'>FIRST</p>" +
+            "<section style='break-before:page'>" +
+            "<p style='margin:0;break-before:inherit'>SECOND</p></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("FIRST"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+    }
+
     [Test]
     public void UnsupportedBreakKindsAndTargetsRejectAndPreserveCustomerPdf()
     {

@@ -32,6 +32,11 @@ internal static class TextLayout
         // predecessors contribute trailing spacing; a spanning box receives
         // page-local decoration slices rather than repeating its top padding.
         var pendingTopPadding = 0d; var pendingClosedPadding = 0d;
+        // A closed but still-deferred unpainted box can occupy real height
+        // (minimum height/padding/margins) without advancing y or emitting a
+        // drawing command. Keep this separate from an unconsumed opening
+        // margin on a still-open ancestor; only the former justifies a page.
+        var closedBoxOccupied = false;
         var opened = new List<OpenBlock>();
         var contentEpoch = 0; var paintOrder = 0;
         var displayCommands = 0;
@@ -54,7 +59,7 @@ internal static class TextLayout
         void NewPage()
         {
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
-            pages.Add(new()); y = o.Margin; after = 0;
+            pages.Add(new()); y = o.Margin; after = 0; closedBoxOccupied = false;
         }
         bool CurrentPageOccupied() => y > o.Margin + 0.000001
             || pendingClosedPadding > 0
@@ -148,6 +153,7 @@ internal static class TextLayout
                 if (forcePanelBreak || breakNext && (begin.Style.HasPaint || begin.MinimumOuterHeight > 0))
                 {
                     var hasRetainedContent = y > o.Margin + 0.000001 ||
+                        closedBoxOccupied ||
                         pages[^1].Runs.Count > 0 || pages[^1].Discs.Count > 0 ||
                         pages[^1].Images.Count > 0 ||
                         pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
@@ -312,8 +318,11 @@ internal static class TextLayout
                     closing.PaddingBottom > 0 || closing.MarginBottom > 0 || minimumExtra > 0 ||
                     (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
+                {
+                    closedBoxOccupied = true;
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { HasOccupiedDescendant = true };
+                }
                 // Page break after a panel belongs after its last paint/padding
                 // fragment; the next sibling consumes it exactly once.
                 if (scope.Style.BreakAfter) breakNext = true;
