@@ -100,6 +100,10 @@ internal static class TextLines
         IEnumerable<Glyph> ReadGlyphs()
         {
             Glyph? pendingSpace = null;
+            // Wrap naturally suppresses a nonexistent empty final line;
+            // every real segment break must still be emitted, including the
+            // last of consecutive trailing newlines.
+            var previousCarriageReturn = false;
             var afterText = false;
             // An ASCII word can cross differently styled inline spans, even
             // when one span explicitly resets text-transform to none.
@@ -109,6 +113,8 @@ internal static class TextLines
                 cancellation.ThrowIfCancellationRequested();
                 if (run.IsBreak)
                 {
+                    // HTML <br> starts a line even after an authored newline.
+                    previousCarriageReturn = false;
                     pendingSpace = null;
                     afterText = false;
                     insideAsciiWord = false;
@@ -122,6 +128,25 @@ internal static class TextLines
                         throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
                     i += consumed;
                     var scalar = rune.Value;
+                    if (paragraph.Style.PreserveLineBreaks)
+                    {
+                        // HTML's CRLF segment break is one break even across
+                        // differently styled spans; CR and FF also separate lines.
+                        if (scalar == 10 && previousCarriageReturn)
+                        {
+                            previousCarriageReturn = false;
+                            continue;
+                        }
+                        previousCarriageReturn = scalar == 13;
+                        if (scalar is 10 or 13 or 12)
+                        {
+                            yield return new Glyph(10, run.Style, null, 0, run.SourceOffset);
+                            pendingSpace = null;
+                            afterText = false;
+                            insideAsciiWord = false;
+                            continue;
+                        }
+                    }
                     // Scoped word definition: ASCII letters/digits form tokens;
                     // punctuation, spaces and non-ASCII scalars delimit them.
                     var wordCharacter = scalar is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');

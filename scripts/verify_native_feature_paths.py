@@ -467,6 +467,46 @@ def verify_native_list_markers(executable, root, output, work):
 
 
 
+def verify_native_multiline_notes(executable, output, work):
+    """Compare native rendered LF/CR paragraph breaks with separately authored HTML br."""
+    source = ROOT / 'examples/report-pre-line-notes.html'
+    oracle = ROOT / 'examples/report-pre-line-notes-oracle.html'
+    pdf = output / 'multiline-report.pdf'
+    expected = output / 'multiline-oracle.pdf'
+    assert source.is_file() and oracle.is_file(), 'Missing authored multiline report pair'
+    assert not run(executable, source, pdf, cwd=work)
+    assert not run(executable, oracle, expected, cwd=work)
+    assert pdf.read_bytes() == expected.read_bytes(), 'Native pre-line did not produce physical br-equivalent PDF'
+    count = count_pages(pdf)
+    assert count >= 2, '72 multiline report notes must paginate'
+    pages = [page_boxes(pdf, p) for p in range(1, count + 1)]
+    actual = [word for _, _, words in pages for word in words]
+    oracle_words = [word for p in range(1, count + 1) for word in page_boxes(expected, p)[2]]
+    assert actual == oracle_words, 'Native text positions differ from explicit-br oracle'
+    labels = [word[0] for word in actual]
+    for i in range(1, 73):
+        assert labels.count(f'REF{i:03d}') == 1, ('Missing or duplicate source note', i)
+    assert labels.count('FINALCHECK') == 1, 'Missing closing summary'
+    for name, html, code in (
+        ('invalid-mode', '<p style="white-space:pre-wrap">BAD</p>', 'FPDF1202'),
+        ('overwide-note', '<p style="width:5pt;white-space:pre-line">LONGIDENTIFIER</p>', 'FPDF1302')):
+        bad = output / ('multiline-' + name + '.html')
+        dest = output / ('multiline-' + name + '.pdf')
+        bad.write_text(html, encoding='utf-8')
+        dest.write_bytes(b'original-note-pdf')
+        failed = subprocess.run([str(executable), str(bad), str(dest), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code.encode() in failed.stderr and not failed.stdout, (
+            'Native multiline note error contract', name, failed.returncode, failed.stderr)
+        assert dest.read_bytes() == b'original-note-pdf', 'Native note failure clobbered output'
+        assert not run(executable, source, dest, '--overwrite', cwd=work)
+        assert dest.read_bytes() == pdf.read_bytes(), 'Native recovery changed report PDF bytes'
+    return {'pages': count, 'references': 72, 'textPositionsMatchOracle': True,
+            'pdfBytesMatchOracle': True, 'protectedFailureRecovery': True,
+            'pdfSha256': sha(pdf), 'sourceSha256': sha(source),
+            'oracleSha256': sha(oracle)}
+
+
 def verify_native_patterned_borders(executable, output, work):
     """Independently inspect actual Native AOT PDF strokes and text geometry."""
     source = ROOT / 'examples/report-patterned-borders.html'
@@ -585,6 +625,7 @@ def main():
         assert not list(output.glob('.factspdf-*.tmp')), 'Leaked CLI temporary output'
         list_markers = verify_native_list_markers(isolated, ROOT, output, work)
         patterned_borders = verify_native_patterned_borders(isolated, output, work)
+        multiline_notes = verify_native_multiline_notes(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -599,6 +640,7 @@ def main():
             'continuedRow': {'sha256': sha(continued), **row_result, 'repeatBytesEqual': True},
             'listMarkers': list_markers,
             'patternedBorders': patterned_borders,
+            'multilineNotes': multiline_notes,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

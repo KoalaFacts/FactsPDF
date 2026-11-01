@@ -103,11 +103,13 @@ internal static class InlineCss
                     } };
                     break;
                 case "white-space" when paragraph && !inline:
-                    style = style with { NoWrap = value switch
+                    if (value is not ("normal" or "nowrap" or "pre-line"))
+                        throw Invalid("Only normal, nowrap and collapsing pre-line white-space are supported.", offset);
+                    style = style with
                     {
-                        "normal" => false, "nowrap" => true,
-                        _ => throw Invalid("Only collapsing normal and nowrap white-space are supported.", offset)
-                    } };
+                        NoWrap = value == "nowrap",
+                        PreserveLineBreaks = value == "pre-line"
+                    };
                     break;
                 case "overflow-wrap" when paragraph && !inline:
                     // Emergency breaking applies only to the whole report
