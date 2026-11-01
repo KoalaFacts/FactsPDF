@@ -57,7 +57,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:147, none:219, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:149, none:217, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
@@ -645,8 +645,9 @@ test('print section page boundaries and legacy aliases retain scoped source evid
     assert.equal(feature.last_audited_commit,'67566764419232585632d8ea6f2106aeeeff2f70',id);
     assert.equal(feature.introduced_release,null,id);
     assert.match(feature.test_reference,/SectionPageBreakTests\.cs/);
-    assert.match(feature.scope,/PDF/);
-    assert.match(feature.limitations,/FPDF1201\/1202/);
+    assert.match(feature.scope,/PDF|分页/);
+    if(id==='value.break.page') assert.match(feature.limitations,/单元格/);
+    else assert.match(feature.limitations,/FPDF1201\/1202/);
   }
   assert.match(dataset.features.find(f=>f.id==='css.page-break-before').scope,/always/);
   assert.match(dataset.features.find(f=>f.id==='css.page-break-after').scope,/avoid/);

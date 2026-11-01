@@ -302,7 +302,8 @@ test('new source-bound panel breaks have fully translated English limits',async(
     const translated=englishFeature(original);
     assert.equal(translated.last_audited_commit,'67566764419232585632d8ea6f2106aeeeff2f70',id);
     assert.match(translated.scope,/PDF/);
-    assert.match(translated.limitations,/FPDF1201\/1202/);
+    if(id==='value.break.page') assert.match(translated.limitations,/CSS Fragmentation/);
+    else assert.match(translated.limitations,/FPDF1201\/1202/);
     assert.doesNotMatch(translated.scope+' '+translated.limitations,/[\u3400-\u9fff]/u);
   }
   assert.match(translate(data.css_inventory_note),/78 scoped CSS property names/);
