@@ -1,7 +1,7 @@
 import { englishAudit as previous } from './audit-english-quoted-rounded.mjs';
 // Incremental source-bound translation: all original audit entries retained.
 if (previous.length !== 718) throw new Error('Four-corner translation baseline changed.');
-export const sourceDigest = '7876340ba43dc2587f3cbaacb379077c6ce1e68030069a149a972092f0b93a27';
+export const sourceDigest = '91a809a79b2f62a243883ed9fde6bdd5e0b86faa05ae43e177f4a07522febf58';
 const additions = {
   "14": "Independent blockquote report panels keep 8pt vertical and 24pt horizontal default margins, inline styles, fonts, colours, width, background, border and actual searchable paginated PDF text. One-to-four physical border-radius values paint distinct TL/TR/BR/BL PDF curves on a uniform solid border ring and opaque background, with caps only on the first and last page fragments.",
   "15": "Bounded ordinary left-to-right quotes only; no cite attribute, q/cite elements, Tagged PDF, list/table/inline nesting, negative margins, vertical auto/percent, margin collapse, elliptical slash radii, separate corner CSS longhands, patterned/nonuniform rounded borders or calc. FPDF1101, FPDF1103, FPDF1201, FPDF1202 and FPDF1302 preserve existing customer PDF bytes.",

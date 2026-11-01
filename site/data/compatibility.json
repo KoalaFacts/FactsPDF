@@ -5334,7 +5334,7 @@
       "feature": "border-radius",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "普通报表 p/pre/h1–h6/div/section/article/blockquote 在列表及表格外接受一至四个物理 border-radius 角值（每值零或0.25–72pt）；左上、右上、右下、左下顺时针独立生成 PDF 贝塞尔背景及等宽同色实线镂空边框；窄框按比例收缩圆角，跨页首片仅上角、末片仅下角，文字定位和原外框尺寸不变。",
+      "scope": "普通报表 p/pre/h1–h6/div/section/article/blockquote 在列表及表格外接受一至四个物理 border-radius 角值（每值零或0.25–72pt）；左上、右上、右下、左下顺时针独立生成 PDF 贝塞尔背景及等宽同色实线镂空边框并真实绘制；窄框按比例收缩圆角，跨页首片仅上角、末片仅下角，文字定位和原外框尺寸不变。",
       "limitations": "不支持百分比、斜杠椭圆半径、独立各角 longhand、em/rem、图片/列表/表格/inline 盒圆角、不对称或虚点线边框、图像裁剪及完整浏览器 CSS Borders。仅允许 1–4 项有效物理长度或单个 CSS-wide 关键词；非零圆角描边必须四侧同宽同色实线，不合规输入 FPDF1201/1202/1302/1401 不覆盖原 PDF。",
       "stage": "CSS 语法、盒几何、真实 PDF 贝塞尔绘制（限定）",
       "applicability": "共享核心（CLI / .NET）",
