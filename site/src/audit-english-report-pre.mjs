@@ -16,5 +16,5 @@ const additions = {
 export const englishAudit = Object.freeze(sourceIndices.map((old, index) =>
   old >= 0 ? previous[old] : additions[index]));
 if (englishAudit.length !== 710 || englishAudit.some(value =>
-  typeof value !== 'string' || !value.trim() || /[\\u3400-\\u9fff]/u.test(value)))
+  typeof value !== 'string' || !value.trim() || /[\u3400-\u9fff]/u.test(value)))
   throw new Error('Invalid preformatted report English audit catalogue.');
