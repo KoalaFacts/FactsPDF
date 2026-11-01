@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.VerticalAlign + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextDecorationStyle + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -193,6 +193,8 @@ internal sealed class CssStylesheets
                     or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201",
                     "Relative em/rem report box lengths are supported only on ordinary block boxes.", declaration.Offset);
+            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle))
+                throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
