@@ -8,7 +8,7 @@ internal enum CssProperty
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
-    TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight,
+    TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
@@ -113,7 +113,7 @@ internal static class CssDeclarations
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }
-    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight
+    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius;
 
@@ -186,6 +186,16 @@ internal static class CssDeclarations
                 throw new FactsPdfException("FPDF1202",
                     "Report panel min-height does not support percentages.", declaration.Offset);
             return current with { MinHeight = wide ? from.MinHeight : length };
+        }
+        if (property == CssProperty.Height)
+        {
+            CssLength? length = wide || value == "auto" ? null
+                : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
+                    elementFontSize: elementFontSize, allowEm: true);
+            if (length?.IsPercent == true)
+                throw new FactsPdfException("FPDF1202",
+                    "Report panel height does not support percentages.", declaration.Offset);
+            return current with { Height = wide ? from.Height : length };
         }
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };

@@ -150,3 +150,14 @@ test('first-visit English discloses actual PDF section breaks and strict limitat
   await page.goto('/FactsPDF/#feature=css.page-break-inside');
   await expect(page.getByRole('dialog')).toContainText('Unsupported');
 });
+
+test('fixed-height PDF business cards show complete en-AU limits, not Chinese fallback', async ({page}) => {
+  await page.goto(base+'#feature=css.height');
+  const dialog=page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('FPDF1302');
+  await expect(dialog).toContainText('one-page');
+  for(const selector of ['.detail-scope','.limitation','.evidence']) {
+    expect(await dialog.locator(selector).innerText()).not.toMatch(han);
+  }
+});

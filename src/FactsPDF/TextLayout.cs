@@ -9,7 +9,8 @@ internal static class TextLayout
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
         bool HasParagraphDescendant = false, bool TopConsumed = false,
         double MarginTop = 0, double MinimumOuterHeight = 0,
-        int OpeningMarginPage = -1, int OpeningPaddingPage = -1);
+        int OpeningMarginPage = -1, int OpeningPaddingPage = -1,
+        double? FixedOuterHeight = null);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -96,8 +97,8 @@ internal static class TextLayout
                 // containing panel is unpainted. Its occupied descendants
                 // must also retain consumed top padding across the break.
                 var retainOrigin = scope.HasOccupiedDescendant &&
-                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || continuedPanel);
-                if ((scope.Style.HasPaint || scope.MinimumOuterHeight > 0) &&
+                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue || continuedPanel);
+                if ((scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) &&
                     (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
                     continuedPanel = true;
                 if (hasText || scope.TopConsumed) continue;
@@ -171,7 +172,7 @@ internal static class TextLayout
                 // top margins alone cannot produce a phantom leading page.
                 var forcePanelBreak = begin.Style.BreakBefore;
                 if (forcePanelBreak || breakNext && (begin.Style.HasPaint ||
-                    begin.MinimumOuterHeight > 0 || begin.PaddingTop > 0 ||
+                    begin.MinimumOuterHeight > 0 || begin.FixedOuterHeight.HasValue || begin.PaddingTop > 0 ||
                     begin.MarginTop > 0 || begin.TrailingSpace > 0))
                 {
                     // A deferred break must precede an empty box that reserves
@@ -192,7 +193,8 @@ internal static class TextLayout
                 // A void rule or other empty decorated box must fit in one
                 // page fragment. Move it with its outside top margin before
                 // opening it, rather than discovering an overflow at closure.
-                var requiredHeight = Math.Max(begin.RequiredRuleHeight, begin.MinimumOuterHeight);
+                var requiredHeight = Math.Max(Math.Max(begin.RequiredRuleHeight, begin.MinimumOuterHeight),
+                    begin.FixedOuterHeight ?? 0);
                 if (requiredHeight > 0)
                 {
                     // Match the established paint-budget precedence before
@@ -228,7 +230,8 @@ internal static class TextLayout
                     pages.Count - 1, start, paintOrder++, begin.IsParagraph,
                     MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight,
                     OpeningMarginPage: pages.Count - 1,
-                    OpeningPaddingPage: pages.Count - 1));
+                    OpeningPaddingPage: pages.Count - 1,
+                    FixedOuterHeight: begin.FixedOuterHeight));
                 // Outside the border: only first-page placement and the
                 // containing ancestor's occupied content change, never paint.
                 pendingClosedPadding += begin.MarginTop;
@@ -243,16 +246,25 @@ internal static class TextLayout
                 // page before opening. A panel that actually spans pages has
                 // already occupied the bounded single-page minimum.
                 var minimumExtra = 0d;
-                if (scope.MinimumOuterHeight > 0 && scope.StartPage == pages.Count - 1)
+                // Fixed-height report panels intentionally do not fragment.
+                // Reject oversize content before PDF emission rather than clipping.
+                if (scope.FixedOuterHeight.HasValue && scope.StartPage != pages.Count - 1)
+                    throw new FactsPdfException("FPDF1302",
+                        "Fixed-height report panel cannot span pages.", scope.SourceOffset);
+                if ((scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) &&
+                    scope.StartPage == pages.Count - 1)
                 {
-                    // A deferred preceding paragraph margin belongs to this
-                    // scope's origin even when it contains no text. Count it
-                    // once when measuring nested empty minimum-height panels,
-                    // rather than reserving it again at the outer closure.
+                    // A deferred preceding margin must be counted only once,
+                    // including the opening geometry of nested empty panels.
                     var naturalEnd = Math.Max(scope.StartY + scope.Top,
                         y + pendingTopPadding + pendingClosedPadding + after)
                         + closing.PaddingBottom;
-                    minimumExtra = Math.Max(0, scope.StartY + scope.MinimumOuterHeight - naturalEnd);
+                    var requiredOuterHeight = Math.Max(scope.MinimumOuterHeight, scope.FixedOuterHeight ?? 0);
+                    if (scope.FixedOuterHeight.HasValue &&
+                        naturalEnd > scope.StartY + requiredOuterHeight + 0.000001)
+                        throw new FactsPdfException("FPDF1302",
+                            "Fixed-height report panel content exceeds available height.", scope.SourceOffset);
+                    minimumExtra = Math.Max(0, scope.StartY + requiredOuterHeight - naturalEnd);
                 }
                 if (minimumExtra > 0)
                 {
@@ -271,7 +283,7 @@ internal static class TextLayout
                     // containing block's content height.
                     var childBottomMargin = !scope.IsParagraph &&
                         (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
-                         scope.MinimumOuterHeight > 0)
+                         scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue)
                         ? after : 0d;
                     var finalPage = pages.Count - 1;
                     // The first page's border-box origin and the last page's

@@ -2,6 +2,27 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Fixed-height report cards (source-only)
+
+Invoices, inspection reports and status summaries can now use `height:85pt`
+on ordinary `div/section/article/blockquote` panels outside tables and lists.
+Unlike a syntax-only declaration, it reserves **actual PDF panel height**,
+paints the background and borders through that height and moves following
+text accordingly. `box-sizing:content-box` adds vertical padding/borders;
+`border-box` includes them. CSS cascade, computed `em/rem` and the
+independent `min-height` lower bound apply.
+
+The [40-card report](examples/report-fixed-height-cards.html) and its
+[minimum-height physical PDF oracle](examples/report-fixed-height-cards-oracle.html)
+exercise actual Native AOT PDF text, page geometry and protected failures.
+Fixed cards must fit on one page **with all their content**: overflow
+explicitly fails `FPDF1302` instead of silently clipping or overlapping
+the next section. No percentages, `calc()`, `max-height`, list/table/inline
+targets or general CSS Sizing. This is current source only at
+`9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc`, not the older private
+preview, an approved reference page or a customer grant.
+[Exact CSS contract](docs/css-stylesheets.md#current-source-fixed-height-report-panels).
+
 ### Print-ready report section page boundaries (source-only)
 
 Use `break-before:page` and `break-after:page` on normal
@@ -55,8 +76,9 @@ or unplaceable input preserves the original PDF.
 See [the bounded CSS and failure contract](docs/css-stylesheets.md#current-source-minimum-height-report-panels),
 [a ready-to-run inspection example](examples/report-min-height-cards.html)
 and [the native PDF / physical spacer oracle](examples/report-min-height-cards-native.html).
-This is not arbitrary `height`/`max-height`, percentages, tables, lists,
-flex/grid, general CSS sizing, a new released binary or customer authorization.
+This is not general CSS `height`/`max-height`, percentages, tables, lists,
+flex/grid, arbitrary sizing, a new released binary or customer authorization.
+A separate, strictly one-page fixed-`height` panel subset is documented above.
 
 ### Rounded commercial report cards (source-only)
 

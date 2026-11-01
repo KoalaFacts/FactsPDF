@@ -1,3 +1,24 @@
+## Current-source fixed-height business-report panel rendering
+
+`height:auto` or bounded nonnegative `pt/px/mm/cm/in/em/rem` (and
+exact unitless zero) on ordinary div/section/article/blockquote outside
+lists/tables now determines actual PDF painted box height and following
+text location, under the established CSS cascade and `box-sizing`.
+The larger `min-height` remains the lower bound. A fixed-height panel
+must fit its content on one page: overflow, cross-page continuation,
+percentages, invalid values and unsupported elements fail explicitly
+without replacing a prior destination.
+
+`ReportPanelFixedHeightTests.cs`, the 40-card
+[report](../../examples/report-fixed-height-cards.html),
+[layout control](../../examples/report-fixed-height-cards-oracle.html)
+and the shared Native AOT/qpdf/Poppler gate check PDF bytes, measured
+glyph/box positioning, pagination and protected-output recovery.
+This is source capability at `9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc`,
+not full CSS Sizing, an installable package, approved pages or a
+customer distribution grant. Final-head CI and independent review
+must be verified separately.
+
 ## Current-source bounded report-section page boundaries
 
 The source at `67566764419232585632d8ea6f2106aeeeff2f70`
@@ -44,7 +65,7 @@ Actual glyph positions, panel rectangles, following rows, page relocation and
 multi-page natural content are covered by `ReportPanelMinHeightTests.cs`,
 the inspection example and 40-card Native AOT qpdf/Poppler physical-padding
 oracle in `verify_native_feature_paths.py`. Indefinite percentages, auto,
-height/max-height, table/list/inline targets and unplaceable geometry
+unrestricted height/max-height, table/list/inline targets and unplaceable geometry
 explicitly fail with protected original output. No general CSS Sizing,
 human reference approval, public/private candidate rebadge or customer licence.
 
