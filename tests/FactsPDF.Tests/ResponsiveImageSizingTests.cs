@@ -72,8 +72,8 @@ public sealed class ResponsiveImageSizingTests
             "<img src='chart' style='width:80pt;max-width:100pt;min-width:130pt'>",
             "<img src='chart' style='width:130pt'>");
         SamePdf(
-            "<img src='chart' style='max-width:50%'>",
-            "<img src='chart' style='width:261.64pt'>");
+            "<section style='width:200pt'><img src='chart' style='max-width:50%'></section>",
+            "<section style='width:200pt'><img src='chart' style='width:100pt'></section>");
     }
 
     [Test]
