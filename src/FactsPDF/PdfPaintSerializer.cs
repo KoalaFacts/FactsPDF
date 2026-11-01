@@ -142,7 +142,7 @@ internal static class PdfPaintSerializer
         // inset-by-half-width collapses the line to a point, and round caps
         // extend outside the measured box. Draw a nonzero centreline and clip
         // its caps and dashes to the original edge rectangle instead.
-        var clipShortEdge = length < stroke;
+        var clipShortEdge = length <= stroke + 1e-10;
         var inset = clipShortEdge ? 0d : stroke / 2;
         var x1 = horizontal ? x + inset : x + width / 2;
         var x2 = horizontal ? x + width - inset : x1;

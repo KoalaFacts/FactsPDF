@@ -134,21 +134,37 @@ public sealed class ReportPatternedBorderTests
         Assert.That(Encoding.ASCII.GetString(Pdf(dashed)), Does.Contain("[9 9] 0 d"));
     }
 
-    [TestCase("dashed", "[60 60] 0 d")]
-    [TestCase("dotted", "1 J [0.001 40] 0 d")]
-    public void ShortPatternedSideEdgesAreVisibleAndClippedToTheirMeasuredBox(
-        string kind, string expectedPattern)
+    [TestCase("dashed", "[60 60] 0 d", 1)]
+    [TestCase("dotted", "1 J [0.001 40] 0 d", 1)]
+    [TestCase("dashed", "[60 60] 0 d", 20)]
+    [TestCase("dotted", "1 J [0.001 40] 0 d", 20)]
+    public void ShortAndSquarePatternedSideEdgesAreVisibleAndClippedToTheirMeasuredBox(
+        string kind, string expectedPattern, int length)
     {
         var html = "<div style='border-left:20pt " + kind +
-            " red;padding-bottom:1pt'></div>";
+            " red;padding-bottom:" + length + "pt'></div>";
         var box = Layout(html).Single().PaintBoxes.Single();
-        Assert.That(box.Height, Is.EqualTo(1).Within(0.00001));
+        Assert.That(box.Height, Is.EqualTo(length).Within(0.00001));
         Assert.That(box.CommandCount, Is.EqualTo(1));
         var pdf = Encoding.ASCII.GetString(Pdf(html));
         Assert.That(pdf, Does.Contain(expectedPattern));
         Assert.That(pdf, Does.Contain(" re W n "),
-            "The short line and any round caps must be clipped to the 1pt border slice.");
+            "The short or square line and its caps must be clipped to the measured border slice.");
         Assert.That(pdf, Does.Contain(" l S Q"), "A real noncollapsed stroke must be emitted.");
+    }
+
+    [TestCase("dashed", "[60 60] 0 d")]
+    [TestCase("dotted", "1 J [0.001 40] 0 d")]
+    public void ShortHorizontalEdgesUseTheSameClippingContract(
+        string kind, string expectedPattern)
+    {
+        var html = "<div style='width:1pt;border-top:20pt " + kind + " red'></div>";
+        var box = Layout(html).Single().PaintBoxes.Single();
+        Assert.That(box.Width, Is.EqualTo(1).Within(0.00001));
+        var pdf = Encoding.ASCII.GetString(Pdf(html));
+        Assert.That(pdf, Does.Contain(expectedPattern));
+        Assert.That(pdf, Does.Contain(" re W n "));
+        Assert.That(pdf, Does.Contain(" l S Q"));
     }
 
     [TestCase(20)]
