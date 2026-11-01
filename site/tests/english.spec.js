@@ -137,3 +137,16 @@ test('empty-result clearing keeps rows, empty state and pagination consistent ac
   await page.locator('.reset').click();await full();
   expect(errors).toEqual([]);
 });
+
+test('first-visit English discloses actual PDF section breaks and strict limitations', async({page})=>{
+  await page.goto('/FactsPDF/#feature=css.page-break-before');
+  const detail=page.getByRole('dialog');
+  await expect(detail).toBeVisible();
+  await expect(detail).toContainText('always');
+  await expect(detail).toContainText('PDF');
+  await expect(detail).toContainText('FPDF1201/1202');
+  expect(await detail.innerText()).not.toMatch(/[\u3400-\u9fff]/u);
+  await page.getByRole('button',{name:'Close details',exact:true}).click();
+  await page.goto('/FactsPDF/#feature=css.page-break-inside');
+  await expect(page.getByRole('dialog')).toContainText('Unsupported');
+});
