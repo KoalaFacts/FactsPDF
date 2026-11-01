@@ -252,3 +252,14 @@ test('bounded CSS list markers have complete English source-bound translations',
   for(const id of ['html.ol','html.ul','html.li'])
     assert.doesNotMatch(englishFeature(data.features.find(f=>f.id===id)).scope,han);
 });
+
+test('patterned border scope and limitations remain precise in English', async () => {
+  const { englishFeature } = await localisation();
+  for(const id of ["css.border","css.border-top","css.border-right","css.border-bottom","css.border-left","css.border-style","css.border-top-style","css.border-right-style","css.border-bottom-style","css.border-left-style"]){
+    const feature=englishFeature(data.features.find(f=>f.id===id));
+    assert.match(feature.scope,/dashed/);
+    assert.match(feature.scope,/dotted/);
+    assert.match(feature.limitations,/double/);
+    assert.doesNotMatch(feature.evidence_level,han);
+  }
+});
