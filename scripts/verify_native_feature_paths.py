@@ -621,6 +621,56 @@ def verify_native_patterned_borders(executable, output, work):
             'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
 
+
+def verify_native_preformatted_audit(executable, output, work):
+    """Real Native AOT source notes, PDF text/geometry and protected failure recovery."""
+    source = ROOT / 'examples/report-preformatted-audit.html'
+    oracle = ROOT / 'examples/report-preformatted-audit-oracle.html'
+    assert source.is_file() and oracle.is_file(), 'Missing preformatted audit examples'
+    pdf = output / 'preformatted-audit.pdf'
+    control = output / 'preformatted-audit-oracle.pdf'
+    assert not run(executable, source, pdf, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    assert pdf.read_bytes() == control.read_bytes(), 'Native pre differs from independent pre-wrap oracle'
+    pages = count_pages(pdf)
+    assert pages >= 2, 'Authored 72-row audit must span pages'
+    seen = [word for page in range(1, pages + 1) for word in page_lines(pdf, page)]
+    for index in range(1, 73):
+        label = f'R{index:03d}'
+        assert sum(label in line.split() for line in seen) == 1, ('Missing or duplicate preformatted row', label)
+    assert any('FINAL' in line for line in seen), 'Final audit line disappeared'
+
+    spaced = output / 'preformatted-spacing.html'
+    single = output / 'preformatted-single-space.html'
+    spaced.write_text('<pre>AB   BA</pre>', encoding='utf-8')
+    single.write_text('<pre>AB BA</pre>', encoding='utf-8')
+    gap_pdf = output / 'preformatted-spacing.pdf'
+    single_pdf = output / 'preformatted-single-space.pdf'
+    assert not run(executable, spaced, gap_pdf, cwd=work)
+    assert not run(executable, single, single_pdf, cwd=work)
+    def second_word_x(path):
+        words = page_boxes(path, 1)[2]
+        match = [word for word in words if word[0] == 'BA']
+        assert len(match) == 1, ('Missing PDF bbox spacing word', path, words)
+        return match[0][1]
+    delta = second_word_x(gap_pdf) - second_word_x(single_pdf)
+    assert 13.5 < delta < 15.5, ('Literal U+0020 glyph advances missing in PDF', delta)
+
+    invalid = output / 'preformatted-tab.html'
+    invalid.write_text('<pre>AB&#9;BA</pre>', encoding='utf-8')
+    dest = output / 'preformatted-recovery.pdf'
+    dest.write_bytes(b'preformatted sentinel')
+    result = subprocess.run([str(executable), str(invalid), str(dest), '--overwrite'],
+                            cwd=work, capture_output=True, timeout=120)
+    assert result.returncode == 3 and b'FPDF1305' in result.stderr and not result.stdout, (
+        'Native tab-stop rejection failed', result.returncode, result.stderr)
+    assert dest.read_bytes() == b'preformatted sentinel', 'Failed native pre replaced previous PDF'
+    assert not run(executable, source, dest, '--overwrite', cwd=work)
+    assert dest.read_bytes() == pdf.read_bytes(), 'Native pre recovery changed valid PDF bytes'
+    return {'pages': pages, 'rows': 72, 'spaceDeltaPt': round(delta, 3),
+            'independentOracleBytesEqual': True, 'protectedFailureRecovery': True,
+            'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -682,6 +732,7 @@ def main():
         patterned_borders = verify_native_patterned_borders(isolated, output, work)
         multiline_notes = verify_native_multiline_notes(isolated, output, work)
         preserved_spaces = verify_native_preserved_space_notes(isolated, output, work)
+        preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -698,6 +749,7 @@ def main():
             'patternedBorders': patterned_borders,
             'multilineNotes': multiline_notes,
             'preservedSpaces': preserved_spaces,
+            'preformattedAudit': preformatted_audit,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

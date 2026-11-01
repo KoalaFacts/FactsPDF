@@ -210,4 +210,19 @@ public sealed class HeadingKeepTests
         Assert.That(TableLayoutTests.Pdf(html, options), Is.EqualTo(TableLayoutTests.Pdf(html.Replace("break-after:avoid;", ""), options)));
     }
 
+    [Test]
+    public void PreformattedFollowerMovesWithMarkedHeadingAndMatchesExplicitCssParagraph()
+    {
+        const string preStyle = "<style>pre{font-size:10pt;line-height:2;margin:0;font-weight:normal}</style>";
+        var prefix = Css + preStyle + Before(2) + Heading();
+        var pre = prefix + "<pre>A\nB</pre><p>AFTER</p>";
+        var paragraph = prefix + "<p style='white-space:pre'>A\nB</p><p>AFTER</p>";
+        var pages = TableLayoutTests.Layout(pre, Page);
+        Assert.That(pages.Select(p => string.Join(',', p.Runs.Select(r => r.Text))),
+            Is.EqualTo(new[] { "BEFORE,BEFORE", "TITLE,A,B,AFTER" }),
+            "A heading and the first preformatted line must share a fresh page when the tail cannot fit them.");
+        Assert.That(TableLayoutTests.Pdf(pre, Page), Is.EqualTo(TableLayoutTests.Pdf(paragraph, Page)),
+            "The <pre> follower must participate in heading keep exactly like a p with white-space:pre.");
+    }
+
 }

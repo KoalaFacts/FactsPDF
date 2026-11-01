@@ -147,6 +147,14 @@ internal static class TextLines
                             continue;
                         }
                     }
+                    // Preserving modes retain ordinary U+0020 only. Never
+                    // attempt to resolve unsupported control whitespace as
+                    // a font glyph or accidentally output it; report a stable
+                    // error before any PDF bytes replace the destination.
+                    if (paragraph.Style.PreserveSpaces && (scalar is < 32 or 127))
+                        throw new FactsPdfException("FPDF1305",
+                            "Preformatted report text does not support tab stops or control whitespace.",
+                            run.SourceOffset);
                     // Scoped word definition: ASCII letters/digits form tokens;
                     // punctuation, spaces and non-ASCII scalars delimit them.
                     var wordCharacter = scalar is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');

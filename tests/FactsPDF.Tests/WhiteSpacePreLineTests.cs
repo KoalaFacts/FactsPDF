@@ -160,7 +160,7 @@ public sealed class WhiteSpacePreLineTests
         Reject("<p style='white-space:pre-line'>AB\nC</p>", "FPDF1504", options);
     }
 
-    [TestCase("<p style='white-space:pre'>A</p>", "FPDF1202")]
+    [TestCase("<p style='white-space:pre nowrap'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:pre-wrap nowrap'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:break-spaces'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:pre-line nowrap'>A</p>", "FPDF1202")]

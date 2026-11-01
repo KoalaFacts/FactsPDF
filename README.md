@@ -103,8 +103,9 @@ LF, CRLF, CR and form-feed while continuing to collapse ordinary spaces/tabs.
 Lines still soft-wrap to the measured PDF content width and continue across pages;
 the final source segment break is discarded. An explicit `<br>` remains a break.
 Scoped stylesheet/inline CSS, cascade and explicit p-in-table-cell width work,
-but container/span declarations, `pre`, `break-spaces`, RTL/shaping and
-unrestricted CSS Text do not. Use the separate bounded `pre-wrap` mode when
+but container/span declarations, `break-spaces`, RTL/shaping and
+unrestricted CSS Text do not. For unwrapped source lines, use the separate
+bounded `<pre>` or `white-space:pre` report mode. Use the separate bounded `pre-wrap` mode when
 an authored report must retain visible U+0020 space advances.
 
 The [72-record report](examples/report-pre-line-notes.html) has an
@@ -127,8 +128,9 @@ wrapping, paragraph alignment, table-cell line occupancy and pagination.
 ```
 
 The source-only boundary is deliberate: no tab stops or other control
-whitespace (explicit `FPDF1305`), no `pre`/`break-spaces`, span/container
-white-space declarations, RTL or full CSS Text. An unbreakable word or
+whitespace (explicit `FPDF1305`), no `break-spaces` or span/container
+white-space declarations, RTL or full CSS Text. The separate `pre` mode
+preserves these spaces and authored breaks but forbids all automatic wrapping. An unbreakable word or
 single unfit space errors with `FPDF1302`, preserving an existing PDF.
 CSS cascade, `!important` and CSS-wide reset values use the same
 paragraph-style path as `pre-line`; ordinary `normal` and `nowrap` PDFs
@@ -140,6 +142,37 @@ and [scoped contract](docs/css-stylesheets.md#current-source-preserved-space-rep
 Source NUnit and Linux/Windows Native AOT/Poppler evidence check the actual
 glyph positions, line breaks, pagination and failed-output restoration.
 No released binary, NuGet package or customer grant follows from this change.
+
+### Current-source preformatted report audit blocks
+
+For inspection logs, reconciliations and aligned audit notes, an explicitly
+closed `<pre>…</pre>` block or `white-space:pre` on an existing `p`/heading
+preserves **every authored U+0020 space** and CRLF/CR/LF/form-feed newline,
+without soft-wrapping a line. This is real PDF glyph positioning and pagination,
+not an HTML tag accepted without rendering. An explicitly styled inline span
+may colour part of a line; `<br>` remains a manual break. The engine uses the
+caller's chosen font chain (or built-in Courier when no font is supplied) and
+does not silently substitute a browser-style monospace face.
+
+```html
+<pre>REF001   OK
+REF002   NEEDS REVIEW
+TOTAL    002</pre>
+```
+
+Long lines that do not fit the resolved content width fail `FPDF1302` rather
+than wrapping, shrinking or clipping. Tabs and other control whitespace fail
+`FPDF1305`; no tab stops, general CSS Text, nested blocks, or `pre` within
+lists/tables are implemented. `<pre>` is an ordinary standalone block, not
+a full HTML5 preformatted/semantic renderer. Stylesheets, `!important`,
+`inherit`/`initial`/`unset`, page breaks, true font metrics and protected
+output still use the established paragraph pipeline. This is source code only,
+not a new installable binary or distribution grant.
+
+See the [72-row audit report](examples/report-preformatted-audit.html),
+[independent pre-wrap PDF oracle](examples/report-preformatted-audit-oracle.html),
+[CSS/HTML contract](docs/css-stylesheets.md#current-source-preformatted-audit-blocks),
+and source/Native AOT tests.
 
 ### Current-source dashed and dotted report borders
 
@@ -163,7 +196,7 @@ No public binary or customer distribution rights follow from this source change.
 | --- | --- | --- |
 | Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
 | Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap`, `white-space:pre-line` or bounded `white-space:pre-wrap` with real authored breaks and spaces and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase/capitalize` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
+| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap`, `white-space:pre-line`, `white-space:pre-wrap` or unwrapped `white-space:pre` with real authored breaks and spaces and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase/capitalize` on report text, colour-only `background` and solid underline/strike-through decorations | [CSS and spacing boundaries](docs/css-stylesheets.md) |
 | Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
 | Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers and oversized body rows continuing across pages | [Table rules and limits](docs/tables.md) |
 | Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
@@ -451,7 +484,7 @@ Controlled report prose can opt into `word-spacing:0.01in` (equivalent to `0.72p
 
 Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](docs/css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](examples/report-overflow-wrap.html), and [independent manual-break oracle](examples/report-overflow-wrap-oracle.html).
 
-Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` and headings; multiline inspection notes can use `white-space:pre-line` instead. Spaces still collapse, explicit `<br>` works, and content too wide for the measured line fails with `FPDF1302` without replacing the output. `normal` is byte-identical to the default; `pre`, `break-spaces` and arbitrary inline white-space spans remain unsupported. See [bounded white-space](docs/css-stylesheets.md#current-source-nonwrapping-report-labels) and [multiline notes](docs/css-stylesheets.md#current-source-multiline-report-notes).
+Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` and headings; multiline inspection notes can use `white-space:pre-line` instead. Spaces still collapse, explicit `<br>` works, and content too wide for the measured line fails with `FPDF1302` without replacing the output. `normal` is byte-identical to the default; `pre` is separately supported as a bounded unwrapped preservation mode, while `break-spaces` and arbitrary inline white-space spans remain unsupported. See [bounded white-space](docs/css-stylesheets.md#current-source-nonwrapping-report-labels) and [multiline notes](docs/css-stylesheets.md#current-source-multiline-report-notes).
 
 Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).
 

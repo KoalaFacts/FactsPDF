@@ -140,7 +140,7 @@ internal sealed class CssStylesheets
             // Lists/tables/images/inline/metadata have different layout and
             // resource contracts; their display declarations fail explicitly.
             if (declaration.Property == CssProperty.Display &&
-                (element.Name is not ("p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "blockquote") ||
                  path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
