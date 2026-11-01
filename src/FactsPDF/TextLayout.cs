@@ -61,12 +61,18 @@ internal static class TextLayout
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
             pages.Add(new()); y = o.Margin; after = 0; closedBoxOccupied = false;
         }
-        bool CurrentPageOccupied() => y > o.Margin + 0.000001
-            || pendingClosedPadding > 0
+        // Deferred margins on still-open ancestors must not count as page
+        // content for a second explicit break on an otherwise empty page.
+        // Closed empty boxes do occupy the current page even without ink.
+        bool HasRetainedPageContent() => y > o.Margin + 0.000001
+            || closedBoxOccupied
             || pages[^1].Runs.Count > 0
             || pages[^1].Discs.Count > 0
             || pages[^1].Images.Count > 0
             || pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
+
+        bool CurrentPageOccupied() => HasRetainedPageContent()
+            || pendingClosedPadding > 0;
 
         bool HasUnconsumedPanelTopMargin() => opened.Any(scope => scope.MarginTop > 0 &&
             scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
@@ -158,12 +164,7 @@ internal static class TextLayout
                     // space only through its top/bottom padding or margins.
                     // An open ancestor's unconsumed margin alone, however,
                     // does not justify an otherwise blank leading PDF page.
-                    var hasRetainedContent = y > o.Margin + 0.000001 ||
-                        closedBoxOccupied ||
-                        pages[^1].Runs.Count > 0 || pages[^1].Discs.Count > 0 ||
-                        pages[^1].Images.Count > 0 ||
-                        pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
-                    if (hasRetainedContent)
+                    if (HasRetainedPageContent())
                     {
                         NewPage();
                         MoveUnconsumedBlocksToNewPage();
@@ -307,7 +308,10 @@ internal static class TextLayout
                             IsFirstFragment: isFirst, IsLastFragment: isLast);
                         ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
                         pages[pageIndex].PaintBoxes.Add(painted);
-                        emittedPaint |= painted.CommandCount > 0;
+                        // Only paint generated on this page can make this page
+                        // occupied. An ancestor's earlier fragment cannot.
+                        if (pageIndex == finalPage)
+                            emittedPaint |= painted.CommandCount > 0;
                     }
                 }
                 if (scope.ContentEpoch == contentEpoch && !scope.TopConsumed)
@@ -322,10 +326,15 @@ internal static class TextLayout
                 // through padding, borders or margins. If it has already
                 // occupied space on a page, a painted ancestor cannot be
                 // moved intact to another page before its first text line.
-                var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
-                    scope.Top > 0 || scope.MarginTop > 0 ||
-                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 || minimumExtra > 0 ||
-                    (scope.IsParagraph && after > 0);
+                // HasOccupiedDescendant is a lifetime fact used for continuation,
+                // not proof of current-page occupancy after an empty page break.
+                // Opening margins/padding belong only to their opening page;
+                // closing padding/margins are genuinely on this page.
+                var originOnThisPage = scope.StartPage == pages.Count - 1;
+                var occupiesSpace = emittedPaint ||
+                    (originOnThisPage && (scope.Top > 0 || scope.MarginTop > 0)) ||
+                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
+                    minimumExtra > 0 || (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
                 {
                     closedBoxOccupied = true;
@@ -342,12 +351,12 @@ internal static class TextLayout
                 ChargeDisplayCommands(1, image.Node.SourceOffset);
                 if (breakNext)
                 {
-                    if (CurrentPageOccupied())
+                    if (HasRetainedPageContent())
                     {
                         NewPage();
                         MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
                     }
-                    pendingClosedPadding = 0;
                 }
                 breakNext = false;
                 var imageGap = after + pendingTopPadding + pendingClosedPadding;
@@ -384,12 +393,12 @@ internal static class TextLayout
                     continue;
                 if (breakNext)
                 {
-                    if (CurrentPageOccupied())
+                    if (HasRetainedPageContent())
                     {
                         NewPage();
                         MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
                     }
-                    pendingClosedPadding = 0;
                 }
                 breakNext = false;
                 var tableGap = after + pendingTopPadding + pendingClosedPadding;
@@ -578,13 +587,10 @@ internal static class TextLayout
             {
                 // Empty painted/padded paragraphs still occupy box geometry
                 // and can request page breaks, even without glyphs.
-                if (paragraph.Style.BreakBefore)
+                if (paragraph.Style.BreakBefore && HasRetainedPageContent())
                 {
-                    if (CurrentPageOccupied())
-                    {
-                        NewPage();
-                        MoveUnconsumedBlocksToNewPage();
-                    }
+                    NewPage();
+                    MoveUnconsumedBlocksToNewPage();
                     pendingClosedPadding = 0;
                 }
                 if (opened.Count > 0 && opened[^1].IsParagraph &&
@@ -605,14 +611,15 @@ internal static class TextLayout
             }
             if (breakNext || paragraph.Style.BreakBefore)
             {
-                if (CurrentPageOccupied())
+                if (HasRetainedPageContent())
                 {
                     NewPage();
                     MoveUnconsumedBlocksToNewPage();
+                    // Discard old-page trailing closed-box spacing only when
+                    // an actual page transition occurred; on a fresh page
+                    // the pending space can be an open ancestor's first margin.
+                    pendingClosedPadding = 0;
                 }
-                // Never carry a preceding box's bottom padding past an
-                // explicit page break. Keep the next box's top padding.
-                pendingClosedPadding = 0;
             }
             breakNext = false;
             var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;

@@ -227,6 +227,39 @@ public sealed class SectionPageBreakTests
     }
 
     [Test]
+    public void DuplicateParagraphBreakAfterSectionPageBoundaryKeepsPanelMargin()
+    {
+        const string html = "<section style='break-after:page'>" +
+            "<p style='margin:0'>FIRST</p></section>" +
+            "<div style='margin-top:12pt;background:#eeeeff'>" +
+            "<p style='margin:0;break-before:page'>SECOND</p></div>";
+        var control = html.Replace("break-before:page", "break-before:auto");
+        var actual = Layout(html);
+        var expected = Layout(control);
+        Assert.That(actual, Has.Count.EqualTo(2));
+        Assert.That(actual[0].Runs.Single().Text, Is.EqualTo("FIRST"));
+        Assert.That(actual[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+        Assert.That(actual[1].Runs.Single().Baseline,
+            Is.EqualTo(expected[1].Runs.Single().Baseline).Within(0.000001));
+        Assert.That(actual[1].PaintBoxes.Single().Top,
+            Is.EqualTo(Page.Margin + 12).Within(0.000001));
+        Assert.That(Render(html), Is.EqualTo(Render(control)));
+    }
+
+    [Test]
+    public void EmptyNestedSectionMustNotReusePriorPageDescendantOccupancy()
+    {
+        const string html = "<div><p>FIRST</p>" +
+            "<section style='break-before:page'></section></div>" +
+            "<section style='break-before:page'><p>SECOND</p></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("FIRST"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 2"));
+    }
+
+    [Test]
     public void ParagraphExplicitInheritReadsContainingPanelPageBreak()
     {
         const string inherit = "<section style='break-after:page'>" +
