@@ -103,13 +103,13 @@ internal static class InlineCss
                     } };
                     break;
                 case "white-space" when paragraph && !inline:
-                    if (value is not ("normal" or "nowrap" or "pre-line" or "pre-wrap"))
-                        throw Invalid("Only normal, nowrap, pre-line and bounded pre-wrap white-space are supported.", offset);
+                    if (value is not ("normal" or "nowrap" or "pre-line" or "pre-wrap" or "pre"))
+                        throw Invalid("Only normal, nowrap, pre-line, bounded pre-wrap and no-soft-wrap pre are supported.", offset);
                     style = style with
                     {
-                        NoWrap = value == "nowrap",
-                        PreserveLineBreaks = value is "pre-line" or "pre-wrap",
-                        PreserveSpaces = value == "pre-wrap"
+                        NoWrap = value is "nowrap" or "pre",
+                        PreserveLineBreaks = value is "pre-line" or "pre-wrap" or "pre",
+                        PreserveSpaces = value is "pre-wrap" or "pre"
                     };
                     break;
                 case "overflow-wrap" when paragraph && !inline:

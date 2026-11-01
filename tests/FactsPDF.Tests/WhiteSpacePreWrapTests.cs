@@ -128,7 +128,7 @@ public sealed class WhiteSpacePreWrapTests
     [TestCase("<p style='white-space:pre-wrap'>AB\tBA</p>", "FPDF1305")]
     [TestCase("<p style='white-space:pre-wrap'>\t</p>", "FPDF1305")]
     [TestCase("<p style='white-space:pre-wrap;width:15pt'>AAAAAAAAAAAA</p>", "FPDF1302")]
-    [TestCase("<p style='white-space:pre'>AB</p>", "FPDF1202")]
+    [TestCase("<p style='white-space:pre pre-wrap'>AB</p>", "FPDF1202")]
     [TestCase("<p style='white-space:break-spaces'>AB</p>", "FPDF1202")]
     [TestCase("<span style='white-space:pre-wrap'>AB</span>", "FPDF1201")]
     [TestCase("<div style='white-space:pre-wrap'><p>AB</p></div>", "FPDF1201")]

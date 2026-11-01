@@ -3,7 +3,7 @@ namespace FactsPDF;
 internal static class HtmlDocumentReader
 {
     private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
-    private static bool ParagraphTag(string name) => name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
+    private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
@@ -173,6 +173,13 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
             if (TableMarkup.IsTag(name) && name != "table" && table is null)
                 throw new FactsPdfException("FPDF1101", "Table structural elements require their explicit table parents.", token.Offset);
+            // A preformatted report block is an explicitly closed, non-nested
+            // paragraph outside lists and tables. Use the ordinary paragraph
+            // renderer without inventing tab stops or a font-family.
+            if (name == "pre" && (table is not null ||
+                stack.Any(f => ListTag(f.Name) || f.Name == "li")))
+                throw new FactsPdfException("FPDF1101",
+                    "pre must be a standalone report block outside lists and tables.", token.Offset);
             // Quoted report panels reuse ordinary block layout, but may not
             // acquire unsupported list/table-cell nesting semantics.
             if (name == "blockquote" && (table is not null ||
@@ -211,6 +218,10 @@ internal static class HtmlDocumentReader
                 BreakBefore = false, BreakAfter = false, KeepWithNext = false };
             if (name is "b" or "strong" or "th") style = style with { Bold = true };
             if (name is "i" or "em") style = style with { Italic = true };
+            if (name == "pre") style = style with
+            {
+                NoWrap = true, PreserveLineBreaks = true, PreserveSpaces = true
+            };
             if (name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6')
                 style = style with { FontSize = style.FontSize * (name[1] switch
                 { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 }) };
