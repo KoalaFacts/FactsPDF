@@ -62,6 +62,10 @@ internal static class TableLayout
         var rowBoxes = new List<List<PaintedBox>>();
         var rowImageBoxes = new List<List<PaintedBox>>();
         var ambiguous = new List<int>();
+        // An uncertain last occupied row may need terminal bottom decoration.
+        // Defer aligned-cell failure until we know whether a later occupied
+        // row makes that predecessor a complete nonterminal row.
+        var ambiguousVerticalOffsets = new List<int>();
         var firstBodyGroup = true;
         var headerHeight = 0d;
         var top = edges.Top;
@@ -235,6 +239,7 @@ internal static class TableLayout
             {
                 foreach (var index in ambiguous) RetainCellBoxes(index);
                 ambiguous.Clear();
+                ambiguousVerticalOffsets.Clear();
             }
             var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
             var capacity = fresh.UsableHeight - headerHeight
@@ -249,8 +254,9 @@ internal static class TableLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (placement.Alignment == CellVerticalAlign.Top) continue;
-                if (canSplit || uncertain)
+                if (canSplit)
                     throw Geometry("vertical-align:middle/bottom requires an unsplit table row.", placement.SourceOffset);
+                if (uncertain) ambiguousVerticalOffsets.Add(placement.SourceOffset);
                 var free = rowHeight - placement.NaturalHeight;
                 if (!double.IsFinite(free) || free < -0.000001)
                     throw Geometry("Table cell vertical alignment has invalid row geometry.", placement.SourceOffset);
@@ -273,6 +279,13 @@ internal static class TableLayout
             top += rowHeight;
             CheckHeight(top, row.SourceOffset);
         }
+        // The remaining uncertain rows really are terminal: only here does
+        // table-bottom decoration force their continuation. Earlier uncertain
+        // rows were resolved by the following occupied row, so they may use
+        // valid whole-row middle/bottom placement without false rejection.
+        if (ambiguousVerticalOffsets.Count > 0)
+            throw Geometry("vertical-align:middle/bottom requires an unsplit terminal table row.",
+                ambiguousVerticalOffsets[0]);
         foreach (var index in ambiguous)
             rows[index] = rows[index] with { CanSplit = true };
         // Assign stable paint ranges once in source order, without insertion or

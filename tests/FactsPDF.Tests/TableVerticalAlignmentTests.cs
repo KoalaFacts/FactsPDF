@@ -154,6 +154,37 @@ public sealed class TableVerticalAlignmentTests
     public void UnmatchedInvalidCssRuleStillRejectsAndProtectsDestination()
         => Reject("<style>.never{vertical-align:baseline}</style>" + TwoCells(), "FPDF1202");
 
+
+    [Test]
+    public void NonterminalBottomAlignedRowIsNotRejectedByLaterTableBottomDecoration()
+    {
+        // Exactly 192pt of content fits a fresh 200pt page; the table's
+        // 20pt bottom padding belongs to the next, terminal body row.
+        // This predecessor is not an independently fragmented body row.
+        var lines = string.Join("<br>", Enumerable.Range(1, 15).Select(i => $"L{i:00}"));
+        var prefix = "<table style='width:180pt;font-size:10pt;line-height:1.2;padding-bottom:20pt'>" +
+            "<colgroup><col style='width:90pt'><col style='width:90pt'></colgroup><tbody>";
+        var leading = "<tr><td style='vertical-align:bottom;padding:6pt'>SHORT</td>" +
+            "<td style='padding:6pt'>" + lines + "</td></tr>";
+        var physical = "<tr><td style='padding:174pt 6pt 6pt 6pt'>SHORT</td>" +
+            "<td style='padding:6pt'>" + lines + "</td></tr>";
+        const string trailer = "<tr><td>NEXT</td><td>TAIL</td></tr></tbody></table>";
+        var options = Page with { PageHeight = 220 };
+        var html = prefix + leading + trailer;
+        var pages = Layout(html, options);
+        Assert.That(pages.Count, Is.EqualTo(2));
+        Assert.That(pages[0].Runs.Single(r => r.Text == "SHORT").Baseline,
+            Is.EqualTo(pages[0].Runs.Single(r => r.Text == "L15").Baseline).Within(0.000001));
+        Assert.That(pages[1].Runs.Select(r => r.Text), Does.Contain("TAIL"));
+        Assert.That(Pdf(html, options), Is.EqualTo(Pdf(prefix + physical + trailer, options)),
+            "The valid nonterminal row must render like its independently specified physical offset.");
+
+        // Without the second occupied row the same row becomes terminal:
+        // bottom padding now makes it splittable and bottom alignment must
+        // fail safely instead of silently top-aligning its fragments.
+        Reject(prefix + leading + "</tbody></table>", "FPDF1302", options);
+    }
+
     [TestCase("middle")]
     [TestCase("bottom")]
     public void RowsRequiringIndependentPageFragmentationRejectInsteadOfFakingTopAlignment(string value)
