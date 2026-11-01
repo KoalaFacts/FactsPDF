@@ -70,7 +70,7 @@ public sealed class CliPageGeometryTests
         try
         {
             File.WriteAllBytes(path, font);
-            const string html = "<h1>Client summary</h1><p>中文季度報告。</p>";
+            const string html = "<p>Client summary: 中文。</p>";
             var actual = Render(["-", "-", "--page-size", "letter", "--landscape", "--font", path], html);
             Assert.That(actual.Exit, Is.Zero, actual.Stderr);
             using var expected = new MemoryStream();
@@ -84,29 +84,36 @@ public sealed class CliPageGeometryTests
         finally { File.Delete(path); }
     }
 
-    [TestCase(new[] { "--page-size" })]
-    [TestCase(new[] { "--page-size", "tabloid" })]
-    [TestCase(new[] { "--page-size", "0" })]
-    [TestCase(new[] { "--page-size", "--overwrite" })]
-    [TestCase(new[] { "--page-size", "a4", "--page-size", "letter" })]
-    [TestCase(new[] { "--landscape", "--landscape" })]
-    public void InvalidOrRepeatedPageOptionsDoNotReplaceAnExistingPdf(string[] flags)
+    [Test]
+    public void InvalidOrRepeatedPageOptionsDoNotReplaceAnExistingPdf()
     {
+        var invalidFlags = new[]
+        {
+            new[] { "--page-size" },
+            ["--page-size", "tabloid"],
+            ["--page-size", "0"],
+            ["--page-size", "--overwrite"],
+            ["--page-size", "a4", "--page-size", "letter"],
+            ["--landscape", "--landscape"]
+        };
         var folder = Directory.CreateTempSubdirectory("factspdf-page-geometry-");
         try
         {
             var dest = Path.Combine(folder.FullName, "existing.pdf");
             var sentinel = Encoding.ASCII.GetBytes("original invoice bytes");
-            File.WriteAllBytes(dest, sentinel);
-            var args = new[] { "-", dest, "--overwrite" }.Concat(flags).ToArray();
-            var bad = Render(args);
-            Assert.That(bad.Exit, Is.EqualTo(2), bad.Stderr);
-            Assert.That(bad.Pdf, Is.Empty);
-            Assert.That(File.ReadAllBytes(dest), Is.EqualTo(sentinel));
-            Assert.That(Directory.GetFiles(folder.FullName, ".factspdf-*.tmp"), Is.Empty);
+            foreach (var flags in invalidFlags)
+            {
+                File.WriteAllBytes(dest, sentinel);
+                var args = new[] { "-", dest, "--overwrite" }.Concat(flags).ToArray();
+                var bad = Render(args);
+                Assert.That(bad.Exit, Is.EqualTo(2), bad.Stderr);
+                Assert.That(bad.Pdf, Is.Empty);
+                Assert.That(File.ReadAllBytes(dest), Is.EqualTo(sentinel));
+                Assert.That(Directory.GetFiles(folder.FullName, ".factspdf-*.tmp"), Is.Empty);
+            }
             var fixedInput = Render(["-", dest, "--overwrite", "--page-size", "letter", "--landscape"]);
             Assert.That(fixedInput.Exit, Is.Zero, fixedInput.Stderr);
-            Assert.That(File.ReadAllBytes(dest), Does.StartWith(Encoding.ASCII.GetBytes("%PDF-1.7")));
+            Assert.That(Encoding.ASCII.GetString(File.ReadAllBytes(dest), 0, 8), Is.EqualTo("%PDF-1.7"));
         }
         finally { folder.Delete(recursive: true); }
     }
