@@ -22,8 +22,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '6ab5d2c8ff3c10c76e928b6ad192d9ac46965c89');
-  assert.match(dataset.commit_url, /6ab5d2c8ff3c10c76e928b6ad192d9ac46965c89/);
+  assert.equal(dataset.commit, 'a767c950a7f500ab97fa6276b9a7dc943193e825');
+  assert.match(dataset.commit_url, /a767c950a7f500ab97fa6276b9a7dc943193e825/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -90,19 +90,20 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'6ab5d2c8ff3c10c76e928b6ad192d9ac46965c89');
+  assert.equal(feature.last_audited_commit,'a767c950a7f500ab97fa6276b9a7dc943193e825');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/nowrap/);
   assert.match(feature.scope,/br/);
   assert.match(feature.limitations,/span/);
   assert.match(feature.limitations,/FPDF1302/);
-  assert.equal(feature.example,'white-space:pre-line');
-  assert.match(feature.scope,/normal.*nowrap.*pre-line/);
+  assert.equal(feature.example,'white-space:pre-wrap');
+  assert.match(feature.scope,/normal.*nowrap.*pre-line.*pre-wrap/);
   assert.match(feature.scope,/CRLF\/CR\/LF\/FF/);
-  assert.match(feature.limitations,/pre-wrap/);
+  assert.match(feature.limitations,/制表符/);
+  assert.match(feature.limitations,/FPDF1305/);
   assert.match(feature.limitations,/FPDF1201/);
   assert.match(feature.limitations,/FPDF1202/);
-  assert.match(feature.test_reference,/WhiteSpacePreLineTests\.cs/);
+  assert.match(feature.test_reference,/WhiteSpacePreWrapTests\.cs/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
     ['css.white-space','css.word-spacing']);
 });
@@ -259,7 +260,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.multiline-report-notes');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.preserved-space-report-notes');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /67个CSS属性名/);

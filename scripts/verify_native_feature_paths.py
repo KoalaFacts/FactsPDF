@@ -488,7 +488,7 @@ def verify_native_multiline_notes(executable, output, work):
         assert labels.count(f'REF{i:03d}') == 1, ('Missing or duplicate source note', i)
     assert labels.count('FINALCHECK') == 1, 'Missing closing summary'
     for name, html, code in (
-        ('invalid-mode', '<p style="white-space:pre-wrap">BAD</p>', 'FPDF1202'),
+        ('invalid-mode', '<p style="white-space:break-spaces">BAD</p>', 'FPDF1202'),
         ('overwide-note', '<p style="width:5pt;white-space:pre-line">LONGIDENTIFIER</p>', 'FPDF1302')):
         bad = output / ('multiline-' + name + '.html')
         dest = output / ('multiline-' + name + '.pdf')
@@ -505,6 +505,61 @@ def verify_native_multiline_notes(executable, output, work):
             'pdfBytesMatchOracle': True, 'protectedFailureRecovery': True,
             'pdfSha256': sha(pdf), 'sourceSha256': sha(source),
             'oracleSha256': sha(oracle)}
+
+
+
+def verify_native_preserved_space_notes(executable, output, work):
+    """Read two separately authored reports with Poppler; prove real space advances."""
+    source = ROOT / 'examples/report-preserved-space-notes.html'
+    oracle = ROOT / 'examples/report-preserved-space-notes-oracle.html'
+    pdf = output / 'preserved-space-report.pdf'
+    collapsed = output / 'preserved-space-control.pdf'
+    assert source.is_file() and oracle.is_file(), 'Missing authored pre-wrap report pair'
+    assert not run(executable, source, pdf, cwd=work), 'Native preserved-space output wrote stdout'
+    assert not run(executable, oracle, collapsed, cwd=work), 'Native control wrote stdout'
+    assert pdf.read_bytes() != collapsed.read_bytes(), 'Preserved spaces were silently collapsed'
+    count = count_pages(pdf)
+    assert count >= 2 and count == count_pages(collapsed), '72 notes must paginate equally'
+    actual_pages = [page_boxes(pdf, p) for p in range(1, count + 1)]
+    control_pages = [page_boxes(collapsed, p) for p in range(1, count + 1)]
+    actual = [word for _, _, words in actual_pages for word in words]
+    control = [word for _, _, words in control_pages for word in words]
+    labels = [word[0] for word in actual]
+    for i in range(1, 73):
+        assert labels.count(f'REF{i:03d}') == 1, ('Missing or duplicated report note', i)
+    assert labels.count('ASSET') == labels.count('CHECK') == labels.count('OWNER:') == 72, (
+        'Missing report note words', Counter(labels))
+    assert labels.count('FINALCHECK') == 1, 'Missing final note'
+    def locations(words, name):
+        return [(x, y) for value, x, y, _, _ in words if value == name]
+    for name in ('ASSET', 'CHECK', 'OWNER:'):
+        real = locations(actual, name)
+        baseline = locations(control, name)
+        assert len(real) == len(baseline) == 72, ('Missing control words', name)
+        assert all(left > old_left + 3 for (left, _), (old_left, _) in zip(real, baseline)), (
+            'Preserved spaces did not advance PDF text position', name, real, baseline)
+        assert all(abs(y - old_y) < 0.01 for (_, y), (_, old_y) in zip(real, baseline)), (
+            'Preserved spaces altered authored line baselines unexpectedly', name)
+    for name, html, code in (
+        ('tab', '<p style="white-space:pre-wrap">AB\tBA</p>', 'FPDF1305'),
+        ('unsupported', '<p style="white-space:break-spaces">AB</p>', 'FPDF1202'),
+        ('too-wide', '<p style="width:5pt;white-space:pre-wrap">LONGIDENTIFIER</p>', 'FPDF1302'),
+    ):
+        bad = output / f'prewrap-{name}.html'
+        dest = output / f'prewrap-{name}.pdf'
+        bad.write_text(html, encoding='utf-8')
+        dest.write_bytes(b'original-preserved-pdf')
+        failed = subprocess.run([str(executable), str(bad), str(dest), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code.encode() in failed.stderr and not failed.stdout, (
+            'Native preserved-space failure contract', name, failed.returncode, failed.stderr)
+        assert dest.read_bytes() == b'original-preserved-pdf', (
+            'Native failed conversion modified existing PDF')
+        assert not run(executable, source, dest, '--overwrite', cwd=work)
+        assert dest.read_bytes() == pdf.read_bytes(), 'Recovery changed preserved-space PDF'
+    return {'pages': count, 'references': 72, 'nativePopplerTextGeometry': True,
+            'independentCollapsedSpaceControl': True, 'outputPreservedOnFailure': True,
+            'sourceSha256': sha(source), 'controlSha256': sha(oracle), 'pdfSha256': sha(pdf)}
 
 
 def verify_native_patterned_borders(executable, output, work):
@@ -626,6 +681,7 @@ def main():
         list_markers = verify_native_list_markers(isolated, ROOT, output, work)
         patterned_borders = verify_native_patterned_borders(isolated, output, work)
         multiline_notes = verify_native_multiline_notes(isolated, output, work)
+        preserved_spaces = verify_native_preserved_space_notes(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -641,6 +697,7 @@ def main():
             'listMarkers': list_markers,
             'patternedBorders': patterned_borders,
             'multilineNotes': multiline_notes,
+            'preservedSpaces': preserved_spaces,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

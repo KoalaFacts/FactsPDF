@@ -66,7 +66,7 @@ whole-paragraph cascade as `normal`/`nowrap`. `pre-line` does **not** retain
 runs of spaces or tabs, allow arbitrary preformatted text, or enable RTL,
 vertical writing, bidi, complex shaping, negative length or new font sources.
 Explicit declarations on containers, spans, images and table structural elements
-still fail `FPDF1201`. `pre`, `pre-wrap`, `break-spaces`, functions and mixed
+still fail `FPDF1201`. `pre`, `break-spaces`, functions and mixed
 keyword values still fail `FPDF1202`, including unmatched selector declarations.
 Overwide unbreakable tokens fail `FPDF1302`; missing fonts retain their
 existing resource errors. Failed CLI/API output preserves a previous PDF.
@@ -78,6 +78,46 @@ Linux/Windows Native AOT and Poppler checks via
 `scripts/verify_native_feature_paths.py`. Initial source implementation
 commit: `6ab5d2c8ff3c10c76e928b6ad192d9ac46965c89`. This source scope
 does not imply current package publication or human page approval.
+
+## Current-source preserved-space report notes
+
+For authored notes with meaningful horizontal spacing, explicit paragraphs
+and headings can opt into `white-space:pre-wrap`. Unlike `pre-line`, each
+literal U+0020 space is measured and painted as a glyph, including spaces at
+the start/end of a line and repeated spaces between labels. CRLF (including
+across styled spans), CR, LF and form feed create real line boxes. `br`
+continues to force a break. Ordinary soft word wrapping still happens at
+spaces and existing CJK opportunities, with actual page continuation and
+full destination-file protection on failed conversion. Leading spaces count
+towards the available line width; when necessary they wrap onto another
+line instead of disappearing. CSS `text-align`, inline font metrics,
+font fallback, `overflow-wrap:break-word`, and existing resource budgets
+operate on the measured output.
+
+```html
+<p style="white-space:pre-wrap">REF001  ASSET   CHECK
+  OWNER:  AB</p>
+```
+
+Boundaries: only whole explicit `p`/`h1`–`h6` (including explicit
+paragraphs in fixed-width table cells). Container/span/structural-table
+declarations remain `FPDF1201`. Tab characters and other unimplemented
+control whitespace need tab-stop/text processing and fail `FPDF1305` rather
+than collapsing silently. `pre`, `break-spaces`, CSS Text shorthand
+combinations, RTL and complex shaping are unsupported (`FPDF1202` for
+unsupported values). Extremely long words, or a single space wider than
+the measured line, fail `FPDF1302`. This is a documented bounded PDF
+report behavior, not general browser CSS `pre-wrap` conformance or a
+released preview binary.
+
+The [72-entry preserved-space report](../examples/report-preserved-space-notes.html)
+has a [separately authored collapsed-space control](../examples/report-preserved-space-notes-oracle.html);
+`WhiteSpacePreWrapTests.cs` checks exact glyph runs, TrueType metrics,
+CSS cascade, page continuation, table cells and negative recovery.
+`verify_native_feature_paths.py` checks actual Native AOT Poppler word
+offsets against that control, unique references, equal line baselines,
+pagination and preserved output across failed-then-successful conversion.
+Source SHA of the implementation remains distinct from published binaries.
 
 ## Current-source LTR text-align start/end
 
@@ -340,7 +380,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
-| white-space | `normal` (default), `nowrap`, or scoped `pre-line` on explicit `p` / `h1`–`h6`; collapse spaces, preserve CRLF/CR/LF/FF source breaks only in `pre-line`, retain explicit `br`, reject overwide unbroken segments |
+| white-space | `normal` (default), `nowrap`, scoped `pre-line` or bounded `pre-wrap` on explicit `p` / `h1`–`h6`; `pre-line` collapses spaces and retains source breaks, `pre-wrap` retains each U+0020 glyph and source break, both still soft-wrap and retain explicit `br`; tabs in `pre-wrap` explicitly fail `FPDF1305` |
 | letter-spacing | Supported report text and inline spans: `normal`, nonnegative 0–24pt print lengths, or scoped `em` (own computed font) / `rem` (computed root); resolved to fixed points before real PDF glyph advances, wrapping, centring and decorations; negative/%/calc unsupported |
 | word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%`, scoped own-font `em` / root `rem`, or zero; percentages use resolved content width, `em/rem` fixed at cascade; only first logical line indented, later wrap/`br`/page fragments retain normal x; unfit first words fail `FPDF1302` with output preservation |
@@ -527,9 +567,11 @@ applies to explicitly sized and nested report blocks. The current scope is
 **whole explicit paragraphs/headings only**: authoring `white-space` on a
 `span`, container, table structural element or image is rejected with
 `FPDF1201`. A paragraph inside a table cell still uses its actual cell width
-and will fail when an unbreakable label does not fit. `pre`, `pre-wrap`,
-`break-spaces`, `word-break`, non-breaking span fragments and
-`pre-line` only retains authored segment breaks; full CSS Text conformance is not implemented. Unsupported values are
+and will fail when an unbreakable label does not fit. `pre`,
+`break-spaces`, `word-break`, non-breaking span fragments remain
+unsupported; `pre-line` retains breaks but collapses spaces, while bounded
+`pre-wrap` preserves both literal ASCII spaces and source breaks. Full CSS
+Text conformance is not implemented. Unsupported values are
 `FPDF1202` errors, including unmatched stylesheet declarations. Supported
 CSS-wide `inherit`, `initial`, `unset`, precedence and `!important`
 remain explicit; normal/default output does not change. See
