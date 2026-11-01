@@ -1,3 +1,7 @@
+# FactsPDF
+
+**Generate searchable business-report PDFs from HTML and CSS, without a browser.**
+
 ### Rounded commercial report cards (source-only)
 
 `border-radius:12pt` now paints real curved PDF backgrounds and matching
@@ -6,10 +10,6 @@ page continuations and destination protection. The [54-card report](examples/rep
 and [physical-unit oracle](examples/report-rounded-panels-oracle.html) are scoped,
 not browser CSS conformance. See [precise value and failure rules](docs/css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
 No new installable preview, human reference approval or customer grant is implied.
-
-# FactsPDF
-
-**Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
 FactsPDF is a KoalaFacts rendering engine for applications and command-line jobs
 that control their report templates. It supports English and Chinese text,
@@ -192,7 +192,7 @@ edges use round-cap PDF strokes. Width, colour, padding, containing width and
 page continuation use the existing box model; a side's dash pattern restarts
 per page fragment, while only the first and last fragments paint their top
 and bottom edges. Unstyled and solid-border reports retain their legacy PDF
-bytes. This is **not** rounded/double borders or full CSS Borders support.
+bytes. This is **not** arbitrary/multi-corner rounded or double borders or full CSS Borders support. One bounded border-radius is separately documented below.
 
 See the [76-record real report](examples/report-patterned-borders.html),
 [scope and failure contract](docs/css-stylesheets.md#current-source-bounded-patterned-report-borders),
@@ -267,7 +267,7 @@ For example:
 This is a bounded quote **layout** feature, not citation metadata, Tagged PDF
 or browser-complete `blockquote` semantics. `cite` attributes, nesting inside
 lists/tables/inline elements, negative or percentage vertical margins,
-margin collapse, CSS `height`, rounded corners and arbitrary HTML are
+margin collapse, CSS `height`, arbitrary/per-corner rounded geometry and arbitrary HTML are
 unsupported and explicitly rejected. The quote is source-only: it does not
 update the retained preview binaries or grant customer distribution rights.
 [Real 44-item quote report](examples/report-blockquotes.html),
@@ -417,7 +417,7 @@ follows its containing width and moves intact to the next page when needed.
 
 This is a **void block separator**, not unrestricted HTML or CSS: no
 content, table/paragraph/list/inline nesting, arbitrary `height`,
-pseudo-elements, dashed/rounded borders, margin collapse or resource URLs.
+pseudo-elements, arbitrary/patterned rounded borders, margin collapse or resource URLs.
 Unsupported declarations fail explicitly and preserve an existing output.
 See the [scoped CSS contract](docs/css-stylesheets.md#current-source-html-horizontal-report-rules),
 [44-entry report](examples/report-horizontal-rules.html), and the

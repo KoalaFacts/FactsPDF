@@ -412,7 +412,7 @@ display command limits and preserves containing panel fragments.
 attributes fail `FPDF1103`. Text-only declarations such as
 `text-align`, `font-weight` or `line-height` reject with
 `FPDF1201`. Negative/percentage vertical margins, unsupported functions
-and dashed/rounded borders fail `FPDF1201/1202`. This does not
+and unsupported dashed/rounded border combinations fail `FPDF1201/1202`. This does not
 implement margin collapsing, `height`, pseudo-elements, `display`,
 complex rules, table/inline separators or general CSS conformance.
 

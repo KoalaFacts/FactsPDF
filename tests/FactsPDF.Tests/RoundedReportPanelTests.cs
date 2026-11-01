@@ -110,9 +110,11 @@ public sealed class RoundedReportPanelTests
         var outer = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
         Assert.That(outer.BoxStyle.CornerRadius, Is.EqualTo(8));
         var boxes = outer.Children.OfType<BlockNode>().ToArray();
-        Assert.That(boxes[1].BoxStyle.CornerRadius, Is.EqualTo(8));
+        Assert.That(boxes, Has.Length.EqualTo(4));
         Assert.That(boxes[0].BoxStyle.CornerRadius, Is.Zero);
-        Assert.That(boxes[2].BoxStyle.CornerRadius, Is.Zero);
+        Assert.That(boxes[1].BoxStyle.CornerRadius, Is.Zero);
+        Assert.That(boxes[2].BoxStyle.CornerRadius, Is.EqualTo(8));
+        Assert.That(boxes[3].BoxStyle.CornerRadius, Is.Zero);
         Assert.That(Encoding.ASCII.GetString(Pdf(html)), Does.Contain(" c "));
     }
 
