@@ -254,7 +254,7 @@ public sealed class ReportPanelMinHeightTests
     [TestCase("<ul style='min-height:20pt'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<ol><li><section style='min-height:20pt'>A</section></li></ol>", "FPDF1201")]
     [TestCase("<table style='min-height:20pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
-    [TestCase("<section style='height:30pt'>A</section>", "FPDF1201")]
+    [TestCase("<section style='height:30%'>A</section>", "FPDF1202")]
     [TestCase("<section style='max-height:30pt'>A</section>", "FPDF1201")]
     public void UnsupportedInputFailsBeforeReplacingExistingPdf(string html, string code)
         => Reject(html, code);

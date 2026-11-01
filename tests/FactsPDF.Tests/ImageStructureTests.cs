@@ -78,7 +78,7 @@ public sealed class ImageStructureTests
     {
         var error = Assert.Throws<FactsPdfException>(() => Tree("<img src=\"chart\" src=\"chart\">"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1101")); Assert.That(error.SourceOffset, Is.EqualTo(17));
-        Assert.That(Assert.Throws<FactsPdfException>(() => Tree("<img><style>.absent{height:10pt}</style>"))!.Code,
+        Assert.That(Assert.Throws<FactsPdfException>(() => Tree("<img><style>.absent{max-height:10pt}</style>"))!.Code,
             Is.EqualTo("FPDF1201"));
     }
 
