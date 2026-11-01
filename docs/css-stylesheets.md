@@ -1,3 +1,45 @@
+## Current-source fixed-height report panels
+
+**Exact scope:** Controlled `div`, `section`, `article`, `blockquote` report
+cards outside lists and tables accept `height:auto` (initial), unitless
+exact zero or bounded nonnegative `pt/px/mm/cm/in`, own-final-font `em`
+and root `rem`. Winning declarations use the established selector
+specificity, source order, `!important` and `inherit/initial/unset`
+pipeline. The default is `auto`; it is not inherited implicitly. All
+declarations, including losing and unmatched ones, are validated. Unsupported
+`height` contexts are never ignored as a best-effort browser fallback.
+
+**Real PDF geometry:** A `height:85pt` short inspection card reserves 85pt
+of **content** height with `box-sizing:content-box`, plus its actual
+top/bottom padding and border. `box-sizing:border-box` includes those
+decorations in 85pt (but never lets them shrink below their thickness).
+The existing `min-height` takes the larger lower bound when both are
+declared. Backgrounds and borders paint the reserved box, and following
+text moves by its physical height; an empty unpainted panel still reserves
+space. A card that fits a fresh PDF page is moved whole when it cannot fit
+in the remaining space. No silent overflow or clipping is allowed.
+
+**Fail-closed boundaries:** If natural content would exceed that
+chosen fixed/minimum outer height, including authored line and paragraph
+spacing, or would need a second page, conversion fails `FPDF1302`,
+preserving the existing PDF bytes and output position. `height:auto`
+retains the previous natural, fragmentable layout. Percentages,
+negative numbers, `calc()`, `max-height`, `vh/lh`, height on paragraphs/
+headings/body/inline, images, tables, lists or nested list/table panels
+fail explicitly with `FPDF1201`/`FPDF1202`. This is not general CSS
+Sizing, overflow, flex/grid or arbitrary HTML-to-PDF support.
+
+The [40-card facilities report](../examples/report-fixed-height-cards.html)
+has a [separate minimum-height physical layout
+control](../examples/report-fixed-height-cards-oracle.html), checked in
+real Linux/Windows Native AOT CLI PDF bytes, qpdf integrity, Poppler text
+positions and protected failure/recovery paths. Source NUnit
+`ReportPanelFixedHeightTests.cs` checks cascade, computed font units,
+paint, page movement, overflow and managed CLI/API parity.
+Source implementation at `9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc`
+does not update an old private binary, satisfy human page review or grant
+customer distribution rights.
+
 ## Current-source minimum-height report panels
 
 **Supported:** Ordinary `div`, `section`, `article` and `blockquote` outside
@@ -25,7 +67,8 @@ overflowing. Naturally long boxes can still fragment across pages, with
 no extra phantom minimum-height pages. Existing `MaxPages`,
 `MaxDisplayCommands`, CSS work and destination protection remain active.
 
-**Excluded:** `height` and `max-height` remain unsupported; this is not
+**Excluded:** Unrestricted `height` and `max-height` remain unsupported;
+a separate one-page fixed-`height` report card mode exists above, not
 a general CSS sizing engine. Percentages (indefinite paged content height),
 `auto`, negative values, `calc()`, viewport/`lh` lengths, implicit
 table/list/image/inline sizing, and `min-height` on `p`/headings/body,

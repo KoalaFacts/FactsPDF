@@ -1,3 +1,24 @@
+## Source-only fixed-height inspection cards
+
+Business reports may size ordinary panels using `height:85pt`,
+`box-sizing:border-box` and the existing `min-height` lower bound.
+This is a rendered page-box height, not only accepted CSS: body text,
+background and border geometry, subsequent row placement and fresh-page
+preflight all follow the chosen bound. If the panel would need more
+space or a continuation page, conversion fails safely rather than
+clipping text or overwriting the original output.
+
+The [40-card native report](../examples/report-fixed-height-cards.html),
+[independent short-card oracle](../examples/report-fixed-height-cards-oracle.html),
+source NUnit and Native AOT/qpdf/Poppler verification cover actual PDF
+geometry, resource isolation, output restoration and API/CLI behavior.
+No percentages, general `max-height`, automatic overflow,
+list/table/image/inline use or broad CSS Sizing. Source work
+`9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc` is distinct from
+the retained software candidate, exact-head CI, independent review,
+human page approval and customer rights.
+[CSS contract](css-stylesheets.md#current-source-fixed-height-report-panels).
+
 ## Source-only report-section page boundaries
 
 Controlled facilities, billing and inspection reports can place whole ordinary
@@ -41,8 +62,9 @@ fonts, CSS cascade, existing page movement and failure protection. See
 [the inspection example](../examples/report-min-height-cards.html),
 [40-card native witness](../examples/report-min-height-cards-native.html)
 and [bounded CSS contract](css-stylesheets.md#current-source-minimum-height-report-panels).
-Percentage/auto heights, height/max-height, table/list/image/inline targets,
-unplaceable panels and full CSS Sizing are not accepted. This is only a
+Percentages and arbitrary height/max-height, table/list/image/inline targets,
+unplaceable panels and full CSS Sizing are not accepted; a separately bounded
+one-page fixed-height panel mode is documented above. This is only a
 source-level capability until exact-head checks, independent code review,
 human PDF approval and distribution rights are separately satisfied.
 
