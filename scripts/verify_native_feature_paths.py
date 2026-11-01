@@ -507,7 +507,7 @@ def verify_native_patterned_borders(executable, output, work):
     assert dashed >= count * 2, ('Lost paginated dashed vertical border strokes', dashed, count)
     assert dotted == 4, ('Expected four dotted summary border strokes', dotted)
     for name, css, code in [('invalid-pattern', '2pt double red', 'FPDF1202'),
-                            ('overflow', '4pt dotted red;width:20000pt', 'FPDF1302')]:
+                            ('overflow', '4pt dotted red;width:900pt', 'FPDF1302')]:
         bad = output / f'patterned-border-{name}.html'
         dest = output / f'patterned-border-{name}.pdf'
         bad.write_text('<div style="border:' + css + '">FAIL</div>', encoding='utf-8')
