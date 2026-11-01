@@ -2,7 +2,9 @@
   "schema": 1,
   "status": "proposed-contract-not-engine-acceptance",
   "assertion_entry_scope": {
-    "source_offset": ["managed-api"],
+    "source_offset": [
+      "managed-api"
+    ],
     "source_token": "Authored input anchor used to check the offset, not an exposed entry result."
   },
   "default_options": {
@@ -263,12 +265,12 @@
     },
     {
       "id": "D1-css-height-refusal",
-      "html": "<img src=\"chart\" style=\"height:100pt\">",
+      "html": "<img src=\"chart\" style=\"height:100%\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
       "expect": {
-        "code": "FPDF1201",
+        "code": "FPDF1202",
         "output_unchanged": true
       },
       "applies_to": [
