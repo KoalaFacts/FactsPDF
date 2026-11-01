@@ -1,3 +1,22 @@
+## Current-source bounded vertical alignment for fixed-column table cells
+
+Fixed-column `td` and `th` accept the real PDF-rendered values
+`vertical-align:top`, `middle` and `bottom` for an intact table row.
+The shorter cell's text and direct image placements move by half/all
+the available vertical gap, while backgrounds, borders and column
+dimensions remain unchanged. Whole rows and repeated headers work in
+multi-page reports, with the existing selector cascade and `!important`.
+
+`inherit` reads the computed parent; `initial`/`unset` return to
+non-inherited `top`. No alignment is silently ignored: split-body-row
+middle/bottom fails `FPDF1302`, baseline/sub/super/length/percentage
+values fail `FPDF1202`, and non-cell targets fail `FPDF1201`.
+This does not implement general CSS inline vertical alignment or
+CSS Tables. See [the table contract](tables.md#vertical-alignment-in-whole-table-rows),
+[the source tests](../tests/FactsPDF.Tests/TableVerticalAlignmentTests.cs)
+and [the 40-row report](../examples/report-table-vertical-align.html).
+This is source-only, not a rebuilt private candidate or authorised distribution.
+
 # Embedded CSS stylesheets and selectors
 
 ## Current-source bounded patterned report borders

@@ -1,3 +1,14 @@
+## Source-only fixed-column table-cell vertical alignment
+
+For commercial report tables with multiline notes or brand marks,
+`td/th` now support bounded `vertical-align:top/middle/bottom`
+within intact rows; cell contents move without shifting painted
+borders/backgrounds. See the [table contract](tables.md#vertical-alignment-in-whole-table-rows)
+and [40-row native sample](../examples/report-table-vertical-align.html).
+Body rows requiring cell-by-cell continuation reject middle/bottom.
+This source change is not a new retained candidate, human-approved
+reference page, public release or customer use grant.
+
 # Evaluate FactsPDF for business reports
 
 FactsPDF converts a documented HTML/CSS subset into searchable PDF documents
