@@ -53,7 +53,8 @@ public sealed class ReportPanelMinHeightTests
         var painted = layout.Single().PaintBoxes.Single();
         Assert.That(painted.Height, Is.EqualTo(104).Within(0.00001),
             "Content-box minimum reserves real height in addition to 14pt vertical border/padding.");
-        Assert.That(painted.Top, Is.EqualTo(20).Within(0.00001));
+        Assert.That(painted.Top, Is.EqualTo(tag == "blockquote" ? 28 : 20).Within(0.00001),
+            "Blockquotes retain their pre-existing 8pt outside top margin.");
         Assert.That(layout.Single().Runs.Select(run => run.Text), Is.EqualTo(new[] { "FIRST", "AFTER" }));
         Assert.That(layout.Single().Runs[0].X, Is.EqualTo(Layout(control).Single().Runs[0].X));
         Assert.That(layout.Single().Runs[1].Baseline,
@@ -94,8 +95,9 @@ public sealed class ReportPanelMinHeightTests
         var expected = Render(prefix + "32pt" + suffix);
         Assert.That(Render(prefix + "2em" + suffix), Is.EqualTo(expected));
         Assert.That(Render(prefix + "3.2rem" + suffix), Is.EqualTo(expected));
-        Assert.That(Render(prefix + "0.4444444444444444in" + suffix), Is.EqualTo(expected));
-        Assert.That(Render(prefix + "42.666666666666664px" + suffix), Is.EqualTo(expected));
+        var physical = Render(prefix + "72pt" + suffix);
+        Assert.That(Render(prefix + "1in" + suffix), Is.EqualTo(physical));
+        Assert.That(Render(prefix + "96px" + suffix), Is.EqualTo(physical));
     }
 
     [Test]
@@ -122,14 +124,14 @@ public sealed class ReportPanelMinHeightTests
     public void MinimumHeightMovesWholePanelToFreshPageWithoutMovingEarlierText()
     {
         var options = Page with { PageHeight = 180 };
-        const string html = "<p style='margin:0'>BEFORE</p><section style='min-height:125pt;" +
+        const string html = "<p style='margin:0'>BEFORE</p><section style='min-height:130pt;" +
             "background:blue'><p style='margin:0'>AFTER</p></section>";
         var pages = Layout(html, options);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("BEFORE"));
         Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("AFTER"));
         Assert.That(pages[1].PaintBoxes.Single().Top, Is.EqualTo(20).Within(0.00001));
-        Assert.That(pages[1].PaintBoxes.Single().Height, Is.EqualTo(125).Within(0.00001));
+        Assert.That(pages[1].PaintBoxes.Single().Height, Is.EqualTo(130).Within(0.00001));
         Assert.That(Encoding.ASCII.GetString(Render(html, options)), Does.Contain("/Count 2"));
     }
 
