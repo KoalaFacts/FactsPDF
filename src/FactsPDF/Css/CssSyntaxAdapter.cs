@@ -282,6 +282,68 @@ internal static class CssSyntaxAdapter
                 }
                 continue;
             }
+            // Bounded text-decoration shorthand: exactly one line kind and
+            // optional opaque colour and solid/dashed/dotted stroke. Lower all
+            // three longhands through the normal CSS winner/cascade pipeline,
+            // so a later !important longhand can override one component and a
+            // new shorthand resets omitted components rather than ignoring them.
+            if (name == "text-decoration")
+            {
+                if (terms.Count > 3)
+                    throw new FactsPdfException("FPDF1202",
+                        "Text decoration accepts one line kind, a stroke and an opaque colour.", node.Span.Start);
+                if (terms.Count == 1 && Wide(terms[0]))
+                {
+                    var wideOffset = valueTokens[0].Token.Span.Start;
+                    Emit(CssProperty.TextDecoration, terms[0], wideOffset, "text-decoration-line");
+                    Emit(CssProperty.TextDecorationStyle, terms[0], wideOffset, "text-decoration-style");
+                    Emit(CssProperty.TextDecorationColor, terms[0], wideOffset, "text-decoration-color");
+                    continue;
+                }
+                string? line = null;
+                var stroke = "solid";
+                var ink = "currentcolor";
+                var strokeSeen = false;
+                var inkSeen = false;
+                var lineOffset = node.Span.Start;
+                var strokeOffset = node.Span.Start;
+                var inkOffset = node.Span.Start;
+                for (var i = 0; i < terms.Count; i++)
+                {
+                    var word = terms[i];
+                    var at = valueTokens[i].Token.Span.Start;
+                    if (Wide(word))
+                        throw new FactsPdfException("FPDF1202",
+                            "CSS-wide decoration values must stand alone.", at);
+                    if (word is "none" or "underline" or "line-through" or "overline")
+                    {
+                        if (line is not null)
+                            throw new FactsPdfException("FPDF1202",
+                                "Only one text decoration line is supported.", at);
+                        line = word; lineOffset = at;
+                    }
+                    else if (word is "solid" or "dashed" or "dotted")
+                    {
+                        if (strokeSeen)
+                            throw new FactsPdfException("FPDF1202", "Duplicate decoration stroke.", at);
+                        stroke = word; strokeSeen = true; strokeOffset = at;
+                    }
+                    else
+                    {
+                        if (inkSeen)
+                            throw new FactsPdfException("FPDF1202", "Duplicate decoration colour.", at);
+                        if (word != "currentcolor") _ = InlineCss.Color(word, at);
+                        ink = word; inkSeen = true; inkOffset = at;
+                    }
+                }
+                if (line is null || line == "none" && terms.Count > 1)
+                    throw new FactsPdfException("FPDF1202",
+                        "Text decoration shorthand requires one visible line or standalone none.", node.Span.Start);
+                Emit(CssProperty.TextDecoration, line, lineOffset, "text-decoration-line");
+                Emit(CssProperty.TextDecorationStyle, stroke, strokeOffset, "text-decoration-style");
+                Emit(CssProperty.TextDecorationColor, ink, inkOffset, "text-decoration-color");
+                continue;
+            }
             // Restricted list-style shorthand: exactly one supported marker
             // type or one CSS-wide keyword. Position/images are not implemented,
             // so accepting or dropping any other term would falsely render it.
