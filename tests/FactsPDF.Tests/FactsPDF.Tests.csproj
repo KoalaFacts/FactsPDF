@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../examples/report-overflow-wrap*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../examples/report-word-break-identifiers*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../fixtures/jpeg/**" Link="jpeg/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../fixtures/tables-e1/**" Link="tables-e1/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../../probes/browser-wasm/ProbeConversion.cs" Link="WasmProbe/ProbeConversion.cs" />

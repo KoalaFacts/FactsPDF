@@ -168,6 +168,6 @@ test('bounded report word-break appears in English with real PDF limits',async({
   await expect(detail).toBeVisible();
   await expect(detail).toContainText('break-all');
   await expect(detail).toContainText('glyph');
-  await expect(detail).toContainText('FPDF1302');
+  await expect(detail).toContainText('FPDF1301/1302');
   expect(await detail.innerText()).not.toMatch(han);
 });
