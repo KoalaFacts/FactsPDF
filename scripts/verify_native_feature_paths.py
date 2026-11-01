@@ -1194,6 +1194,49 @@ def verify_native_responsive_images(executable, output, work, logo):
             'protectedFailureRecovery': True}
 
 
+
+def verify_native_report_keep_together(executable, output, work):
+    """Real native PDF card placement versus separately authored forced-page control."""
+    source = ROOT / 'examples/report-keep-together.html'
+    oracle = ROOT / 'examples/report-keep-together-oracle.html'
+    assert source.is_file() and oracle.is_file(), 'Missing authored approval card pair'
+    actual = output / 'keep-together.pdf'
+    control = output / 'keep-together-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), (
+        'Native kept-card PDF differs from a separately authored physical page-control oracle')
+    assert count_pages(actual) == 2, 'Kept approval card should move to page two'
+    first = [w[0] for w in page_boxes(actual, 1)[2]]
+    second = [w[0] for w in page_boxes(actual, 2)[2]]
+    assert 'PREVIOUS' in first and 'APPROVAL' in first
+    assert 'CARD' not in first, 'Approval card was fragmented on first page'
+    assert second.count('CARD') == 2 and 'REF-001' in second, (
+        'Approval card or following text absent from searchable page two')
+    invalid = work / 'keep-together-invalid.html'
+    preserved = output / 'keep-together-retained.pdf'
+    for html, code in (
+        ('<section style="break-inside:avoid"><div><p>NO</p></div></section>', b'FPDF1201'),
+        ('<section style="break-inside:left"><p>NO</p></section>', b'FPDF1202'),
+    ):
+        invalid.write_text(html, encoding='utf-8')
+        preserved.write_bytes(b'original customer report')
+        failed = subprocess.run([str(executable), str(invalid), str(preserved), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Native card failure contract changed', failed.returncode, failed.stderr)
+        assert preserved.read_bytes() == b'original customer report', (
+            'Native failed card conversion overwrote existing report')
+    assert not run(executable, source, preserved, '--overwrite', cwd=work)
+    assert preserved.read_bytes() == actual.read_bytes(), (
+        'Valid retry changed native PDF after failed card conversion')
+    return {'pages': 2, 'sourceSha256': sha(source), 'oracleSha256': sha(oracle),
+            'pdfSha256': sha(actual), 'nativePdfByteParity': True,
+            'popplerSearchableText': True, 'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1262,6 +1305,7 @@ def main():
         minimum_height = verify_native_minimum_height(isolated, output, work)
         fixed_height = verify_native_fixed_height(isolated, output, work)
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
+        kept_cards = verify_native_report_keep_together(isolated, output, work)
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
@@ -1289,6 +1333,7 @@ def main():
             'minimumHeight': minimum_height,
             'fixedHeight': fixed_height,
             'sectionPageBreaks': section_breaks,
+            'reportKeepTogether': kept_cards,
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,

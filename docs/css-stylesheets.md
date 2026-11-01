@@ -590,6 +590,41 @@ selector precedence, computed lengths, page edges and budgets. New source,
 CI and review evidence do not relabel old private candidates or provide
 human page approval.
 
+## Current-source keep-together business report cards
+
+Ordinary top-level `div`, `section`, `article` and `blockquote`
+(outside lists/tables) may opt into `break-inside:avoid` or the legacy
+`page-break-inside:avoid`. Only cards of **one to eight direct nonempty
+`p/pre/h1–h6` children** are measurable. Their real glyph-wrapped line
+heights, margins, padding, border and background are preflighted, then
+the entire card is moved to a fresh page when it cannot fit at the
+current cursor. Unnecessary breaks are not inserted if the card fits.
+`auto` is the default; aliases share the same cascade/importance slot.
+Explicit `inherit/initial/unset` use normal non-inherited box semantics.
+
+Example:
+
+```html
+<section style="break-inside:avoid;background:#edf4fa;border:1pt solid #234">
+  <h3 style="margin:0">Approval</h3>
+  <p style="margin:0">Reviewed by the facilities manager</p>
+</section>
+```
+
+**Limits:** nested panels, inner explicit page boundaries, images/lists/tables,
+fixed/minimum-height, more than eight direct children, and a card whose
+actual content exceeds one usable page are not eligible. Unsupported
+structures raise `FPDF1201`, values `FPDF1202`, and unplaceable geometry
+`FPDF1302`; the existing output remains unchanged. No arbitrary Paged
+Media, general `break-inside`, widow/orphan control or two-pass browser
+pagination. The source is `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`
+and must pass exact-head CI and genuine separate review. Tests:
+`tests/FactsPDF.Tests/ReportKeepTogetherTests.cs`, the two authored
+[PDF templates](../examples/report-keep-together.html) and
+[physical page-control oracle](../examples/report-keep-together-oracle.html),
+and the native witness in `scripts/verify_native_feature_paths.py`.
+No new release or human page approval is implied.
+
 ## Current-source print section page boundaries
 
 For controlled LTR reports, standalone `div`, `section`, `article` and
@@ -613,9 +648,9 @@ legacy declaration compete for the same physical break slot.
 .signoff { break-before: auto; }
 ```
 
-Not `break-inside`, `page-break-inside`, avoid on whole panels,
-left/right/recto/verso, column boundaries, named pages, tables/list/inline
-breaks, general keep-together or CSS Paged Media. Unsupported values and
+Not general keep-together, left/right/recto/verso, column boundaries,
+named pages, tables/list/inline breaks or CSS Paged Media. A separate
+top-level flat-card `break-inside:avoid` subset is defined above. Unsupported values and
 applicability reject with `FPDF1201/1202` before replacing a customer's
 PDF. Source `67566764419232585632d8ea6f2106aeeeff2f70` adds
 `SectionPageBreakTests.cs`, the
@@ -713,6 +748,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
 | margin (bounded shorthand) | Paragraphs/headings and scoped div/section/article panels; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/em/zero and horizontal pt/px/mm/cm/in/%/rem/em/zero/`auto`, including `margin:0.25rem 0.5em`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
 | break-before, break-after; page-break-before/after aliases | Explicit p/pre/headings and ordinary div/section/article/blockquote report panels outside lists/tables; auto/page. Legacy aliases accept auto/always; heading-only break-after:avoid remains a bounded keep hint. Real page boundaries, not general CSS Fragmentation. [Precise print-section scope](#current-source-print-section-page-boundaries) and [heading pagination](heading-pagination.md) |
+| break-inside; page-break-inside alias | Only top-level div/section/article/blockquote cards with 1–8 direct nonempty p/pre/h1–h6 children. `auto` / `avoid`, CSS-wide keywords and `!important` share the actual PDF whole-card preflight and page move. Cannot exceed one page; nested/complex/fixed/minimum-height/inner forced-break inputs fail. [Exact scope](#current-source-keep-together-business-report-cards) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Paragraph-only breaks and text styles remain inapplicable on containers/spans, even for losing declarations; report-panel margins are a separate bounded exception. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
