@@ -22,5 +22,5 @@ export const englishAudit = Object.freeze(previousIndex.map((index, position) =>
   return translated;
 }));
 if (englishAudit.length !== 739 || englishAudit.some(text =>
-    typeof text !== 'string' || !text.trim() || /[\\u3400-\\u9fff]/u.test(text)))
+    typeof text !== 'string' || !text.trim() || /[\u3400-\u9fff]/u.test(text)))
   throw new Error('Invalid bounded word-break English catalogue.');

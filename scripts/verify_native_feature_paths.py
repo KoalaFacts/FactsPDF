@@ -1012,7 +1012,7 @@ def verify_native_word_break(executable, output, work):
     assert pages >= 2, '48 identifier examples must paginate'
     placed = [page_boxes(actual, n) for n in range(1, pages + 1)]
     labels = [word[0] for _, _, words in placed for word in words]
-    records = [word for word in labels if re.fullmatch(r'REC-\\d{2}', word)]
+    records = [word for word in labels if re.fullmatch(r'REC-\d{2}', word)]
     assert records == [f'REC-{n:02d}' for n in range(1, 49)], (
         'Report IDs missing, duplicated or reordered', records)
     for token in ('PAID', 'EXA', 'MPLE'):

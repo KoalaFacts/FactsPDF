@@ -674,7 +674,7 @@ test('scoped word-break actually places glyphs and preserves all 418 feature ide
   assert.equal(row.status,'partial');
   assert.equal(row.last_audited_commit,'ac6cec7000b308b403dd95abcd14441240b1f791');
   assert.equal(row.introduced_release,null);
-  assert.match(row.scope,/word-break:normal\\/break-all/);
+  assert.match(row.scope,/word-break:normal\/break-all/);
   assert.match(row.scope,/PDF/);
   assert.match(row.limitations,/FPDF1302/);
   assert.match(row.test_reference,/WordBreakTests.cs/);
