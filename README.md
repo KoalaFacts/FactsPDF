@@ -258,6 +258,23 @@ To add a header, footer and current page number:
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html numbered-report.pdf --header-text "Service report" --footer-text "Internal" --page-numbers
 ```
 
+The source CLI can also render genuinely different physical paper sizes and
+orientations. A4 portrait (595.28 × 841.89 PDF points) remains the default,
+so existing commands keep exactly their previous page geometry:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html wide-report.pdf --page-size a4 --landscape
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html us-letter.pdf --page-size letter
+```
+
+`--page-size` accepts `a4` or `letter` (case-insensitive); `--landscape`
+swaps the physical width and height for either size. It updates the actual
+PDF MediaBox, text wrapping, page breaks and page furniture coordinates; it
+does **not** scale an already-rendered page or implement CSS `@page`.
+The `.NET` API continues to use `PdfOptions.PageWidth/PageHeight` for
+explicit geometry. Source implementation began at `bb34436538b8a02f1ace0878be1f97eb5bbff77d`;
+this is not part of the older retained private preview or a public binary.
+
 The footer reads `Internal | 1`. Existing output files require `--overwrite`;
 conversion failures preserve the existing file. Diagnostics go to stderr, and
 failure returns a nonzero exit code. Use `--help` for the CLI options.

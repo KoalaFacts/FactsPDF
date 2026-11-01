@@ -376,6 +376,22 @@ From a source checkout with the repository's .NET 10 SDK:
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html first-document.pdf
 ```
 
+To print a wide A4 operations report or a US Letter report, use the
+source CLI's bounded physical paper controls:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html a4-landscape.pdf --page-size a4 --landscape
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html us-letter.pdf --page-size letter
+```
+
+The default remains A4 portrait at 595.28 × 841.89 points. Letter is
+612 × 792 points; landscape swaps those axes. These affect real PDF
+MediaBox dimensions, layout, text flow, page furniture and page count,
+not browser viewport CSS or `@page`. Invalid/repeated options return a
+CLI argument error before replacing an existing PDF, including with
+`--overwrite`. Source CLI implementation: `bb34436538b8a02f1ace0878be1f97eb5bbff77d`;
+not in the earlier retained candidate or a public release.
+
 Open `first-document.pdf`. The input and output paths are explicit. CLI
 diagnostics go to stderr, and a conversion limitation returns a nonzero exit
 code. Existing output files need `--overwrite`; failed conversions preserve the
