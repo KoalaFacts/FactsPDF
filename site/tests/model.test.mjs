@@ -57,7 +57,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:152, none:214, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:154, none:212, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
@@ -524,7 +524,7 @@ test('scoped display suppression is backed by actual source and retains the 418-
   assert.match(f.limitations, /flex\/grid/);
   assert.match(f.limitations, /严格HTML\/CSS/);
   assert.match(f.test_reference, /ReportDisplayTests\.cs/);
-  assert.equal(dataset.accepted_css_property_count, 81);
+  assert.equal(dataset.accepted_css_property_count, 83);
   assert.equal(dataset.features.length, 418);
   assert.deepEqual(counts(dataset.features),{full:44,partial:154,none:212,unknown:6,na:2});
 });
@@ -656,8 +656,8 @@ test('print section page boundaries and legacy aliases retain scoped source evid
   }
   assert.match(dataset.features.find(f=>f.id==='css.page-break-before').scope,/always/);
   assert.match(dataset.features.find(f=>f.id==='css.page-break-after').scope,/avoid/);
-  assert.equal(dataset.features.find(f=>f.id==='css.page-break-inside').status,'none');
-  assert.equal(dataset.features.find(f=>f.id==='css.break-inside').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='css.page-break-inside').status,'partial');
+  assert.equal(dataset.features.find(f=>f.id==='css.break-inside').status,'partial');
   assert.deepEqual(filterFeatures(dataset.features,{q:'page-break-before',status:'partial'}).map(f=>f.id),['css.page-break-before']);
 });
 

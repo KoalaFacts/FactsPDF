@@ -6616,7 +6616,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "旧打印别名page-break-inside:auto/avoid和break-inside共享CSS层叠槽；仅对顶层最多8条直接纯文字签批卡片生效，实测PDF换页保持背景、边框和正文完整；不是通用CSS Paged Media",
-      "limitations": "与break-inside相同的严格边界：不支持列表、表格、图片、嵌套/复杂子块、内部强制分页、height/min-height、整卡超一页及非auto/avoid值；FPDF1201/1202/1302明确拒绝，失败保护原PDF",
+      "limitations": "与break-inside相同的严格边界：不支持列表、表格、图片、嵌套/复杂子块、内部强制分页、height/min-height、整卡超一页及非auto/avoid值；FPDF1201/FPDF1202/FPDF1302明确拒绝，失败保护原PDF",
       "stage": "有界真实 PDF 布局（源码）",
       "applicability": "共享核心（CLI / .NET）",
       "example": "page-break-inside:avoid",

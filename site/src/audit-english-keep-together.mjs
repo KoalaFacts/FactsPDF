@@ -11,11 +11,11 @@ const additions = {
   "311": "Bounded real PDF layout (source only)",
   "313": "Source includes real PDF layout, previous-output protection, Linux/Windows Native AOT and independently authored forced-page controls; verify exact-head CI, human approval and independent review separately.",
   "321": "Legacy page-break-inside:auto/avoid shares the actual cascade slot with break-inside. Only top-level report cards with up to eight direct nonempty text children are measured and moved as intact PDF painted boxes. Not general CSS Paged Media.",
-  "322": "Same strict scope as break-inside: no lists, tables, images, nested/complex children, internal forced breaks, fixed/min-height or cards taller than one page. Only auto/avoid values. FPDF1201/1202/1302 reject unsupported input without overwriting the prior PDF.",
+  "322": "Same strict scope as break-inside: no lists, tables, images, nested/complex children, internal forced breaks, fixed/min-height or cards taller than one page. Only auto/avoid values. FPDF1201, FPDF1202 and FPDF1302 reject unsupported input without overwriting the prior PDF.",
   "744": baseline[739] + " " + "Incremental 2 November 2026 bounded keep-together card source audit: all 418 stable records remain, css.break-inside and css.page-break-inside are promoted only to scoped partial support, and 416 other historical source/release identities are preserved. Ordinary top-level cards with one to eight direct nonempty text paragraphs/headings are preflighted for real PDF glyph wrapping and box paint, then moved intact at the page end. Unsupported structure and unplaceable content fail without overwriting output. Source NUnit, two independently authored HTML controls and Native AOT/qpdf/Poppler tests are configured; exact-head CI, separate review, human approval, retained private software and commercial authorisation remain distinct.",
   "745": baseline[740] + " " + "Incremental 2 November 2026 scoped break-inside:auto/avoid and legacy page-break-inside: only top-level report sign-off cards with at most eight direct nonempty text paragraphs/headings move intact on measured PDF page boundaries; not nested/list/table/image, fixed/min-height, over-one-page cards or full CSS Paged Media. The 418 stable records are retained with 83 scoped CSS property names. Public source is not an installable preview or customer licence."
 };
-export const sourceDigest = "6556b46560c5d280e4c5d1d8190920885cd38b0864f6bb4bfeb62e7358a78ab5";
+export const sourceDigest = "09b89f63c939454bda24db531630073e844bd6e23dcd63e26c32244dd97c13bb";
 export const englishAudit = Object.freeze(original.map((previous, index) => {
   if (previous >= 0) return baseline[previous];
   const text = additions[index];

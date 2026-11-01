@@ -174,20 +174,20 @@ internal static class TextLayout
                 {
                     cancellation.ThrowIfCancellationRequested();
                     var node = (BlockNode)child;
-                    var paragraph = ((ParagraphNode)node.Children[0]).Paragraph;
+                    var keptParagraph = ((ParagraphNode)node.Children[0]).Paragraph;
                     var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle,
                         keep.ContentWidth, node.SourceOffset);
                     var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset,
                         keep.ContentWidth);
                     if (firstChild)
                     {
-                        firstBefore = paragraph.Style.MarginBefore;
+                        firstBefore = keptParagraph.Style.MarginBefore;
                         firstChild = false;
                     }
-                    else intrinsic += Math.Max(previousAfter, paragraph.Style.MarginBefore);
+                    else intrinsic += Math.Max(previousAfter, keptParagraph.Style.MarginBefore);
                     intrinsic += box.Top + box.Bottom;
                     var sawLine = false;
-                    foreach (var line in Wrap(paragraph, box.Inner, o, resolved, cancellation))
+                    foreach (var line in Wrap(keptParagraph, box.Inner, o, resolved, cancellation))
                     {
                         sawLine = true;
                         intrinsic += line.Height;
@@ -199,7 +199,7 @@ internal static class TextLayout
                     if (!sawLine)
                         throw new FactsPdfException("FPDF1201",
                             "Kept report card requires nonempty text.", node.SourceOffset);
-                    previousAfter = paragraph.Style.MarginAfter;
+                    previousAfter = keptParagraph.Style.MarginAfter;
                 }
                 intrinsic += previousAfter;
                 var fresh = keep.MarginTop + firstBefore + intrinsic;
