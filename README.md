@@ -1,3 +1,12 @@
+### Rounded commercial report cards (source-only)
+
+`border-radius:12pt` now paints real curved PDF backgrounds and matching
+uniform solid border rings on ordinary report blocks, retaining measurable text,
+page continuations and destination protection. The [54-card report](examples/report-rounded-panels.html)
+and [physical-unit oracle](examples/report-rounded-panels-oracle.html) are scoped,
+not browser CSS conformance. See [precise value and failure rules](docs/css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
+No new installable preview, human reference approval or customer grant is implied.
+
 # FactsPDF
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**

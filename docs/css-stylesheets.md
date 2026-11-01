@@ -1,3 +1,28 @@
+
+## Current-source rounded business-report cards (2026-11-01)
+
+Ordinary `p`/`pre`/`h1`–`h6`/`div`/`section`/`article`/`blockquote`
+outside lists/tables support one physical `border-radius`: zero or 0.25–72pt
+in `pt`, `px`, `mm`, `cm`, or `in`. One radius shapes all four corners
+of the actual opaque PDF background and a uniformly thick, single-colour
+solid border; text metrics and content/outer dimensions do not change.
+On continued report boxes only the first fragment's top and the final
+fragment's bottom receive curved corners; continuation sides stay straight.
+Cascade, `!important`, `initial`/`unset`/`inherit`, output budget and
+destination protection use the existing scoped renderer.
+
+Percentages, elliptical/multiple/per-corner radii, `em`/`rem`, box
+radii on table cells, images, lists or inline elements, nonuniform/missing,
+dashed/dotted borders, CSS background clipping, full CSS Backgrounds &
+Borders and browser layout are **not** implemented; incompatible input
+fails explicitly. `border-radius:0` preserves the old PDF bytes.
+This is source capability, not part of the previously retained private
+preview binary, human PDF approval or an evaluation grant. The
+[54-card authored sample](../examples/report-rounded-panels.html) and
+[separate 16px/12pt projection](../examples/report-rounded-panels-oracle.html)
+exercise actual PDF bytes and pagination; NUnit and Linux/Windows
+Native AOT/Poppler tests verify painted curves and error recovery.
+
 ## Current-source bounded vertical alignment for fixed-column table cells
 
 Fixed-column `td` and `th` accept the real PDF-rendered values
