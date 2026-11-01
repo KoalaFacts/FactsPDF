@@ -325,3 +325,7 @@ the source implementation at `7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750`. Non-hun
 fall back. This is **not** evidence that the older retained
 `0.1.0-preview.1` software candidate was rebuilt, that a NuGet package was
 published, or that page/reference, licence and distribution gates were approved.
+
+## Source-only patterned report borders
+
+The bounded dashed/dotted border implementation at source `4b5d6da3553579dad75dd00bfb041e1f3c200d90` adds actual PDF strokes to existing business-report boxes. The [76-record report](../examples/report-patterned-borders.html) and the native PDF/Poppler evidence check are technical regression material only. This has not been incorporated into the retained 0.1.0-preview.1 binary candidate or human-approved reference pages; existing evaluation/licensing limits still apply.
