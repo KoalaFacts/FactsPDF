@@ -181,6 +181,28 @@ public sealed class ReportPanelMinHeightTests
     }
 
     [Test]
+    public void SatisfiedUnpaintedMinimumIsNotRestartedAfterAnInnerPageBreak()
+    {
+        const string unpainted = "<section style='min-height:60pt'>" +
+            "<div style='min-height:60pt'></div>" +
+            "<p style='margin:0;break-before:page'>B</p></section>" +
+            "<p style='margin:0'>C</p>";
+        var painted = unpainted.Replace("style='min-height:60pt'>",
+            "style='min-height:60pt;background:blue'>");
+        var actual = Layout(unpainted);
+        var control = Layout(painted);
+        Assert.That(actual, Has.Count.EqualTo(2));
+        Assert.That(control, Has.Count.EqualTo(2));
+        Assert.That(actual[1].Runs.Select(run => run.Text),
+            Is.EqualTo(new[] { "B", "C" }));
+        Assert.That(actual[1].Runs.Select(run => run.Baseline),
+            Is.EqualTo(control[1].Runs.Select(run => run.Baseline))
+                .Within(0.00001),
+            "A previously satisfied unpainted minimum cannot reserve a second 60pt after the break.");
+        Assert.That(Encoding.ASCII.GetString(Render(unpainted)), Does.Contain("/Count 2"));
+    }
+
+    [Test]
     public void ContentLargerThanMinimumRetainsNaturalFragmentedPages()
     {
         var options = Page with { PageHeight = 160 };

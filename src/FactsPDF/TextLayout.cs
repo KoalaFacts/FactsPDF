@@ -79,8 +79,12 @@ internal static class TextLayout
             {
                 var scope = opened[i];
                 var hasText = scope.ContentEpoch != contentEpoch;
+                // A minimum already occupying this page cannot restart at
+                // the next paragraph's explicit break merely because the
+                // containing panel is unpainted. Preserve its first fragment
+                // and consumed padding just as for a painted panel.
                 var retainOrigin = scope.HasOccupiedDescendant &&
-                    (scope.Style.HasPaint || continuedPaint);
+                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || continuedPaint);
                 if (scope.Style.HasPaint && (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
                     continuedPaint = true;
                 if (hasText || scope.TopConsumed) continue;
