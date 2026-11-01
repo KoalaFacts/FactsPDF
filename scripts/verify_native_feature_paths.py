@@ -555,7 +555,7 @@ def verify_native_preserved_space_notes(executable, output, work):
             'Native preserved-space failure contract', name, failed.returncode, failed.stderr)
         assert dest.read_bytes() == b'original-preserved-pdf', (
             'Native failed conversion modified existing PDF')
-        assert not run(executable, source, dest, '--overwrite')
+        assert not run(executable, source, dest, '--overwrite', cwd=work)
         assert dest.read_bytes() == pdf.read_bytes(), 'Recovery changed preserved-space PDF'
     return {'pages': count, 'references': 72, 'nativePopplerTextGeometry': True,
             'independentCollapsedSpaceControl': True, 'outputPreservedOnFailure': True,
