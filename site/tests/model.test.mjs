@@ -103,7 +103,9 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.limitations,/FPDF1305/);
   assert.match(feature.limitations,/FPDF1201/);
   assert.match(feature.limitations,/FPDF1202/);
-  assert.match(feature.test_reference,/WhiteSpacePreWrapTests\.cs/);
+  assert.match(feature.test_reference,/PreformattedReportTests\.cs/);
+  assert.match(feature.evidence_level,/原有 pre-wrap 测试/,
+    'The new preformatted audit must retain explicit evidence of the prior pre-wrap regressions.');
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
     ['css.white-space','css.word-spacing']);
 });
