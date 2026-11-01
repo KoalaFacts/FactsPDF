@@ -351,9 +351,13 @@ internal sealed class CssStylesheets
             // patterned borders. The single uniform ring is actually painted;
             // non-rounded legacy box strokes retain exactly their old bytes.
             var edges = new[] { box.BorderTop, box.BorderRight, box.BorderBottom, box.BorderLeft };
+            // currentcolor is stored as null, but paints with the final
+            // computed text colour. Compare real ink, not raw nullable tokens.
+            var firstInk = edges[0].Color ?? style.Color;
             if (edges.Any(e => e.EffectiveWidth > 0) &&
                 (edges.Any(e => e.EffectiveWidth <= 0 || e.Pattern != BorderPattern.Solid) ||
-                 edges.Any(e => e.EffectiveWidth != edges[0].EffectiveWidth || e.Color != edges[0].Color)))
+                 edges.Any(e => e.EffectiveWidth != edges[0].EffectiveWidth ||
+                     (e.Color ?? style.Color) != firstInk)))
                 throw new FactsPdfException("FPDF1201",
                     "Rounded report boxes require an equally thick, single-colour solid border on all four sides.",
                     winners[(int)CssProperty.BorderRadius]?.Declaration.Offset ?? elementOffset);

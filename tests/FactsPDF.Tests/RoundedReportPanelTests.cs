@@ -135,6 +135,19 @@ public sealed class RoundedReportPanelTests
         => FailsProtected(html, error);
 
     [Test]
+    public void ExplicitInkAndCurrentColorCompareByComputedVisibleColour()
+    {
+        const string uniform = "<section style='color:red;border:2pt solid red;" +
+            "border-radius:12pt'>Card</section>";
+        const string equivalent = "<section style='color:red;border:2pt solid red;" +
+            "border-left-color:currentcolor;border-radius:12pt'>Card</section>";
+        Assert.That(Pdf(equivalent), Is.EqualTo(Pdf(uniform)),
+            "Only true rendered ink mismatch should reject a rounded border.");
+        FailsProtected("<section style='color:blue;border:2pt solid red;" +
+            "border-left-color:currentcolor;border-radius:12pt'>Card</section>", "FPDF1201");
+    }
+
+    [Test]
     public void ManagedCliAndApiProduceMatchingRoundedReportBytes()
     {
         const string source = "<section style='border-radius:12pt;background:blue;" +
