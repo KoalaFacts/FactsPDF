@@ -1,3 +1,18 @@
+## Current-source independent corner-radius PDF rendering
+
+The four physical corner longhands compose with 1–4 value `border-radius`
+under per-side cascade, `!important`, CSS-wide resets and explicit
+inheritance. Each accepts one bounded physical value. Real PDF Bezier
+background and uniform solid border-ring paint follows the original
+pagination/layout path. `RoundedCornerLonghandTests.cs` asserts actual
+PDF bytes, per-corner source order, independent inheritance and errors;
+the native verifier compares the 50-card
+[longhand report](../../examples/report-corner-longhands.html) byte-for-byte
+to the [existing independent shorthand report](../../examples/report-asymmetric-rounded-panels.html),
+with Poppler/qpdf, original-output protection and real page continuations.
+No ellipse/percent/em/rem radii, rounded table/list/image/inline boxes,
+new installable candidate, human approval or distribution authorization.
+
 ## Current-source bounded minimum-height card geometry
 
 `min-height` on `div/section/article/blockquote` outside lists/tables
@@ -22,7 +37,7 @@ and last/bottom page fragment caps are rounded, middle continuation sides
 are square. `RoundedReportPanelTests.cs`, the 54-card report, separate
 16px/12pt oracle and Linux/Windows Native AOT/Poppler witness validate real
 curves, text positions, pagination, legacy zero-radius PDF bytes and failure
-recovery. Not asymmetric/patterned borders, percentages, separate per-corner radii
+recovery. Not asymmetric/patterned borders, percentages, two-axis elliptical radii
 or table/image/list/inline boxes. Source-only; current-head CI, independent
 review, retained binary, human reference approval and customer grant are
 separate gates.

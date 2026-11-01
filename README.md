@@ -2,6 +2,25 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Independent CSS corner-radius longhands (source-only)
+
+For invoices, summary cards and branded report headings, four separate CSS
+`border-top-left-radius`, `border-top-right-radius`,
+`border-bottom-right-radius` and `border-bottom-left-radius`
+longhands set individual **real PDF vector corners**, including across pages.
+Each takes one physical `pt/px/mm/cm/in` length (zero or 0.25–72pt) or
+a CSS-wide keyword, independently competing with `border-radius`
+shorthand using specificity, `!important` and source order. Only ordinary
+report blocks outside tables/lists, opaque fills and equal-width/colour solid
+border rings are supported; no percentages, elliptical two-axis radii,
+font-relative radii, rounded images/tables, or full CSS Borders.
+The [50-card longhand report](examples/report-corner-longhands.html)
+is compared at native PDF-byte level against the existing independently
+authored [four-corner control](examples/report-asymmetric-rounded-panels.html).
+Read [the exact CSS contract](docs/css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
+This is source implementation, not a new public/private distributable,
+customer use right or human PDF approval.
+
 ### Minimum-height inspection cards (source-only)
 
 A controlled business report panel can reserve a visible minimum area using
