@@ -345,10 +345,11 @@ internal sealed class CssStylesheets
                     paragraph, computedRoot);
             }
         }
-        if (box.CornerRadius > 0)
+        if (box.HasRoundedCorners)
         {
-            // A nonzero rounded corner may not silently flatten asymmetric or
-            // patterned borders. The single uniform ring is actually painted;
+            // Nonzero corner radii may not silently flatten asymmetric or
+            // patterned borders. The uniform ring has four independent curved
+            // corners and is actually painted;
             // non-rounded legacy box strokes retain exactly their old bytes.
             var edges = new[] { box.BorderTop, box.BorderRight, box.BorderBottom, box.BorderLeft };
             // currentcolor is stored as null, but paints with the final

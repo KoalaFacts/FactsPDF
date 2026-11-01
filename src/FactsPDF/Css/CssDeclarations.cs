@@ -144,8 +144,19 @@ internal static class CssDeclarations
         var from = value == "inherit" ? parent : new BoxStyle();
 
         if (property == CssProperty.BorderRadius)
-            return current with { CornerRadius = wide ? from.CornerRadius :
-                CssPaintValues.BorderRadius(value, declaration.Offset) };
+        {
+            var corners = wide
+                ? (from.CornerRadius, from.CornerTopRightRadius,
+                    from.CornerBottomRightRadius, from.CornerBottomLeftRadius)
+                : CssPaintValues.BorderRadii(value, declaration.Offset);
+            return current with
+            {
+                CornerRadius = corners.Item1,
+                CornerTopRightRadius = corners.Item2,
+                CornerBottomRightRadius = corners.Item3,
+                CornerBottomLeftRadius = corners.Item4
+            };
+        }
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };
         if (property == CssProperty.Width)

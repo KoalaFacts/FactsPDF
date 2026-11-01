@@ -119,7 +119,7 @@ internal static class PdfPaintSerializer
             var height = box.Height;
             if (!double.IsFinite(x + y + width + height) || width < 0 || height < 0)
                 throw new InvalidOperationException("Invalid paint rectangle.");
-            if (s.CornerRadius > 0)
+            if (s.HasRoundedCorners)
             {
                 RoundedBox(output, box, pageHeight, maxOutputBytes);
                 continue;
@@ -152,10 +152,9 @@ internal static class PdfPaintSerializer
     }
 
 
-    // Source-only, bounded report cards: fill the actual corner curve, then an
-    // opaque even-odd border ring. Unlike a rectangular clip, the inner edge
-    // is rounded too, so an inset does not gain spurious dark corner wedges.
-    // Continued boxes round only their first-page top and last-page bottom.
+    // Four physical corners paint one closed outer background and one even-odd
+    // border ring. On continued boxes the top two radii belong only to the
+    // first fragment; the bottom two belong only to the final fragment.
     private static void RoundedBox(StringBuilder output, PaintedBox box,
         double pageHeight, int maxOutputBytes)
     {
@@ -167,15 +166,32 @@ internal static class PdfPaintSerializer
         var h = box.Height;
         var top = box.IsFirstFragment;
         var bottom = box.IsLastFragment;
-        var r = Math.Min(style.CornerRadius, Math.Min(w / 2, h / (top && bottom ? 2 : 1)));
-        var topRadius = top ? r : 0;
-        var bottomRadius = bottom ? r : 0;
+        var uniform = style.CornerRadius == style.CornerTopRightRadius &&
+            style.CornerRadius == style.CornerBottomRightRadius &&
+            style.CornerRadius == style.CornerBottomLeftRadius;
+        double tl, tr, br, bl;
+        if (uniform)
+        {
+            // Preserve historical one-radius rounding and PDF byte output.
+            var r = Math.Min(style.CornerRadius,
+                Math.Min(w / 2, h / (top && bottom ? 2 : 1)));
+            tl = tr = top ? r : 0;
+            br = bl = bottom ? r : 0;
+        }
+        else
+        {
+            (tl, tr, br, bl) = FitCorners(
+                top ? style.CornerRadius : 0,
+                top ? style.CornerTopRightRadius : 0,
+                bottom ? style.CornerBottomRightRadius : 0,
+                bottom ? style.CornerBottomLeftRadius : 0, w, h);
+        }
 
         if (style.BackgroundColor is Rgb bg)
         {
             output.Append("q ").Append(N(bg.R)).Append(' ').Append(N(bg.G)).Append(' ')
                 .Append(N(bg.B)).Append(" rg ");
-            RoundedPath(output, x, y, w, h, topRadius, bottomRadius);
+            RoundedPath(output, x, y, w, h, tl, tr, br, bl);
             output.Append("f Q\n");
             if (output.Length > maxOutputBytes)
                 throw new FactsPdfException("FPDF1401", "PDF rounded background exceeds MaxOutputBytes.");
@@ -186,22 +202,32 @@ internal static class PdfPaintSerializer
         var color = style.BorderLeft.Color ?? box.TextColor;
         output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
             .Append(N(color.B)).Append(" rg ");
-        RoundedPath(output, x, y, w, h, topRadius, bottomRadius);
-        // Top/bottom borders belong only to their original page fragments;
-        // vertical sides continue on intermediate fragments without caps.
+        RoundedPath(output, x, y, w, h, tl, tr, br, bl);
         var topInset = top ? Math.Min(border, h) : 0;
         var bottomInset = bottom ? Math.Min(border, h - topInset) : 0;
         var innerWidth = w - 2 * border;
         var innerHeight = h - topInset - bottomInset;
         if (innerWidth > 0 && innerHeight > 0)
         {
-            var innerTopRadius = top ? Math.Max(0, r - border) : 0;
-            var innerBottomRadius = bottom ? Math.Max(0, r - border) : 0;
-            var clamp = Math.Min(innerWidth / 2,
-                innerHeight / (top && bottom ? 2 : 1));
+            double itl, itr, ibr, ibl;
+            if (uniform)
+            {
+                // The legacy inner-ring clamp must remain byte-for-byte
+                // identical for every formerly supported single-radius card.
+                var topInner = top ? Math.Max(0, tl - border) : 0;
+                var bottomInner = bottom ? Math.Max(0, bl - border) : 0;
+                var clamp = Math.Min(innerWidth / 2,
+                    innerHeight / (top && bottom ? 2 : 1));
+                itl = itr = Math.Min(topInner, clamp);
+                ibr = ibl = Math.Min(bottomInner, clamp);
+            }
+            else
+                (itl, itr, ibr, ibl) = FitCorners(
+                    Math.Max(0, tl - border), Math.Max(0, tr - border),
+                    Math.Max(0, br - border), Math.Max(0, bl - border),
+                    innerWidth, innerHeight);
             RoundedPath(output, x + border, y + bottomInset,
-                innerWidth, innerHeight, Math.Min(innerTopRadius, clamp),
-                Math.Min(innerBottomRadius, clamp));
+                innerWidth, innerHeight, itl, itr, ibr, ibl);
             output.Append("f* Q\n");
         }
         else output.Append("f Q\n");
@@ -209,41 +235,52 @@ internal static class PdfPaintSerializer
             throw new FactsPdfException("FPDF1401", "PDF rounded border exceeds MaxOutputBytes.");
     }
 
-    // PDF path uses bottom-origin coordinates. The four cubic arcs are
-    // geometrically tangent to their adjacent straight edges (kappa circle
-    // approximation); no browser, raster asset or external font is involved.
+    // CSS's proportional corner fitting rule prevents adjacent curves from
+    // overlapping even on narrow cards and short first/last page fragments.
+    // There is no elliptical syntax: both axes use the same radius at a corner.
+    private static (double TL, double TR, double BR, double BL) FitCorners(
+        double tl, double tr, double br, double bl, double width, double height)
+    {
+        var scale = 1d;
+        if (tl + tr > width) scale = Math.Min(scale, width / (tl + tr));
+        if (bl + br > width) scale = Math.Min(scale, width / (bl + br));
+        if (tl + bl > height) scale = Math.Min(scale, height / (tl + bl));
+        if (tr + br > height) scale = Math.Min(scale, height / (tr + br));
+        return (tl * scale, tr * scale, br * scale, bl * scale);
+    }
+
+    // PDF uses bottom-origin coordinates. Cubic arcs are tangent to adjacent
+    // straight edges at each independently measured corner.
     private static void RoundedPath(StringBuilder output, double x, double y,
-        double width, double height, double topRadius, double bottomRadius)
+        double width, double height, double tl, double tr, double br, double bl)
     {
         const double k = 0.5522847498307936;
         var right = x + width;
         var upper = y + height;
-        var b = bottomRadius;
-        var t = topRadius;
-        output.Append(N(x + b)).Append(' ').Append(N(y)).Append(" m ");
-        output.Append(N(right - b)).Append(' ').Append(N(y)).Append(" l ");
-        if (b > 0)
-            output.Append(N(right - b + k * b)).Append(' ').Append(N(y)).Append(' ')
-                .Append(N(right)).Append(' ').Append(N(y + b - k * b)).Append(' ')
-                .Append(N(right)).Append(' ').Append(N(y + b)).Append(" c ");
+        output.Append(N(x + bl)).Append(' ').Append(N(y)).Append(" m ");
+        output.Append(N(right - br)).Append(' ').Append(N(y)).Append(" l ");
+        if (br > 0)
+            output.Append(N(right - br + k * br)).Append(' ').Append(N(y)).Append(' ')
+                .Append(N(right)).Append(' ').Append(N(y + br - k * br)).Append(' ')
+                .Append(N(right)).Append(' ').Append(N(y + br)).Append(" c ");
         else output.Append(N(right)).Append(' ').Append(N(y)).Append(" l ");
-        output.Append(N(right)).Append(' ').Append(N(upper - t)).Append(" l ");
-        if (t > 0)
-            output.Append(N(right)).Append(' ').Append(N(upper - t + k * t)).Append(' ')
-                .Append(N(right - t + k * t)).Append(' ').Append(N(upper)).Append(' ')
-                .Append(N(right - t)).Append(' ').Append(N(upper)).Append(" c ");
+        output.Append(N(right)).Append(' ').Append(N(upper - tr)).Append(" l ");
+        if (tr > 0)
+            output.Append(N(right)).Append(' ').Append(N(upper - tr + k * tr)).Append(' ')
+                .Append(N(right - tr + k * tr)).Append(' ').Append(N(upper)).Append(' ')
+                .Append(N(right - tr)).Append(' ').Append(N(upper)).Append(" c ");
         else output.Append(N(right)).Append(' ').Append(N(upper)).Append(" l ");
-        output.Append(N(x + t)).Append(' ').Append(N(upper)).Append(" l ");
-        if (t > 0)
-            output.Append(N(x + t - k * t)).Append(' ').Append(N(upper)).Append(' ')
-                .Append(N(x)).Append(' ').Append(N(upper - t + k * t)).Append(' ')
-                .Append(N(x)).Append(' ').Append(N(upper - t)).Append(" c ");
+        output.Append(N(x + tl)).Append(' ').Append(N(upper)).Append(" l ");
+        if (tl > 0)
+            output.Append(N(x + tl - k * tl)).Append(' ').Append(N(upper)).Append(' ')
+                .Append(N(x)).Append(' ').Append(N(upper - tl + k * tl)).Append(' ')
+                .Append(N(x)).Append(' ').Append(N(upper - tl)).Append(" c ");
         else output.Append(N(x)).Append(' ').Append(N(upper)).Append(" l ");
-        output.Append(N(x)).Append(' ').Append(N(y + b)).Append(" l ");
-        if (b > 0)
-            output.Append(N(x)).Append(' ').Append(N(y + b - k * b)).Append(' ')
-                .Append(N(x + b - k * b)).Append(' ').Append(N(y)).Append(' ')
-                .Append(N(x + b)).Append(' ').Append(N(y)).Append(" c ");
+        output.Append(N(x)).Append(' ').Append(N(y + bl)).Append(" l ");
+        if (bl > 0)
+            output.Append(N(x)).Append(' ').Append(N(y + bl - k * bl)).Append(' ')
+                .Append(N(x + bl - k * bl)).Append(' ').Append(N(y)).Append(' ')
+                .Append(N(x + bl)).Append(' ').Append(N(y)).Append(" c ");
         else output.Append(N(x)).Append(' ').Append(N(y)).Append(" l ");
         output.Append("h ");
     }

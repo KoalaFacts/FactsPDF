@@ -51,7 +51,7 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     {
         get
         {
-            if (Style.CornerRadius > 0)
+            if (Style.HasRoundedCorners)
                 return Width > 0 && Height > 0
                     ? (Style.BackgroundColor.HasValue ? 1 : 0)
                       + (Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
@@ -120,8 +120,15 @@ internal sealed record BoxStyle(
     public CssLength? MinWidth { get; init; }
     public CssLength? MaxWidth { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
-    // One measured physical corner radius on supported ordinary report boxes.
+    // Rounded-corner shorthand computes TL / TR / BR / BL physical radii.
+    // CornerRadius keeps the original TL member so one-value reports retain
+    // their source layout and exact legacy PDF bytes.
     public double CornerRadius { get; init; }
+    public double CornerTopRightRadius { get; init; }
+    public double CornerBottomRightRadius { get; init; }
+    public double CornerBottomLeftRadius { get; init; }
+    public bool HasRoundedCorners => CornerRadius > 0 || CornerTopRightRadius > 0 ||
+        CornerBottomRightRadius > 0 || CornerBottomLeftRadius > 0;
     public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderBottom { get; init; } = BorderEdge.Initial;

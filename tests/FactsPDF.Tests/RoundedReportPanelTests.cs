@@ -119,7 +119,13 @@ public sealed class RoundedReportPanelTests
     }
 
     [TestCase("<section style='border-radius:10%'>Invalid</section>", "FPDF1202")]
-    [TestCase("<section style='border-radius:8pt 9pt'>Invalid</section>", "FPDF1202")]
+    [TestCase("<section style='border-radius:8pt 9pt 6pt 4pt 2pt'>Invalid</section>", "FPDF1202")]
+    [TestCase("<section style='border-radius:inherit 2pt'>Invalid</section>", "FPDF1202")]
+    [TestCase("<section style='border-radius:4pt 10%'>Invalid</section>", "FPDF1202")]
+    [TestCase("<section style='border-radius:4pt / 2pt'>Invalid</section>", "FPDF1202")]
+    [TestCase("<section style='border-radius:4pt -2pt'>Invalid</section>", "FPDF1202")]
+    [TestCase("<style>.unused{border-radius:6pt 0.1pt}</style><section>Invalid even unmatched</section>", "FPDF1202")]
+    [TestCase("<section style='border-top-left-radius:6pt'>Unsupported longhand</section>", "FPDF1201")]
     [TestCase("<section style='border-radius:3'>Invalid</section>", "FPDF1202")]
     [TestCase("<section style='border-radius:0.1pt'>Invalid</section>", "FPDF1202")]
     [TestCase("<section style='border-radius:73pt'>Invalid</section>", "FPDF1202")]
@@ -145,6 +151,92 @@ public sealed class RoundedReportPanelTests
             "Only true rendered ink mismatch should reject a rounded border.");
         FailsProtected("<section style='color:blue;border:2pt solid red;" +
             "border-left-color:currentcolor;border-radius:12pt'>Card</section>", "FPDF1201");
+    }
+
+    [TestCase("12pt", "12pt 12pt 12pt 12pt")]
+    [TestCase("12pt 6pt", "12pt 6pt 12pt 6pt")]
+    [TestCase("12pt 6pt 3pt", "12pt 6pt 3pt 6pt")]
+    [TestCase("12pt 6pt 3pt 9pt", "12pt 6pt 3pt 9pt")]
+    public void OneToFourValuesPaintExactlyTheirCssCornerExpansion(string shorthand, string explicitFour)
+    {
+        const string begin = "<section style='width:120pt;padding:6pt;background:#edf5fa;border:2pt solid blue;border-radius:";
+        const string end = "'>Important report</section>";
+        Assert.That(Pdf(begin + shorthand + end), Is.EqualTo(Pdf(begin + explicitFour + end)));
+        Assert.That(Pdf(begin + shorthand + end), Is.Not.EqualTo(Pdf(begin + "0" + end)));
+    }
+
+    [Test]
+    public void FourDifferentCornersPaintDifferentPdfCurvesWithUnchangedTextGeometry()
+    {
+        const string begin = "<section style='width:160pt;padding:7pt;background:#edf5fa;border:2pt solid blue;";
+        const string asym = begin + "border-radius:12pt 9pt 6pt 3pt'>Audit card</section>";
+        const string physical = begin + "border-radius:16px 12px 8px 4px'>Audit card</section>";
+        const string uniform = begin + "border-radius:12pt'>Audit card</section>";
+        var boxes = Layout(asym).Single().PaintBoxes;
+        Assert.That(boxes, Has.Count.EqualTo(1));
+        var box = boxes.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(box.Style.CornerRadius, Is.EqualTo(12));
+            Assert.That(box.Style.CornerTopRightRadius, Is.EqualTo(9));
+            Assert.That(box.Style.CornerBottomRightRadius, Is.EqualTo(6));
+            Assert.That(box.Style.CornerBottomLeftRadius, Is.EqualTo(3));
+            Assert.That(box.CommandCount, Is.EqualTo(2));
+        });
+        Assert.That(Pdf(asym), Is.EqualTo(Pdf(physical)),
+            "Actual four independent physical corner lengths must serialize identically.");
+        Assert.That(Pdf(asym), Is.Not.EqualTo(Pdf(uniform)),
+            "The renderer must not silently flatten four values to one radius.");
+        Assert.That(Layout(asym).Single().Runs.Select(x => (x.X, x.Baseline)),
+            Is.EqualTo(Layout(uniform).Single().Runs.Select(x => (x.X, x.Baseline))));
+        var output = new StringBuilder();
+        PdfPaintSerializer.Append(output, [box], Page.PageHeight, 16000, default);
+        var commands = output.ToString();
+        Assert.That(commands.Split(" c ").Length - 1, Is.EqualTo(8));
+        Assert.That(commands, Does.Contain("f* Q"));
+    }
+
+    [Test]
+    public void FourCornerShorthandRespectsImportantInheritanceAndReset()
+    {
+        const string html = "<style>.card{border-radius:12pt 9pt 6pt 3pt!important}" +
+            ".card{border-radius:2pt}</style><section class=card style='border-radius:1pt'>" +
+            "<div style='border-radius:inherit'>A</div>" +
+            "<div style='border-radius:initial'>B</div>" +
+            "<div style='border-radius:unset'>C</div></section>";
+        var outer = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        Assert.That((outer.BoxStyle.CornerRadius, outer.BoxStyle.CornerTopRightRadius,
+            outer.BoxStyle.CornerBottomRightRadius, outer.BoxStyle.CornerBottomLeftRadius),
+            Is.EqualTo((12d, 9d, 6d, 3d)));
+        var children = outer.Children.OfType<BlockNode>().ToArray();
+        Assert.That(children, Has.Length.EqualTo(3));
+        Assert.That((children[0].BoxStyle.CornerRadius, children[0].BoxStyle.CornerTopRightRadius,
+            children[0].BoxStyle.CornerBottomRightRadius, children[0].BoxStyle.CornerBottomLeftRadius),
+            Is.EqualTo((12d, 9d, 6d, 3d)));
+        Assert.That(children[1].BoxStyle.HasRoundedCorners, Is.False);
+        Assert.That(children[2].BoxStyle.HasRoundedCorners, Is.False);
+    }
+
+    [Test]
+    public void FourCornerPaginationRoundsOnlyFirstTopAndLastBottom()
+    {
+        var notes = string.Concat(Enumerable.Range(1, 50)
+            .Select(i => $"<p style='margin:0'>Four-corner audit {i:00}</p>"));
+        var html = "<article style='background:#edf5fa;border:2pt solid blue;" +
+            "border-radius:12pt 9pt 6pt 3pt;padding:5pt'>" + notes + "</article>";
+        var pages = Layout(html);
+        Assert.That(pages.Length, Is.GreaterThan(2));
+        var boxes = pages.Select(p => p.PaintBoxes.Single()).ToArray();
+        var first = new StringBuilder();
+        PdfPaintSerializer.Append(first, [boxes[0]], Page.PageHeight, 10000, default);
+        var middle = new StringBuilder();
+        PdfPaintSerializer.Append(middle, [boxes[1]], Page.PageHeight, 10000, default);
+        var last = new StringBuilder();
+        PdfPaintSerializer.Append(last, [boxes[^1]], Page.PageHeight, 10000, default);
+        Assert.That(first.ToString(), Does.Contain(" c "));
+        Assert.That(middle.ToString(), Does.Not.Contain(" c "));
+        Assert.That(last.ToString(), Does.Contain(" c "));
+        Assert.That(pages.SelectMany(p => p.Runs).Count(), Is.EqualTo(50));
     }
 
     [Test]
