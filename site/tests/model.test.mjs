@@ -16,14 +16,14 @@ function marginEvidence(id) {
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
   assert.equal(validateDataset(dataset).features.length, 418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
   assert.equal(decor.last_audited_commit,'41c6f9577a4b3040c272be747a663501abdb181d');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
+  assert.equal(dataset.commit, '6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae');
   assert.match(dataset.commit_url, /7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
@@ -62,7 +62,7 @@ test('418 stable records retain provenance with scoped preview capability update
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
   assert.equal(dataset.accepted_html_tag_count,37);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.equal(rule.status,'partial');
   assert.equal(rule.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
   assert.equal(rule.introduced_release,null);
@@ -85,7 +85,7 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/anywhere/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.overflow-wrap']);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
@@ -113,7 +113,7 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
+  assert.equal(feature.last_audited_commit,'6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/border-box/);
   assert.match(feature.scope,/padding/);
@@ -133,7 +133,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.equal(margin.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
@@ -264,7 +264,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.explicit-report-image-height');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.image-physical-height-limits');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计80个受限CSS属性名/);
@@ -388,7 +388,7 @@ test('bounded report min/max widths are rendered, sourced and discoverable witho
   assert.deepEqual(filterFeatures(dataset.features,{q:'min-width',status:'partial'}).filter(f=>f.id==='css.min-width').map(f=>f.id),['css.min-width']);
   assert.deepEqual(filterFeatures(dataset.features,{q:'max-width',status:'partial'}).filter(f=>f.id==='css.max-width').map(f=>f.id),['css.max-width']);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('root-rem and own-font em box lengths are bounded, evidence-backed partial CSS subsets', () => {
@@ -407,7 +407,7 @@ test('root-rem and own-font em box lengths are bounded, evidence-backed partial 
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.font-size').limitations,/margin/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.deepEqual(filterFeatures(dataset.features,{q:'width rem',status:'partial'}).filter(f=>f.id==='css.width').map(f=>f.id),['css.width']);
 });
 
@@ -415,7 +415,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
   const revised=['css.margin','css.margin-top','css.margin-bottom','css.margin-left',
     'css.margin-right'];
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.deepEqual(counts(dataset.features),{full:44,partial:151,none:215,unknown:6,na:2});
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
@@ -476,12 +476,12 @@ test('numeric hundred-step report font weights use the explicit source-audited r
   assert.match(row.limitations,/bolder\/lighter/);
   assert.match(dataset.audit_method,/417 full feature records preserve/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('four grouped LTR logical spacing records include eight side longhands', () => {
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   for (const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
     const row=dataset.features.find(f=>f.id==='css.'+name);
     assert.equal(row.status,'partial');
@@ -547,7 +547,7 @@ test('bounded list marker audit retains actual PDF scope and 418 provenance rows
     assert.match(html.scope,/list-style-type/);
   }
   assert.deepEqual(counts(dataset.features),{full:44,partial:151,none:215,unknown:6,na:2});
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('source-bounded ordered-list numbering and one-token shorthand evidence',()=>{
@@ -578,7 +578,7 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
     assert.match(row.test_reference,/ReportPatternedBorderTests/);
     assert.equal(row.introduced_release,null);
   }
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.equal(dataset.features.length,418);
   assert.deepEqual(counts(dataset.features), {full:44,partial:151,none:215,unknown:6,na:2});
 });
@@ -594,7 +594,7 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
   assert.match(pre.limitations,/FPDF1305/);
   assert.match(css.scope,/pre-wrap.*pre/);
   assert.equal(dataset.accepted_html_tag_count,37);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.deepEqual(counts(dataset.features),{full:44,partial:151,none:215,unknown:6,na:2});
 });
 
@@ -608,7 +608,7 @@ test('whole-row table-cell vertical alignment stays a scoped, source-proven CSS 
   assert.equal(row.introduced_release,null);
   assert.equal(dataset.features.length,418);
   assert.deepEqual(counts(dataset.features),{full:44,partial:151,none:215,unknown:6,na:2});
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('rounded report card radius is bounded real PDF paint, not full CSS Borders',()=>{
@@ -619,7 +619,7 @@ test('rounded report card radius is bounded real PDF paint, not full CSS Borders
  assert.match(f.limitations,/百分比.*椭圆/);assert.match(f.scope,/border-top-left-radius.*border-bottom-left-radius/);
  assert.match(f.limitations,/FPDF1201\/1202\/1302\/1401/);
  assert.match(f.test_reference,/RoundedCornerLonghandTests.cs/);
- assert.equal(dataset.features.length,418);assert.equal(dataset.accepted_css_property_count,80);
+ assert.equal(dataset.features.length,418);assert.equal(dataset.accepted_css_property_count,81);
  assert.deepEqual(filterFeatures(dataset.features,{q:'border-radius',status:'partial'}).map(x=>x.id),['html.blockquote','css.border-radius']);
  assert.deepEqual(filterFeatures(dataset.features,{q:'border-radius',status:'partial',category:'CSS属性'}).map(x=>x.id),['css.border-radius']);
 });
@@ -633,17 +633,17 @@ test('min-height is a real bounded PDF panel feature, not broad CSS sizing', () 
   assert.match(feature.scope,/PDF/);
   assert.match(feature.limitations,/FPDF1302/);
   assert.match(feature.limitations,/max-height/);
-  assert.match(feature.test_reference,/ReportPanelMinHeightTests.cs/);
+  assert.match(feature.test_reference,/ImageHeightConstraintsTests.cs/);
   assert.equal(dataset.features.find(f=>f.id==='css.height').status,'partial');
-  assert.equal(dataset.features.find(f=>f.id==='css.max-height').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='css.max-height').status,'partial');
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('print section page boundaries and legacy aliases retain scoped source evidence', () => {
   const five=['css.break-before','css.break-after','css.page-break-before','css.page-break-after','value.break.page'];
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
   assert.deepEqual(counts(dataset.features),{full:44,partial:151,none:215,unknown:6,na:2});
   for(const id of five) {
     const feature=dataset.features.find(f=>f.id===id);
@@ -671,7 +671,7 @@ test('bounded report height is a real PDF layout feature with a precise source i
   assert.match(height.limitations,/FPDF1302/);
   assert.match(height.test_reference,/ReportPanelFixedHeightTests.cs/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('scoped word-break actually places glyphs and preserves all 418 feature identities', () => {
@@ -684,7 +684,7 @@ test('scoped word-break actually places glyphs and preserves all 418 feature ide
   assert.match(row.limitations,/FPDF1301\/1302/);
   assert.match(row.test_reference,/WordBreakTests.cs/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 test('bound image sizing appears without losing all 418 records or image transparency limits', () => {
@@ -694,7 +694,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
     assert.equal(f.status,'partial',id);
     assert.equal(f.last_audited_commit,
       ['html.img','pdf.images','css.box-sizing'].includes(id)
-        ? '7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd' : 'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
+        ? '6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae' : 'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
     assert.match(f.scope,/img|图片|图像/,id);
     assert.match(f.limitations,/FPDF|height|自动缩小|自动收缩|无独立/,id);
     assert.match(f.sources.join(' '),/ImageLayout\.cs/,id);
@@ -703,19 +703,19 @@ test('bound image sizing appears without losing all 418 records or image transpa
   assert.match(dataset.features.find(f=>f.id==='pdf.images').scope,/tRNS\/alpha/);
   assert.match(dataset.features.find(f=>f.id==='css.max-width').scope,/百分比/);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.explicit-report-image-height');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.image-physical-height-limits');
   assert.equal(dataset.commit, '7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
-    assert.equal(f.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd',id);
+    assert.equal(f.last_audited_commit,'6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae',id);
     assert.match(f.scope,/height/,id);
-    assert.match(f.sources.join(' '),/ImageHeightSizingTests\.cs/,id);
+    assert.match(f.sources.join(' '),/ImageHeightSizingTests\.cs|ImageHeightConstraintsTests\.cs/,id);
     assert.equal(f.introduced_release,null,id);
   }
   assert.match(dataset.features.find(x=>x.id==='css.height').scope,/border-box/);
@@ -725,5 +725,21 @@ test('bound image height changes actual PDF geometry without changing stable aud
     assert.equal(dataset.features.find(x=>x.id===id).last_audited_commit,
       'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
   assert.equal(dataset.features.length,418);
-  assert.equal(dataset.accepted_css_property_count,80);
+  assert.equal(dataset.accepted_css_property_count,81);
+});
+
+
+test('physical image height limits are source-audited and actually scoped to bound images', () => {
+  const max=dataset.features.find(f=>f.id==='css.max-height');
+  const min=dataset.features.find(f=>f.id==='css.min-height');
+  assert.equal(max.status,'partial');
+  assert.equal(max.introduced_release,null);
+  assert.equal(max.last_audited_commit,'6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae');
+  assert.match(max.scope,/img|JPEG/);
+  assert.match(max.limitations,/FPDF1302/);
+  assert.match(max.sources.join(' '),/ImageHeightConstraintsTests\.cs/);
+  assert.match(min.scope,/img/);
+  assert.match(min.limitations,/百分比/);
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,81);
 });
