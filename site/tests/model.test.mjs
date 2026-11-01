@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'b6bebe8e3b97f13190148c6f53bed49ec2678ede');
-  assert.match(dataset.commit_url, /b6bebe8e3b97f13190148c6f53bed49ec2678ede/);
+  assert.equal(dataset.commit, '7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
+  assert.match(dataset.commit_url, /7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -113,7 +113,7 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'b6bebe8e3b97f13190148c6f53bed49ec2678ede');
+  assert.equal(feature.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/border-box/);
   assert.match(feature.scope,/padding/);
@@ -264,7 +264,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.responsive-report-images');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.explicit-report-image-height');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计80个受限CSS属性名/);
@@ -664,7 +664,7 @@ test('print section page boundaries and legacy aliases retain scoped source evid
 test('bounded report height is a real PDF layout feature with a precise source identity', () => {
   const height=dataset.features.find(f=>f.id==='css.height');
   assert.equal(height.status,'partial');
-  assert.equal(height.last_audited_commit,'9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc');
+  assert.equal(height.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
   assert.equal(height.introduced_release,null);
   assert.match(height.scope,/div\/section\/article\/blockquote/);
   assert.match(height.scope,/content-box\/border-box/);
@@ -692,7 +692,9 @@ test('bound image sizing appears without losing all 418 records or image transpa
   for(const id of ids){
     const f=dataset.features.find(entry=>entry.id===id);
     assert.equal(f.status,'partial',id);
-    assert.equal(f.last_audited_commit,'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
+    assert.equal(f.last_audited_commit,
+      ['html.img','pdf.images','css.box-sizing'].includes(id)
+        ? '7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd' : 'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
     assert.match(f.scope,/img|图片|图像/,id);
     assert.match(f.limitations,/FPDF|height|自动缩小|自动收缩|无独立/,id);
     assert.match(f.sources.join(' '),/ImageLayout\.cs/,id);
@@ -700,6 +702,28 @@ test('bound image sizing appears without losing all 418 records or image transpa
   assert.match(dataset.features.find(f=>f.id==='html.img').scope,/border-box/);
   assert.match(dataset.features.find(f=>f.id==='pdf.images').scope,/tRNS\/alpha/);
   assert.match(dataset.features.find(f=>f.id==='css.max-width').scope,/百分比/);
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,80);
+});
+
+
+test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.explicit-report-image-height');
+  assert.equal(dataset.commit, '7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd');
+  for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
+    const f=dataset.features.find(x=>x.id===id);
+    assert.equal(f.status,'partial',id);
+    assert.equal(f.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd',id);
+    assert.match(f.scope,/height/,id);
+    assert.match(f.sources.join(' '),/ImageHeightSizingTests\\.cs/,id);
+    assert.equal(f.introduced_release,null,id);
+  }
+  assert.match(dataset.features.find(x=>x.id==='css.height').scope,/border-box/);
+  assert.match(dataset.features.find(x=>x.id==='css.height').limitations,/FPDF1302/);
+  assert.match(dataset.features.find(x=>x.id==='pdf.images').scope,/tRNS/);
+  for (const id of ['css.min-width','css.max-width'])
+    assert.equal(dataset.features.find(x=>x.id===id).last_audited_commit,
+      'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,80);
 });

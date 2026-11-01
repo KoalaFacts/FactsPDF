@@ -129,6 +129,13 @@ reference page, public release or customer use grant.
 
 # Evaluate FactsPDF for business reports
 
+Current source adds bounded physical `height:36pt` for explicitly bound
+standalone or direct fixed-column image resources, with measured PDF image
+matrices and strict protected failures. [Image height contract](images.md#explicit-physical-image-heights).
+Source `7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd` is not the held installable preview or an automatic
+customer production licence.
+
+
 FactsPDF converts a documented HTML/CSS subset into searchable PDF documents
 without a browser rendering engine. Its first delivery scope is bilingual business
 reports for .NET applications and command-line integrations.
