@@ -96,7 +96,7 @@ internal static class CssDeclarations
             CssProperty.LineHeight => style with { LineHeight = source.LineHeight, AbsoluteLineHeight = source.AbsoluteLineHeight },
             CssProperty.TextAlign => style with { Alignment = source.Alignment },
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
-            CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap, PreserveLineBreaks = source.PreserveLineBreaks },
+            CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap, PreserveLineBreaks = source.PreserveLineBreaks, PreserveSpaces = source.PreserveSpaces },
             CssProperty.OverflowWrap => style with { BreakWords = source.BreakWords },
             CssProperty.TextIndent => style with { FirstLineIndent = source.FirstLineIndent },
             CssProperty.LetterSpacing => style with { LetterSpacing = source.LetterSpacing },

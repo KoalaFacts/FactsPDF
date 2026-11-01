@@ -62,7 +62,7 @@ internal static class TextLines
             foreach (var character in run.Text)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (!HtmlTokens.Space(character)) return true;
+                if (!HtmlTokens.Space(character) || paragraph.Style.PreserveSpaces && (character == ' ' || character == '\t')) return true;
             }
         }
         return false;
@@ -178,6 +178,20 @@ internal static class TextLines
                     insideAsciiWord = wordCharacter;
                     if (scalar <= 127 && HtmlTokens.Space((char)scalar))
                     {
+                        if (paragraph.Style.PreserveSpaces)
+                        {
+                            // Pre-wrap retains each literal U+0020 glyph and its
+                            // authored style, even before/after a line break.
+                            // Tabs need tab-stop layout; never collapse them
+                            // silently or pretend they are literal spaces.
+                            if (scalar != 32)
+                                throw new FactsPdfException("FPDF1305",
+                                    "Bounded pre-wrap supports literal spaces, not tabs or other control whitespace.",
+                                    run.SourceOffset);
+                            yield return Resolve(32, run.Style, run.SourceOffset);
+                            afterText = true;
+                            continue;
+                        }
                         // Resolve at the original point even when a later
                         // break/end removes this space. Its font diagnostic
                         // and the first whitespace run's style are preserved.
@@ -224,6 +238,8 @@ internal static class TextLines
             }
             if (glyph.Scalar is 32 or 10)
             {
+                if (paragraph.Style.PreserveSpaces && glyph.Scalar == 32)
+                    tooWide |= glyph.Width > available + 0.000001;
                 segmentWidth = 0;
                 previousScalar = -1;
                 continue;
@@ -352,7 +368,29 @@ internal static class TextLines
                 hasGlyph = cursor.MoveNext();
                 continue;
             }
-            if (cursor.Current.Scalar == 32) { space = cursor.Current; hasGlyph = cursor.MoveNext(); continue; }
+            if (cursor.Current.Scalar == 32)
+            {
+                if (paragraph.Style.PreserveSpaces)
+                {
+                    var glyph = cursor.Current;
+                    var capacity = firstLine ? available - firstIndent : available;
+                    if (width + glyph.Width > capacity + 0.000001)
+                    {
+                        if (current.Count == 0)
+                            throw new FactsPdfException("FPDF1302",
+                                "A preserved space cannot fit within the report text width.", glyph.SourceOffset);
+                        // Every authored space remains painted, including one
+                        // at a soft wrap boundary; never trim the existing line.
+                        yield return CurrentLine(softWrapped: true);
+                        ResetLine();
+                    }
+                    current.Add(glyph);
+                    width += glyph.Width;
+                }
+                else space = cursor.Current;
+                hasGlyph = cursor.MoveNext();
+                continue;
+            }
             word.Clear();
             var wordWidth = 0d;
             int previous;
