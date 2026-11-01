@@ -70,7 +70,7 @@ public sealed class CliPageGeometryTests
         try
         {
             File.WriteAllBytes(path, font);
-            const string html = "<p>Client summary: 中文。</p>";
+            const string html = "<p>中文。</p>";
             var actual = Render(["-", "-", "--page-size", "letter", "--landscape", "--font", path], html);
             Assert.That(actual.Exit, Is.Zero, actual.Stderr);
             using var expected = new MemoryStream();
@@ -87,15 +87,15 @@ public sealed class CliPageGeometryTests
     [Test]
     public void InvalidOrRepeatedPageOptionsDoNotReplaceAnExistingPdf()
     {
-        var invalidFlags = new[]
-        {
-            new[] { "--page-size" },
+        string[][] invalidFlags =
+        [
+            ["--page-size"],
             ["--page-size", "tabloid"],
             ["--page-size", "0"],
             ["--page-size", "--overwrite"],
             ["--page-size", "a4", "--page-size", "letter"],
             ["--landscape", "--landscape"]
-        };
+        ];
         var folder = Directory.CreateTempSubdirectory("factspdf-page-geometry-");
         try
         {
