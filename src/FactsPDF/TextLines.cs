@@ -100,6 +100,11 @@ internal static class TextLines
         IEnumerable<Glyph> ReadGlyphs()
         {
             Glyph? pendingSpace = null;
+            // In pre-line, hold the last authored segment break until actual
+            // following content. CSS Text discards a final segment break, but
+            // multiple consecutive breaks still produce blank PDF lines.
+            Glyph? pendingSegmentBreak = null;
+            var previousCarriageReturn = false;
             var afterText = false;
             // An ASCII word can cross differently styled inline spans, even
             // when one span explicitly resets text-transform to none.
@@ -109,6 +114,14 @@ internal static class TextLines
                 cancellation.ThrowIfCancellationRequested();
                 if (run.IsBreak)
                 {
+                    // HTML <br> is always explicit; unlike a final pre-line
+                    // source newline, it must not be discarded.
+                    if (pendingSegmentBreak is { } deferred)
+                    {
+                        yield return deferred;
+                        pendingSegmentBreak = null;
+                    }
+                    previousCarriageReturn = false;
                     pendingSpace = null;
                     afterText = false;
                     insideAsciiWord = false;
@@ -122,6 +135,27 @@ internal static class TextLines
                         throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
                     i += consumed;
                     var scalar = rune.Value;
+                    if (paragraph.Style.PreserveLineBreaks)
+                    {
+                        // HTML's CRLF segment break is one break even across
+                        // differently styled spans; CR and FF also separate lines.
+                        if (scalar == 10 && previousCarriageReturn)
+                        {
+                            previousCarriageReturn = false;
+                            continue;
+                        }
+                        previousCarriageReturn = scalar == 13;
+                        if (scalar is 10 or 13 or 12)
+                        {
+                            if (pendingSegmentBreak is { } previousBreak)
+                                yield return previousBreak;
+                            pendingSegmentBreak = new Glyph(10, run.Style, null, 0, run.SourceOffset);
+                            pendingSpace = null;
+                            afterText = false;
+                            insideAsciiWord = false;
+                            continue;
+                        }
+                    }
                     // Scoped word definition: ASCII letters/digits form tokens;
                     // punctuation, spaces and non-ASCII scalars delimit them.
                     var wordCharacter = scalar is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
@@ -161,6 +195,11 @@ internal static class TextLines
                     }
                     else
                     {
+                        if (pendingSegmentBreak is { } deferred)
+                        {
+                            yield return deferred;
+                            pendingSegmentBreak = null;
+                        }
                         if (pendingSpace.HasValue)
                         {
                             yield return pendingSpace.Value;
