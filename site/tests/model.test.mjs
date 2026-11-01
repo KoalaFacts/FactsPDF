@@ -627,9 +627,9 @@ test('min-height is a real bounded PDF panel feature, not broad CSS sizing', () 
   assert.match(feature.scope,/div\/section\/article\/blockquote/);
   assert.match(feature.scope,/PDF/);
   assert.match(feature.limitations,/FPDF1302/);
-  assert.match(feature.limitations,/height\/max-height/);
+  assert.match(feature.limitations,/max-height/);
   assert.match(feature.test_reference,/ReportPanelMinHeightTests.cs/);
-  assert.equal(dataset.features.find(f=>f.id==='css.height').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='css.height').status,'partial');
   assert.equal(dataset.features.find(f=>f.id==='css.max-height').status,'none');
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,79);
@@ -662,7 +662,7 @@ test('bounded report height is a real PDF layout feature with a precise source i
   assert.equal(height.last_audited_commit,'9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc');
   assert.equal(height.introduced_release,null);
   assert.match(height.scope,/div\/section\/article\/blockquote/);
-  assert.match(height.scope,/box-sizing/);
+  assert.match(height.scope,/content-box\/border-box/);
   assert.match(height.limitations,/FPDF1302/);
   assert.match(height.test_reference,/ReportPanelFixedHeightTests.cs/);
   assert.equal(dataset.features.length,418);
