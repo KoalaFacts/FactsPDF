@@ -74,19 +74,20 @@ internal static class TextLayout
             // within it) has already used its top padding on the first page.
             // A genuinely new child still moves with its own leading space.
             var leading = 0d;
-            var continuedPaint = false;
+            var continuedPanel = false;
             for (var i = 0; i < opened.Count; i++)
             {
                 var scope = opened[i];
                 var hasText = scope.ContentEpoch != contentEpoch;
                 // A minimum already occupying this page cannot restart at
                 // the next paragraph's explicit break merely because the
-                // containing panel is unpainted. Preserve its first fragment
-                // and consumed padding just as for a painted panel.
+                // containing panel is unpainted. Its occupied descendants
+                // must also retain consumed top padding across the break.
                 var retainOrigin = scope.HasOccupiedDescendant &&
-                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || continuedPaint);
-                if (scope.Style.HasPaint && (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
-                    continuedPaint = true;
+                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || continuedPanel);
+                if ((scope.Style.HasPaint || scope.MinimumOuterHeight > 0) &&
+                    (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
+                    continuedPanel = true;
                 if (hasText || scope.TopConsumed) continue;
                 if (retainOrigin)
                 {

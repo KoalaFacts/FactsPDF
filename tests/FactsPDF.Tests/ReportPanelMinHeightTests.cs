@@ -203,6 +203,27 @@ public sealed class ReportPanelMinHeightTests
     }
 
     [Test]
+    public void OccupiedMinimumPreservesNestedUnpaintedWrapperPaddingAcrossPageBreak()
+    {
+        const string unpainted = "<section style='min-height:60pt'>" +
+            "<div style='padding-top:5pt'><div style='min-height:60pt'></div>" +
+            "<p style='margin:0;break-before:page'>B</p></div></section>" +
+            "<p style='margin:0'>C</p>";
+        var painted = unpainted.Replace("<section style='min-height:60pt'>",
+            "<section style='min-height:60pt;background:blue'>");
+        var actual = Layout(unpainted);
+        var control = Layout(painted);
+        Assert.That(actual, Has.Count.EqualTo(2));
+        Assert.That(control, Has.Count.EqualTo(2));
+        Assert.That(actual[0].Runs, Is.Empty);
+        Assert.That(actual[1].Runs.Select(run => run.Text), Is.EqualTo(new[] { "B", "C" }));
+        Assert.That(actual[1].Runs.Select(run => run.Baseline),
+            Is.EqualTo(control[1].Runs.Select(run => run.Baseline)).Within(0.00001),
+            "A consumed minimum and nested wrapper padding cannot restart on a continuation page.");
+        Assert.That(Encoding.ASCII.GetString(Render(unpainted)), Does.Contain("/Count 2"));
+    }
+
+    [Test]
     public void ContentLargerThanMinimumRetainsNaturalFragmentedPages()
     {
         var options = Page with { PageHeight = 160 };
