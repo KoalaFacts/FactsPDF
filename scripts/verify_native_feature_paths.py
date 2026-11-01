@@ -887,6 +887,70 @@ def verify_native_minimum_height(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_section_page_breaks(executable, output, work):
+    """Real native HTML-to-PDF section boundaries against a separately authored CSS oracle."""
+    original = ROOT / 'examples/report-section-page-breaks.html'
+    control = ROOT / 'examples/report-section-page-breaks-oracle.html'
+    assert original.is_file() and control.is_file()
+    actual = output / 'section-page-breaks.pdf'
+    expected = output / 'section-page-breaks-oracle.pdf'
+    assert not run(executable, original, actual, cwd=work)
+    assert not run(executable, control, expected, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', expected)
+    assert actual.read_bytes() == expected.read_bytes(), (
+        'Native legacy page-break alias differs from independent modern PDF rendering')
+    assert count_pages(actual) == 3, 'Print section boundaries did not create exactly three PDF pages'
+    markers = [
+        ('Facilities report', 'Summary and approval cover.'),
+        ('Inspection checklist', 'Fire exit: passed', 'Lighting: maintenance scheduled'),
+        ('Sign-off', 'Reviewed by facilities manager.'),
+    ]
+    for page, phrases in enumerate(markers, 1):
+        extracted = ' '.join(page_lines(actual, page))
+        _, _, positioned = page_boxes(actual, page)
+        assert positioned, ('Page has no independently measured searchable glyphs', page)
+        for phrase in phrases:
+            assert phrase in extracted, ('Print section text missing from authored page', page, phrase)
+        for other, other_markers in enumerate(markers, 1):
+            if page != other:
+                for phrase in other_markers:
+                    assert phrase not in extracted, ('Section text leaked across PDF pages', page, phrase)
+    # The legacy and modern templates must *both* differ from the
+    # unbroken three-card report, not merely produce matching CSS ASTs.
+    unbroken = work / 'section-breaks-control.html'
+    unbroken.write_text(original.read_text(encoding='utf-8').replace(
+        'page-break-before: always;', 'break-before: auto;').replace(
+        'break-after: page;', 'break-after: auto;'), encoding='utf-8')
+    unbroken_pdf = output / 'section-breaks-unbroken.pdf'
+    assert not run(executable, unbroken, unbroken_pdf, cwd=work)
+    run('qpdf', '--check', unbroken_pdf)
+    assert actual.read_bytes() != unbroken_pdf.read_bytes(), 'Page breaks failed to affect PDF geometry'
+    assert count_pages(unbroken_pdf) < 3, 'Control without page boundaries should fit on fewer pages'
+    invalid = work / 'section-breaks-invalid.html'
+    preserved = output / 'section-breaks-preserved.pdf'
+    for rejected in (
+        "<section style='page-break-before:left'>NO</section>",
+        "<section style='page-break-after:right'>NO</section>",
+        "<ol style='break-before:page'><li>NO</li></ol>",
+    ):
+        invalid.write_text(rejected, encoding='utf-8')
+        preserved.write_bytes(b'previous customer PDF')
+        failure = subprocess.run([str(executable), str(invalid), str(preserved), '--overwrite'],
+                                 cwd=work, capture_output=True, timeout=120)
+        diagnostic = b'FPDF1201' if rejected.startswith('<ol') else b'FPDF1202'
+        assert failure.returncode == 3 and diagnostic in failure.stderr and not failure.stdout, (
+            'Invalid native section boundary was accepted', rejected, failure.returncode, failure.stderr)
+        assert preserved.read_bytes() == b'previous customer PDF', 'Invalid section break damaged original PDF'
+    assert not run(executable, original, preserved, '--overwrite', cwd=work)
+    assert preserved.read_bytes() == actual.read_bytes(), 'Native recovery diverged from original report'
+    return {
+        'pages': 3, 'sourceSha256': sha(original), 'oracleSha256': sha(control),
+        'pdfSha256': sha(actual), 'nativePdfByteParity': True,
+        'verifiedSearchablePages': True, 'protectedFailureRecovery': True
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -953,6 +1017,7 @@ def main():
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
         minimum_height = verify_native_minimum_height(isolated, output, work)
+        section_breaks = verify_native_section_page_breaks(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -974,6 +1039,7 @@ def main():
             'decorationPaint': decoration_paint,
             'roundedPanels': rounded_panels,
             'minimumHeight': minimum_height,
+            'sectionPageBreaks': section_breaks,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }
