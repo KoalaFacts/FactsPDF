@@ -1237,6 +1237,60 @@ def verify_native_report_keep_together(executable, output, work):
             'popplerSearchableText': True, 'protectedFailureRecovery': True}
 
 
+
+def verify_native_paper_geometry(executable, source, output, work, default_pdf):
+    """Real native binary: four MediaBoxes, Poppler positions, streamed bytes and protected recovery."""
+    a4 = output / 'paper-a4-explicit.pdf'
+    assert not run(executable, source, a4, '--page-size', 'a4', cwd=work)
+    assert a4.read_bytes() == default_pdf.read_bytes(), 'Explicit A4 changed the preexisting default PDF'
+
+    cases = (
+        ('a4', True, '841.89 595.28'),
+        ('letter', False, '612 792'),
+        ('letter', True, '792 612'),
+    )
+    records = []
+    for paper, landscape, bounds in cases:
+        suffix = '-landscape' if landscape else '-portrait'
+        pdf = output / f'paper-{paper}{suffix}.pdf'
+        flags = ['--page-size', paper] + (['--landscape'] if landscape else [])
+        assert not run(executable, source, pdf, *flags, cwd=work), 'Paper geometry leaked stdout'
+        run('qpdf', '--check', pdf)
+        data = pdf.read_bytes()
+        pages = count_pages(pdf)
+        assert pages >= 1, 'No rendered page'
+        media = f'/MediaBox [0 0 {bounds}]'.encode('ascii')
+        assert data.count(media) == pages, ('MediaBox differs across pages', paper, landscape)
+        width, height = [float(x) for x in bounds.split()]
+        measured_width, measured_height, words = page_boxes(pdf, 1)
+        assert abs(measured_width - width) < 0.02 and abs(measured_height - height) < 0.02, \
+            ('Independent Poppler dimensions differ', measured_width, measured_height, bounds)
+        assert words, 'Body text missing from physically resized PDF'
+        if paper == 'letter' and landscape:
+            stdout_pdf = run(executable, source, '-', *flags, cwd=work)
+            assert stdout_pdf == data and stdout_pdf.startswith(b'%PDF-1.7'), \
+                'Binary stdout differs from output-file path'
+        records.append({'paper': paper, 'landscape': landscape, 'points': bounds,
+                        'pageCount': pages, 'sha256': sha(pdf), 'popplerText': True})
+
+    preserved = output / 'paper-geometry-preserved.pdf'
+    sentinel = b'original approved report'
+    preserved.write_bytes(sentinel)
+    bad = subprocess.run([str(executable), str(source), str(preserved), '--overwrite',
+                          '--page-size', 'tabloid'], cwd=work, capture_output=True, timeout=120)
+    assert bad.returncode == 2 and not bad.stdout and b'--page-size' in bad.stderr, \
+        'Unsupported paper failed to produce a protected argument error'
+    assert preserved.read_bytes() == sentinel, 'Bad paper geometry overwrote the existing PDF'
+    assert not list(output.glob('.factspdf-*.tmp')), 'Paper geometry left temporary output'
+    assert not run(executable, source, preserved, '--overwrite', '--page-size', 'letter',
+                   '--landscape', cwd=work), 'Paper geometry recovery leaked stdout'
+    assert preserved.read_bytes() == (output / 'paper-letter-landscape.pdf').read_bytes(), \
+        'Recovery after invalid geometry changed PDF bytes'
+    return {'a4DefaultByteParity': True, 'paperCases': records, 'nativeMediaBoxes': True,
+            'independentPopplerDimensionsAndText': True, 'stdoutFileByteParity': True,
+            'invalidArgumentDestinationPreserved': True, 'recoveryByteParity': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1306,6 +1360,7 @@ def main():
         fixed_height = verify_native_fixed_height(isolated, output, work)
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
         kept_cards = verify_native_report_keep_together(isolated, output, work)
+        paper_geometry = verify_native_paper_geometry(isolated, first, output, work, plain)
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
@@ -1334,6 +1389,7 @@ def main():
             'fixedHeight': fixed_height,
             'sectionPageBreaks': section_breaks,
             'reportKeepTogether': kept_cards,
+            'paperGeometry': paper_geometry,
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,
