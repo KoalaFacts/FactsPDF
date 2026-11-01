@@ -1,3 +1,33 @@
+## Current-source word-break for invoice identifiers
+
+**Bounded supported values:** `word-break:normal | break-all` on explicit
+paragraphs/headings, including flat `p` in fixed-width cells. Normal preserves
+existing wrapping and PDF bytes. Break-all offers a potential soft line break
+between **each supported simple glyph** rather than only after the whole word;
+it fills available width even when the word would fit on a fresh line. PDF text
+positions, page counts and font-measured advances really change; the same
+pagination, font, display-command and output-byte limits continue to apply.
+`white-space:nowrap` and `pre` still disallow automatic breaking.
+
+Every recognized declaration is validated even in an unmatched stylesheet or
+when losing the cascade. Existing selector specificity, `!important`,
+source order, CSS-wide `inherit/initial/unset`, per-paragraph applicability
+and inherited text style are used; there is no silent fallback to a browser.
+Unlike `overflow-wrap:break-word`, `break-all` is not an emergency-only
+wrap. Combining characters, shaping, bidi, grapheme clusters, hyphenation,
+`word-break:keep-all`, the separate `word-break:break-word` spelling,
+and general CSS Text are **not** implemented. Unfitting single glyphs fail
+`FPDF1302`; unsupported values/contexts fail `FPDF1202/1201`; missing
+font glyphs and unsupported Unicode retain their existing explicit errors.
+All pre-output failures preserve the caller's destination bytes/position.
+
+The [48-record source report](../examples/report-word-break-identifiers.html)
+and [manual-line-break oracle](../examples/report-word-break-identifiers-oracle.html)
+are compared byte-for-byte by `WordBreakTests.cs` and the actual Linux/Windows
+Native AOT CLI/qpdf/Poppler gate; source ac6cec7000b308b403dd95abcd14441240b1f791.
+No new private installable binary, reference-page approval, release, licence
+or customer access is implied. This is not full CSS Text conformance.
+
 ## Current-source fixed-height report panels
 
 **Exact scope:** Controlled `div`, `section`, `article`, `blockquote` report
@@ -829,7 +859,7 @@ applies to explicitly sized and nested report blocks. The current scope is
 `span`, container, table structural element or image is rejected with
 `FPDF1201`. A paragraph inside a table cell still uses its actual cell width
 and will fail when an unbreakable label does not fit. `break-spaces`,
-`word-break`, non-breaking span fragments remain unsupported; `pre-line`
+other `word-break` values, Unicode grapheme shaping and non-breaking span fragments remain unsupported; `pre-line`
 retains breaks but collapses spaces, `pre-wrap` preserves spaces with soft
 wrapping, and `pre` preserves spaces/newlines without soft wrapping. Full CSS
 Text conformance is not implemented. Unsupported values are

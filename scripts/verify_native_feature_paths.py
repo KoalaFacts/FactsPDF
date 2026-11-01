@@ -995,6 +995,53 @@ def verify_native_section_page_breaks(executable, output, work):
     }
 
 
+def verify_native_word_break(executable, output, work):
+    """Prove bounded glyph-level report wrapping with real native PDF and explicit controls."""
+    source = ROOT / 'examples/report-word-break-identifiers.html'
+    oracle = ROOT / 'examples/report-word-break-identifiers-oracle.html'
+    assert source.is_file() and oracle.is_file(), 'Missing authored word-break report or control'
+    actual = output / 'word-break-report.pdf'
+    expected = output / 'word-break-report-control.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, expected, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', expected)
+    assert actual.read_bytes() == expected.read_bytes(), (
+        'Native break-all PDF glyph layout differs from manual break oracle')
+    pages = count_pages(actual)
+    assert pages >= 2, '48 identifier examples must paginate'
+    placed = [page_boxes(actual, n) for n in range(1, pages + 1)]
+    labels = [word[0] for _, _, words in placed for word in words]
+    records = [word for word in labels if re.fullmatch(r'REC-\d{2}', word)]
+    assert records == [f'REC-{n:02d}' for n in range(1, 49)], (
+        'Report IDs missing, duplicated or reordered', records)
+    for token in ('PAID', 'EXA', 'MPLE'):
+        assert labels.count(token) == 48, ('Word-break glyph group missing or duplicated', token)
+    original_positions = [page_boxes(expected, n) for n in range(1, pages + 1)]
+    assert placed == original_positions, 'Native source/control glyph positions differ'
+    invalid = work / 'word-break-invalid.html'
+    retained = output / 'word-break-retained.pdf'
+    for html, code in (
+        ('<p style="word-break:keep-all">BAD</p>', b'FPDF1202'),
+        ('<span style="word-break:break-all">BAD</span>', b'FPDF1201'),
+        ('<p style="width:5pt;white-space:nowrap;word-break:break-all">BAD</p>', b'FPDF1302'),
+    ):
+        invalid.write_text(html, encoding='utf-8')
+        retained.write_bytes(b'previous customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Invalid native word-break input was accepted', failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'previous customer PDF', (
+            'Rejected native word-break input damaged customer output')
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Native word-break recovery changed PDF bytes'
+    return {'records': 48, 'pages': pages, 'sourceSha256': sha(source),
+            'oracleSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'nativePdfByteParity': True, 'popplerGlyphPositions': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1063,6 +1110,7 @@ def main():
         minimum_height = verify_native_minimum_height(isolated, output, work)
         fixed_height = verify_native_fixed_height(isolated, output, work)
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
+        word_break = verify_native_word_break(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1086,6 +1134,7 @@ def main():
             'minimumHeight': minimum_height,
             'fixedHeight': fixed_height,
             'sectionPageBreaks': section_breaks,
+            'wordBreak': word_break,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

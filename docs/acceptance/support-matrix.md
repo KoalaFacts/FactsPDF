@@ -1,3 +1,22 @@
+## Current-source scoped word-break PDF glyph wrapping
+
+`word-break:normal | break-all` accepts explicit p/heading (including
+fixed-column table-cell p) in the current source. The measured PDF line
+breaker actually fills remaining line width inside long identifiers, unlike
+`overflow-wrap:break-word`'s emergency-only behavior. Standard per-property
+cascade/CSS-wide values, `white-space:nowrap`, font glyph availability,
+pagination and protected destination errors remain enforced. Not Unicode
+shaping, grapheme-safe breaks, keep-all, hyphenation, inline styles or full
+CSS Text.
+
+Native `verify_native_feature_paths.py` compares the
+[48-record report](../../examples/report-word-break-identifiers.html)
+with an [independently authored explicit-break oracle](../../examples/report-word-break-identifiers-oracle.html),
+including exact PDF bytes, qpdf integrity, Poppler per-page searchable text,
+strict invalid input and restored output. `WordBreakTests.cs` covers
+managed PDF geometry/bytes and typed errors. Source ac6cec7000b308b403dd95abcd14441240b1f791; no old binary
+relabel, customer grant or human approval.
+
 ## Current-source fixed-height business-report panel rendering
 
 `height:auto` or bounded nonnegative `pt/px/mm/cm/in/em/rem` (and

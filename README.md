@@ -2,6 +2,27 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Full-width invoice identifier wrapping (source-only)
+
+For tightly spaced reference numbers, use `word-break:break-all` on a whole
+`p` or `h1`–`h6` (including a flat `p` inside a fixed-column table cell).
+Unlike `overflow-wrap:break-word`, which moves a fitting word whole to the
+next line, `break-all` fills the remaining available PDF line using real font
+glyph advances; the rest of the identifier continues in source order. CSS
+cascade, `!important`, `normal`, explicit `inherit/initial/unset` and
+existing `white-space:nowrap` rules apply. It is a bounded simple-glyph
+renderer, **not** Unicode grapheme segmentation or a browser CSS Text engine.
+
+The [48-record report](examples/report-word-break-identifiers.html) and
+[separately authored explicit-break control](examples/report-word-break-identifiers-oracle.html)
+exercise source NUnit and real Linux/Windows Native AOT PDF-byte, page-text and
+failure-recovery gates. Unsupported `keep-all`, `break-word` as a value of
+`word-break`, inline spans, arbitrary container declarations, complex shaping
+and width too small for one glyph fail without replacing the previous PDF.
+[Exact CSS contract](docs/css-stylesheets.md#current-source-word-break-for-invoice-identifiers).
+Source implementation is ac6cec7000b308b403dd95abcd14441240b1f791; this does not update the retained private
+`0.1.0-preview.1` candidate, grant customer rights or constitute human PDF approval.
+
 ### Fixed-height report cards (source-only)
 
 Invoices, inspection reports and status summaries can now use `height:85pt`
