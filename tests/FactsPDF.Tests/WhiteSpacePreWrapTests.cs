@@ -108,7 +108,7 @@ public sealed class WhiteSpacePreWrapTests
             "<p style='margin:0'>BA</p></td></tr></tbody></table>";
         var runs = Layout(table).SelectMany(page => page.Runs).ToArray();
         Assert.That(runs.Select(run => run.Text), Is.EqualTo(new[] { "   ", "BA" }));
-        Assert.That(runs[0].Baseline, Is.LessThan(runs[1].Baseline));
+        Assert.That(runs[0].Baseline, Is.GreaterThan(runs[1].Baseline));
     }
 
     [Test]
