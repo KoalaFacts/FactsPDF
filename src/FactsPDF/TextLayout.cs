@@ -140,9 +140,18 @@ internal static class TextLayout
                 // Otherwise an unpainted minimum is reserved on the old page
                 // and lost when the next paragraph consumes the delayed break.
                 // Other unpainted containers retain paragraph-only behavior.
-                if (breakNext && (begin.Style.HasPaint || begin.MinimumOuterHeight > 0))
+                // A forced section break applies to the section's first
+                // border-box fragment, even when it is empty or unpainted.
+                // Only real prior page content warrants an extra page: deferred
+                // top margins alone cannot produce a phantom leading page.
+                var forcePanelBreak = begin.Style.BreakBefore;
+                if (forcePanelBreak || breakNext && (begin.Style.HasPaint || begin.MinimumOuterHeight > 0))
                 {
-                    if (CurrentPageOccupied())
+                    var hasRetainedContent = y > o.Margin + 0.000001 ||
+                        pages[^1].Runs.Count > 0 || pages[^1].Discs.Count > 0 ||
+                        pages[^1].Images.Count > 0 ||
+                        pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
+                    if (forcePanelBreak ? hasRetainedContent : CurrentPageOccupied())
                     {
                         NewPage();
                         MoveUnconsumedBlocksToNewPage();
@@ -305,6 +314,9 @@ internal static class TextLayout
                 if (occupiesSpace)
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { HasOccupiedDescendant = true };
+                // Page break after a panel belongs after its last paint/padding
+                // fragment; the next sibling consumes it exactly once.
+                if (scope.Style.BreakAfter) breakNext = true;
                 continue;
             }
             if (step is LayoutImage image)

@@ -122,6 +122,10 @@ internal sealed record BoxStyle(
     // Nonnegative minimum content-box height, or border-box with box-sizing.
     // Only ordinary report panels consume it during PDF page placement.
     public CssLength? MinHeight { get; init; }
+    // Explicit before/after page boundaries for ordinary report panels.
+    // These never inherit unless the winning CSS keyword is inherit.
+    public bool BreakBefore { get; init; }
+    public bool BreakAfter { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     // Rounded-corner shorthand computes TL / TR / BR / BL physical radii.
     // CornerRadius keeps the original TL member so one-value reports retain
