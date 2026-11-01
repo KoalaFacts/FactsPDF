@@ -259,7 +259,10 @@ test('patterned border scope and limitations remain precise in English', async (
     const feature=englishFeature(data.features.find(f=>f.id===id));
     assert.match(feature.scope,/dashed/);
     assert.match(feature.scope,/dotted/);
-    assert.match(feature.limitations,/double/);
+    if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))
+      assert.match(feature.limitations,/rounded.*image borders/, id);
+    else
+      assert.match(feature.limitations,/double/, id);
     assert.doesNotMatch(feature.evidence_level,han);
   }
 });

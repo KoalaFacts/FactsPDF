@@ -132,11 +132,18 @@ internal static class PdfPaintSerializer
             return;
         }
         var stroke = horizontal ? height : width;
-        // Sub-millipoint widths round to zero in this serializer. Reject rather
-        // than unexpectedly emitting a zero-width hairline or invisible dots.
-        if (stroke < 0.001)
+        // Reject genuinely sub-millipoint widths, but tolerate the roundoff
+        // introduced when page coordinates are subtracted for a 0.001pt edge.
+        // Both values serialize to the same visible 0.001pt PDF linewidth.
+        if (stroke < 0.001 - 1e-10)
             throw new FactsPdfException("FPDF1302", "Patterned border is too thin to paint.");
-        var inset = Math.Min(stroke / 2, (horizontal ? width : height) / 2);
+        var length = horizontal ? width : height;
+        // Ordinary strokes keep their old byte/geometry path. On short edges,
+        // inset-by-half-width collapses the line to a point, and round caps
+        // extend outside the measured box. Draw a nonzero centreline and clip
+        // its caps and dashes to the original edge rectangle instead.
+        var clipShortEdge = length < stroke;
+        var inset = clipShortEdge ? 0d : stroke / 2;
         var x1 = horizontal ? x + inset : x + width / 2;
         var x2 = horizontal ? x + width - inset : x1;
         var y1 = horizontal ? pageHeight - top - height / 2 : pageHeight - top - inset;
@@ -151,6 +158,10 @@ internal static class PdfPaintSerializer
             output.Append("1 J [0.001 ").Append(N(2 * stroke)).Append("] 0 d ");
         else
             throw new InvalidOperationException("Invalid patterned border kind.");
+        if (clipShortEdge)
+            output.Append(N(x)).Append(' ').Append(N(pageHeight - top - height))
+                .Append(' ').Append(N(width)).Append(' ').Append(N(height))
+                .Append(" re W n ");
         output.Append(N(x1)).Append(' ').Append(N(y1)).Append(" m ")
             .Append(N(x2)).Append(' ').Append(N(y2)).Append(" l S Q\n");
         if (output.Length > maxOutputBytes)

@@ -74,13 +74,28 @@ public sealed class ReportPatternedBorderTests
     {
         const string html = "<style>section{border:2pt dashed blue}" +
             "article{border-style:inherit;border-top-style:dotted!important}</style>" +
-            "<section><article style='border-style:solid'>NOTICE</article></section>";
+            "<section><article>INHERITED</article>" +
+            "<article style='border-style:solid'>NOTICE</article></section>";
         var root = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
-        var child = (BlockNode)root.Children.Single();
-        Assert.That(child.BoxStyle.BorderTop.Pattern, Is.EqualTo(BorderPattern.Dotted));
-        Assert.That(child.BoxStyle.BorderRight.Pattern, Is.EqualTo(BorderPattern.Solid));
-        Assert.That(child.BoxStyle.BorderRight.EffectiveWidth, Is.EqualTo(2.25).Within(0.00001),
-            "Inherited border-style is painted at the default medium width; width itself is not inherited.");
+        var inherited = (BlockNode)root.Children[0];
+        var overridden = (BlockNode)root.Children[1];
+        Assert.That(inherited.BoxStyle.BorderTop.Pattern, Is.EqualTo(BorderPattern.Dotted));
+        foreach (var edge in new[] { inherited.BoxStyle.BorderRight,
+                                     inherited.BoxStyle.BorderBottom,
+                                     inherited.BoxStyle.BorderLeft })
+        {
+            Assert.That(edge.Pattern, Is.EqualTo(BorderPattern.Dashed),
+                "The winning inherit must retain the parent's dashed pattern.");
+            Assert.That(edge.EffectiveWidth, Is.EqualTo(2.25).Within(0.00001),
+                "The border pattern inherits, but its width remains the medium default.");
+        }
+        Assert.That(overridden.BoxStyle.BorderTop.Pattern, Is.EqualTo(BorderPattern.Dotted),
+            "The important top style still wins over the inline shorthand.");
+        Assert.That(overridden.BoxStyle.BorderRight.Pattern, Is.EqualTo(BorderPattern.Solid));
+        Assert.That(overridden.BoxStyle.BorderRight.EffectiveWidth,
+            Is.EqualTo(2.25).Within(0.00001));
+        Assert.That(Encoding.ASCII.GetString(Pdf(html)), Does.Contain("[6.75 6.75] 0 d"),
+            "Inherited default-width dashed edges must actually paint in the PDF.");
     }
 
     [Test]
@@ -119,6 +134,34 @@ public sealed class ReportPatternedBorderTests
         Assert.That(Encoding.ASCII.GetString(Pdf(dashed)), Does.Contain("[9 9] 0 d"));
     }
 
+    [TestCase("dashed", "[60 60] 0 d")]
+    [TestCase("dotted", "1 J [0.001 40] 0 d")]
+    public void ShortPatternedSideEdgesAreVisibleAndClippedToTheirMeasuredBox(
+        string kind, string expectedPattern)
+    {
+        var html = "<div style='border-left:20pt " + kind +
+            " red;padding-bottom:1pt'></div>";
+        var box = Layout(html).Single().PaintBoxes.Single();
+        Assert.That(box.Height, Is.EqualTo(1).Within(0.00001));
+        Assert.That(box.CommandCount, Is.EqualTo(1));
+        var pdf = Encoding.ASCII.GetString(Pdf(html));
+        Assert.That(pdf, Does.Contain(expectedPattern));
+        Assert.That(pdf, Does.Contain(" re W n "),
+            "The short line and any round caps must be clipped to the 1pt border slice.");
+        Assert.That(pdf, Does.Contain(" l S Q"), "A real noncollapsed stroke must be emitted.");
+    }
+
+    [TestCase(20)]
+    [TestCase(36)]
+    public void MinimumVisiblePatternWidthIsIndependentOfPageMargin(int margin)
+    {
+        const string html = "<div style='border-top:0.001pt dashed red'></div>";
+        var pdf = Encoding.ASCII.GetString(Pdf(html, Page with { Margin = margin }));
+        Assert.That(pdf, Does.Contain("0.001 w"),
+            "Subtraction of the page Y coordinates must not reject a valid linewidth.");
+        Assert.That(pdf, Does.Contain("[0.003 0.003] 0 d"));
+    }
+
     [Test]
     public void ZeroAndNoneDoNotPaintOrConsumeCommands()
     {
@@ -132,6 +175,8 @@ public sealed class ReportPatternedBorderTests
     public void UnsupportedStylesResourcesAndCommandLimitsRetainOriginalOutput()
     {
         FailsAndRetains("<div style='border:2pt double blue'>X</div>", "FPDF1202");
+        foreach (var side in new[] { "top", "right", "bottom", "left" })
+            FailsAndRetains("<div style='border-" + side + ":2pt double blue'>X</div>", "FPDF1202");
         FailsAndRetains("<div style='border-style:groove'>X</div>", "FPDF1202");
         FailsAndRetains("<div style='border:2pt dashed dotted'>X</div>", "FPDF1202");
         FailsAndRetains("<span style='border:2pt dashed blue'>X</span>", "FPDF1201");

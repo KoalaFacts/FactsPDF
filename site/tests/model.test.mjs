@@ -554,7 +554,10 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
     assert.equal(row.last_audited_commit,'4b5d6da3553579dad75dd00bfb041e1f3c200d90');
     assert.match(row.scope,/dashed/);
     assert.match(row.scope,/dotted/);
-    assert.match(row.limitations,/double/);
+    if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))
+      assert.match(row.limitations,/圆角或图片边框/, id);
+    else
+      assert.match(row.limitations,/double/, id);
     assert.match(row.test_reference,/ReportPatternedBorderTests/);
     assert.equal(row.introduced_release,null);
   }
