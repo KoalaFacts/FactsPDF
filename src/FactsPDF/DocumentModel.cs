@@ -51,6 +51,11 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     {
         get
         {
+            if (Style.CornerRadius > 0)
+                return Width > 0 && Height > 0
+                    ? (Style.BackgroundColor.HasValue ? 1 : 0)
+                      + (Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+                    : 0;
             var top = TopBorderHeight;
             var bottom = BottomBorderHeight;
             var middleHeight = Math.Max(0, Height - top - bottom);
@@ -115,6 +120,8 @@ internal sealed record BoxStyle(
     public CssLength? MinWidth { get; init; }
     public CssLength? MaxWidth { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
+    // One measured physical corner radius on supported ordinary report boxes.
+    public double CornerRadius { get; init; }
     public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderBottom { get; init; } = BorderEdge.Initial;

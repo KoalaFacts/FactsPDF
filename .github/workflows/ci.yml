@@ -823,12 +823,12 @@ jobs:
         with:
           msystem: UCRT64
           update: true
-          install: mingw-w64-ucrt-x86_64-poppler
+          install: mingw-w64-ucrt-x86_64-poppler mingw-w64-ucrt-x86_64-qpdf
       - name: Record independent package versions
         shell: msys2 {0}
         run: |
           mkdir -p artifacts
-          pacman -Q mingw-w64-ucrt-x86_64-poppler mingw-w64-ucrt-x86_64-fontconfig > artifacts/windows-aot-tools.txt
+          pacman -Q mingw-w64-ucrt-x86_64-poppler mingw-w64-ucrt-x86_64-fontconfig mingw-w64-ucrt-x86_64-qpdf > artifacts/windows-aot-tools.txt
       - name: Publish pinned private Windows x64 Native AOT executable
         shell: pwsh
         run: |

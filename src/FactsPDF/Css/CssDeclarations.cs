@@ -8,7 +8,7 @@ internal enum CssProperty
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
-    TextDecorationColor, TextDecorationStyle
+    TextDecorationColor, TextDecorationStyle, BorderRadius
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -112,7 +112,7 @@ internal static class CssDeclarations
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }
-    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth;
+    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property == CssProperty.BorderRadius;
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -143,6 +143,9 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : new BoxStyle();
 
+        if (property == CssProperty.BorderRadius)
+            return current with { CornerRadius = wide ? from.CornerRadius :
+                CssPaintValues.BorderRadius(value, declaration.Offset) };
         if (property == CssProperty.BoxSizing)
             return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };
         if (property == CssProperty.Width)

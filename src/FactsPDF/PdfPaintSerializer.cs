@@ -119,6 +119,11 @@ internal static class PdfPaintSerializer
             var height = box.Height;
             if (!double.IsFinite(x + y + width + height) || width < 0 || height < 0)
                 throw new InvalidOperationException("Invalid paint rectangle.");
+            if (s.CornerRadius > 0)
+            {
+                RoundedBox(output, box, pageHeight, maxOutputBytes);
+                continue;
+            }
             if (s.BackgroundColor.HasValue)
                 Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes);
 
@@ -144,6 +149,103 @@ internal static class PdfPaintSerializer
                 Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
                     horizontal: false, pageHeight, maxOutputBytes);
         }
+    }
+
+
+    // Source-only, bounded report cards: fill the actual corner curve, then an
+    // opaque even-odd border ring. Unlike a rectangular clip, the inner edge
+    // is rounded too, so an inset does not gain spurious dark corner wedges.
+    // Continued boxes round only their first-page top and last-page bottom.
+    private static void RoundedBox(StringBuilder output, PaintedBox box,
+        double pageHeight, int maxOutputBytes)
+    {
+        if (box.Width <= 0 || box.Height <= 0) return;
+        var style = box.Style;
+        var x = box.X;
+        var y = pageHeight - box.Top - box.Height;
+        var w = box.Width;
+        var h = box.Height;
+        var top = box.IsFirstFragment;
+        var bottom = box.IsLastFragment;
+        var r = Math.Min(style.CornerRadius, Math.Min(w / 2, h / (top && bottom ? 2 : 1)));
+        var topRadius = top ? r : 0;
+        var bottomRadius = bottom ? r : 0;
+
+        if (style.BackgroundColor is Rgb bg)
+        {
+            output.Append("q ").Append(N(bg.R)).Append(' ').Append(N(bg.G)).Append(' ')
+                .Append(N(bg.B)).Append(" rg ");
+            RoundedPath(output, x, y, w, h, topRadius, bottomRadius);
+            output.Append("f Q\n");
+            if (output.Length > maxOutputBytes)
+                throw new FactsPdfException("FPDF1401", "PDF rounded background exceeds MaxOutputBytes.");
+        }
+
+        var border = style.BorderLeft.EffectiveWidth;
+        if (border <= 0) return;
+        var color = style.BorderLeft.Color ?? box.TextColor;
+        output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
+            .Append(N(color.B)).Append(" rg ");
+        RoundedPath(output, x, y, w, h, topRadius, bottomRadius);
+        // Top/bottom borders belong only to their original page fragments;
+        // vertical sides continue on intermediate fragments without caps.
+        var topInset = top ? Math.Min(border, h) : 0;
+        var bottomInset = bottom ? Math.Min(border, h - topInset) : 0;
+        var innerWidth = w - 2 * border;
+        var innerHeight = h - topInset - bottomInset;
+        if (innerWidth > 0 && innerHeight > 0)
+        {
+            var innerTopRadius = top ? Math.Max(0, r - border) : 0;
+            var innerBottomRadius = bottom ? Math.Max(0, r - border) : 0;
+            var clamp = Math.Min(innerWidth / 2,
+                innerHeight / (top && bottom ? 2 : 1));
+            RoundedPath(output, x + border, y + bottomInset,
+                innerWidth, innerHeight, Math.Min(innerTopRadius, clamp),
+                Math.Min(innerBottomRadius, clamp));
+            output.Append("f* Q\n");
+        }
+        else output.Append("f Q\n");
+        if (output.Length > maxOutputBytes)
+            throw new FactsPdfException("FPDF1401", "PDF rounded border exceeds MaxOutputBytes.");
+    }
+
+    // PDF path uses bottom-origin coordinates. The four cubic arcs are
+    // geometrically tangent to their adjacent straight edges (kappa circle
+    // approximation); no browser, raster asset or external font is involved.
+    private static void RoundedPath(StringBuilder output, double x, double y,
+        double width, double height, double topRadius, double bottomRadius)
+    {
+        const double k = 0.5522847498307936;
+        var right = x + width;
+        var upper = y + height;
+        var b = bottomRadius;
+        var t = topRadius;
+        output.Append(N(x + b)).Append(' ').Append(N(y)).Append(" m ");
+        output.Append(N(right - b)).Append(' ').Append(N(y)).Append(" l ");
+        if (b > 0)
+            output.Append(N(right - b + k * b)).Append(' ').Append(N(y)).Append(' ')
+                .Append(N(right)).Append(' ').Append(N(y + b - k * b)).Append(' ')
+                .Append(N(right)).Append(' ').Append(N(y + b)).Append(" c ");
+        else output.Append(N(right)).Append(' ').Append(N(y)).Append(" l ");
+        output.Append(N(right)).Append(' ').Append(N(upper - t)).Append(" l ");
+        if (t > 0)
+            output.Append(N(right)).Append(' ').Append(N(upper - t + k * t)).Append(' ')
+                .Append(N(right - t + k * t)).Append(' ').Append(N(upper)).Append(' ')
+                .Append(N(right - t)).Append(' ').Append(N(upper)).Append(" c ");
+        else output.Append(N(right)).Append(' ').Append(N(upper)).Append(" l ");
+        output.Append(N(x + t)).Append(' ').Append(N(upper)).Append(" l ");
+        if (t > 0)
+            output.Append(N(x + t - k * t)).Append(' ').Append(N(upper)).Append(' ')
+                .Append(N(x)).Append(' ').Append(N(upper - t + k * t)).Append(' ')
+                .Append(N(x)).Append(' ').Append(N(upper - t)).Append(" c ");
+        else output.Append(N(x)).Append(' ').Append(N(upper)).Append(" l ");
+        output.Append(N(x)).Append(' ').Append(N(y + b)).Append(" l ");
+        if (b > 0)
+            output.Append(N(x)).Append(' ').Append(N(y + b - k * b)).Append(' ')
+                .Append(N(x + b - k * b)).Append(' ').Append(N(y)).Append(' ')
+                .Append(N(x + b)).Append(' ').Append(N(y)).Append(" c ");
+        else output.Append(N(x)).Append(' ').Append(N(y)).Append(" l ");
+        output.Append("h ");
     }
 
     // A stroked edge replaces exactly one solid-border rectangle in the

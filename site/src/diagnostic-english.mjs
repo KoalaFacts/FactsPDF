@@ -1,5 +1,6 @@
 // Exact display translations only: error codes and original audit exports stay unchanged.
 export const diagnosticEnglish = Object.freeze({
+  'FPDF1201（元素/边框适用性）/ FPDF1202（圆角取值）/ FPDF1302（无法放置）/ FPDF1401（绘制预算）': 'FPDF1201 (element/border applicability) / FPDF1202 (radius value) / FPDF1302 (unplaceable) / FPDF1401 (paint budget)',
   'FPDF1507：缺角色；FPDF1504：角色链缺字': 'FPDF1507: missing font role; FPDF1504: missing glyph in the role chain',
   'FPDF1101（结构）/ FPDF1103（属性）/ FPDF1201（CSS适用性）/ FPDF1302（几何）': 'FPDF1101 (structure) / FPDF1103 (attribute) / FPDF1201 (CSS applicability) / FPDF1302 (geometry)',
   '不合法结构 FPDF1101；属性 FPDF1103；宽度 FPDF1302': 'Invalid structure: FPDF1101; attribute: FPDF1103; width: FPDF1302',

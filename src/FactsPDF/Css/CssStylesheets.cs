@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextDecorationStyle + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BorderRadius + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -146,6 +146,16 @@ internal sealed class CssStylesheets
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "display is supported only on ordinary report blocks outside lists and tables.", declaration.Offset);
+            // Rounded paint is deliberately scoped to ordinary report boxes, not
+            // table/list/image geometry or inline text. Unsupported matches fail
+            // even if a later cascade winner would remove the radius.
+            if (declaration.Property == CssProperty.BorderRadius &&
+                (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                    or "div" or "section" or "article" or "blockquote") ||
+                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
+                throw new FactsPdfException("FPDF1201",
+                    "border-radius is supported only on ordinary report boxes outside lists and tables.", declaration.Offset);
             if (declaration.Property == CssProperty.ListStyleType &&
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
@@ -334,6 +344,23 @@ internal sealed class CssStylesheets
                 style = CssDeclarations.Apply(style, marginParent, initial, declaration,
                     paragraph, computedRoot);
             }
+        }
+        if (box.CornerRadius > 0)
+        {
+            // A nonzero rounded corner may not silently flatten asymmetric or
+            // patterned borders. The single uniform ring is actually painted;
+            // non-rounded legacy box strokes retain exactly their old bytes.
+            var edges = new[] { box.BorderTop, box.BorderRight, box.BorderBottom, box.BorderLeft };
+            // currentcolor is stored as null, but paints with the final
+            // computed text colour. Compare real ink, not raw nullable tokens.
+            var firstInk = edges[0].Color ?? style.Color;
+            if (edges.Any(e => e.EffectiveWidth > 0) &&
+                (edges.Any(e => e.EffectiveWidth <= 0 || e.Pattern != BorderPattern.Solid) ||
+                 edges.Any(e => e.EffectiveWidth != edges[0].EffectiveWidth ||
+                     (e.Color ?? style.Color) != firstInk)))
+                throw new FactsPdfException("FPDF1201",
+                    "Rounded report boxes require an equally thick, single-colour solid border on all four sides.",
+                    winners[(int)CssProperty.BorderRadius]?.Declaration.Offset ?? elementOffset);
         }
         return (style, box);
     }

@@ -88,6 +88,19 @@ public sealed class BlockquoteReportTests
     }
 
     [Test]
+    public void RoundedQuoteBackgroundAndUniformBorderMatchAnIndependentlyStyledDiv()
+    {
+        const string card = "style='margin:8pt 24pt;padding:5pt;background:#edf5fa;" +
+            "border:2pt solid #23446b;border-radius:12pt'";
+        var quote = "<blockquote " + card + "><p style='margin:0'>Quoted receipt</p></blockquote>";
+        var reference = "<div " + card + "><p style='margin:0'>Quoted receipt</p></div>";
+        Assert.That(Render(quote), Is.EqualTo(Render(reference)),
+            "Scoped quote radii must shape actual PDF paths, not merely parse.");
+        Assert.That(Layout(quote).Single().PaintBoxes.Single().CommandCount, Is.EqualTo(2));
+        Reject("<blockquote style='border-radius:12pt;border:2pt dashed red'>No</blockquote>", "FPDF1201");
+    }
+
+    [Test]
     public void QuoteCanInheritAParentMarginOrResetDefaultWithoutFakingInheritance()
     {
         const string actual = "<section style='margin-top:13pt'>" +
@@ -105,7 +118,7 @@ public sealed class BlockquoteReportTests
     [TestCase("<blockquote style='margin-top:-2pt'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='margin-top:10%'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='margin-left:calc(1pt + 2pt)'>quote</blockquote>", "FPDF1202")]
-    [TestCase("<blockquote style='border-radius:6pt'>quote</blockquote>", "FPDF1201")]
+    [TestCase("<blockquote style='border-radius:6%'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='width:310pt'>quote</blockquote>", "FPDF1302")]
     public void InvalidNestingStylesAndGeometryPreserveExistingOutput(string html, string code)
         => Reject(html, code);

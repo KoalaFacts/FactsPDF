@@ -758,6 +758,49 @@ def verify_native_decoration_paint(executable, output, work):
             'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
 
+
+def verify_native_rounded_panels(executable, output, work):
+    """Proof of actual authored curved PDF cards via Native AOT and Poppler."""
+    source = ROOT / 'examples/report-rounded-panels.html'
+    control = ROOT / 'examples/report-rounded-panels-oracle.html'
+    pdf = output / 'rounded-panels.pdf'
+    oracle = output / 'rounded-panels-oracle.pdf'
+    assert not run(executable, source, pdf, cwd=work)
+    assert not run(executable, control, oracle, cwd=work)
+    assert pdf.read_bytes() == oracle.read_bytes(), '12pt and 16px radius must have identical PDF bytes'
+    assert run('qpdf', '--check', pdf) is not None
+    count = count_pages(pdf)
+    assert count >= 3, '54 customer cards must continue across real pages'
+    words = ' '.join(' '.join(page_lines(pdf, page)) for page in range(1, count + 1))
+    for index in range(1, 55):
+        marker = f'Facility card {index:02d}'
+        assert words.count(marker) == 1, ('Missing/repeated rounded PDF card', marker)
+    assert 'Signed and issued for customer review.' in words
+    content = pdf.read_bytes()
+    assert b' c ' in content and b'f* Q' in content, 'Real Bezier outer/inner border paths absent'
+    # A non-rounded PDF with the same text cannot accidentally satisfy this
+    # geometry witness: the original solid-rectangle paint never emits f*.
+    bad = output / 'rounded-panels-invalid.html'
+    retained = output / 'rounded-panels-preserved.pdf'
+    for html, diagnostic in (
+        ("<section style='border-radius:10%'>Bad radius</section>", b'FPDF1202'),
+        ("<section style='border-radius:12pt;border:2pt dashed red'>Bad border</section>", b'FPDF1201'),
+        ("<span style='border-radius:12pt'>Bad inline</span>", b'FPDF1201'),
+    ):
+        bad.write_text(html, encoding='utf-8')
+        retained.write_bytes(b'previous customer report')
+        failed = subprocess.run([str(executable), str(bad), str(retained), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and diagnostic in failed.stderr and not failed.stdout, (
+            'Unsupported rounded input accepted', html, failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'previous customer report', 'Invalid input replaced PDF'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == content, 'Native recovery changed rounded report'
+    return {'cards': 54, 'pages': count, 'pdfSha256': sha(pdf),
+            'sourceSha256': sha(source), 'oracleSha256': sha(control),
+            'nativePdfByteParity': True, 'realBezierAndBorderRing': True,
+            'protectedFailureRecovery': True}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -822,6 +865,7 @@ def main():
         preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
         table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
+        rounded_panels = verify_native_rounded_panels(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -841,6 +885,7 @@ def main():
             'preformattedAudit': preformatted_audit,
             'tableVerticalAlign': table_vertical_align,
             'decorationPaint': decoration_paint,
+            'roundedPanels': rounded_panels,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

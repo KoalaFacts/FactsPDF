@@ -1,3 +1,16 @@
+## Current-source rounded report-card PDF painting
+
+`border-radius` (zero or bounded physical 0.25–72pt) shapes actual opaque
+PDF backgrounds and uniform solid borders on ordinary blocks only; first/top
+and last/bottom page fragment caps are rounded, middle continuation sides
+are square. `RoundedReportPanelTests.cs`, the 54-card report, separate
+16px/12pt oracle and Linux/Windows Native AOT/Poppler witness validate real
+curves, text positions, pagination, legacy zero-radius PDF bytes and failure
+recovery. Not asymmetric/patterned borders, percentages, separate per-corner radii
+or table/image/list/inline boxes. Source-only; current-head CI, independent
+review, retained binary, human reference approval and customer grant are
+separate gates.
+
 Current-source `td/th` `vertical-align:top/middle/bottom` is a
 bounded whole-row PDF positioning feature, not general CSS table layout.
 `TableVerticalAlignmentTests.cs`, the 40-row report, its separate

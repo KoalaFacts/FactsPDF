@@ -1,3 +1,28 @@
+
+## Current-source rounded business-report cards (2026-11-01)
+
+Ordinary `p`/`pre`/`h1`–`h6`/`div`/`section`/`article`/`blockquote`
+outside lists/tables support one physical `border-radius`: zero or 0.25–72pt
+in `pt`, `px`, `mm`, `cm`, or `in`. One radius shapes all four corners
+of the actual opaque PDF background and a uniformly thick, single-colour
+solid border; text metrics and content/outer dimensions do not change.
+On continued report boxes only the first fragment's top and the final
+fragment's bottom receive curved corners; continuation sides stay straight.
+Cascade, `!important`, `initial`/`unset`/`inherit`, output budget and
+destination protection use the existing scoped renderer.
+
+Percentages, elliptical/multiple/per-corner radii, `em`/`rem`, box
+radii on table cells, images, lists or inline elements, nonuniform/missing,
+dashed/dotted borders, CSS background clipping, full CSS Backgrounds &
+Borders and browser layout are **not** implemented; incompatible input
+fails explicitly. `border-radius:0` preserves the old PDF bytes.
+This is source capability, not part of the previously retained private
+preview binary, human PDF approval or an evaluation grant. The
+[54-card authored sample](../examples/report-rounded-panels.html) and
+[separate 16px/12pt projection](../examples/report-rounded-panels-oracle.html)
+exercise actual PDF bytes and pagination; NUnit and Linux/Windows
+Native AOT/Poppler tests verify painted curves and error recovery.
+
 ## Current-source bounded vertical alignment for fixed-column table cells
 
 Fixed-column `td` and `th` accept the real PDF-rendered values
@@ -87,7 +112,7 @@ no global dash continuity across pages or CSS background clipping.
 
 Only the supported patterns are painted. `double`, `hidden`, `groove`,
 `ridge`, `inset`, `outset`, arbitrary `border-image`,
-`border-radius`, invalid mixed shorthand terms and out-of-scope elements
+`border-radius` with dashed/dotted/asymmetric borders, invalid mixed shorthand terms and out-of-scope elements
 fail with existing `FPDF1201/1202`; impossible widths with `FPDF1302`,
 display-command limits with `FPDF1401`. Sub-millipoint patterned strokes
 that would round to an invisible PDF linewidth fail `FPDF1302` instead
@@ -268,8 +293,9 @@ pagination reuse their already bounded element contracts.
 Unsupported: quote-in-list, quote-in-table/cell, quote-in-inline; `cite`
 and browser citation metadata; CSS generated quote marks; `q`/`cite`
 elements; RTL/vertical writing; margin collapse; negative margins; vertical
-margin percentages/auto; height, arbitrary display, floating and rounded
-border painting. Existing unsupported CSS and unplaceable geometry reject
+margin percentages/auto; height, arbitrary display, floating and elliptical/per-corner
+rounded border painting. A single physical radius with a uniform solid ring
+is separately supported. Existing unsupported CSS and unplaceable geometry reject
 with `FPDF1101/1103/1201/1202/1302`, preserving the original PDF output
 on conversion failure. Quoted content is **not** a tagged PDF quotation.
 No separate font download or asset is involved.
@@ -387,7 +413,7 @@ display command limits and preserves containing panel fragments.
 attributes fail `FPDF1103`. Text-only declarations such as
 `text-align`, `font-weight` or `line-height` reject with
 `FPDF1201`. Negative/percentage vertical margins, unsupported functions
-and dashed/rounded borders fail `FPDF1201/1202`. This does not
+and unsupported dashed/rounded border combinations fail `FPDF1201/1202`. This does not
 implement margin collapsing, `height`, pseudo-elements, `display`,
 complex rules, table/inline separators or general CSS conformance.
 
