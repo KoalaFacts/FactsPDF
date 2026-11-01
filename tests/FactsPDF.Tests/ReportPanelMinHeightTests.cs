@@ -187,8 +187,8 @@ public sealed class ReportPanelMinHeightTests
             "<div style='min-height:60pt'></div>" +
             "<p style='margin:0;break-before:page'>B</p></section>" +
             "<p style='margin:0'>C</p>";
-        var painted = unpainted.Replace("style='min-height:60pt'>",
-            "style='min-height:60pt;background:blue'>");
+        var painted = unpainted.Replace("<section style='min-height:60pt'>",
+            "<section style='min-height:60pt;background:blue'>");
         var actual = Layout(unpainted);
         var control = Layout(painted);
         Assert.That(actual, Has.Count.EqualTo(2));
