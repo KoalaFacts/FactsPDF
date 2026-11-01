@@ -156,9 +156,12 @@ public sealed class TextDecorationPaintTests
     public void UnsupportedDecorationValuesFailEvenInUnmatchedRulesWithoutTouchingDestination(string css, string code)
         => Reject("<style>.absent{" + css + "}</style><p>Safe output</p>", code);
 
-    [Test]
-    public void DecorationStylesOnStandaloneImagesAreNotSilentlyAccepted()
-        => Reject("<img src='brand' style='text-decoration-style:dotted'>", "FPDF1201");
+    [TestCase("text-decoration-style:dotted")]
+    [TestCase("text-decoration-color:red")]
+    [TestCase("text-decoration-line:overline")]
+    [TestCase("text-decoration:underline dashed red")]
+    public void DecorationStylesOnStandaloneImagesAreNotSilentlyAccepted(string declaration)
+        => Reject("<img src='brand' style='" + declaration + "'>", "FPDF1201");
 
     [Test]
     public void OneStrokeConsumesOneRealDisplayCommandAndProtectsOriginalFile()
