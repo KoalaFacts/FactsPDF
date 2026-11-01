@@ -253,10 +253,20 @@ internal sealed class CssStylesheets
                     throw new FactsPdfException("FPDF1202",
                         "Report-panel vertical margins do not support percentages.", declaration.Offset);
             }
-            if (!paragraph && !panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
+            // Forced page breaks on a whole report section must open/close
+            // at its box boundary, not be delayed until its first text leaf.
+            // No break-inside, avoid for whole panels or list/table breaks.
+            var panelPageBreak = declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
+                && element.Name is ("div" or "section" or "article" or "blockquote")
+                && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                    or "td" or "th" or "thead" or "tbody" or "tfoot");
+            if (panelPageBreak && declaration.Value == "avoid")
+                throw new FactsPdfException("FPDF1202",
+                    "Report-panel page breaks support auto/page, not avoid.", declaration.Offset);
+            if (!paragraph && !panelMargin && !panelPageBreak && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
                 or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.TextIndent))
-                throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
+                throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
@@ -327,6 +337,21 @@ internal sealed class CssStylesheets
                     "bottom" => CellVerticalAlign.Bottom,
                     _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
                 } };
+            else if (element.Name is ("div" or "section" or "article" or "blockquote")
+                && declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter))
+            {
+                var value = declaration.Value switch
+                {
+                    "page" => true,
+                    "auto" or "initial" or "unset" => false,
+                    "inherit" => declaration.Property == CssProperty.BreakBefore
+                        ? parentBox.BreakBefore : parentBox.BreakAfter,
+                    _ => throw new InvalidOperationException("Unvalidated report-panel page break.")
+                };
+                box = declaration.Property == CssProperty.BreakBefore
+                    ? box with { BreakBefore = value }
+                    : box with { BreakAfter = value };
+            }
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
             else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
@@ -342,16 +367,22 @@ internal sealed class CssStylesheets
                     && declaration.Property is (CssProperty.LineHeight
                         or CssProperty.LetterSpacing or CssProperty.WordSpacing)
                     ? style.FontSize : rootFontSize;
-                // Explicit paragraph/heading margin:inherit must read the direct
-                // panel's computed outside margin. Do not alter anonymous text
-                // or the default (non-inherited) paragraph margins.
-                var marginParent = paragraph && path.Count > 1 &&
-                    path[^2].Name is ("div" or "section" or "article" or "blockquote") &&
+                // Explicit paragraph/heading margin/break:inherit must read
+                // the direct panel's computed BoxStyle. Neither property is
+                // inherited by default; do not change anonymous text or the
+                // normal reset of non-inherited paragraph declarations.
+                var hasReportPanelParent = paragraph && path.Count > 1 &&
+                    path[^2].Name is ("div" or "section" or "article" or "blockquote");
+                var inheritedParent = hasReportPanelParent &&
                     declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                     ? parent with { MarginBefore = parentBox.MarginTop.Value,
                         MarginAfter = parentBox.MarginBottom.Value }
-                    : parent;
-                style = CssDeclarations.Apply(style, marginParent, initial, declaration,
+                    : hasReportPanelParent &&
+                        declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
+                        ? parent with { BreakBefore = parentBox.BreakBefore,
+                            BreakAfter = parentBox.BreakAfter }
+                        : parent;
+                style = CssDeclarations.Apply(style, inheritedParent, initial, declaration,
                     paragraph, computedRoot);
             }
         }

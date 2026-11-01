@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <title>FactsPDF print section boundaries</title>
+  <style>
+    body { font-size: 11pt; line-height: 1.4; color: #23446b; }
+    .card { padding: 8pt; border: 1pt solid #23446b; background: #edf5fa; }
+    .new-page { break-before: page; }
+    .end-page { break-after: page; }
+    p { margin: 0 0 6pt; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <h1>Facilities report</h1>
+    <p>Summary and approval cover.</p>
+  </section>
+  <article class="card new-page end-page">
+    <h2>Inspection checklist</h2>
+    <p>Fire exit: passed</p>
+    <p>Lighting: maintenance scheduled</p>
+  </article>
+  <section class="card">
+    <h2>Sign-off</h2>
+    <p>Reviewed by facilities manager.</p>
+  </section>
+</body>
+</html>

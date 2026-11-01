@@ -1,3 +1,23 @@
+## Current-source bounded report-section page boundaries
+
+The source at `67566764419232585632d8ea6f2106aeeeff2f70`
+allows explicit `break-before:page` and `break-after:page`
+on ordinary div/section/article/blockquote panels. Scoped legacy
+`page-break-before/after:always` aliases and `auto` target the same
+cascade slots, including `!important`, inheritance/reset and nested
+panel fragments. `SectionPageBreakTests.cs` checks actual PDF paint
+and text per page, two boundaries without an empty middle page, no phantom
+first page, hidden panels, and protected input errors.
+`verify_native_feature_paths.py` compares three actual CLI PDF pages
+and searchable qpdf/Poppler output from the authored source
+[report](../../examples/report-section-page-breaks.html) and a separate
+[modern-break oracle](../../examples/report-section-page-breaks-oracle.html),
+including protected PDF recovery after rejected input.
+Not break-inside, avoid on panels, general keep, Paged Media, table/list/
+inline or unsupported left/right page selection. Exact-head CI, independent
+review, private candidate, customer rights and human page approvals are
+separate; no previous binary is relabelled.
+
 ## Current-source independent corner-radius PDF rendering
 
 The four physical corner longhands compose with 1–4 value `border-radius`

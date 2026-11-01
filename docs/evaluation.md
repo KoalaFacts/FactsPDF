@@ -1,3 +1,20 @@
+## Source-only report-section page boundaries
+
+Controlled facilities, billing and inspection reports can place whole ordinary
+panels on fresh PDF pages using `break-before:page` /
+`break-after:page`, or `page-break-before/after:always` in legacy print
+stylesheets. Real PDF bytes, page count, searchable text and outer panel
+paint are exercised by `SectionPageBreakTests.cs` and a
+Linux/Windows Native AOT CLI witness comparing the
+[facilities sample](../examples/report-section-page-breaks.html) with an
+[independently authored modern-break oracle](../examples/report-section-page-breaks-oracle.html).
+Nested continuation, CSS cascade, invalid/unsupported values, protected
+output and recovery are included in this bounded scope. This is a **print
+page boundary**, not automatic break-inside:avoid, table/list/inline
+pagination or full Paged Media. Source `67566764419232585632d8ea6f2106aeeeff2f70`
+is not the previously retained private candidate or a human-approved/customer
+deliverable; exact-head CI and separate independent review remain required.
+
 ## Source-only independent report-card corners
 
 Four physical `border-*-radius` longhands now control their own corners,

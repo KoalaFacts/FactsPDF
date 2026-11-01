@@ -47,7 +47,17 @@ internal static class CssSyntaxAdapter
         foreach (var node in nodes)
         {
             budget.Token.ThrowIfCancellationRequested();
-            var name = node.Name.ToLowerInvariant();
+            var originalName = node.Name.ToLowerInvariant();
+            // Legacy print stylesheets use page-break-before/after:always.
+            // Normalize only these known aliases into the existing cascade
+            // slots; page/auto retain the same actual layout semantics.
+            var legacyPageBreak = originalName is "page-break-before" or "page-break-after";
+            var name = originalName switch
+            {
+                "page-break-before" => "break-before",
+                "page-break-after" => "break-after",
+                _ => originalName
+            };
             // Fail unsupported properties first even when the value contains
             // functions or multiple tokens.
             var property = Property(name, node.Span.Start);
@@ -413,6 +423,7 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
             var token = terms[0];
             var tokenOffset = valueTokens[0].Token.Span.Start;
+            if (legacyPageBreak && token == "always") token = "page";
             if (property == CssProperty.Display)
             {
                 // The report renderer supports suppression, not CSS display

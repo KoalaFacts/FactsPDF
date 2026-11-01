@@ -2,6 +2,26 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Print-ready report section page boundaries (source-only)
+
+Use `break-before:page` and `break-after:page` on normal
+`div/section/article/blockquote` report panels outside tables/lists.
+Legacy print templates may use `page-break-before:always` and
+`page-break-after:always` (also `auto`) as equivalent aliases on the same
+scoped panels and explicit paragraphs/headings. Real PDF pages and painted
+panel fragments move together, including nesting, first-page handling,
+`!important` and explicit CSS-wide reset/inheritance.
+
+The [three-page facilities report](examples/report-section-page-breaks.html)
+and [independently authored modern-break control](examples/report-section-page-breaks-oracle.html)
+are checked as actual Native AOT PDFs, not accepted syntax alone.
+`break-after:avoid` remains **heading-only**, not a section keep-together;
+left/right, break-inside, RTL, tables/lists and general CSS Paged Media
+are unsupported and fail explicitly, preserving existing output. This is
+source-only at `67566764419232585632d8ea6f2106aeeeff2f70`, pending
+exact-head CI, independent review and the separate private/customer gates.
+[Precise CSS scope](docs/css-stylesheets.md#current-source-print-section-page-boundaries).
+
 ### Independent CSS corner-radius longhands (source-only)
 
 For invoices, summary cards and branded report headings, four separate CSS

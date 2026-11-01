@@ -484,6 +484,42 @@ selector precedence, computed lengths, page edges and budgets. New source,
 CI and review evidence do not relabel old private candidates or provide
 human page approval.
 
+## Current-source print section page boundaries
+
+For controlled LTR reports, standalone `div`, `section`, `article` and
+`blockquote` outside lists/tables accept `break-before:page|auto` and
+`break-after:page|auto`. Page boundaries occur at the **real panel box
+boundary**, before its first background/padding/text or after its last
+fragment; an opening forced break does not manufacture an empty first page.
+Nested painted panels continue across the correct PDF page slices.
+
+Existing explicit `p/pre/h1–h6` breaks remain. The legacy
+`page-break-before` and `page-break-after` **names** additionally accept
+`always` as the exact synonym of `page`, or `auto`; for the already
+supported heading-only `break-after:avoid`, legacy
+`page-break-after:avoid` is the same bounded heading hint.
+Normal CSS cascade, source order, `!important`, individual
+`inherit`/`initial`/`unset` and non-inheritance apply. A modern and
+legacy declaration compete for the same physical break slot.
+
+```css
+.inspection { page-break-before: always; break-after: page; }
+.signoff { break-before: auto; }
+```
+
+Not `break-inside`, `page-break-inside`, avoid on whole panels,
+left/right/recto/verso, column boundaries, named pages, tables/list/inline
+breaks, general keep-together or CSS Paged Media. Unsupported values and
+applicability reject with `FPDF1201/1202` before replacing a customer's
+PDF. Source `67566764419232585632d8ea6f2106aeeeff2f70` adds
+`SectionPageBreakTests.cs`, the
+[facilities report](../examples/report-section-page-breaks.html),
+[independent modern syntax oracle](../examples/report-section-page-breaks-oracle.html)
+and a native qpdf/Poppler PDF geometry/page/text/failure witness.
+Real source implementation and a test route are not a new installable
+candidate, legal rights or human PDF approval. Check exact-head CI and
+independent review separately.
+
 FactsPDF now accepts embedded CSS stylesheets in addition to inline styles. This is a bounded, strict implementation for controlled document templates, not full browser CSS. It does not add a new markup language or a browser dependency. The previous font, Unicode and optional subsetting paths are reused.
 
 ## Example
@@ -570,7 +606,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | margin-top, margin-bottom | Paragraphs/headings plus ordinary div/section/article report panels; nonnegative pt/px/mm/cm/in/rem/em or zero (up to 14400pt); panels create real outside-border vertical spacing, without margin collapse; table-cell p rem/em still reject |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
 | margin (bounded shorthand) | Paragraphs/headings and scoped div/section/article panels; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/em/zero and horizontal pt/px/mm/cm/in/%/rem/em/zero/`auto`, including `margin:0.25rem 0.5em`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
-| break-before, break-after | Paragraphs/headings only; auto/page. break-after also accepts avoid on headings outside lists; see [heading pagination](heading-pagination.md) |
+| break-before, break-after; page-break-before/after aliases | Explicit p/pre/headings and ordinary div/section/article/blockquote report panels outside lists/tables; auto/page. Legacy aliases accept auto/always; heading-only break-after:avoid remains a bounded keep hint. Real page boundaries, not general CSS Fragmentation. [Precise print-section scope](#current-source-print-section-page-boundaries) and [heading pagination](heading-pagination.md) |
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Paragraph-only breaks and text styles remain inapplicable on containers/spans, even for losing declarations; report-panel margins are a separate bounded exception. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
