@@ -161,6 +161,12 @@ internal static class TextLayout
             }
             if (step is LayoutKeepPanel keep)
             {
+                // Every eligible card contains actual glyphs. If an earlier
+                // block exhausted the command budget, fail before decoding or
+                // wrapping this card's future text (as ordinary paragraphs do).
+                // This is a check, not a charge: real rendering counts once.
+                if (displayCommands == o.MaxDisplayCommands)
+                    EnsureDisplayCommands(1, keep.Node.SourceOffset);
                 // Preflight only the exact bounded flat card shape validated
                 // by BlockLayout. Measure with the same font/glyph wrap and
                 // resolved child content widths used by actual PDF layout.

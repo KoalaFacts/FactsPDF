@@ -26,7 +26,7 @@ internal static class BlockLayout
 {
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
         double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
-        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0);
+        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
         CancellationToken cancellation, ListLayout? lists = null)
@@ -115,7 +115,7 @@ internal static class BlockLayout
                         // measurable footprint promised by break-inside:avoid.
                         // Reject unsupported nested/forced/sized contents instead
                         // of claiming an arbitrary block can be kept together.
-                        if (!frame.IsRoot || style.MinHeight.HasValue || style.Height.HasValue ||
+                        if ((!frame.IsRoot && !frame.IsDocumentBody) || style.MinHeight.HasValue || style.Height.HasValue ||
                             node.Children.Count is < 1 or > 8)
                             throw new FactsPdfException("FPDF1201",
                                 "Kept report card requires one to eight direct text paragraphs and no fixed/minimum height.",
@@ -141,7 +141,8 @@ internal static class BlockLayout
                         marginTop, requiredEmptyPaintHeight, minimumOuterHeight,
                         box.Bottom + marginBottom, fixedOuterHeight);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
-                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight, MarginBottom: marginBottom));
+                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
+                         MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot));
                     break;
                 }
                 default:

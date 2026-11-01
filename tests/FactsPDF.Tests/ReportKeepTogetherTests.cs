@@ -81,6 +81,32 @@ public sealed class ReportKeepTogetherTests
         Assert.That(resetNode.BoxStyle.AvoidBreakInside, Is.False);
     }
 
+
+    [Test]
+    public void CompleteHtmlBodyAllowsDirectKeptCardButNotNestedCards()
+    {
+        var filler = string.Concat(Enumerable.Repeat(
+            "<p style='margin:0;font-size:10pt;line-height:12pt'>FILLER</p>", 13));
+        var html = "<!doctype html><html><head><meta charset='utf-8'></head><body>" +
+            filler + Panel + "<p style='margin:0'>FOLLOWING</p></body></html>";
+        Assert.That(Layout(html), Has.Count.EqualTo(2));
+        Assert.That(Render(html), Is.EqualTo(Render(
+            html.Replace("break-inside:avoid", "break-before:page"))));
+        RejectAndRecover("<!doctype html><html><body><div><section style='break-inside:avoid'>" +
+            "<p>NESTED</p></section></div></body></html>", "FPDF1201");
+    }
+
+    [Test]
+    public void KeptCardPreflightDoesNotReadMissingGlyphsAfterDisplayBudgetIsExhausted()
+    {
+        var options = Page with { MaxDisplayCommands = 1 };
+        var html = "<p style='margin:0'>USED</p>" +
+            "<section style='break-inside:avoid'><p>中文</p></section>";
+        var ex = Assert.Throws<FactsPdfException>(() => TextLayout.Layout(
+            HtmlDocumentReader.ReadTree(html, options, default), options, default));
+        Assert.That(ex!.Code, Is.EqualTo("FPDF1401"));
+    }
+
     [Test]
     public void UnsupportedStructureAndOversizedCardFailWithoutOverwritingExistingPdf()
     {
