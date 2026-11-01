@@ -1,3 +1,14 @@
+## Current-source real CLI physical page margins
+
+`--margin 0|length` accepts one nonnegative uniform physical margin in
+`pt/px/mm/cm/in` for A4/Letter portrait or landscape. The selected inset
+updates real PDF body glyph positions, wrapping and page-furniture layout.
+Default and explicit 36pt retain identical PDF bytes. Bounds must fit the
+shorter physical page; malformed, repeated, negative or unplaceable margins
+fail before replacing an existing PDF. `CliPageMarginTests.cs` and Native
+AOT qpdf/Poppler all-page PDF text/geometry and recovery checks cover the
+bounded first-use command-line scope. This does not add any CSS support
+matrix row, a new retained candidate or a customer evaluation grant.
 ## Current source: bounded image min/max-height PDF matrices
 
 Direct bound PNG/JPEG images and fixed-column td/th image items consume

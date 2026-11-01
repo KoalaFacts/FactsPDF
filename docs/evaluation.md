@@ -1,3 +1,18 @@
+## Current-source uniform physical CLI report margins
+
+First-use command-line reports now take `--margin 15mm` with the existing
+`--page-size a4|letter` and `--landscape` switches. The CLI computes one
+uniform PDF margin in points (also accepts `0`, `pt`, `px`, `cm`, `in`) before
+body and page-furniture layout, so PDF glyph positions and page counts
+change rather than just accepting the argument. Default 36pt and an
+explicit `--margin 36pt` produce identical bytes. Invalid/repeated/unfit
+margins exit 2 without overwriting an existing destination, including
+after a later successful retry. NUnit compares real CLI pages with an
+independent public-API invocation; the existing Linux/Windows Native AOT
+gate uses qpdf and Poppler for physical margins, content searchability,
+all-page print-area positions and failure recovery. Not CSS `@page`,
+individual-edge margins, bleed handling or a released/customer licence.
+See `CliPageMarginTests.cs` and `scripts/verify_native_feature_paths.py`.
 ## Source-only bounded image min/max-height report layout
 
 Physical `min-height`/`max-height` now constrain directly bound standalone

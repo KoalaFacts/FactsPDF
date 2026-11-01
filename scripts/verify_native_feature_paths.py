@@ -1339,6 +1339,71 @@ def verify_native_paper_geometry(executable, source, output, work, default_pdf):
             'invalidArgumentDestinationPreserved': True, 'recoveryByteParity': True}
 
 
+def verify_native_page_margin(executable, source, output, work, baseline_pdf):
+    """Real physical trim margins with independent Poppler text coordinates and safe failure recovery."""
+    unchanged = output / 'margin-default-explicit.pdf'
+    assert not run(executable, source, unchanged, '--margin', '36pt', cwd=work)
+    assert unchanged.read_bytes() == baseline_pdf.read_bytes(), 'Explicit default margin changed historical PDF'
+
+    expected_words = Counter(word for page in range(1, count_pages(baseline_pdf) + 1)
+                             for word, *_ in page_boxes(baseline_pdf, page)[2])
+    baseline_heading = min(x for word, x, *_ in page_boxes(baseline_pdf, 1)[2] if word == 'FactsPDF')
+    cases = (
+        ('18mm', 18 * 72 / 25.4, 'a4', False, 595.28, 841.89),
+        ('0.75in', 54, 'letter', True, 792, 612),
+    )
+    results = []
+    for value, inset, paper, landscape, width, height in cases:
+        flags = ['--page-size', paper, '--margin', value] + (['--landscape'] if landscape else [])
+        target = output / f'margin-{paper}-{"landscape" if landscape else "portrait"}.pdf'
+        assert not run(executable, source, target, *flags, cwd=work), 'Margin output leaked stdout'
+        run('qpdf', '--check', target)
+        pages = count_pages(target)
+        assert pages == 2, ('Authored report page count changed with margin', value, pages)
+        observed_words = Counter()
+        for page in range(1, pages + 1):
+            measured_width, measured_height, words = page_boxes(target, page)
+            assert abs(measured_width - width) < 0.02 and abs(measured_height - height) < 0.02, (
+                'Margin changed the physical page dimensions', value, page)
+            assert words, ('Unexpected blank report page with margin', value, page)
+            for word, x1, y1, x2, y2 in words:
+                assert word and inset - 1 < x1 < x2 < width - inset + 1 and                     inset - 1 < y1 < y2 < height - inset + 1, (
+                    'Text outside user-selected physical print area', value, page, word, x1, y1, x2, y2)
+                observed_words[word] += 1
+        assert observed_words == expected_words, (
+            'Margin lost or duplicated actual authored words', value, expected_words - observed_words,
+            observed_words - expected_words)
+        heading = min(x for word, x, *_ in page_boxes(target, 1)[2] if word == 'FactsPDF')
+        assert abs((heading - baseline_heading) - (inset - 36)) < 0.1, (
+            'Margin did not physically move body glyphs to the new left edge', value,
+            baseline_heading, heading, inset)
+        if landscape:
+            stream_pdf = run(executable, source, '-', *flags, cwd=work)
+            assert stream_pdf == target.read_bytes() and stream_pdf.startswith(b'%PDF-1.7'), (
+                'Margin stdout bytes differ from file output')
+        results.append({'margin': value, 'points': inset, 'paper': paper, 'landscape': landscape,
+                        'sha256': sha(target), 'pages': pages, 'wordCount': sum(observed_words.values()),
+                        'independentPrintAreaChecked': True, 'allAuthoredWordsPreserved': True})
+
+    dest = output / 'margin-preserved.pdf'
+    sentinel = b'existing approved PDF'
+    for arguments in (('--margin', '300pt'), ('--margin', '12%'),
+                      ('--margin', '10pt', '--margin', '20pt')):
+        dest.write_bytes(sentinel)
+        bad = subprocess.run([str(executable), str(source), str(dest), '--overwrite', *arguments],
+                             cwd=work, capture_output=True, timeout=120)
+        assert bad.returncode == 2 and not bad.stdout and bad.stderr, (
+            'Invalid margin must fail with argument status, not write PDF', arguments)
+        assert dest.read_bytes() == sentinel, ('Invalid margin replaced prior output', arguments)
+        assert not list(output.glob('.factspdf-*.tmp')), 'Invalid margin leaked temporary output'
+    assert not run(executable, source, dest, '--overwrite', '--page-size', 'letter',
+                   '--landscape', '--margin', '0.75in', cwd=work), 'Margin recovery leaked stdout'
+    assert dest.read_bytes() == (output / 'margin-letter-landscape.pdf').read_bytes(), (
+        'Recovery after invalid margin changed binary PDF')
+    return {'defaultPdfByteParity': True, 'cases': results, 'stdoutFileByteParity': True,
+            'invalidDestinationPreserved': True, 'recoveryByteParity': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1409,6 +1474,7 @@ def main():
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
         kept_cards = verify_native_report_keep_together(isolated, output, work)
         paper_geometry = verify_native_paper_geometry(isolated, first, output, work, plain)
+        page_margin = verify_native_page_margin(isolated, first, output, work, plain)
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
@@ -1438,6 +1504,7 @@ def main():
             'sectionPageBreaks': section_breaks,
             'reportKeepTogether': kept_cards,
             'paperGeometry': paper_geometry,
+            'pageMargin': page_margin,
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,
