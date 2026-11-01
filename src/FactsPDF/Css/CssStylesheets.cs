@@ -193,7 +193,7 @@ internal sealed class CssStylesheets
                     or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201",
                     "Relative em/rem report box lengths are supported only on ordinary block boxes.", declaration.Offset);
-            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle))
+            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
