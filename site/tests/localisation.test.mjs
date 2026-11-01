@@ -68,7 +68,7 @@ test('translated text keeps important scope restrictions and failure codes', asy
   assert.match(byId('css.white-space').scope, /pre-wrap/);
   assert.match(byId('css.white-space').limitations, /tab stops/);
   assert.match(byId('css.white-space').limitations, /FPDF1305/);
-  assert.match(byId('css.white-space').limitations, /nowrap/);
+  assert.match(byId('css.white-space').scope, /nowrap/);
   assert.match(byId('css.white-space').limitations, /FPDF1302/);
   assert.match(byId('css.letter-spacing').scope, /0–24pt/);
   assert.match(byId('css.letter-spacing').limitations, /FPDF1202/);
