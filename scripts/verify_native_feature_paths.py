@@ -848,7 +848,7 @@ def verify_native_minimum_height(executable, output, work):
     assert pages >= 3, 'Forty minimum-height report entries must paginate'
     words = [word for page in range(1, pages + 1)
              for word in page_boxes(pdf, page)[2]]
-    labels = [word[0] for word in words if re.fullmatch(r'CHK\\d{3}', word[0])]
+    labels = [word[0] for word in words if re.fullmatch(r'CHK\d{3}', word[0])]
     assert labels == [f'CHK{i:03d}' for i in range(1, 41)], (
         'Source report card labels missing, duplicated or reordered', labels)
     assert b' re f Q' in pdf.read_bytes(), 'Minimum-height painted cards missing vector rectangles'

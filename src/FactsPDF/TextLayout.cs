@@ -130,11 +130,12 @@ internal static class TextLayout
             }
             if (step is BeginBlock begin)
             {
-                // A previous break-after must precede a painted successor
-                // even when that successor contains no text paragraph.
-                // Unpainted containers continue deferring the break to their
-                // first text leaf, preserving existing paragraph-only behavior.
-                if (breakNext && begin.Style.HasPaint)
+                // A previous break-after must precede a painted or
+                // minimum-height successor, even when it has no text leaf.
+                // Otherwise an unpainted minimum is reserved on the old page
+                // and lost when the next paragraph consumes the delayed break.
+                // Other unpainted containers retain paragraph-only behavior.
+                if (breakNext && (begin.Style.HasPaint || begin.MinimumOuterHeight > 0))
                 {
                     if (CurrentPageOccupied())
                     {
@@ -198,11 +199,12 @@ internal static class TextLayout
                 var minimumExtra = 0d;
                 if (scope.MinimumOuterHeight > 0 && scope.StartPage == pages.Count - 1)
                 {
-                    var childMargin = !scope.IsParagraph &&
-                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
-                        ? after : 0d;
+                    // A deferred preceding paragraph margin belongs to this
+                    // scope's origin even when it contains no text. Count it
+                    // once when measuring nested empty minimum-height panels,
+                    // rather than reserving it again at the outer closure.
                     var naturalEnd = Math.Max(scope.StartY + scope.Top,
-                        y + pendingTopPadding + pendingClosedPadding + childMargin)
+                        y + pendingTopPadding + pendingClosedPadding + after)
                         + closing.PaddingBottom;
                     minimumExtra = Math.Max(0, scope.StartY + scope.MinimumOuterHeight - naturalEnd);
                 }
@@ -213,7 +215,8 @@ internal static class TextLayout
                     // while the last child's bottom margin is within a
                     // containing block's content height.
                     var childBottomMargin = !scope.IsParagraph &&
-                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
+                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
+                         scope.MinimumOuterHeight > 0)
                         ? after : 0d;
                     var finalPage = pages.Count - 1;
                     // The first page's border-box origin and the last page's

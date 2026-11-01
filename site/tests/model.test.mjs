@@ -263,7 +263,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.four-corner-report-radii');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.report-panel-min-height');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /当前累计72个受限CSS属性名/);

@@ -136,6 +136,51 @@ public sealed class ReportPanelMinHeightTests
     }
 
     [Test]
+    public void ExplicitPageBreakPrecedesUnpaintedMinimumAndKeepsReservedHeight()
+    {
+        const string before = "<p style='margin:0;break-after:page'>A</p>";
+        const string following = "<p style='margin:0'>B</p>";
+        var baseline = Layout(before + following);
+        var unpaintedHtml = before + "<section style='min-height:60pt'></section>" + following;
+        var paintedHtml = before +
+            "<section style='min-height:60pt;background:blue'></section>" + following;
+        var unpainted = Layout(unpaintedHtml);
+        var painted = Layout(paintedHtml);
+
+        Assert.That(baseline, Has.Count.EqualTo(2));
+        Assert.That(unpainted, Has.Count.EqualTo(2));
+        Assert.That(painted, Has.Count.EqualTo(2));
+        Assert.That(unpainted[0].Runs.Select(run => run.Text), Is.EqualTo(new[] { "A" }));
+        Assert.That(unpainted[1].Runs.Select(run => run.Text), Is.EqualTo(new[] { "B" }));
+        Assert.That(unpainted[1].Runs.Single().Baseline,
+            Is.EqualTo(baseline[1].Runs.Single().Baseline - 60).Within(0.00001),
+            "The 60pt unpainted minimum belongs after the authored page break.");
+        Assert.That(unpainted[1].Runs.Single().Baseline,
+            Is.EqualTo(painted[1].Runs.Single().Baseline).Within(0.00001),
+            "Paint must not determine whether minimum-height space survives a page break.");
+        Assert.That(Encoding.ASCII.GetString(Render(unpaintedHtml)), Does.Contain("/Count 2"));
+    }
+
+    [Test]
+    public void NestedEmptyMinimumDoesNotCountThePrecedingMarginTwice()
+    {
+        const string before = "<p style='margin:0 0 8pt'>A</p>";
+        const string following = "<p style='margin:0'>B</p>";
+        foreach (var paint in new[] { "", ";background:#edf5fa" })
+        {
+            var opening = "<section style='min-height:60pt" + paint + "'>";
+            var direct = before + opening + "</section>" + following;
+            var nested = before + opening +
+                "<div style='min-height:60pt'></div></section>" + following;
+            Assert.That(Layout(nested).Single().Runs.Last().Baseline,
+                Is.EqualTo(Layout(direct).Single().Runs.Last().Baseline).Within(0.00001),
+                "An equally tall inner unpainted minimum must not add a second 8pt margin.");
+            Assert.That(Render(nested), Is.EqualTo(Render(direct)),
+                "Nested empty minimum must preserve the actual PDF geometry and paint.");
+        }
+    }
+
+    [Test]
     public void ContentLargerThanMinimumRetainsNaturalFragmentedPages()
     {
         var options = Page with { PageHeight = 160 };
