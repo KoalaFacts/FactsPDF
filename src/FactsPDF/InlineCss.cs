@@ -136,6 +136,15 @@ internal static class InlineCss
                         _ => throw Invalid("overflow-wrap supports only normal and break-word.", offset)
                     } };
                     break;
+                case "word-break" when paragraph && !inline:
+                    // Every already-supported simple glyph can end a line;
+                    // unlike emergency wrapping, this consumes remaining width.
+                    style = style with { BreakAll = value switch
+                    {
+                        "normal" => false, "break-all" => true,
+                        _ => throw Invalid("word-break supports only normal and break-all.", offset)
+                    } };
+                    break;
                 case "text-indent" when paragraph && !inline:
                     // Resolve percentages against this paragraph's actual text
                     // content width at layout time, after margins/padding.

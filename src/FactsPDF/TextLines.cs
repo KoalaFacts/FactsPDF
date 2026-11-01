@@ -252,9 +252,9 @@ internal static class TextLines
                 previousScalar = -1;
                 continue;
             }
-            if (paragraph.Style.BreakWords)
+            if (paragraph.Style.BreakWords || paragraph.Style.BreakAll)
             {
-                // Emergency breaks are between already resolved glyphs.
+                // Both breaking modes use only supported resolved glyphs.
                 // A glyph wider than the fresh content line still fails.
                 tooWide |= glyph.Width > available + 0.000001;
                 previousScalar = glyph.Scalar;
@@ -408,12 +408,13 @@ internal static class TextLines
                 var glyph = cursor.Current;
                 word.Add(glyph);
                 wordWidth += glyph.Width;
-                if (!paragraph.Style.BreakWords && wordWidth > available + 0.000001)
+                if (!paragraph.Style.BreakWords && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
                     throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
                 previous = glyph.Scalar;
                 hasGlyph = cursor.MoveNext();
             }
-            while (hasGlyph && cursor.Current.Scalar is not (32 or 10) && !CanBreak(previous, cursor.Current.Scalar));
+            while (hasGlyph && cursor.Current.Scalar is not (32 or 10) &&
+                !paragraph.Style.BreakAll && !CanBreak(previous, cursor.Current.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
             var lineAvailable = firstLine ? available - firstIndent : available;
             // Break only a token that cannot fit a fresh line, or the

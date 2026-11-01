@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BorderBottomLeftRadius + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.WordBreak + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -265,7 +265,7 @@ internal sealed class CssStylesheets
                     "Report-panel page breaks support auto/page, not avoid.", declaration.Offset);
             if (!paragraph && !panelMargin && !panelPageBreak && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
-                or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.TextIndent))
+                or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
