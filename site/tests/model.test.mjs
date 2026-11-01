@@ -57,7 +57,7 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:151, none:215, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:152, none:214, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
@@ -580,7 +580,7 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
   }
   assert.equal(dataset.accepted_css_property_count,81);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features), {full:44,partial:151,none:215,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features), {full:44,partial:152,none:214,unknown:6,na:2});
 });
 
 
