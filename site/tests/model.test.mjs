@@ -22,8 +22,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, '7d1bc0394d9329669d0cb1106902a1baf976de68');
-  assert.match(dataset.commit_url, /7d1bc0394d9329669d0cb1106902a1baf976de68/);
+  assert.equal(dataset.commit, 'f4eb1345e8ef587b8ac5f5ca31b7e799d203601b');
+  assert.match(dataset.commit_url, /f4eb1345e8ef587b8ac5f5ca31b7e799d203601b/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -593,7 +593,7 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
 test('whole-row table-cell vertical alignment stays a scoped, source-proven CSS capability',()=>{
   const row=dataset.features.find(x=>x.id==='css.vertical-align');
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'7d1bc0394d9329669d0cb1106902a1baf976de68');
+  assert.equal(row.last_audited_commit,'f4eb1345e8ef587b8ac5f5ca31b7e799d203601b');
   assert.match(row.scope,/td\/th.*top\/middle\/bottom/);
   assert.match(row.limitations,/FPDF1201/);assert.match(row.limitations,/FPDF1202/);assert.match(row.limitations,/FPDF1302/);
   assert.match(row.test_reference,/TableVerticalAlignmentTests\.cs/);

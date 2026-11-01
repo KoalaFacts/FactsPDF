@@ -276,7 +276,7 @@ test('scoped whole-row vertical alignment has audited English rendering',async()
  const {englishFeature,translate}=await localisation();
  const row=englishFeature(data.features.find(f=>f.id==='css.vertical-align'));
  assert.equal(row.status,'partial');
- assert.equal(row.last_audited_commit,'7d1bc0394d9329669d0cb1106902a1baf976de68');
+ assert.equal(row.last_audited_commit,'f4eb1345e8ef587b8ac5f5ca31b7e799d203601b');
  assert.match(row.scope,/Fixed-column table td\/th/);
  assert.match(row.limitations,/FPDF1302/);
  assert.match(row.limitations,/No rowspan/);
