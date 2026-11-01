@@ -115,6 +115,21 @@ cover actual PDF numbering, strict failure and old-output preservation.
 There is no new binary, customer evaluation grant, human PDF approval or
 package publication from this source addition.
 
+## Preformatted operations and reconciliation notes (current source)
+
+Templates requiring aligned register lines can use an explicitly closed
+`<pre>…</pre>` block or `white-space:pre` on an explicit paragraph/heading.
+Unlike `pre-wrap`, these preserve U+0020 spaces and authored line breaks
+**without soft wrapping**. Line content is measured against the report's
+actual PDF column width, can paginate at authored breaks and may use explicit
+fonts; a line that does not fit fails safely. Tabs, pre within tables/lists,
+nested block content and browser-complete pre semantics remain unsupported.
+See the [72-line audit template](../examples/report-preformatted-audit.html),
+[independent PDF oracle](../examples/report-preformatted-audit-oracle.html)
+and [precise contract](css-stylesheets.md#current-source-preformatted-audit-blocks).
+This source feature is not included in the retained private preview binary
+and supplies no customer evaluation or production grant.
+
 ## Start with a report that fits
 
 Long invoice/reference identifiers can opt into scoped `overflow-wrap:break-word` on report paragraphs/headings, including flat p inside fixed-column cells. Oversized tokens split at measured glyph boundaries and continue across pages, while ordinary words still move whole and `white-space:nowrap` takes precedence. `anywhere`, complex shaping, automatic hyphenation and full CSS Text are outside scope. The [32-entry report](../examples/report-overflow-wrap.html) has a separate [manual-break oracle](../examples/report-overflow-wrap-oracle.html) and protected-output errors. Source-only, not a customer grant or human PDF approval. See the [scope](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers).

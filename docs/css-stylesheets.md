@@ -66,7 +66,7 @@ whole-paragraph cascade as `normal`/`nowrap`. `pre-line` does **not** retain
 runs of spaces or tabs, allow arbitrary preformatted text, or enable RTL,
 vertical writing, bidi, complex shaping, negative length or new font sources.
 Explicit declarations on containers, spans, images and table structural elements
-still fail `FPDF1201`. `pre`, `break-spaces`, functions and mixed
+still fail `FPDF1201`. `break-spaces`, functions and mixed
 keyword values still fail `FPDF1202`, including unmatched selector declarations.
 Overwide unbreakable tokens fail `FPDF1302`; missing fonts retain their
 existing resource errors. Failed CLI/API output preserves a previous PDF.
@@ -78,6 +78,44 @@ Linux/Windows Native AOT and Poppler checks via
 `scripts/verify_native_feature_paths.py`. Initial source implementation
 commit: `6ab5d2c8ff3c10c76e928b6ad192d9ac46965c89`. This source scope
 does not imply current package publication or human page approval.
+
+## Current-source preformatted audit blocks
+
+The explicitly closed `<pre>` element is a bounded **standalone report
+paragraph**. It has the same default 8pt trailing paragraph margin as a
+plain `p`, but its default whitespace flags are equivalent to
+`white-space:pre`: authored U+0020 spaces (including leading, consecutive
+and trailing), CRLF/CR/LF/form-feed line breaks and explicit `<br>` become
+measured PDF advances/lines. A line never automatically wraps at words,
+spaces or CJK opportunities. Each line must fit the computed content width
+and first-line indent, otherwise `FPDF1302` leaves the previous PDF intact.
+Only glyphs supplied by the caller's font roles or built-in Courier can paint;
+there is no default browser font family or inferred mono-style substitution.
+
+```html
+<pre>REF001   OK
+REF002   NEEDS REVIEW
+TOTAL    002</pre>
+```
+
+`white-space:pre` also applies on `p`/headings including explicitly styled
+`p` inside a fixed-column table cell; author CSS on `pre` may choose other
+supported whole-paragraph modes. Selector/inline cascade, `!important`,
+CSS-wide `inherit`/`initial`/`unset`, real font metrics, page continuation,
+text colours and output recovery use the existing paragraph engine.
+No `pre` within a table/list, no nested block elements within `pre`, no
+unclosed `pre`, tab stops, complex shaping, RTL or `break-spaces`.
+In preserving modes, unsupported control whitespace (including tab)
+raises `FPDF1305`. Inline `white-space` declarations remain unsupported
+(`FPDF1201`); invalid values raise `FPDF1202`.
+
+The [72-row source example](../examples/report-preformatted-audit.html)
+and [separately authored pre-wrap equivalent](../examples/report-preformatted-audit-oracle.html)
+must produce byte-identical PDFs while every authored line fits. Native
+AOT/Poppler geometry checks measure the extra two-space x advance and
+confirm page text, overflow failure and output restoration. Source commit
+`c7d4c03c3c974a00165925a89b6b71d033db59a8`; this is not full HTML
+`pre` support, a released CLI or a human-approved reference PDF.
 
 ## Current-source preserved-space report notes
 
@@ -380,7 +418,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
-| white-space | `normal` (default), `nowrap`, scoped `pre-line` or bounded `pre-wrap` on explicit `p` / `h1`–`h6`; `pre-line` collapses spaces and retains source breaks, `pre-wrap` retains each U+0020 glyph and source break, both still soft-wrap and retain explicit `br`; tabs in `pre-wrap` explicitly fail `FPDF1305` |
+| white-space | `normal` (default), `nowrap`, scoped `pre-line`, bounded `pre-wrap` and unwrapped `pre` on explicit `p` / `h1`–`h6` or supported `<pre>`; `pre-line` collapses spaces, `pre-wrap` retains each space and soft-wraps, `pre` retains each space and source break without auto-wrap; tab stops fail `FPDF1305` in preserving modes |
 | letter-spacing | Supported report text and inline spans: `normal`, nonnegative 0–24pt print lengths, or scoped `em` (own computed font) / `rem` (computed root); resolved to fixed points before real PDF glyph advances, wrapping, centring and decorations; negative/%/calc unsupported |
 | word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%`, scoped own-font `em` / root `rem`, or zero; percentages use resolved content width, `em/rem` fixed at cascade; only first logical line indented, later wrap/`br`/page fragments retain normal x; unfit first words fail `FPDF1302` with output preservation |
@@ -567,10 +605,10 @@ applies to explicitly sized and nested report blocks. The current scope is
 **whole explicit paragraphs/headings only**: authoring `white-space` on a
 `span`, container, table structural element or image is rejected with
 `FPDF1201`. A paragraph inside a table cell still uses its actual cell width
-and will fail when an unbreakable label does not fit. `pre`,
-`break-spaces`, `word-break`, non-breaking span fragments remain
-unsupported; `pre-line` retains breaks but collapses spaces, while bounded
-`pre-wrap` preserves both literal ASCII spaces and source breaks. Full CSS
+and will fail when an unbreakable label does not fit. `break-spaces`,
+`word-break`, non-breaking span fragments remain unsupported; `pre-line`
+retains breaks but collapses spaces, `pre-wrap` preserves spaces with soft
+wrapping, and `pre` preserves spaces/newlines without soft wrapping. Full CSS
 Text conformance is not implemented. Unsupported values are
 `FPDF1202` errors, including unmatched stylesheet declarations. Supported
 CSS-wide `inherit`, `initial`, `unset`, precedence and `!important`
