@@ -385,6 +385,8 @@ internal static class CssSyntaxAdapter
         "display" => CssProperty.Display,
         "list-style-type" or "list-style" => CssProperty.ListStyleType,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
+        "text-decoration-color" => CssProperty.TextDecorationColor,
+        "text-decoration-style" => CssProperty.TextDecorationStyle,
         "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
         "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,
         "margin-left" or "margin-inline" or "margin-inline-start" => CssProperty.MarginLeft,
