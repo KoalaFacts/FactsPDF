@@ -30,5 +30,5 @@ export const englishAudit = Object.freeze(original.map((previous, index) => {
   return translated;
 }));
 if (englishAudit.length !== 744 || englishAudit.some(s =>
-  typeof s !== 'string' || !s.trim() || /[\\u3400-\\u9fff]/u.test(s)))
+  typeof s !== 'string' || !s.trim() || /[\u3400-\u9fff]/u.test(s)))
   throw new Error('Invalid bounded image-height translation audit.');
