@@ -152,7 +152,7 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/outside the box/);
     assert.match(row.limitations,/FPDF1201/);
-    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.limitations,/FPDF1301\/1302/);
     assert.match(row.limitations,/collaps/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
