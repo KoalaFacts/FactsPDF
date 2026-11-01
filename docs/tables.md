@@ -46,6 +46,44 @@ The table's own background and side borders continue across page fragments; top 
 
 A header, atomic line/image or required leading/terminal decoration that cannot fit its fresh fragment fails `FPDF1302` before destination output. A complete short table still stays indivisible even when ancestor leading padding makes it impossible to place. General keep-together and page furniture are separate features.
 
+## Vertical alignment in whole table rows
+
+For fixed-column `td` and `th`, bounded CSS `vertical-align:top | middle | bottom`
+places the content of a shorter cell within the measured height of its
+**complete row**. Text lines and their actual font baselines, direct images
+and their own painted decorations move together; adjacent cell backgrounds
+and borders retain the full unchanged row height.
+
+```html
+<tr><td style="vertical-align:bottom">INV-004</td>
+    <td>Description line one<br>Description line two<br>Final status</td></tr>
+```
+
+The default `top` retains the original PDF bytes; `middle` centres
+the whole ordered content flow and `bottom` uses its entire available
+vertical free space. Standard selector/inline cascade, `!important`
+and `inherit/initial/unset` apply. Cell alignment is non-inherited;
+`initial` and `unset` resolve to `top` and `inherit` reads the
+parent's computed alignment (normally `top`).
+
+This is not unrestricted CSS `vertical-align`. `baseline`, `sub`,
+`super`, lengths and percentages are rejected (`FPDF1202`). Use
+outside `td/th` fails `FPDF1201`. The whole-row behavior applies in
+multi-page tables and intact repeated header rows, but body rows that
+require **independent cell continuation**, including terminal-decoration
+fragmentation, must not request `middle` or `bottom`: those fail
+`FPDF1302` and retain the previous output. `top` continues to use
+the existing split-row renderer. This does not implement `rowspan`,
+CSS table automatic layout or inline baseline alignment.
+
+[40-row example](../examples/report-table-vertical-align.html)
+and [separately specified physical-padding control](../examples/report-table-vertical-align-oracle.html)
+exercise real HTML-to-PDF glyph placement, repeats and page breaks.
+`TableVerticalAlignmentTests.cs` covers actual text, image and box
+geometry, cascade and error recovery; the native feature verifier
+checks independent PDF bboxes and protected output. This is
+development source, not a new private binary, approved PDF or licence.
+
 ## Image-only cells and branded layouts
 
 A cell can contain one direct `img`, with formatting whitespace or comments

@@ -378,6 +378,7 @@ internal static class CssSyntaxAdapter
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
+        "vertical-align" => CssProperty.VerticalAlign,
         "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap, "text-indent" => CssProperty.TextIndent,
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
@@ -569,6 +570,12 @@ internal static class CssSyntaxAdapter
         }
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);
+        else if (name == "vertical-align")
+        {
+            if (token is not ("top" or "middle" or "bottom"))
+                throw new FactsPdfException("FPDF1202",
+                    "Table-cell vertical-align supports only top, middle and bottom.", offset);
+        }
         else if (name == "box-sizing")
         {
             if (token is not ("content-box" or "border-box"))

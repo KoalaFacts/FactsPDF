@@ -13,6 +13,11 @@ internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader
 internal static class TableLayout
 {
     private readonly record struct Edges(double Left, double Right, double Top, double Bottom);
+    // Placement ranges are retained only for the current measured row. Do not
+    // shift the full-height shared cell paint or split-row continuation units.
+    private readonly record struct CellPlacement(CellVerticalAlign Alignment, int SourceOffset,
+        double NaturalHeight, int RunStart, int RunEnd, int ImageStart, int ImageEnd,
+        int ImageBoxStart, int ImageBoxEnd);
 
     internal static MeasuredTable Measure(LayoutTable item, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
@@ -57,6 +62,10 @@ internal static class TableLayout
         var rowBoxes = new List<List<PaintedBox>>();
         var rowImageBoxes = new List<List<PaintedBox>>();
         var ambiguous = new List<int>();
+        // An uncertain last occupied row may need terminal bottom decoration.
+        // Defer aligned-cell failure until we know whether a later occupied
+        // row makes that predecessor a complete nonterminal row.
+        var ambiguousVerticalOffsets = new List<int>();
         var firstBodyGroup = true;
         var headerHeight = 0d;
         var top = edges.Top;
@@ -91,12 +100,16 @@ internal static class TableLayout
             var runStart = runs.Count;
             var imageStart = images.Count;
             var imageBoxes = new List<PaintedBox>();
+            var placements = new List<CellPlacement>();
             var rowHeight = 0d;
             var x = edges.Left;
             var track = 0;
             foreach (var cell in row.Cells)
             {
                 cancellation.ThrowIfCancellationRequested();
+                var cellRunStart = runs.Count;
+                var cellImageStart = images.Count;
+                var cellImageBoxStart = imageBoxes.Count;
                 var cellWidth = 0d;
                 for (var j = 0; j < cell.ColumnSpan; j++)
                 {
@@ -209,7 +222,11 @@ internal static class TableLayout
                     CheckHeight(height + pending + cellEdges.Bottom, offset);
                 }
                 CheckHeight(height + pending + cellEdges.Bottom, cell.SourceOffset);
-                rowHeight = Math.Max(rowHeight, height + pending + cellEdges.Bottom);
+                var naturalHeight = height + pending + cellEdges.Bottom;
+                rowHeight = Math.Max(rowHeight, naturalHeight);
+                placements.Add(new(cell.BoxStyle.VerticalAlign, cell.SourceOffset, naturalHeight,
+                    cellRunStart, runs.Count, cellImageStart, images.Count,
+                    cellImageBoxStart, imageBoxes.Count));
                 cells.Add(new(x, cellWidth, x + cellEdges.Left, contentWidth, cellEdges.Top,
                     cellEdges.Bottom, units.Count == 0 ? pending : units[0].LeadingGap, pending,
                     cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units));
@@ -222,12 +239,35 @@ internal static class TableLayout
             {
                 foreach (var index in ambiguous) RetainCellBoxes(index);
                 ambiguous.Clear();
+                ambiguousVerticalOffsets.Clear();
             }
             var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
             var capacity = fresh.UsableHeight - headerHeight
                 - (isFirstBodyGroup ? edges.Top + fresh.FirstLeading : 0);
             var canSplit = !row.IsHeader && rowHeight > capacity + .000001;
             var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
+            // When the complete row remains atomic, place its shorter cell
+            // content within the shared painted row height. A fragmented body
+            // row has independent cell cursors and cannot yet give middle/bottom
+            // their CSS meaning. Reject it rather than silently top-aligning.
+            foreach (var placement in placements)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (placement.Alignment == CellVerticalAlign.Top) continue;
+                if (canSplit)
+                    throw Geometry("vertical-align:middle/bottom requires an unsplit table row.", placement.SourceOffset);
+                if (uncertain) ambiguousVerticalOffsets.Add(placement.SourceOffset);
+                var free = rowHeight - placement.NaturalHeight;
+                if (!double.IsFinite(free) || free < -0.000001)
+                    throw Geometry("Table cell vertical alignment has invalid row geometry.", placement.SourceOffset);
+                var shift = Math.Max(0, free) * (placement.Alignment == CellVerticalAlign.Middle ? .5 : 1);
+                for (var i = placement.RunStart; i < placement.RunEnd; i++)
+                    runs[i] = runs[i] with { Baseline = runs[i].Baseline - shift };
+                for (var i = placement.ImageStart; i < placement.ImageEnd; i++)
+                    images[i] = images[i] with { Top = images[i].Top + shift };
+                for (var i = placement.ImageBoxStart; i < placement.ImageBoxEnd; i++)
+                    imageBoxes[i] = imageBoxes[i] with { Top = imageBoxes[i].Top + shift };
+            }
             rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
                 runStart, runs.Count - runStart, 0, 0, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup));
             rowBoxes.Add([]);
@@ -239,6 +279,13 @@ internal static class TableLayout
             top += rowHeight;
             CheckHeight(top, row.SourceOffset);
         }
+        // The remaining uncertain rows really are terminal: only here does
+        // table-bottom decoration force their continuation. Earlier uncertain
+        // rows were resolved by the following occupied row, so they may use
+        // valid whole-row middle/bottom placement without false rejection.
+        if (ambiguousVerticalOffsets.Count > 0)
+            throw Geometry("vertical-align:middle/bottom requires an unsplit terminal table row.",
+                ambiguousVerticalOffsets[0]);
         foreach (var index in ambiguous)
             rows[index] = rows[index] with { CanSplit = true };
         // Assign stable paint ranges once in source order, without insertion or

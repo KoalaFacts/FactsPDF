@@ -7,7 +7,7 @@ internal enum CssProperty
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
-    MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType
+    MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 

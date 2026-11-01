@@ -1,3 +1,12 @@
+Current-source `td/th` `vertical-align:top/middle/bottom` is a
+bounded whole-row PDF positioning feature, not general CSS table layout.
+`TableVerticalAlignmentTests.cs`, the 40-row report, its separate
+physical-padding control and the Native AOT/Poppler feature verifier
+cover actual text/image geometry, repeated whole rows and protected
+failure recovery. Split rows reject middle/bottom. Exact-head CI and
+independent review, human approval, private binary and publication
+remain separate gates.
+
 # Acceptance support matrix — evidence, not marketing
 
 Current-source `blockquote` is a bounded genuine PDF block container with
