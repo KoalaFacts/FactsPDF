@@ -98,6 +98,20 @@ public sealed class PreformattedReportTests
         Assert.That(Pdf("<pre style='white-space:normal'>AB</pre>"), Is.EqualTo(Pdf("<p>AB</p>")));
     }
 
+
+    [Test]
+    public void PreUsesActualParagraphMarginAndPositionEvenBetweenOtherReportBlocks()
+    {
+        const string html = "<div><p>AB</p><pre>AB  WA\nBA</pre><p>WA</p></div>";
+        const string control = "<div><p>AB</p><p style='white-space:pre'>AB  WA\nBA</p><p>WA</p></div>";
+        Assert.That(Pdf(html), Is.EqualTo(Pdf(control)),
+            "A pre block must have exactly the same outside margin and baseline positioning as a paragraph.");
+        var actual = Layout(html).SelectMany(page => page.Runs).ToArray();
+        var reference = Layout(control).SelectMany(page => page.Runs).ToArray();
+        Assert.That(actual.Select(run => run.Baseline), Is.EqualTo(reference.Select(run => run.Baseline)));
+        Assert.That(actual.Select(run => run.X), Is.EqualTo(reference.Select(run => run.X)));
+    }
+
     [Test]
     public void ExplicitTrueTypeAndManagedCliUseRealPdfPath()
     {

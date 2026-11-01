@@ -88,7 +88,7 @@ internal static class BlockLayout
                         ? box.Top + box.Bottom : 0;
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
-                        node.Name is "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
+                        node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
                         marginTop, requiredEmptyPaintHeight);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight, MarginBottom: marginBottom));
