@@ -7,10 +7,12 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
+        "--page-size selects A4 (default, 595.28 x 841.89pt) or US Letter (612 x 792pt); --landscape swaps the physical page axes.\n" +
+        "Only the CLI page geometry changes, not the CSS @page support or PDF content scaling.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
         "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
@@ -41,12 +43,20 @@ public static class CliApplication
                 return 0;
             }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
+            string? pageSize = null; var landscape = false;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
                 if (arg == "--overwrite" && !overwrite) overwrite = true;
+                else if (arg == "--landscape" && !landscape) landscape = true;
+                else if (arg == "--page-size" && pageSize is null)
+                {
+                    if (++i >= args.Length || args[i] is not ("a4" or "A4" or "letter" or "Letter" or "LETTER"))
+                        throw new ArgumentException("--page-size requires a4 or letter.");
+                    pageSize = args[i].ToLowerInvariant();
+                }
                 else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
                 else if (arg == "--page-numbers" && !pageNumbers) pageNumbers = true;
                 else if (arg == "--header-text" && headerText is null)
@@ -109,7 +119,11 @@ public static class CliApplication
                 using var configStream = File.OpenRead(furniturePath);
                 furniture = ReadPageFurniture(configStream, cancellationToken);
             }
-            var options = new PdfOptions { SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText, FooterText = footerText, PageFurniture = furniture }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
+            var (pageWidth, pageHeight) = pageSize == "letter" ? (612d, 792d) : (595.28d, 841.89d);
+            if (landscape) (pageWidth, pageHeight) = (pageHeight, pageWidth);
+            var options = new PdfOptions { PageWidth = pageWidth, PageHeight = pageHeight,
+                SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText,
+                FooterText = footerText, PageFurniture = furniture }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
