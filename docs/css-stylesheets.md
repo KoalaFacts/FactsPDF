@@ -19,6 +19,47 @@ This is source-only, not a rebuilt private candidate or authorised distribution.
 
 # Embedded CSS stylesheets and selectors
 
+
+## Current-source colored and patterned report text decorations
+
+Controlled invoice corrections, inspections and approval notes support one text
+decoration line: `none`, `underline`, `line-through` or `overline`.
+`text-decoration-line` chooses the line; `text-decoration-style` supports
+`solid`, `dashed` or `dotted`, and `text-decoration-color` accepts `currentcolor`
+or opaque `#rgb`, `#rrggbb`, named/RGB colours from the existing palette.
+The `text-decoration` shorthand takes exactly one line keyword plus optionally
+one supported stroke and one colour, in any order. `none` stands alone.
+Shorthand omission resets stroke to `solid` and ink to `currentcolor`.
+Normal declaration order, specificity, `!important` and CSS-wide
+`inherit`/`initial`/`unset` work through the existing cascade.
+
+```html
+<style>
+  .old { text-decoration: line-through dashed #c02020; }
+  .new { text-decoration: underline dotted #008000; }
+</style>
+<p class='old'>Original estimate AUD 3,450.00</p>
+<p class='new'>Reviewed estimate AUD 3,200.00</p>
+<p style='color:blue;text-decoration:overline dashed currentcolor'>Signed off</p>
+```
+
+On supported paragraph/heading and inline text runs, the selected ink and
+pattern paint an actual PDF path at a font-proportional height, clipped to
+the **real measured glyph width**. Wrapped lines and subsequent pages paint
+their own runs, including explicit TrueType faces. Existing solid
+underline/strike-through output remains byte-identical by default.
+
+This is a deliberately **bounded** CSS Text Decoration subset: no simultaneous
+lines, `double`, `wavy`, alpha, arbitrary line thickness/offset,
+HTML `<u>`/`<s>`, browser-style descendant decoration propagation, bidi,
+or complex shaping. Invalid values and targets raise `FPDF1202`/`FPDF1201`,
+unpaintable geometry `FPDF1302`, and insufficient paint/byte budget `FPDF1401`.
+Failures preserve the original PDF destination. Tests cover API/CLI, actual
+PDF paint streams, TrueType glyph widths, inline overrides and multipage flow.
+See [printable 60-entry report](../examples/report-text-decoration-paint.html)
+and [regressions](../tests/FactsPDF.Tests/TextDecorationPaintTests.cs).
+Exact-head CI, independent review, retained binary, human PDF approval and
+commercial rights remain separate from this source implementation.
 ## Current-source bounded patterned report borders
 
 The existing CSS box targets (ordinary report boxes, images and fixed-layout
