@@ -119,6 +119,9 @@ internal sealed record BoxStyle(
     // content width; the constrained measure follows box-sizing.
     public CssLength? MinWidth { get; init; }
     public CssLength? MaxWidth { get; init; }
+    // Nonnegative minimum content-box height, or border-box with box-sizing.
+    // Only ordinary report panels consume it during PDF page placement.
+    public CssLength? MinHeight { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
     // Rounded-corner shorthand computes TL / TR / BR / BL physical radii.
     // CornerRadius keeps the original TL member so one-value reports retain

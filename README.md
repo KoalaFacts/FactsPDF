@@ -2,6 +2,23 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Minimum-height inspection cards (source-only)
+
+A controlled business report panel can reserve a visible minimum area using
+`min-height:90pt` (also `px/mm/cm/in`, scoped `em/rem` and exact zero).
+`div`, `section`, `article` and `blockquote` outside lists and tables
+paint their backgrounds/borders over the **actual** minimum height; later text
+starts after that box. `box-sizing:border-box` counts vertical padding and
+borders inside the specified minimum, while the default `content-box` adds
+them. CSS cascade and existing pagination/resource checks apply, and invalid
+or unplaceable input preserves the original PDF.
+
+See [the bounded CSS and failure contract](docs/css-stylesheets.md#current-source-minimum-height-report-panels),
+[a ready-to-run inspection example](examples/report-min-height-cards.html)
+and [the native PDF / physical spacer oracle](examples/report-min-height-cards-native.html).
+This is not arbitrary `height`/`max-height`, percentages, tables, lists,
+flex/grid, general CSS sizing, a new released binary or customer authorization.
+
 ### Rounded commercial report cards (source-only)
 
 `border-radius:12pt 9pt 6pt 3pt` now paints four independent PDF corner curves

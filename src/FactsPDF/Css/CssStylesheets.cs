@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BorderRadius + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.MinHeight + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -156,6 +156,14 @@ internal sealed class CssStylesheets
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "border-radius is supported only on ordinary report boxes outside lists and tables.", declaration.Offset);
+            // Minimum heights consume real vertical layout and are confined
+            // to ordinary report panels, including declarations that lose cascade.
+            if (declaration.Property == CssProperty.MinHeight &&
+                (element.Name is not ("div" or "section" or "article" or "blockquote") ||
+                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
+                throw new FactsPdfException("FPDF1201",
+                    "min-height is supported only on ordinary report panels outside lists and tables.", declaration.Offset);
             if (declaration.Property == CssProperty.ListStyleType &&
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",

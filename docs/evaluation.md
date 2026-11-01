@@ -1,3 +1,18 @@
+## Source-only minimum-height business report cards
+
+On a controlled invoice, inspection or status report, ordinary panels outside
+tables/lists can use `min-height:90pt` to reserve a consistent visible area
+for backgrounds/borders and keep following rows aligned. The minimum changes
+actual PDF vertical space and respects `box-sizing`, `em/rem` computed
+fonts, CSS cascade, existing page movement and failure protection. See
+[the inspection example](../examples/report-min-height-cards.html),
+[40-card native witness](../examples/report-min-height-cards-native.html)
+and [bounded CSS contract](css-stylesheets.md#current-source-minimum-height-report-panels).
+Percentage/auto heights, height/max-height, table/list/image/inline targets,
+unplaceable panels and full CSS Sizing are not accepted. This is only a
+source-level capability until exact-head checks, independent code review,
+human PDF approval and distribution rights are separately satisfied.
+
 ## Source-only rounded invoice/status cards
 
 Supported ordinary business report panels can use `border-radius:12pt`

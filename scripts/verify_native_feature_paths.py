@@ -832,6 +832,48 @@ def verify_native_rounded_panels(executable, output, work):
             'asymmetricPdfByteParity': True,
             'protectedFailureRecovery': True}
 
+def verify_native_minimum_height(executable, output, work):
+    """Independent physical-spacer PDF oracle for bounded native panel height."""
+    source = ROOT / 'examples/report-min-height-cards-native.html'
+    oracle = ROOT / 'examples/report-min-height-cards-oracle.html'
+    assert source.is_file() and oracle.is_file()
+    pdf = output / 'minimum-height-cards.pdf'
+    control = output / 'minimum-height-cards-control.pdf'
+    assert not run(executable, source, pdf, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    assert pdf.read_bytes() == control.read_bytes(), (
+        'Min-height card PDF differs from independent explicit vertical spacer oracle')
+    assert run('qpdf', '--check', pdf) is not None
+    pages = count_pages(pdf)
+    assert pages >= 3, 'Forty minimum-height report entries must paginate'
+    words = [word for page in range(1, pages + 1)
+             for word in page_boxes(pdf, page)[2]]
+    labels = [word[0] for word in words if re.fullmatch(r'CHK\d{3}', word[0])]
+    assert labels == [f'CHK{i:03d}' for i in range(1, 41)], (
+        'Source report card labels missing, duplicated or reordered', labels)
+    assert b' re f Q' in pdf.read_bytes(), 'Minimum-height painted cards missing vector rectangles'
+    bad = output / 'minimum-height-invalid.html'
+    retained = output / 'minimum-height-preserved.pdf'
+    for html, code in (
+        ('<section style="min-height:15%">Invalid</section>', b'FPDF1202'),
+        ('<table style="min-height:10pt"><colgroup><col style="width:100pt"></colgroup><tbody><tr><td>A</td></tr></tbody></table>', b'FPDF1201'),
+        ('<section style="min-height:30000pt">Invalid</section>', b'FPDF1202'),
+    ):
+        bad.write_text(html, encoding='utf-8')
+        retained.write_bytes(b'unchanged customer PDF')
+        failed = subprocess.run([str(executable), str(bad), str(retained), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Invalid native panel minimum accepted', failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'unchanged customer PDF', 'Native failed input overwrote PDF'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == pdf.read_bytes(), 'Native recovery changed minimum-height PDF'
+    return {'cards': 40, 'pages': pages, 'sourceSha256': sha(source),
+            'oracleSha256': sha(oracle), 'pdfSha256': sha(pdf),
+            'nativePdfByteParity': True, 'realPaintAndSearchableLabels': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -897,6 +939,7 @@ def main():
         table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
+        minimum_height = verify_native_minimum_height(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -917,6 +960,7 @@ def main():
             'tableVerticalAlign': table_vertical_align,
             'decorationPaint': decoration_paint,
             'roundedPanels': rounded_panels,
+            'minimumHeight': minimum_height,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

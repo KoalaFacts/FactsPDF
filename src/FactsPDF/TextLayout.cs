@@ -8,7 +8,7 @@ internal static class TextLayout
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
         bool HasParagraphDescendant = false, bool TopConsumed = false,
-        double MarginTop = 0);
+        double MarginTop = 0, double MinimumOuterHeight = 0);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -74,15 +74,20 @@ internal static class TextLayout
             // within it) has already used its top padding on the first page.
             // A genuinely new child still moves with its own leading space.
             var leading = 0d;
-            var continuedPaint = false;
+            var continuedPanel = false;
             for (var i = 0; i < opened.Count; i++)
             {
                 var scope = opened[i];
                 var hasText = scope.ContentEpoch != contentEpoch;
+                // A minimum already occupying this page cannot restart at
+                // the next paragraph's explicit break merely because the
+                // containing panel is unpainted. Its occupied descendants
+                // must also retain consumed top padding across the break.
                 var retainOrigin = scope.HasOccupiedDescendant &&
-                    (scope.Style.HasPaint || continuedPaint);
-                if (scope.Style.HasPaint && (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
-                    continuedPaint = true;
+                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || continuedPanel);
+                if ((scope.Style.HasPaint || scope.MinimumOuterHeight > 0) &&
+                    (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
+                    continuedPanel = true;
                 if (hasText || scope.TopConsumed) continue;
                 if (retainOrigin)
                 {
@@ -130,11 +135,12 @@ internal static class TextLayout
             }
             if (step is BeginBlock begin)
             {
-                // A previous break-after must precede a painted successor
-                // even when that successor contains no text paragraph.
-                // Unpainted containers continue deferring the break to their
-                // first text leaf, preserving existing paragraph-only behavior.
-                if (breakNext && begin.Style.HasPaint)
+                // A previous break-after must precede a painted or
+                // minimum-height successor, even when it has no text leaf.
+                // Otherwise an unpainted minimum is reserved on the old page
+                // and lost when the next paragraph consumes the delayed break.
+                // Other unpainted containers retain paragraph-only behavior.
+                if (breakNext && (begin.Style.HasPaint || begin.MinimumOuterHeight > 0))
                 {
                     if (CurrentPageOccupied())
                     {
@@ -147,7 +153,8 @@ internal static class TextLayout
                 // A void rule or other empty decorated box must fit in one
                 // page fragment. Move it with its outside top margin before
                 // opening it, rather than discovering an overflow at closure.
-                if (begin.RequiredRuleHeight > 0)
+                var requiredHeight = Math.Max(begin.RequiredRuleHeight, begin.MinimumOuterHeight);
+                if (requiredHeight > 0)
                 {
                     // Match the established paint-budget precedence before
                     // rejecting an oversized empty box. A zero-width/zero-paint
@@ -155,11 +162,11 @@ internal static class TextLayout
                     if (displayCommands == o.MaxDisplayCommands)
                     {
                         var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
-                            begin.RequiredRuleHeight, begin.Style, begin.TextColor, paintOrder);
+                            requiredHeight, begin.Style, begin.TextColor, paintOrder);
                         EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
                     }
                     var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
-                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001 &&
+                    if (y + ruleGap + requiredHeight > bottom + 0.000001 &&
                         CurrentPageOccupied())
                     {
                         NewPage();
@@ -167,7 +174,7 @@ internal static class TextLayout
                         pendingClosedPadding = 0;
                         ruleGap = pendingTopPadding + begin.MarginTop;
                     }
-                    if (y + ruleGap + begin.RequiredRuleHeight > bottom + 0.000001)
+                    if (y + ruleGap + requiredHeight > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
                             "Empty decorated box and leading spacing cannot fit on a page.", begin.SourceOffset);
                 }
@@ -180,7 +187,7 @@ internal static class TextLayout
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
                     pages.Count - 1, start, paintOrder++, begin.IsParagraph,
-                    MarginTop: begin.MarginTop));
+                    MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight));
                 // Outside the border: only first-page placement and the
                 // containing ancestor's occupied content change, never paint.
                 pendingClosedPadding += begin.MarginTop;
@@ -191,6 +198,21 @@ internal static class TextLayout
             {
                 var scope = opened[^1];
                 opened.RemoveAt(opened.Count - 1);
+                // Preflight moves a short minimum-height panel to a fresh
+                // page before opening. A panel that actually spans pages has
+                // already occupied the bounded single-page minimum.
+                var minimumExtra = 0d;
+                if (scope.MinimumOuterHeight > 0 && scope.StartPage == pages.Count - 1)
+                {
+                    // A deferred preceding paragraph margin belongs to this
+                    // scope's origin even when it contains no text. Count it
+                    // once when measuring nested empty minimum-height panels,
+                    // rather than reserving it again at the outer closure.
+                    var naturalEnd = Math.Max(scope.StartY + scope.Top,
+                        y + pendingTopPadding + pendingClosedPadding + after)
+                        + closing.PaddingBottom;
+                    minimumExtra = Math.Max(0, scope.StartY + scope.MinimumOuterHeight - naturalEnd);
+                }
                 var emittedPaint = false;
                 if (scope.Style.HasPaint)
                 {
@@ -198,7 +220,8 @@ internal static class TextLayout
                     // while the last child's bottom margin is within a
                     // containing block's content height.
                     var childBottomMargin = !scope.IsParagraph &&
-                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant)
+                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
+                         scope.MinimumOuterHeight > 0)
                         ? after : 0d;
                     var finalPage = pages.Count - 1;
                     // The first page's border-box origin and the last page's
@@ -209,7 +232,7 @@ internal static class TextLayout
                         ? scope.StartY + scope.Top : o.Margin;
                     var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
-                    finish += closing.PaddingBottom;
+                    finish += closing.PaddingBottom + minimumExtra;
                     if (displayCommands == o.MaxDisplayCommands)
                     {
                         // With no allowance left, a definitely nonzero paint
@@ -270,14 +293,14 @@ internal static class TextLayout
                     pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
                     pendingClosedPadding += scope.Top;
                 }
-                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom;
+                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom + minimumExtra;
                 // An unpainted empty child can still consume page geometry
                 // through padding, borders or margins. If it has already
                 // occupied space on a page, a painted ancestor cannot be
                 // moved intact to another page before its first text line.
                 var occupiesSpace = emittedPaint || scope.HasOccupiedDescendant ||
                     scope.Top > 0 || scope.MarginTop > 0 ||
-                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
+                    closing.PaddingBottom > 0 || closing.MarginBottom > 0 || minimumExtra > 0 ||
                     (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
                     for (var i = 0; i < opened.Count; i++)
