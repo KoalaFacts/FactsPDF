@@ -731,13 +731,14 @@ def verify_native_decoration_paint(executable, output, work):
     assert sum(word[0] == 'FINALCHECK' for word in words) == 1, 'Missing final painted note'
     streams = extract_vector_page_streams(pdf.read_bytes(), pages)
     paths = b'\n'.join(streams)
-    dashed = paths.count(b'] 0 d ')
     dotted = paths.count(b'1 J [0.001 ')
+    patterned = paths.count(b'] 0 d ')
+    dashed = patterned - dotted  # dotted markers share the trailing '] 0 d' operator
     clipped = paths.count(b' re W n ')
     solid = paths.count(b' re f Q')
     assert dashed >= 20 and dotted >= 21 and solid >= 20, (
         'PDF is missing decorated glyph-run paint', dashed, dotted, solid)
-    assert clipped == dashed + dotted, 'Patterned text must be clipped once per actual stroke'
+    assert dashed >= 0 and clipped == patterned, 'Every pattern must be clipped exactly once'
     assert b'0.686 0.125 0.251 RG ' in paths, 'Red source decoration ink not painted'
     assert b'0 0.376 0.627 RG ' in paths, 'Blue source decoration ink not painted'
     assert b'0.086 0.502 0.286 rg ' in paths, 'Green solid decoration ink not painted'
