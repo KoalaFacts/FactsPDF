@@ -105,7 +105,7 @@ public sealed class BlockquoteReportTests
     [TestCase("<blockquote style='margin-top:-2pt'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='margin-top:10%'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='margin-left:calc(1pt + 2pt)'>quote</blockquote>", "FPDF1202")]
-    [TestCase("<blockquote style='border-radius:6pt'>quote</blockquote>", "FPDF1201")]
+    [TestCase("<blockquote style='border-radius:6%'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='width:310pt'>quote</blockquote>", "FPDF1302")]
     public void InvalidNestingStylesAndGeometryPreserveExistingOutput(string html, string code)
         => Reject(html, code);
