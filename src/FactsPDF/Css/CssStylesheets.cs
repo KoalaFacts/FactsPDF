@@ -200,12 +200,14 @@ internal sealed class CssStylesheets
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
-            // Inline elements cannot independently align paragraph lines.
-            // Do not key this off BoxTag/block: <html> and some table
-            // structures carry inherited text style without painted boxes.
-            if (declaration.Property == CssProperty.TextAlign && declaration.Value == "justify"
+            // Inline spans cannot independently align paragraph lines.
+            // Preserve legacy left/right values, but reject logical start/end
+            // just like justify: accepting them would only change one text run.
+            // Do not key this off BoxTag/block: <html> inherits text alignment.
+            if (declaration.Property == CssProperty.TextAlign
+                && declaration.Value is ("justify" or "start" or "end")
                 && (element.Name is "span" or "b" or "strong" or "i" or "em"))
-                throw new FactsPdfException("FPDF1201", "text-align:justify cannot be declared on inline text.", declaration.Offset);
+                throw new FactsPdfException("FPDF1201", "text-align:justify/start/end cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
                 (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))

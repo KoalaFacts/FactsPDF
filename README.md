@@ -327,7 +327,7 @@ cross-page continuation follow the existing physical-alignment renderer.
 
 This applies through embedded stylesheets, inline declarations, normal
 cascade and inheritance; it does **not** add RTL, `direction`, HTML `dir`,
-vertical writing, inline-span alignment or full CSS Text behavior.
+vertical writing, inline-span start/end alignment or full CSS Text behavior.
 Unsupported values and directions fail without replacing an existing PDF.
 Compare the [46-entry printable report](examples/report-logical-text-align.html)
 with its [physical alignment oracle](examples/report-logical-text-align-oracle.html)

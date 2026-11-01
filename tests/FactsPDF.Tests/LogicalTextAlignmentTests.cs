@@ -101,10 +101,10 @@ public sealed class LogicalTextAlignmentTests
         var font = PdfFont.LoadTrueType(FontFixture.Create());
         var opts = SmallPage with { Fonts = [font] };
         const string source = "<section style='text-align:end'><p>" +
-            "<span style='color:blue'>AB CD</span> <span style='color:red'>EF GH</span>" +
+            "<span style='color:blue'>AB BA</span> <span style='color:red'>BA AB</span>" +
             "</p></section>";
         const string oracle = "<section style='text-align:right'><p>" +
-            "<span style='color:blue'>AB CD</span> <span style='color:red'>EF GH</span>" +
+            "<span style='color:blue'>AB BA</span> <span style='color:red'>BA AB</span>" +
             "</p></section>";
         var actual = Pdf(source, opts);
         Assert.That(actual, Is.EqualTo(Pdf(oracle, opts)));

@@ -15,7 +15,7 @@ output bytes remain unchanged.
 
 Scope intentionally excludes RTL, bidirectional or vertical writing:
 `direction` and HTML `dir` are still rejected, and `text-align:start/end`
-do not request either writing mode. Inline spans cannot specify alignment;
+do not request either writing mode. Inline spans cannot specify start/end or justify;
 unknown/multi-token values such as `match-parent`, `justify-all` and
 `start end` fail `FPDF1202`, unsupported `direction`/inline alignment
 fail `FPDF1201`, and geometric failures retain `FPDF1302`. The prior
