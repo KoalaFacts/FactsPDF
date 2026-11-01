@@ -23,6 +23,45 @@ dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --imag
 
 Repeat `--image name=path` for up to 16 resources. The first `=` separates the name; quote arguments with spaces. Relative paths use the process working directory. Extensions are not format evidence. Each file is read through the bounded loader; no network download is provided. Output paths cannot equal the supplied HTML, font or image path. Existing CLI temporary-file, stdout and exit-code rules still apply, including the documented trusted-directory limitation for filesystem aliases.
 
+## Bounded image height limits
+
+For a previously bound standalone JPEG/PNG `img` or direct fixed-column
+`td/th` image, `max-height:30pt` limits the rendered PDF **content** height
+to 30 points. `min-height:20pt` provides a minimum. These properties accept
+nonnegative physical `pt/px/mm/cm/in` and unitless zero only; `max-height:none`
+is the initial unconstrained maximum. On images, unlike report panels, the
+physical `min-height` value is used in the actual image geometry. A positive
+effective size is required; zero or unplaceable dimensions give `FPDF1302`.
+
+```html
+<section style="width:200pt">
+  <img src="logo" style="width:180pt;max-height:30pt">
+  <p>Site inspection evidence</p>
+</section>
+```
+
+With automatic CSS `height`, an active vertical limit rescales image **width
+and height together** from the original pixel ratio, after existing horizontal
+width constraints. The renderer rejects combinations that cannot satisfy
+`min/max-width` and the vertical limits without distorting the image,
+rather than silently dropping constraints. With a separately specified physical
+`height`, vertical limits may change height while the explicit width remains
+unchanged (intentional independent-axis sizing, as before). CSS min-height wins
+when larger than max-height. `box-sizing:border-box` counts the top/bottom
+padding and borders in the requested limit; content-box excludes them.
+Selectors, source order, `!important`, inherit/initial/unset and existing
+atomic page placement apply. No percentages, font-relative em/rem, calc,
+object-fit or network loading are supported, and the image is not split across
+pages. Illegal values/elements give `FPDF1201/1202`; impossible geometry gives
+`FPDF1302`, preserving any existing output.
+
+[36-record real PDF report](../examples/report-image-height-limits.html)
+and [independently authored physical-size control](../examples/report-image-height-limits-oracle.html)
+have a dedicated Linux/Windows Native AOT, qpdf/Poppler validation path.
+`ImageHeightConstraintsTests.cs` additionally verifies actual PDF bytes,
+table cells, cascading, border-box and protected negative/retry cases.
+This is source implementation, not a new software release or customer grant.
+
 ## Explicit physical image heights
 
 An explicitly bound JPEG/PNG `img` in an ordinary report container, at
