@@ -191,6 +191,42 @@ public sealed class SectionPageBreakTests
     }
 
     [Test]
+    public void SuppressedLeadingSectionBreakPreservesOpenAncestorMarginAndPaint()
+    {
+        const string baseline = "<div style='margin-top:12pt;background:#eeeeff'>" +
+            "<section><p style='margin:0'>FIRST</p></section></div>";
+        var forced = baseline.Replace("<section>", "<section style='break-before:page'>");
+        var actual = Layout(forced);
+        var control = Layout(baseline);
+        Assert.That(actual, Has.Count.EqualTo(1));
+        Assert.That(actual[0].Runs.Single().Baseline,
+            Is.EqualTo(control[0].Runs.Single().Baseline).Within(0.000001));
+        Assert.That(actual[0].PaintBoxes.Single().Top,
+            Is.EqualTo(control[0].PaintBoxes.Single().Top).Within(0.000001));
+        Assert.That(Render(forced), Is.EqualTo(Render(baseline)));
+    }
+
+    [TestCase("padding-top:22pt;padding-bottom:5pt", 27d)]
+    [TestCase("padding-bottom:13pt", 13d)]
+    [TestCase("margin-top:11pt;margin-bottom:4pt", 15d)]
+    public void BreakAfterMovesBeforeEmptyUnpaintedSuccessorAndKeepsItsSpace(
+        string geometry, double reserved)
+    {
+        var html = "<section style='break-after:page'><p style='margin:0'>FIRST</p></section>" +
+            "<div style='" + geometry + "'></div><p style='margin:0'>SECOND</p>";
+        var equivalent = html.Replace("break-after:page", "break-after:auto")
+            .Replace("<div style='", "<div style='break-before:page;");
+        var actual = Layout(html);
+        Assert.That(actual, Has.Count.EqualTo(2));
+        Assert.That(actual[0].Runs.Single().Text, Is.EqualTo("FIRST"));
+        Assert.That(actual[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+        var freshBaseline = Layout("<p style='margin:0'>SECOND</p>")[0].Runs.Single().Baseline;
+        Assert.That(freshBaseline - actual[1].Runs.Single().Baseline,
+            Is.EqualTo(reserved).Within(0.000001));
+        Assert.That(Render(html), Is.EqualTo(Render(equivalent)));
+    }
+
+    [Test]
     public void ParagraphExplicitInheritReadsContainingPanelPageBreak()
     {
         const string inherit = "<section style='break-after:page'>" +

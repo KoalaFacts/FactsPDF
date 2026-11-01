@@ -150,19 +150,28 @@ internal static class TextLayout
                 // Only real prior page content warrants an extra page: deferred
                 // top margins alone cannot produce a phantom leading page.
                 var forcePanelBreak = begin.Style.BreakBefore;
-                if (forcePanelBreak || breakNext && (begin.Style.HasPaint || begin.MinimumOuterHeight > 0))
+                if (forcePanelBreak || breakNext && (begin.Style.HasPaint ||
+                    begin.MinimumOuterHeight > 0 || begin.PaddingTop > 0 ||
+                    begin.MarginTop > 0 || begin.TrailingSpace > 0))
                 {
+                    // A deferred break must precede an empty box that reserves
+                    // space only through its top/bottom padding or margins.
+                    // An open ancestor's unconsumed margin alone, however,
+                    // does not justify an otherwise blank leading PDF page.
                     var hasRetainedContent = y > o.Margin + 0.000001 ||
                         closedBoxOccupied ||
                         pages[^1].Runs.Count > 0 || pages[^1].Discs.Count > 0 ||
                         pages[^1].Images.Count > 0 ||
                         pages[^1].PaintBoxes.Any(box => box.CommandCount > 0);
-                    if (forcePanelBreak ? hasRetainedContent : CurrentPageOccupied())
+                    if (hasRetainedContent)
                     {
                         NewPage();
                         MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
                     }
-                    pendingClosedPadding = 0;
+                    // If the break is suppressed on an empty page, retain
+                    // still-open ancestor margins in pendingClosedPadding.
+                    // They belong to the first visible box and its paint.
                     breakNext = false;
                 }
                 // A void rule or other empty decorated box must fit in one
