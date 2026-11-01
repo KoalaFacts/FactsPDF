@@ -152,7 +152,7 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/outside the box/);
     assert.match(row.limitations,/FPDF1201/);
-    assert.match(row.limitations,/FPDF1301\/1302/);
+    assert.match(row.limitations,/FPDF1302/);
     assert.match(row.limitations,/collaps/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
@@ -328,7 +328,7 @@ test('scoped word-break English audit distinguishes normal emergency wrap from b
   assert.match(row.scope,/current PDF line/);
   assert.match(row.scope,/glyph/);
   assert.match(row.limitations,/keep-all/);
-  assert.match(row.limitations,/FPDF1302/);
+  assert.match(row.limitations,/FPDF1301\/1302/);
   assert.doesNotMatch(row.scope+' '+row.limitations,han);
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
 });

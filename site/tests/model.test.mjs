@@ -430,7 +430,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     const row=dataset.features.find(f=>f.id===id);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.limitations,/margin collapse/);
-    assert.match(row.limitations,/FPDF1301\/1302/);
+    assert.match(row.limitations,/FPDF1302/);
   }
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img\/table/);
@@ -676,7 +676,7 @@ test('scoped word-break actually places glyphs and preserves all 418 feature ide
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/word-break:normal\/break-all/);
   assert.match(row.scope,/PDF/);
-  assert.match(row.limitations,/FPDF1302/);
+  assert.match(row.limitations,/FPDF1301\/1302/);
   assert.match(row.test_reference,/WordBreakTests.cs/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,80);
