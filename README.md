@@ -4,10 +4,12 @@
 
 ### Rounded commercial report cards (source-only)
 
-`border-radius:12pt` now paints real curved PDF backgrounds and matching
-uniform solid border rings on ordinary report blocks, retaining measurable text,
-page continuations and destination protection. The [54-card report](examples/report-rounded-panels.html)
-and [physical-unit oracle](examples/report-rounded-panels-oracle.html) are scoped,
+`border-radius:12pt 9pt 6pt 3pt` now paints four independent PDF corner curves
+for ordinary report panels (one-to-four physical shorthand values). The existing
+single-radius output remains byte-identical. Text, pagination, border protection
+and unsupported-value errors remain scoped. The [54-card single-radius report](examples/report-rounded-panels.html),
+[50-card four-corner report](examples/report-asymmetric-rounded-panels.html)
+and [independent physical-unit oracle](examples/report-asymmetric-rounded-panels-oracle.html) are scoped,
 not browser CSS conformance. See [precise value and failure rules](docs/css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
 No new installable preview, human reference approval or customer grant is implied.
 

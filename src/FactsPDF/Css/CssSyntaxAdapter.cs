@@ -106,6 +106,33 @@ internal static class CssSyntaxAdapter
                     sourceToken.Span.Start, physical);
                 continue;
             }
+            // CSS four-corner order is top-left, top-right, bottom-right,
+            // bottom-left. Validate *all* components, including unmatched
+            // selectors; preserve one cascade winner for the full shorthand.
+            // Elliptical slash syntax and per-corner longhands remain rejected.
+            if (name == "border-radius")
+            {
+                if (terms.Count > 4)
+                    throw new FactsPdfException("FPDF1202",
+                        "border-radius takes one to four physical corner lengths.", node.Span.Start);
+                var parts = terms.ToArray();
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    var source = valueTokens[i].Token;
+                    if (source.Kind == CssSyntaxTokenKind.Number &&
+                        CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                        parts[i] = "0";
+                    if (Wide(parts[i]))
+                    {
+                        if (parts.Length != 1)
+                            throw new FactsPdfException("FPDF1202",
+                                "CSS-wide radius keyword must be the only value.", source.Span.Start);
+                    }
+                    else _ = CssPaintValues.BorderRadius(parts[i], source.Span.Start);
+                }
+                Emit(property, string.Join(" ", parts), node.Span.Start);
+                continue;
+            }
             if (name == "margin")
             {
                 if (terms.Count > 4)

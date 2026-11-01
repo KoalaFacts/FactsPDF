@@ -1,6 +1,7 @@
 ## Current-source rounded report-card PDF painting
 
-`border-radius` (zero or bounded physical 0.25–72pt) shapes actual opaque
+`border-radius` now accepts one to four physical corner lengths (each zero
+or bounded 0.25–72pt) clockwise TL/TR/BR/BL and shapes actual opaque
 PDF backgrounds and uniform solid borders on ordinary blocks only; first/top
 and last/bottom page fragment caps are rounded, middle continuation sides
 are square. `RoundedReportPanelTests.cs`, the 54-card report, separate

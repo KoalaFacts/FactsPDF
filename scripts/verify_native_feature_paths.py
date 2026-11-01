@@ -796,9 +796,40 @@ def verify_native_rounded_panels(executable, output, work):
         assert retained.read_bytes() == b'previous customer report', 'Invalid input replaced PDF'
     assert not run(executable, source, retained, '--overwrite', cwd=work)
     assert retained.read_bytes() == content, 'Native recovery changed rounded report'
+    # Distinct corner lengths must reach the native PDF painter, not just
+    # parse as CSS. Independently authored 16/12/8/4px projection proves
+    # physical geometry and byte-for-byte CLI parity across several pages.
+    asymmetric_source = ROOT / 'examples/report-asymmetric-rounded-panels.html'
+    asymmetric_control = ROOT / 'examples/report-asymmetric-rounded-panels-oracle.html'
+    asymmetric = output / 'asymmetric-panels.pdf'
+    asymmetric_oracle = output / 'asymmetric-panels-oracle.pdf'
+    assert not run(executable, asymmetric_source, asymmetric, cwd=work)
+    assert not run(executable, asymmetric_control, asymmetric_oracle, cwd=work)
+    assert asymmetric.read_bytes() == asymmetric_oracle.read_bytes(), 'Asymmetric physical corner oracle differs'
+    assert asymmetric.read_bytes() != content, 'Distinct corner source must not flatten to original PDF'
+    assert run('qpdf', '--check', asymmetric) is not None
+    asymmetric_pages = count_pages(asymmetric)
+    assert asymmetric_pages >= 3, '50 rounded report entries should paginate'
+    asymmetric_words = ' '.join(' '.join(page_lines(asymmetric, p))
+                               for p in range(1, asymmetric_pages + 1))
+    for index in range(1, 51):
+        marker = f'Receipt card {index:02d}'
+        assert asymmetric_words.count(marker) == 1, ('Missing/repeated asymmetric report card', marker)
+    assert b' c ' in asymmetric.read_bytes() and b'f* Q' in asymmetric.read_bytes(), 'Native asymmetric paths absent'
+    for invalid in ('<section style="border-radius:10pt 2pt 4pt 1pt 3pt">Invalid</section>',
+                    '<section style="border-radius:10pt 2%">Invalid</section>'):
+        bad.write_text(invalid, encoding='utf-8')
+        retained.write_bytes(b'previous customer report')
+        failed = subprocess.run([str(executable), str(bad), str(retained), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and b'FPDF1202' in failed.stderr and not failed.stdout
+        assert retained.read_bytes() == b'previous customer report'
     return {'cards': 54, 'pages': count, 'pdfSha256': sha(pdf),
             'sourceSha256': sha(source), 'oracleSha256': sha(control),
             'nativePdfByteParity': True, 'realBezierAndBorderRing': True,
+            'asymmetricCards': 50, 'asymmetricPages': asymmetric_pages,
+            'asymmetricPdfSha256': sha(asymmetric),
+            'asymmetricPdfByteParity': True,
             'protectedFailureRecovery': True}
 
 def main():

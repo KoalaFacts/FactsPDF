@@ -6,8 +6,8 @@ internal static class CssPaintValues
     internal static Rgb? Background(string value, int offset)
         => value == "transparent" ? null : InlineCss.Color(value, offset);
 
-    // One physical radius for all four corners, 0 or a visible 0.25–72pt
-    // length. No percentages/ellipses/per-corner radii are falsely accepted.
+    // Each physical corner radius is zero or a visible 0.25–72pt length.
+    // No percentages, elliptical slash syntax or font-relative units.
     internal static double BorderRadius(string value, int offset)
     {
         var length = CssBoxValues.Length(value, offset);
@@ -15,6 +15,23 @@ internal static class CssPaintValues
             throw new FactsPdfException("FPDF1202",
                 "border-radius requires zero or a 0.25pt–72pt physical length; percentages are unsupported.", offset);
         return length.Value;
+    }
+
+    // One-to-four value rectangular radii: TL, TR, BR, BL, with ordinary
+    // CSS repeated-side expansion. This is a shorthand, not four exposed
+    // longhands or elliptical radius syntax.
+    internal static (double TopLeft, double TopRight, double BottomRight, double BottomLeft)
+        BorderRadii(string value, int offset)
+    {
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is < 1 or > 4)
+            throw new FactsPdfException("FPDF1202",
+                "border-radius takes one to four physical corner lengths.", offset);
+        var a = BorderRadius(parts[0], offset);
+        var b = parts.Length >= 2 ? BorderRadius(parts[1], offset) : a;
+        var c = parts.Length >= 3 ? BorderRadius(parts[2], offset) : a;
+        var d = parts.Length == 4 ? BorderRadius(parts[3], offset) : b;
+        return (a, b, c, d);
     }
 
     internal static Rgb? BorderColor(string value, int offset)

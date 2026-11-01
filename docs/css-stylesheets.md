@@ -2,24 +2,30 @@
 ## Current-source rounded business-report cards (2026-11-01)
 
 Ordinary `p`/`pre`/`h1`–`h6`/`div`/`section`/`article`/`blockquote`
-outside lists/tables support one physical `border-radius`: zero or 0.25–72pt
-in `pt`, `px`, `mm`, `cm`, or `in`. One radius shapes all four corners
-of the actual opaque PDF background and a uniformly thick, single-colour
-solid border; text metrics and content/outer dimensions do not change.
+outside lists/tables support the one-to-four-value physical `border-radius`
+shorthand. Each value is zero or 0.25–72pt in `pt`, `px`, `mm`, `cm`, or
+`in`. Two values alternate opposite corners (TL/BR and TR/BL); three values
+assign TL, TR/BL, BR; four values assign TL, TR, BR, BL clockwise. Actual
+opaque PDF backgrounds and uniform solid border rings use separate cubic
+curves at each corner. Overlapping arcs are proportionally fitted to the
+available fragment. Neither text metrics nor outer dimensions change.
 On continued report boxes only the first fragment's top and the final
 fragment's bottom receive curved corners; continuation sides stay straight.
 Cascade, `!important`, `initial`/`unset`/`inherit`, output budget and
 destination protection use the existing scoped renderer.
 
-Percentages, elliptical/multiple/per-corner radii, `em`/`rem`, box
-radii on table cells, images, lists or inline elements, nonuniform/missing,
+Percentages, elliptical `/` radii, separate per-corner CSS longhand
+properties, `em`/`rem`, box radii on table cells, images, lists or inline
+elements, nonuniform/missing,
 dashed/dotted borders, CSS background clipping, full CSS Backgrounds &
 Borders and browser layout are **not** implemented; incompatible input
 fails explicitly. `border-radius:0` preserves the old PDF bytes.
 This is source capability, not part of the previously retained private
 preview binary, human PDF approval or an evaluation grant. The
 [54-card authored sample](../examples/report-rounded-panels.html) and
-[separate 16px/12pt projection](../examples/report-rounded-panels-oracle.html)
+[separate 16px/12pt projection](../examples/report-rounded-panels-oracle.html),
+plus the [50-card four-corner report](../examples/report-asymmetric-rounded-panels.html)
+and [separately authored physical-length oracle](../examples/report-asymmetric-rounded-panels-oracle.html),
 exercise actual PDF bytes and pagination; NUnit and Linux/Windows
 Native AOT/Poppler tests verify painted curves and error recovery.
 

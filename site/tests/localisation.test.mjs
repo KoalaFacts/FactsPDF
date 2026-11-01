@@ -290,7 +290,7 @@ test('rounded report panel audit translates vector paint and explicit limits',as
  const {englishFeature,translate}=await localisation();
  const f=englishFeature(data.features.find(x=>x.id==='css.border-radius'));
  assert.equal(f.status,'partial');assert.match(f.scope,/Bezier/);
- assert.match(f.scope,/page/);assert.match(f.limitations,/ellipses/);
+ assert.match(f.scope,/clockwise/);assert.match(f.scope,/page/);assert.match(f.limitations,/elliptical/);assert.match(f.limitations,/longhands/);
  assert.match(f.limitations,/FPDF1201\/1202\/1302\/1401/);
  assert.match(translate(data.css_inventory_note),/71 bounded CSS property names/);
 });
