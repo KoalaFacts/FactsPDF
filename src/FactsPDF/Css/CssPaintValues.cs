@@ -6,6 +6,17 @@ internal static class CssPaintValues
     internal static Rgb? Background(string value, int offset)
         => value == "transparent" ? null : InlineCss.Color(value, offset);
 
+    // One physical radius for all four corners, 0 or a visible 0.25–72pt
+    // length. No percentages/ellipses/per-corner radii are falsely accepted.
+    internal static double BorderRadius(string value, int offset)
+    {
+        var length = CssBoxValues.Length(value, offset);
+        if (length.IsPercent || length.Value > 72 || length.Value is > 0 and < 0.25)
+            throw new FactsPdfException("FPDF1202",
+                "border-radius requires zero or a 0.25pt–72pt physical length; percentages are unsupported.", offset);
+        return length.Value;
+    }
+
     internal static Rgb? BorderColor(string value, int offset)
         => value == "currentcolor" ? null : InlineCss.Color(value, offset);
 

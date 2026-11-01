@@ -449,6 +449,7 @@ internal static class CssSyntaxAdapter
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "text-decoration-color" => CssProperty.TextDecorationColor,
         "text-decoration-style" => CssProperty.TextDecorationStyle,
+        "border-radius" => CssProperty.BorderRadius,
         "margin" or "margin-top" or "margin-block" or "margin-block-start" => CssProperty.MarginTop,
         "margin-bottom" or "margin-block-end" => CssProperty.MarginBottom,
         "margin-left" or "margin-inline" or "margin-inline-start" => CssProperty.MarginLeft,
@@ -640,6 +641,8 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202",
                     "Table-cell vertical-align supports only top, middle and bottom.", offset);
         }
+        else if (name == "border-radius")
+            _ = CssPaintValues.BorderRadius(token, offset);
         else if (name == "box-sizing")
         {
             if (token is not ("content-box" or "border-box"))
