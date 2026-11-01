@@ -67,7 +67,7 @@ public sealed class ImageStructureTests
     [TestCase("<img src='chart' width='200'>", "FPDF1103")]
     [TestCase("<img src='chart' height='100'>", "FPDF1103")]
     [TestCase("<img src='chart' srcset='chart'>", "FPDF1103")]
-    [TestCase("<img src='chart' style='height:100pt'>", "FPDF1201")]
+    [TestCase("<img src='chart' style='height:100%'>", "FPDF1202")]
     [TestCase("<img src='chart' style='margin-top:1pt'>", "FPDF1201")]
     [TestCase("<img src='chart' style='break-before:page'>", "FPDF1201")]
     public void UnsupportedSyntaxAndPositionsFailExplicitly(string html, string code)

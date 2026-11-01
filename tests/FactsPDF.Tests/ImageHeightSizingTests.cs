@@ -83,6 +83,28 @@ public sealed class ImageHeightSizingTests
     }
 
     [Test]
+    public void WideIntrinsicImageResolvesWidthConstraintBeforeGeometryBudget()
+    {
+        // Deliberately extreme but valid 1000x1 grayscale PNG: 20pt high
+        // suggests 20,000pt before max-width, but the final 100x20 PDF
+        // matrix fits. Intermediate guesses must not count as output geometry.
+        var image = PdfImage.LoadImage(PngFixture.Image(new byte[1001],
+            width: 1000, height: 1, type: 0));
+        var options = new PdfOptions
+        {
+            Images = new Dictionary<string, PdfImage> { ["chart"] = image }
+        };
+        const string source = "<img src=chart style='height:20pt;max-width:100pt'>";
+        const string control = "<img src=chart style='width:100pt;height:20pt'>";
+        SamePdf(source, control, options);
+        var placed = TableLayoutTests.Layout(source, options).Single().Images.Single();
+        Assert.That(placed.Width, Is.EqualTo(100).Within(0.000001));
+        Assert.That(placed.Height, Is.EqualTo(20).Within(0.000001));
+        Assert.That(Encoding.Latin1.GetString(Pdf(source, options)),
+            Does.Contain("100 0 0 20"));
+    }
+
+    [Test]
     public void CssCascadeCssWideResetAndDirectCellImageAreMeasured()
     {
         SamePdf(

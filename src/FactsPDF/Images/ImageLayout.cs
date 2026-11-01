@@ -32,7 +32,7 @@ internal static class ImageLayout
         var width = style.Width is { } specified
             ? Resolve(specified) - (style.BorderBoxSizing ? edges : 0)
             : fixedHeight is { } h
-                ? Checked(h * image.Image.PixelWidth / image.Image.PixelHeight, image.SourceOffset)
+                ? h * image.Image.PixelWidth / image.Image.PixelHeight // clamp after min/max-width
                 : image.Image.PixelWidth * 0.75;
         var measure = style.BorderBoxSizing ? width + edges : width;
         if (style.MaxWidth is { } max) measure = Math.Min(measure, Resolve(max));
