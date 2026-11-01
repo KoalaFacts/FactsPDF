@@ -467,6 +467,65 @@ def verify_native_list_markers(executable, root, output, work):
 
 
 
+def verify_native_patterned_borders(executable, output, work):
+    """Independently inspect actual Native AOT PDF strokes and text geometry."""
+    source = ROOT / 'examples/report-patterned-borders.html'
+    assert source.is_file(), 'Missing authored patterned-border report'
+    pdf = output / 'patterned-border-report.pdf'
+    assert not run(executable, source, pdf, cwd=work), 'Native patterned-border conversion wrote stdout'
+    count = count_pages(pdf)
+    assert count >= 2, 'Authored 76-record report must span pages'
+    pages = [page_boxes(pdf, page) for page in range(1, count + 1)]
+    words = [word[0] for _, _, entries in pages for word in entries]
+    for i in range(1, 77):
+        label = f'REF{i:03d}'
+        assert words.count(label) == 1, ('Missing or repeated inspection reference', label)
+    assert words.count('FINALCHECK') == 1, 'Missing final painted summary'
+    streams = extract_vector_page_streams(pdf.read_bytes(), count)
+    dashed = dotted = 0
+    for page_idx, (stream, page) in enumerate(zip(streams, pages)):
+        width, height, _ = page
+        assert b'nan' not in stream.lower(), 'Invalid native PDF border geometry'
+        for line in stream.splitlines():
+            if not line.startswith(b'q ') or not line.endswith(b' l S Q'):
+                continue
+            parts = line.split()
+            if b'd' not in parts or b'RG' not in parts or b'w' not in parts:
+                continue
+            style = ('dotted' if b'1 J [0.001 4] 0 d' in line
+                     else 'dashed' if b'[6 6] 0 d' in line else 'unknown')
+            assert style != 'unknown', ('Unexpected native border stroke pattern', line)
+            assert b' re W n ' in line, ('Patterned border lacks measured-box clipping', line)
+            values = [float(parts[index]) for index in
+                      (parts.index(b'm')-2, parts.index(b'm')-1,
+                       parts.index(b'l')-2, parts.index(b'l')-1)]
+            x1, y1, x2, y2 = values
+            assert all(0 <= x <= width for x in (x1, x2)) and                    all(0 <= y <= height for y in (y1, y2)),                    ('Off-page patterned border stroke', page_idx, values)
+            if style == 'dashed':
+                dashed += 1
+            else:
+                dotted += 1
+    assert dashed >= count * 2, ('Lost paginated dashed vertical border strokes', dashed, count)
+    assert dotted == 4, ('Expected four dotted summary border strokes', dotted)
+    for name, css, code in [('invalid-pattern', '2pt double red', 'FPDF1202'),
+                            ('overflow', '4pt dotted red;width:900pt', 'FPDF1302')]:
+        bad = output / f'patterned-border-{name}.html'
+        dest = output / f'patterned-border-{name}.pdf'
+        bad.write_text('<div style="border:' + css + '">FAIL</div>', encoding='utf-8')
+        dest.write_bytes(b'pattern sentinel')
+        failed = subprocess.run([str(executable), str(bad), str(dest), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code.encode() in failed.stderr and not failed.stdout, (
+            'Native patterned border error contract', name, failed.returncode, failed.stderr)
+        assert dest.read_bytes() == b'pattern sentinel', 'Native failure replaced prior output'
+        assert not run(executable, source, dest, '--overwrite', cwd=work)
+        assert dest.read_bytes() == pdf.read_bytes(), 'Native recovery changed valid PDF bytes'
+    return {'pages': count, 'references': 76, 'dashedPaths': dashed,
+            'dottedPaths': dotted, 'textAndGeometry': True,
+            'protectedFailureRecovery': True,
+            'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -525,6 +584,7 @@ def main():
             assert len(list(output.glob(stem + '-*.png'))) == 2, 'Missing native page preview'
         assert not list(output.glob('.factspdf-*.tmp')), 'Leaked CLI temporary output'
         list_markers = verify_native_list_markers(isolated, ROOT, output, work)
+        patterned_borders = verify_native_patterned_borders(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -538,6 +598,7 @@ def main():
                           'failureRecoveryBytesEqual': True},
             'continuedRow': {'sha256': sha(continued), **row_result, 'repeatBytesEqual': True},
             'listMarkers': list_markers,
+            'patternedBorders': patterned_borders,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

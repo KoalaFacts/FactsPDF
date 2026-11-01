@@ -95,6 +95,22 @@ cancellation token. See the [API guide](docs/development.md#library-api) and the
 [local-package consumer recipe](docs/development.md#first-use-from-local-artifacts)
 for integration without a source-project reference.
 
+### Current-source dashed and dotted report borders
+
+Business report panels and existing decorated text, image and table boxes may
+use `border:2pt dashed #28557a`, `border:2pt dotted #a3452e` or individual
+`border-*-style` values. Dashed edges use bounded PDF dash strokes; dotted
+edges use round-cap PDF strokes. Width, colour, padding, containing width and
+page continuation use the existing box model; a side's dash pattern restarts
+per page fragment, while only the first and last fragments paint their top
+and bottom edges. Unstyled and solid-border reports retain their legacy PDF
+bytes. This is **not** rounded/double borders or full CSS Borders support.
+
+See the [76-record real report](examples/report-patterned-borders.html),
+[scope and failure contract](docs/css-stylesheets.md#current-source-bounded-patterned-report-borders),
+and [Native AOT geometry/recovery evidence](scripts/verify_native_feature_paths.py).
+No public binary or customer distribution rights follow from this source change.
+
 ## What works today
 
 | Area | Implemented capability | Details |

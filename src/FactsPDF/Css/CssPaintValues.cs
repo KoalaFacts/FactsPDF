@@ -9,10 +9,13 @@ internal static class CssPaintValues
     internal static Rgb? BorderColor(string value, int offset)
         => value == "currentcolor" ? null : InlineCss.Color(value, offset);
 
-    internal static bool BorderStyle(string value, int offset) => value switch
+    internal static BorderPattern BorderStyle(string value, int offset) => value switch
     {
-        "solid" => true, "none" => false,
-        _ => throw new FactsPdfException("FPDF1202", "Only solid and none border styles are supported.", offset)
+        "solid" or "none" => BorderPattern.Solid,
+        "dashed" => BorderPattern.Dashed,
+        "dotted" => BorderPattern.Dotted,
+        _ => throw new FactsPdfException("FPDF1202",
+            "Only solid, none, dashed and dotted border styles are supported.", offset)
     };
 
     internal static bool TryBorderWidth(string value, out double width)

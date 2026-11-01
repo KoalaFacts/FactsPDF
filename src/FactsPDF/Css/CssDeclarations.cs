@@ -200,7 +200,11 @@ internal static class CssDeclarations
         var changed = component switch
         {
             0 => old with { Width = wide ? inherited.Width : CssPaintValues.BorderWidth(value, declaration.Offset) },
-            1 => old with { Solid = wide ? inherited.Solid : CssPaintValues.BorderStyle(value, declaration.Offset) },
+            1 => old with
+            {
+                Solid = wide ? inherited.Solid : value != "none",
+                Pattern = wide ? inherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
+            },
             2 => old with { Color = wide ? inherited.Color : CssPaintValues.BorderColor(value, declaration.Offset) },
             _ => throw new InvalidOperationException("Unrecognized border property.")
         };

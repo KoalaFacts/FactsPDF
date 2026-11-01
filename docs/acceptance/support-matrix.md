@@ -106,6 +106,19 @@ unsupported/missing-role input. This is supplemental source evidence, not a
 new T-bold human approval, private candidate, customer delivery or NuGet release.
 
 
+## Current-source dashed/dotted business-report borders (2026-11-01)
+
+Report box borders now support dashed/dotted PDF strokes with real measured
+thickness, per-side colour/cascade, page-sliced edges and bounded display
+commands. This is implemented source-only at `4b5d6da3553579dad75dd00bfb041e1f3c200d90`;
+the 76-record report and `ReportPatternedBorderTests` / Native AOT
+`verify_native_feature_paths.py` exercise actual paths and protected
+failure recovery. Solid rectangles retain original byte output. Unsupported
+border styles, round corners, complex effects and full CSS Borders remain
+outside scope. Actual exact-head CI, independent review, package retention,
+rights and human reference-page approval are **separate gates**, not
+asserted by this source audit.
+
 ## Current-source list numbering and one-token shorthand (2026-11-01)
 
 Source `bea39e6d6a55f8a9e77ef8156bf6ca6529494738` implements ordered `start` and direct `li value`

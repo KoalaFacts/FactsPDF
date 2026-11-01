@@ -188,7 +188,7 @@ public sealed class BoxPaintingTests
             Options with { MaxDisplayCommands = 2 });
 
     [TestCase("background-color:linear-gradient(red,blue)", "FPDF1202")]
-    [TestCase("border:1pt dashed red", "FPDF1202")]
+    [TestCase("border:1pt double red", "FPDF1202")]
     [TestCase("border-width:2%", "FPDF1202")]
     [TestCase("border:2pt solid #xyz", "FPDF1202")]
     [TestCase("border:1pt solid 2pt", "FPDF1202")]

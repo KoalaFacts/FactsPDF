@@ -1,5 +1,47 @@
 # Embedded CSS stylesheets and selectors
 
+## Current-source bounded patterned report borders
+
+The existing CSS box targets (ordinary report boxes, images and fixed-layout
+tables/cells where borders were already implemented) now accept
+`solid`, `none`, `dashed` and `dotted` for `border-style`,
+`border-top/right/bottom/left-style`, and the corresponding `border` and
+individual side shorthands. The 1–4-value `border-style` expansion and CSS
+importance, specificity, source order and per-side CSS-wide keywords continue
+to use the existing cascade. A style is non-inherited unless `inherit` wins.
+Border widths remain the existing nonnegative, bounded absolute values and
+thin/medium/thick; colours use the existing opaque RGB and `currentcolor`
+rules. There is no new element applicability, font synthesis or layout mode.
+
+A nonzero dashed edge paints a PDF stroke with butt caps and an on/off
+pattern of three times the resolved border width each. A dotted edge uses
+round caps and a zero-approaching on segment with an off gap of twice the
+width, creating visible circular marks. Each stroke is contained in the
+existing border rectangle, charged as one display command, and enclosed
+in PDF `q/Q` graphics state. Fill backgrounds and legacy solid rectangles
+are unchanged. Patterned edges consume the *same* measured geometry as solid
+ones: padding, text X/line wrapping, nested boxes and table/image positioning
+are not estimates. At page boundaries vertical strokes restart their pattern;
+top/bottom strokes appear only on first/last decorated fragments. There is
+no global dash continuity across pages or CSS background clipping.
+
+Only the supported patterns are painted. `double`, `hidden`, `groove`,
+`ridge`, `inset`, `outset`, arbitrary `border-image`,
+`border-radius`, invalid mixed shorthand terms and out-of-scope elements
+fail with existing `FPDF1201/1202`; impossible widths with `FPDF1302`,
+display-command limits with `FPDF1401`. Sub-millipoint patterned strokes
+that would round to an invisible PDF linewidth fail `FPDF1302` instead
+of silently turning into a hairline. Invalid input never overwrites a
+previous PDF file; subsequent valid conversions recover normally.
+
+The [76-record multipage report](../examples/report-patterned-borders.html)
+is verified through the real Native AOT CLI, uncompressed PDF stroke
+commands, Poppler item positions, page bounds and failure/recovery checks
+in `scripts/verify_native_feature_paths.py`; source NUnit cases separately
+check cascade, all sides, exact solid byte preservation, cross-page borders,
+resource limits and invalid values. That is scoped engineering evidence,
+**not** human page approval, release, or full CSS Borders conformance.
+
 ## Current-source LTR text-align start/end
 
 The engine renders `text-align:start` and `text-align:end` on the same

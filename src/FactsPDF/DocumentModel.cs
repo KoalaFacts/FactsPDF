@@ -68,8 +68,12 @@ internal readonly record struct CssLength(double Value, bool IsPercent = false)
 
 // Specified values are retained until the containing block's content width is known.
 // All properties in BoxStyle are non-inherited by default.
+// The pattern affects PDF strokes, while the existing Solid bit continues to
+// distinguish painted borders from CSS none without changing legacy boxes.
+internal enum BorderPattern { Solid, Dashed, Dotted }
 internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
 {
+    internal BorderPattern Pattern { get; init; } = BorderPattern.Solid;
     internal static BorderEdge Initial => new(2.25, false, null); // CSS medium=3px
     internal double EffectiveWidth => Solid ? Width : 0;
 }

@@ -52,7 +52,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(rgb.status,'partial');
   assert.equal(rgb.last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   assert.match(rgb.scope,/rgba/);
-  for(const id of ["css.color","css.background","css.background-color","css.border","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color","value.color.rgbfunc"]) {
+  for(const id of ["css.color","css.background","css.background-color","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color","value.color.rgbfunc"]) {
     assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   }
 
@@ -253,7 +253,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.ltr-text-align');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.patterned-report-borders');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /67个CSS属性名/);
@@ -545,4 +545,23 @@ test('source-bounded ordered-list numbering and one-token shorthand evidence',()
   assert.equal(entry.introduced_release,null);
  }
  assert.deepEqual(counts(dataset.features),{full:44,partial:143,none:223,unknown:6,na:2});
+});
+
+test('bounded patterned borders draw PDF strokes without changing 418 audit IDs', () => {
+  for(const id of ["css.border","css.border-top","css.border-right","css.border-bottom","css.border-left","css.border-style","css.border-top-style","css.border-right-style","css.border-bottom-style","css.border-left-style"]){
+    const row=dataset.features.find(f=>f.id===id);
+    assert.equal(row.status,'partial');
+    assert.equal(row.last_audited_commit,'4b5d6da3553579dad75dd00bfb041e1f3c200d90');
+    assert.match(row.scope,/dashed/);
+    assert.match(row.scope,/dotted/);
+    if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))
+      assert.match(row.limitations,/圆角或图片边框/, id);
+    else
+      assert.match(row.limitations,/double/, id);
+    assert.match(row.test_reference,/ReportPatternedBorderTests/);
+    assert.equal(row.introduced_release,null);
+  }
+  assert.equal(dataset.accepted_css_property_count,67);
+  assert.equal(dataset.features.length,418);
+  assert.deepEqual(counts(dataset.features), {full:44,partial:143,none:223,unknown:6,na:2});
 });

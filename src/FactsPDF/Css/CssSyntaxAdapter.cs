@@ -253,7 +253,7 @@ internal static class CssSyntaxAdapter
                             if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
                             width = word; hasWidth = true; widthOffset = offset;
                         }
-                        else if (word is "solid" or "none")
+                        else if (word is "solid" or "none" or "dashed" or "dotted")
                         {
                             if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", offset);
                             style = word; hasStyle = true; styleOffset = offset;
