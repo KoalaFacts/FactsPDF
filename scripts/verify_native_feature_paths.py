@@ -671,6 +671,49 @@ def verify_native_preformatted_audit(executable, output, work):
             'independentOracleBytesEqual': True, 'protectedFailureRecovery': True,
             'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
+def verify_native_table_vertical_align(executable, output, work):
+    """Native real PDF witness with an independently specified physical-padding control."""
+    source = ROOT / 'examples/report-table-vertical-align.html'
+    oracle = ROOT / 'examples/report-table-vertical-align-oracle.html'
+    assert source.is_file() and oracle.is_file()
+    pdf = output / 'table-vertical-align.pdf'
+    control = output / 'table-vertical-align-control.pdf'
+    assert not run(executable, source, pdf, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    assert pdf.read_bytes() == control.read_bytes(), (
+        'PDF bytes differ from the physical-padding vertical placement oracle')
+    pages = count_pages(pdf)
+    assert pages >= 2, 'Forty whole table rows must paginate'
+    words = [word for page in range(1, pages + 1)
+             for word in page_boxes(pdf, page)[2]]
+    for number in range(1, 41):
+        row = f'R{number:03d}'
+        target = f'B{number:03d}' if number % 2 else f'C{number:03d}'
+        label = [word for word in words if word[0] == row]
+        reference = [word for word in words if word[0] == target]
+        assert len(label) == len(reference) == 1, (
+            'Missing or duplicate aligned business record', row, target)
+        assert abs(label[0][2] - reference[0][2]) < .25, (
+            'PDF text vertical position differs from specified alignment', row, target)
+    assert sum(word[0] == 'Record' for word in words) == pages, 'Repeated header mismatch'
+    assert sum(word[0] == 'END' for word in words) == 1, 'Missing report tail'
+    invalid = output / 'table-vertical-align-invalid.html'
+    invalid.write_text(source.read_text(encoding='utf-8').replace(
+        'vertical-align:middle', 'vertical-align:baseline', 1), encoding='utf-8')
+    preserved = output / 'table-vertical-align-preserved.pdf'
+    preserved.write_bytes(b'previous PDF')
+    failure = subprocess.run([str(executable), str(invalid), str(preserved), '--overwrite'],
+                             cwd=work, capture_output=True, timeout=120)
+    assert failure.returncode == 3 and b'FPDF1202' in failure.stderr, (
+        'Invalid native vertical-align was not rejected', failure.returncode, failure.stderr)
+    assert preserved.read_bytes() == b'previous PDF', 'Invalid input replaced original output'
+    assert not run(executable, source, preserved, '--overwrite', cwd=work)
+    assert preserved.read_bytes() == pdf.read_bytes(), 'Valid native retry differs'
+    return {'pages': pages, 'rows': 40, 'textPositionsVerified': True,
+            'mixedMiddleBottom': True, 'physicalPaddingPdfBytesEqual': True,
+            'failureRecovery': True, 'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -733,6 +776,7 @@ def main():
         multiline_notes = verify_native_multiline_notes(isolated, output, work)
         preserved_spaces = verify_native_preserved_space_notes(isolated, output, work)
         preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
+        table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -750,6 +794,7 @@ def main():
             'multilineNotes': multiline_notes,
             'preservedSpaces': preserved_spaces,
             'preformattedAudit': preformatted_audit,
+            'tableVerticalAlign': table_vertical_align,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }
