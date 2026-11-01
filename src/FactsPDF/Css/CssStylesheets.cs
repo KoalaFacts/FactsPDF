@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.ListStyleType + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.VerticalAlign + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -150,6 +150,9 @@ internal sealed class CssStylesheets
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "list-style-type is supported only on ol, ul and li.", declaration.Offset);
+            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("td" or "th"))
+                throw new FactsPdfException("FPDF1201",
+                    "vertical-align applies only to fixed-column table td/th cells.", declaration.Offset);
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
@@ -292,6 +295,15 @@ internal sealed class CssStylesheets
                     "inherit" or "unset" => parentBox.MarkerKind,
                     "initial" => ListMarkerKind.Disc,
                     _ => ListMarkerTypes.Parse(declaration.Value, declaration.Offset)
+                } };
+            else if (declaration.Property == CssProperty.VerticalAlign)
+                box = box with { VerticalAlign = declaration.Value switch
+                {
+                    "inherit" => parentBox.VerticalAlign,
+                    "initial" or "unset" or "top" => CellVerticalAlign.Top,
+                    "middle" => CellVerticalAlign.Middle,
+                    "bottom" => CellVerticalAlign.Bottom,
+                    _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
                 } };
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);

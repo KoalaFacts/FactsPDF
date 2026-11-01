@@ -1,6 +1,8 @@
 namespace FactsPDF;
 
 internal enum TextAlignment { Left, Center, Right, Justify }
+// Table-cell content placement within a measured whole row; not CSS inline baseline alignment.
+internal enum CellVerticalAlign { Top, Middle, Bottom }
 internal enum TextDecoration { None, Underline, LineThrough }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
@@ -101,6 +103,8 @@ internal sealed record BoxStyle(
     // Only ordinary block display:none is modelled. The parser removes the
     // complete validated subtree before any PDF layout or paint commands.
     public bool DisplayNone { get; init; }
+    // Only td/th cells consume this property; rows needing fragmentation reject middle/bottom.
+    public CellVerticalAlign VerticalAlign { get; init; } = CellVerticalAlign.Top;
     // Unlike painted box sides, list-style-type is inherited through li and
     // other containers. The ol/ul HTML defaults are applied in CSS computing.
     public ListMarkerKind MarkerKind { get; init; } = ListMarkerKind.Disc;
