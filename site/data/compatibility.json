@@ -4,8 +4,8 @@
   "dataset_version": "audit-2026-11-01.preformatted-business-audits",
   "audited_at": "2026-11-01",
   "repository": "KoalaFacts/FactsPDF",
-  "commit": "c7d4c03c3c974a00165925a89b6b71d033db59a8",
-  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/c7d4c03c3c974a00165925a89b6b71d033db59a8",
+  "commit": "d8d1a9e083bfc83829275ec08f6038261b4e1663",
+  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/d8d1a9e083bfc83829275ec08f6038261b4e1663",
   "engine_baseline": "M12 / 1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6",
   "support_scope": "Partial engineering audit of implemented preview capabilities, not release readiness or whole-standard conformance",
   "full_definition": "完整支持仅针对每一行明确定义的能力和适用范围；父级元素/属性的未知部分不自动变绿。",
@@ -1977,13 +1977,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "c7d4c03c3c974a00165925a89b6b71d033db59a8",
+      "last_audited_commit": "d8d1a9e083bfc83829275ec08f6038261b4e1663",
       "last_audited_date": "2026-11-01",
       "evidence_level": "新增源码 NUnit 验证真实 PDF 字形空格推进、TrueType/内置字体、72条多页审计和独立 pre-wrap PDF 对照；Linux/Windows Native AOT/Poppler 文字位置及失败恢复验证路径已接入。精确 head CI、独立审查、合并、人工 PDF 批准和发包分别核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/tests/FactsPDF.Tests/PreformattedReportTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/tests/FactsPDF.Tests/PreformattedReportTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/src/FactsPDF/TextLines.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/src/FactsPDF/TextLines.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -5953,7 +5953,7 @@
       "feature": "white-space",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "显式 p/h1–h6（含固定列单元格内 p）支持 normal、nowrap、pre-line、pre-wrap、限定 pre；pre-line 折叠空格保留原文换行，pre-wrap 保留 U+0020 空格及换行并可自动软折行，pre 保留相同空格/换行但禁止软折行。独立 <pre> 元素默认使用 pre；全部影响真实 PDF 字形位置、布局、分页和显式 br。",
+      "scope": "显式 p/h1–h6（含固定列单元格内 p）支持 normal、nowrap、pre-line、pre-wrap、限定 pre；pre-line 折叠空格并保留 CRLF/CR/LF/FF 原文换行，pre-wrap 保留 U+0020 空格及换行并可自动软折行，pre 保留相同空格/换行但禁止软折行。独立 <pre> 元素默认使用 pre；全部影响真实 PDF 字形位置、布局、分页和显式 br。",
       "limitations": "pre/pre-wrap 仅保留字面 U+0020 空格及原文换行，不实现制表位或其它控制空白（FPDF1305）；pre 超宽行或 pre-wrap 无法容纳字形明确 FPDF1302。span/容器/表格结构不支持声明 white-space（FPDF1201）；不支持 break-spaces、RTL、复杂整形或完整 CSS Text。非法值 FPDF1202，异常不覆盖原 PDF。",
       "stage": "语义/布局/输出",
       "applicability": "显式段落及标题（含表格单元格中的 p，按真实内容宽度）；CLI/.NET 共同核心",
@@ -5962,14 +5962,14 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "c7d4c03c3c974a00165925a89b6b71d033db59a8",
+      "last_audited_commit": "d8d1a9e083bfc83829275ec08f6038261b4e1663",
       "last_audited_date": "2026-11-01",
       "evidence_level": "当前源码扩展 white-space:pre，补齐显式 <pre> 及独立72条真实报表，NUnit 及原有 pre-wrap 测试覆盖字形、分页、层叠、字体和失败恢复；Native AOT/Poppler 实际 PDF 等价/空格位置验证路径已增加，CI与独立审查另作门禁。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/tests/FactsPDF.Tests/PreformattedReportTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/tests/FactsPDF.Tests/PreformattedReportTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/src/FactsPDF/InlineCss.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/src/FactsPDF/TextLines.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/c7d4c03c3c974a00165925a89b6b71d033db59a8/src/FactsPDF/HtmlDocumentReader.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/src/FactsPDF/InlineCss.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/src/FactsPDF/TextLines.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/d8d1a9e083bfc83829275ec08f6038261b4e1663/src/FactsPDF/HtmlDocumentReader.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

@@ -114,7 +114,7 @@ and [separately authored pre-wrap equivalent](../examples/report-preformatted-au
 must produce byte-identical PDFs while every authored line fits. Native
 AOT/Poppler geometry checks measure the extra two-space x advance and
 confirm page text, overflow failure and output restoration. Source commit
-`c7d4c03c3c974a00165925a89b6b71d033db59a8`; this is not full HTML
+`d8d1a9e083bfc83829275ec08f6038261b4e1663`; this is not full HTML
 `pre` support, a released CLI or a human-approved reference PDF.
 
 ## Current-source preserved-space report notes

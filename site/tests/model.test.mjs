@@ -22,8 +22,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(decor.last_audited_commit,'280212ceea1eb7d0105a5bbb2ee61825364836e8');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.limitations,/overline/);
-  assert.equal(dataset.commit, 'c7d4c03c3c974a00165925a89b6b71d033db59a8');
-  assert.match(dataset.commit_url, /c7d4c03c3c974a00165925a89b6b71d033db59a8/);
+  assert.equal(dataset.commit, 'd8d1a9e083bfc83829275ec08f6038261b4e1663');
+  assert.match(dataset.commit_url, /d8d1a9e083bfc83829275ec08f6038261b4e1663/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -90,7 +90,7 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'c7d4c03c3c974a00165925a89b6b71d033db59a8');
+  assert.equal(feature.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/nowrap/);
   assert.match(feature.scope,/br/);
@@ -260,7 +260,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.preserved-space-report-notes');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.preformatted-business-audits');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /67个CSS属性名/);
@@ -578,8 +578,8 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
   const pre=dataset.features.find(feature => feature.id==='html.pre');
   const css=dataset.features.find(feature => feature.id==='css.white-space');
   assert.equal(pre.status,'partial');
-  assert.equal(pre.last_audited_commit,'c7d4c03c3c974a00165925a89b6b71d033db59a8');
-  assert.equal(css.last_audited_commit,'c7d4c03c3c974a00165925a89b6b71d033db59a8');
+  assert.equal(pre.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
+  assert.equal(css.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
   assert.match(pre.scope,/U\+0020/);
   assert.match(pre.limitations,/FPDF1305/);
   assert.match(css.scope,/pre-wrap.*pre/);
