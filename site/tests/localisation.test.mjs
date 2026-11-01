@@ -29,6 +29,24 @@ test('English is the default and only an explicit saved Chinese choice changes i
   saveLocale('zh', {setItem: (key, value) => {stored=[key, value];}});
   assert.deepEqual(stored, ['factspdf.locale', 'zh']);
 });
+test('responsive image audit preserves the full historic methodology and translates only its new appendix', async () => {
+  const { translate } = await localisation();
+  const raw = data.audit_method;
+  const marker = '2026-11-02增量限定图像宽度';
+  const at = raw.indexOf(marker);
+  assert.ok(at > 10000, 'Historical English source methodology must remain complete');
+  const originalEnglish = raw.slice(0, at).trimEnd();
+  const displayed = translate(raw);
+  assert.ok(displayed.startsWith(originalEnglish + ' '),
+    'Never silently replace the historical English methodology with an audit suffix');
+  assert.doesNotMatch(displayed, /undefined|[\\u3400-\\u9fff]/u);
+  assert.match(displayed, /Incremental 2 November 2026 source audit updates five existing stable records/);
+  assert.match(displayed, /other 413 stable IDs are unchanged/);
+  const inventory = translate(data.css_inventory_note);
+  assert.match(inventory, /80 scoped CSS property names/);
+  assert.match(inventory, /image.*min\\/max-width|bounded.*image/i);
+});
+
 test('all 418 feature descriptions and methodology have complete English translations', async () => {
   const { auditFields, translate, validateTranslations } = await localisation();
   validateTranslations(data);
