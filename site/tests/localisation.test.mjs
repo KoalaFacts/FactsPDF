@@ -358,13 +358,13 @@ test('physical image height has complete English audit, with original methodolog
     const f=englishFeature(data.features.find(x=>x.id===id));
     assert.equal(f.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd',id);
     assert.match(f.scope,/height/i,id);
-    assert.match(f.limitations,/percent|em\\/rem/i,id);
+    assert.match(f.limitations,/percent|em\/rem/i,id);
     assert.doesNotMatch(f.scope+' '+f.limitations,han,id);
   }
   const method=translate(data.audit_method);
   assert.match(method,/Additive 2 November 2026 physical CSS image-height/);
   assert.match(method,/414 other records retain historic source\/release identities/);
   assert.match(method,/Incremental 2 November 2026 source audit updates five existing stable records/);
-  assert.doesNotMatch(method,/undefined|[\\u3400-\\u9fff]/u);
+  assert.doesNotMatch(method,/undefined|[\u3400-\u9fff]/u);
   assert.match(translate(data.css_inventory_note),/418 stable records and 80 scoped CSS property names/);
 });

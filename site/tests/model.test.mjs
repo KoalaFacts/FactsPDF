@@ -715,7 +715,7 @@ test('bound image height changes actual PDF geometry without changing stable aud
     assert.equal(f.status,'partial',id);
     assert.equal(f.last_audited_commit,'7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd',id);
     assert.match(f.scope,/height/,id);
-    assert.match(f.sources.join(' '),/ImageHeightSizingTests\\.cs/,id);
+    assert.match(f.sources.join(' '),/ImageHeightSizingTests\.cs/,id);
     assert.equal(f.introduced_release,null,id);
   }
   assert.match(dataset.features.find(x=>x.id==='css.height').scope,/border-box/);
