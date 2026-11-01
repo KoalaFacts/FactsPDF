@@ -8,7 +8,8 @@ internal enum CssProperty
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
-    TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight
+    TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight,
+    BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -112,7 +113,9 @@ internal static class CssDeclarations
             _ => throw new InvalidOperationException("Unrecognized CSS property.")
         };
     }
-    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight;
+    internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight
+        or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
+        or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius;
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -143,6 +146,24 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : new BoxStyle();
 
+        if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
+            or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius)
+        {
+            var radius = wide ? property switch
+            {
+                CssProperty.BorderTopLeftRadius => from.CornerRadius,
+                CssProperty.BorderTopRightRadius => from.CornerTopRightRadius,
+                CssProperty.BorderBottomRightRadius => from.CornerBottomRightRadius,
+                _ => from.CornerBottomLeftRadius
+            } : CssPaintValues.BorderRadius(value, declaration.Offset);
+            return property switch
+            {
+                CssProperty.BorderTopLeftRadius => current with { CornerRadius = radius },
+                CssProperty.BorderTopRightRadius => current with { CornerTopRightRadius = radius },
+                CssProperty.BorderBottomRightRadius => current with { CornerBottomRightRadius = radius },
+                _ => current with { CornerBottomLeftRadius = radius }
+            };
+        }
         if (property == CssProperty.BorderRadius)
         {
             var corners = wide

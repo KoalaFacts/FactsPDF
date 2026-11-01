@@ -1,3 +1,19 @@
+## Source-only independent report-card corners
+
+Four physical `border-*-radius` longhands now control their own corners,
+with real PDF Bezier backgrounds and uniform solid border rings rather
+than a parse-only alias. The existing [50-card shorthand example](../examples/report-asymmetric-rounded-panels.html)
+is the native PDF-byte comparison for the new
+[50-card longhand report](../examples/report-corner-longhands.html);
+NUnit asserts per-corner cascade, native PDF positioning, pagination and
+protected failure recovery. Single-radius legacy output remains unchanged.
+One value per longhand, zero or 0.25–72pt physical length, on ordinary
+report blocks only: no elliptical/percentage/em/rem/inline/table/list/image
+rounding or asymmetric/patterned rounded border rings.
+[CSS scope](css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
+Current source is not the previously retained private binary, customer
+license, release, or human-approved PDF reference.
+
 ## Source-only minimum-height business report cards
 
 On a controlled invoice, inspection or status report, ordinary panels outside

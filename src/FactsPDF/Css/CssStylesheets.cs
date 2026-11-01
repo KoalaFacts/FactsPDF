@@ -20,7 +20,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.MinHeight + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BorderBottomLeftRadius + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -149,7 +149,9 @@ internal sealed class CssStylesheets
             // Rounded paint is deliberately scoped to ordinary report boxes, not
             // table/list/image geometry or inline text. Unsupported matches fail
             // even if a later cascade winner would remove the radius.
-            if (declaration.Property == CssProperty.BorderRadius &&
+            if (declaration.Property is (CssProperty.BorderRadius or CssProperty.BorderTopLeftRadius
+                or CssProperty.BorderTopRightRadius or CssProperty.BorderBottomRightRadius
+                or CssProperty.BorderBottomLeftRadius) &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "blockquote") ||
                  path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
@@ -369,7 +371,11 @@ internal sealed class CssStylesheets
                      (e.Color ?? style.Color) != firstInk)))
                 throw new FactsPdfException("FPDF1201",
                     "Rounded report boxes require an equally thick, single-colour solid border on all four sides.",
-                    winners[(int)CssProperty.BorderRadius]?.Declaration.Offset ?? elementOffset);
+                    winners[(int)CssProperty.BorderTopLeftRadius]?.Declaration.Offset
+                     ?? winners[(int)CssProperty.BorderTopRightRadius]?.Declaration.Offset
+                     ?? winners[(int)CssProperty.BorderBottomRightRadius]?.Declaration.Offset
+                     ?? winners[(int)CssProperty.BorderBottomLeftRadius]?.Declaration.Offset
+                     ?? elementOffset);
         }
         return (style, box);
     }

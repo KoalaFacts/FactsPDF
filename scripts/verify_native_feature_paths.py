@@ -816,13 +816,24 @@ def verify_native_rounded_panels(executable, output, work):
         marker = f'Receipt card {index:02d}'
         assert asymmetric_words.count(marker) == 1, ('Missing/repeated asymmetric report card', marker)
     assert b' c ' in asymmetric.read_bytes() and b'f* Q' in asymmetric.read_bytes(), 'Native asymmetric paths absent'
-    for invalid in ('<section style="border-radius:10pt 2pt 4pt 1pt 3pt">Invalid</section>',
+    # The 50-card longhand version must render byte-for-byte as the
+    # independently authored four-corner shorthand, including pagination.
+    corner_source = ROOT / 'examples/report-corner-longhands.html'
+    corner_pdf = output / 'corner-longhands.pdf'
+    assert not run(executable, corner_source, corner_pdf, cwd=work)
+    assert corner_pdf.read_bytes() == asymmetric.read_bytes(), 'Per-corner longhands did not paint identical PDF geometry'
+    assert run('qpdf', '--check', corner_pdf) is not None
+    for invalid in ('<section style="border-top-left-radius:9%">Invalid</section>',
+                    '<section style="border-bottom-right-radius:8pt 4pt">Invalid</section>',
+                    '<span style="border-top-right-radius:5pt">Invalid inline</span>',
+                    '<section style="border-radius:10pt 2pt 4pt 1pt 3pt">Invalid</section>',
                     '<section style="border-radius:10pt 2%">Invalid</section>'):
         bad.write_text(invalid, encoding='utf-8')
         retained.write_bytes(b'previous customer report')
         failed = subprocess.run([str(executable), str(bad), str(retained), '--overwrite'],
                                 cwd=work, capture_output=True, timeout=120)
-        assert failed.returncode == 3 and b'FPDF1202' in failed.stderr and not failed.stdout
+        expected = b'FPDF1201' if 'Invalid inline' in invalid else b'FPDF1202'
+        assert failed.returncode == 3 and expected in failed.stderr and not failed.stdout
         assert retained.read_bytes() == b'previous customer report'
     return {'cards': 54, 'pages': count, 'pdfSha256': sha(pdf),
             'sourceSha256': sha(source), 'oracleSha256': sha(control),
@@ -830,6 +841,8 @@ def verify_native_rounded_panels(executable, output, work):
             'asymmetricCards': 50, 'asymmetricPages': asymmetric_pages,
             'asymmetricPdfSha256': sha(asymmetric),
             'asymmetricPdfByteParity': True,
+            'cornerLonghandCards': 50, 'cornerLonghandPdfSha256': sha(corner_pdf),
+            'cornerLonghandByteParity': True,
             'protectedFailureRecovery': True}
 
 def verify_native_minimum_height(executable, output, work):

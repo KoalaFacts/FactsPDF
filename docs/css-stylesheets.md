@@ -45,19 +45,27 @@ preview, approve unseen reference pages or grant customer rights.
 
 Ordinary `p`/`pre`/`h1`–`h6`/`div`/`section`/`article`/`blockquote`
 outside lists/tables support the one-to-four-value physical `border-radius`
-shorthand. Each value is zero or 0.25–72pt in `pt`, `px`, `mm`, `cm`, or
-`in`. Two values alternate opposite corners (TL/BR and TR/BL); three values
+shorthand. The physical `border-top-left-radius`,
+`border-top-right-radius`, `border-bottom-right-radius` and
+`border-bottom-left-radius` longhands each set one independent corner.
+Every value is zero or 0.25–72pt in `pt`, `px`, `mm`, `cm`, or `in`. Two values alternate opposite corners (TL/BR and TR/BL); three values
 assign TL, TR/BL, BR; four values assign TL, TR, BR, BL clockwise. Actual
 opaque PDF backgrounds and uniform solid border rings use separate cubic
 curves at each corner. Overlapping arcs are proportionally fitted to the
 available fragment. Neither text metrics nor outer dimensions change.
 On continued report boxes only the first fragment's top and the final
 fragment's bottom receive curved corners; continuation sides stay straight.
-Cascade, `!important`, `initial`/`unset`/`inherit`, output budget and
-destination protection use the existing scoped renderer.
+The shorthand is expanded into four separate cascade candidates **before**
+matching. A later/more-specific longhand overrides its single corner;
+`!important` competes per corner. An important shorthand beats a normal
+longhand, and an important longhand overrides a normal shorthand only on
+its own corner. `inherit` takes the corresponding corner from the direct
+parent; `initial` and `unset` reset that corner without implicitly
+inheriting other values. Unmatched declarations and losing values are
+still validated. Output budget and destination protection remain active.
 
-Percentages, elliptical `/` radii, separate per-corner CSS longhand
-properties, `em`/`rem`, box radii on table cells, images, lists or inline
+Percentages, elliptical `/` radii (including two axes in one corner
+longhand), `em`/`rem`, box radii on table cells, images, lists or inline
 elements, nonuniform/missing,
 dashed/dotted borders, CSS background clipping, full CSS Backgrounds &
 Borders and browser layout are **not** implemented; incompatible input
@@ -68,8 +76,10 @@ preview binary, human PDF approval or an evaluation grant. The
 [separate 16px/12pt projection](../examples/report-rounded-panels-oracle.html),
 plus the [50-card four-corner report](../examples/report-asymmetric-rounded-panels.html)
 and [separately authored physical-length oracle](../examples/report-asymmetric-rounded-panels-oracle.html),
+plus the [50-card corner-longhand report](../examples/report-corner-longhands.html),
 exercise actual PDF bytes and pagination; NUnit and Linux/Windows
-Native AOT/Poppler tests verify painted curves and error recovery.
+Native AOT/Poppler/qpdf tests verify painted curves, byte-for-byte
+shorthand/longhand equivalence and protected-error recovery.
 
 ## Current-source bounded vertical alignment for fixed-column table cells
 
