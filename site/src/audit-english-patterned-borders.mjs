@@ -14,5 +14,5 @@ const additions={
   703:previous[702]+' Bounded solid/none/dashed/dotted CSS border values now produce real independently coloured PDF strokes with per-page pattern resets, preserving legacy solid PDF bytes. No double, rounded corners or background clipping and no new accepted CSS property name.'
 };
 export const englishAudit=Object.freeze(references.map((old,i)=>old>=0?previous[old]:additions[i]));
-if(englishAudit.length!==707||englishAudit.some(value=>typeof value!=='string'||!value.trim()||/[\\u3400-\\u9fff]/u.test(value)))
+if(englishAudit.length!==707||englishAudit.some(value=>typeof value!=='string'||!value.trim()||[...value].some(character=>character.codePointAt(0)>=0x3400&&character.codePointAt(0)<=0x9fff)))
   throw new Error('Invalid patterned-border English audit catalogue.');

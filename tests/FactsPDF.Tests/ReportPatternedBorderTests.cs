@@ -79,8 +79,8 @@ public sealed class ReportPatternedBorderTests
         var child = (BlockNode)root.Children.Single();
         Assert.That(child.BoxStyle.BorderTop.Pattern, Is.EqualTo(BorderPattern.Dotted));
         Assert.That(child.BoxStyle.BorderRight.Pattern, Is.EqualTo(BorderPattern.Solid));
-        Assert.That(child.BoxStyle.BorderRight.EffectiveWidth, Is.Zero,
-            "Inheriting a style does not inherit its border width.");
+        Assert.That(child.BoxStyle.BorderRight.EffectiveWidth, Is.EqualTo(2.25).Within(0.00001),
+            "Inherited border-style is painted at the default medium width; width itself is not inherited.");
     }
 
     [Test]
