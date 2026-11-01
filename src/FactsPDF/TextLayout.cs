@@ -113,7 +113,11 @@ internal static class TextLayout
                 // An unconsumed first fragment retains its outside top margin
                 // when moving to a fresh page; a continued fragment never does.
                 var firstMargin = scope.HasOccupiedDescendant ? 0 : scope.MarginTop;
-                var firstPadding = scope.HasOccupiedDescendant ? 0 : scope.Top;
+                // An empty padded descendant may occupy deferred space without
+                // consuming this ancestor's own first-fragment top. Only a
+                // genuinely reserved minimum (marked TopConsumed at closure)
+                // or actual laid-out content can consume that opening top.
+                var firstPadding = scope.Top;
                 if (apply) opened[i] = scope with
                 {
                     StartPage = pages.Count - 1,
@@ -245,6 +249,15 @@ internal static class TextLayout
                         y + pendingTopPadding + pendingClosedPadding + after)
                         + closing.PaddingBottom;
                     minimumExtra = Math.Max(0, scope.StartY + scope.MinimumOuterHeight - naturalEnd);
+                }
+                if (minimumExtra > 0)
+                {
+                    // This empty minimum has reserved real space after the
+                    // ancestors' opening padding. That opening geometry now
+                    // belongs to this physical page, despite the absence of a
+                    // text run; do not carry it into an empty continuation.
+                    for (var i = 0; i < opened.Count; i++)
+                        opened[i] = opened[i] with { TopConsumed = true };
                 }
                 var emittedPaint = false;
                 if (scope.Style.HasPaint)

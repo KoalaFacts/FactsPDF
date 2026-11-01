@@ -291,6 +291,19 @@ public sealed class SectionPageBreakTests
     }
 
     [Test]
+    public void EmptyMinimumDescendantConsumesOuterOpeningPaddingBeforeSamePageText()
+    {
+        const string html = "<div style='padding-top:12pt'>" +
+            "<div style='min-height:80pt'></div><p style='margin:0'>AFTER</p></div>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(1));
+        var freshBaseline = Layout("<p style='margin:0'>AFTER</p>")[0].Runs.Single().Baseline;
+        Assert.That(freshBaseline - pages[0].Runs.Single().Baseline,
+            Is.EqualTo(92).Within(0.000001));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 1"));
+    }
+
+    [Test]
     public void ParagraphExplicitInheritReadsContainingPanelPageBreak()
     {
         const string inherit = "<section style='break-after:page'>" +
