@@ -326,7 +326,8 @@ test('rounded quote/report cards show real source-painted PDF scope and explicit
   const detail=page.getByRole('dialog');
   await expect(detail).toContainText('Bezier');
   await expect(detail).toContainText('72pt');
-  await expect(detail).toContainText('ellipses');
+  await expect(detail).toContainText('elliptical');
+  await expect(detail).toContainText('one to four physical');
   await expect(detail).toContainText('FPDF1201');
   await expect(detail).toContainText('FPDF1401');
 });

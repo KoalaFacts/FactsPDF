@@ -1,9 +1,12 @@
 ## Source-only rounded invoice/status cards
 
 Supported ordinary business report panels can use `border-radius:12pt`
+or distinct `border-radius:12pt 9pt 6pt 3pt` corners
 for real opaque vector PDF background and a single-colour uniform solid border,
 including continued page fragments. See the [54-card report](../examples/report-rounded-panels.html),
-[physical-unit oracle](../examples/report-rounded-panels-oracle.html) and
+[physical-unit oracle](../examples/report-rounded-panels-oracle.html),
+[50-card four-corner sample](../examples/report-asymmetric-rounded-panels.html)
+and [independent unit projection](../examples/report-asymmetric-rounded-panels-oracle.html) and
 [limited CSS contract](css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
 No elliptical, percent, table-cell, list, image, patterned-border or complete
 CSS Borders rendering is implied; invalid input fails without damaging the

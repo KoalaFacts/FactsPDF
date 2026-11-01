@@ -263,7 +263,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-01.rounded-report-panels-quote-cascade');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-01.four-corner-report-radii');
   assert.match(dataset.audit_method, new RegExp(dataset.commit));
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /71个CSS属性名/);
@@ -608,9 +608,10 @@ test('whole-row table-cell vertical alignment stays a scoped, source-proven CSS 
 
 test('rounded report card radius is bounded real PDF paint, not full CSS Borders',()=>{
  const f=dataset.features.find(x=>x.id==='css.border-radius');
- assert.equal(f.status,'partial');assert.equal(f.last_audited_commit,'765421a3a21457197a55e93f91029f60e07ee9d9');
+ assert.equal(f.status,'partial');assert.equal(f.last_audited_commit,'8cf57fe1c6b05912c4356136db4953f260f5b8a8');
  assert.equal(f.introduced_release,null);assert.match(f.scope,/贝塞尔.*真实绘制/);
- assert.match(f.scope,/跨页/);assert.match(f.limitations,/百分比.*椭圆/);
+ assert.match(f.scope,/跨页/);assert.match(f.scope,/一至四/);assert.match(f.scope,/左上.*右上.*右下.*左下/);
+ assert.match(f.limitations,/百分比.*椭圆/);assert.match(f.limitations,/longhand/);
  assert.match(f.limitations,/FPDF1201\/1202\/1302\/1401/);
  assert.match(f.test_reference,/RoundedReportPanelTests.cs/);
  assert.equal(dataset.features.length,418);assert.equal(dataset.accepted_css_property_count,71);
