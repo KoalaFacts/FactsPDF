@@ -155,7 +155,14 @@ internal static class TableLayout
                         foreach (var run in paragraph.Runs)
                         {
                             cancellation.ThrowIfCancellationRequested();
-                            if (run.IsBreak) { occupied = true; break; }
+                            // A pre-line paragraph made entirely of authored
+                            // newlines occupies real line height, not text
+                            // display commands. Keep hasText (and ensure)
+                            // unchanged for empty painted lines.
+                            if (run.IsBreak || paragraph.Style.PreserveLineBreaks &&
+                                (run.Text.Contains('\n') || run.Text.Contains('\r') ||
+                                 run.Text.Contains('\f')))
+                            { occupied = true; break; }
                         }
                     if (!occupied)
                     {

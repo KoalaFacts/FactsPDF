@@ -71,6 +71,41 @@ public sealed class WhiteSpacePreLineTests
     }
 
     [Test]
+    public void ConsecutiveTrailingSourceBreaksRetainTheLastRealBlankLine()
+    {
+        const string actual = "<p style='white-space:pre-line;margin:0'>A\\n\\n</p>" +
+            "<p style='margin:0'>B</p>";
+        const string oracle = "<p style='margin:0'>A<br><br></p>" +
+            "<p style='margin:0'>B</p>";
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)),
+            "The second trailing segment break must contribute a blank line.");
+        var placed = Pages(actual).SelectMany(page => page.Runs).ToArray();
+        Assert.That(placed.Select(item => item.Text), Is.EqualTo(new[] { "A", "B" }));
+        Assert.That(placed[1].Baseline - placed[0].Baseline, Is.GreaterThan(20));
+    }
+
+    [Test]
+    public void PreservedOnlyBlankLinesOccupyRealTableCellHeightWithoutGlyphCommands()
+    {
+        const string start = "<table style='width:120pt'><colgroup>" +
+            "<col style='width:120pt'></colgroup><tbody><tr><td>";
+        const string end = "</td></tr></tbody></table>";
+        const string actual = start +
+            "<p style='white-space:pre-line;margin:0'>\\n\\n\\n</p>" +
+            "<p style='margin:0'>AFTER</p>" + end;
+        const string oracle = start +
+            "<p style='margin:0'><br><br><br></p>" +
+            "<p style='margin:0'>AFTER</p>" + end;
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)),
+            "A break-only pre-line table-cell paragraph must keep its height.");
+        var placed = Pages(actual).SelectMany(page => page.Runs).ToArray();
+        var oraclePlaced = Pages(oracle).SelectMany(page => page.Runs).ToArray();
+        Assert.That(placed.Select(item => item.Text), Is.EqualTo(new[] { "AFTER" }));
+        Assert.That(placed[0].Baseline, Is.EqualTo(oraclePlaced[0].Baseline).Within(0.001));
+        Assert.That(placed[0].Baseline, Is.GreaterThan(40));
+    }
+
+    [Test]
     public void NormalAndNoWrapKeepLegacyWhitespaceAndPdfBytes()
     {
         const string body = "PAID  IN\n FULL";

@@ -100,10 +100,9 @@ internal static class TextLines
         IEnumerable<Glyph> ReadGlyphs()
         {
             Glyph? pendingSpace = null;
-            // In pre-line, hold the last authored segment break until actual
-            // following content. CSS Text discards a final segment break, but
-            // multiple consecutive breaks still produce blank PDF lines.
-            Glyph? pendingSegmentBreak = null;
+            // Wrap naturally suppresses a nonexistent empty final line;
+            // every real segment break must still be emitted, including the
+            // last of consecutive trailing newlines.
             var previousCarriageReturn = false;
             var afterText = false;
             // An ASCII word can cross differently styled inline spans, even
@@ -114,13 +113,7 @@ internal static class TextLines
                 cancellation.ThrowIfCancellationRequested();
                 if (run.IsBreak)
                 {
-                    // HTML <br> is always explicit; unlike a final pre-line
-                    // source newline, it must not be discarded.
-                    if (pendingSegmentBreak is { } deferred)
-                    {
-                        yield return deferred;
-                        pendingSegmentBreak = null;
-                    }
+                    // HTML <br> starts a line even after an authored newline.
                     previousCarriageReturn = false;
                     pendingSpace = null;
                     afterText = false;
@@ -147,9 +140,7 @@ internal static class TextLines
                         previousCarriageReturn = scalar == 13;
                         if (scalar is 10 or 13 or 12)
                         {
-                            if (pendingSegmentBreak is { } previousBreak)
-                                yield return previousBreak;
-                            pendingSegmentBreak = new Glyph(10, run.Style, null, 0, run.SourceOffset);
+                            yield return new Glyph(10, run.Style, null, 0, run.SourceOffset);
                             pendingSpace = null;
                             afterText = false;
                             insideAsciiWord = false;
@@ -195,11 +186,6 @@ internal static class TextLines
                     }
                     else
                     {
-                        if (pendingSegmentBreak is { } deferred)
-                        {
-                            yield return deferred;
-                            pendingSegmentBreak = null;
-                        }
                         if (pendingSpace.HasValue)
                         {
                             yield return pendingSpace.Value;
