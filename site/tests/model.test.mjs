@@ -614,5 +614,6 @@ test('rounded report card radius is bounded real PDF paint, not full CSS Borders
  assert.match(f.limitations,/FPDF1201\/1202\/1302\/1401/);
  assert.match(f.test_reference,/RoundedReportPanelTests.cs/);
  assert.equal(dataset.features.length,418);assert.equal(dataset.accepted_css_property_count,71);
- assert.deepEqual(filterFeatures(dataset.features,{q:'border-radius',status:'partial'}).map(x=>x.id),['css.border-radius']);
+ assert.deepEqual(filterFeatures(dataset.features,{q:'border-radius',status:'partial'}).map(x=>x.id),['html.blockquote','css.border-radius']);
+ assert.deepEqual(filterFeatures(dataset.features,{q:'border-radius',status:'partial',category:'CSS属性'}).map(x=>x.id),['css.border-radius']);
 });

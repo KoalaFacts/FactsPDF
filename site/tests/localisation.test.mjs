@@ -153,8 +153,6 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.match(row.scope,/outside the box/);
     assert.match(row.limitations,/FPDF1201/);
     assert.match(row.limitations,/FPDF1302/);
-  assert.match(row.scope,/border-radius/);
-  assert.match(row.limitations,/elliptical/);
     assert.match(row.limitations,/collaps/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
@@ -224,6 +222,8 @@ test('new report blockquotes have English default text with bounded limits', asy
   assert.match(row.scope,/8pt/);
   assert.match(row.scope,/24pt/);
   assert.match(row.scope,/PDF/);
+  assert.match(row.scope,/border-radius/);
+  assert.match(row.limitations,/elliptical/);
   assert.match(row.limitations,/cite/);
   assert.match(row.limitations,/FPDF1302/);
   assert.doesNotMatch([row.scope,row.limitations,row.stage,row.evidence_level].join(' '),han);
