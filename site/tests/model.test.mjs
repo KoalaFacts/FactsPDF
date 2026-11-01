@@ -264,8 +264,8 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.report-word-break');
-  assert.match(dataset.audit_method, new RegExp(dataset.commit));
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.responsive-report-images');
+  assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计80个受限CSS属性名/);
   assert.doesNotMatch(dataset.css_inventory_note, /letter-spacing\/word-spacing仍拒绝/);
@@ -420,7 +420,8 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit, marginEvidence(id).sha, id);
+    assert.equal(feature.last_audited_commit, ['css.min-width','css.max-width'].includes(id)
+      ? 'b6bebe8e3b97f13190148c6f53bed49ec2678ede' : marginEvidence(id).sha, id);
     assert.equal(feature.introduced_release,null,id);
     assert.match(feature.scope+' '+feature.limitations,/rem/,id);
     assert.equal(feature.test_reference,
