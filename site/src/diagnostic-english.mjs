@@ -11,6 +11,7 @@ export const diagnosticEnglish = Object.freeze({
   'FPDF1202（不支持值）/FPDF1302（无可用文本宽度）': 'FPDF1202 (unsupported value) / FPDF1302 (no available text width)',
   'FPDF1202（无效值）/FPDF1302（超出可用宽度）': 'FPDF1202 (invalid value) / FPDF1302 (exceeds available width)',
   'FPDF1202（取值） / FPDF1201（未知装饰属性） / FPDF1401（绘制/输出预算）': 'FPDF1202 (value) / FPDF1201 (unknown decoration property) / FPDF1401 (drawing/output budget)',
+  'FPDF1201（不适用属性） / FPDF1202（颜色/线型/多值） / FPDF1302（无法绘制的线段） / FPDF1401（资源或绘制预算）': 'FPDF1201 (inapplicable property) / FPDF1202 (ink/stroke/combination) / FPDF1302 (unpaintable line geometry) / FPDF1401 (resource/paint budget)',
   'FPDF1201（元素）/FPDF1202（值）/FPDF1302（溢出）': 'FPDF1201 (element) / FPDF1202 (value) / FPDF1302 (overflow)',
   'FPDF1201（元素）/FPDF1202（值）/FPDF1302（超宽）': 'FPDF1201 (element) / FPDF1202 (value) / FPDF1302 (overwide)',
   'FPDF1201（元素）/FPDF1202（取值）/FPDF1302（超宽）/FPDF1305（制表符）': 'FPDF1201 (element) / FPDF1202 (value) / FPDF1302 (overwide) / FPDF1305 (tab stops unsupported)',

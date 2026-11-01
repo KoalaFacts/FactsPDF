@@ -3,7 +3,8 @@ namespace FactsPDF;
 internal enum TextAlignment { Left, Center, Right, Justify }
 // Table-cell content placement within a measured whole row; not CSS inline baseline alignment.
 internal enum CellVerticalAlign { Top, Middle, Bottom }
-internal enum TextDecoration { None, Underline, LineThrough }
+internal enum TextDecoration { None, Underline, LineThrough, Overline }
+internal enum TextDecorationPattern { Solid, Dashed, Dotted }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
@@ -13,7 +14,8 @@ internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, 
     bool Bold = false, bool Italic = false, bool KeepWithNext = false,
     TextDecoration Decoration = TextDecoration.None, double? AbsoluteLineHeight = null,
     bool NoWrap = false, CssLength FirstLineIndent = default, double LetterSpacing = 0, double WordSpacing = 0, TextTransform Transform = TextTransform.None,
-    bool BreakWords = false, bool PreserveLineBreaks = false, bool PreserveSpaces = false);
+    bool BreakWords = false, bool PreserveLineBreaks = false, bool PreserveSpaces = false,
+    Rgb? DecorationColor = null, TextDecorationPattern DecorationPattern = TextDecorationPattern.Solid);
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);

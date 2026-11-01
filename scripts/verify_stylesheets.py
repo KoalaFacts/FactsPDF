@@ -413,7 +413,7 @@ def main():
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Unsupported RGB alpha modified the destination')
         # A rejected decoration cannot corrupt a previous PDF, even in AOT.
-        bad.write_text("<p style='text-decoration:overline'>Unsupported</p>", encoding='utf-8')
+        bad.write_text("<p style='text-decoration:underline wavy'>Unsupported</p>", encoding='utf-8')
         proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
                               capture_output=True, timeout=120)
         if proc.returncode != 3 or b'FPDF1202' not in proc.stderr or proc.stdout:

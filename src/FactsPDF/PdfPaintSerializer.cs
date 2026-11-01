@@ -60,16 +60,48 @@ internal static class PdfPaintSerializer
         if (run.Style.Decoration == TextDecoration.None || run.Width <= 0) return;
         var size = run.Style.FontSize;
         var thickness = Math.Max(0.3, size * 0.06);
-        var centre = run.Style.Decoration == TextDecoration.Underline
-            ? run.Baseline - 0.12 * size : run.Baseline + 0.29 * size;
+        var centre = run.Style.Decoration switch
+        {
+            TextDecoration.Underline => run.Baseline - 0.12 * size,
+            TextDecoration.LineThrough => run.Baseline + 0.29 * size,
+            TextDecoration.Overline => run.Baseline + 0.78 * size,
+            _ => throw new InvalidOperationException("Unsupported text decoration.")
+        };
         var y = centre - thickness / 2;
         if (!double.IsFinite(run.X + y + run.Width + thickness) || run.Width < 0)
             throw new InvalidOperationException("Invalid text decoration geometry.");
-        var c = run.Style.Color;
-        output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
-            .Append(N(c.B)).Append(" rg ").Append(N(run.X)).Append(' ').Append(N(y))
-            .Append(' ').Append(N(run.Width)).Append(' ').Append(N(thickness))
-            .Append(" re f Q\n");
+        var c = run.Style.DecorationColor ?? run.Style.Color;
+        if (run.Style.DecorationPattern == TextDecorationPattern.Solid)
+        {
+            // Keep the legacy opaque rectangle path byte-for-byte identical
+            // when neither new paint longhand is supplied.
+            output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
+                .Append(N(c.B)).Append(" rg ").Append(N(run.X)).Append(' ').Append(N(y))
+                .Append(' ').Append(N(run.Width)).Append(' ').Append(N(thickness))
+                .Append(" re f Q\n");
+        }
+        else
+        {
+            // A single PDF stroked path is charged as one decoration command.
+            // Clip the dash marks/round caps inside the measured glyph advance:
+            // no extension into neighbouring cells or outside the PDF panel.
+            if (run.Width < 0.001)
+                throw new FactsPdfException("FPDF1302", "Text decoration is too short to paint.");
+            output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
+                .Append(N(c.B)).Append(" RG ").Append(N(thickness)).Append(" w ");
+            if (run.Style.DecorationPattern == TextDecorationPattern.Dashed)
+                output.Append('[').Append(N(3 * thickness)).Append(' ')
+                    .Append(N(3 * thickness)).Append("] 0 d ");
+            else if (run.Style.DecorationPattern == TextDecorationPattern.Dotted)
+                output.Append("1 J [0.001 ").Append(N(2 * thickness)).Append("] 0 d ");
+            else
+                throw new InvalidOperationException("Unsupported text decoration stroke.");
+            output.Append(N(run.X)).Append(' ').Append(N(y)).Append(' ')
+                .Append(N(run.Width)).Append(' ').Append(N(thickness))
+                .Append(" re W n ").Append(N(run.X)).Append(' ').Append(N(centre))
+                .Append(" m ").Append(N(run.X + run.Width)).Append(' ').Append(N(centre))
+                .Append(" l S Q\n");
+        }
         if (output.Length > maxOutputBytes)
             throw new FactsPdfException("FPDF1401", "PDF text decoration exceeds MaxOutputBytes.");
     }

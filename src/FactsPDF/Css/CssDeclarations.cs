@@ -7,7 +7,8 @@ internal enum CssProperty
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
-    MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign
+    MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
+    TextDecorationColor, TextDecorationStyle
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -96,6 +97,8 @@ internal static class CssDeclarations
             CssProperty.LineHeight => style with { LineHeight = source.LineHeight, AbsoluteLineHeight = source.AbsoluteLineHeight },
             CssProperty.TextAlign => style with { Alignment = source.Alignment },
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
+            CssProperty.TextDecorationColor => style with { DecorationColor = source.DecorationColor },
+            CssProperty.TextDecorationStyle => style with { DecorationPattern = source.DecorationPattern },
             CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap, PreserveLineBreaks = source.PreserveLineBreaks, PreserveSpaces = source.PreserveSpaces },
             CssProperty.OverflowWrap => style with { BreakWords = source.BreakWords },
             CssProperty.TextIndent => style with { FirstLineIndent = source.FirstLineIndent },
