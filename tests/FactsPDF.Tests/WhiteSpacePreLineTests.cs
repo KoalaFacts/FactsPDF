@@ -73,7 +73,7 @@ public sealed class WhiteSpacePreLineTests
     [Test]
     public void ConsecutiveTrailingSourceBreaksRetainTheLastRealBlankLine()
     {
-        const string actual = "<p style='white-space:pre-line;margin:0'>A\\n\\n</p>" +
+        const string actual = "<p style='white-space:pre-line;margin:0'>A\n\n</p>" +
             "<p style='margin:0'>B</p>";
         const string oracle = "<p style='margin:0'>A<br><br></p>" +
             "<p style='margin:0'>B</p>";
@@ -91,7 +91,7 @@ public sealed class WhiteSpacePreLineTests
             "<col style='width:120pt'></colgroup><tbody><tr><td>";
         const string end = "</td></tr></tbody></table>";
         const string actual = start +
-            "<p style='white-space:pre-line;margin:0'>\\n\\n\\n</p>" +
+            "<p style='white-space:pre-line;margin:0'>\n\n\n</p>" +
             "<p style='margin:0'>AFTER</p>" + end;
         const string oracle = start +
             "<p style='margin:0'><br><br><br></p>" +
