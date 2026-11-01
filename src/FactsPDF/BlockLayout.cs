@@ -4,7 +4,8 @@ internal abstract record BlockLayoutStep;
 internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph,
     double MarginTop = 0, double RequiredRuleHeight = 0,
-    double MinimumOuterHeight = 0, double TrailingSpace = 0) : BlockLayoutStep;
+    double MinimumOuterHeight = 0, double TrailingSpace = 0,
+    double? FixedOuterHeight = null) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
@@ -97,11 +98,20 @@ internal static class BlockLayout
                     if (!double.IsFinite(minimumOuterHeight) || minimumOuterHeight > 14_400)
                         throw new FactsPdfException("FPDF1302",
                             "Computed minimum panel height exceeds supported bounds.", node.SourceOffset);
+                    // Fixed-height panels must fit on one page with no clipping.
+                    double? fixedOuterHeight = style.Height is { } fixedHeight
+                        ? (style.BorderBoxSizing
+                            ? Math.Max(fixedHeight.Value, box.Top + box.Bottom)
+                            : fixedHeight.Value + box.Top + box.Bottom)
+                        : null;
+                    if (!double.IsFinite(fixedOuterHeight ?? 0) || fixedOuterHeight > 14_400)
+                        throw new FactsPdfException("FPDF1302",
+                            "Computed fixed panel height exceeds supported bounds.", node.SourceOffset);
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
                         marginTop, requiredEmptyPaintHeight, minimumOuterHeight,
-                        box.Bottom + marginBottom);
+                        box.Bottom + marginBottom, fixedOuterHeight);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight, MarginBottom: marginBottom));
                     break;
