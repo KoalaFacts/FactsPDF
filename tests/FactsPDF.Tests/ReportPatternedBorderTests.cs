@@ -185,6 +185,26 @@ public sealed class ReportPatternedBorderTests
         Assert.That(y1, Is.EqualTo(y2), "The horizontal stroke must stay level.");
     }
 
+    [TestCase("dashed")]
+    [TestCase("dotted")]
+    public void NearEqualEdgesRetainDistinctSerializedEndpointsAndMeasuredClipping(string kind)
+    {
+        var vertical = "<div style='border-left:20pt " + kind +
+            " red;padding-bottom:20.0001pt'></div>";
+        var verticalBox = Layout(vertical).Single().PaintBoxes.Single();
+        Assert.That(verticalBox.Height, Is.EqualTo(20.0001).Within(0.000001));
+        var v = ClippedLine(Encoding.ASCII.GetString(Pdf(vertical)));
+        Assert.That(v.X1, Is.EqualTo(v.X2));
+        Assert.That(v.Y1, Is.Not.EqualTo(v.Y2),
+            "Rounding 210 and 209.9999 to three PDF decimals must never erase a border.");
+
+        var horizontal = "<div style='width:20.0001pt;border-top:20pt " + kind + " red'></div>";
+        var h = ClippedLine(Encoding.ASCII.GetString(Pdf(horizontal)));
+        Assert.That(h.X1, Is.Not.EqualTo(h.X2),
+            "A near-equal horizontal edge must not collapse after PDF serialization.");
+        Assert.That(h.Y1, Is.EqualTo(h.Y2));
+    }
+
     [TestCase(20)]
     [TestCase(36)]
     public void MinimumVisiblePatternWidthIsIndependentOfPageMargin(int margin)

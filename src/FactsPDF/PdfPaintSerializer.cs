@@ -137,19 +137,20 @@ internal static class PdfPaintSerializer
         // Both values serialize to the same visible 0.001pt PDF linewidth.
         if (stroke < 0.001 - 1e-10)
             throw new FactsPdfException("FPDF1302", "Patterned border is too thin to paint.");
-        var length = horizontal ? width : height;
-        // Ordinary strokes keep their old byte/geometry path. On short edges,
-        // inset-by-half-width collapses the line to a point, and round caps
-        // extend outside the measured box. Draw a nonzero centreline and clip
-        // its caps and dashes to the original edge rectangle instead.
-        var clipShortEdge = length <= stroke + 1e-10;
-        var inset = clipShortEdge ? 0d : stroke / 2;
-        var x1 = horizontal ? x + inset : x + width / 2;
-        var x2 = horizontal ? x + width - inset : x1;
-        var y1 = horizontal ? pageHeight - top - height / 2 : pageHeight - top - inset;
-        var y2 = horizontal ? y1 : pageHeight - top - height + inset;
+        // Border strokes span the *full* measured edge and are clipped to the
+        // edge rectangle. An inset centreline can disappear after N() rounds
+        // two nearby endpoints to the same PDF coordinate (even when the
+        // edge is longer than its thickness). Clipping also contains the
+        // round end caps of dotted strokes on every page fragment.
+        // The solid branch above deliberately retains its original PDF bytes.
+        var x1 = horizontal ? x : x + width / 2;
+        var x2 = horizontal ? x + width : x1;
+        var y1 = horizontal ? pageHeight - top - height / 2 : pageHeight - top;
+        var y2 = horizontal ? y1 : pageHeight - top - height;
         if (!double.IsFinite(x1 + x2 + y1 + y2 + stroke))
             throw new InvalidOperationException("Invalid patterned border geometry.");
+        if (N(x1) == N(x2) && N(y1) == N(y2))
+            throw new FactsPdfException("FPDF1302", "Patterned border edge is too short to paint.");
         output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
             .Append(N(color.B)).Append(" RG ").Append(N(stroke)).Append(" w ");
         if (edge.Pattern == BorderPattern.Dashed)
@@ -158,10 +159,11 @@ internal static class PdfPaintSerializer
             output.Append("1 J [0.001 ").Append(N(2 * stroke)).Append("] 0 d ");
         else
             throw new InvalidOperationException("Invalid patterned border kind.");
-        if (clipShortEdge)
-            output.Append(N(x)).Append(' ').Append(N(pageHeight - top - height))
-                .Append(' ').Append(N(width)).Append(' ').Append(N(height))
-                .Append(" re W n ");
+        // One clip per stroke, inside the q/Q state pair. This prevents both
+        // dash fragments and round caps from painting outside the measured box.
+        output.Append(N(x)).Append(' ').Append(N(pageHeight - top - height))
+            .Append(' ').Append(N(width)).Append(' ').Append(N(height))
+            .Append(" re W n ");
         output.Append(N(x1)).Append(' ').Append(N(y1)).Append(" m ")
             .Append(N(x2)).Append(' ').Append(N(y2)).Append(" l S Q\n");
         if (output.Length > maxOutputBytes)

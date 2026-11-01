@@ -495,6 +495,7 @@ def verify_native_patterned_borders(executable, output, work):
             style = ('dotted' if b'1 J [0.001 4] 0 d' in line
                      else 'dashed' if b'[6 6] 0 d' in line else 'unknown')
             assert style != 'unknown', ('Unexpected native border stroke pattern', line)
+            assert b' re W n ' in line, ('Patterned border lacks measured-box clipping', line)
             values = [float(parts[index]) for index in
                       (parts.index(b'm')-2, parts.index(b'm')-1,
                        parts.index(b'l')-2, parts.index(b'l')-1)]
