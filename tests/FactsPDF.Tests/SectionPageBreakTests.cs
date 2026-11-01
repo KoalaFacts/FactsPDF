@@ -303,6 +303,24 @@ public sealed class SectionPageBreakTests
         Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 1"));
     }
 
+    [TestCase("padding-top:12pt")]
+    [TestCase("margin-top:7pt;padding-top:12pt")]
+    public void CarriedOpeningPaddingOccupiesFreshPageBeforeAnotherSectionBoundary(string opening)
+    {
+        var html = "<div style='" + opening + "'><div style='padding-bottom:5pt'></div>" +
+            "<section style='break-before:page'></section></div>" +
+            "<section style='break-before:page'><p style='margin:0'>SECOND</p></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(3));
+        Assert.That(pages[0].Runs, Is.Empty);
+        Assert.That(pages[1].Runs, Is.Empty);
+        Assert.That(pages[2].Runs.Single().Text, Is.EqualTo("SECOND"));
+        var freshBaseline = Layout("<p style='margin:0'>SECOND</p>")[0].Runs.Single().Baseline;
+        Assert.That(pages[2].Runs.Single().Baseline,
+            Is.EqualTo(freshBaseline).Within(0.000001));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 3"));
+    }
+
     [Test]
     public void ParagraphExplicitInheritReadsContainingPanelPageBreak()
     {

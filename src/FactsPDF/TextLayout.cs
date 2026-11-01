@@ -9,7 +9,7 @@ internal static class TextLayout
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
         bool HasParagraphDescendant = false, bool TopConsumed = false,
         double MarginTop = 0, double MinimumOuterHeight = 0,
-        int OpeningGeometryPage = -1);
+        int OpeningMarginPage = -1, int OpeningPaddingPage = -1);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -125,8 +125,11 @@ internal static class TextLayout
                     // StartPage can be rebased for an unpainted continuation.
                     // Already occupied opening margins/padding belong to their
                     // original page, even when the box has not emitted text.
-                    OpeningGeometryPage = scope.HasOccupiedDescendant
-                        ? scope.OpeningGeometryPage : pages.Count - 1
+                    OpeningMarginPage = scope.HasOccupiedDescendant
+                        ? scope.OpeningMarginPage : pages.Count - 1,
+                    // Still-unconsumed top padding moves even if a prior
+                    // empty child already occupied its own box geometry.
+                    OpeningPaddingPage = pages.Count - 1
                 };
                 leading += firstMargin + firstPadding;
             }
@@ -224,7 +227,8 @@ internal static class TextLayout
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
                     pages.Count - 1, start, paintOrder++, begin.IsParagraph,
                     MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight,
-                    OpeningGeometryPage: pages.Count - 1));
+                    OpeningMarginPage: pages.Count - 1,
+                    OpeningPaddingPage: pages.Count - 1));
                 // Outside the border: only first-page placement and the
                 // containing ancestor's occupied content change, never paint.
                 pendingClosedPadding += begin.MarginTop;
@@ -351,9 +355,11 @@ internal static class TextLayout
                 // not proof of current-page occupancy after an empty page break.
                 // Opening margins/padding belong only to their opening page;
                 // closing padding/margins are genuinely on this page.
-                var originOnThisPage = scope.OpeningGeometryPage == pages.Count - 1;
+                var marginOnThisPage = scope.OpeningMarginPage == pages.Count - 1;
+                var paddingOnThisPage = scope.OpeningPaddingPage == pages.Count - 1;
                 var occupiesSpace = emittedPaint ||
-                    (originOnThisPage && (scope.Top > 0 || scope.MarginTop > 0)) ||
+                    (paddingOnThisPage && scope.Top > 0) ||
+                    (marginOnThisPage && scope.MarginTop > 0) ||
                     closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
                     minimumExtra > 0 || (scope.IsParagraph && after > 0);
                 if (occupiesSpace)
