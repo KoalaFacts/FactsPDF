@@ -2,6 +2,27 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
+### Bounded image sizing for report logos and evidence photos (source-only)
+
+Explicitly bound JPEG/PNG images can now use `max-width:100%` and
+`min-width` (bounded nonnegative print lengths/percentages), with
+`box-sizing:border-box` for image padding and borders. Actual PDF image
+matrices scale to the used **content** width while preserving the source
+aspect ratio; direct images in fixed-column cells use the true cell width,
+including `colspan`. The existing CSS cascade and explicit
+`inherit/initial/unset` apply. No unrequested automatic shrinking,
+`height`, `object-fit`, network fetch, `calc()`, image `em/rem`,
+transforms, or fractional page splits. Unplaceable images fail before
+replacing an existing output.
+
+The [36-record inspection report](examples/report-responsive-images.html),
+[independently authored fixed-width control](examples/report-responsive-images-oracle.html),
+NUnit image/row tests and Linux/Windows Native AOT/qpdf/Poppler gate verify
+real PDF bytes, searchability, pagination and protected error recovery.
+[Precise image contract](docs/images.md#responsive-standalone-and-cell-image-widths).
+Engine source `b6bebe8e3b97f13190148c6f53bed49ec2678ede`;
+new private software, human reference approval, CI and customer rights are separate.
+
 ### Full-width invoice identifier wrapping (source-only)
 
 For tightly spaced reference numbers, use `word-break:break-all` on a whole
@@ -663,7 +684,7 @@ the default `content-box` constrains the content width instead. Supported
 lengths are nonnegative `pt/px/mm/cm/in/%` or zero; `min-width:auto`
 and `max-width:none` remove the constraint. Actual over-constrained geometry
 is rejected without replacing prior output. This is only ordinary report
-blocks/paragraphs/headings; image, table and inline sizing stay separate.
+blocks/paragraphs/headings; table and inline sizing stay separate; image constraints use their own bounded, aspect-ratio-preserving layout.
 See [CSS scope](docs/css-stylesheets.md#current-source-bounded-report-minmax-widths)
 and the [runnable report](examples/report-width-constraints.html).
 

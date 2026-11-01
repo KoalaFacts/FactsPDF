@@ -1,3 +1,18 @@
+## Source-only image width constraints for report logos
+
+Authors who bind a PNG/JPEG explicitly can write `max-width:100%` on an
+`img` to cap its actual PDF matrix to a parent card or a fixed-column table
+cell; `min-width` and opt-in `box-sizing:border-box` also use the real
+image/padding/border geometry while preserving pixel aspect ratio.
+A [36-record multipage specimen](../examples/report-responsive-images.html)
+is compared byte-for-byte against an
+[independently authored point-width projection](../examples/report-responsive-images-oracle.html)
+in the shared Native AOT, qpdf and Poppler gate. Invalid/unfittable input
+does not replace previous PDFs. No automatic shrink, independent height,
+object-fit, external URL fetch, rem/em image widths, flex/grid, or new
+human-approved/customer binary. Source `b6bebe8e3b97f13190148c6f53bed49ec2678ede`;
+CI and independent review are separate.
+
 ## Source-only scoped break-all report identifiers
 
 Author whole paragraphs/headings with `word-break:break-all` when narrow

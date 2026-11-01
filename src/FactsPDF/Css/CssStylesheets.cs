@@ -217,9 +217,13 @@ internal sealed class CssStylesheets
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
+            // Direct, explicitly bound images now consume these constraints through
+            // their measured outer box, including direct image items in cells.
+            // Table tracks and cell layouts remain separately controlled and
+            // cannot silently accept sizing declarations they do not render.
             if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
-                (element.Name is "img" or "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
-                throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary block boxes.", declaration.Offset);
+                (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
+                throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
             if (cellParagraph && declaration.Property == CssProperty.TextIndent)
                 throw new FactsPdfException("FPDF1201", "text-indent is not supported inside table cells.", declaration.Offset);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
