@@ -26,4 +26,4 @@ title: "[Template fit] "
 - [ ] I have reviewed [current evaluation boundaries](https://github.com/KoalaFacts/FactsPDF/blob/main/docs/evaluation.md) and [licensing requirements](https://github.com/KoalaFacts/FactsPDF/blob/main/LICENSING.md).
 - [ ] I would like maintainers to explain the next step for a private assessment (no private contact details here).
 
-<!-- FactsPDF remains 0.1.0-dev: no stable API, public NuGet package, or guaranteed template compatibility. An issue is not a contract, order, evaluation license or support SLA. -->
+<!-- FactsPDF source declares 0.1.0-preview.1: no stable API, publicly released NuGet/CLI package, general evaluation grant, or guaranteed template compatibility. An issue is not a contract, order, evaluation license or support SLA. -->
