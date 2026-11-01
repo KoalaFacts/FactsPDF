@@ -19,6 +19,17 @@ public sealed class ReportPatternedBorderTests
     private static LayoutPage[] Layout(string html)
         => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default).ToArray();
 
+    private static (string X1, string Y1, string X2, string Y2) ClippedLine(string pdf)
+    {
+        var line = pdf.Split('\n').Single(value => value.Contains(" re W n "));
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var move = Array.IndexOf(parts, "m");
+        var draw = Array.IndexOf(parts, "l");
+        Assert.That(move, Is.GreaterThan(1), "Missing PDF move-to operator.");
+        Assert.That(draw, Is.GreaterThan(move + 2), "Missing PDF line-to operator.");
+        return (parts[move - 2], parts[move - 1], parts[draw - 2], parts[draw - 1]);
+    }
+
     private static void FailsAndRetains(string html, string code, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
@@ -151,6 +162,10 @@ public sealed class ReportPatternedBorderTests
         Assert.That(pdf, Does.Contain(" re W n "),
             "The short or square line and its caps must be clipped to the measured border slice.");
         Assert.That(pdf, Does.Contain(" l S Q"), "A real noncollapsed stroke must be emitted.");
+        var (x1, y1, x2, y2) = ClippedLine(pdf);
+        Assert.That(x1, Is.EqualTo(x2), "The side stroke must stay vertical.");
+        Assert.That(y1, Is.Not.EqualTo(y2),
+            "The serialized stroke must have distinct endpoints even at equal thickness and length.");
     }
 
     [TestCase("dashed", "[60 60] 0 d")]
@@ -165,6 +180,9 @@ public sealed class ReportPatternedBorderTests
         Assert.That(pdf, Does.Contain(expectedPattern));
         Assert.That(pdf, Does.Contain(" re W n "));
         Assert.That(pdf, Does.Contain(" l S Q"));
+        var (x1, y1, x2, y2) = ClippedLine(pdf);
+        Assert.That(x1, Is.Not.EqualTo(x2), "Short horizontal strokes must have real length.");
+        Assert.That(y1, Is.EqualTo(y2), "The horizontal stroke must stay level.");
     }
 
     [TestCase(20)]
