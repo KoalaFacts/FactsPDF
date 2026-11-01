@@ -159,7 +159,7 @@ internal static class CssDeclarations
         }
         if (property == CssProperty.MinHeight)
         {
-            var length = wide ? null : CssBoxValues.Length(value, declaration.Offset,
+            CssLength? length = wide ? null : CssBoxValues.Length(value, declaration.Offset,
                 rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
             if (length?.IsPercent == true)
                 throw new FactsPdfException("FPDF1202",
