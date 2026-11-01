@@ -8,7 +8,8 @@ internal static class TextLayout
         double X, double Width, Rgb TextColor, int SourceOffset, int StartPage,
         double StartY, int Order, bool IsParagraph, bool HasOccupiedDescendant = false,
         bool HasParagraphDescendant = false, bool TopConsumed = false,
-        double MarginTop = 0, double MinimumOuterHeight = 0);
+        double MarginTop = 0, double MinimumOuterHeight = 0,
+        int OpeningGeometryPage = -1);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -112,12 +113,18 @@ internal static class TextLayout
                 // An unconsumed first fragment retains its outside top margin
                 // when moving to a fresh page; a continued fragment never does.
                 var firstMargin = scope.HasOccupiedDescendant ? 0 : scope.MarginTop;
+                var firstPadding = scope.HasOccupiedDescendant ? 0 : scope.Top;
                 if (apply) opened[i] = scope with
                 {
                     StartPage = pages.Count - 1,
-                    StartY = o.Margin + leading + firstMargin
+                    StartY = o.Margin + leading + firstMargin,
+                    // StartPage can be rebased for an unpainted continuation.
+                    // Already occupied opening margins/padding belong to their
+                    // original page, even when the box has not emitted text.
+                    OpeningGeometryPage = scope.HasOccupiedDescendant
+                        ? scope.OpeningGeometryPage : pages.Count - 1
                 };
-                leading += firstMargin + scope.Top;
+                leading += firstMargin + firstPadding;
             }
             if (apply) pendingTopPadding = leading;
             return leading;
@@ -212,7 +219,8 @@ internal static class TextLayout
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
                     pages.Count - 1, start, paintOrder++, begin.IsParagraph,
-                    MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight));
+                    MarginTop: begin.MarginTop, MinimumOuterHeight: begin.MinimumOuterHeight,
+                    OpeningGeometryPage: pages.Count - 1));
                 // Outside the border: only first-page placement and the
                 // containing ancestor's occupied content change, never paint.
                 pendingClosedPadding += begin.MarginTop;
@@ -330,7 +338,7 @@ internal static class TextLayout
                 // not proof of current-page occupancy after an empty page break.
                 // Opening margins/padding belong only to their opening page;
                 // closing padding/margins are genuinely on this page.
-                var originOnThisPage = scope.StartPage == pages.Count - 1;
+                var originOnThisPage = scope.OpeningGeometryPage == pages.Count - 1;
                 var occupiesSpace = emittedPaint ||
                     (originOnThisPage && (scope.Top > 0 || scope.MarginTop > 0)) ||
                     closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
@@ -587,11 +595,17 @@ internal static class TextLayout
             {
                 // Empty painted/padded paragraphs still occupy box geometry
                 // and can request page breaks, even without glyphs.
-                if (paragraph.Style.BreakBefore && HasRetainedPageContent())
+                if (breakNext || paragraph.Style.BreakBefore)
                 {
-                    NewPage();
-                    MoveUnconsumedBlocksToNewPage();
-                    pendingClosedPadding = 0;
+                    if (HasRetainedPageContent())
+                    {
+                        NewPage();
+                        MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
+                    }
+                    // An empty paragraph consumes a preceding section boundary
+                    // exactly once. Its own break-after is scheduled below.
+                    breakNext = false;
                 }
                 if (opened.Count > 0 && opened[^1].IsParagraph &&
                     opened[^1].ContentEpoch == contentEpoch &&

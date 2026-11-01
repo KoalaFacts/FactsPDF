@@ -260,6 +260,37 @@ public sealed class SectionPageBreakTests
     }
 
     [Test]
+    public void EmptyParagraphConsumesPrecedingSectionBreakWithoutAnExtraBlankPage()
+    {
+        const string html = "<section style='break-after:page'><p style='margin:0'>FIRST</p></section>" +
+            "<p style='break-before:page'></p><p style='margin:0'>SECOND</p>";
+        var control = html.Replace("break-before:page", "break-before:auto");
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("FIRST"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+        Assert.That(Render(html), Is.EqualTo(Render(control)));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 2"));
+    }
+
+    [TestCase("margin-top:12pt")]
+    [TestCase("padding-top:12pt")]
+    public void ConsumedOpeningSpaceCannotReoccupyAnEmptyContinuationPage(string opening)
+    {
+        var html = "<div style='" + opening + "'><div style='min-height:80pt'></div>" +
+            "<section style='break-before:page'></section></div>" +
+            "<section style='break-before:page'><p style='margin:0'>SECOND</p></section>";
+        var pages = Layout(html);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs, Is.Empty);
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("SECOND"));
+        var freshBaseline = Layout("<p style='margin:0'>SECOND</p>")[0].Runs.Single().Baseline;
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(freshBaseline).Within(0.000001));
+        Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 2"));
+    }
+
+    [Test]
     public void ParagraphExplicitInheritReadsContainingPanelPageBreak()
     {
         const string inherit = "<section style='break-after:page'>" +
