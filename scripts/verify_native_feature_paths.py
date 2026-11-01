@@ -887,6 +887,50 @@ def verify_native_minimum_height(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+
+def verify_native_fixed_height(executable, output, work):
+    """Independently inspect actual native fixed-height report pages and recovery."""
+    source = ROOT / 'examples/report-fixed-height-cards.html'
+    oracle = ROOT / 'examples/report-fixed-height-cards-oracle.html'
+    assert source.is_file() and oracle.is_file()
+    actual = output / 'fixed-height-cards.pdf'
+    expected = output / 'fixed-height-cards-control.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, expected, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', expected)
+    assert actual.read_bytes() == expected.read_bytes(), (
+        'Native fixed-height report changed glyph or painted-box geometry against bounded oracle')
+    pages = count_pages(actual)
+    assert pages >= 3, 'Forty fixed-height report cards must paginate'
+    words = [word for page in range(1, pages + 1)
+             for word in page_boxes(actual, page)[2]]
+    labels = [word[0] for word in words if re.fullmatch(r'CHK\d{3}', word[0])]
+    assert labels == [f'CHK{i:03d}' for i in range(1, 41)], (
+        'Fixed-height labels missing, duplicated or reordered', labels)
+    assert b' re f Q' in actual.read_bytes(), 'Native fixed-height backgrounds not painted'
+    invalid = work / 'fixed-height-invalid.html'
+    retained = output / 'fixed-height-preserved.pdf'
+    for html, code in (
+        ('<section style="height:30%">Invalid</section>', b'FPDF1202'),
+        ('<p style="height:40pt">Invalid</p>', b'FPDF1201'),
+        ('<section style="height:5pt"><p style="margin:0">Too tall</p></section>', b'FPDF1302'),
+    ):
+        invalid.write_text(html, encoding='utf-8')
+        retained.write_bytes(b'previous customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and code in failed.stderr and not failed.stdout, (
+            'Invalid native fixed-height input was accepted', failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'previous customer PDF', 'Native fixed-height failure damaged PDF'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Native fixed-height recovery changed output'
+    return {'cards': 40, 'pages': pages, 'sourceSha256': sha(source),
+            'oracleSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'nativePdfByteParity': True, 'realPaintAndSearchableLabels': True,
+            'protectedFailureRecovery': True}
+
+
 def verify_native_section_page_breaks(executable, output, work):
     """Real native HTML-to-PDF section boundaries against a separately authored CSS oracle."""
     original = ROOT / 'examples/report-section-page-breaks.html'
@@ -1017,6 +1061,7 @@ def main():
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
         minimum_height = verify_native_minimum_height(isolated, output, work)
+        fixed_height = verify_native_fixed_height(isolated, output, work)
         section_breaks = verify_native_section_page_breaks(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
@@ -1039,6 +1084,7 @@ def main():
             'decorationPaint': decoration_paint,
             'roundedPanels': rounded_panels,
             'minimumHeight': minimum_height,
+            'fixedHeight': fixed_height,
             'sectionPageBreaks': section_breaks,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
