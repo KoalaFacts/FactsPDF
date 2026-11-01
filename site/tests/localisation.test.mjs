@@ -308,3 +308,14 @@ test('new source-bound panel breaks have fully translated English limits',async(
   }
   assert.match(translate(data.css_inventory_note),/78 scoped CSS property names/);
 });
+
+test('fixed-height card translation does not misrepresent general CSS Sizing', async () => {
+  const {englishFeature} = await localisation();
+  const height = englishFeature(data.features.find(row => row.id === 'css.height'));
+  assert.equal(height.status, 'partial');
+  assert.match(height.scope, /actual|really change/);
+  assert.match(height.scope, /content-box\/border-box/);
+  assert.match(height.limitations, /FPDF1302/);
+  assert.match(height.limitations, /Not general CSS Sizing/);
+  assert.doesNotMatch(height.scope + height.limitations, han);
+});
