@@ -111,7 +111,7 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   assert.match(display.scope,/fixed-column table cells/);
   assert.match(display.limitations,/nowrap prohibits automatic breaks/);
   assert.match(display.limitations,/FPDF1302/);
-  assert.match(translate(data.css_inventory_note),/accept 70 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/accept 71 CSS property names/);
   assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
 });
 
@@ -134,7 +134,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
   const margin=englishFeature(data.features.find(row=>row.id==='css.margin'));
   assert.match(margin.limitations,/vertical percentage\/auto/);
   assert.match(margin.limitations,/FPDF1302/);
-  assert.match(translate(data.css_inventory_note),/70 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/71 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin:0 auto/);
   assert.match(data.audit_method,/Five-record source-bound report panel/);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
@@ -161,7 +161,7 @@ test('real vertical panel margins retain exact English scope and source identity
   assert.match(margin.scope,/margin:0 auto/);
   assert.match(margin.scope,/margin:12pt auto 7pt/);
   assert.match(margin.limitations,/table-cell p/);
-  assert.match(translate(data.css_inventory_note),/70 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/71 CSS property names/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
   assert.equal(data.features.length,418);
   assert.match(data.audit_method,/413 other stable-ID records remain unchanged/);
@@ -207,7 +207,7 @@ test('LTR logical spacing has complete English audit text', async () => {
     assert.match(row.limitations,/FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
-  assert.match(translate(data.css_inventory_note),/accept 70 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/accept 71 CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin-inline-start/);
   assert.match(translate(data.css_inventory_note),/padding-block-end/);
   assert.match(translate(data.css_inventory_note),/without repeating margins/);
@@ -237,7 +237,7 @@ test('real display:none source limitations are completely translated into Englis
   assert.match(feature.scope,/pagination space/);
   assert.match(feature.limitations,/hidden attribute/);
   assert.match(feature.limitations,/strict HTML\/CSS/);
-  assert.match(translate(data.css_inventory_note),/70 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/71 CSS property names/);
   assert.match(translate(data.css_inventory_note),/Scoped display:block\/none/);
 });
 
@@ -252,7 +252,7 @@ test('bounded CSS list markers have complete English source-bound translations',
   assert.match(entry.scope,/lower-roman/);
   assert.match(entry.scope,/Actual PDF/);
   assert.match(entry.limitations,/3999/);
-  assert.match(translate(data.css_inventory_note),/70 CSS property names/);
+  assert.match(translate(data.css_inventory_note),/71 CSS property names/);
   assert.doesNotMatch(entry.scope+' '+entry.limitations,han);
   for(const id of ['html.ol','html.ul','html.li'])
     assert.doesNotMatch(englishFeature(data.features.find(f=>f.id===id)).scope,han);
@@ -280,6 +280,15 @@ test('scoped whole-row vertical alignment has audited English rendering',async()
  assert.match(row.scope,/Fixed-column table td\/th/);
  assert.match(row.limitations,/FPDF1302/);
  assert.match(row.limitations,/No rowspan/);
- assert.match(translate(data.css_inventory_note),/70 CSS property names/);
+ assert.match(translate(data.css_inventory_note),/71 CSS property names/);
  assert.doesNotMatch(row.scope+' '+row.limitations,han);
+});
+
+test('rounded report panel audit translates vector paint and explicit limits',async()=>{
+ const {englishFeature,translate}=await localisation();
+ const f=englishFeature(data.features.find(x=>x.id==='css.border-radius'));
+ assert.equal(f.status,'partial');assert.match(f.scope,/Bezier/);
+ assert.match(f.scope,/page/);assert.match(f.limitations,/ellipses/);
+ assert.match(f.limitations,/FPDF1201\/1202\/1302\/1401/);
+ assert.match(translate(data.css_inventory_note),/71 bounded CSS property names/);
 });
