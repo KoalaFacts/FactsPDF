@@ -192,7 +192,8 @@ public sealed class RoundedReportPanelTests
         var output = new StringBuilder();
         PdfPaintSerializer.Append(output, [box], Page.PageHeight, 16000, default);
         var commands = output.ToString();
-        Assert.That(commands.Split(" c ").Length - 1, Is.EqualTo(8));
+        Assert.That(commands.Split(" c ").Length - 1, Is.EqualTo(12),
+            "Four distinct curves must be present in each background, outer ring and inner ring path.");
         Assert.That(commands, Does.Contain("f* Q"));
     }
 
