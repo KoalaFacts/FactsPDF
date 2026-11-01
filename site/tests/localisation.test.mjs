@@ -63,6 +63,9 @@ test('missing translations fail explicitly instead of displaying stale or invent
 test('translated text keeps important scope restrictions and failure codes', async () => {
   const { englishFeature } = await localisation();
   const byId = id => englishFeature(data.features.find(row=>row.id===id));
+  assert.match(byId('css.white-space').scope, /pre-line/);
+  assert.match(byId('css.white-space').scope, /CRLF\/CR\/LF/);
+  assert.match(byId('css.white-space').limitations, /pre-wrap/);
   assert.match(byId('css.white-space').limitations, /nowrap/);
   assert.match(byId('css.white-space').limitations, /FPDF1302/);
   assert.match(byId('css.letter-spacing').scope, /0–24pt/);
