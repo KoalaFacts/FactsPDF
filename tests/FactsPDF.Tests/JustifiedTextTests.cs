@@ -132,8 +132,6 @@ public sealed class JustifiedTextTests
         Assert.That(Pdf("<p style='text-align:justify'>" + text + "</p>", small), Is.Not.Empty);
     }
 
-    [TestCase("text-align:start", "FPDF1202")]
-    [TestCase("text-align:end", "FPDF1202")]
     [TestCase("text-align:justify-all", "FPDF1202")]
     [TestCase("text-align:match-parent", "FPDF1202")]
     [TestCase("text-align:justify left", "FPDF1202")]

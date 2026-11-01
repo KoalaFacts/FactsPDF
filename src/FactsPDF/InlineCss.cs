@@ -126,9 +126,9 @@ internal static class InlineCss
                 case "text-align" when !inline:
                     style = style with { Alignment = value switch
                     {
-                        "left" => TextAlignment.Left, "center" => TextAlignment.Center, "right" => TextAlignment.Right,
+                        "left" or "start" => TextAlignment.Left, "center" => TextAlignment.Center, "right" or "end" => TextAlignment.Right,
                         "justify" => TextAlignment.Justify,
-                        _ => throw Invalid("Only left, center, right and word-space justify alignment are supported.", offset)
+                        _ => throw Invalid("Only left, center, right, LTR start/end and word-space justify alignment are supported.", offset)
                     } };
                     break;
                 case "margin-top" when paragraph: style = style with { MarginBefore = Margin(value, offset) }; break;

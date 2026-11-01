@@ -1113,6 +1113,46 @@ def main():
                 raise AssertionError('Invalid hidden report replaced the original PDF')
         print('Native display:none 40-entry PDF parity, pagination, text and recovery verified')
 
+
+    # Scoped left-to-right text-align:start/end are real PDF glyph coordinates:
+    # an independently authored physical-alignment report must produce equal bytes.
+    with tempfile.TemporaryDirectory(prefix='factspdf-logical-text-align-') as folder:
+        temp = Path(folder)
+        logical, physical = temp / 'logical.pdf', temp / 'physical.pdf'
+        for html, pdf in (
+            (Path('examples/report-logical-text-align.html'), logical),
+            (Path('examples/report-logical-text-align-oracle.html'), physical)
+        ):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if logical.read_bytes() != physical.read_bytes():
+            raise AssertionError('LTR start/end failed physical left/right PDF-byte parity')
+        page_data = run('pdfinfo', logical).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in page_data.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Logical text alignment report did not paginate')
+        text_data = run('pdftotext', '-raw', logical, '-').decode('utf-8')
+        for marker in ('Service alignment register', 'Ref 01 : service audit item',
+                       'Ref 46 : service audit item', 'Signed and issued for customer review.'):
+            if marker not in text_data:
+                raise AssertionError('Logical text alignment lost searchable PDF text: ' + marker)
+        bad, original = temp / 'bad.html', temp / 'original.pdf'
+        for html, diagnostic in (
+            ("<p style='text-align:match-parent'>A</p>", b'FPDF1202'),
+            ("<span style='text-align:end'>A</span>", b'FPDF1201'),
+            ("<p style='direction:rtl;text-align:start'>A</p>", b'FPDF1201')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            original.write_bytes(b'prior-accepted-report')
+            result = subprocess.run([str(exe), str(bad), str(original), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if result.returncode != 3 or diagnostic not in result.stderr or result.stdout:
+                raise AssertionError('Logical text alignment rejected incorrectly: ' + html)
+            if original.read_bytes() != b'prior-accepted-report':
+                raise AssertionError('Rejected logical text alignment overwrote the existing PDF')
+        print('Native LTR logical text alignment: 46-row parity, pagination, text, recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -1147,7 +1187,8 @@ def main():
                             'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_side_longhands_pdf_parity_pagination_and_recovery': True,
                              'native_quote_report_pdf_parity_pagination_and_recovery': True,
-                             'native_report_display_none_pdf_parity_pagination_and_recovery': True},
+                             'native_report_display_none_pdf_parity_pagination_and_recovery': True,
+                             'native_ltr_text_align_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
