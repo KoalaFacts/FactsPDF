@@ -48,8 +48,14 @@ internal static class ImageLayout
             heightMeasure = Math.Min(heightMeasure, Resolve(maxHeight));
         if (style.MinHeight is { } minHeight)
             heightMeasure = Math.Max(heightMeasure, Resolve(minHeight));
-        var height = Checked(heightMeasure - (style.BorderBoxSizing ? verticalEdges : 0), image.SourceOffset);
-        if (fixedHeight is null && height != unconstrainedHeight)
+        // Preserve the legacy height:auto computation byte-for-byte when no
+        // vertical bound is present; border-box arithmetic can otherwise
+        // introduce a rounding difference in every existing image PDF.
+        var height = style.MinHeight.HasValue || style.MaxHeight.HasValue
+            ? Checked(heightMeasure - (style.BorderBoxSizing ? verticalEdges : 0), image.SourceOffset)
+            : Checked(unconstrainedHeight, image.SourceOffset);
+        if (fixedHeight is null && (style.MinHeight.HasValue || style.MaxHeight.HasValue)
+            && Math.Abs(height - unconstrainedHeight) > 0.00000001)
         {
             // Height:auto preserves pixel aspect even after a CSS width cap.
             // Reject mutually unsatisfiable min/max-width versus height bounds
