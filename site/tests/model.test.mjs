@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'ac6cec7000b308b403dd95abcd14441240b1f791');
-  assert.match(dataset.commit_url, /ac6cec7000b308b403dd95abcd14441240b1f791/);
+  assert.equal(dataset.commit, 'b6bebe8e3b97f13190148c6f53bed49ec2678ede');
+  assert.match(dataset.commit_url, /b6bebe8e3b97f13190148c6f53bed49ec2678ede/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -113,10 +113,11 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'bc704aed90b1e5dbdc1deec65a7fd314b626467e');
+  assert.equal(feature.last_audited_commit,'b6bebe8e3b97f13190148c6f53bed49ec2678ede');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/border-box/);
   assert.match(feature.scope,/padding/);
+  assert.match(feature.scope,/img/);
   assert.match(feature.limitations,/img/);
   assert.match(feature.limitations,/table/);
   assert.match(feature.limitations,/FPDF1302/);
@@ -376,7 +377,7 @@ test('bounded report min/max widths are rendered, sourced and discoverable witho
   const max=dataset.features.find(f=>f.id==='css.max-width');
   for (const f of [min,max]) {
     assert.equal(f.status,'partial');
-    assert.equal(f.last_audited_commit,'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0');
+    assert.equal(f.last_audited_commit,'b6bebe8e3b97f13190148c6f53bed49ec2678ede');
     assert.equal(f.introduced_release,null);
     assert.match(f.scope,/width/);
     assert.match(f.limitations,/calc/);
@@ -395,7 +396,8 @@ test('root-rem and own-font em box lengths are bounded, evidence-backed partial 
     'css.padding-top','css.padding-right','css.padding-bottom','css.padding-left']){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',id);
+    assert.equal(feature.last_audited_commit, ['css.min-width','css.max-width'].includes(id)
+      ? 'b6bebe8e3b97f13190148c6f53bed49ec2678ede' : 'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0', id);
     assert.equal(feature.introduced_release,null,id);
     assert.match(feature.scope,/rem/,id);
     assert.match(feature.limitations,/table|表格/,id);
@@ -678,6 +680,23 @@ test('scoped word-break actually places glyphs and preserves all 418 feature ide
   assert.match(row.scope,/PDF/);
   assert.match(row.limitations,/FPDF1301\/1302/);
   assert.match(row.test_reference,/WordBreakTests.cs/);
+  assert.equal(dataset.features.length,418);
+  assert.equal(dataset.accepted_css_property_count,80);
+});
+
+test('bound image sizing appears without losing all 418 records or image transparency limits', () => {
+  const ids=['html.img','pdf.images','css.box-sizing','css.min-width','css.max-width'];
+  for(const id of ids){
+    const f=dataset.features.find(entry=>entry.id===id);
+    assert.equal(f.status,'partial',id);
+    assert.equal(f.last_audited_commit,'b6bebe8e3b97f13190148c6f53bed49ec2678ede',id);
+    assert.match(f.scope,/img|图片|图像/,id);
+    assert.match(f.limitations,/FPDF|height|自动缩小|自动收缩|无独立/,id);
+    assert.match(f.sources.join(' '),/ImageLayout\.cs/,id);
+  }
+  assert.match(dataset.features.find(f=>f.id==='html.img').scope,/border-box/);
+  assert.match(dataset.features.find(f=>f.id==='pdf.images').scope,/tRNS\/alpha/);
+  assert.match(dataset.features.find(f=>f.id==='css.max-width').scope,/百分比/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,80);
 });
