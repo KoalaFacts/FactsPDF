@@ -63,6 +63,50 @@ public sealed class CliCustomPaperTests
             "Passing dimensions equal to the public default must be byte-identical.");
     }
 
+    [TestCase("5080mm")]
+    [TestCase("508cm")]
+    [TestCase("200in")]
+    [TestCase("14400pt")]
+    public void InclusiveMaximumPaperWidthHasIdenticalPdfInEveryUnit(string width)
+    {
+        const string html = "<p>A</p><p style='break-before:page'>B</p>";
+        var actual = Run(["-", "-", "--page-width", width, "--page-height", "210mm"], html);
+        var canonical = Run(["-", "-", "--page-width", "14400pt", "--page-height", "210mm"], html);
+        Assert.That(actual.Exit, Is.Zero, actual.Stderr);
+        Assert.That(canonical.Exit, Is.Zero, canonical.Stderr);
+        Assert.That(actual.Pdf, Is.EqualTo(canonical.Pdf),
+            "An exact physical limit must not change because of a floating unit scale.");
+    }
+
+    [TestCase("25.4mm")]
+    [TestCase("2.54cm")]
+    [TestCase("1in")]
+    [TestCase("96px")]
+    [TestCase("72pt")]
+    public void InclusiveMinimumPaperWidthConvertsExactly(string width)
+    {
+        const string html = "<p>A</p>";
+        var actual = Run(["-", "-", "--page-width", width, "--page-height", "210mm",
+            "--margin", "12pt"], html);
+        var canonical = Run(["-", "-", "--page-width", "72pt", "--page-height", "210mm",
+            "--margin", "12pt"], html);
+        Assert.That(actual.Exit, Is.Zero, actual.Stderr);
+        Assert.That(actual.Pdf, Is.EqualTo(canonical.Pdf));
+    }
+
+    [TestCase("5080.0000000001mm")]
+    [TestCase("508.0000000001cm")]
+    [TestCase("200.0000000001in")]
+    [TestCase("14400.0000000001pt")]
+    public void GenuineOverLimitPaperDimensionsAreNeverRoundedIntoSupport(string width)
+    {
+        var actual = Run(["-", "-", "--page-width", width, "--page-height", "210mm"],
+            "<p>A</p>");
+        Assert.That(actual.Exit, Is.EqualTo(2));
+        Assert.That(actual.Pdf, Is.Empty);
+        Assert.That(actual.Stderr, Does.Contain("--page-width"));
+    }
+
     [Test]
     public void CustomPhysicalPaperPreservesExplicitUnicodeFontPngAndPageText()
     {
