@@ -148,10 +148,17 @@ internal static class UnicodePdfSerializer
                 offsets.Add(output.Position);
                 images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
+            int? infoId = null;
+            var info = PdfDocumentMetadata.BuildInfo(o);
+            if (info is not null)
+            {
+                infoId = offsets.Count;
+                Obj(infoId.Value, info);
+            }
             var xref = output.Position;
             Write("xref\n0 " + offsets.Count.ToString(CultureInfo.InvariantCulture) + "\n0000000000 65535 f \n");
             foreach (var offset in offsets.Skip(1)) Write(offset.ToString("0000000000", CultureInfo.InvariantCulture) + " 00000 n \n");
-            Write(FormattableString.Invariant($"trailer\n<< /Size {offsets.Count} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n"));
+            Write(FormattableString.Invariant($"trailer\n<< /Size {offsets.Count} /Root 1 0 R{(infoId is null ? "" : $" /Info {infoId.Value} 0 R")} >>\nstartxref\n{xref}\n%%EOF\n"));
             return output;
         }
         catch { output.Dispose(); throw; }

@@ -1494,6 +1494,39 @@ def verify_native_page_margin(executable, source, output, work, baseline_pdf):
             'invalidDestinationPreserved': True, 'recoveryByteParity': True}
 
 
+def verify_native_pdf_metadata(executable, first, output, work, baseline):
+    """Check native PDF Info, qpdf integrity and unchanged searchable geometry."""
+    titled = output / 'document-metadata.pdf'
+    title = 'Quarterly inspection — 澳新'
+    author = 'Koala Facts'
+    subject = 'Facilities status'
+    keywords = 'invoice, inspection'
+    assert not run(executable, first, titled, '--title', title, '--author', author,
+                   '--subject', subject, '--keywords', keywords, cwd=work)
+    info = run('pdfinfo', '-enc', 'UTF-8', titled).decode('utf-8')
+    for field, expected in [('Title', title), ('Author', author),
+                            ('Subject', subject), ('Keywords', keywords)]:
+        found = re.search(rf'^{field}:\s*(.*?)\s*$', info, re.MULTILINE)
+        assert found and found.group(1) == expected, (field, info)
+    run('qpdf', '--check', titled)
+    assert count_pages(titled) == count_pages(baseline)
+    for page in range(1, count_pages(baseline) + 1):
+        assert page_boxes(titled, page) == page_boxes(baseline, page), page
+    preserved = output / 'metadata-preserved.pdf'
+    preserved.write_bytes(b'approved PDF bytes')
+    bad = subprocess.run([str(executable), str(first), str(preserved), '--overwrite',
+                          '--title', 'bad\nheader'], cwd=work, capture_output=True, timeout=120)
+    assert bad.returncode == 2 and not bad.stdout and bad.stderr
+    assert preserved.read_bytes() == b'approved PDF bytes'
+    assert not run(executable, first, preserved, '--overwrite', '--title', title,
+                   '--author', author, '--subject', subject, '--keywords', keywords, cwd=work)
+    assert preserved.read_bytes() == titled.read_bytes()
+    return {'sha256': sha(titled), 'pages': count_pages(titled),
+            'pdfinfoFieldsVerified': ['Title', 'Author', 'Subject', 'Keywords'],
+            'bodyGeometryUnchanged': True, 'qpdfIntegrity': True,
+            'badInputPreserved': True, 'recoveryByteIdentical': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1566,6 +1599,7 @@ def main():
         paper_geometry = verify_native_paper_geometry(isolated, first, output, work, plain)
         page_margin = verify_native_page_margin(isolated, first, output, work, plain)
         custom_paper = verify_native_custom_paper(isolated, first, output, work, plain)
+        document_metadata = verify_native_pdf_metadata(isolated, first, output, work, plain)
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
@@ -1597,6 +1631,7 @@ def main():
             'paperGeometry': paper_geometry,
             'pageMargin': page_margin,
             'customPaper': custom_paper,
+            'documentMetadata': document_metadata,
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,

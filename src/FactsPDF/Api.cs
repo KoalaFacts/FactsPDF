@@ -6,6 +6,14 @@ public sealed record PdfOptions
     public double PageWidth { get; init; } = 595.28;
     public double PageHeight { get; init; } = 841.89;
     public double Margin { get; init; } = 36;
+    /// <summary>Optional PDF Info document title; null omits the field.</summary>
+    public string? Title { get; init; }
+    /// <summary>Optional PDF Info author (visible to PDF recipients).</summary>
+    public string? Author { get; init; }
+    /// <summary>Optional PDF Info subject.</summary>
+    public string? Subject { get; init; }
+    /// <summary>Optional PDF Info keywords.</summary>
+    public string? Keywords { get; init; }
     public double FontSize { get; init; } = 12;
     /// <summary>Opt in to centered decimal page numbers in the existing bottom margin, using normal 10pt text.</summary>
     public bool PageNumbers { get; init; }

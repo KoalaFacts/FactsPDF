@@ -1,3 +1,15 @@
+## Source-only PDF Info metadata for first use
+
+Optional `--title/--author/--subject/--keywords` (and the public
+`PdfOptions` fields) write real UTF-16BE PDF Info strings, without
+altering the searchable page body, adding timestamps, parsing HTML
+titles or requiring fonts. `CliPdfMetadataTests.cs` tests actual
+Info/trailer links in classic and Unicode/PNG PDFs, size limits,
+default byte parity, malformed values and output recovery. The
+Linux/Windows Native AOT verification uses Poppler `pdfinfo` and
+glyph-coordinate comparisons plus qpdf. This does not add CSS audit
+rows, XMP, PDF/UA, a released binary, or a customer licence.
+
 ## Current-source custom physical CLI paper sizes
 
 A complete `--page-width length --page-height length` pair selects
