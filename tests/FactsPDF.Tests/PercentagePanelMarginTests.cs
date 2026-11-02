@@ -150,6 +150,12 @@ public sealed class PercentagePanelMarginTests
     public void UnsupportedMarginsFailExplicitlyWithoutChangingTheExistingPdf(string html, string code)
         => RejectPreservingOutput(html, code);
 
+    [TestCase("<style>p{margin-top:5%}p{margin-top:0!important}</style><p>BAD</p>")]
+    [TestCase("<style>h2{margin-bottom:8%}h2{margin-bottom:0!important}</style><h2>BAD</h2>")]
+    [TestCase("<p style='margin-top:5%;margin-top:0'>BAD</p>")]
+    public void UnsupportedTextPercentMarginsRejectEvenWhenAnotherRuleWins(string html)
+        => RejectPreservingOutput(html, "FPDF1202");
+
     [Test]
     public void TooLargeButSyntacticallyValidMarginFailsBeforeWriting()
         => RejectPreservingOutput("<section style='margin-top:10000%'>OVERFULL</section>",

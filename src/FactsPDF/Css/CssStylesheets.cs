@@ -280,6 +280,14 @@ internal sealed class CssStylesheets
                 _ = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     allowRem: true, allowEm: true);
             }
+            // Paragraphs/headings still store absolute vertical margins. An
+            // overridden positive percentage is syntactically valid CSS, but
+            // unsupported here: reject every matching declaration, including
+            // losing cascade candidates, rather than silently discarding it.
+            if (paragraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith('%'))
+                throw new FactsPdfException("FPDF1202",
+                    "Paragraph and heading vertical margins do not support percentages.", declaration.Offset);
             // A paragraph's TextStyle stores absolute vertical margins.
             // Inheriting a percentage from a panel would otherwise mistake
             // e.g. 10% for 10pt. Reject instead of silently changing layout.
