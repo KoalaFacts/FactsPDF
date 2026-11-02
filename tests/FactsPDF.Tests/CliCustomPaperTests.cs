@@ -69,14 +69,14 @@ public sealed class CliCustomPaperTests
         var folder = Directory.CreateTempSubdirectory("factspdf-custom-paper-");
         try
         {
-            var fontBytes = FontFixture.Create();
+            var fontBytes = FontFixture.Create(listDigits: true);
             var pngBytes = PngFixture.Image([0, 10, 20, 30, 0, 40, 50, 60, 128]);
             var fontFile = Path.Combine(folder.FullName, "trusted.ttf");
             var imageFile = Path.Combine(folder.FullName, "logo.png");
             File.WriteAllBytes(fontFile, fontBytes);
             File.WriteAllBytes(imageFile, pngBytes);
-            const string html = "<p>中文 report</p><img src='logo'>" +
-                "<p style='break-before:page'>Second page, same physical format.</p>";
+            const string html = "<p>中文 A</p><img src='logo'>" +
+                "<p style='break-before:page'>中文 B</p>";
             var actual = Run(["-", "-", "--page-width", "6in", "--page-height", "9in",
                 "--margin", "18pt", "--font", fontFile, "--image", "logo=" + imageFile,
                 "--page-numbers"], html);
