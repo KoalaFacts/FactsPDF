@@ -526,9 +526,15 @@ for configuration and limits.
 
 Controlled `div`, `section` and `article` report panels can now be
 centred using bounded horizontal `margin:0 auto`, including constrained
-`max-width`, nested decorated boxes and page fragments. Vertical panel
-margins remain zero-only; ordinary paragraphs/headings retain their separate
-vertical-margin contract. See the
+`max-width`, nested decorated boxes and page fragments. Report panels also accept bounded nonnegative vertical percentage margins
+relative to their containing content width; ordinary paragraphs/headings
+retain their separate nonpercentage vertical-margin contract. The [50-entry percentage-margin report](examples/report-percentage-panel-margins.html)
+and [independent point-length oracle](examples/report-percentage-panel-margins-oracle.html)
+verify actual nested PDF panel spacing, text, paint and continuation pages.
+Paragraph/heading percentages and direct inheritance of a percentage panel
+margin into these text elements fail explicitly. This source change
+(`0518b51d7a34457798c748db6753c4270ce20996`) does not relabel previously retained software or authorise
+customer release. See the
 [panel-margin CSS scope](docs/css-stylesheets.md#current-source-centred-report-panels),
 [50-entry example](examples/report-panel-margins.html) and
 [independent point oracle](examples/report-panel-margins-oracle.html).
@@ -562,7 +568,7 @@ For example:
 
 This is a bounded quote **layout** feature, not citation metadata, Tagged PDF
 or browser-complete `blockquote` semantics. `cite` attributes, nesting inside
-lists/tables/inline elements, negative or percentage vertical margins,
+lists/tables/inline elements, negative vertical margins (and percentage vertical margins on paragraphs),
 margin collapse, CSS `height`, arbitrary/per-corner rounded geometry and arbitrary HTML are
 unsupported and explicitly rejected. The quote is source-only: it does not
 update the retained preview binaries or grant customer distribution rights.

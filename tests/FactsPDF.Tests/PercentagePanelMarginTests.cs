@@ -69,7 +69,8 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
         var boxes = Layout(actual).Single().PaintBoxes;
         Assert.That(boxes.Count, Is.EqualTo(2));
-        Assert.That(boxes.Any(x => x.Style.BackgroundColor == new Rgb(187d / 255, 221d / 255, 1)), Is.True);
+        Assert.That(boxes.Min(x => x.Top), Is.EqualTo(46).Within(0.000001));
+        Assert.That(boxes.Max(x => x.Top), Is.EqualTo(72.5).Within(0.000001));
     }
 
     [Test]
