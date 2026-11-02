@@ -8,11 +8,12 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--margin 0|length] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--page-size selects A4 (default, 595.28 x 841.89pt) or US Letter (612 x 792pt); --landscape swaps the physical page axes.\n" +
+        "--page-width and --page-height must be supplied together, each 72-14400pt in pt/px/mm/cm/in; do not combine with --page-size or --landscape.\n" +
         "--margin sets one uniform margin (0 or pt/px/mm/cm/in; default 36pt) in the selected physical page size.\n" +
         "This does not implement CSS @page, asymmetric margins, printer bleed or content scaling.\n" +
         "Only the CLI page geometry changes, not the CSS @page support or PDF content scaling.\n" +
@@ -47,6 +48,7 @@ public static class CliApplication
             }
             var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
             string? pageSize = null; var landscape = false; double? requestedMargin = null;
+            double? requestedPageWidth = null; double? requestedPageHeight = null;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
@@ -59,6 +61,18 @@ public static class CliApplication
                     if (++i >= args.Length || !(args[i].Equals("a4", StringComparison.OrdinalIgnoreCase) || args[i].Equals("letter", StringComparison.OrdinalIgnoreCase)))
                         throw new ArgumentException("--page-size requires a4 or letter.");
                     pageSize = args[i].ToLowerInvariant();
+                }
+                else if (arg == "--page-width" && requestedPageWidth is null)
+                {
+                    if (++i >= args.Length)
+                        throw new ArgumentException("--page-width requires a physical length in pt, px, mm, cm or in.");
+                    requestedPageWidth = ParsePageDimension(args[i], "--page-width");
+                }
+                else if (arg == "--page-height" && requestedPageHeight is null)
+                {
+                    if (++i >= args.Length)
+                        throw new ArgumentException("--page-height requires a physical length in pt, px, mm, cm or in.");
+                    requestedPageHeight = ParsePageDimension(args[i], "--page-height");
                 }
                 else if (arg == "--margin" && requestedMargin is null)
                 {
@@ -128,8 +142,14 @@ public static class CliApplication
                 using var configStream = File.OpenRead(furniturePath);
                 furniture = ReadPageFurniture(configStream, cancellationToken);
             }
+            if (requestedPageWidth.HasValue != requestedPageHeight.HasValue)
+                throw new ArgumentException("--page-width and --page-height must be provided together.");
+            if (requestedPageWidth.HasValue && (pageSize is not null || landscape))
+                throw new ArgumentException("Custom --page-width/--page-height cannot be combined with --page-size or --landscape.");
             var (pageWidth, pageHeight) = pageSize == "letter" ? (612d, 792d) : (595.28d, 841.89d);
             if (landscape) (pageWidth, pageHeight) = (pageHeight, pageWidth);
+            if (requestedPageWidth.HasValue)
+                (pageWidth, pageHeight) = (requestedPageWidth.Value, requestedPageHeight!.Value);
             var margin = requestedMargin ?? 36d;
             if (2 * margin >= Math.Min(pageWidth, pageHeight))
                 throw new ArgumentException("--margin must be less than half the shorter physical page dimension.");
@@ -225,6 +245,22 @@ public static class CliApplication
         var points = amount * scale.Value;
         if (!double.IsFinite(points) || points > 14_400)
             throw new ArgumentException("--margin exceeds the supported physical-page limit.");
+        return points;
+    }
+
+    // The public renderer already supports bounded, explicit PDF point geometry.
+    // Validate CLI custom paper *before* reading customer HTML, fonts or images,
+    // and do not silently clamp extreme or unmeasurable dimensions.
+    private static double ParsePageDimension(string value, string option)
+    {
+        double points;
+        try { points = ParseMargin(value); }
+        catch (ArgumentException)
+        {
+            throw new ArgumentException($"{option} requires a finite physical length in pt, px, mm, cm or in.");
+        }
+        if (points is < 72 or > 14_400)
+            throw new ArgumentException($"{option} must be between 72pt and 14400pt (1 to 200 inches).");
         return points;
     }
 
