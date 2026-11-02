@@ -270,6 +270,11 @@ internal sealed class CssStylesheets
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith('%') &&
+                path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
+                throw new FactsPdfException("FPDF1201",
+                    "Percentage report-panel margins are not supported inside lists or tables.", declaration.Offset);
+            if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value is not ("inherit" or "initial" or "unset"))
             {
                 _ = CssBoxValues.Length(declaration.Value, declaration.Offset,

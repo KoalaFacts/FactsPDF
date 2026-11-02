@@ -1533,7 +1533,8 @@ declarations fail `FPDF1202`; directly inheriting a percentage panel
 margin into a paragraph/heading fails `FPDF1201` rather than accidentally
 treating 10% as 10pt. Vertical `auto`, negative values, `calc()`,
 out-of-range or underflow lengths, body/list/table/image/inline margins,
-RTL/vertical writing, general margin collapse and Paged Media are not
+RTL/vertical writing, percentage panel margins inside list items,
+general margin collapse and Paged Media are not
 implemented. Geometry that cannot fit the PDF page fails `FPDF1302` and
 preserves an existing PDF destination.
 

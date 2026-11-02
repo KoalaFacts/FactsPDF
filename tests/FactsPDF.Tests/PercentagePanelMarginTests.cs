@@ -139,6 +139,8 @@ public sealed class PercentagePanelMarginTests
     [TestCase("<h2 style='margin-bottom:5%'>HEADING</h2>", "FPDF1202")]
     [TestCase("<div style='margin-top:10%'><p style='margin-top:inherit'>WRONG UNIT</p></div>", "FPDF1201")]
     [TestCase("<section style='margin-bottom:10%'><h2 style='margin-bottom:inherit'>WRONG UNIT</h2></section>", "FPDF1201")]
+    [TestCase("<ul><li><section style='margin-top:5%'><p>LIST</p></section></li></ul>", "FPDF1201")]
+    [TestCase("<ol><li><article style='margin-block-end:8%'><p>LIST</p></article></li></ol>", "FPDF1201")]
     [TestCase("<section style='margin-top:auto'>INVALID</section>", "FPDF1202")]
     [TestCase("<section style='margin-top:-1%'>INVALID</section>", "FPDF1202")]
     [TestCase("<section style='margin-top:10001%'>INVALID</section>", "FPDF1202")]
