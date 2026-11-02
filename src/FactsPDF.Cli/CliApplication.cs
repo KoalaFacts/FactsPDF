@@ -253,15 +253,36 @@ public static class CliApplication
     // and do not silently clamp extreme or unmeasurable dimensions.
     private static double ParsePageDimension(string value, string option)
     {
-        double points;
-        try { points = ParseMargin(value); }
-        catch (ArgumentException)
-        {
+        // Use decimal arithmetic for the declared *inclusive* physical page
+        // bounds. Floating conversion factors (e.g. 72d / 25.4d) can turn
+        // exactly 5080mm into 14400.000000000002pt and wrongly reject it.
+        // Keeping rational units exact also ensures that values just outside
+        // 72..14400pt are never admitted by an arbitrary epsilon.
+        var unit = value.Length > 2 ? value[^2..].ToLowerInvariant() : "";
+        if (!decimal.TryParse(value.AsSpan(0, Math.Max(0, value.Length - 2)),
+                NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture, out var magnitude) || magnitude < 0)
             throw new ArgumentException($"{option} requires a finite physical length in pt, px, mm, cm or in.");
+        decimal points;
+        try
+        {
+            points = unit switch
+            {
+                "pt" => magnitude,
+                "px" => magnitude * 3m / 4m,
+                "mm" => magnitude * 360m / 127m,
+                "cm" => magnitude * 3600m / 127m,
+                "in" => magnitude * 72m,
+                _ => throw new ArgumentException($"{option} requires a finite physical length in pt, px, mm, cm or in.")
+            };
         }
-        if (points is < 72 or > 14_400)
+        catch (OverflowException)
+        {
+            throw new ArgumentException($"{option} exceeds the supported physical-page limit.");
+        }
+        if (points is < 72m or > 14_400m)
             throw new ArgumentException($"{option} must be between 72pt and 14400pt (1 to 200 inches).");
-        return points;
+        return (double)points;
     }
 
     // Keep CLI parameter errors distinct from the core's resource diagnostics.
