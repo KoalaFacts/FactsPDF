@@ -1339,6 +1339,95 @@ def verify_native_paper_geometry(executable, source, output, work, default_pdf):
             'invalidArgumentDestinationPreserved': True, 'recoveryByteParity': True}
 
 
+
+def verify_native_custom_paper(executable, source, output, work, baseline_pdf):
+    """Independent qpdf/Poppler verification of custom physical page sizes on native CLI."""
+    baseline = Counter(word for page in range(1, count_pages(baseline_pdf) + 1)
+                       for word, *_ in page_boxes(baseline_pdf, page)[2])
+    assert count_pages(baseline_pdf) == 2, 'Custom paper witness requires two authored pages'
+    cases = (
+        ('a5', '148mm', '210mm', 148 * 72 / 25.4, 210 * 72 / 25.4),
+        ('legal', '8.5in', '14in', 612, 1008),
+    )
+    results = []
+    for name, width_value, height_value, width, height in cases:
+        target = output / f'custom-paper-{name}.pdf'
+        flags = ['--page-width', width_value, '--page-height', height_value, '--margin', '12mm']
+        assert not run(executable, source, target, *flags, cwd=work), 'Custom paper leaked stdout'
+        run('qpdf', '--check', target)
+        pages = count_pages(target)
+        assert pages == 2, ('Custom page lost its authored pagination', name, pages)
+        observed = Counter()
+        for page in range(1, pages + 1):
+            physical_width, physical_height, words = page_boxes(target, page)
+            assert abs(physical_width - width) < 0.02 and abs(physical_height - height) < 0.02, (
+                'Poppler custom page size mismatch', name, page, physical_width, physical_height)
+            assert words, ('Blank custom report page', name, page)
+            margin = 12 * 72 / 25.4
+            for word, x1, y1, x2, y2 in words:
+                assert word and margin - 1 < x1 < x2 < width - margin + 1 and (
+                    margin - 1 < y1 < y2 < height - margin + 1), (
+                    'Custom report word clipped or outside physical print area', name, page,
+                    word, x1, y1, x2, y2)
+                observed[word] += 1
+        assert observed == baseline, ('Custom paper lost/duplicated body words',
+                                       name, baseline - observed, observed - baseline)
+        if name == 'a5':
+            streamed = run(executable, source, '-', *flags, cwd=work)
+            assert streamed == target.read_bytes() and streamed.startswith(b'%PDF-1.7'), (
+                'Custom paper binary stdout differs from file')
+        results.append({'format': name, 'widthPt': width, 'heightPt': height,
+                        'pages': pages, 'sha256': sha(target), 'allWordsAndBoundsChecked': True})
+
+    # The layout engine must reflow header/footer text on the true custom paper.
+    furnished = output / 'custom-paper-legal-furniture.pdf'
+    assert not run(executable, source, furnished, '--page-width', '8.5in',
+                   '--page-height', '14in', '--margin', '36pt',
+                   '--header-text', 'Internal report', '--footer-text', 'Internal',
+                   '--page-numbers', cwd=work), 'Custom page furniture leaked stdout'
+    run('qpdf', '--check', furnished)
+    assert count_pages(furnished) == 2, 'Custom physical furniture changed page count'
+    for page in (1, 2):
+        width, height, positioned = page_boxes(furnished, page)
+        assert abs(width - 612) < 0.02 and abs(height - 1008) < 0.02
+        plain = Counter(word for word, *_ in page_boxes(baseline_pdf, page)[2])
+        seen = Counter(word for word, *_ in positioned)
+        assert not plain - seen, ('Custom furniture lost body content', page, plain - seen)
+        lines = page_lines(furnished, page)
+        assert any('Internal report' in line for line in lines), ('Missing custom header', page)
+        assert any(f'Internal | {page}' in line for line in lines), ('Missing custom footer', page)
+        for word, x1, y1, x2, y2 in positioned:
+            assert word and 0 <= x1 < x2 <= width and 0 <= y1 < y2 <= height, (
+                'Custom paper furniture outside physical page', page, word)
+
+    # Rejections must not destroy previously approved PDFs, and a retry must work.
+    destination = output / 'custom-paper-approved.pdf'
+    sentinel = b'previously approved report'
+    invalid = (
+        ('--page-width', '148mm'),
+        ('--page-width', '148mm', '--page-height', '210mm', '--page-size', 'a4'),
+        ('--page-width', '148mm', '--page-height', '210mm', '--landscape'),
+        ('--page-width', '71pt', '--page-height', '210mm'),
+        ('--page-width', '148mm', '--page-height', '210mm',
+         '--page-height', '211mm'),
+        ('--page-width', '100pt', '--page-height', '210mm', '--margin', '51pt'),
+    )
+    for flags in invalid:
+        destination.write_bytes(sentinel)
+        bad = subprocess.run([str(executable), str(source), str(destination), '--overwrite', *flags],
+                             cwd=work, capture_output=True, timeout=120)
+        assert bad.returncode == 2 and not bad.stdout and bad.stderr, (
+            'Invalid custom physical page accepted', flags, bad.returncode, bad.stderr)
+        assert destination.read_bytes() == sentinel, ('Invalid page changed saved PDF', flags)
+        assert not list(output.glob('.factspdf-*.tmp')), 'Invalid custom page leaked temporary file'
+    assert not run(executable, source, destination, '--overwrite', '--page-width',
+                   '148mm', '--page-height', '210mm', '--margin', '12mm', cwd=work)
+    assert destination.read_bytes() == (output / 'custom-paper-a5.pdf').read_bytes(), (
+        'Custom paper retry differs after rejected commands')
+    return {'cases': results, 'physicalBodyAndFurniture': True,
+            'binaryStdoutParity': True, 'invalidRecovery': True}
+
+
 def verify_native_page_margin(executable, source, output, work, baseline_pdf):
     """Real physical trim margins with independent Poppler text coordinates and safe failure recovery."""
     unchanged = output / 'margin-default-explicit.pdf'
@@ -1476,6 +1565,7 @@ def main():
         kept_cards = verify_native_report_keep_together(isolated, output, work)
         paper_geometry = verify_native_paper_geometry(isolated, first, output, work, plain)
         page_margin = verify_native_page_margin(isolated, first, output, work, plain)
+        custom_paper = verify_native_custom_paper(isolated, first, output, work, plain)
         word_break = verify_native_word_break(isolated, output, work)
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
@@ -1506,6 +1596,7 @@ def main():
             'reportKeepTogether': kept_cards,
             'paperGeometry': paper_geometry,
             'pageMargin': page_margin,
+            'customPaper': custom_paper,
             'wordBreak': word_break,
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,

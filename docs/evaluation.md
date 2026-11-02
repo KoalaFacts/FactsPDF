@@ -1,3 +1,27 @@
+## Current-source custom physical report paper
+
+For A5 forms or company stationery without a browser/printer dependency, use:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -- examples/first-document.html a5-report.pdf --page-width 148mm --page-height 210mm --margin 12mm
+```
+
+Supply both dimensions in invariant-culture `pt/px/mm/cm/in`, each within
+72–14400pt. The dimensions are actual PDF MediaBox geometry used by the
+renderer for wrapping, page breaks, images, headers/footers and PDF coordinates.
+A4/Letter defaults are unchanged when the new pair is absent. Custom dimensions
+cannot be mixed with `--page-size` or `--landscape`, and values that cannot
+fit the physical page or selected uniform margin fail. Missing/repeated/invalid
+options exit 2 without replacing an existing PDF; a later valid retry succeeds.
+Source NUnit independently compares CLI and public .NET API PDFs, including
+multipage geometry, Unicode font/PNG resource and default byte parity.
+The existing Linux/Windows Native AOT gate now also verifies qpdf, Poppler
+all-page paper/text bounds, complete text, page furniture, stdout byte parity
+and negative recovery. Scope is CLI-only (not CSS `@page`, asymmetric margins,
+bleed or general document printing), introduced in source commit
+`271d05350f363857cf2a6d44f1ea40e876f8573c`. No new sealed
+software candidate, customer evaluation rights or public release is implied.
+
 ## Current-source uniform physical CLI report margins
 
 First-use command-line reports now take `--margin 15mm` with the existing

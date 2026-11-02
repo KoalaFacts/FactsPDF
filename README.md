@@ -24,6 +24,29 @@ discussion, not a software trial, licence grant or support contract.
 
 The detailed source-only feature notes and test evidence follow.
 
+### Print on custom physical paper (source-only)
+
+Reports that need A5, US Legal, stationery or other defined stock can supply
+**both** `--page-width` and `--page-height` in `pt/px/mm/cm/in`.
+The CLI passes the actual point dimensions to the existing PDF renderer before
+text wrapping, image positioning, pagination and page furniture are computed:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -- examples/first-document.html a5-report.pdf --page-width 148mm --page-height 210mm --margin 12mm
+```
+
+Each physical dimension must be finite, 72–14400pt (1–200 inches) and fit the
+uniform selected margin. Supply the pair together, without `--page-size` or
+`--landscape`; to rotate custom paper, swap the two dimensions explicitly.
+Missing, conflicting, repeated or out-of-range arguments exit 2, without
+overwriting an existing customer PDF. Existing A4 portrait defaults, Letter,
+landscape and `--margin` behaviour are unchanged. This is not CSS `@page`,
+printer bleed or paper auto-detection. See `CliCustomPaperTests.cs` and the
+Linux/Windows Native AOT Poppler/qpdf checks in
+`scripts/verify_native_feature_paths.py`. Introduced in source
+`271d05350f363857cf2a6d44f1ea40e876f8573c`; not in the previously
+retained private preview or any public binary.
+
 ### Choose a physical report margin in the CLI (source-only)
 
 The CLI accepts `--margin 15mm` (or `0`, `pt`, `px`, `cm`, `in`) alongside

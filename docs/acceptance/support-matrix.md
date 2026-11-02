@@ -1,3 +1,19 @@
+## Current-source custom physical CLI paper sizes
+
+A complete `--page-width length --page-height length` pair selects
+bounded, invariant-culture point dimensions (72–14400pt per side, using
+`pt/px/mm/cm/in`) for custom report stock; the actual PDF MediaBox, glyph
+placement, wrapping, pagination, images and page furniture use that geometry.
+The pair cannot mix with `--page-size` or `--landscape`. Malformed,
+missing, repeated, mixed or unplaceable geometry exits 2 without replacing an
+existing PDF, with successful retry. `CliCustomPaperTests.cs` includes direct
+CLI/API PDF-byte, Unicode font/PNG, default parity and recovery cases;
+`scripts/verify_native_feature_paths.py` extends Linux/Windows Native AOT
+qpdf/Poppler checks with A5/Legal multi-page geometry and complete body text.
+Introduced at source `271d05350f363857cf2a6d44f1ea40e876f8573c`.
+This is not a CSS compatibility row, custom print bleed, a new private/public
+binary, human-approved page or customer licensing grant.
+
 ## Current-source real CLI physical page margins
 
 `--margin 0|length` accepts one nonnegative uniform physical margin in
@@ -274,6 +290,7 @@ These implemented paths have independent executable evidence. This table neither
 | Column spans and ordered paragraph/image cells | [Rich and spanning cells](../tables.md#rich-and-spanning-cells), `scripts/verify_table_rich_cells.py` | Authored geometry, margin and border witnesses; new pages pending reference review |
 | Oversized body rows with independent cell continuation | [Long descriptions](../tables.md#long-descriptions-across-pages), `scripts/verify_table_row_fragments.py` | Actual text/image/slice geometry, terminal fit and mutation evidence; short tables and fresh-page-fit rows remain whole; new pages pending reference review |
 | Heading kept with following paragraph | [F1 heading keep](../heading-pagination.md), `scripts/verify_heading_keep.py` | Existing opt-in paragraph contract |
+| Custom physical CLI paper dimensions | `tests/FactsPDF.Tests/CliCustomPaperTests.cs`, `scripts/verify_native_feature_paths.py`, source `271d05350f363857cf2a6d44f1ea40e876f8573c` | Both bounded `--page-width` and `--page-height` are required; no `--page-size` or `--landscape` combination. Real MediaBox, text/page layout, Unicode PNG, page furniture, Native AOT qpdf/Poppler and protected recovery; source-only, no CSS `@page` or customer binary. |
 | A4/Letter CLI paper geometry and landscape | `tests/FactsPDF.Tests/CliPageGeometryTests.cs`, `scripts/verify_native_feature_paths.py`, source CLI `bb34436538b8a02f1ace0878be1f97eb5bbff77d` | A4 portrait preserves default byte output; A4 landscape/US Letter portrait or landscape alter true MediaBox and paginated physical coordinates, with direct .NET API parity, Unicode font use, independent native Poppler/qpdf, binary stdout and protected invalid/recovery. Source only until exact-head platform checks and independent review; no `@page`, nonstandard formats, preview binary refresh or human PDF approval. |
 | Page counters | [F2 page numbers](../page-numbers.md), `scripts/verify_page_numbers.py` | Existing body geometry remains unchanged |
 | Static header/footer and counter composition | [F3 page margins](../page-margins.md), `scripts/verify_page_margins.py` | Explicit literal text; existing margins |
