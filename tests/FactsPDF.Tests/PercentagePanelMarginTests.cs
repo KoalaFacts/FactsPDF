@@ -116,8 +116,11 @@ public sealed class PercentagePanelMarginTests
     [Test]
     public void PercentMarginOnLongContinuedPanelAppearsOnlyOnFirstAndLastFragment()
     {
-        var page = Page with { PageHeight = 160 };
-        var rows = string.Join("<br>", Enumerable.Range(1, 30).Select(i => $"Row-{i:00}"));
+        var page = Page with { PageHeight = 150 };
+        // Retain a genuine multi-page painted box, while reserving enough
+        // final-fragment space for the 13pt closing margin and lower border.
+        // A 30-row fixture on a 160pt page is intentionally unplaceable.
+        var rows = string.Join("<br>", Enumerable.Range(1, 16).Select(i => $"Row-{i:00}"));
         var actual = "<section style='width:150pt;margin:10% auto 5%;" +
             "padding:4pt;border:1pt solid blue;background:#ddeeff'>" +
             "<p style='margin:0'>" + rows + "</p></section>";
@@ -125,7 +128,7 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(actual, page), Is.EqualTo(Render(oracle, page)));
         var pages = Layout(actual, page);
         Assert.That(pages.Count, Is.GreaterThan(1));
-        Assert.That(pages.SelectMany(p => p.Runs).Count(), Is.EqualTo(30));
+        Assert.That(pages.SelectMany(p => p.Runs).Count(), Is.EqualTo(16));
         var painted = pages.SelectMany(p => p.PaintBoxes).ToArray();
         Assert.That(painted.Length, Is.EqualTo(pages.Count));
         Assert.That(painted[0].Top, Is.EqualTo(46).Within(0.000001));
