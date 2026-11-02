@@ -490,7 +490,10 @@ test('four grouped LTR logical spacing records include eight side longhands', ()
     assert.equal(row.introduced_release,null);
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
-    assert.match(row.limitations,/FPDF1302/);
+    // The refreshed margin-block audit lists all three codes in compact
+    // FPDF1201/1202/1302 notation; other rows spell out FPDF1302.
+    assert.match(row.limitations, name==='margin-block'
+      ? /FPDF1201\/1202\/1302/ : /FPDF1302/);
     assert.match(row.test_reference, name==='margin-block'
       ? /PercentagePanelMarginTests.cs/ : /LogicalReportLonghandTests.cs/);
     for (const side of [name+'-start', name+'-end']) assert.match(row.scope, new RegExp(side));
