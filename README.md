@@ -24,6 +24,31 @@ discussion, not a software trial, licence grant or support contract.
 
 The detailed source-only feature notes and test evidence follow.
 
+### Optional searchable PDF document properties (source-only)
+
+For invoices and inspection reports, set real PDF document information using
+`--title`, `--author`, `--subject` and `--keywords`, or the matching
+public `PdfOptions` properties. This is **PDF Info metadata**, not text
+printed on the page, extracted from HTML or a CSS feature:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -- examples/first-document.html report.pdf --title "Facilities inspection — 澳新" --author "Koala Facts" --subject "Quarterly status" --keywords "inspection, report"
+```
+
+Each optional field is 1–1024 UTF-16 units, nonblank, single-line and
+well-formed Unicode. The PDF stores each field with a UTF-16BE BOM,
+including Chinese and supplementary characters. Without any fields, the
+legacy PDF is byte-identical; no timestamps or machine identity are added.
+Missing, repeated or malformed CLI fields fail with exit code 2 and
+preserve an existing file. **PDF recipients can view these properties:
+never put confidential data or credentials in them.**
+
+Source NUnit verifies exact API/CLI PDF bytes, the two serialization
+paths, PNG, text pages, bounded errors and recovery; Linux/Windows Native
+AOT checks additionally use Poppler `pdfinfo`, qpdf and original body
+geometry. Not XMP, HTML `<title>` inference, PDF/UA tagging, an updated
+private candidate, a public release or customer rights.
+
 ### Print on custom physical paper (source-only)
 
 Reports that need A5, US Legal, stationery or other defined stock can supply

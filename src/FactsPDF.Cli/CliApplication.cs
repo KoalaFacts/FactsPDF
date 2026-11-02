@@ -8,13 +8,14 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--page-size selects A4 (default, 595.28 x 841.89pt) or US Letter (612 x 792pt); --landscape swaps the physical page axes.\n" +
         "--page-width and --page-height must be supplied together, each 72-14400pt in pt/px/mm/cm/in; do not combine with --page-size or --landscape.\n" +
         "--margin sets one uniform margin (0 or pt/px/mm/cm/in; default 36pt) in the selected physical page size.\n" +
+        "--title/--author/--subject/--keywords set optional UTF-16 PDF Info metadata (1-1024 units each); never extracted from HTML.\n" +
         "This does not implement CSS @page, asymmetric margins, printer bleed or content scaling.\n" +
         "Only the CLI page geometry changes, not the CSS @page support or PDF content scaling.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
@@ -50,6 +51,7 @@ public static class CliApplication
             string? pageSize = null; var landscape = false; double? requestedMargin = null;
             double? requestedPageWidth = null; double? requestedPageHeight = null;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
+            string? title = null; string? author = null; string? subject = null; string? keywords = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
@@ -80,6 +82,10 @@ public static class CliApplication
                         throw new ArgumentException("--margin requires 0 or a nonnegative length in pt, px, mm, cm or in.");
                     requestedMargin = ParseMargin(args[i]);
                 }
+                else if (arg == "--title" && title is null) title = ReadMetadataArgument(args, ref i, "--title");
+                else if (arg == "--author" && author is null) author = ReadMetadataArgument(args, ref i, "--author");
+                else if (arg == "--subject" && subject is null) subject = ReadMetadataArgument(args, ref i, "--subject");
+                else if (arg == "--keywords" && keywords is null) keywords = ReadMetadataArgument(args, ref i, "--keywords");
                 else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
                 else if (arg == "--page-numbers" && !pageNumbers) pageNumbers = true;
                 else if (arg == "--header-text" && headerText is null)
@@ -155,7 +161,8 @@ public static class CliApplication
                 throw new ArgumentException("--margin must be less than half the shorter physical page dimension.");
             var options = new PdfOptions { PageWidth = pageWidth, PageHeight = pageHeight, Margin = margin,
                 SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText,
-                FooterText = footerText, PageFurniture = furniture }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
+                FooterText = footerText, PageFurniture = furniture,
+                Title = title, Author = author, Subject = subject, Keywords = keywords }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -222,6 +229,13 @@ public static class CliApplication
                 { error.WriteLine("Could not remove temporary file: " + temporary); }
             }
         }
+    }
+
+    private static string ReadMetadataArgument(string[] args, ref int index, string option)
+    {
+        if (++index >= args.Length || args[index].StartsWith("--", StringComparison.Ordinal))
+            throw new ArgumentException($"{option} requires a literal text argument.");
+        return args[index];
     }
 
     // This is a CLI physical-page argument, not a CSS declaration. It is

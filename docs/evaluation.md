@@ -1,3 +1,23 @@
+## Source-only report PDF document properties
+
+Use `--title`, `--author`, `--subject`, `--keywords`
+(or `PdfOptions.Title`, `Author`, `Subject`, `Keywords`)
+for optional Unicode PDF Info metadata. These are UTF-16BE with BOM,
+independent of HTML and fonts, and visible to all PDF recipients.
+Each field is limited to 1024 UTF-16 units, must be nonblank, single-line
+and well-formed. No timestamps, implied metadata, XMP, or document
+tags are added. Without metadata flags the PDF stays byte-identical;
+invalid/repeated CLI values return code 2 without overwriting an
+existing PDF. The metadata contributes to the usual input/output budgets.
+
+`CliPdfMetadataTests.cs` validates classic and embedded Unicode font/PNG
+API/CLI PDF bytes, real multipage output, Info trailer linkage, error
+recovery and size limits. Linux/Windows Native AOT
+`verify_native_feature_paths.py` checks `pdfinfo` fields,
+qpdf integrity, original Poppler page coordinates and protected retry.
+This is source capability only: not a new private/public candidate,
+human-approved output or customer grant.
+
 ## Current-source custom physical report paper
 
 For A5 forms or company stationery without a browser/printer dependency, use:

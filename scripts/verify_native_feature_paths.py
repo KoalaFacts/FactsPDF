@@ -1494,6 +1494,157 @@ def verify_native_page_margin(executable, source, output, work, baseline_pdf):
             'invalidDestinationPreserved': True, 'recoveryByteParity': True}
 
 
+def verify_native_pdf_metadata(executable, first, output, work, baseline):
+    """Check actual native PDF Info, qpdf integrity and unchanged searchable geometry."""
+    titled = output / 'document-metadata.pdf'
+    title = 'Quarterly inspection — 澳新'
+    author = 'Koala Facts'
+    subject = 'Facilities status'
+    keywords = 'invoice, inspection'
+    assert not run(executable, first, titled, '--title', title, '--author', author,
+                   '--subject', subject, '--keywords', keywords, cwd=work)
+    info = run('pdfinfo', '-enc', 'UTF-8', titled).decode('utf-8')
+    for field, expected in [('Title', title), ('Author', author),
+                            ('Subject', subject), ('Keywords', keywords)]:
+        found = re.search(rf'^{field}:\s*(.*?)\s*
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--executable', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    original = args.executable.resolve()
+    assert original.is_file() and original.name in ('FactsPDF.Cli', 'FactsPDF.Cli.exe'), 'Expected native executable'
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    first = ROOT / 'examples/first-document.html'
+    long = ROOT / 'examples/business-table-long-description.html'
+    config = ROOT / 'examples/business-page-furniture.json'
+    assert all(path.is_file() for path in (first, long, config)), 'Missing shipped fixture'
+    with tempfile.TemporaryDirectory(prefix='factspdf-native-features-') as directory:
+        work = Path(directory)
+        isolated = work / original.name
+        shutil.copyfile(original, isolated)
+        if original.suffix != '.exe':
+            isolated.chmod(isolated.stat().st_mode | 0o111)
+        assert sorted(path.name for path in work.iterdir()) == [original.name], 'Native isolation failed'
+        plain = output / 'body-only.pdf'
+        furnished = output / 'page-furniture.pdf'
+        assert not run(isolated, first, plain, cwd=work), 'Plain native CLI wrote stdout'
+        assert not run(isolated, first, furnished, '--page-furniture', config, cwd=work), 'Furniture native CLI wrote stdout'
+        assert count_pages(plain) == count_pages(furnished) == 2, 'Furniture changed page count'
+        furniture_results = [validate_furniture_words(page_boxes(plain, page),
+                             page_boxes(furnished, page), page) for page in (1, 2)]
+        repeated = output / 'furniture-repeat.pdf'
+        assert not run(isolated, first, repeated, '--page-furniture', config, cwd=work), 'Repeated native CLI wrote stdout'
+        assert furnished.read_bytes() == repeated.read_bytes(), 'Native furniture output not deterministic'
+        invalid = work / 'invalid.json'
+        invalid.write_text('{bad', encoding='utf-8')
+        preserved = output / 'preserved.pdf'
+        preserved.write_bytes(b'native sentinel')
+        failure = subprocess.run([str(isolated), str(first), str(preserved), '--overwrite',
+                                  '--page-furniture', str(invalid)], cwd=work,
+                                 capture_output=True, timeout=120)
+        assert failure.returncode == 2 and not failure.stdout and failure.stderr, 'Invalid furniture not rejected'
+        assert preserved.read_bytes() == b'native sentinel', 'Invalid configuration modified destination'
+        assert not run(isolated, first, preserved, '--overwrite', '--page-furniture', config, cwd=work), 'Recovery CLI wrote stdout'
+        assert preserved.read_bytes() == furnished.read_bytes(), 'Recovery output differs'
+        png_dir = work / 'png-fixtures'
+        create_png_fixtures(png_dir)
+        logo = png_dir / 'brand-mark.png'
+        continued = output / 'continued-row.pdf'
+        assert not run(isolated, long, continued, '--image', f'logo={logo}', cwd=work), 'Row native CLI wrote stdout'
+        assert count_pages(continued) == 2, 'Continued row page count'
+        normalized_fixture_sha = validate_row_fixture(long)
+        authored_notes, final_note = expected_note_texts(long.read_text(encoding='utf-8'))
+        row_result = validate_continued_row([page_lines(continued, page) for page in (1, 2)], authored_notes, final_note)
+        again = output / 'continued-row-repeat.pdf'
+        assert not run(isolated, long, again, '--image', f'logo={logo}', cwd=work), 'Repeated row native CLI wrote stdout'
+        assert continued.read_bytes() == again.read_bytes(), 'Continued row not deterministic'
+        for specimen, stem in ((furnished, 'page-furniture'), (continued, 'continued-row')):
+            run('pdftoppm', '-f', '1', '-l', '2', '-png', '-r', '72', specimen, output / stem)
+            assert len(list(output.glob(stem + '-*.png'))) == 2, 'Missing native page preview'
+        assert not list(output.glob('.factspdf-*.tmp')), 'Leaked CLI temporary output'
+        list_markers = verify_native_list_markers(isolated, ROOT, output, work)
+        patterned_borders = verify_native_patterned_borders(isolated, output, work)
+        multiline_notes = verify_native_multiline_notes(isolated, output, work)
+        preserved_spaces = verify_native_preserved_space_notes(isolated, output, work)
+        preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
+        table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
+        decoration_paint = verify_native_decoration_paint(isolated, output, work)
+        rounded_panels = verify_native_rounded_panels(isolated, output, work)
+        minimum_height = verify_native_minimum_height(isolated, output, work)
+        fixed_height = verify_native_fixed_height(isolated, output, work)
+        section_breaks = verify_native_section_page_breaks(isolated, output, work)
+        kept_cards = verify_native_report_keep_together(isolated, output, work)
+        paper_geometry = verify_native_paper_geometry(isolated, first, output, work, plain)
+        page_margin = verify_native_page_margin(isolated, first, output, work, plain)
+        custom_paper = verify_native_custom_paper(isolated, first, output, work, plain)
+        document_metadata = verify_native_pdf_metadata(isolated, first, output, work, plain)
+        word_break = verify_native_word_break(isolated, output, work)
+        responsive_images = verify_native_responsive_images(isolated, output, work, logo)
+        image_heights = verify_native_image_heights(isolated, output, work, logo)
+        image_height_limits = verify_native_image_height_limits(isolated, output, work, logo)
+        report = {
+            'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
+            'platform': __import__('platform').platform(),
+            'nativeExecutableSha256': sha(original),
+            'firstInputSha256': sha(first), 'configSha256': sha(config),
+            'continuedInputSha256': sha(long), 'logoSha256': sha(logo),
+            'continuedInputLfSha256': normalized_fixture_sha,
+            'furniture': {'sha256': sha(furnished), 'pages': 2, 'wordGeometry': furniture_results,
+                          'bodyWordGeometryUnchanged': True, 'leftRightAndMarginPositions': True,
+                          'repeatBytesEqual': True, 'invalidConfigDestinationPreserved': True,
+                          'failureRecoveryBytesEqual': True},
+            'continuedRow': {'sha256': sha(continued), **row_result, 'repeatBytesEqual': True},
+            'listMarkers': list_markers,
+            'patternedBorders': patterned_borders,
+            'multilineNotes': multiline_notes,
+            'preservedSpaces': preserved_spaces,
+            'preformattedAudit': preformatted_audit,
+            'tableVerticalAlign': table_vertical_align,
+            'decorationPaint': decoration_paint,
+            'roundedPanels': rounded_panels,
+            'minimumHeight': minimum_height,
+            'fixedHeight': fixed_height,
+            'sectionPageBreaks': section_breaks,
+            'reportKeepTogether': kept_cards,
+            'paperGeometry': paper_geometry,
+            'pageMargin': page_margin,
+            'customPaper': custom_paper,
+            'documentMetadata': document_metadata,
+            'wordBreak': word_break,
+            'responsiveImages': responsive_images,
+            'imageHeights': image_heights,
+            'imageHeightLimits': image_height_limits,
+            'gates': {'nativeProcess': True, 'independentPoppler': True,
+                      'humanReferenceApproval': False, 'published': False}
+        }
+        (output / 'report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+        print(json.dumps(report))
+
+
+if __name__ == '__main__':
+    main()
+, info, re.MULTILINE)
+        assert found and found.group(1) == expected, (field, info)
+    run('qpdf', '--check', titled)
+    assert count_pages(titled) == count_pages(baseline)
+    for page in range(1, count_pages(baseline) + 1):
+        assert page_boxes(titled, page) == page_boxes(baseline, page), page
+    preserved = output / 'metadata-preserved.pdf'
+    preserved.write_bytes(b'approved PDF bytes')
+    bad = subprocess.run([str(executable), str(first), str(preserved), '--overwrite',
+                          '--title', 'bad\nheader'], cwd=work, capture_output=True, timeout=120)
+    assert bad.returncode == 2 and not bad.stdout and bad.stderr
+    assert preserved.read_bytes() == b'approved PDF bytes'
+    assert not run(executable, first, preserved, '--overwrite', '--title', title,
+                   '--author', author, '--subject', subject, '--keywords', keywords, cwd=work)
+    assert preserved.read_bytes() == titled.read_bytes()
+    return {'sha256': sha(titled), 'pages': count_pages(titled),
+            'pdfinfoFieldsVerified': ['Title', 'Author', 'Subject', 'Keywords'],
+            'bodyGeometryUnchanged': True, 'qpdfIntegrity': True,
+            'badInputPreserved': True, 'recoveryByteIdentical': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
