@@ -1,3 +1,37 @@
+## Physical pica and quarter-millimetre CSS print units (source-only)
+
+Controlled business reports now accept `pc` and `q` alongside `pt`, `px`, `mm`, `cm` and `in` in **existing, applicable physical CSS length slots**. One pica is **12 PDF points** and one `q` is **0.25mm** (so `4q` matches `1mm`). Example:
+
+```html
+<style>
+  .report { width:14pc; padding:4q 1pc; border:4q solid #23456a; margin:1pc 0 2pc }
+  .report h2 { font-size:1pc; line-height:1pc; margin:0 }
+</style>
+<article class="report"><h2>Service register</h2><p>Equipment checked.</p></article>
+```
+
+These units feed the same real PDF text/font-size, line-height, text-indent,
+letter/word spacing, existing report-panel and text margin/padding
+shorthands/longhands (including LTR logical sides), width/height constraints
+and painted border/corner geometry as equivalent physical lengths. Existing
+per-property applicability, box sizing, cascade, `!important`, inheritance,
+fragmentation, resource limits and error codes are unchanged. For example,
+`font-size:13pc` exceeds 144pt and `padding:-1q` rejects `FPDF1202`,
+preserving any existing PDF output.
+
+This does **not** support unknown CSS properties/elements, `calc()`,
+negative box distances, general Paged Media or CLI page-geometry flags
+such as `--margin 1pc`. The 40-row
+[pc/q source report](../examples/report-print-pica-q.html) and
+[independently authored point/mm oracle](../examples/report-print-pica-q-oracle.html)
+are verified by `ReportPrintSpacingTests.cs` and the real Linux/Windows
+Native AOT stylesheet validator with qpdf/Poppler, text, page and
+PDF-byte equality plus failure/recovery.
+
+Implementation commit: `ca3aef91e20792782edb49004369dfbf1e9712b3`. This source-only addition is not a
+relabelled retained private candidate, public package, human PDF approval
+or customer distribution grant.
+
 ## Current-source physical CSS height for bound report images
 
 The existing `height` name now affects actual PDF image matrices on
