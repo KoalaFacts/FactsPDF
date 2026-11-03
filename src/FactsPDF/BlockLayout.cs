@@ -111,7 +111,11 @@ internal static class BlockLayout
                             paragraph.BoxStyle.PaddingTop.Value == 0 &&
                             paragraph.BoxStyle.PaddingBottom.Value == 0 &&
                             paragraph.BoxStyle.MinHeight is null &&
-                            paragraph.BoxStyle.Height is null);
+                            paragraph.BoxStyle.Height is null) ||
+                        // Nested layout-neutral wrappers cannot consume a
+                        // closing percent margin or provide a page fragment.
+                        ((style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
+                            ContainsOnlyZeroHeightPlaceholders(node, cancellation));
                     // A rule or physically empty painted block reserves its
                     // borders and vertical padding together with its margins.
                     var requiredEmptyPaintHeight = node.Name == "hr" ||
@@ -192,6 +196,41 @@ internal static class BlockLayout
                     throw new InvalidOperationException("Unexpected block layout child.");
             }
         }
+    }
+
+    // Iterative: deeply nested empty wrapper trees must not use the call stack.
+    // Paint, spacing, intrinsic height and page breaks all forbid this shortcut.
+    private static bool ContainsOnlyZeroHeightPlaceholders(BlockNode node, CancellationToken cancellation)
+    {
+        var pending = new Stack<BlockChild>(node.Children);
+        while (pending.Count > 0)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (pending.Pop() is not BlockNode child)
+                return false;
+            var box = child.BoxStyle;
+            if (box.HasPaint || box.BreakBefore || box.BreakAfter || box.AvoidBreakInside ||
+                box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
+                box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
+                box.MinHeight.HasValue || box.Height.HasValue ||
+                child.Style.BreakBefore || child.Style.BreakAfter)
+                return false;
+            if (child.Name == "p")
+            {
+                if (child.Children.Count != 1 ||
+                    child.Children[0] is not ParagraphNode content ||
+                    content.Paragraph.Runs.Count != 0 ||
+                    child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0)
+                    return false;
+            }
+            else if (child.Name is "div" or "section" or "article" or "blockquote")
+            {
+                foreach (var descendant in child.Children)
+                    pending.Push(descendant);
+            }
+            else return false;
+        }
+        return true;
     }
 
     internal readonly record struct ResolvedBox(double PaddingLeft, double Top, double Bottom, double Inner, double OuterWidth);
