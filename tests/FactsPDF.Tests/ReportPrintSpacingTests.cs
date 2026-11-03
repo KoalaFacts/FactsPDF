@@ -202,7 +202,7 @@ public sealed class ReportPrintSpacingTests
     [TestCase("font-size:13pc")]
     [TestCase("line-height:200pc")]
     [TestCase("letter-spacing:3pc")]
-    [TestCase("border-width:4q 3pt")]
+    [TestCase("border-width:4q 3pt 2q 1pc 5q")]
     [TestCase("margin:1pc calc(2q)")]
     public void InvalidPrintUnitValuesKeepDestinationUnchanged(string css)
         => Reject(css);
