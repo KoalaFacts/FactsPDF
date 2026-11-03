@@ -1234,10 +1234,17 @@ def main():
         if pages < 2:
             raise AssertionError('Native pica/q service register failed to paginate')
         extracted = run('pdftotext', '-raw', actual, '-').decode('utf-8')
-        for marker in ('Quarterly maintenance register', 'Service entry 01',
-                       'Service entry 40', 'Register reviewed and completed.'):
-            if marker not in extracted:
+        # The 14pc panel intentionally wraps text. Preserve every word and
+        # original sequence, but do not assume the heading stays on one PDF
+        # text line: Poppler correctly emits newline at real line breaks.
+        normalised = ' '.join(extracted.split())
+        for marker in ('Quarterly maintenance register', 'Register reviewed and completed.'):
+            if marker not in normalised:
                 raise AssertionError('Native pica/q PDF lost searchable report text: ' + marker)
+        rows = [f'Service entry {i:02d}' for i in range(1, 41)]
+        positions = [normalised.find(row) for row in rows]
+        if any(p < 0 for p in positions) or positions != sorted(positions) or len(set(positions)) != 40:
+            raise AssertionError('Native pica/q PDF lost or reordered a service entry')
         for invalid in ('padding:-1q', 'margin:1201pc', 'font-size:13pc'):
             bad = temp / 'invalid.html'
             bad.write_text("<section style='" + invalid + "'>Not rendered</section>",
