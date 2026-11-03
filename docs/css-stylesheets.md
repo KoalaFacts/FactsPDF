@@ -1508,31 +1508,45 @@ human PDF approval remain separate requirements.
 
 ## Current-source real vertical report-panel margins
 
-Scoped `div`, `section` and `article` report panels now accept nonnegative
-`margin-top`/`margin-bottom` lengths in `pt`, `px`, `mm`, `cm`, `in`,
-root-`rem` or final-element-font-`em`, as well as zero, shorthand and explicit
-`inherit`/`initial`/`unset` with normal per-side cascade/`!important`.
-A top margin precedes the first painted border and its text; a bottom margin
-separates the following flow after the last painted border. Nested margins
-occupy the painted ancestor's content area, without colouring the margin;
-continuation pages do not repeat them. Adjacent panel margins **add** (no CSS
-margin collapse). Unspecified/zero values retain existing PDF bytes.
+The bounded report-panel subset (`div`, `section`, `article`,
+`blockquote` and standalone `hr`) supports nonnegative
+`margin-top`/`margin-bottom` values in `pt/px/mm/cm/in`, final-font
+`em`, computed-root `rem`, exact zero and **percentages**, such as
+`margin-top:5%`. Vertical percentages use the **containing block's content
+width**, not its height or the page height. The original percentage survives
+CSS cascade/inheritance and resolves when the PDF layout knows that width.
+The normal 1–4-value `margin`, bounded LTR `margin-block` 1–2-value
+shorthand and physical/logical longhands retain their own cascade,
+`!important` and CSS-wide keyword behavior.
 
-Negative values, vertical percentages/`auto`, `calc()`, and unsupported
-contexts (`body`, lists, tables, images, inline boxes) fail explicitly with
-`FPDF1202`/`FPDF1201` as appropriate. Geometry overflow retains
-`FPDF1302` and protects existing destinations. No full CSS box model,
-`margin-block`, CSS Paged Media, or cross-element margin-collapsing claim.
+These are actual outside-the-border PDF gaps: the first top margin advances
+the painted background/border and its text, and the bottom gap follows the
+last painted fragment. Nested percentages use each child's containing
+width; continued page fragments do not repeat margin. Sibling vertical
+margins add rather than collapse. Zero/default inputs preserve their prior
+byte output. Another panel can explicitly inherit the percentage and
+resolve it in its own containing block.
 
-The [50-entry real PDF report](../examples/report-panel-vertical-margins.html)
-and [independently authored fixed-point spacer oracle](../examples/report-panel-vertical-margins-oracle.html)
-check nested painted panels, inherited horizontal centring, ordered searchable
-rows and cross-page fragments. `ReportPanelVerticalMarginTests.cs` verifies
-PDF byte parity, exact positions, rem/em, cascade, margins on long rows and
-protected output; `scripts/verify_stylesheets.py` runs an actual Linux Native
-AOT CLI report and invalid-value recovery. Source change is not an already
-released candidate or human-approved PDF evidence.
+**Limits:** A `p` or heading keeps its stricter nonnegative physical/rem/em
+vertical margin contract. Vertical percentages on paragraph/heading
+declarations fail `FPDF1202`; directly inheriting a percentage panel
+margin into a paragraph/heading fails `FPDF1201` rather than accidentally
+treating 10% as 10pt. Vertical `auto`, negative values, `calc()`,
+out-of-range or underflow lengths, body/list/table/image/inline margins,
+RTL/vertical writing, percentage panel margins inside list items,
+general margin collapse and Paged Media are not
+implemented. Geometry that cannot fit the PDF page fails `FPDF1302` and
+preserves an existing PDF destination.
 
+The [50-entry percentage report](../examples/report-percentage-panel-margins.html)
+and [independently authored physical-point oracle](../examples/report-percentage-panel-margins-oracle.html)
+compare real PDF bytes at outer 26.164pt/15.6984pt and nested
+15.12pt/7.56pt gaps, with complete searchable body, page continuations,
+qpdf/Poppler and protected-output negative recovery in Linux/Windows Native
+AOT. Source `0518b51d7a34457798c748db6753c4270ce20996` adds `PercentagePanelMarginTests.cs` and the
+native `verify_stylesheets.py` acceptance block. Exact final-head CI,
+independent review, human reference approval, private software and
+commercial distribution rights are **separate**.
 
 ## Current-source bounded report display suppression
 

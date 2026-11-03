@@ -155,7 +155,7 @@ public sealed class LogicalReportSpacingTests
 
     [TestCase("<p style='margin-block:0 auto'>A</p>", "FPDF1202")]
     [TestCase("<p style='margin-inline:-1pt'>A</p>", "FPDF1202")]
-    [TestCase("<section style='margin-block:5%'>A</section>", "FPDF1202")]
+    [TestCase("<p style='margin-block:5%'>A</p>", "FPDF1202")]
     [TestCase("<section style='padding-block:5pt -2pt'>A</section>", "FPDF1202")]
     [TestCase("<section style='padding-inline:calc(2pt + 3pt)'>A</section>", "FPDF1202")]
     [TestCase("<p style='margin-inline:inherit 0'>A</p>", "FPDF1202")]

@@ -6,7 +6,7 @@ import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash
 const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', import.meta.url), 'utf8'));
 function marginEvidence(id) {
   if(['css.margin','css.margin-top','css.margin-bottom'].includes(id))
-    return {sha:'f5aba206ca30c86dca8bd4b465182d5cea436dcc',path:'f5aba206ca30c86dca8bd4b465182d5cea436dcc/tests/FactsPDF.Tests/ReportPanelVerticalMarginTests.cs'};
+    return {sha:'0518b51d7a34457798c748db6753c4270ce20996',path:'0518b51d7a34457798c748db6753c4270ce20996/tests/FactsPDF.Tests/PercentagePanelMarginTests.cs'};
   if(['css.margin-left','css.margin-right'].includes(id))
     return {sha:'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2',path:'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'};
   return {sha:'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',
@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'ecdef6d8745caa3d2b527197c5767e25f89ba6b0');
-  assert.match(dataset.commit_url, /ecdef6d8745caa3d2b527197c5767e25f89ba6b0/);
+  assert.equal(dataset.commit, '0518b51d7a34457798c748db6753c4270ce20996');
+  assert.match(dataset.commit_url, /0518b51d7a34457798c748db6753c4270ce20996/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -128,13 +128,13 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   const absolute=dataset.features.find(f=>f.id==='value.length.absolute');
   assert.equal(margin.status,'partial');
   assert.match(margin.scope,/margin:0 auto/);
-  assert.match(margin.limitations,/单元格p左右仍仅显式零值/);
+  assert.match(margin.limitations,/table-cell p左右仍仅显式零值/);
   assert.equal(margin.example,'margin:0 auto');
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/q\/pc/);
   assert.equal(dataset.accepted_css_property_count,83);
-  assert.equal(margin.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
+  assert.equal(margin.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
@@ -264,7 +264,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.report-card-keep-together');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.percent-panel-margins');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -435,7 +435,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     assert.match(row.limitations,/margin collapse/);
     assert.match(row.limitations,/FPDF1302/);
   }
-  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img\/table/);
   for(const id of ['css.margin-top','css.margin-bottom'])
     assert.match(dataset.features.find(f=>f.id===id).limitations,/auto/);
@@ -458,7 +458,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   assert.equal(dataset.features.find(f=>f.id==='css.font-size').last_audited_commit,
     'f14550afd22ca40569998398b9fb8595d9f0e509');
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
-  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/单元格p左右仍仅显式零值/);
+  assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
   assert.deepEqual(counts(dataset.features),{full:44,partial:154,none:212,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
@@ -485,12 +485,17 @@ test('four grouped LTR logical spacing records include eight side longhands', ()
   for (const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
     const row=dataset.features.find(f=>f.id==='css.'+name);
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'03c17c1f4f4b3eff556cb7353f356ca70439f59a');
+    assert.equal(row.last_audited_commit, name==='margin-block'
+      ? '0518b51d7a34457798c748db6753c4270ce20996' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
-    assert.match(row.limitations,/FPDF1302/);
-    assert.match(row.test_reference,/LogicalReportLonghandTests.cs/);
+    // The refreshed margin-block audit lists all three codes in compact
+    // FPDF1201/1202/1302 notation; other rows spell out FPDF1302.
+    assert.match(row.limitations, name==='margin-block'
+      ? /FPDF1201\/1202\/1302/ : /FPDF1302/);
+    assert.match(row.test_reference, name==='margin-block'
+      ? /PercentagePanelMarginTests.cs/ : /LogicalReportLonghandTests.cs/);
     for (const side of [name+'-start', name+'-end']) assert.match(row.scope, new RegExp(side));
     assert.ok(row.sources.some(source => source.includes('/src/FactsPDF/Css/CssSyntaxAdapter.cs')));
   }
@@ -708,8 +713,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.report-card-keep-together');
-  assert.equal(dataset.commit, 'ecdef6d8745caa3d2b527197c5767e25f89ba6b0');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-02.percent-panel-margins');
+  assert.equal(dataset.commit, '0518b51d7a34457798c748db6753c4270ce20996');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);

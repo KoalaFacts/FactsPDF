@@ -273,6 +273,17 @@ check PDF geometry, text and page continuation; source-only, not a retained
 candidate, general CSS margin collapse or customer release.
 [Scoped details](css-stylesheets.md#current-source-real-vertical-report-panel-margins).
 
+Source `0518b51d7a34457798c748db6753c4270ce20996` also supports bounded nonnegative vertical
+percentage margins on ordinary report panels and standalone hr,
+measured against the **containing content width**. A 50-entry HTML
+report with an independently authored physical-point PDF oracle,
+targeted NUnit layout/recovery tests and Linux/Windows Native AOT
+qpdf/Poppler validation paths exercise actual font/text placement,
+painted geometry and multi-page output. Paragraph/heading vertical
+percentages and direct percentage-panel inheritance still reject rather
+than reinterpret units. No general margin collapse, customer package,
+human approval or commercial rights are implied.
+
 ### Current-source report display suppression
 
 Templates can use `display:none` to remove a whole validated ordinary report

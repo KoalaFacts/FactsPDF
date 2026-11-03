@@ -5,7 +5,8 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph,
     double MarginTop = 0, double RequiredRuleHeight = 0,
     double MinimumOuterHeight = 0, double TrailingSpace = 0,
-    double? FixedOuterHeight = null) : BlockLayoutStep;
+    double? FixedOuterHeight = null,
+    double? IndivisibleEmptyClosingMargin = null) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
@@ -15,7 +16,7 @@ internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, in
     double ContentWidth) : BlockLayoutStep;
 internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
 internal sealed record LayoutKeepPanel(BlockNode Node, double ContentWidth,
-    double Top, double Bottom, double MarginTop) : BlockLayoutStep;
+    double Top, double Bottom, double MarginTop, double MarginBottom) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
@@ -83,13 +84,49 @@ internal static class BlockLayout
                     // vertical cursor once, unlike continuation-page padding.
                     var marginTop = Checked(style.MarginTop.Resolve(containing), node.SourceOffset);
                     var marginBottom = Checked(style.MarginBottom.Resolve(containing), node.SourceOffset);
-                    // The standalone hr and independent empty painted-block oracle
-                    // both need the same physical fit check before opening a box.
-                    // Otherwise an empty decorated div can overflow at page end
-                    // even when the equivalent hr is correctly moved intact.
+                    // A percentage outside margin is indivisible: even a
+                    // multi-page panel cannot place one margin taller than
+                    // a fresh page. Reject before deferred empty spacing can
+                    // be discarded when the next paragraph starts a new page.
+                    var usablePageHeight = options.PageHeight - 2 * options.Margin;
+                    if ((style.MarginTop.IsPercent && marginTop > usablePageHeight + 0.000001) ||
+                        (style.MarginBottom.IsPercent && marginBottom > usablePageHeight + 0.000001))
+                        throw new FactsPdfException("FPDF1302",
+                            "Percentage outside margin cannot fit on a usable PDF page.", node.SourceOffset);
+                    // Empty report placeholders may contain explicit, zero-height
+                    // <p></p> slots. They still have no fragment in which to
+                    // split an outside percentage margin; do not silently drop
+                    // the closing gap when their successor starts a new page.
+                    // A paragraph with text, breaks, authored spacing or paint
+                    // is not an empty slot and retains normal layout.
+                    // Even content-free nested wrappers can reserve real vertical
+                    // padding. Measure their mandatory geometry before a blank
+                    // percentage-margin panel chooses its page, rather than
+                    // dropping its closing gap when a following line paginates.
+                    var blankNestedHeight = 0d;
+                    var blankNested = (style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
+                        TryMeasureUnpaintedBlankContents(node, box.Inner, cancellation, out blankNestedHeight);
+                    var noOccupiedChildren = node.Children.Count == 0 ||
+                        node.Children.All(child => child is BlockNode paragraph &&
+                            paragraph.Name == "p" && paragraph.Children.Count == 1 &&
+                            paragraph.Children[0] is ParagraphNode content &&
+                            content.Paragraph.Runs.Count == 0 &&
+                            paragraph.Style.MarginBefore == 0 && paragraph.Style.MarginAfter == 0 &&
+                            !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
+                            !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
+                            !paragraph.BoxStyle.HasPaint &&
+                            paragraph.BoxStyle.PaddingTop.Value == 0 &&
+                            paragraph.BoxStyle.PaddingBottom.Value == 0 &&
+                            paragraph.BoxStyle.MinHeight is null &&
+                            paragraph.BoxStyle.Height is null) ||
+                        blankNested;
+                    // Border/padding and blank nested padding belong to the
+                    // same indivisible footprint as the closing outside margin.
+                    var emptyOuterHeight = box.Top + box.Bottom +
+                        (blankNested ? blankNestedHeight : 0);
                     var requiredEmptyPaintHeight = node.Name == "hr" ||
-                        (node.Children.Count == 0 && style.HasPaint)
-                        ? box.Top + box.Bottom : 0;
+                        (noOccupiedChildren && (style.HasPaint || blankNestedHeight > 0))
+                        ? emptyOuterHeight : 0;
                     // min-height is genuine reserved page space. Content-box
                     // adds vertical decoration; border-box counts it inside.
                     var minimumOuterHeight = style.MinHeight is { } minimum
@@ -109,6 +146,20 @@ internal static class BlockLayout
                     if (!double.IsFinite(fixedOuterHeight ?? 0) || fixedOuterHeight > 14_400)
                         throw new FactsPdfException("FPDF1302",
                             "Computed fixed panel height exceeds supported bounds.", node.SourceOffset);
+                    // Empty blocks (including hr) have no content fragment
+                    // over which their percentage outside margins can split.
+                    // Preflight both margins and the full empty box together,
+                    // including when they fit a fresh page but not the
+                    // remaining space of the current page.
+                    double? indivisibleClosingMargin = noOccupiedChildren &&
+                        (style.MarginTop.IsPercent || style.MarginBottom.IsPercent)
+                        ? marginBottom : null;
+                    if (indivisibleClosingMargin.HasValue &&
+                        marginTop + Math.Max(emptyOuterHeight,
+                            Math.Max(minimumOuterHeight, fixedOuterHeight ?? 0)) + marginBottom
+                            > usablePageHeight + 0.000001)
+                        throw new FactsPdfException("FPDF1302",
+                            "Empty report box and percentage outside margins cannot fit on a page.", node.SourceOffset);
                     if (style.AvoidBreakInside)
                     {
                         // Only a root-level flat text card has the bounded,
@@ -133,13 +184,18 @@ internal static class BlockLayout
                                     "Kept report card supports only nonempty, direct flat paragraphs/headings without inner page breaks.",
                                     node.SourceOffset);
                         }
-                        yield return new LayoutKeepPanel(node, box.Inner, box.Top, box.Bottom, marginTop);
+                        yield return new LayoutKeepPanel(node, box.Inner, box.Top, box.Bottom, marginTop, marginBottom);
                     }
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
-                        marginTop, requiredEmptyPaintHeight, minimumOuterHeight,
-                        box.Bottom + marginBottom, fixedOuterHeight);
+                        marginTop,
+                        // A blank wrapper's padding and sized leaves occupy
+                        // the current page too; reserve that measured height
+                        // with the parent's opening and closing outside margins.
+                        indivisibleClosingMargin.HasValue ? emptyOuterHeight : requiredEmptyPaintHeight,
+                        minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
+                        indivisibleClosingMargin);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot));
@@ -149,6 +205,61 @@ internal static class BlockLayout
                     throw new InvalidOperationException("Unexpected block layout child.");
             }
         }
+    }
+
+    // Iterative, bounded, and using the same containing widths as Steps.
+    // Painted, breaking or text-bearing descendants are not blank. Sized
+    // leaves with no children reserve their bounded fixed/minimum height.
+    private static bool TryMeasureUnpaintedBlankContents(BlockNode node,
+        double containingWidth, CancellationToken cancellation, out double mandatoryHeight)
+    {
+        mandatoryHeight = 0;
+        var pending = new Stack<(BlockChild Child, double Width)>();
+        foreach (var child in node.Children)
+            pending.Push((child, containingWidth));
+        while (pending.Count > 0)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var (item, width) = pending.Pop();
+            if (item is not BlockNode child)
+                return false;
+            var box = child.BoxStyle;
+            if (box.HasPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
+                box.AvoidBreakInside || box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
+                ((box.MinHeight.HasValue || box.Height.HasValue) && child.Children.Count != 0) ||
+                child.Style.BreakBefore || child.Style.BreakAfter)
+                return false;
+            if (child.Name == "p")
+            {
+                if (box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
+                    child.Children.Count != 1 ||
+                    child.Children[0] is not ParagraphNode content ||
+                    content.Paragraph.Runs.Count != 0 ||
+                    child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0)
+                    return false;
+            }
+            else if (child.Name is "div" or "section" or "article" or "blockquote")
+            {
+                var (_, _, available) = ResolveMargins(box, width, child.SourceOffset);
+                var resolved = ResolveBox(box, available, child.SourceOffset, width);
+                var decoration = resolved.Top + resolved.Bottom;
+                var reserved = decoration;
+                if (box.MinHeight is { } minimum)
+                    reserved = Math.Max(reserved, minimum.Value +
+                        (box.BorderBoxSizing ? 0 : decoration));
+                if (box.Height is { } fixedHeight)
+                    reserved = Math.Max(reserved, fixedHeight.Value +
+                        (box.BorderBoxSizing ? 0 : decoration));
+                mandatoryHeight += reserved;
+                if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
+                    throw new FactsPdfException("FPDF1302",
+                        "Nested blank report geometry exceeds supported bounds.", child.SourceOffset);
+                foreach (var descendant in child.Children)
+                    pending.Push((descendant, resolved.Inner));
+            }
+            else return false;
+        }
+        return true;
     }
 
     internal readonly record struct ResolvedBox(double PaddingLeft, double Top, double Bottom, double Inner, double OuterWidth);

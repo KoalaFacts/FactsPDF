@@ -164,7 +164,7 @@ public sealed class LogicalReportLonghandTests
     [TestCase("padding-inline-start:-1pt", "FPDF1202")]
     [TestCase("padding-inline-end:auto", "FPDF1202")]
     [TestCase("margin-block-start:auto", "FPDF1202")]
-    [TestCase("margin-block-end:5%", "FPDF1202")]
+    [TestCase("margin-block-end:-5%", "FPDF1202")]
     [TestCase("padding-block-start:calc(1pt + 2pt)", "FPDF1202")]
     [TestCase("padding-inline-start:1pt 2pt", "FPDF1202")]
     [TestCase("margin-inline-end:inherit 0", "FPDF1202")]

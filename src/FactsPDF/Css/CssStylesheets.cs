@@ -262,19 +262,42 @@ internal sealed class CssStylesheets
             // Report panels have real outside-the-border vertical margins.
             // Validate all matching declarations, even losing ones. Vertical
             // percentages and auto are not quietly reinterpreted as points;
+            // Percentages are supported on report panels: their actual outside
+            // spacing resolves against the containing block content WIDTH at
+            // layout time, not the page height. Vertical auto still fails.
             // CSS-wide inheritance/reset is resolved for the winner below.
             var panelMargin = element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith('%') &&
+                path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
+                throw new FactsPdfException("FPDF1201",
+                    "Percentage report-panel margins are not supported inside lists or tables.", declaration.Offset);
+            if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value is not ("inherit" or "initial" or "unset"))
             {
-                var value = CssBoxValues.Length(declaration.Value, declaration.Offset,
+                _ = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     allowRem: true, allowEm: true);
-                if (value.IsPercent)
-                    throw new FactsPdfException("FPDF1202",
-                        "Report-panel vertical margins do not support percentages.", declaration.Offset);
             }
+            // Paragraphs/headings still store absolute vertical margins. An
+            // overridden positive percentage is syntactically valid CSS, but
+            // unsupported here: reject every matching declaration, including
+            // losing cascade candidates, rather than silently discarding it.
+            if (paragraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith('%'))
+                throw new FactsPdfException("FPDF1202",
+                    "Paragraph and heading vertical margins do not support percentages.", declaration.Offset);
+            // A paragraph's TextStyle stores absolute vertical margins.
+            // Inheriting a percentage from a panel would otherwise mistake
+            // e.g. 10% for 10pt. Reject instead of silently changing layout.
+            // Validate losing declarations too.
+            if (paragraph && declaration.Value == "inherit" && path.Count > 1 &&
+                path[^2].Name is ("div" or "section" or "article" or "blockquote") &&
+                ((declaration.Property == CssProperty.MarginTop && parentBox.MarginTop.IsPercent)
+                 || (declaration.Property == CssProperty.MarginBottom && parentBox.MarginBottom.IsPercent)))
+                throw new FactsPdfException("FPDF1201",
+                    "Paragraphs cannot inherit percentage panel margins.", declaration.Offset);
             // Forced page breaks on a whole report section must open/close
             // at its box boundary, not be delayed until its first text leaf.
             // No break-inside, avoid for whole panels or list/table breaks.

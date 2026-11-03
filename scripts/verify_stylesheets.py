@@ -795,7 +795,7 @@ def main():
         bad, dest = temp / 'invalid.html', temp / 'prior.pdf'
         for html, code in (
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
-            ("<article style='margin-bottom:10%'>A</article>", b'FPDF1202'),
+            ("<article style='margin-bottom:-10%'>A</article>", b'FPDF1202'),
             ("<div style='width:240pt;margin-left:400pt'>A</div>", b'FPDF1302'),
             ("<section style='margin-left:calc(2pt + 1pt)'>A</section>", b'FPDF1202'),
             ("<body style='margin-left:1pt'>A</body>", b'FPDF1201')
@@ -836,7 +836,7 @@ def main():
         destination = temp / 'protected.pdf'
         for html, code in (
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
-            ("<article style='margin-bottom:10%'>A</article>", b'FPDF1202'),
+            ("<article style='margin-bottom:-10%'>A</article>", b'FPDF1202'),
             ("<div style='margin-top:-1pt'>A</div>", b'FPDF1202'),
             ("<body style='margin-top:4pt'>A</body>", b'FPDF1201')
         ):
@@ -849,6 +849,67 @@ def main():
             if destination.read_bytes() != b'previous-report':
                 raise AssertionError('Invalid vertical margin replaced previous report')
         print('Native vertical panel margins, multi-page PDF and recovery verified')
+
+
+    # True native PDF geometry for percentage top/bottom report-panel margins.
+    # Percentages use the current containing content WIDTH (not page height);
+    # the independent authored oracle uses literal point values instead.
+    with tempfile.TemporaryDirectory(prefix='factspdf-panel-percent-') as folder:
+        temp = Path(folder)
+        actual, expected = temp / 'percent.pdf', temp / 'physical.pdf'
+        run(exe, Path('examples/report-percentage-panel-margins.html'), actual)
+        run(exe, Path('examples/report-percentage-panel-margins-oracle.html'), expected)
+        run('qpdf', '--check', actual)
+        run('qpdf', '--check', expected)
+        if actual.read_bytes() != expected.read_bytes():
+            raise AssertionError('Percent margins do not match independently authored physical geometry')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Percentage-margin service report did not paginate')
+        body = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for phrase in ('Business Service Report', 'Service entry 01',
+                       'Service entry 50', 'Outcome: All service entries verified.',
+                       'End of example report.'):
+            if phrase not in body:
+                raise AssertionError('Percentage-margin report dropped text: ' + phrase)
+        for page in range(1, pages + 1):
+            root = ET.fromstring(run('pdftotext', '-f', page, '-l', page, '-bbox', actual, '-'))
+            for node in root.iter('{http://www.w3.org/1999/xhtml}page'):
+                width, height = float(node.attrib['width']), float(node.attrib['height'])
+                for word in node.iter('{http://www.w3.org/1999/xhtml}word'):
+                    left, top = float(word.attrib['xMin']), float(word.attrib['yMin'])
+                    right, bottom = float(word.attrib['xMax']), float(word.attrib['yMax'])
+                    if not (0 <= left < right <= width and 0 <= top < bottom <= height):
+                        raise AssertionError(('Percentage-margin PDF word outside page', page, word.text))
+        bad, destination = temp / 'bad.html', temp / 'previous.pdf'
+        for html, code in (
+            ("<p style='margin-top:10%'>Not a panel</p>", b'FPDF1202'),
+            ("<section style='margin-top:10%'><p style='margin-top:inherit'>A</p></section>", b'FPDF1201'),
+            ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
+            ("<article style='margin-bottom:-1%'>A</article>", b'FPDF1202'),
+            ("<section style='margin-top:10001%'>A</section>", b'FPDF1202'),
+            ("<section style='margin-top:10000%'>A</section>", b'FPDF1302'),
+            ("<section style='margin-top:200%'></section>", b'FPDF1302'),
+            ("<section style='margin-bottom:200%'><p>TAIL</p></section>", b'FPDF1302'),
+            ("<hr style='margin-top:90%;margin-bottom:90%'>", b'FPDF1302'),
+            ("<section style='margin-top:90%;margin-bottom:90%'><div></div></section>", b'FPDF1302'),
+            ("<section style='margin-top:90%;margin-bottom:90%'><article><p style='margin:0'></p></article></section>", b'FPDF1302'),
+            ("<section style='margin-top:90%;margin-bottom:90%'><article style='padding-top:4pt'><div></div></article></section>", b'FPDF1302'),
+            ("<section style='margin-top:90%;margin-bottom:90%'><div style='min-height:6pt'></div></section>", b'FPDF1302'),
+            ("<section style='margin-top:90%;margin-bottom:90%'><article style='height:6pt'></article></section>", b'FPDF1302')
+        ):
+            bad.write_text(html, encoding='utf-8')
+            destination.write_bytes(b'protected-original-report')
+            result = subprocess.run([str(exe), str(bad), str(destination), '--overwrite'],
+                                    capture_output=True, timeout=120)
+            if result.returncode != 3 or code not in result.stderr or result.stdout:
+                raise AssertionError(('Native percent-margin error mismatch', html, result.returncode,
+                                      result.stderr.decode('utf-8', 'replace')))
+            if destination.read_bytes() != b'protected-original-report':
+                raise AssertionError('Invalid percent margin replaced prior report')
+        print('Native percentage panel margins, PDF point oracle, text, pages and recovery verified')
 
     # Native AOT: numeric font-weight must select actual explicit normal/bold
     # TrueType faces, paginate and preserve old destination bytes on failures.
@@ -1182,6 +1243,7 @@ def main():
                           'native_overflow_wrap_report_and_recovery': True,
                            'native_panel_margins_and_recovery': True,
                            'native_panel_vertical_margins_and_recovery': True,
+                            'native_percentage_panel_margins_pdf_equivalence_and_recovery': True,
                            'native_numeric_font_weights_pdf_equivalence_and_recovery': True,
                            'native_horizontal_rules_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True,

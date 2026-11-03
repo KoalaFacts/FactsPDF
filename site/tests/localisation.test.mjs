@@ -141,7 +141,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
     const row=englishFeature(source);
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit,
-      id==='css.margin' ? 'f5aba206ca30c86dca8bd4b465182d5cea436dcc' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+      id==='css.margin' ? '0518b51d7a34457798c748db6753c4270ce20996' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/auto/);
@@ -150,7 +150,8 @@ test('centred report-panel translations retain the bounded PDF margin contract',
     assert.doesNotMatch([row.scope,row.limitations,row.applicability].join(' '),han);
   }
   const margin=englishFeature(data.features.find(row=>row.id==='css.margin'));
-  assert.match(margin.limitations,/vertical percentage\/auto/);
+  assert.match(margin.limitations,/vertical auto/);
+  assert.match(margin.scope,/percentage/);
   assert.match(margin.limitations,/FPDF1302/);
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
   assert.match(translate(data.css_inventory_note),/margin:0 auto/);
@@ -165,7 +166,7 @@ test('real vertical panel margins retain exact English scope and source identity
   for(const id of ['css.margin-top','css.margin-bottom']){
     const row=englishFeature(data.features.find(f=>f.id===id));
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
+    assert.equal(row.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/outside the box/);
@@ -175,7 +176,7 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   const margin=englishFeature(data.features.find(f=>f.id==='css.margin'));
-  assert.equal(margin.last_audited_commit,'f5aba206ca30c86dca8bd4b465182d5cea436dcc');
+  assert.equal(margin.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
   assert.match(margin.scope,/margin:0 auto/);
   assert.match(margin.scope,/margin:12pt auto 7pt/);
   assert.match(margin.limitations,/table-cell p/);
@@ -217,7 +218,8 @@ test('LTR logical spacing has complete English audit text', async () => {
   for(const name of ['margin-inline','margin-block','padding-inline','padding-block']) {
     const row=englishFeature(data.features.find(f=>f.id==='css.'+name));
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'03c17c1f4f4b3eff556cb7353f356ca70439f59a');
+    assert.equal(row.last_audited_commit, name==='margin-block'
+      ? '0518b51d7a34457798c748db6753c4270ce20996' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
     assert.match(row.scope,new RegExp(name+'-start'));

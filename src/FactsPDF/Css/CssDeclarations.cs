@@ -128,9 +128,8 @@ internal static class CssDeclarations
         var inherited = declaration.Value == "inherit" ? parent : new BoxStyle();
         var length = wide ? default : CssBoxValues.Length(declaration.Value, declaration.Offset,
             rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
-        if (length.IsPercent)
-            throw new FactsPdfException("FPDF1202",
-                "Report-panel vertical margins do not support percentages.", declaration.Offset);
+        // Preserve percentage units until the box layout knows the actual
+        // containing content width; rem/em have already resolved to points.
         return declaration.Property switch
         {
             CssProperty.MarginTop => current with { MarginTop = wide ? inherited.MarginTop : length },
