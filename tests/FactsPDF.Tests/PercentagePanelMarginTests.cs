@@ -282,6 +282,46 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
     }
 
+    [TestCase("<article style='padding-top:4pt'><div></div></article>")]
+    [TestCase("<div style='padding-top:5%;padding-bottom:2%'><section></section></div>")]
+    public void OversizedOutsidePercentMarginsAroundPaddedBlankWrappersProtectPdf(string children)
+        => RejectPreservingOutput(
+            "<section style='margin-top:90%;margin-bottom:90%'>" + children +
+            "</section><p style='margin:0'>AFTER</p>", "FPDF1302");
+
+    [Test]
+    public void PaddedNestedBlankWrappersAndOutsidePercentMarginsMoveAsOnePageFootprint()
+    {
+        var page = Page with { PageHeight = 150 };
+        var leading = "<p style='margin:0'>" +
+            string.Join("<br>", Enumerable.Range(1, 4).Select(i => $"LEAD-{i}")) + "</p>";
+        const string panel = "<section style='margin-top:10%;margin-bottom:20%'>" +
+            "<article style='padding-top:4pt;padding-bottom:3pt'>" +
+            "<div style='padding-top:2pt'></div></article></section>";
+        const string tail = "<p style='margin:0'>AFTER</p>";
+        var actual = leading + panel + tail;
+        var oracle = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        var pages = Layout(actual, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
+        Assert.That(pages[1].Runs.Any(r => r.Text == "AFTER"), Is.True);
+        Assert.That(Render(actual, page), Is.EqualTo(Render(oracle, page)));
+    }
+
+    [Test]
+    public void BlankNestedPercentPaddingUsesEachWrappersContainingWidth()
+    {
+        const string percentages = "<section style='margin-top:10%;margin-bottom:5%'>" +
+            "<article style='width:180pt;padding-top:10%;padding-bottom:5%'>" +
+            "<div style='padding-top:10%;padding-bottom:5%'></div></article></section>" +
+            "<p style='margin:0'>AFTER</p>";
+        const string points = "<section style='margin-top:26pt;margin-bottom:13pt'>" +
+            "<article style='width:180pt;padding-top:26pt;padding-bottom:13pt'>" +
+            "<div style='padding-top:18pt;padding-bottom:9pt'></div></article></section>" +
+            "<p style='margin:0'>AFTER</p>";
+        Assert.That(Render(percentages), Is.EqualTo(Render(points)));
+    }
+
     [TestCase("<section style='margin-top:200%'></section>")]
     [TestCase("<section style='margin-bottom:200%'><p style='margin:0'>TAIL</p></section>")]
     [TestCase("<section style='margin-top:90%;margin-bottom:90%'></section>")]

@@ -99,6 +99,13 @@ internal static class BlockLayout
                     // the closing gap when their successor starts a new page.
                     // A paragraph with text, breaks, authored spacing or paint
                     // is not an empty slot and retains normal layout.
+                    // Even content-free nested wrappers can reserve real vertical
+                    // padding. Measure their mandatory geometry before a blank
+                    // percentage-margin panel chooses its page, rather than
+                    // dropping its closing gap when a following line paginates.
+                    var blankNestedHeight = 0d;
+                    var blankNested = (style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
+                        TryMeasureUnpaintedBlankContents(node, box.Inner, cancellation, out blankNestedHeight);
                     var noOccupiedChildren = node.Children.Count == 0 ||
                         node.Children.All(child => child is BlockNode paragraph &&
                             paragraph.Name == "p" && paragraph.Children.Count == 1 &&
@@ -112,15 +119,14 @@ internal static class BlockLayout
                             paragraph.BoxStyle.PaddingBottom.Value == 0 &&
                             paragraph.BoxStyle.MinHeight is null &&
                             paragraph.BoxStyle.Height is null) ||
-                        // Nested layout-neutral wrappers cannot consume a
-                        // closing percent margin or provide a page fragment.
-                        ((style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
-                            ContainsOnlyZeroHeightPlaceholders(node, cancellation));
-                    // A rule or physically empty painted block reserves its
-                    // borders and vertical padding together with its margins.
+                        blankNested;
+                    // Border/padding and blank nested padding belong to the
+                    // same indivisible footprint as the closing outside margin.
+                    var emptyOuterHeight = box.Top + box.Bottom +
+                        (blankNested ? blankNestedHeight : 0);
                     var requiredEmptyPaintHeight = node.Name == "hr" ||
-                        (noOccupiedChildren && style.HasPaint)
-                        ? box.Top + box.Bottom : 0;
+                        (noOccupiedChildren && (style.HasPaint || blankNestedHeight > 0))
+                        ? emptyOuterHeight : 0;
                     // min-height is genuine reserved page space. Content-box
                     // adds vertical decoration; border-box counts it inside.
                     var minimumOuterHeight = style.MinHeight is { } minimum
@@ -149,7 +155,7 @@ internal static class BlockLayout
                         (style.MarginTop.IsPercent || style.MarginBottom.IsPercent)
                         ? marginBottom : null;
                     if (indivisibleClosingMargin.HasValue &&
-                        marginTop + Math.Max(box.Top + box.Bottom,
+                        marginTop + Math.Max(emptyOuterHeight,
                             Math.Max(minimumOuterHeight, fixedOuterHeight ?? 0)) + marginBottom
                             > usablePageHeight + 0.000001)
                         throw new FactsPdfException("FPDF1302",
@@ -198,26 +204,31 @@ internal static class BlockLayout
         }
     }
 
-    // Iterative: deeply nested empty wrapper trees must not use the call stack.
-    // Paint, spacing, intrinsic height and page breaks all forbid this shortcut.
-    private static bool ContainsOnlyZeroHeightPlaceholders(BlockNode node, CancellationToken cancellation)
+    // Iterative, bounded, and using the same containing widths as Steps.
+    // Painted, sized, breaking or text-bearing descendants are not blank.
+    private static bool TryMeasureUnpaintedBlankContents(BlockNode node,
+        double containingWidth, CancellationToken cancellation, out double mandatoryHeight)
     {
-        var pending = new Stack<BlockChild>(node.Children);
+        mandatoryHeight = 0;
+        var pending = new Stack<(BlockChild Child, double Width)>();
+        foreach (var child in node.Children)
+            pending.Push((child, containingWidth));
         while (pending.Count > 0)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (pending.Pop() is not BlockNode child)
+            var (item, width) = pending.Pop();
+            if (item is not BlockNode child)
                 return false;
             var box = child.BoxStyle;
-            if (box.HasPaint || box.BreakBefore || box.BreakAfter || box.AvoidBreakInside ||
-                box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
-                box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
+            if (box.HasPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
+                box.AvoidBreakInside || box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
                 box.MinHeight.HasValue || box.Height.HasValue ||
                 child.Style.BreakBefore || child.Style.BreakAfter)
                 return false;
             if (child.Name == "p")
             {
-                if (child.Children.Count != 1 ||
+                if (box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
+                    child.Children.Count != 1 ||
                     child.Children[0] is not ParagraphNode content ||
                     content.Paragraph.Runs.Count != 0 ||
                     child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0)
@@ -225,8 +236,14 @@ internal static class BlockLayout
             }
             else if (child.Name is "div" or "section" or "article" or "blockquote")
             {
+                var (_, _, available) = ResolveMargins(box, width, child.SourceOffset);
+                var resolved = ResolveBox(box, available, child.SourceOffset, width);
+                mandatoryHeight += resolved.Top + resolved.Bottom;
+                if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
+                    throw new FactsPdfException("FPDF1302",
+                        "Nested blank report geometry exceeds supported bounds.", child.SourceOffset);
                 foreach (var descendant in child.Children)
-                    pending.Push(descendant);
+                    pending.Push((descendant, resolved.Inner));
             }
             else return false;
         }
