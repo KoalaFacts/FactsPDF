@@ -232,6 +232,30 @@ public sealed class PercentagePanelMarginTests
             Is.EqualTo(Render(forced, page)));
     }
 
+    [Test]
+    public void EmptyExplicitParagraphPlaceholderKeepsItsPercentageMarginsTogetherAcrossPages()
+    {
+        var page = Page with { PageHeight = 150 };
+        var leading = "<p style='margin:0'>" +
+            string.Join("<br>", Enumerable.Range(1, 4).Select(i => $"LEAD-{i}")) + "</p>";
+        const string panel = "<section style='margin-top:10%;margin-bottom:20%'>" +
+            "<p style='margin:0'></p></section>";
+        const string tail = "<p style='margin:0'>AFTER</p>";
+        var actual = leading + panel + tail;
+        var forced = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        var pages = Layout(actual, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
+        Assert.That(pages[1].Runs.Any(r => r.Text == "AFTER"), Is.True);
+        Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
+    }
+
+    [Test]
+    public void UnplaceablePercentMarginsAroundEmptyParagraphPlaceholderProtectPriorPdf()
+        => RejectPreservingOutput(
+            "<section style='margin-top:90%;margin-bottom:90%'>" +
+            "<p style='margin:0'></p></section>", "FPDF1302");
+
     [TestCase("<section style='margin-top:200%'></section>")]
     [TestCase("<section style='margin-bottom:200%'><p style='margin:0'>TAIL</p></section>")]
     [TestCase("<section style='margin-top:90%;margin-bottom:90%'></section>")]

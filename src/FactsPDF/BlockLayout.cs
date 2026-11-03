@@ -93,12 +93,29 @@ internal static class BlockLayout
                         (style.MarginBottom.IsPercent && marginBottom > usablePageHeight + 0.000001))
                         throw new FactsPdfException("FPDF1302",
                             "Percentage outside margin cannot fit on a usable PDF page.", node.SourceOffset);
-                    // The standalone hr and independent empty painted-block oracle
-                    // both need the same physical fit check before opening a box.
-                    // Otherwise an empty decorated div can overflow at page end
-                    // even when the equivalent hr is correctly moved intact.
+                    // Empty report placeholders may contain explicit, zero-height
+                    // <p></p> slots. They still have no fragment in which to
+                    // split an outside percentage margin; do not silently drop
+                    // the closing gap when their successor starts a new page.
+                    // A paragraph with text, breaks, authored spacing or paint
+                    // is not an empty slot and retains normal layout.
+                    var noOccupiedChildren = node.Children.Count == 0 ||
+                        node.Children.All(child => child is BlockNode paragraph &&
+                            paragraph.Name == "p" && paragraph.Children.Count == 1 &&
+                            paragraph.Children[0] is ParagraphNode content &&
+                            content.Paragraph.Runs.Count == 0 &&
+                            paragraph.Style.MarginBefore == 0 && paragraph.Style.MarginAfter == 0 &&
+                            !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
+                            !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
+                            !paragraph.BoxStyle.HasPaint &&
+                            paragraph.BoxStyle.PaddingTop.Value == 0 &&
+                            paragraph.BoxStyle.PaddingBottom.Value == 0 &&
+                            paragraph.BoxStyle.MinHeight is null &&
+                            paragraph.BoxStyle.Height is null);
+                    // A rule or physically empty painted block reserves its
+                    // borders and vertical padding together with its margins.
                     var requiredEmptyPaintHeight = node.Name == "hr" ||
-                        (node.Children.Count == 0 && style.HasPaint)
+                        (noOccupiedChildren && style.HasPaint)
                         ? box.Top + box.Bottom : 0;
                     // min-height is genuine reserved page space. Content-box
                     // adds vertical decoration; border-box counts it inside.
@@ -124,7 +141,7 @@ internal static class BlockLayout
                     // Preflight both margins and the full empty box together,
                     // including when they fit a fresh page but not the
                     // remaining space of the current page.
-                    double? indivisibleClosingMargin = node.Children.Count == 0 &&
+                    double? indivisibleClosingMargin = noOccupiedChildren &&
                         (style.MarginTop.IsPercent || style.MarginBottom.IsPercent)
                         ? marginBottom : null;
                     if (indivisibleClosingMargin.HasValue &&
