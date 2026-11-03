@@ -208,13 +208,16 @@ internal static class TextLayout
                     previousAfter = keptParagraph.Style.MarginAfter;
                 }
                 intrinsic += previousAfter;
-                var fresh = keep.MarginTop + firstBefore + intrinsic;
+                // Reserve the closing outside margin with this indivisible card.
+                // Otherwise a card can fit on the old page while its
+                // closing margin disappears at the next page boundary.
+                var fresh = keep.MarginTop + firstBefore + intrinsic + keep.MarginBottom;
                 if (fresh > usable + 0.000001)
                     throw new FactsPdfException("FPDF1302",
                         "Kept report card cannot fit intact on one page.",
                         keep.Node.SourceOffset);
                 var neededHere = keep.MarginTop + Math.Max(after, firstBefore) +
-                    intrinsic + pendingTopPadding + pendingClosedPadding;
+                    intrinsic + keep.MarginBottom + pendingTopPadding + pendingClosedPadding;
                 if (!breakNext && !keep.Node.BoxStyle.BreakBefore &&
                     CurrentPageOccupied() && y + neededHere > bottom + 0.000001)
                 {

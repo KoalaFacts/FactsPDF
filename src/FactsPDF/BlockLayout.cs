@@ -16,7 +16,7 @@ internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, in
     double ContentWidth) : BlockLayoutStep;
 internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
 internal sealed record LayoutKeepPanel(BlockNode Node, double ContentWidth,
-    double Top, double Bottom, double MarginTop) : BlockLayoutStep;
+    double Top, double Bottom, double MarginTop, double MarginBottom) : BlockLayoutStep;
 
 /// <summary>
 /// Iterative, lazy containing-block resolution. All positions are PDF points;
@@ -157,7 +157,7 @@ internal static class BlockLayout
                                     "Kept report card supports only nonempty, direct flat paragraphs/headings without inner page breaks.",
                                     node.SourceOffset);
                         }
-                        yield return new LayoutKeepPanel(node, box.Inner, box.Top, box.Bottom, marginTop);
+                        yield return new LayoutKeepPanel(node, box.Inner, box.Top, box.Bottom, marginTop, marginBottom);
                     }
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,

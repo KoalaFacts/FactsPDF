@@ -156,6 +156,37 @@ public sealed class PercentagePanelMarginTests
     public void UnsupportedTextPercentMarginsRejectEvenWhenAnotherRuleWins(string html)
         => RejectPreservingOutput(html, "FPDF1202");
 
+    [TestCase("20%")]
+    [TestCase("52pt")]
+    public void KeptCardReservesItsClosingOutsideMarginBeforeChoosingAPage(string closingMargin)
+    {
+        var page = Page with { PageHeight = 160 };
+        var leading = "<p style='margin:0'>" +
+            string.Join("<br>", Enumerable.Range(1, 4).Select(i => $"LEAD-{i}")) + "</p>";
+        var card = "<section style='break-inside:avoid;margin-top:10%;margin-bottom:" +
+            closingMargin + ";padding:2pt;background:#ddeeff'>" +
+            "<p style='margin:0'>CARD</p></section>";
+        const string tail = "<p style='margin:0'>AFTER</p>";
+        // Both 20% and 52pt use a 52pt closing gap at 260pt content width.
+        // The card's text fits after the leading lines, but its complete
+        // outside margin footprint does not. Move it intact, not just AFTER.
+        var actual = leading + card + tail;
+        var forced = leading + card.Replace("break-inside:avoid;",
+            "break-inside:avoid;break-before:page;") + tail;
+        var actualPages = Layout(actual, page);
+        Assert.That(actualPages, Has.Count.EqualTo(2));
+        Assert.That(actualPages[0].Runs.Any(r => r.Text == "CARD"), Is.False);
+        Assert.That(actualPages[1].Runs.Any(r => r.Text == "CARD"), Is.True);
+        Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
+    }
+
+    [Test]
+    public void OversizedKeptCardClosingPercentageMarginProtectsExistingPdf()
+        => RejectPreservingOutput(
+            "<section style='break-inside:avoid;margin-top:10%;margin-bottom:40%'>" +
+            "<p style='margin:0'>CARD</p></section>",
+            "FPDF1302", Page with { PageHeight = 160 });
+
     [Test]
     public void FittingEmptyPanelPercentMarginsStillReserveExactPhysicalSpace()
     {
