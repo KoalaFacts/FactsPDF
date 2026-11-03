@@ -77,7 +77,9 @@ internal static class InlineCss
                         || value.EndsWith("px", StringComparison.Ordinal)
                         || value.EndsWith("mm", StringComparison.Ordinal)
                         || value.EndsWith("cm", StringComparison.Ordinal)
-                        || value.EndsWith("in", StringComparison.Ordinal);
+                        || value.EndsWith("in", StringComparison.Ordinal)
+                        || value.EndsWith("pc", StringComparison.Ordinal)
+                        || value.EndsWith("q", StringComparison.Ordinal);
                     if (relativeScale.HasValue || physical)
                     {
                         var computed = physical ? Length(value, offset) : style.FontSize * relativeScale!.Value;
@@ -224,7 +226,9 @@ internal static class InlineCss
         if (value.EndsWith("mm", StringComparison.Ordinal)) return Number(value[..^2], offset) * (72d / 25.4d);
         if (value.EndsWith("cm", StringComparison.Ordinal)) return Number(value[..^2], offset) * (72d / 2.54d);
         if (value.EndsWith("in", StringComparison.Ordinal)) return Number(value[..^2], offset) * 72d;
-        throw Invalid("This length requires pt, px, mm, cm, or in units.", offset);
+        if (value.EndsWith("pc", StringComparison.Ordinal)) return Number(value[..^2], offset) * 12d;
+        if (value.EndsWith("q", StringComparison.Ordinal)) return Number(value[..^1], offset) * ((72d / 25.4d) / 4d);
+        throw Invalid("This length requires pt, px, mm, cm, in, pc, or q units.", offset);
     }
 
     private static double Margin(string value, int offset)

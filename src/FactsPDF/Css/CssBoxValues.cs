@@ -67,6 +67,11 @@ internal static class CssBoxValues
         { number = value[..^2]; scale = 72d / 2.54d; percent = false; }
         else if (value.EndsWith("in", StringComparison.Ordinal))
         { number = value[..^2]; scale = 72d; percent = false; }
+        // Print physical units: 1pc = 12pt; 4q = 1mm.
+        else if (value.EndsWith("pc", StringComparison.Ordinal))
+        { number = value[..^2]; scale = 12d; percent = false; }
+        else if (value.EndsWith("q", StringComparison.Ordinal))
+        { number = value[..^1]; scale = (72d / 25.4d) / 4d; percent = false; }
         else if (allowRem && value.EndsWith("rem", StringComparison.Ordinal))
         { number = value[..^3]; scale = rootFontSize ?? 1; percent = false; }
         else if (allowEm && !value.EndsWith("rem", StringComparison.Ordinal)
@@ -76,7 +81,7 @@ internal static class CssBoxValues
         { number = value[..^1]; scale = 1; percent = true; }
         else if (IsExactlyUnitlessZero(value))
             return new CssLength(0);
-        else throw new FactsPdfException("FPDF1202", "Box lengths require pt, px, mm, cm, in, %, scoped rem/em, or unitless zero.", offset);
+        else throw new FactsPdfException("FPDF1202", "Box lengths require pt, px, mm, cm, in, pc, q, %, scoped rem/em, or unitless zero.", offset);
 
         if (!double.TryParse(number, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var parsed) || !double.IsFinite(parsed))
