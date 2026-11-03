@@ -132,7 +132,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.equal(margin.example,'margin:0 auto');
   assert.equal(absolute.status,'partial');
   assert.match(absolute.scope,/mm\/cm\/in/);
-  assert.match(absolute.limitations,/q\/pc/);
+  assert.match(absolute.limitations,/pc\/q 已在上述受限CSS物理长度中支持，但CLI页边距等其他入口仍不扩展/);
   assert.equal(dataset.accepted_css_property_count,83);
   assert.equal(margin.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
   for(const id of ['css.margin-left','css.margin-right']){
