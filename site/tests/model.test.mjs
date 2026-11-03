@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '0518b51d7a34457798c748db6753c4270ce20996');
-  assert.match(dataset.commit_url, /0518b51d7a34457798c748db6753c4270ce20996/);
+  assert.equal(dataset.commit, 'ca3aef91e20792782edb49004369dfbf1e9712b3');
+  assert.match(dataset.commit_url, /ca3aef91e20792782edb49004369dfbf1e9712b3/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -714,7 +714,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
   assert.equal(dataset.dataset_version, 'audit-2026-11-02.percent-panel-margins');
-  assert.equal(dataset.commit, '0518b51d7a34457798c748db6753c4270ce20996');
+  assert.equal(dataset.commit, 'ca3aef91e20792782edb49004369dfbf1e9712b3');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -768,4 +768,15 @@ test('bounded keep-together card is a real, narrowly tracked PDF capability', ()
   assert.deepEqual(counts(dataset.features),{full:44,partial:154,none:212,unknown:6,na:2});
   assert.match(dataset.audit_method,/416条维持历史来源/);
   assert.match(dataset.css_inventory_note,/83个受限CSS属性名/);
+});
+
+test('pc and q physical lengths retain 418 audit rows and 83 CSS property names', () => {
+  const extension=dataset.features.filter(f=>f.physical_unit_extension_commit==='ca3aef91e20792782edb49004369dfbf1e9712b3');
+  assert.equal(extension.length,37);
+  assert.equal(extension.filter(f=>f.id.startsWith('css.')).length,36);
+  assert(extension.every(f=>f.scope.includes('pc') && f.scope.includes('q')));
+  assert.equal(dataset.accepted_css_property_count,83);
+  assert.deepEqual(counts(dataset.features),{full:44,partial:154,none:212,unknown:6,na:2});
+  assert.equal(dataset.features.find(f=>f.id==='css.margin').last_audited_commit,
+    '0518b51d7a34457798c748db6753c4270ce20996');
 });
