@@ -308,6 +308,32 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(actual, page), Is.EqualTo(Render(oracle, page)));
     }
 
+    [TestCase("<div style='min-height:6pt'></div>")]
+    [TestCase("<article style='height:6pt'></article>")]
+    [TestCase("<article style='padding-top:2pt'><div style='min-height:4pt'></div></article>")]
+    public void UnplaceablePercentMarginsAroundEmptySizedLeafProtectPreviousPdf(string children)
+        => RejectPreservingOutput(
+            "<section style='margin-top:90%;margin-bottom:90%'>" + children +
+            "</section><p style='margin:0'>AFTER</p>", "FPDF1302");
+
+    [Test]
+    public void EmptySizedNestedLeafAndPercentMarginsMoveTogetherToFreshPage()
+    {
+        var page = Page with { PageHeight = 150 };
+        var leading = "<p style='margin:0'>" +
+            string.Join("<br>", Enumerable.Range(1, 4).Select(i => $"LEAD-{i}")) + "</p>";
+        const string panel = "<section style='margin-top:10%;margin-bottom:20%'>" +
+            "<article style='padding-top:2pt'><div style='min-height:4pt'></div></article></section>";
+        const string tail = "<p style='margin:0'>AFTER</p>";
+        var actual = leading + panel + tail;
+        var forced = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        var pages = Layout(actual, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
+        Assert.That(pages[1].Runs.Any(r => r.Text == "AFTER"), Is.True);
+        Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
+    }
+
     [Test]
     public void BlankNestedPercentPaddingUsesEachWrappersContainingWidth()
     {

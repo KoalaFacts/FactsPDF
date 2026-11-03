@@ -205,7 +205,8 @@ internal static class BlockLayout
     }
 
     // Iterative, bounded, and using the same containing widths as Steps.
-    // Painted, sized, breaking or text-bearing descendants are not blank.
+    // Painted, breaking or text-bearing descendants are not blank. Sized
+    // leaves with no children reserve their bounded fixed/minimum height.
     private static bool TryMeasureUnpaintedBlankContents(BlockNode node,
         double containingWidth, CancellationToken cancellation, out double mandatoryHeight)
     {
@@ -222,7 +223,7 @@ internal static class BlockLayout
             var box = child.BoxStyle;
             if (box.HasPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
                 box.AvoidBreakInside || box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
-                box.MinHeight.HasValue || box.Height.HasValue ||
+                ((box.MinHeight.HasValue || box.Height.HasValue) && child.Children.Count != 0) ||
                 child.Style.BreakBefore || child.Style.BreakAfter)
                 return false;
             if (child.Name == "p")
@@ -238,7 +239,15 @@ internal static class BlockLayout
             {
                 var (_, _, available) = ResolveMargins(box, width, child.SourceOffset);
                 var resolved = ResolveBox(box, available, child.SourceOffset, width);
-                mandatoryHeight += resolved.Top + resolved.Bottom;
+                var decoration = resolved.Top + resolved.Bottom;
+                var reserved = decoration;
+                if (box.MinHeight is { } minimum)
+                    reserved = Math.Max(reserved, minimum.Value +
+                        (box.BorderBoxSizing ? 0 : decoration));
+                if (box.Height is { } fixedHeight)
+                    reserved = Math.Max(reserved, fixedHeight.Value +
+                        (box.BorderBoxSizing ? 0 : decoration));
+                mandatoryHeight += reserved;
                 if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
                     throw new FactsPdfException("FPDF1302",
                         "Nested blank report geometry exceeds supported bounds.", child.SourceOffset);
