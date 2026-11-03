@@ -316,6 +316,29 @@ public sealed class PercentagePanelMarginTests
             "<section style='margin-top:90%;margin-bottom:90%'>" + children +
             "</section><p style='margin:0'>AFTER</p>", "FPDF1302");
 
+    [TestCase("<article style='padding-top:12pt;padding-bottom:12pt'></article>")]
+    [TestCase("<div style='min-height:24pt'></div>")]
+    [TestCase("<section style='height:24pt'></section>")]
+    public void NestedBlankHeightMustCountBeforeParentPercentageMarginsChooseThePage(string child)
+    {
+        var page = Page with { PageHeight = 150 };
+        const string leading = "<p style='margin:0'>LEAD-1<br>LEAD-2</p>";
+        var panel = "<section style='margin-top:10%;margin-bottom:15%'>" +
+            child + "</section>";
+        const string tail = "<p style='margin:0'>AFTER</p>";
+        // 260pt containing width gives 26pt and 39pt outside margins.
+        // Nested padding/height adds 24pt; all 89pt must fit together.
+        // The margins alone fit after LEAD, but the full panel does not.
+        var actual = leading + panel + tail;
+        var oracle = leading + "<section style='break-before:page'>" +
+            panel + tail + "</section>";
+        var pages = Layout(actual, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
+        Assert.That(pages[1].Runs.Any(r => r.Text == "AFTER"), Is.True);
+        Assert.That(Render(actual, page), Is.EqualTo(Render(oracle, page)));
+    }
+
     [Test]
     public void EmptySizedNestedLeafAndPercentMarginsMoveTogetherToFreshPage()
     {

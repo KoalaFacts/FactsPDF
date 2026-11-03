@@ -190,7 +190,10 @@ internal static class BlockLayout
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
                         marginTop,
-                        indivisibleClosingMargin.HasValue ? box.Top + box.Bottom : requiredEmptyPaintHeight,
+                        // A blank wrapper's padding and sized leaves occupy
+                        // the current page too; reserve that measured height
+                        // with the parent's opening and closing outside margins.
+                        indivisibleClosingMargin.HasValue ? emptyOuterHeight : requiredEmptyPaintHeight,
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
                         indivisibleClosingMargin);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
