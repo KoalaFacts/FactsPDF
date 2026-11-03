@@ -192,6 +192,13 @@ public sealed class PercentagePanelMarginTests
             Assert.That(moved[1].PaintBoxes.Single().Top,
                 Is.EqualTo(46).Within(0.000001));
         }
+        // Verify the *serialized PDF*, not only the internal layout model:
+        // explicit page breaking before the empty box is an independent
+        // placement oracle for the automatic keep-together decision.
+        var forced = leading + "<section style='break-before:page'>" +
+            empty + tail + "</section>";
+        Assert.That(Render(leading + empty + tail, page),
+            Is.EqualTo(Render(forced, page)));
     }
 
     [TestCase("<section style='margin-top:200%'></section>")]
