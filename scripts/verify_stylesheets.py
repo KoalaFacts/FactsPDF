@@ -1214,6 +1214,46 @@ def main():
                 raise AssertionError('Rejected logical text alignment overwrote the existing PDF')
         print('Native LTR logical text alignment: 46-row parity, pagination, text, recovery verified')
 
+
+    # Source-built native CLI: CSS pc (12pt) and q (quarter-mm) change real
+    # report typography, box geometry and pagination. Independently authored
+    # physical point/mm markup must produce byte-identical PDFs.
+    with tempfile.TemporaryDirectory(prefix='factspdf-print-pica-q-') as folder:
+        temp = Path(folder)
+        source = Path('examples/report-print-pica-q.html')
+        fixed = Path('examples/report-print-pica-q-oracle.html')
+        actual, oracle = temp / 'print-units.pdf', temp / 'point-mm.pdf'
+        for html, pdf in ((source, actual), (fixed, oracle)):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Native pica/q report differs from physical point/mm PDF oracle')
+        info = run('pdfinfo', actual).decode('utf-8')
+        pages = next((int(row.split(':', 1)[1].strip())
+                      for row in info.splitlines() if row.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Native pica/q service register failed to paginate')
+        extracted = run('pdftotext', '-raw', actual, '-').decode('utf-8')
+        for marker in ('Quarterly maintenance register', 'Service entry 01',
+                       'Service entry 40', 'Register reviewed and completed.'):
+            if marker not in extracted:
+                raise AssertionError('Native pica/q PDF lost searchable report text: ' + marker)
+        for invalid in ('padding:-1q', 'margin:1201pc', 'font-size:13pc'):
+            bad = temp / 'invalid.html'
+            bad.write_text("<section style='" + invalid + "'>Not rendered</section>",
+                           encoding='utf-8')
+            actual.write_bytes(b'original-approved-report')
+            fail = subprocess.run([str(exe), str(bad), str(actual), '--overwrite'],
+                                  capture_output=True, timeout=120)
+            if fail.returncode != 3 or b'FPDF1202' not in fail.stderr or fail.stdout:
+                raise AssertionError('Invalid print units were not rejected: ' + invalid)
+            if actual.read_bytes() != b'original-approved-report':
+                raise AssertionError('Rejected print units replaced existing PDF')
+        run(exe, source, actual, '--overwrite')
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Native print-unit recovery did not restore full report PDF')
+        print('Native 40-entry pc/q CSS report PDF-byte parity, pagination, text and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -1250,7 +1290,8 @@ def main():
                             'native_ltr_logical_side_longhands_pdf_parity_pagination_and_recovery': True,
                              'native_quote_report_pdf_parity_pagination_and_recovery': True,
                              'native_report_display_none_pdf_parity_pagination_and_recovery': True,
-                             'native_ltr_text_align_pdf_parity_pagination_and_recovery': True},
+                             'native_ltr_text_align_pdf_parity_pagination_and_recovery': True,
+                             'native_pica_quarter_mm_pdf_parity_pagination_text_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
