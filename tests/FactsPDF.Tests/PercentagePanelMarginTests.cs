@@ -157,6 +157,21 @@ public sealed class PercentagePanelMarginTests
         => RejectPreservingOutput(html, "FPDF1202");
 
     [Test]
+    public void FittingEmptyPanelPercentMarginsStillReserveExactPhysicalSpace()
+    {
+        const string html = "<section style='margin-top:80%;margin-bottom:80%'></section>" +
+            "<p style='margin:0'>AFTER EMPTY PANEL</p>";
+        Assert.That(Render(html), Is.EqualTo(Render(html.Replace("80%", "208pt"))));
+    }
+
+    [TestCase("<section style='margin-top:200%'></section>")]
+    [TestCase("<section style='margin-bottom:200%'><p style='margin:0'>TAIL</p></section>")]
+    [TestCase("<section style='margin-top:90%;margin-bottom:90%'></section>")]
+    [TestCase("<hr style='margin-top:90%;margin-bottom:90%'>")]
+    public void UnplaceablePercentageMarginMustNotDisappearAtEmptyPanelOrPageBoundary(string html)
+        => RejectPreservingOutput(html, "FPDF1302");
+
+    [Test]
     public void TooLargeButSyntacticallyValidMarginFailsBeforeWriting()
         => RejectPreservingOutput("<section style='margin-top:10000%'>OVERFULL</section>",
             "FPDF1302", Page with { PageHeight = 160, MaxPages = 1 });

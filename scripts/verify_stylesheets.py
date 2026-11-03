@@ -890,7 +890,10 @@ def main():
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
             ("<article style='margin-bottom:-1%'>A</article>", b'FPDF1202'),
             ("<section style='margin-top:10001%'>A</section>", b'FPDF1202'),
-            ("<section style='margin-top:10000%'>A</section>", b'FPDF1302')
+            ("<section style='margin-top:10000%'>A</section>", b'FPDF1302'),
+            ("<section style='margin-top:200%'></section>", b'FPDF1302'),
+            ("<section style='margin-bottom:200%'><p>TAIL</p></section>", b'FPDF1302'),
+            ("<hr style='margin-top:90%;margin-bottom:90%'>", b'FPDF1302')
         ):
             bad.write_text(html, encoding='utf-8')
             destination.write_bytes(b'protected-original-report')

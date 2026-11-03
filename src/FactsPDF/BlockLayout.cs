@@ -83,6 +83,15 @@ internal static class BlockLayout
                     // vertical cursor once, unlike continuation-page padding.
                     var marginTop = Checked(style.MarginTop.Resolve(containing), node.SourceOffset);
                     var marginBottom = Checked(style.MarginBottom.Resolve(containing), node.SourceOffset);
+                    // A percentage outside margin is indivisible: even a
+                    // multi-page panel cannot place one margin taller than
+                    // a fresh page. Reject before deferred empty spacing can
+                    // be discarded when the next paragraph starts a new page.
+                    var usablePageHeight = options.PageHeight - 2 * options.Margin;
+                    if ((style.MarginTop.IsPercent && marginTop > usablePageHeight + 0.000001) ||
+                        (style.MarginBottom.IsPercent && marginBottom > usablePageHeight + 0.000001))
+                        throw new FactsPdfException("FPDF1302",
+                            "Percentage outside margin cannot fit on a usable PDF page.", node.SourceOffset);
                     // The standalone hr and independent empty painted-block oracle
                     // both need the same physical fit check before opening a box.
                     // Otherwise an empty decorated div can overflow at page end
@@ -109,6 +118,17 @@ internal static class BlockLayout
                     if (!double.IsFinite(fixedOuterHeight ?? 0) || fixedOuterHeight > 14_400)
                         throw new FactsPdfException("FPDF1302",
                             "Computed fixed panel height exceeds supported bounds.", node.SourceOffset);
+                    // Empty blocks (including hr) have no content fragment on
+                    // which to split their two outside margins. Without this
+                    // check an unpainted box can silently lose an oversized
+                    // deferred gap or a rule can leave trailing space off-page.
+                    if (node.Children.Count == 0 &&
+                        (style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
+                        marginTop + Math.Max(box.Top + box.Bottom,
+                            Math.Max(minimumOuterHeight, fixedOuterHeight ?? 0)) + marginBottom
+                            > usablePageHeight + 0.000001)
+                        throw new FactsPdfException("FPDF1302",
+                            "Empty report box and percentage outside margins cannot fit on a page.", node.SourceOffset);
                     if (style.AvoidBreakInside)
                     {
                         // Only a root-level flat text card has the bounded,
