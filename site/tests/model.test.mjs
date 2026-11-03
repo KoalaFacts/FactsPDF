@@ -264,7 +264,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.percent-panel-margins');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.print-physical-pc-q');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -713,7 +713,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-02.percent-panel-margins');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.print-physical-pc-q');
   assert.equal(dataset.commit, 'ca3aef91e20792782edb49004369dfbf1e9712b3');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
