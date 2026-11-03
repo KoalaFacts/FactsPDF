@@ -164,6 +164,36 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(html), Is.EqualTo(Render(html.Replace("80%", "208pt"))));
     }
 
+    [TestCase("hr")]
+    [TestCase("section")]
+    public void EmptyPercentageOutsideMarginsMoveTogetherWhenOnlyClosingGapWouldOverflow(string tag)
+    {
+        var page = Page with { PageHeight = 150 };
+        var leading = "<p style='margin:0'>" +
+            string.Join("<br>", Enumerable.Range(1, 4).Select(i => $"LEAD-{i}")) + "</p>";
+        var empty = tag == "hr"
+            ? "<hr style='margin-top:10%;margin-bottom:20%'>"
+            : "<section style='margin-top:10%;margin-bottom:20%'></section>";
+        const string tail = "<p style='margin:0'>AFTER</p>";
+        // At 260pt containing width, 26pt opening + 52pt closing fit
+        // a fresh 110pt page, but not the remainder after four lines.
+        var fresh = Layout(empty + tail, page);
+        var moved = Layout(leading + empty + tail, page);
+        Assert.That(fresh, Has.Count.EqualTo(1));
+        Assert.That(moved, Has.Count.EqualTo(2));
+        Assert.That(moved[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
+        var freshTail = fresh[0].Runs.Single(r => r.Text == "AFTER");
+        var movedTail = moved[1].Runs.Single(r => r.Text == "AFTER");
+        Assert.That(movedTail.Baseline, Is.EqualTo(freshTail.Baseline).Within(0.000001),
+            "The closing percentage margin must stay with its empty box across a page break.");
+        if (tag == "hr")
+        {
+            Assert.That(moved[0].PaintBoxes, Is.Empty);
+            Assert.That(moved[1].PaintBoxes.Single().Top,
+                Is.EqualTo(46).Within(0.000001));
+        }
+    }
+
     [TestCase("<section style='margin-top:200%'></section>")]
     [TestCase("<section style='margin-bottom:200%'><p style='margin:0'>TAIL</p></section>")]
     [TestCase("<section style='margin-top:90%;margin-bottom:90%'></section>")]

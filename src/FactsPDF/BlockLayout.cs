@@ -5,7 +5,8 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double OuterWidth, Rgb TextColor, int SourceOffset, bool IsParagraph,
     double MarginTop = 0, double RequiredRuleHeight = 0,
     double MinimumOuterHeight = 0, double TrailingSpace = 0,
-    double? FixedOuterHeight = null) : BlockLayoutStep;
+    double? FixedOuterHeight = null,
+    double? IndivisibleEmptyClosingMargin = null) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
@@ -118,12 +119,15 @@ internal static class BlockLayout
                     if (!double.IsFinite(fixedOuterHeight ?? 0) || fixedOuterHeight > 14_400)
                         throw new FactsPdfException("FPDF1302",
                             "Computed fixed panel height exceeds supported bounds.", node.SourceOffset);
-                    // Empty blocks (including hr) have no content fragment on
-                    // which to split their two outside margins. Without this
-                    // check an unpainted box can silently lose an oversized
-                    // deferred gap or a rule can leave trailing space off-page.
-                    if (node.Children.Count == 0 &&
-                        (style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
+                    // Empty blocks (including hr) have no content fragment
+                    // over which their percentage outside margins can split.
+                    // Preflight both margins and the full empty box together,
+                    // including when they fit a fresh page but not the
+                    // remaining space of the current page.
+                    double? indivisibleClosingMargin = node.Children.Count == 0 &&
+                        (style.MarginTop.IsPercent || style.MarginBottom.IsPercent)
+                        ? marginBottom : null;
+                    if (indivisibleClosingMargin.HasValue &&
                         marginTop + Math.Max(box.Top + box.Bottom,
                             Math.Max(minimumOuterHeight, fixedOuterHeight ?? 0)) + marginBottom
                             > usablePageHeight + 0.000001)
@@ -158,8 +162,10 @@ internal static class BlockLayout
                     yield return new BeginBlock(box.Top, style, x,
                         box.OuterWidth, node.Style.Color, node.SourceOffset,
                         node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6",
-                        marginTop, requiredEmptyPaintHeight, minimumOuterHeight,
-                        box.Bottom + marginBottom, fixedOuterHeight);
+                        marginTop,
+                        indivisibleClosingMargin.HasValue ? box.Top + box.Bottom : requiredEmptyPaintHeight,
+                        minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
+                        indivisibleClosingMargin);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot));

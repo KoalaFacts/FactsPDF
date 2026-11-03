@@ -260,7 +260,13 @@ internal static class TextLayout
                 // opening it, rather than discovering an overflow at closure.
                 var requiredHeight = Math.Max(Math.Max(begin.RequiredRuleHeight, begin.MinimumOuterHeight),
                     begin.FixedOuterHeight ?? 0);
-                if (requiredHeight > 0)
+                // An empty percentage-margin panel must keep its closing
+                // outside margin with the same page-local box, even when
+                // the box has no paint or minimum height. Otherwise it can
+                // fit its opening but silently lose its trailing gap at a break.
+                var completeEmptyFootprint = requiredHeight +
+                    (begin.IndivisibleEmptyClosingMargin ?? 0);
+                if (requiredHeight > 0 || begin.IndivisibleEmptyClosingMargin.HasValue)
                 {
                     // Match the established paint-budget precedence before
                     // rejecting an oversized empty box. A zero-width/zero-paint
@@ -272,7 +278,7 @@ internal static class TextLayout
                         EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
                     }
                     var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
-                    if (y + ruleGap + requiredHeight > bottom + 0.000001 &&
+                    if (y + ruleGap + completeEmptyFootprint > bottom + 0.000001 &&
                         CurrentPageOccupied())
                     {
                         NewPage();
@@ -280,9 +286,9 @@ internal static class TextLayout
                         pendingClosedPadding = 0;
                         ruleGap = pendingTopPadding + begin.MarginTop;
                     }
-                    if (y + ruleGap + requiredHeight > bottom + 0.000001)
+                    if (y + ruleGap + completeEmptyFootprint > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
-                            "Empty decorated box and leading spacing cannot fit on a page.", begin.SourceOffset);
+                            "Empty report box and its outside spacing cannot fit on a page.", begin.SourceOffset);
                 }
                 // Even an empty paragraph has a bottom margin that belongs to
                 // its containing block's content height, not its own border.
