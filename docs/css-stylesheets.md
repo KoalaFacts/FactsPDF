@@ -1,3 +1,32 @@
+## Bounded `@media print` / `@media all` for PDF report stylesheets (source-only)
+
+An embedded `<style>` may contain top-level `@media print { ... }` or
+`@media all { ... }`. The single case-insensitive media type has no
+conditions; rules inside the block must be ordinary supported selector
+rules. Their declarations use exactly the existing supported properties,
+element applicability, values, source order, specificity, `!important`,
+inheritance, PDF paint, font metrics, page breaks and budgets. Relative
+to surrounding ordinary rules they take their actual **document order**,
+not a separate CSS origin or special print priority. Later `<style>`
+blocks still affect earlier document content.
+
+Both media types are active in this PDF-only renderer. All unsupported
+at-rules, `screen`, comma lists, expressions such as `(min-width:600px)`,
+nested media and at-rule blocks or loose declarations inside a media block
+fail `FPDF1204`, rather than silently being skipped. Invalid or
+unsupported declarations in an unmatched nested selector still fail
+`FPDF1202`. No media feature evaluation, browser screen rendering,
+CSS `@page`, user-origin cascade, automatic fetching or full CSS Media
+Queries is implied.
+
+The [44-entry printable register](../examples/report-print-media.html) and
+[independently authored inline control](../examples/report-print-media-oracle.html)
+exercise actual PDF ink/boxes/text, TrueType, CLI, pagination, qpdf/Poppler,
+negative input and output recovery. NUnit: `PrintMediaReportTests.cs`.
+Source implementation [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403).
+Exact-head CI and independent review, private software, licensing,
+human reference approval and publication are separate gates.
+
 ## LTR logical border component longhands (source-only)
 
 On ordinary horizontal left-to-right report elements that already accept
