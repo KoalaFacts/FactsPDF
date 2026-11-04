@@ -568,6 +568,7 @@ internal static class CssSyntaxAdapter
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "text-decoration-color" => CssProperty.TextDecorationColor,
         "text-decoration-style" => CssProperty.TextDecorationStyle,
+        "text-decoration-thickness" => CssProperty.TextDecorationThickness,
         "border-radius" => CssProperty.BorderRadius,
         "border-top-left-radius" => CssProperty.BorderTopLeftRadius,
         "border-top-right-radius" => CssProperty.BorderTopRightRadius,
@@ -864,6 +865,19 @@ internal static class CssSyntaxAdapter
             // Check syntax even for an unmatched selector, but resolve the
             // final font and bounded glyph advance only for the CSS winner.
             _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+        }
+        else if (name == "text-decoration-thickness")
+        {
+            if (token != "auto")
+            {
+                var length = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+                // Relative widths may change when a selector wins the cascade.
+                // Absolute out-of-range values fail even in unmatched rules.
+                var relative = token.EndsWith("em", StringComparison.Ordinal);
+                if (length.IsPercent || !relative && length.Value is < 0.2 or > 12)
+                    throw new FactsPdfException("FPDF1202",
+                        "Text-decoration thickness requires auto or a bounded positive length (0.2pt to 12pt after resolving em/rem).", offset);
+            }
         }
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);
