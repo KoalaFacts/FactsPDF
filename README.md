@@ -136,26 +136,6 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/branded-business-re
   --image logo=artifacts/readme-images/brand-mark.png
 ```
 
-## Clickable references in PDF reports (source builds)
-
-For an invoice, service register or inspection report, you can link text to a
-secure hosted record or a direct email address. The link is a real clickable PDF
-annotation placed over the measured, selectable text, even across page breaks:
-
-```html
-<p>View the <a href="https://example.com/orders/INV-42">order status</a>,
-   or <a href="mailto:sales@example.com">email sales</a>.</p>
-```
-
-Only explicit absolute ASCII **HTTPS** URLs and simple single-address
-`mailto:` values are supported. No external content is fetched, no script or
-insecure URL scheme, no embedded link on an image, no nested anchors, no
-link `target` or `download` behaviours, and no general browser navigation.
-An `a` without a supported `href` fails explicitly. Author CSS can change
-text colour or underline without changing the URI. Links do not make a PDF
-safe to share: the destinations are visible to recipients. See
-[link scope and validation](docs/feature-notes.md#clickable-https-and-mailto-report-references-source-only).
-
 ## What is supported
 
 A summary only. **For any specific property or value, look it up on

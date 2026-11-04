@@ -54,15 +54,16 @@ test('explicit language choice survives refresh and translates the descriptions'
   await page.goto(base);
   await page.getByRole('button',{name:'中文',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
-  await expect(page.locator('tbody .scope').first()).toContainText('当前文档读取器');
+  // The first inventory entry is now the bounded clickable a[href] report feature.
+  await expect(page.locator('tbody .scope').first()).toContainText('通过实际测量文字生成可点击');
   await page.reload();
   await expect(page.getByRole('button',{name:'English',exact:true})).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
   await page.getByRole('button',{name:'English',exact:true}).click();
-  await expect(page.locator('tbody .scope').first()).toContainText('document reader');
+  await expect(page.locator('tbody .scope').first()).toContainText('actual clickable PDF /Link URI');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang','en');
-  await expect(page.locator('tbody .scope').first()).toContainText('document reader');
+  await expect(page.locator('tbody .scope').first()).toContainText('actual clickable PDF /Link URI');
 });
 
 test('blocked preference storage does not prevent English startup or language switching',async({page})=>{
@@ -123,8 +124,8 @@ test('empty-result clearing keeps rows, empty state and pagination consistent ac
   // A real hash navigation creates a history entry; clear replaces that entry.
   await page.evaluate(()=>{location.hash='#q=FPDF1102';});
   await expect(empty).toHaveCount(0);
-  // <hr>, <blockquote> and now <pre> render, so the actual unsupported-element search has 74 records.
-  await expect(pager).toHaveText('Page 1 / 3 · 74 records');
+  // Bounded a[href] now renders; FPDF1102 still rejects 73 unsupported HTML cases.
+  await expect(pager).toHaveText('Page 1 / 3 · 73 records');
   await page.locator('.reset').click();await full();
   await page.goBack();
   await expect(search).toHaveValue('zz-no-such-feature-qa');
