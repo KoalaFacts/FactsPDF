@@ -343,5 +343,21 @@ class PrivateBuildContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Missing/invalid'):
                 _member_record(root, 'missing.dll')
 
+
+    def test_shipped_first_use_instructions_match_frozen_toolchain(self):
+        # These source files are copied into private archives unchanged.
+        # Keep first-use commands aligned with the exact runtime and SDK
+        # selected by the private candidate build, not an older preview.
+        source = Path(__file__).resolve().parents[1]
+        contract = json.loads((source / 'eng/delivery-candidate.json').read_text())
+        sdk = contract['sdk']['version']
+        runtime = contract['managedRuntime']['version']
+        managed = (source / 'docs/private-managed-cli-readme.md').read_text()
+        examples = (source / 'docs/private-examples-readme.md').read_text()
+        self.assertIn(f'runtime **{runtime}**', managed)
+        self.assertIn(f'pinned to runtime {runtime} with roll-forward disabled', managed)
+        self.assertIn(f'SDK {sdk} and runtime {runtime}', examples)
+        self.assertEqual(examples.count(f'-p:RuntimeFrameworkVersion={runtime}'), 2)
+
 if __name__ == '__main__':
     unittest.main()

@@ -5,8 +5,8 @@ an authorized distribution, a public NuGet release or a production-ready API.
 Review the repository's unchanged LICENSE.md and licensing requirements before
 building or running it. The package contains no fonts or customer assets.
 
-Requires Microsoft .NET runtime **10.0.13** on a compatible host (the evaluation
-consumer is pinned to runtime 10.0.13 with roll-forward disabled). From the
+Requires Microsoft .NET runtime **10.0.14** on a compatible host (the evaluation
+consumer is pinned to runtime 10.0.14 with roll-forward disabled). From the
 extracted `FactsPDF.Cli` directory, run:
 
 ```sh
