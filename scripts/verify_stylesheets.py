@@ -3,6 +3,7 @@ Poppler/qpdf inspect outputs only. No browser or external CSS engine generates e
 Artifacts contain a public test document, not user data, and never standalone font files.
 """
 import hashlib
+import difflib
 from html.parser import HTMLParser
 import json
 import os
@@ -1406,7 +1407,16 @@ def main():
             run(exe, html, pdf, '--font', fonts[0], '--subset-fonts')
             run('qpdf', '--check', pdf)
         if actual_pdf.read_bytes() != oracle_pdf.read_bytes():
-            raise AssertionError('Semantic changes differ from explicit CSS PDF bytes')
+            actual_qdf, oracle_qdf = temp / 'actual-qdf.pdf', temp / 'oracle-qdf.pdf'
+            run('qpdf', '--qdf', '--object-streams=disable', actual_pdf, actual_qdf)
+            run('qpdf', '--qdf', '--object-streams=disable', oracle_pdf, oracle_qdf)
+            left = actual_qdf.read_bytes().decode('latin-1').splitlines()
+            right = oracle_qdf.read_bytes().decode('latin-1').splitlines()
+            differences = list(difflib.unified_diff(left, right, fromfile='semantic', tofile='explicit', n=1))
+            raise AssertionError(
+                f'Semantic changes differ from explicit CSS PDF bytes '
+                f'({actual_pdf.stat().st_size} vs {oracle_pdf.stat().st_size} bytes):\n' +
+                '\n'.join(differences[:100]))
         info = run('pdfinfo', actual_pdf).decode('utf-8')
         pages = next((int(line.split(':', 1)[1].strip())
                       for line in info.splitlines() if line.startswith('Pages:')), 0)

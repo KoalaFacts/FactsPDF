@@ -35,6 +35,10 @@ public sealed class SemanticInlineReportTests
         });
     }
 
+    private static string Describe(string html)
+        => string.Join("; ", Layout(html).SelectMany(page => page.Runs)
+            .Select(run => $"{run.Text.Replace("\n", "\\n", StringComparison.Ordinal)} [font={run.Style.FontSize:G17}, ink={run.Style.Decoration}, pattern={run.Style.DecorationPattern}, x={run.X:G6}]"));
+
     [Test]
     public void FiveReportInlineTagsDrawRealMeasuredGlyphAndDecorationStyles()
     {
@@ -46,14 +50,14 @@ public sealed class SemanticInlineReportTests
             "<span style='text-decoration:line-through'>AB</span> " +
             "<span style='text-decoration:line-through'>AB</span> " +
             "<span style='text-decoration:underline'>AB</span></p>";
-        var runs = Layout(source).SelectMany(p => p.Runs).Where(r => r.Text == "AB").ToArray();
+        var runs = Layout(source).SelectMany(p => p.Runs).Where(r => r.Text.Contains("AB", StringComparison.Ordinal)).ToArray();
         Assert.That(runs.Length, Is.EqualTo(6));
         Assert.That(runs[1].Style.FontSize, Is.EqualTo(10d).Within(0.000001));
         Assert.That(runs[2].Style.Decoration, Is.EqualTo(TextDecoration.Underline));
         Assert.That(runs[3].Style.Decoration, Is.EqualTo(TextDecoration.LineThrough));
         Assert.That(runs[4].Style.Decoration, Is.EqualTo(TextDecoration.LineThrough));
         Assert.That(runs[5].Style.Decoration, Is.EqualTo(TextDecoration.Underline));
-        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)), $"Source runs: {Describe(source)}\nOracle runs: {Describe(oracle)}");
         Assert.That(Pdf(source), Is.Not.EqualTo(Pdf("<p>AB AB AB AB AB AB</p>")));
     }
 
@@ -69,7 +73,7 @@ public sealed class SemanticInlineReportTests
             "<span style='font-size:14pt'>AB</span> AB " +
             "<span style='font-size:10pt'><span style='text-decoration:underline'>AB</span></span> " +
             "<span style='text-decoration:line-through'>AB</span></p>";
-        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)), $"Source runs: {Describe(source)}\nOracle runs: {Describe(oracle)}");
     }
 
     [Test]
@@ -93,7 +97,7 @@ public sealed class SemanticInlineReportTests
         var pages = Layout(source);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(pages.Sum(p => p.Runs.Count(r => r.Style.Decoration != TextDecoration.None)), Is.GreaterThan(150));
-        Assert.That(Pdf(source), Is.EqualTo(Pdf(control)));
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(control)), $"Source runs: {Describe(source)}\nControl runs: {Describe(control)}");
         var pdf = Encoding.Latin1.GetString(Pdf(source));
         Assert.That(pdf, Does.Contain(" re f Q"));
         Reject(source, "FPDF1303", Page with { MaxPages = 1 });
