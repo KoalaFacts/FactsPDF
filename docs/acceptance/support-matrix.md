@@ -1,3 +1,20 @@
+## Bounded LTR logical border shortcuts (source-only)
+
+Six familiar CSS border shorthands are implemented only for horizontal
+LTR report boxes: `border-inline`, `border-block`,
+`border-inline-start/end` and `border-block-start/end`.
+They map to existing physical border-width/style/colour slots before
+the normal cascade and painted PDF geometry. Supported terms are the
+same existing nonnegative bounded physical widths, four stroke styles,
+opaque RGB/HEX/named/HSL colours or one CSS-wide keyword. A multi-page
+44-row sample and independent physical-side PDF oracle check actual
+text order, positions, border paint, Native AOT qpdf/Poppler and
+protected negative-to-success retry. Not RTL, logical longhand
+components, arbitrary CSS borders or alpha. Source engine
+`6916ef5da96068c167690ef3a0b5f1c94d41f255`; neither source
+presence nor test definitions establish CI review, human PDF
+approval or public distribution.
+
 ## Standard opaque CSS named colours for printable reports (source-only)
 
 ## Bounded computed currentColor source update (2026-11-04)

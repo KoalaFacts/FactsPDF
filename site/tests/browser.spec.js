@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('3dbcded4',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('6916ef5d',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -385,4 +385,20 @@ test('opaque HSL colours expose PDF scope and strict limits',async({page})=>{
  await expect(d.locator('a[href*="CurrentColorReportTests.cs"]')).toHaveCount(1);
  await expect(d).toContainText('currentColor');
  await expect(d).toContainText('148 standard opaque CSS named colours');
+});
+
+
+test('bilingual logical-border audit distinguishes LTR painted PDF edges from unsupported writing modes',async({page})=>{
+  // Select language before opening the directly linked modal;
+  // focus trapping correctly blocks controls behind an open dialog.
+  await page.goto(base);
+  await page.getByRole('button',{name:'English',exact:true}).click();
+  await page.goto(base+'#feature=css.border');
+  const panel=page.getByRole('dialog');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('border-inline');
+  await expect(panel).toContainText('border-block');
+  await expect(panel).toContainText('actual left/right/top/bottom PDF strokes');
+  await expect(panel).toContainText('no new element applicability');
+  await expect(panel).toContainText('RTL');
 });

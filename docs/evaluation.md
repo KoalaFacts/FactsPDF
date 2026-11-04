@@ -1,3 +1,21 @@
+## LTR logical border report styling (source-only)
+
+Existing report cards can use `border-inline:2pt solid #315f82`,
+`border-block:1pt dashed teal`, and independent
+`border-inline-start/end` / `border-block-start/end` shorthands.
+In the documented LTR horizontal subset these map to the real painted
+left/right/top/bottom PDF edges, including width contributions to body
+geometry, cascading `!important`, inheritance and cross-page fragments.
+All six names accept only existing physical-border width/style/opaque-colour
+terms or a standalone CSS-wide keyword. No RTL, vertical writing,
+logical border component properties, alpha or general border CSS.
+The [44-row native report](../examples/report-logical-borders.html) and
+[physical-side oracle](../examples/report-logical-borders-oracle.html)
+exercise PDF-byte, text position and protected recovery via NUnit, CLI and
+qpdf/Poppler. Source `6916ef5da96068c167690ef3a0b5f1c94d41f255`;
+CI, independent review, prior private preview, human approval and
+distribution rights remain independent.
+
 ## Standard opaque CSS named colours for printable reports (source-only)
 
 ## Computed currentColor report-source evidence (2026-11-04)

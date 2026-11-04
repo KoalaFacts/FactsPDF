@@ -1,3 +1,28 @@
+## Bounded LTR logical border shorthands for report boxes (source-only)
+
+On the same report boxes that already accept physical `border-*`, the
+shorthands `border-inline` (left and right), `border-block` (top and
+bottom), `border-inline-start` (left), `border-inline-end` (right),
+`border-block-start` (top), and `border-block-end` (bottom) reuse the
+existing border widths, opaque colours, and solid/none/dashed/dotted strokes.
+Up to one of each width/style/colour is accepted in any order, with physical
+defaults for omitted terms; a single CSS-wide keyword applies to all three
+components of each affected side. Shorthands lower to independent longhand
+cascade slots (including source order, specificity and `!important`),
+then feed actual painted PDF edges, content geometry and page fragments.
+
+This scope assumes **LTR horizontal** writing. The renderer rejects unknown
+logical border forms, direction/RTL/vertical writing, double styles,
+nonopaque alpha, calc and mixed CSS-wide terms rather than pretending
+to implement them. Existing unsupported inline/table/list/image contexts
+and strict output-preserving failure behaviour remain. The
+[44-entry source HTML](../examples/report-logical-borders.html) and
+[explicit physical-edge oracle](../examples/report-logical-borders-oracle.html)
+are checked by `LogicalBorderReportTests.cs` and native qpdf/Poppler
+PDF-byte, multi-page text/position and protected retry probes.
+Implementation [`6916ef5d`](https://github.com/KoalaFacts/FactsPDF/commit/6916ef5da96068c167690ef3a0b5f1c94d41f255);
+exact-head CI, independent review and publication are separate.
+
 ## Standard opaque CSS named colours for printable reports (source-only)
 
 ## Scoped currentColor report ink (source-only; 2026-11-04)
