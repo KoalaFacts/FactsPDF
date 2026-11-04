@@ -229,18 +229,11 @@ and [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 ## Licensing
 
-FactsPDF is **source-available, not MIT or OSI open source**. Koala Facts
-Trading Pty Ltd licenses it under your choice of two standard licenses:
+Source-available under your choice of two standard [PolyForm](https://polyformproject.org) licenses ([full text](LICENSE.md)):
 
-- **[PolyForm Small Business 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0)**:
-  free, including commercial and SaaS use, for companies with **fewer than 100
-  people and under USD 1,000,000** (2019, CPI-adjusted) revenue in the prior
-  tax year, counting affiliates.
-- **[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)**:
-  free for personal, noncommercial, charitable, educational, research and
-  government use.
+| License | Free for |
+| --- | --- |
+| [PolyForm Small Business 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0) | Companies with **< 100 people** and **< USD 1M revenue**, including commercial use |
+| [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) | Personal, noncommercial, charity, education and government use |
 
-Anyone else needs a **commercial license**; see [COMMERCIAL.md](COMMERCIAL.md).
-You do not have to publish changes you make to FactsPDF, and receiving a PDF it
-generated needs no licence. The full texts are in [LICENSE.md](LICENSE.md);
-[LICENSING.md](LICENSING.md) has a plain-language guide.
+Everyone else: [commercial license](COMMERCIAL.md) from Koala Facts Trading Pty Ltd. Details: [LICENSING.md](LICENSING.md).
