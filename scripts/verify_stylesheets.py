@@ -1444,6 +1444,51 @@ def main():
             raise AssertionError('Valid report failed to recover after rejected inline metadata')
         print('Native semantic inline report: font, 44 rows, pages, PDF bytes, recovery verified')
 
+    # Real source-built Native AOT link annotations: not a parse-only link acceptance.
+    # Verify page-local PDF URI objects, searchable rows, Type0 font and atomic recovery.
+    with tempfile.TemporaryDirectory(prefix='factspdf-native-links-') as folder:
+        temp = Path(folder)
+        rows = ''.join(
+            f"<p>Order {i:02d}: <a href='https://example.com/orders/{i:02d}'>Track {i:02d}</a></p>"
+            for i in range(1, 56))
+        source = temp / 'linked-orders.html'
+        source.write_text('<section>' + rows + '</section>', encoding='utf-8')
+        generated = temp / 'linked-orders.pdf'
+        run(exe, source, generated, '--font', fonts[0], '--subset-fonts')
+        run('qpdf', '--check', generated)
+        info = run('pdfinfo', generated).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Native report link sample did not cross pages')
+        raw_pdf = generated.read_bytes()
+        if raw_pdf.count(b'/Subtype /Link') != 55 or raw_pdf.count(b'/Annots [') != pages:
+            raise AssertionError('Native URI annotations do not correspond to 55 ordered link rows/pages')
+        for index in (1, 55):
+            uri = f'https://example.com/orders/{index:02d}'.encode('ascii').hex().upper().encode('ascii')
+            if b'/URI <' + uri + b'>' not in raw_pdf:
+                raise AssertionError('Native target URI not present in the PDF link annotation')
+        if b'/Subtype /Type0' not in raw_pdf:
+            raise AssertionError('Native linked report did not use supplied embedded TrueType')
+        words = ' '.join(run('pdftotext', '-raw', generated, '-').decode('utf-8').split())
+        hits = [words.find(f'Order {i:02d}') for i in range(1, 56)]
+        if any(index < 0 for index in hits) or len(set(hits)) != 55 or hits != sorted(hits):
+            raise AssertionError('Native linked order report lost or reordered searchable text')
+        bad = temp / 'unsafe.html'
+        bad.write_text("<p><a href='javascript:alert(1)'>Unsafe</a></p>", encoding='utf-8')
+        saved = temp / 'protected.pdf'
+        saved.write_bytes(b'retain-existing-invoice')
+        failed = subprocess.run([str(exe), str(bad), str(saved), '--overwrite'],
+                                capture_output=True, timeout=120)
+        if failed.returncode != 3 or b'FPDF1103' not in failed.stderr or failed.stdout:
+            raise AssertionError('Unsafe native hyperlink did not fail closed')
+        if saved.read_bytes() != b'retain-existing-invoice':
+            raise AssertionError('Unsafe hyperlink replaced an existing customer PDF')
+        run(exe, source, saved, '--font', fonts[0], '--subset-fonts', '--overwrite')
+        if saved.read_bytes() != raw_pdf:
+            raise AssertionError('Native hyperlink PDF did not recover byte-identically after rejected URL')
+        print('Native link report: 55 HTTPS links, page-local annotations, TrueType, qpdf/Poppler, recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -1484,7 +1529,8 @@ def main():
                              'native_ltr_text_align_pdf_parity_pagination_and_recovery': True,
                              'native_pica_quarter_mm_pdf_parity_pagination_text_and_recovery': True,
                              'native_keyword_font_sizes_pdf_parity_pagination_and_recovery': True,
-                             'native_print_media_pdf_parity_fonts_pagination_recovery': True},
+                             'native_print_media_pdf_parity_fonts_pagination_recovery': True,
+                             'native_link_annotations_font_pages_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
