@@ -408,7 +408,7 @@ test('HSL colour support has exact English scope and leaves RGB history intact',
   for(const id of ['css.color','css.background','css.background-color','css.border','css.border-color',
     'css.border-top-color','css.border-right-color','css.border-bottom-color','css.border-left-color']) {
     const f=englishFeature(data.features.find(f=>f.id===id));
-    assert.equal(f.last_audited_commit,'6a79f3f69f381f39a2cfb83bc2aa505e34c0af0d');
+    assert.equal(f.last_audited_commit,'c9138808d785986712f17e977fa2371854cb6aed');
     assert.match(f.scope,/Opaque HSL/);assert.match(f.limitations,/alpha/);
     assert.doesNotMatch(f.scope+' '+f.limitations,han);
   }
