@@ -124,6 +124,93 @@ public sealed class ReportPrintSpacingTests
         Assert.That(actual.ToArray(), Is.EqualTo(expected.ToArray()));
     }
 
+
+    [Test]
+    public void PicaAndQuarterMillimetreReportUnitsMatchPhysicalPdfAcrossPages()
+    {
+        var options = Page with { PageHeight = 175 };
+        var records = string.Join("", Enumerable.Range(1, 40)
+            .Select(i => $"<p>Service entry {i:00} checked.</p>"));
+        const string print = "<style>.card{width:14pc;padding:4q 1pc;border:4q solid #23456a;" +
+            "margin:1pc 0 2pc;background:#e5eff5}" +
+            ".card h2{font-size:1pc;line-height:1pc;margin:0}" +
+            ".card p{font-size:1pc;line-height:1pc;margin:0}</style>";
+        const string points = "<style>.card{width:168pt;padding:1mm 12pt;border:1mm solid #23456a;" +
+            "margin:12pt 0 24pt;background:#e5eff5}" +
+            ".card h2{font-size:12pt;line-height:12pt;margin:0}" +
+            ".card p{font-size:12pt;line-height:12pt;margin:0}</style>";
+        var body = "<article class=card><h2>Quarterly maintenance</h2>" +
+            records + "</article><p>REPORT COMPLETE</p>";
+        var printable = print + body;
+        Assert.That(Render(printable, options), Is.EqualTo(Render(points + body, options)),
+            "Real PDF bytes must match independently specified physical point/mm geometry.");
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(printable, options, default),
+            options, default);
+        Assert.That(pages, Has.Count.GreaterThan(2));
+        Assert.That(pages.SelectMany(p => p.Runs)
+            .Count(r => r.Text.StartsWith("Service entry", StringComparison.Ordinal)), Is.EqualTo(40));
+        Assert.That(pages.SelectMany(p => p.Runs).Last().Text, Is.EqualTo("REPORT COMPLETE"));
+        Assert.That(pages.SelectMany(p => p.PaintBoxes)
+            .Any(b => b.Style.BackgroundColor.HasValue), Is.True);
+    }
+
+    [Test]
+    public void PrintUnitsRespectLogicalShorthandsCascadeFontAndBoxGeometry()
+    {
+        const string print = "<style>.card{width:14pc;padding-inline:4q 1pc;" +
+            "padding-block:4q;margin-block:1pc 2pc;" +
+            "border-left:4q solid #23456a}" +
+            "h2{font-size:1pc;line-height:1pc!important}</style>" +
+            "<section class=card><h2 style='line-height:2pc'>REPORT</h2>" +
+            "<p style='margin-block:4q 1pc;letter-spacing:4q;word-spacing:4q'>WIDE LABEL</p></section>";
+        const string physical = "<style>.card{width:168pt;padding-left:1mm;padding-right:12pt;" +
+            "padding-top:1mm;padding-bottom:1mm;margin-top:12pt;margin-bottom:24pt;" +
+            "border-left:1mm solid #23456a}" +
+            "h2{font-size:12pt;line-height:12pt!important}</style>" +
+            "<section class=card><h2 style='line-height:24pt'>REPORT</h2>" +
+            "<p style='margin-top:1mm;margin-bottom:12pt;letter-spacing:1mm;word-spacing:1mm'>WIDE LABEL</p></section>";
+        Assert.That(Render(print), Is.EqualTo(Render(physical)));
+        var boxes = HtmlDocumentReader.ReadTree(print, Page, default);
+        var card = (BlockNode)boxes.Children.Single();
+        Assert.That(card.BoxStyle.Width!.Value.Value, Is.EqualTo(168));
+        Assert.That(card.BoxStyle.PaddingLeft.Value, Is.EqualTo(72d / 25.4d).Within(0.000001));
+        Assert.That(card.BoxStyle.PaddingRight.Value, Is.EqualTo(12));
+        Assert.That(card.BoxStyle.BorderLeft.EffectiveWidth,
+            Is.EqualTo(72d / 25.4d).Within(0.000001));
+    }
+
+    [Test]
+    public void NativeCliInputUsesIdenticalPrintUnitPdfEngine()
+    {
+        const string html = "<style>.card{width:14pc;padding:4q;border:4q solid blue}" +
+            "p{font-size:1pc;line-height:1pc;margin:4q 0}</style>" +
+            "<section class=card><p>Print-ready maintenance report</p></section>";
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        using var output = new MemoryStream();
+        using var diagnostics = new StringWriter();
+        Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero,
+            diagnostics.ToString());
+        using var expected = new MemoryStream();
+        PdfConverter.Convert(html, expected);
+        Assert.That(output.ToArray(), Is.EqualTo(expected.ToArray()));
+    }
+
+    [TestCase("margin-top:-1pc")]
+    [TestCase("padding-left:-1q")]
+    [TestCase("width:1201pc")]
+    [TestCase("padding:60000q")]
+    [TestCase("font-size:13pc")]
+    [TestCase("line-height:200pc")]
+    [TestCase("letter-spacing:3pc")]
+    [TestCase("border-width:4q 3pt 2q 1pc 5q")]
+    [TestCase("margin:1pc calc(2q)")]
+    public void InvalidPrintUnitValuesKeepDestinationUnchanged(string css)
+        => Reject(css);
+
+    [Test]
+    public void PrintUnitsDoNotMakeBodyBoxMarginsSupported()
+        => Reject("margin:1pc", "body", "FPDF1201");
+
     [TestCase("margin:0 0 auto")]
     [TestCase("margin:0 0 -1mm")]
     [TestCase("margin:0%")]

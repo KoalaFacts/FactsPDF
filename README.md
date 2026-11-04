@@ -305,6 +305,22 @@ documented HTML/CSS subset. Fonts and images are supplied by the caller.
 
 **Have a business report template to assess?** [Request a template-fit check](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md) with a public, non-confidential description of the layout and runtime. Maintainers can compare it with the documented support boundaries and discuss evaluation rights. This is not a trial grant, a package release or a promise of production suitability.
 
+### Pica and quarter-millimetre CSS for printed reports (source-only)
+
+Use `width:14pc`, `padding:4q`, `border:4q solid #23456a`,
+`margin:1pc 0` and `font-size:1pc` in controlled HTML report templates
+(one `pc` = 12pt, four `q` = 1mm). Existing bounded CSS properties
+render these print lengths in actual PDF text, geometry and pagination.
+Invalid values and unsupported elements fail under the original rules
+without replacing a previous PDF. See the
+[40-entry report](examples/report-print-pica-q.html), [independent
+physical PDF oracle](examples/report-print-pica-q-oracle.html), and
+[exact scope](docs/css-stylesheets.md#physical-pica-and-quarter-millimetre-css-print-units-source-only).
+
+No new CSS property names, full CSS Values/Paged Media, `calc`, CLI
+paper-size/`--margin` pc/q flags or distributable preview are implied.
+Source commit `ca3aef91e20792782edb49004369dfbf1e9712b3`; the retained candidate has an older SHA.
+
 ## Generate your first PDF
 
 You need Git and a **.NET 10 SDK** compatible with [global.json](global.json).
