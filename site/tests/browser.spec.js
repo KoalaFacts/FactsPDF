@@ -396,6 +396,6 @@ test('bilingual logical-border audit distinguishes LTR painted PDF edges from un
   await expect(panel).toContainText('border-inline');
   await expect(panel).toContainText('border-block');
   await expect(panel).toContainText('actual left/right/top/bottom PDF strokes');
-  await expect(panel).toContainText('No new element applicability');
+  await expect(panel).toContainText('no new element applicability');
   await expect(panel).toContainText('RTL');
 });
