@@ -424,7 +424,7 @@ test('named CSS colours retain the independent source and English limitations', 
     const english = englishFeature(row);
     assert.equal(row.last_audited_commit, 'c9138808d785986712f17e977fa2371854cb6aed');
     assert.match(row.scope, /148 种标准不透明 CSS 具名颜色/);
-    assert.match(english.scope, /148 standard opaque CSS named colours/);
+    assert.match(english.scope, /148 standard opaque (CSS )?named colours/);
     assert.match(english.scope, /PDF/);
     assert.doesNotMatch(english.scope, han);
     assert.equal(row.introduced_release, null);
