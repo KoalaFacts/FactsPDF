@@ -6,7 +6,7 @@ declarations. Actual PDF font, glyph positions, backgrounds/borders,
 pagination, specificity and source order use the same renderer and
 resource limits as unwrapped CSS. A 44-row two-page report and
 independently authored inline equivalent are tested via NUnit and
-Linux/Windows Native AOT with qpdf/Poppler, supplied TrueType,
+Linux Native AOT with qpdf/Poppler (Windows Native AOT is a separate CI gate, not this exact oracle), supplied TrueType,
 CLI parity, explicit failure/recovery and original-output preservation.
 Unsupported queries (`screen`, lists, conditions), nested media,
 `@supports`, `@container`, `@page`, `@import` and loose declarations
