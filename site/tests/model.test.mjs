@@ -718,7 +718,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
   assert.equal(dataset.dataset_version, 'audit-2026-11-04.relative-font-weights');
-  assert.equal(dataset.commit, 'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
+  assert.equal(dataset.commit, 'e94987af9b07c2d7502c25b41625b85aa393f63f');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
