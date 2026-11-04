@@ -98,6 +98,26 @@ public sealed class PdfFont
     internal ushort GlyphFor(int scalar) => cmap.GlyphFor(scalar);
     internal double Width1000(ushort glyph) => glyph < advances.Length ? advances[glyph] * scale : throw new FactsPdfException("FPDF1501", "Invalid glyph index.");
 
+    // The validated TrueType loca/glyf header records per-glyph ink bounds.
+    // Use the actual glyphs in each linked run rather than the font-wide head
+    // box: tall accents remain clickable without overlapping nearby links.
+    internal (double MinY, double MaxY) GlyphVerticalBounds1000(ushort glyph)
+    {
+        if (glyph >= advances.Length)
+            throw new FactsPdfException("FPDF1501", "Invalid glyph index.");
+        var longLoca = S16(Directory.Table("head", 54), 50) == 1;
+        var loca = Directory.Table("loca", (advances.Length + 1) * (longLoca ? 4 : 2));
+        long start = longLoca ? U32(loca, glyph * 4) : U16(loca, glyph * 2) * 2L;
+        long end = longLoca ? U32(loca, (glyph + 1) * 4) : U16(loca, (glyph + 1) * 2) * 2L;
+        if (start == end) return (0, 0); // e.g. a whitespace glyph
+        var outline = Directory.Table("glyf", 0);
+        Need(end - start >= 10 && end <= outline.Length, "Invalid glyph bounds.");
+        var minimum = S16(outline, checked((int)start) + 4) * scale;
+        var maximum = S16(outline, checked((int)start) + 8) * scale;
+        Need(minimum <= maximum, "Inverted glyph vertical bounds.");
+        return (minimum, maximum);
+    }
+
     private static string ReadName(ReadOnlySpan<byte> name)
     {
         var count = U16(name, 2); var storage = U16(name, 4);

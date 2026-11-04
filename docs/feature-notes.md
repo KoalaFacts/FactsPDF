@@ -817,7 +817,8 @@ through the existing cascade. Each linked run counts toward the display
 command limit. No network requests are made while generating the PDF.
 
 A valid `href` is required and limited to an absolute ASCII HTTPS URI with a
-host and no embedded credentials, or a single plain `mailto:` address without
+host and no embedded credentials, or a single plain unquoted ASCII `mailto:` mailbox with dot-separated
+DNS-style labels (not a quoted mailbox, address literal, path or port), without
 query parameters. URL length is limited to 2048 characters, percent escapes
 must be well formed. An invalid/relative/HTTP/file/JavaScript URL or missing
 `href` fails `FPDF1103` without replacing an existing PDF. Nested anchors,

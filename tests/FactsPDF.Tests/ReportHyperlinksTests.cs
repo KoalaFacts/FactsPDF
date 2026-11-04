@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using FactsPDF.CommandLine;
@@ -113,6 +115,41 @@ public sealed class ReportHyperlinksTests
         Assert.That(text, Does.Contain("/Subtype /Link"));
         Assert.That(text, Does.Contain(Convert.ToHexString(
             Encoding.ASCII.GetBytes("mailto:sales@example.com"))));
+        Assert.That(Encoding.Latin1.GetString(Pdf(
+            "<p><a href='mailto:help+orders@example.co.uk'>Help desk</a></p>", options)),
+            Does.Contain(Convert.ToHexString(Encoding.ASCII.GetBytes("mailto:help+orders@example.co.uk"))));
+    }
+
+    [Test]
+    public void LinkedTrueTypeGlyphVerticalBoundsContainTallInkAndDescenders()
+    {
+        // Synthetic test font only: explicitly raise one mapped glyph A's
+        // glyf header bounds above typical accent height and below descenders.
+        // This is not an external font or a redistributed asset.
+        var sourceFont = FontFixture.Create();
+        var location = FontFixture.Table(sourceFont, "loca");
+        var glyph2Offset = (int)BinaryPrimitives.ReadUInt32BigEndian(
+            sourceFont.AsSpan(location + 2 * 4, 4));
+        var glyphOffset = FontFixture.Table(sourceFont, "glyf") + glyph2Offset;
+        FontFixture.U16(sourceFont, glyphOffset + 4, unchecked((ushort)-350));
+        FontFixture.U16(sourceFont, glyphOffset + 8, 1200);
+        var head = FontFixture.Table(sourceFont, "head");
+        FontFixture.U16(sourceFont, head + 38, unchecked((ushort)-350));
+        FontFixture.U16(sourceFont, head + 42, 1200);
+        var font = PdfFont.LoadTrueType(sourceFont);
+        var options = Page with { Fonts = [font] };
+        const string html = "<p><a href='https://example.com/ink'>A</a></p>";
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
+        var run = pages.Single().Runs.Single(x => x.Style.LinkUri is not null);
+        var pdf = Encoding.Latin1.GetString(Pdf(html, options));
+        var match = Regex.Match(pdf, @"/Subtype /Link /Rect \[([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)\]");
+        Assert.That(match.Success, Is.True, "Real PDF contains a link rectangle.");
+        var bottom = double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+        var top = double.Parse(match.Groups[4].Value, CultureInfo.InvariantCulture);
+        Assert.That(top, Is.GreaterThanOrEqualTo(run.Baseline + 1.2 * run.Style.FontSize - 0.00001),
+            "Even tall TrueType accent ink must be clickable.");
+        Assert.That(bottom, Is.LessThanOrEqualTo(run.Baseline - 0.35 * run.Style.FontSize + 0.00001),
+            "The linked glyph's descender must also be clickable.");
     }
 
     [Test]
@@ -152,6 +189,10 @@ public sealed class ReportHyperlinksTests
     [TestCase("<a href='https://example.com/orders#section'>Unsupported fragment</a>", "FPDF1103")]
     [TestCase("<a href='mailto:sales@example.com%0Asubject'>Encoded mailto injection</a>", "FPDF1103")]
     [TestCase("<a href='mailto:sales@example.com?subject=hi'>Email query</a>", "FPDF1103")]
+    [TestCase("<a href='mailto:alice@example.com/not-an-address'>Mailbox path</a>", "FPDF1103")]
+    [TestCase("<a href='mailto:alice@example.com:443'>Mailbox port</a>", "FPDF1103")]
+    [TestCase("<a href='mailto:alice@-example.com'>Invalid domain label</a>", "FPDF1103")]
+    [TestCase("<a href='mailto:alice..bob@example.com'>Invalid local dots</a>", "FPDF1103")]
     [TestCase("<a href='https://example.com'><a href='https://example.com'>Nested</a></a>", "FPDF1101")]
     [TestCase("<a href='https://example.com'><div>Block</div></a>", "FPDF1101")]
     public void UnsupportedLinksRejectAtomically(string html, string error)

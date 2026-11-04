@@ -26,8 +26,21 @@ internal sealed class PdfLinkAnnotations
                 if (run.Style.LinkUri is not { } uri || run.Width <= 0) continue;
                 var left = Math.Max(0, run.X);
                 var right = Math.Min(options.PageWidth, run.X + run.Width);
-                var bottom = Math.Max(0, run.Baseline - run.Style.FontSize * 0.22);
-                var top = Math.Min(options.PageHeight, run.Baseline + run.Style.FontSize * 0.83);
+                // Courier keeps the existing accessible text hitbox. For
+                // embedded TrueType, expand only where used glyph bounds
+                // actually extend beyond it (e.g. precomposed accents).
+                var above = 0.83d;
+                var below = 0.22d;
+                if (run.Font is { } font)
+                    foreach (var rune in run.Text.EnumerateRunes())
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        var (minY, maxY) = font.GlyphVerticalBounds1000(font.GlyphFor(rune.Value));
+                        above = Math.Max(above, maxY / 1000d);
+                        below = Math.Max(below, -minY / 1000d);
+                    }
+                var bottom = Math.Max(0, run.Baseline - run.Style.FontSize * below);
+                var top = Math.Min(options.PageHeight, run.Baseline + run.Style.FontSize * above);
                 if (!double.IsFinite(left) || !double.IsFinite(right) ||
                     !double.IsFinite(bottom) || !double.IsFinite(top) ||
                     left >= right || bottom >= top)
@@ -76,14 +89,35 @@ internal sealed class PdfLinkAnnotations
         if (input.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) &&
             parsed.Scheme == Uri.UriSchemeMailto && !input.Contains('?') && !input.Contains('#'))
         {
-            var address = input[7..];
-            if (address.Count(c => c == '@') == 1 &&
-                !address.Contains(',') && !address.Contains(';') && !address.Contains('%') &&
-                address.IndexOf('@') is > 0 and < 255 &&
-                address.IndexOf('@') < address.Length - 1)
-                return input;
+            if (IsPlainMailbox(input[7..])) return input;
         }
         throw Invalid(offset);
+    }
+
+    // Deliberately bounded unquoted ASCII mailbox subset; not all RFC 5322
+    // forms. Reject path/port suffixes and malformed labels instead of making
+    // a superficially clickable PDF action to a non-address.
+    private static bool IsPlainMailbox(string address)
+    {
+        var at = address.IndexOf('@');
+        if (at is < 1 or > 64 || at != address.LastIndexOf('@')) return false;
+        var local = address[..at];
+        var domain = address[(at + 1)..];
+        if (domain.Length is < 1 or > 253 || local[0] == '.' || local[^1] == '.' ||
+            local.Contains("..", StringComparison.Ordinal) ||
+            !local.All(c => char.IsAsciiLetterOrDigit(c) ||
+                c is '.' or '!' or '#' or '
+        "Link href requires an absolute ASCII HTTPS URL or one mailto address (max 2048 chars).", offset);
+
+    private static string N(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
+}
+ or '&' or '\'' or '*' or '+' or '-' or
+                    '/' or '=' or '^' or '_' or '{' or '|' or '}' or '~'))
+            return false;
+        return domain.Split('.').All(label =>
+            label.Length is > 0 and <= 63 &&
+            label[0] != '-' && label[^1] != '-' &&
+            label.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'));
     }
 
     private static FactsPdfException Invalid(int offset) => new("FPDF1103",
