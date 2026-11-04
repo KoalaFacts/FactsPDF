@@ -1,3 +1,19 @@
+## Semantic inline editing and fine-print report tags (source only)
+
+Five existing HTML compatibility records — small, u, s, del, ins — now
+have bounded source implementations. Small selects 5/6 of parent text
+size, u/ins underline, s/del strike, with real PDF text metrics,
+decorations, CSS overrides, true font resources, wrapping and pages.
+See [source](../../examples/report-inline-changes.html) and
+[explicit control](../../examples/report-inline-changes-oracle.html):
+44 edited entries, NUnit tests and Native AOT qpdf/Poppler byte
+equivalence, searchable body and protected invalid/retry paths.
+Source a1300f3943efcf92426836b963e72d28b078e192. No new CSS
+property names, full HTML semantics, datetime/cite attributes,
+PDF annotations, redaction or published package. Exactly 418 feature
+IDs and 107 CSS spellings retained. CI, independent review, human PDF
+approval and customer permissions are separate gates.
+
 ## Source-only bounded print-media rules
 
 Embedded report CSS now accepts a top-level single `@media print` or

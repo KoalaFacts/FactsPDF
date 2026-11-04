@@ -246,6 +246,34 @@ No new installable preview, human reference approval or customer grant is implie
 
 ## Text, fonts and typography
 
+### Semantic inline change marks and fine print (source only)
+
+In an invoice, updated quote or service register, `<small>` renders a
+secondary note at 5/6 of its computed parent font size; `<u>` and
+`<ins>` underline, while `<s>` and `<del>` strike through changed text.
+These reuse actual measured PDF glyphs, TrueType font chains and decoration
+strokes, including wrapping and pagination. Supported CSS font sizing,
+colours, decoration styles, specificity and `!important` can override
+the presentation of each tag. A removed line remains searchable PDF text;
+the strike is *not* redaction.
+
+These five tags are inline-only, with explicit closing tags and existing
+depth/element budgets. Unsupported `datetime` or `cite` on `del`/`ins`,
+block descendants, CSS lengths or malformed markup fail using the existing
+output-preserving diagnostics. There are no native change annotations, PDF
+history/timestamps, browser user-agent styles, or automatic fonts.
+
+A [44-change work order](../examples/report-inline-changes.html)
+and [explicit CSS/span oracle](../examples/report-inline-changes-oracle.html)
+exercise actual PDF byte parity, positioned glyphs, paint and pages.
+`SemanticInlineReportTests.cs` also tests supplied TrueType,
+CSS override and failure recovery; the Native AOT stylesheet verifier
+checks qpdf/Poppler and protected output. Implementation source
+`a1300f3943efcf92426836b963e72d28b078e192`; this does not establish
+independent code review, public/private new binary delivery, human page
+approval or commercial distribution rights.
+
+
 ### Relative bold/light styling for report text (source-only)
 
 Use `font-weight:bolder` or `font-weight:lighter` in existing paragraphs, headings and spans to select the explicitly configured **bold** or **normal** TrueType role. For example, a bold inspection card can contain a lighter detail line and a bold status. The PDF really changes font metrics, embedded faces, text wrapping and pagination. This deliberately bounded two-role model does not synthesize CSS 100–900 weights or discover fonts: missing bold faces fail with `FPDF1507`, preserving the previous PDF.

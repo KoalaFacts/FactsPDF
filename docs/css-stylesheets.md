@@ -1,3 +1,30 @@
+## Bounded semantic inline marks for business reports
+
+Exactly `small`, `u`, `s`, `del` and `ins` join the existing text-only
+inline tag scope. Small uses five-sixths of the computed parent font size;
+u/ins use the current single underline; s/del use the current
+strike-through. These are real layout and painting defaults **before**
+the supported CSS cascade. CSS `font-size`, `text-decoration`, colour
+and decoration style can override them, including stylesheet
+specificity, `!important`, `inherit`/`initial`/`unset`.
+
+Existing explicit font chains, glyph measurement, searchable PDF content,
+line breaking, pagination, element budgets, paint budgets and failure
+protection continue to apply. Out-of-range computed font sizes fail with
+`FPDF1202`, unsupported attributes including del/ins `datetime`/`cite`
+fail with `FPDF1103`, and block nesting fails with `FPDF1101`.
+Deleted text remains selectable and searchable, and is never a redaction.
+This is not a general HTML user-agent stylesheet, change-tracking
+annotation, auto-font support or PDF semantic history metadata.
+
+The [44-change source](../examples/report-inline-changes.html)
+and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)
+are checked by `SemanticInlineReportTests.cs` and the real Native AOT
+qpdf/Poppler report parity and original-output recovery verifier.
+Engine source [a1300f39](https://github.com/KoalaFacts/FactsPDF/commit/a1300f3943efcf92426836b963e72d28b078e192).
+No binary release, commercial rights, manual page signoff or
+independent review is inferred from the implementation source.
+
 ## Bounded `@media print` / `@media all` for PDF report stylesheets (source-only)
 
 An embedded `<style>` may contain top-level `@media print { ... }` or
