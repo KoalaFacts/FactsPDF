@@ -593,7 +593,7 @@ internal static class CssSyntaxAdapter
             var hueToken = tokens[0];
             if (hueToken.Kind != CssSyntaxTokenKind.Number &&
                 !(hueToken.Kind == CssSyntaxTokenKind.Dimension &&
-                  hueToken.Unit.Equals("deg", StringComparison.OrdinalIgnoreCase)))
+                  string.Equals(hueToken.Unit, "deg", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1202",
                     "HSL hue must be a number or degrees.", hueToken.Span.Start);
             if (!double.TryParse(hueToken.Value,

@@ -583,14 +583,19 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
   for(const id of ["css.border","css.border-top","css.border-right","css.border-bottom","css.border-left","css.border-style","css.border-top-style","css.border-right-style","css.border-bottom-style","css.border-left-style"]){
     const row=dataset.features.find(f=>f.id===id);
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'4b5d6da3553579dad75dd00bfb041e1f3c200d90');
+    // Only css.border has a newer exact HSL paint audit; other physical
+    // border longhands retain their historical patterned-border source SHA.
+    assert.equal(row.last_audited_commit,id==='css.border'
+      ? 'ee5af1a67d8aa88fa23da281ea6ab23414f9ef22'
+      : '4b5d6da3553579dad75dd00bfb041e1f3c200d90');
     assert.match(row.scope,/dashed/);
     assert.match(row.scope,/dotted/);
     if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))
       assert.match(row.limitations,/圆角或图片边框/, id);
     else
       assert.match(row.limitations,/double/, id);
-    assert.match(row.test_reference,/ReportPatternedBorderTests/);
+    assert.match(row.test_reference,id==='css.border'
+      ? /OpaqueHslCssTests/ : /ReportPatternedBorderTests/);
     assert.equal(row.introduced_release,null);
   }
   assert.equal(dataset.accepted_css_property_count,83);
