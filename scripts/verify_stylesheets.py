@@ -945,7 +945,7 @@ def main():
         for html, code, font_role in (
             ("<p style='font-weight:650'>Invalid</p>", b'FPDF1202', True),
             ("<style>.unused{font-weight:550}</style><p>Invalid</p>", b'FPDF1202', True),
-            ("<p style='font-weight:bolder'>Invalid</p>", b'FPDF1202', True),
+            ("<p style='font-weight:bolder lighter'>Invalid</p>", b'FPDF1202', True),
             ("<p style='font-weight:600'>Missing bold chain</p>", b'FPDF1507', False)
         ):
             bad.write_text(html, encoding='utf-8')
