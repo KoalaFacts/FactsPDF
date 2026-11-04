@@ -547,8 +547,8 @@ internal static class CssSyntaxAdapter
     };
 
     // The AST retains CSS functions rather than accepting arbitrary raw text.
-    // Fail closed on alpha blending, percentages, arithmetic and nested functions:
-    // none of them can be painted as a fully opaque PDF RGB colour.
+    // Fail closed on alpha blending, unsupported units, arithmetic and nested functions:
+    // only bounded opaque colour values can be painted as PDF RGB.
     private static CssSyntaxComponent CanonicalOpaqueColor(CssSyntaxComponent component)
     {
         if (component is not CssFunctionComponent function) return component;
@@ -656,16 +656,32 @@ internal static class CssSyntaxAdapter
                 commaForm &= tokens[i].Kind == CssSyntaxTokenKind.Comma;
         var spaceForm = name == "rgb" && tokens.Count == 3 && spaced[1] && spaced[2];
         if (!commaForm && !spaceForm)
-            throw new FactsPdfException("FPDF1202", "rgb() needs three integer channels; rgba() requires opaque alpha 1.", function.Span.Start);
+            throw new FactsPdfException("FPDF1202", "rgb() needs three same-unit channels; rgba() requires opaque alpha 1.", function.Span.Start);
 
+        // Accept uniform percent-channel RGB in controlled print colours.
+        // Preserve integer-channel behaviour, but never mix number and percent
+        // syntax; decimal rounding gives deterministic exact byte midpoints.
         var channels = new byte[3];
+        var percentage = tokens[0].Kind == CssSyntaxTokenKind.Percentage;
         for (var i = 0; i < channels.Length; i++)
         {
             var token = tokens[commaForm ? 2 * i : i];
-            if (token.Kind != CssSyntaxTokenKind.Number || !token.IsInteger ||
+            if (percentage)
+            {
+                if (token.Kind != CssSyntaxTokenKind.Percentage ||
+                    !decimal.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var value) ||
+                    value is < 0m or > 100m)
+                    throw new FactsPdfException("FPDF1202",
+                        "RGB percentage channels must be uniformly from 0% to 100%.", token.Span.Start);
+                channels[i] = (byte)decimal.Round(value * 255m / 100m, 0,
+                    MidpointRounding.AwayFromZero);
+            }
+            else if (token.Kind != CssSyntaxTokenKind.Number || !token.IsInteger ||
                 !byte.TryParse(token.Value, System.Globalization.NumberStyles.None,
                     System.Globalization.CultureInfo.InvariantCulture, out channels[i]))
-                throw new FactsPdfException("FPDF1202", "RGB channels must be integers from 0 through 255.", token.Span.Start);
+                throw new FactsPdfException("FPDF1202",
+                    "RGB channels must be all integers 0–255 or all percentages 0–100%.", token.Span.Start);
         }
         if (name == "rgba")
         {

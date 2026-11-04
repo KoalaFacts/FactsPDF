@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('ee5af1a6',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('6a79f3f6',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -379,6 +379,6 @@ test('opaque HSL colours expose PDF scope and strict limits',async({page})=>{
  await page.goto('/FactsPDF/');await page.getByRole('button',{name:'English',exact:true}).click();
  await page.goto('/FactsPDF/#feature=css.color');
  const d=page.getByRole('dialog');await expect(d).toBeVisible();
- await expect(d).toContainText('hsl(');await expect(d).toContainText('alpha');
- await expect(d.locator('a[href*="OpaqueHslCssTests.cs"]')).toHaveCount(1);
+ await expect(d).toContainText('HSL');await expect(d).toContainText('alpha');await expect(d).toContainText('percentage');
+ await expect(d.locator('a[href*="OpaqueRgbCssTests.cs"]')).toHaveCount(1);
 });

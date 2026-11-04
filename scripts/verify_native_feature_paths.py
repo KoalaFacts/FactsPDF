@@ -1566,6 +1566,46 @@ def verify_native_hsl_colours(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+
+def verify_native_percentage_rgb(executable, output, work):
+    """Verify percent-channel RGB through actual Native AOT PDF paint and recovery."""
+    source = ROOT / 'examples/report-rgb-percent-colours.html'
+    oracle = ROOT / 'examples/report-rgb-percent-colours-oracle.html'
+    actual = output / 'rgb-percent.pdf'
+    control = output / 'rgb-percent-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), 'Percentage RGB differs from authored hex PDF'
+    pages = count_pages(actual)
+    assert pages >= 2, '48-record native percent RGB report should span pages'
+    placed = [page_boxes(actual, page) for page in range(1, pages + 1)]
+    assert placed == [page_boxes(control, page) for page in range(1, pages + 1)], (
+        'Percentage RGB changed actual PDF text positioning')
+    words = [word[0] for _, _, items in placed for word in items]
+    assert [w for w in words if re.fullmatch(r'RGB-\d{2}', w)] == [
+        f'RGB-{n:02d}' for n in range(1, 49)], 'Percentage RGB report lost text'
+    invalid = work / 'rgb-percent-invalid.html'
+    retained = output / 'rgb-percent-retained.pdf'
+    for css in ('rgb(1%,2,3%)', 'rgb(101%,0%,0%)',
+                'rgba(0%,50%,100%,.5)', 'rgb(0% 50% 100% / 1)'):
+        invalid.write_text('<style>.unused{color:' + css + '}</style><p>Protected</p>',
+                           encoding='utf-8')
+        retained.write_bytes(b'prior customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained),
+                                 '--overwrite'], cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and b'FPDF1202' in failed.stderr and not failed.stdout, (
+            'Native invalid percentage RGB not rejected', css, failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'prior customer PDF', 'Invalid RGB destroyed output'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Recovered RGB PDF bytes differ'
+    return {'records': 48, 'pages': pages, 'sourceSha256': sha(source),
+            'controlSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'independentHexByteParity': True, 'popplerTextAndGeometry': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1644,6 +1684,7 @@ def main():
         image_heights = verify_native_image_heights(isolated, output, work, logo)
         image_height_limits = verify_native_image_height_limits(isolated, output, work, logo)
         hsl_colours = verify_native_hsl_colours(isolated, output, work)
+        percent_rgb = verify_native_percentage_rgb(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1677,6 +1718,7 @@ def main():
             'imageHeights': image_heights,
             'imageHeightLimits': image_height_limits,
             'hslColours': hsl_colours,
+            'percentageRgb': percent_rgb,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

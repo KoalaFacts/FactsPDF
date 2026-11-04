@@ -1,3 +1,27 @@
+## Bounded percentage RGB colours for business reports (source-only)
+
+Report templates may now use `rgb(20%,40%,60%)`, `rgb(10% 25% 50%)`
+and `rgba(0%,50%,0%,1)` in the existing colour, background, border and
+text-decoration paint slots. Exactly **three percentage channels** (0–100%,
+fractional values allowed) are converted to 8-bit opaque PDF RGB; midpoint
+conversion rounds to the nearest byte with ties up. The existing three
+integer-channel forms still work. CSS specificity, `!important`, inheritance,
+real PDF text/paint, pagination, resources and previous-output protection
+use the same established engine paths.
+
+Mixed percentage/integer channels, decimal *numeric* channels, transparency,
+slash alpha, nesting, `calc()` and general CSS Color remain unsupported;
+unrecognized syntax rejects with `FPDF1202`, including unmatched rules.
+This is not a general CSS Colors or alpha-compositing implementation.
+
+[48-entry real paginated report](../examples/report-rgb-percent-colours.html) and
+[independently authored HEX control](../examples/report-rgb-percent-colours-oracle.html)
+target exact PDF byte, searchable body, page/position, managed API/CLI,
+Linux/Windows Native AOT qpdf/Poppler and failure/recovery equivalence.
+Implementation source [`6a79f3f6`](https://github.com/KoalaFacts/FactsPDF/commit/6a79f3f69f381f39a2cfb83bc2aa505e34c0af0d).
+Actual CI, independent review, retained preview binary, human approval
+and customer distribution are separate checks; no release is implied.
+
 ## Bounded opaque HSL report colours (source-only)
 
 Business-report templates can use `hsl(210,60%,40%)`,
