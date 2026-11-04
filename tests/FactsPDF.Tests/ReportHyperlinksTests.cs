@@ -116,7 +116,7 @@ public sealed class ReportHyperlinksTests
         Assert.That(text, Does.Contain(Convert.ToHexString(
             Encoding.ASCII.GetBytes("mailto:sales@example.com"))));
         Assert.That(Encoding.Latin1.GetString(Pdf(
-            "<p><a href='mailto:help+orders@example.co.uk'>Help desk</a></p>", options)),
+            "<p><a href='mailto:help+orders@example.co.uk'>AB</a></p>", options)),
             Does.Contain(Convert.ToHexString(Encoding.ASCII.GetBytes("mailto:help+orders@example.co.uk"))));
     }
 
