@@ -389,8 +389,11 @@ test('opaque HSL colours expose PDF scope and strict limits',async({page})=>{
 
 
 test('bilingual logical-border audit distinguishes LTR painted PDF edges from unsupported writing modes',async({page})=>{
-  await page.goto(base+'#feature=css.border');
+  // Select language before opening the directly linked modal;
+  // focus trapping correctly blocks controls behind an open dialog.
+  await page.goto(base);
   await page.getByRole('button',{name:'English',exact:true}).click();
+  await page.goto(base+'#feature=css.border');
   const panel=page.getByRole('dialog');
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('border-inline');
