@@ -57,6 +57,8 @@ and is not claimed by this policy.
 
 ## Documenting a new feature
 
+Automated contributors must also follow [AGENTS.md](AGENTS.md).
+
 Keep `README.md` a short front door; it is also the NuGet package page. Do not
 add a per-feature section to it. For a new capability:
 
