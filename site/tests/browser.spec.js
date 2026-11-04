@@ -380,6 +380,9 @@ test('opaque HSL colours expose PDF scope and strict limits',async({page})=>{
  await page.goto('/FactsPDF/#feature=css.color');
  const d=page.getByRole('dialog');await expect(d).toBeVisible();
  await expect(d).toContainText('HSL');await expect(d).toContainText('alpha');await expect(d).toContainText('percentage');
- await expect(d.locator('a[href*="CssNamedColorTests.cs"]')).toHaveCount(1);
-  await expect(d).toContainText('148 standard opaque CSS named colours');
+ // The colour record now cites the real currentColor PDF regression, not the
+ // previous named-colour-only witness; retain named-colour coverage in scope.
+ await expect(d.locator('a[href*="CurrentColorReportTests.cs"]')).toHaveCount(1);
+ await expect(d).toContainText('currentColor');
+ await expect(d).toContainText('148 standard opaque CSS named colours');
 });
