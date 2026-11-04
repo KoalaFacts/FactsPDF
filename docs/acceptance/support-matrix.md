@@ -1,3 +1,23 @@
+## Source-only bounded print-media rules
+
+Embedded report CSS now accepts a top-level single `@media print` or
+`@media all` block containing ordinary supported selectors and
+declarations. Actual PDF font, glyph positions, backgrounds/borders,
+pagination, specificity and source order use the same renderer and
+resource limits as unwrapped CSS. A 44-row two-page report and
+independently authored inline equivalent are tested via NUnit and
+Linux/Windows Native AOT with qpdf/Poppler, supplied TrueType,
+CLI parity, explicit failure/recovery and original-output preservation.
+Unsupported queries (`screen`, lists, conditions), nested media,
+`@supports`, `@container`, `@page`, `@import` and loose declarations
+remain strict `FPDF1204` failures; unsupported values fail closed,
+even in unmatched selectors. This is **partial** coverage of the existing
+`rule.media` compatibility record, **not** full CSS Media Queries.
+418 fixed compatibility IDs and 107 existing accepted CSS property
+spellings are retained. Engine source `70f37e7e881bade30851ecaa06528a27813f0403`.
+Do not confuse source evidence with CI/review completion,
+private/public software, human approval or distribution rights.
+
 ## Scoped LTR logical border width/style/colour components (source-only)
 
 The existing six logical border shorthands now have 18 scoped component
