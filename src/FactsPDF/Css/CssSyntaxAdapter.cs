@@ -443,9 +443,9 @@ internal static class CssSyntaxAdapter
                 if (syntax.Kind == CssSyntaxTokenKind.Number
                     && TryNumericFontWeight(syntax.Value, out var weight))
                     token = weight.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
-                else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold"))
+                else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold" or "bolder" or "lighter"))
                     throw new FactsPdfException("FPDF1202",
-                        "font-weight requires normal/bold or numeric hundreds from 100 through 900.", tokenOffset);
+                        "font-weight requires normal/bold/bolder/lighter or numeric hundreds from 100 through 900.", tokenOffset);
             }
             if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
                 || !(Wide(token) || token is "normal" or "italic")))

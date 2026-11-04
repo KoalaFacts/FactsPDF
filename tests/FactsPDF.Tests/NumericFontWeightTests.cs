@@ -124,9 +124,7 @@ public sealed class NumericFontWeightTests
     [TestCase("950")]
     [TestCase("1000")]
     [TestCase("500%")]
-    [TestCase("bolder")]
-    [TestCase("lighter")]
-    [TestCase("700 400")]
+     [TestCase("700 400")]
     [TestCase("1e99")]
     public void UnsupportedNumericAndRelativeWeightsFailEvenForAnUnmatchedRule(string value)
         => Reject($"<style>.never{{font-weight:{value}}}</style><p>Previous report protected</p>",

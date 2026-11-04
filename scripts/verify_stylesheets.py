@@ -960,6 +960,55 @@ def main():
                 raise AssertionError('Invalid weight or missing font replaced existing PDF')
         print('Native numeric font-weight PDF role parity, pagination, fonts, text and recovery verified')
 
+    # Native AOT: bolder/lighter must select real supplied normal/bold faces,
+    # including both saturated ends of the bounded two-role ladder. This is
+    # the separate 48-entry report and explicit-face PDF-byte control.
+    with tempfile.TemporaryDirectory(prefix='factspdf-relative-weights-') as folder:
+        temp = Path(folder)
+        actual, oracle = temp / 'relative.pdf', temp / 'explicit.pdf'
+        normal_font = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
+        bold_font = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
+        for html, pdf in (
+            (Path('examples/report-relative-font-weights.html'), actual),
+            (Path('examples/report-relative-font-weights-oracle.html'), oracle)
+        ):
+            run(exe, html, pdf, '--subset-fonts',
+                '--font', normal_font, '--font-bold', bold_font)
+            run('qpdf', '--check', pdf)
+        if actual.read_bytes() != oracle.read_bytes():
+            raise AssertionError('Relative-weight PDF does not match explicit normal/bold roles')
+        info = run('pdfinfo', actual).decode('utf-8')
+        page_count = next((int(line.split(':', 1)[1].strip())
+                          for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if page_count < 2:
+            raise AssertionError('Relative weights report failed to paginate: ' + info)
+        rows = run('pdffonts', actual).decode('utf-8').splitlines()[2:]
+        if len(rows) != 2 or not all('CID TrueType' in row for row in rows):
+            raise AssertionError('Relative weights did not embed both supplied TrueType roles')
+        content = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        for index in range(1, 49):
+            if f'Service entry {index:02d}' not in content:
+                raise AssertionError(f'Relative-weight report lost service entry {index:02d}')
+        if 'Outcome: All 48 service entries approved.' not in content:
+            raise AssertionError('Relative-weight report lost its summary')
+        bad, protected = temp / 'bad.html', temp / 'protected.pdf'
+        for html, code, with_bold in (
+            ("<p style='font-weight:bolder'>Cannot fallback</p>", b'FPDF1507', False),
+            ("<style>.unused{font-weight:semi-bold}</style><p>Invalid</p>", b'FPDF1202', True),
+            ("<p style='font-weight:650'>Invalid</p>", b'FPDF1202', True)
+        ):
+            bad.write_text(html, encoding='utf-8')
+            protected.write_bytes(b'existing-report')
+            args = [str(exe), str(bad), str(protected), '--overwrite', '--font', str(normal_font)]
+            if with_bold:
+                args += ['--font-bold', str(bold_font)]
+            failed = subprocess.run(args, capture_output=True, timeout=120)
+            if failed.returncode != 3 or code not in failed.stderr or failed.stdout:
+                raise AssertionError('Relative weight did not fail closed: ' + html)
+            if protected.read_bytes() != b'existing-report':
+                raise AssertionError('Relative weight error replaced an existing PDF')
+        print('Native 48-entry relative-weight PDF bytes, fonts, pagination and recovery verified')
+
     # Native AOT: standalone hr dividers render actual geometry on a
     # paginated 44-entry service report. Independently authored ordinary
     # painted div boxes provide an exact PDF byte/paint oracle.
@@ -1328,6 +1377,7 @@ def main():
                            'native_panel_vertical_margins_and_recovery': True,
                             'native_percentage_panel_margins_pdf_equivalence_and_recovery': True,
                            'native_numeric_font_weights_pdf_equivalence_and_recovery': True,
+                           'native_relative_font_weights_pdf_equivalence_and_recovery': True,
                            'native_horizontal_rules_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_spacing_pdf_parity_pagination_and_recovery': True,
                             'native_ltr_logical_side_longhands_pdf_parity_pagination_and_recovery': True,

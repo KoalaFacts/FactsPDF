@@ -17,6 +17,15 @@ internal static class InlineCss
             switch (name)
             {
                 case "font-weight":
+                    // Relative weights operate on the engine's two provided faces:
+                    // bolder chooses bold and lighter chooses normal. At an edge
+                    // of this binary ladder the same role remains selected.
+                    // This is deliberately not intermediate CSS 100–900 matching.
+                    if (value is "bolder" or "lighter")
+                    {
+                        style = style with { Bold = value == "bolder" };
+                        break;
+                    }
                     var weight = value switch { "normal" => 400, "bold" => 700, _ => Number(value, offset) };
                     // The engine has only two explicit weight roles, 400 and 700.
                     // Support the common hundred-step CSS values while resolving
