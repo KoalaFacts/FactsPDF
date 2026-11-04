@@ -1,7 +1,7 @@
 # FactsPDF licensing guide
 
 This is a plain-language summary, not an additional license. The controlling
-terms are the two standard licenses in [LICENSE.md](LICENSE.md). Rights beyond
+terms are the three standard licenses in [LICENSE.md](LICENSE.md). Rights beyond
 them need a separate agreement; see [COMMERCIAL.md](COMMERCIAL.md).
 
 ## The policy

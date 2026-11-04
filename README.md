@@ -20,9 +20,9 @@ value, text, PDF and runtime feature. Each record shows its exact scope,
 limitations and the tests that prove it. Check it before you write a template.
 
 > **Status: experimental, unreleased (`0.1.0-preview.1`).** There is no public
-> NuGet package or CLI download yet, no stable API and no general evaluation
-> licence. You build it from source, and the [licensing rules](#licensing)
-> apply **before** you build or run it. Progress is tracked in
+> NuGet package or CLI download yet and no stable API. You build it from
+> source; the [licensing rules](#licensing) apply **before** you build or run
+> it, and any company may evaluate it free for up to 90 days. Progress is tracked in
 > [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 **Contents:** [Quick start](#quick-start) · [C# API](#use-from-c) ·
