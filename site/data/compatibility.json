@@ -4153,7 +4153,7 @@
       "last_audited_commit": "6916ef5da96068c167690ef3a0b5f1c94d41f255",
       "last_audited_date": "2026-11-04",
       "evidence_level": "当前源码与独立 HEX PDF 字节 oracle、48 行真实多页报表及 Native AOT 验证路径已提交；CI、独立审查、人工与分发另行核验",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6916ef5da96068c167690ef3a0b5f1c94d41f255/tests/FactsPDF.Tests/LogicalBorderReportTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/e237b2737572489d7b69227a7bc3c00c2591b3be/tests/FactsPDF.Tests/LogicalBorderReportTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/4b5d6da3553579dad75dd00bfb041e1f3c200d90/src/FactsPDF/Css/CssSyntaxAdapter.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/4b5d6da3553579dad75dd00bfb041e1f3c200d90/src/FactsPDF/PdfPaintSerializer.cs",
@@ -4164,7 +4164,7 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/c9138808d785986712f17e977fa2371854cb6aed/src/FactsPDF/Css/CssNamedColors.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/c9138808d785986712f17e977fa2371854cb6aed/scripts/verify_native_feature_paths.py",
         "https://github.com/KoalaFacts/FactsPDF/blob/6916ef5da96068c167690ef3a0b5f1c94d41f255/src/FactsPDF/Css/CssSyntaxAdapter.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/6916ef5da96068c167690ef3a0b5f1c94d41f255/tests/FactsPDF.Tests/LogicalBorderReportTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/e237b2737572489d7b69227a7bc3c00c2591b3be/tests/FactsPDF.Tests/LogicalBorderReportTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null,
