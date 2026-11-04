@@ -6,6 +6,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
     <Version>0.1.0-preview.1</Version>
-    <Company>KoalaFacts</Company>
+    <Company>Koala Facts Trading Pty Ltd</Company>
+    <Authors>Koala Facts Trading Pty Ltd</Authors>
+    <Copyright>Copyright (c) 2026 Koala Facts Trading Pty Ltd</Copyright>
   </PropertyGroup>
 </Project>
