@@ -5,7 +5,7 @@ not customer data, fonts, binaries or an accepted delivery candidate. No new
 API or licensing rights are granted. See LICENSE.md. Publication and distribution
 remain unauthorized until separately approved.
 
-Use the installed .NET SDK 10.0.402 and runtime 10.0.13. Extract to a fresh directory
+Use the installed .NET SDK 10.0.403 and runtime 10.0.14. Extract to a fresh directory
 outside the source checkout. Check EXAMPLES-MANIFEST.json and the accompanying
 bundle receipts: the library package must have the same source commit as this
 component. Do not silently substitute another package with the same version.
@@ -16,8 +16,8 @@ NuGet.Config clears remote sources and maps FactsPDF only to that local feed.
 From `FactsPDF.Examples`, run:
 
 ```sh
-dotnet restore first-use/FirstUse.csproj --configfile first-use/NuGet.Config --packages ./packages -p:RuntimeFrameworkVersion=10.0.13 -p:RollForward=Disable
-dotnet build first-use/FirstUse.csproj -c Release --no-restore -p:RuntimeFrameworkVersion=10.0.13 -p:RollForward=Disable
+dotnet restore first-use/FirstUse.csproj --configfile first-use/NuGet.Config --packages ./packages -p:RuntimeFrameworkVersion=10.0.14 -p:RollForward=Disable
+dotnet build first-use/FirstUse.csproj -c Release --no-restore -p:RuntimeFrameworkVersion=10.0.14 -p:RollForward=Disable
 dotnet first-use/bin/Release/net10.0/FirstUse.dll first-use/input.html api.pdf
 ```
 

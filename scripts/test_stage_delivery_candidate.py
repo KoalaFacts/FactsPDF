@@ -20,15 +20,15 @@ class CandidateInputTests(unittest.TestCase):
         (self.root / 'Directory.Build.props').write_text('<Project><PropertyGroup>'
             '<Version>0.1.0-preview.1</Version><TargetFramework>net10.0</TargetFramework>'
             '</PropertyGroup></Project>')
-        (self.root / 'global.json').write_text(json.dumps({'sdk': {'version': '10.0.402',
+        (self.root / 'global.json').write_text(json.dumps({'sdk': {'version': '10.0.403',
             'rollForward': 'disable', 'allowPrerelease': False}}))
         (self.root / 'eng/delivery-candidate.json').write_text(json.dumps({
             'schemaVersion': 1, 'packageId': 'FactsPDF', 'version': '0.1.0-preview.1',
-            'targetFramework': 'net10.0', 'sdk': {'version': '10.0.402',
+            'targetFramework': 'net10.0', 'sdk': {'version': '10.0.403',
                 'rollForward': 'disable', 'allowPrerelease': False},
-            'managedRuntime': {'framework': 'Microsoft.NETCore.App', 'version': '10.0.13',
+            'managedRuntime': {'framework': 'Microsoft.NETCore.App', 'version': '10.0.14',
                                'rollForward': 'Disable'},
-            'nativePacks': {'runtimeVersion': '10.0.13', 'compilerVersion': '10.0.13'},
+            'nativePacks': {'runtimeVersion': '10.0.14', 'compilerVersion': '10.0.14'},
             'publication': {'published': False, 'distributionAuthorized': False},
             'profiles': [{'name': 'local-linux', 'rid': 'linux-x64', 'binaryRetained': True},
                          {'name': 'win-x64-validation', 'rid': 'win-x64', 'binaryRetained': False}]}))
@@ -95,7 +95,7 @@ class CandidateInputTests(unittest.TestCase):
 
     def test_sdk_and_pack_identity_mismatch_rejected(self):
         data = json.loads((self.root / 'eng/delivery-candidate.json').read_text())
-        data['nativePacks']['compilerVersion'] = '10.0.14'
+        data['nativePacks']['compilerVersion'] = '10.0.13'
         (self.root / 'eng/delivery-candidate.json').write_text(json.dumps(data))
         self.git('add', '.')
         self.git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'change')
@@ -140,13 +140,13 @@ class CandidateInputTests(unittest.TestCase):
             with self.subTest(name=name):
                 runtime = {'runtimeOptions': {
                     'tfm': 'net10.0', 'rollForward': 'Disable',
-                    'framework': {'name': 'Microsoft.NETCore.App', 'version': '10.0.13'}}}
+                    'framework': {'name': 'Microsoft.NETCore.App', 'version': '10.0.14'}}}
                 if name == 'framework-rollforward':
                     runtime['runtimeOptions']['framework']['rollForward'] = 'LatestPatch'
                 elif name == 'framework-array':
-                    runtime['runtimeOptions']['frameworks'] = [{'name': 'Other', 'version': '10.0.13'}]
+                    runtime['runtimeOptions']['frameworks'] = [{'name': 'Other', 'version': '10.0.14'}]
                 elif name == 'included-frameworks':
-                    runtime['runtimeOptions']['includedFrameworks'] = [{'name': 'Other', 'version': '10.0.13'}]
+                    runtime['runtimeOptions']['includedFrameworks'] = [{'name': 'Other', 'version': '10.0.14'}]
                 else:
                     runtime['runtimeOptions']['tfm'] = 'net9.0'
                 commands = []
@@ -165,7 +165,7 @@ class CandidateInputTests(unittest.TestCase):
                 output = self.parent / ('build-' + name)
                 with (patch('shutil.which', return_value='/fake/dotnet'),
                       patch('stage_delivery_candidate._host_toolchain',
-                            return_value={'sdk': '10.0.402', 'managedRuntime': '10.0.13'}),
+                            return_value={'sdk': '10.0.403', 'managedRuntime': '10.0.14'}),
                       patch('stage_delivery_candidate._build_command', side_effect=fake_build)):
                     with self.assertRaisesRegex(ValueError, 'runtimeconfig'):
                         private_build(self.root, 'local-linux', output)
@@ -192,27 +192,27 @@ class PrivateBuildContractTests(unittest.TestCase):
             libraries = {}
             for i, package_id in enumerate(ids):
                 package_key = package_id.lower()
-                package_dir = cache / package_key / '10.0.13'
+                package_dir = cache / package_key / '10.0.14'
                 package_dir.mkdir(parents=True)
                 (package_dir / (package_key + '.nuspec')).write_text(
                     '<package><metadata><id>' + package_id +
-                    '</id><version>10.0.13</version></metadata></package>')
+                    '</id><version>10.0.14</version></metadata></package>')
                 # Repository-signed archive SHA512 differs from unsigned NuGet
                 # contentHash recorded in project.assets.json.
-                archive = package_dir / (package_key + '.10.0.13.nupkg')
+                archive = package_dir / (package_key + '.10.0.14.nupkg')
                 import zipfile
                 with zipfile.ZipFile(archive, 'w') as z:
                     z.writestr(package_key + '.nuspec', 'synthetic package ' + str(i))
                 archive_hash = base64.b64encode(
                     hashlib.sha512(archive.read_bytes()).digest()).decode('ascii')
                 content_hash = base64.b64encode(bytes([i + 11]) * 64).decode('ascii')
-                (package_dir / (package_key + '.10.0.13.nupkg.sha512')).write_text(
+                (package_dir / (package_key + '.10.0.14.nupkg.sha512')).write_text(
                     archive_hash)
                 (package_dir / '.nupkg.metadata').write_text(json.dumps({
                     'version': 2, 'contentHash': content_hash,
                     'source': 'https://api.nuget.org/v3/index.json'}))
-                libraries[package_id + '/10.0.13'] = {
-                    'type': 'package', 'path': package_key + '/10.0.13',
+                libraries[package_id + '/10.0.14'] = {
+                    'type': 'package', 'path': package_key + '/10.0.14',
                     'sha512': content_hash}
             def save():
                 assets_file.write_text(json.dumps({'libraries': libraries}))
@@ -222,17 +222,17 @@ class PrivateBuildContractTests(unittest.TestCase):
                            [], 0, 'global-packages: ' + str(cache) + '\n', '')):
                 record = _native_compiler_origin('dotnet', root, 'local-linux')
                 self.assertEqual([p['packageId'] for p in record['packages']], list(ids))
-                self.assertEqual([p['version'] for p in record['packages']], ['10.0.13'] * 2)
+                self.assertEqual([p['version'] for p in record['packages']], ['10.0.14'] * 2)
                 self.assertEqual(record['projectAssetsSha256'],
                                  hashlib.sha256(assets_file.read_bytes()).hexdigest())
                 self.assertFalse(record['officialSignatureVerified'])
                 self.assertNotEqual(record['packages'][0]['contentSha512'],
                                     record['packages'][0]['packageSha512'])
                 self.assertEqual(record['packages'][0]['contentSha512'],
-                                 libraries[ids[0] + '/10.0.13']['sha512'])
+                                 libraries[ids[0] + '/10.0.14']['sha512'])
 
-                archive = cache / ids[1].lower() / '10.0.13' / (
-                    ids[1].lower() + '.10.0.13.nupkg')
+                archive = cache / ids[1].lower() / '10.0.14' / (
+                    ids[1].lower() + '.10.0.14.nupkg')
                 original_archive = archive.read_bytes()
                 for case in ('missing', 'mutated'):
                     with self.subTest(archive=case):
@@ -247,25 +247,25 @@ class PrivateBuildContractTests(unittest.TestCase):
                                  record)
 
                 # SRI sha512- prefix is NOT used in project.assets.json.
-                libraries[ids[0] + '/10.0.13']['sha512'] = (
+                libraries[ids[0] + '/10.0.14']['sha512'] = (
                     'sha512-' + record['packages'][0]['contentSha512'])
                 save()
                 with self.assertRaisesRegex(ValueError, 'assets/contentHash SHA512 mismatch'):
                     _native_compiler_origin('dotnet', root, 'local-linux')
-                libraries[ids[0] + '/10.0.13']['sha512'] = (
+                libraries[ids[0] + '/10.0.14']['sha512'] = (
                     record['packages'][0]['contentSha512'])
                 save()
 
-                changed = libraries.pop(ids[1] + '/10.0.13')
-                libraries[ids[1] + '/10.0.14'] = changed
+                changed = libraries.pop(ids[1] + '/10.0.14')
+                libraries[ids[1] + '/10.0.13'] = changed
                 save()
                 with self.assertRaisesRegex(ValueError, 'version mismatch'):
                     _native_compiler_origin('dotnet', root, 'local-linux')
-                libraries.pop(ids[1] + '/10.0.14')
-                libraries[ids[1] + '/10.0.13'] = changed
+                libraries.pop(ids[1] + '/10.0.13')
+                libraries[ids[1] + '/10.0.14'] = changed
                 save()
 
-                metadata_path = cache / ids[1].lower() / '10.0.13/.nupkg.metadata'
+                metadata_path = cache / ids[1].lower() / '10.0.14/.nupkg.metadata'
                 metadata_original = metadata_path.read_text()
                 metadata = json.loads(metadata_original)
                 metadata['contentHash'] = base64.b64encode(b'X' * 64).decode('ascii')
@@ -278,8 +278,8 @@ class PrivateBuildContractTests(unittest.TestCase):
                     _native_compiler_origin('dotnet', root, 'local-linux')
                 metadata_path.write_text(metadata_original)
 
-                sha = cache / ids[1].lower() / '10.0.13' / (
-                    ids[1].lower() + '.10.0.13.nupkg.sha512')
+                sha = cache / ids[1].lower() / '10.0.14' / (
+                    ids[1].lower() + '.10.0.14.nupkg.sha512')
                 sha.write_text('invalid-archive-hash')
                 with self.assertRaisesRegex(ValueError, 'archive SHA512'):
                     _native_compiler_origin('dotnet', root, 'local-linux')
@@ -291,19 +291,19 @@ class PrivateBuildContractTests(unittest.TestCase):
         from unittest.mock import patch
         from subprocess import CompletedProcess
         from stage_delivery_candidate import _host_toolchain
-        outputs = ['10.0.402\n', 'Microsoft.NETCore.App 10.0.13 [/sdk]\n', '.NET SDK 10.0.402\n']
+        outputs = ['10.0.403\n', 'Microsoft.NETCore.App 10.0.14 [/sdk]\n', '.NET SDK 10.0.403\n']
         with patch('stage_delivery_candidate.subprocess.run',
                    side_effect=[CompletedProcess([], 0, out, '') for out in outputs]) as called:
             result = _host_toolchain('dotnet', Path('.'))
-        self.assertEqual(result['sdk'], '10.0.402')
-        self.assertEqual(result['managedRuntime'], '10.0.13')
+        self.assertEqual(result['sdk'], '10.0.403')
+        self.assertEqual(result['managedRuntime'], '10.0.14')
         self.assertEqual(called.call_count, 3)
 
     def test_host_toolchain_rejects_implicit_runtime_roll_forward(self):
         from unittest.mock import patch
         from subprocess import CompletedProcess
         from stage_delivery_candidate import _host_toolchain
-        outputs = ['10.0.402\n', 'Microsoft.NETCore.App 10.0.14 [/sdk]\n']
+        outputs = ['10.0.403\n', 'Microsoft.NETCore.App 10.0.13 [/sdk]\n']
         with patch('stage_delivery_candidate.subprocess.run',
                    side_effect=[CompletedProcess([], 0, out, '') for out in outputs]):
             with self.assertRaisesRegex(ValueError, 'not installed'):
@@ -314,7 +314,7 @@ class PrivateBuildContractTests(unittest.TestCase):
         from subprocess import CompletedProcess
         from stage_delivery_candidate import _host_toolchain
         with patch('stage_delivery_candidate.subprocess.run',
-                   return_value=CompletedProcess([], 0, '10.0.403\n', '')):
+                   return_value=CompletedProcess([], 0, '10.0.402\n', '')):
             with self.assertRaisesRegex(ValueError, 'Observed SDK'):
                 _host_toolchain('dotnet', Path('.'))
 
@@ -342,6 +342,22 @@ class PrivateBuildContractTests(unittest.TestCase):
                 _member_record(root, 'alias.dll')
             with self.assertRaisesRegex(ValueError, 'Missing/invalid'):
                 _member_record(root, 'missing.dll')
+
+
+    def test_shipped_first_use_instructions_match_frozen_toolchain(self):
+        # These source files are copied into private archives unchanged.
+        # Keep first-use commands aligned with the exact runtime and SDK
+        # selected by the private candidate build, not an older preview.
+        source = Path(__file__).resolve().parents[1]
+        contract = json.loads((source / 'eng/delivery-candidate.json').read_text())
+        sdk = contract['sdk']['version']
+        runtime = contract['managedRuntime']['version']
+        managed = (source / 'docs/private-managed-cli-readme.md').read_text()
+        examples = (source / 'docs/private-examples-readme.md').read_text()
+        self.assertIn(f'runtime **{runtime}**', managed)
+        self.assertIn(f'pinned to runtime {runtime} with roll-forward disabled', managed)
+        self.assertIn(f'SDK {sdk} and runtime {runtime}', examples)
+        self.assertEqual(examples.count(f'-p:RuntimeFrameworkVersion={runtime}'), 2)
 
 if __name__ == '__main__':
     unittest.main()

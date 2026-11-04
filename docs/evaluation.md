@@ -1,3 +1,35 @@
+## Bounded font-size keywords for printable business reports (source-only)
+
+For existing report text and inline spans, `font-size` accepts seven absolute
+keywords: `xx-small` = 7.2pt, `x-small` = 9pt, `small` = 10pt,
+`medium` = 12pt, `large` = 14.4pt, `x-large` = 18pt, and
+`xx-large` = 24pt. `smaller` and `larger` multiply the **computed
+parent** size by 5/6 and 6/5, after normal CSS specificity and
+`!important`. This deliberate 12pt reference is not complete browser
+font sizing.
+
+```html
+<section style="font-size:15pt">
+  <h2 style="font-size:large">Inspection summary</h2>
+  <p style="font-size:smaller">Work order <span style="font-size:larger">Complete</span></p>
+</section>
+```
+
+The values change actual PDF text metrics, wrapping, line placement and
+page breaks. Existing `inherit/initial/unset`, supported element scopes and
+source-order cascade remain intact. Unsupported keywords, `calc()` and
+relative results outside 1–144pt reject with `FPDF1202`, preserving
+existing PDF bytes and output position. This is neither font family
+matching, an arbitrary `font` shorthand nor general CSS Fonts support.
+
+The [40-entry report](../examples/report-font-size-keywords.html) and
+[independently authored absolute-point oracle](../examples/report-font-size-keywords-oracle.html)
+feed NUnit, fontless/TrueType PDF-byte comparisons and a Linux Native AOT
+qpdf/Poppler PDF and protected-recovery gate.
+Implemented in source [`b95f1bd3`](https://github.com/KoalaFacts/FactsPDF/commit/b95f1bd3c5d8275bff21f399c9cf59a2d413c024).
+Actual CI, independent review, private software build, human page approval
+and customer distribution permission remain separate.
+
 ## Physical pica and quarter-millimetre CSS print units (source-only)
 
 Controlled business reports now accept `pc` and `q` alongside `pt`, `px`, `mm`, `cm` and `in` in **existing, applicable physical CSS length slots**. One pica is **12 PDF points** and one `q` is **0.25mm** (so `4q` matches `1mm`). Example:

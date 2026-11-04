@@ -1261,6 +1261,42 @@ def main():
             raise AssertionError('Native print-unit recovery did not restore full report PDF')
         print('Native 40-entry pc/q CSS report PDF-byte parity, pagination, text and recovery verified')
 
+    # End-to-end CSS keyword font sizes: actual Native AOT bytes, pages,
+    # all service entries and protected destination recovery.
+    with tempfile.TemporaryDirectory(prefix='factspdf-font-keywords-') as folder:
+        temp = Path(folder)
+        keywords = Path('examples/report-font-size-keywords.html')
+        oracle = Path('examples/report-font-size-keywords-oracle.html')
+        actual_pdf, oracle_pdf = temp / 'keywords.pdf', temp / 'points.pdf'
+        for html, pdf in ((keywords, actual_pdf), (oracle, oracle_pdf)):
+            run(exe, html, pdf)
+            run('qpdf', '--check', pdf)
+        if actual_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Native CSS font-size keywords differ from point-size control')
+        info = run('pdfinfo', actual_pdf).decode('utf-8')
+        count = next((int(row.split(':', 1)[1].strip()) for row in info.splitlines()
+                      if row.startswith('Pages:')), 0)
+        if count < 2:
+            raise AssertionError('Keyword service report must span multiple pages')
+        rendered = ''.join(run('pdftotext', '-raw', actual_pdf, '-').decode('utf-8').split())
+        positions = [rendered.find(f'Serviceentry{i:02d}') for i in range(1, 41)]
+        if any(p < 0 for p in positions) or len(set(positions)) != 40 or positions != sorted(positions):
+            raise AssertionError('Font-size keyword report lost/reordered visible service entries')
+        bad = temp / 'invalid.html'
+        bad.write_text("<section style='font-size:140pt'><p style='font-size:larger'>Protected</p></section>",
+                       encoding='utf-8')
+        actual_pdf.write_bytes(b'original-approved-report')
+        fail = subprocess.run([str(exe), str(bad), str(actual_pdf), '--overwrite'],
+                              capture_output=True, timeout=120)
+        if fail.returncode != 3 or b'FPDF1202' not in fail.stderr or fail.stdout:
+            raise AssertionError('Unplaceable keyword font-size did not fail closed')
+        if actual_pdf.read_bytes() != b'original-approved-report':
+            raise AssertionError('Rejected keyword font-size modified the original PDF')
+        run(exe, keywords, actual_pdf, '--overwrite')
+        if actual_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Native font-size keyword recovery did not restore report bytes')
+        print('Native 40-entry keyword font-size report PDF parity, pagination and recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -1298,7 +1334,8 @@ def main():
                              'native_quote_report_pdf_parity_pagination_and_recovery': True,
                              'native_report_display_none_pdf_parity_pagination_and_recovery': True,
                              'native_ltr_text_align_pdf_parity_pagination_and_recovery': True,
-                             'native_pica_quarter_mm_pdf_parity_pagination_text_and_recovery': True},
+                             'native_pica_quarter_mm_pdf_parity_pagination_text_and_recovery': True,
+                             'native_keyword_font_sizes_pdf_parity_pagination_and_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

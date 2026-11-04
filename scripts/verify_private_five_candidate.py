@@ -265,7 +265,7 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
     ):
         require(unpacked[role][member] == original_license,
                 "Shipped license differs from committed license: " + role)
-    # Independently frozen upstream Linux NativeAOT 10.0.13 notice hashes.
+    # Independently frozen upstream Linux NativeAOT 10.0.14 notice hashes.
     # The runtime-pack texts are not the SDK's or compiler-pack's notices.
     for filename, expected in {
         "LICENSE.TXT": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
@@ -289,10 +289,10 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
             and [p["packageId"] for p in compiler_origin["packages"]] == [
                 "Microsoft.DotNet.ILCompiler",
                 "runtime.linux-x64.Microsoft.DotNet.ILCompiler"]
-            and all(p["version"] == "10.0.13" and p["packageSha512"]
+            and all(p["version"] == "10.0.14" and p["packageSha512"]
                     and p["contentSha512"] for p in compiler_origin["packages"])
             and notice_origin["packageId"] == "Microsoft.NETCore.App.Runtime.NativeAOT.linux-x64"
-            and notice_origin["version"] == "10.0.13",
+            and notice_origin["version"] == "10.0.14",
             "Observed private NativeAOT pack origin is not source-bound")
     inspector_paths = list((runner / "factspdf-private-build/inspector/bin").rglob("FactsPDF.PackageInspector.dll"))
     require(build["sourceHead"] == head and len(inspector_paths) == 1, "Wrong compiled inspector")
@@ -330,7 +330,7 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
                 "Offline rebuilt source CLI output not reproducible")
     consumer_dir = runner / "factspdf-staged-five-installed-consumer"
     installed = load(consumer_dir / "report.json")
-    require(installed["sourceHead"] == head and installed["sdk"] == "10.0.402"
+    require(installed["sourceHead"] == head and installed["sdk"] == "10.0.403"
             and installed["crossEntryBytesEqual"] is True
             and installed["recoveryBytesEqual"] is True
             and installed["reorderedPdfRejected"] is True
@@ -340,8 +340,8 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
             and installed["cliSha256"] == digest(unpacked["managed"]["FactsPDF.Cli/FactsPDF.Cli.dll"]),
             "Installed package/CLI differs from final staged bytes")
     require(installed["toolchainConstraint"]["verified"] is True
-            and installed["toolchainConstraint"]["expectedRuntime"] == "10.0.13"
-            and installed["toolchainConstraint"]["expectedSdk"] == "10.0.402",
+            and installed["toolchainConstraint"]["expectedRuntime"] == "10.0.14"
+            and installed["toolchainConstraint"]["expectedSdk"] == "10.0.403",
             "Clean consumer toolchain not strictly pinned")
     require({x["entry"] for x in installed["cases"]} == {"consumer", "cli"}
             and len(installed["negativeCases"]) == 5
@@ -386,7 +386,7 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
 
     sdk = run("dotnet", "--version").strip()
     runtimes = run("dotnet", "--list-runtimes")
-    require(sdk == "10.0.402" and re.search(r"(?m)^Microsoft\.NETCore\.App 10\.0\.13 \[", runtimes),
+    require(sdk == "10.0.403" and re.search(r"(?m)^Microsoft\.NETCore\.App 10\.0\.14 \[", runtimes),
             "SDK or managed runtime not installed at pinned version")
     require(current_source(root) == head, "Source changed during independent check")
     output.mkdir(mode=0o700)
@@ -423,10 +423,10 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
         "candidateStagingSha256": digest(staging_bytes),
         "identity": {"sourceHead": head, "profile": "local-linux", "packageId": "FactsPDF",
                      "packageVersion": VERSION, "targetFramework": "net10.0",
-                     "sdkVersion": sdk, "selectedRuntimeVersion": "10.0.13"},
-        "actualToolchain": {"sdkVersion": sdk, "managedRuntimeVersion": "10.0.13",
-                            "nativeRuntimePackVersion": "10.0.13",
-                            "nativeCompilerPackVersion": "10.0.13",
+                     "sdkVersion": sdk, "selectedRuntimeVersion": "10.0.14"},
+        "actualToolchain": {"sdkVersion": sdk, "managedRuntimeVersion": "10.0.14",
+                            "nativeRuntimePackVersion": "10.0.14",
+                            "nativeCompilerPackVersion": "10.0.14",
                             "officialSignatureVerified": False,
                             "nativeCompilerPackVerified": False},
         "frozenContractDigest": frozen_contract_digest(root),

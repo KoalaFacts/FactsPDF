@@ -24,6 +24,24 @@ discussion, not a software trial, licence grant or support contract.
 
 The detailed source-only feature notes and test evidence follow.
 
+### Familiar font-size keywords for report text (source-only)
+
+For controlled report text, `font-size:xx-small/x-small/small/medium/large/x-large/xx-large`
+uses the documented fixed 7.2/9/10/12/14.4/18/24pt scale.
+`smaller` and `larger` compute from the parent font at 5/6 and 6/5.
+This works through existing cascade, `!important`, inherited text and
+actual PDF glyphs, wrapping and pagination, not merely CSS parsing.
+Unsupported values and computed sizes outside 1–144pt reject with
+`FPDF1202` and protect the previous PDF. No general font shorthand or
+browser system-font selection is implied.
+
+The [40-entry paginated report](examples/report-font-size-keywords.html),
+[independent point-size oracle](examples/report-font-size-keywords-oracle.html),
+NUnit and Native AOT/qpdf/Poppler checks cover this source-only feature at
+[`b95f1bd3`](https://github.com/KoalaFacts/FactsPDF/commit/b95f1bd3c5d8275bff21f399c9cf59a2d413c024).
+No updated private binary, public release, human reference approval or
+customer licence is implied. [Exact limits](docs/css-stylesheets.md#bounded-font-size-keywords-for-printable-business-reports-source-only).
+
 ### Optional searchable PDF document properties (source-only)
 
 For invoices and inspection reports, set real PDF document information using

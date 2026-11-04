@@ -64,17 +64,17 @@ class NativeArchiveTests(unittest.TestCase):
         for name, value in self.notices.items():
             (self.build / 'native-notices' / name).write_bytes(value)
         self.origin = {'packageId': 'Microsoft.NETCore.App.Runtime.NativeAOT.linux-x64',
-                       'version': '10.0.13',
+                       'version': '10.0.14',
                        'notices': [{'filename': name, 'bytes': len(value),
                                     'sha256': hashlib.sha256(value).hexdigest()}
                                    for name, value in self.notices.items()]}
         self.compiler_origin = {
             'projectAssetsSha256': '1' * 64,
             'packages': [
-                {'packageId': 'Microsoft.DotNet.ILCompiler', 'version': '10.0.13',
+                {'packageId': 'Microsoft.DotNet.ILCompiler', 'version': '10.0.14',
                  'nuspecSha256': '2' * 64, 'packageSha512': 'A' * 86 + '=='},
                 {'packageId': 'runtime.linux-x64.Microsoft.DotNet.ILCompiler',
-                 'version': '10.0.13', 'nuspecSha256': '3' * 64,
+                 'version': '10.0.14', 'nuspecSha256': '3' * 64,
                  'packageSha512': 'A' * 86 + '=='},
             ],
             'officialSignatureVerified': False
@@ -148,7 +148,7 @@ class NativeArchiveTests(unittest.TestCase):
             self.assemble()
         self.assertFalse(self.out.exists())
         self.record['nativeCompilerOrigin'] = self.compiler_origin
-        self.compiler_origin['packages'][1]['version'] = '10.0.14'
+        self.compiler_origin['packages'][1]['version'] = '10.0.13'
         self.save()
         with self.assertRaisesRegex(ValueError, 'compiler provenance'):
             self.assemble()
