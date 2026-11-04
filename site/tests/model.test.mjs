@@ -74,7 +74,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(dataset.features.find(f=>f.id==='css.background-color').limitations,/currentColor/);
   assert.match(dataset.audit_method,/All other 415 stable records/);
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:154, none:212, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:155, none:211, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
