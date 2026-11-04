@@ -596,23 +596,26 @@ internal static class CssSyntaxAdapter
                   string.Equals(hueToken.Unit, "deg", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1202",
                     "HSL hue must be a number or degrees.", hueToken.Span.Start);
-            if (!double.TryParse(hueToken.Value,
+            // Use decimal throughout HSL channel calculation. Binary double
+            // cancellation at 5% / 95% turns exact .5 byte midpoints into
+            // 25.499999... and silently changes the promised 8-bit PDF ink.
+            if (!decimal.TryParse(hueToken.Value,
                     System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var hue) ||
-                !double.IsFinite(hue) || hue is < -3600 or > 3600)
+                hue is < -3600m or > 3600m)
                 throw new FactsPdfException("FPDF1202",
                     "HSL hue must be finite and between -3600 and 3600 degrees.", hueToken.Span.Start);
-            double Percent(int index)
+            decimal Percent(int index)
             {
                 var channel = tokens[commaHsl ? index * 2 : index];
                 if (channel.Kind != CssSyntaxTokenKind.Percentage ||
-                    !double.TryParse(channel.Value, System.Globalization.NumberStyles.Float,
+                    !decimal.TryParse(channel.Value, System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out var value) ||
-                    !double.IsFinite(value) || value is < 0 or > 100)
+                    value is < 0m or > 100m)
                     throw new FactsPdfException("FPDF1202",
                         "HSL saturation and lightness must be percentages from 0% to 100%.",
                         channel.Span.Start);
-                return value / 100;
+                return value / 100m;
             }
             var saturation = Percent(1);
             var lightness = Percent(2);
@@ -624,22 +627,22 @@ internal static class CssSyntaxAdapter
                         "HSL alpha compositing is unsupported; hsla() alpha must be exactly 1.",
                         alpha.Span.Start);
             }
-            var normalizedHue = ((hue % 360) + 360) % 360;
-            var chroma = (1 - Math.Abs(2 * lightness - 1)) * saturation;
-            var sector = normalizedHue / 60;
-            var x = chroma * (1 - Math.Abs(sector % 2 - 1));
-            var m = lightness - chroma / 2;
-            (double red, double green, double blue) = sector switch
+            var normalizedHue = ((hue % 360m) + 360m) % 360m;
+            var chroma = (1m - Math.Abs(2m * lightness - 1m)) * saturation;
+            var sector = normalizedHue / 60m;
+            var x = chroma * (1m - Math.Abs(sector % 2m - 1m));
+            var m = lightness - chroma / 2m;
+            (decimal red, decimal green, decimal blue) = sector switch
             {
-                < 1 => (chroma, x, 0d),
-                < 2 => (x, chroma, 0d),
-                < 3 => (0d, chroma, x),
-                < 4 => (0d, x, chroma),
-                < 5 => (x, 0d, chroma),
-                _ => (chroma, 0d, x)
+                < 1m => (chroma, x, 0m),
+                < 2m => (x, chroma, 0m),
+                < 3m => (0m, chroma, x),
+                < 4m => (0m, x, chroma),
+                < 5m => (x, 0m, chroma),
+                _ => (chroma, 0m, x)
             };
-            static byte Byte(double channel) => (byte)Math.Clamp(
-                Math.Round(channel * 255, MidpointRounding.AwayFromZero), 0, 255);
+            static byte Byte(decimal channel) =>
+                (byte)decimal.Round(channel * 255m, 0, MidpointRounding.AwayFromZero);
             var hslHex = $"{Byte(red + m):x2}{Byte(green + m):x2}{Byte(blue + m):x2}";
             return new CssTokenComponent(new CssSyntaxToken(
                 CssSyntaxTokenKind.Hash, hslHex, "#" + hslHex, function.Span));
