@@ -26,7 +26,7 @@ class ReleaseToolchainTests(unittest.TestCase):
         output = root / 'evidence'
         argv = ['verify_release_candidate.py', '--cli-dll', str(cli),
                 '--package', str(package), '--output', str(output), '--dotnet', 'dotnet',
-                '--expected-sdk', '10.0.402', '--expected-runtime', '10.0.13']
+                '--expected-sdk', '10.0.403', '--expected-runtime', '10.0.14']
         return argv, output
 
     def test_strict_entrypoint_stages_exact_pins_before_dotnet(self):
@@ -42,10 +42,10 @@ class ReleaseToolchainTests(unittest.TestCase):
 
             def inspect_before_dotnet(_ambient, work):
                 sdk = json.loads((work / 'global.json').read_text())['sdk']
-                self.assertEqual(sdk, {'version': '10.0.402',
+                self.assertEqual(sdk, {'version': '10.0.403',
                                        'rollForward': 'disable', 'allowPrerelease': False})
                 project = ET.parse(work / 'consumer/FirstUse.csproj')
-                self.assertEqual(project.findtext('.//RuntimeFrameworkVersion'), '10.0.13')
+                self.assertEqual(project.findtext('.//RuntimeFrameworkVersion'), '10.0.14')
                 self.assertEqual(project.findtext('.//RollForward'), 'Disable')
                 self.assertEqual(project.findtext('.//UseAppHost'), 'false')
                 raise ObservedStrictRoute
@@ -59,7 +59,7 @@ class ReleaseToolchainTests(unittest.TestCase):
                     first_use.main(strict_toolchain=True)
 
             recorded = json.loads((output / 'consumer.global.json').read_text())
-            self.assertEqual(recorded['sdk']['version'], '10.0.402')
+            self.assertEqual(recorded['sdk']['version'], '10.0.403')
             self.assertEqual(recorded['sdk']['rollForward'], 'disable')
 
     def test_strict_entrypoint_rejects_wrong_generated_runtimeconfig_before_pdf(self):
@@ -77,7 +77,7 @@ class ReleaseToolchainTests(unittest.TestCase):
                 work = Path(kwargs['cwd']).parent
                 result = b''
                 if command[1] == '--version':
-                    result = b'10.0.402'
+                    result = b'10.0.403'
                 elif command[1] == 'restore':
                     assets = work / 'consumer/obj/project.assets.json'
                     assets.parent.mkdir(parents=True)
@@ -191,28 +191,28 @@ class ReleaseToolchainTests(unittest.TestCase):
             (work / 'consumer').mkdir()
             shutil.copy2(ROOT / 'examples/first-use/FirstUse.csproj', work / 'consumer/FirstUse.csproj')
             (work / 'global.json').write_text('{"sdk":{"version":"11.0.100","rollForward":"latestFeature"}}')
-            first_use.configure_consumer_toolchain(work, ROOT, '10.0.402', '10.0.13', strict_toolchain=True)
+            first_use.configure_consumer_toolchain(work, ROOT, '10.0.403', '10.0.14', strict_toolchain=True)
             self.assertEqual(json.loads((work / 'global.json').read_text())['sdk'],
-                             {'version': '10.0.402', 'rollForward': 'disable', 'allowPrerelease': False})
+                             {'version': '10.0.403', 'rollForward': 'disable', 'allowPrerelease': False})
             tree = ET.parse(work / 'consumer/FirstUse.csproj')
-            self.assertEqual(tree.findtext('.//RuntimeFrameworkVersion'), '10.0.13')
+            self.assertEqual(tree.findtext('.//RuntimeFrameworkVersion'), '10.0.14')
             self.assertEqual(tree.findtext('.//RollForward'), 'Disable')
             self.assertEqual(tree.findtext('.//UseAppHost'), 'false')
             with self.assertRaises(ValueError):
-                first_use.configure_consumer_toolchain(work, ROOT, '10.0.x', '10.0.13', strict_toolchain=True)
+                first_use.configure_consumer_toolchain(work, ROOT, '10.0.x', '10.0.14', strict_toolchain=True)
 
     def test_strict_release_runtimeconfig_rejects_floating_or_wrong_runtime(self):
-        good = {'runtimeOptions': {'framework': {'version': '10.0.13'}, 'rollForward': 'Disable'}}
-        first_use.validate_probe_runtimeconfig(good, '10.0.13')
+        good = {'runtimeOptions': {'framework': {'version': '10.0.14'}, 'rollForward': 'Disable'}}
+        first_use.validate_probe_runtimeconfig(good, '10.0.14')
         for bad in [
-            {'runtimeOptions': {'framework': {'version': '10.0.13'}}},
+            {'runtimeOptions': {'framework': {'version': '10.0.14'}}},
             {'runtimeOptions': {'framework': {'version': '10.0.12'}, 'rollForward': 'Disable'}},
-            {'runtimeOptions': {'framework': {'version': '10.0.13'}, 'rollForward': 'LatestPatch'}},
-            {'runtimeOptions': {'frameworks': [{'name':'Microsoft.NETCore.App','version':'10.0.13'}],
+            {'runtimeOptions': {'framework': {'version': '10.0.14'}, 'rollForward': 'LatestPatch'}},
+            {'runtimeOptions': {'frameworks': [{'name':'Microsoft.NETCore.App','version':'10.0.14'}],
                                 'rollForward': 'Disable'}},
         ]:
             with self.subTest(bad=bad), self.assertRaises(AssertionError):
-                first_use.validate_probe_runtimeconfig(bad, '10.0.13')
+                first_use.validate_probe_runtimeconfig(bad, '10.0.14')
 
     def test_dev_entry_keeps_family_runtime_validation(self):
         runtime = dict(version='10.0.1-rc.synthetic', framework='.NET synthetic', os='test', rid='linux-x64',
@@ -240,15 +240,15 @@ class ReleaseToolchainTests(unittest.TestCase):
         self.assertEqual(package_check.expected_contract(ROOT),
                          (identity['version'], identity['targetFramework']))
         sdk = json.loads((ROOT / 'global.json').read_text())['sdk']
-        self.assertEqual(sdk, {'version': '10.0.402',
+        self.assertEqual(sdk, {'version': '10.0.403',
                                'rollForward': 'disable', 'allowPrerelease': False})
         self.assertEqual(identity['sdk']['version'], sdk['version'])
         self.assertEqual(identity['sdk']['rollForward'], sdk['rollForward'])
         self.assertEqual(identity['managedRuntime'],
-                         {'framework': 'Microsoft.NETCore.App', 'version': '10.0.13',
+                         {'framework': 'Microsoft.NETCore.App', 'version': '10.0.14',
                           'rollForward': 'Disable'})
         self.assertEqual(identity['nativePacks'],
-                         {'runtimeVersion': '10.0.13', 'compilerVersion': '10.0.13'})
+                         {'runtimeVersion': '10.0.14', 'compilerVersion': '10.0.14'})
         self.assertEqual(identity['profiles'], [
             {'name': 'local-linux', 'rid': 'linux-x64', 'binaryRetained': True},
             {'name': 'win-x64-validation', 'rid': 'win-x64', 'binaryRetained': False}])
@@ -258,8 +258,8 @@ class ReleaseToolchainTests(unittest.TestCase):
                          'Source identity must come from actual committed Git HEAD')
         acquisition = identity['sdk']['officialLinuxX64Archive']
         self.assertEqual(acquisition['url'],
-                         'https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.402/'
-                         'dotnet-sdk-10.0.402-linux-x64.tar.gz')
+                         'https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/'
+                         'dotnet-sdk-10.0.403-linux-x64.tar.gz')
         self.assertRegex(acquisition['sha512'], r'\A[0-9a-f]{128}\Z')
         workflow_count = 0
         for workflow in sorted((ROOT / '.github/workflows').glob('*.yml')):
@@ -268,7 +268,7 @@ class ReleaseToolchainTests(unittest.TestCase):
                 continue
             pins = re.findall(r"(?m)^\s*dotnet-version:\s*'([^']+)'\s*$", content)
             self.assertTrue(pins, f'Missing exact SDK pin: {workflow.name}')
-            self.assertEqual(pins, ['10.0.402'] * len(pins), workflow.name)
+            self.assertEqual(pins, ['10.0.403'] * len(pins), workflow.name)
             workflow_count += 1
         self.assertGreaterEqual(workflow_count, 10)
 

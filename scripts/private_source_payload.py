@@ -161,7 +161,7 @@ def assemble_source(root: Path, output: Path, source_head: str) -> dict:
               f'Git source commit: {source_head}. This directory has no .git.\n'
               'It contains tracked source, the linked furniture decoder, and exact\n'
               'build inputs. No fonts, customer documents or prebuilt PDFs.\n\n'
-              'With the official .NET SDK 10.0.402 and runtime 10.0.13 installed:\n\n'
+              'With the official .NET SDK 10.0.403 and runtime 10.0.14 installed:\n\n'
               '    dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release '
               f'-p:SourceRevisionId={source_head} -p:ContinuousIntegrationBuild=true\n\n'
               'This source archive is not a verified installable candidate, an\n'

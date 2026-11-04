@@ -38,8 +38,8 @@ class FivePayloadStagingTests(unittest.TestCase):
         self.output = parent / 'final'
         self.selected = {'profile': 'local-linux', 'packageId': 'FactsPDF',
                          'version': VERSION, 'binaryRetained': True}
-        native_origin = {'nativePack': '10.0.13'}
-        compiler_origin = {'compiler': '10.0.13'}
+        native_origin = {'nativePack': '10.0.14'}
+        compiler_origin = {'compiler': '10.0.14'}
 
         def blob(label, directory, filename):
             value = ('FAKE UNIT FIXTURE: ' + label).encode()
@@ -227,13 +227,13 @@ class FivePayloadStagingTests(unittest.TestCase):
             'identity': {
                 'sourceHead': SOURCE, 'profile': 'local-linux',
                 'packageId': 'FactsPDF', 'packageVersion': VERSION,
-                'targetFramework': 'net10.0', 'sdkVersion': '10.0.402',
-                'selectedRuntimeVersion': '10.0.13',
+                'targetFramework': 'net10.0', 'sdkVersion': '10.0.403',
+                'selectedRuntimeVersion': '10.0.14',
             },
             'actualToolchain': {
-                'sdkVersion': '10.0.402', 'managedRuntimeVersion': '10.0.13',
-                'nativeRuntimePackVersion': '10.0.13',
-                'nativeCompilerPackVersion': '10.0.13',
+                'sdkVersion': '10.0.403', 'managedRuntimeVersion': '10.0.14',
+                'nativeRuntimePackVersion': '10.0.14',
+                'nativeCompilerPackVersion': '10.0.14',
                 'officialSignatureVerified': False,
                 'nativeCompilerPackVerified': False,
             },

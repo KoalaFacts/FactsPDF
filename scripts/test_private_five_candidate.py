@@ -33,14 +33,14 @@ class FinalCandidateReadbackTests(unittest.TestCase):
             "packageId": "FactsPDF",
             "packageVersion": "0.1.0-preview.1",
             "targetFramework": "net10.0",
-            "sdkVersion": "10.0.402",
-            "selectedRuntimeVersion": "10.0.13",
+            "sdkVersion": "10.0.403",
+            "selectedRuntimeVersion": "10.0.14",
         }
         toolchain = {
-            "sdkVersion": "10.0.402",
-            "managedRuntimeVersion": "10.0.13",
-            "nativeRuntimePackVersion": "10.0.13",
-            "nativeCompilerPackVersion": "10.0.13",
+            "sdkVersion": "10.0.403",
+            "managedRuntimeVersion": "10.0.14",
+            "nativeRuntimePackVersion": "10.0.14",
+            "nativeCompilerPackVersion": "10.0.14",
             "officialSignatureVerified": False,
             "nativeCompilerPackVerified": False,
         }
@@ -173,7 +173,7 @@ class FinalCandidateReadbackTests(unittest.TestCase):
     def test_changed_toolchain_with_recomputed_checksums_is_rejected(self):
         self.manifest["actualToolchain"] = {
             **self.manifest["actualToolchain"],
-            "managedRuntimeVersion": "10.0.14",
+            "managedRuntimeVersion": "10.0.13",
         }
         self.write_manifest()
         with self.assertRaisesRegex(ValueError, "detached"):

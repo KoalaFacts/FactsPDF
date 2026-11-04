@@ -19,8 +19,8 @@ from private_examples_payload import assemble_examples
 
 VERSION = '0.1.0-preview.1'
 TARGET = 'net10.0'
-SDK = '10.0.402'
-RUNTIME = '10.0.13'
+SDK = '10.0.403'
+RUNTIME = '10.0.14'
 PROFILES = {'local-linux': 'linux-x64', 'win-x64-validation': 'win-x64'}
 CONFIG_NAMES = ('Directory.Build.props', 'Directory.Build.targets',
                 'Directory.Packages.props', 'Directory.Build.rsp')
@@ -527,7 +527,7 @@ def _verify_native_x64_header(payload: bytes, profile: str) -> None:
 
 
 # The NativeAOT runtime pack is a separate component from SDK/ILCompiler packs.
-# Linux notice fingerprints come from the accepted official 10.0.13 acquisition.
+# Linux notice fingerprints come from the accepted official 10.0.14 acquisition.
 # On Windows only actual locally installed target-pack bytes may be packaged.
 NATIVE_NOTICE_NAMES = ('LICENSE.TXT', 'THIRD-PARTY-NOTICES.TXT')
 LINUX_NATIVE_NOTICE_SHA256 = {
@@ -677,7 +677,7 @@ def _stage_native_notices(dotnet: str, root: Path, work: Path, profile: str) -> 
         payload = original.read_bytes()
         digest = _sha(payload)
         if profile == 'local-linux' and digest != LINUX_NATIVE_NOTICE_SHA256[name]:
-            raise ValueError('Linux NativeAOT notice differs from accepted 10.0.13 pack: ' + name)
+            raise ValueError('Linux NativeAOT notice differs from accepted 10.0.14 pack: ' + name)
         (destination / name).write_bytes(payload)
         notices.append({'filename': name, 'bytes': len(payload), 'sha256': digest})
     return {'packageId': package_id, 'version': RUNTIME,

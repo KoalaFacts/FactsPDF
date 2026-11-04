@@ -155,8 +155,8 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
     expected_id = {
         "sourceHead": source_head, "profile": "local-linux",
         "packageId": "FactsPDF", "packageVersion": VERSION,
-        "targetFramework": "net10.0", "sdkVersion": "10.0.402",
-        "selectedRuntimeVersion": "10.0.13",
+        "targetFramework": "net10.0", "sdkVersion": "10.0.403",
+        "selectedRuntimeVersion": "10.0.14",
     }
     if (proof.get("schemaVersion") != 1 or proof.get("phase") != "payloads" or
             proof.get("status") != "passed" or proof.get("identity") != expected_id or
@@ -164,9 +164,9 @@ def finalize_five(root: Path, candidate: Path, verification: Path) -> dict:
         raise ValueError("Missing successful source/profile/staging-bound external verification")
     observed = proof.get("actualToolchain")
     if not isinstance(observed, dict) or any(observed.get(k) != value for k, value in {
-        "sdkVersion": "10.0.402", "managedRuntimeVersion": "10.0.13",
-        "nativeRuntimePackVersion": "10.0.13",
-        "nativeCompilerPackVersion": "10.0.13",
+        "sdkVersion": "10.0.403", "managedRuntimeVersion": "10.0.14",
+        "nativeRuntimePackVersion": "10.0.14",
+        "nativeCompilerPackVersion": "10.0.14",
         "officialSignatureVerified": False,
         "nativeCompilerPackVerified": False,
     }.items()):
