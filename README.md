@@ -1,5 +1,25 @@
 # FactsPDF
 
+## Computed currentColor for brand-consistent reports (source-only)
+
+Report templates can reuse one text colour for solid paint:
+`color:currentColor` preserves the **computed inherited parent text ink**;
+`background:currentColor` and `background-color:currentColor` paint the
+**final computed colour on that element**. Existing border and decoration
+`currentColor` values continue through the same opaque PDF ink path.
+Stylesheet/inline cascade, `!important`, inheritance, real font metrics,
+nested panels and page continuation are honoured.
+
+The [48-entry inspection report](examples/report-current-colour.html) and
+[independently authored HEX control](examples/report-current-colour-oracle.html)
+must emit identical PDF bytes. Tests cover font roles, managed API/CLI,
+pagination, text geometry and preserved output on invalid input. Native
+Linux/Windows AOT probes additionally inspect qpdf/Poppler text/coordinates.
+No alpha, system colours, `color:transparent`, gradients, URLs or general CSS
+Color are implied. Implementation [`3dbcded4`](https://github.com/KoalaFacts/FactsPDF/commit/3dbcded4f5d39b16b79bbff7aac4132305659d4a).
+This is source-only, not a revised private candidate, public package,
+human PDF approval or permission to distribute.
+
 ## Standard opaque CSS named colours for printable reports (source-only)
 
 Controlled templates may now use all **148 standard opaque CSS named colours** in
