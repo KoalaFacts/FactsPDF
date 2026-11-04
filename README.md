@@ -1,3 +1,21 @@
+## Print-only stylesheet rules for business reports (source-only)
+
+Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
+
+```html
+<style>
+  @media print {
+    .invoice { padding:8pt; background:#edf4fa; border:2pt solid #315f82 }
+    .invoice p { margin:0; color:#27618b; font-size:11pt }
+  }
+</style>
+<section class="invoice"><p>Inspection completed</p></section>
+```
+
+Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import`, `@page` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
+
+The [44-record multi-page print report](examples/report-print-media.html) is compared against a [separately written inline-style PDF oracle](examples/report-print-media-oracle.html), with NUnit, supplied TrueType, managed CLI, Native AOT qpdf/Poppler and protected failure/retry checks. Bounded engine source [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403). This is not full CSS Media Queries, a public package, new private binary, human PDF approval or a customer licence.
+
 ## LTR logical border component styling for business reports (source-only)
 
 Use `border-inline-width:2pt 4pt`, `border-block-style:solid dashed`,
