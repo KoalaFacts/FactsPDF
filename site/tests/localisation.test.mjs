@@ -431,7 +431,7 @@ test('named CSS colours retain the independent source and English limitations', 
     assert.equal(row.introduced_release, null);
   }
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count,107);
+  assert.equal(data.accepted_css_property_count,108);
 });
 
 
@@ -439,7 +439,7 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   const { englishFeature, translate } = await localisation();
   const feature=englishFeature(data.features.find(x=>x.id==='css.border'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count,107);
+  assert.equal(data.accepted_css_property_count,108);
   assert.match(feature.scope,/border-inline/);
   assert.match(feature.scope,/border-block/);
   assert.match(feature.scope,/actual left\/right\/top\/bottom PDF strokes/);
@@ -450,4 +450,15 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   assert.doesNotMatch(translate(data.css_inventory_note),han);
 });
 
-test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count,107);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
+test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count,108);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
+
+test('bounded printable text decoration width is translated with exact limits',async()=>{
+  const {englishFeature,translate}=await localisation();
+  const row=englishFeature(data.features.find(f=>f.id==='css.text-decoration'));
+  assert.equal(data.accepted_css_property_count,108);
+  assert.match(row.scope,/0.2–12pt/);
+  assert.match(row.scope,/resets omitted thickness to auto/);
+  assert.match(row.limitations,/percentages, from-font, calc/);
+  assert.match(translate(data.css_inventory_note),/from 107 to 108/);
+  assert.doesNotMatch(row.scope+row.limitations,/每|不支持|受限/u);
+});
