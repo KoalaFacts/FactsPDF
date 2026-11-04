@@ -408,10 +408,27 @@ test('HSL colour support has exact English scope and leaves RGB history intact',
   for(const id of ['css.color','css.background','css.background-color','css.border','css.border-color',
     'css.border-top-color','css.border-right-color','css.border-bottom-color','css.border-left-color']) {
     const f=englishFeature(data.features.find(f=>f.id===id));
-    assert.equal(f.last_audited_commit,'6a79f3f69f381f39a2cfb83bc2aa505e34c0af0d');
+    assert.equal(f.last_audited_commit,'c9138808d785986712f17e977fa2371854cb6aed');
     assert.match(f.scope,/Opaque HSL/);assert.match(f.limitations,/alpha/);
     assert.doesNotMatch(f.scope+' '+f.limitations,han);
   }
   assert.match(englishFeature(data.features.find(f=>f.id==='value.color.rgbfunc')).scope,/percentage/);
   assert.match(translate(data.audit_method),/percent-RGB audit/);
+});
+
+
+test('named CSS colours retain the independent source and English limitations', async () => {
+  const { englishFeature } = await localisation();
+  for (const id of ['css.color','css.background','css.background-color','css.border','css.border-color','css.text-decoration']) {
+    const row = data.features.find(f => f.id === id);
+    const english = englishFeature(row);
+    assert.equal(row.last_audited_commit, 'c9138808d785986712f17e977fa2371854cb6aed');
+    assert.match(row.scope, /148 种标准不透明 CSS 具名颜色/);
+    assert.match(english.scope, /148 standard opaque (CSS )?named colours/);
+    assert.match(english.scope, /PDF/);
+    assert.doesNotMatch(english.scope, han);
+    assert.equal(row.introduced_release, null);
+  }
+  assert.equal(data.features.length,418);
+  assert.equal(data.accepted_css_property_count,83);
 });

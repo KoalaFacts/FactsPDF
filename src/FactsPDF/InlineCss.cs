@@ -279,16 +279,12 @@ internal static class InlineCss
 
     internal static Rgb Color(string value, int offset)
     {
-        value = value switch
-        {
-            "black" => "#000000", "white" => "#ffffff", "red" => "#ff0000",
-            "green" => "#008000", "blue" => "#0000ff", "gray" or "grey" => "#808080", _ => value
-        };
+        value = CssNamedColors.Hex(value) ?? value;
         if (value.Length == 4 && value[0] == '#')
             value = $"#{value[1]}{value[1]}{value[2]}{value[2]}{value[3]}{value[3]}";
         if (value.Length != 7 || value[0] != '#' || !uint.TryParse(value.AsSpan(1),
             NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb))
-            throw Invalid("Use #rgb, #rrggbb or a documented named color.", offset);
+            throw Invalid("Use #rgb, #rrggbb or an opaque standard CSS named color.", offset);
         return new(((rgb >> 16) & 255) / 255d, ((rgb >> 8) & 255) / 255d, (rgb & 255) / 255d);
     }
 

@@ -1,3 +1,29 @@
+## Standard opaque CSS named colours for printable reports (source-only)
+
+Controlled templates may now use all **148 standard opaque CSS named colours** in
+the existing supported colour slots. Examples: `color:rebeccapurple`,
+`background:aliceblue`, `border:2pt solid slategray` and
+`text-decoration:underline dotted teal`. Aliases such as
+`gray/grey`, `aqua/cyan` and `fuchsia/magenta` resolve to the same
+fixed RGB values. They affect real PDF text, background fills, borders and
+decorations, not only CSS parsing. Existing inheritance, specificity,
+font metrics, page geometry, resource limits and fragmentation still apply.
+
+The [64-record report](../../examples/report-named-colours.html) and
+[independently authored HEX oracle](../../examples/report-named-colours-oracle.html)
+must render identical PDF bytes. Source NUnit tests every name against explicit
+hex values, including supplied TrueType font roles, cascading, managed CLI
+and protected failures. Linux/Windows Native AOT checks additionally use
+qpdf/Poppler for searchability, positions, pages and recovery.
+
+This is a bounded colour *value* extension, not 148 new CSS properties or full
+CSS Color: `background:transparent` retains its previous limited meaning;
+`color:transparent`, system/theme colours, arbitrary `currentColor`,
+alpha blending, gradients and unsupported selectors/elements still reject.
+Implementation source [`c9138808`](https://github.com/KoalaFacts/FactsPDF/commit/c9138808d785986712f17e977fa2371854cb6aed).
+Exact-head CI, independent review, private software, human reference approval
+and customer permission remain separate; no public release is implied.
+
 ## Bounded percentage RGB colours for business reports (source-only)
 
 Report templates may now use `rgb(20%,40%,60%)`, `rgb(10% 25% 50%)`

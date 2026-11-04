@@ -1606,6 +1606,44 @@ def verify_native_percentage_rgb(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_named_colours(executable, output, work):
+    """Compare all standard report named colours to an explicit HEX PDF witness."""
+    source = ROOT / 'examples/report-named-colours.html'
+    oracle = ROOT / 'examples/report-named-colours-oracle.html'
+    actual = output / 'named-colours.pdf'
+    control = output / 'named-colours-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), 'Named colours differ from authored HEX PDF'
+    pages = count_pages(actual)
+    assert pages >= 2, '64 work orders should paginate under native report output'
+    placed = [page_boxes(actual, page) for page in range(1, pages + 1)]
+    assert placed == [page_boxes(control, page) for page in range(1, pages + 1)], (
+        'Named colour report changed PDF text position or searchability')
+    words = [word[0] for _, _, items in placed for word in items]
+    assert [w for w in words if re.fullmatch(r'NAMED-\d{2}', w)] == [
+        f'NAMED-{n:02d}' for n in range(1, 65)], 'Native report lost named-colour work orders'
+    invalid = work / 'named-colour-invalid.html'
+    retained = output / 'named-colour-retained.pdf'
+    for css in ('color:buttontext', 'background:darkishblue', 'color:transparent'):
+        invalid.write_text('<style>.unused{' + css + '}</style><p>Protected</p>',
+                           encoding='utf-8')
+        retained.write_bytes(b'previous customer PDF')
+        failure = subprocess.run([str(executable), str(invalid), str(retained), '--overwrite'],
+                                 cwd=work, capture_output=True, timeout=120)
+        assert failure.returncode == 3 and b'FPDF1202' in failure.stderr and not failure.stdout, (
+            'Native unsupported named colour was not rejected', css, failure.returncode, failure.stderr)
+        assert retained.read_bytes() == b'previous customer PDF', 'Invalid colour damaged previous PDF'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Named colour recovery changed PDF bytes'
+    return {'records': 64, 'pages': pages, 'sourceSha256': sha(source),
+            'controlSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'independentHexByteParity': True, 'popplerGeometryAndText': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1685,6 +1723,7 @@ def main():
         image_height_limits = verify_native_image_height_limits(isolated, output, work, logo)
         hsl_colours = verify_native_hsl_colours(isolated, output, work)
         percent_rgb = verify_native_percentage_rgb(isolated, output, work)
+        named_colours = verify_native_named_colours(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1719,6 +1758,7 @@ def main():
             'imageHeightLimits': image_height_limits,
             'hslColours': hsl_colours,
             'percentageRgb': percent_rgb,
+            'namedColours': named_colours,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }
