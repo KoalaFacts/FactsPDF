@@ -70,7 +70,7 @@ public sealed class SemanticInlineReportTests
             "<del class=cancelled>AB</del> <small><u>AB</u></small> " +
             "<ins style='text-decoration:line-through'>AB</ins></p>";
         const string oracle = "<p style='font-size:12pt'>" +
-            "<span style='font-size:14pt'>AB</span> AB " +
+            "<span style='font-size:14pt'>AB</span> <span style='text-decoration:none'>AB</span> " +
             "<span style='font-size:10pt'><span style='text-decoration:underline'>AB</span></span> " +
             "<span style='text-decoration:line-through'>AB</span></p>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)), $"Source runs: {Describe(source)}\nOracle runs: {Describe(oracle)}");
