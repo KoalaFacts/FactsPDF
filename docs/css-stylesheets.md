@@ -1,3 +1,21 @@
+## Scoped inline hyperlink styling (source-only)
+
+The bounded `a[href]` element uses normal text and CSS declaration handling:
+its initial text ink is opaque blue (`#0000cc`) and it draws the existing
+solid underline. Authored `color`, `text-decoration`, font size/weight,
+`!important`, inheritance and `initial`/`unset` can override those defaults;
+none changes its validated destination. It creates actual per-page PDF URI
+annotation rectangles after glyph measurement, including across line/page
+breaks and in permitted flat table-cell text. This does not add CSS properties
+or element applicability. `text-align:justify/start/end` on an inline anchor
+is rejected rather than silently applied. The single supported destination
+contract is HTTPS (ASCII, no credentials) or plain single mailto, max 2048
+characters; unsupported URLs and extra anchor attributes fail explicitly.
+
+See [report link example](../examples/report-clickable-orders.html),
+`ReportHyperlinksTests.cs` and `verify_stylesheets.py`. Implementation source
+`9a19096a69f323bda3c7678c590a96b19ad98864` (unreleased source).
+
 ## Bounded semantic inline marks for business reports
 
 Exactly `small`, `u`, `s`, `del` and `ins` join the existing text-only
