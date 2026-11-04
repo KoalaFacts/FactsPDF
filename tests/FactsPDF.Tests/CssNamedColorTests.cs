@@ -57,9 +57,13 @@ public sealed class CssNamedColorTests
     {
         var report = ReadReport("report-named-colours.html");
         var control = ReadReport("report-named-colours-oracle.html");
-        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(report, Page, default), Page, default);
+        // This 64-row independently authored report uses the normal A4
+        // document contract, just as the managed CLI and Native AOT oracle do.
+        // The separate 300x500pt option exercises bounded per-colour painting.
+        var options = new PdfOptions();
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(report, options, default), options, default);
         Assert.That(pages.Count, Is.GreaterThan(1));
-        Assert.That(Pdf(report), Is.EqualTo(Pdf(control)));
+        Assert.That(Pdf(report, options), Is.EqualTo(Pdf(control, options)));
         var text = string.Join(" ", pages.SelectMany(p => p.Runs).Select(r => r.Text));
         for (var i = 1; i <= 64; i++)
             Assert.That(text, Does.Contain("NAMED-" + i.ToString("00")));
