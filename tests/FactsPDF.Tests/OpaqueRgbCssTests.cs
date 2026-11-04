@@ -107,7 +107,11 @@ public sealed class OpaqueRgbCssTests
     [TestCase("background:rgb(256,1,2)")]
     [TestCase("background:rgb(-1,1,2)")]
     [TestCase("background:rgb(1.5,2,3)")]
-    [TestCase("background:rgb(1%,2%,3%)")]
+    [TestCase("background:rgb(1%,2,3%)")]
+    [TestCase("background:rgb(1,2%,3%)")]
+    [TestCase("background:rgb(100.01%,2%,3%)")]
+    [TestCase("background:rgb(-0.01%,2%,3%)")]
+    [TestCase("background:rgb(1% 2%, 3%)")]
     [TestCase("background:rgb(1,2)")]
     [TestCase("background:rgb(1 2, 3)")]
     [TestCase("background:rgba(1,2,3,0.5)")]
@@ -123,7 +127,7 @@ public sealed class OpaqueRgbCssTests
         using var output = new MemoryStream();
         output.Write("keep"u8);
         var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert("<style>.unmatched{color:rgb(12%,0%,50%)}</style><p>Safe</p>", output));
+            PdfConverter.Convert("<style>.unmatched{color:rgb(12%,0,50%)}</style><p>Safe</p>", output));
         Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
         Assert.That(output.ToArray(), Is.EqualTo("keep"u8.ToArray()));
     }
@@ -138,5 +142,54 @@ public sealed class OpaqueRgbCssTests
         using var diagnostics = new StringWriter();
         Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero, diagnostics.ToString());
         Assert.That(output.ToArray(), Is.EqualTo(Pdf(html, new())));
+    }
+
+    [TestCase("rgb(0%, 50%, 100%)", "#0080ff")]
+    [TestCase("rgb(10% 25% 50%)", "#1a4080")]
+    [TestCase("RGB(90% 95% 100%)", "#e6f2ff")]
+    [TestCase("rgb(20.0%,40.0%,60.0%)", "#336699")]
+    [TestCase("rgb(0.1% 0.5% 1%)", "#000103")]
+    [TestCase("rgba(0%,50%,0%,1)", "#008000")]
+    public void PercentRgbPaintUsesExplicitEightBitHexBytes(string css, string hex)
+    {
+        var actual = "<div style='background:" + css + ";border:2pt solid " + css +
+            "'><p style='color:" + css + ";text-decoration:underline " + css +
+            "'>Monthly maintenance</p></div>";
+        var control = actual.Replace(css, hex, StringComparison.Ordinal);
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
+    }
+
+    [Test]
+    public void PercentageRgbCascadesAcrossFortyEightReportRecords()
+    {
+        var source = ReadReport("report-rgb-percent-colours.html");
+        var control = ReadReport("report-rgb-percent-colours-oracle.html");
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(control)));
+        Assert.That(TextLayout.Layout(HtmlDocumentReader.ReadTree(source, Page, default), Page, default).Count,
+            Is.GreaterThan(1));
+    }
+
+    [Test]
+    public void PercentRgbManagedCliMatchesApiAndProtectsOriginalOnInvalidAlpha()
+    {
+        var report = ReadReport("report-rgb-percent-colours.html");
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(report));
+        using var output = new MemoryStream();
+        using var diagnostics = new StringWriter();
+        Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero, diagnostics.ToString());
+        Assert.That(output.ToArray(), Is.EqualTo(Pdf(report, new())));
+        Reject("background:rgba(0%,50%,100%,.5)");
+        Reject("background:rgb(10% 20% 30% / 1)");
+        Reject("background:rgb(calc(10%) 20% 30%)");
+        Reject("background:rgb(1e99999% 20% 30%)");
+    }
+
+    private static string ReadReport(string name)
+    {
+        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
+            directory = directory.Parent;
+        Assert.That(directory, Is.Not.Null);
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
     }
 }
