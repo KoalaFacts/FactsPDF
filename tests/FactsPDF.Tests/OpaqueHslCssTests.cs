@@ -78,16 +78,21 @@ public sealed class OpaqueHslCssTests
     public void UnsupportedHslSyntaxIsRejectedEvenInUnmatchedRulesAndPreservesOutput(string css)
         => Reject(css);
 
-    [Test]
-    public void HslWithoutAlphaCannotMaskMissingFontOrResourceFailures()
+    [TestCase("<p style='color:hsl(210,60%,40%)'>漢</p>", "FPDF1301")]
+    [TestCase("<p style='color:hsl(210,60%,40%)'>Record</p><img src='missing.png'>", "FPDF1604")]
+    public void HslWithoutAlphaCannotMaskMissingFontOrResourceFailures(string html, string expectedCode)
     {
-        // Background colour selection does not turn an unbound Unicode glyph into a valid PDF.
+        // Unbound Unicode uses the core font diagnostic (FPDF1301); an absent
+        // explicit image uses the resource diagnostic (FPDF1604). Valid HSL
+        // must not hide either, replace the existing PDF, or move its cursor.
         using var output = new MemoryStream();
         output.Write("unchanged"u8);
+        output.Position = 3;
         var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert("<p style='color:hsl(210,60%,40%)'>漢</p>", output, Page));
-        Assert.That(error!.Code, Does.StartWith("FPDF15"));
+            PdfConverter.Convert(html, output, Page));
+        Assert.That(error!.Code, Is.EqualTo(expectedCode));
         Assert.That(output.ToArray(), Is.EqualTo("unchanged"u8.ToArray()));
+        Assert.That(output.Position, Is.EqualTo(3));
     }
 
     [Test]
