@@ -380,5 +380,5 @@ test('opaque HSL colours expose PDF scope and strict limits',async({page})=>{
  await page.goto('/FactsPDF/#feature=css.color');
  const d=page.getByRole('dialog');await expect(d).toBeVisible();
  await expect(d).toContainText('hsl(');await expect(d).toContainText('alpha');
- await expect(d).toContainText('OpaqueHslCssTests');
+ await expect(d.locator('a[href*="OpaqueHslCssTests.cs"]')).toHaveCount(1);
 });

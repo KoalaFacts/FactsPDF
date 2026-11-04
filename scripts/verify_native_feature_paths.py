@@ -1544,7 +1544,7 @@ def verify_native_hsl_colours(executable, output, work):
     assert placed == [page_boxes(control, page) for page in range(1, pages + 1)], (
         'HSL ink changed document text/position')
     words = [word[0] for _, _, items in placed for word in items]
-    assert [w for w in words if re.fullmatch(r'REC-\\d{2}', w)] == [
+    assert [w for w in words if re.fullmatch(r'REC-\d{2}', w)] == [
         f'REC-{n:02d}' for n in range(1, 49)], 'HSL report text missing or reordered'
     invalid = work / 'hsl-invalid.html'
     retained = output / 'hsl-preserved.pdf'
