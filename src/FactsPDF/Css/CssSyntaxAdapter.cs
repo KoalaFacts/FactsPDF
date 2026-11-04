@@ -289,7 +289,13 @@ internal static class CssSyntaxAdapter
                 }
                 continue;
             }
-            if (name is "border" or "border-top" or "border-right" or "border-bottom" or "border-left")
+            // Only horizontal LTR logical borders are mapped to physical PDF edges.
+            // This is a shorthand family, not directional writing-mode support.
+            // Lower each affected edge to the three existing independent
+            // width/style/colour cascade slots before PDF layout and paint.
+            if (name is "border" or "border-top" or "border-right" or "border-bottom" or "border-left"
+                or "border-inline" or "border-block" or "border-inline-start" or "border-inline-end"
+                or "border-block-start" or "border-block-end")
             {
                 if (terms.Count > 3) throw new FactsPdfException("FPDF1202", "Border shorthand takes up to three terms.", node.Span.Start);
                 var words = terms.ToArray();
@@ -328,10 +334,12 @@ internal static class CssSyntaxAdapter
                 }
                 var edges = name switch
                 {
-                    "border-top" => new[] { 0 },
-                    "border-right" => new[] { 1 },
-                    "border-bottom" => new[] { 2 },
-                    "border-left" => new[] { 3 },
+                    "border-left" or "border-inline-start" => new[] { 3 },
+                    "border-right" or "border-inline-end" => new[] { 1 },
+                    "border-top" or "border-block-start" => new[] { 0 },
+                    "border-bottom" or "border-block-end" => new[] { 2 },
+                    "border-inline" => new[] { 3, 1 },
+                    "border-block" => new[] { 0, 2 },
                     _ => new[] { 0, 1, 2, 3 }
                 };
                 foreach (var edge in edges)
@@ -531,7 +539,9 @@ internal static class CssSyntaxAdapter
         "padding-bottom" or "padding-block-end" => CssProperty.PaddingBottom,
         "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
-        "border" or "border-top" or "border-width" or "border-top-width" => CssProperty.BorderTopWidth,
+        "border" or "border-top" or "border-width" or "border-top-width"
+            or "border-inline" or "border-block" or "border-inline-start" or "border-inline-end"
+            or "border-block-start" or "border-block-end" => CssProperty.BorderTopWidth,
         "border-right" or "border-right-width" => CssProperty.BorderRightWidth,
         "border-bottom" or "border-bottom-width" => CssProperty.BorderBottomWidth,
         "border-left" or "border-left-width" => CssProperty.BorderLeftWidth,
