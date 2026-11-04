@@ -10,7 +10,8 @@ Koala Facts Trading Pty Ltd (ABN 88 602 884 408) licenses FactsPDF under your
 choice of:
 
 - [PolyForm Small Business License 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0), or
-- [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+- [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0), or
+- [PolyForm Free Trial License 1.0.0](https://polyformproject.org/licenses/free-trial/1.0.0).
 
 You only need to qualify under one of them. Everyone else needs a commercial
 license from Koala Facts Trading Pty Ltd.
@@ -27,6 +28,7 @@ unrestricted use grant.
 | Personal study, hobby or research with no anticipated commercial application | Noncommercial | Yes |
 | Charity, school or university, public research body, public safety or health body, environmental body or government institution | Noncommercial | Yes, regardless of funding source |
 | Any other noncommercial purpose | Noncommercial | Yes |
+| Any company, of any size, evaluating whether FactsPDF suits an application, for less than 32 consecutive calendar days | Free Trial | Yes, evaluation only |
 | A company at or above either Small Business threshold, for commercial use | — | No; commercial license required |
 | Receiving a PDF that FactsPDF generated | — | No license needed to use the PDF |
 
@@ -42,15 +44,18 @@ client's benefit, so assess the client's size, not the agency's.
 its own use is noncommercial or the people using FactsPDF work for a qualifying
 small business.
 
-**Evaluation** by a company above the thresholds is not covered by either
-license. Ask for written evaluation permission before building or running the
-engine.
+**Evaluation** by a company above the thresholds is covered by the Free Trial
+license for less than 32 consecutive calendar days. It does not cover
+production use or distributing FactsPDF, and it ends immediately on any
+violation. Ask for a commercial license, or written permission for a longer
+evaluation, before that period ends.
 
 ## Changes, distribution and notices
 
-- You may modify FactsPDF for a permitted purpose. Neither license requires you
-  to publish your changes.
-- You may distribute FactsPDF, changed or not, inside your product. Everyone who
+- You may modify FactsPDF for a permitted purpose. None of the licenses requires
+  you to publish your changes.
+- Under Small Business or Noncommercial (not Free Trial), you may distribute
+  FactsPDF, changed or not, inside your product. Everyone who
   receives a copy must also receive the license terms (or their URL) and the
   `Required Notice:` line from LICENSE.md.
 - Distribution does not pass on your license. Each person or organization that

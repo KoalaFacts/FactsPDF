@@ -1,5 +1,12 @@
 # FactsPDF license history
 
+## PolyForm Free Trial 1.0.0 added - 5 November 2026
+
+LICENSE.md adds the PolyForm Free Trial License 1.0.0 as a third choice, so any
+company can evaluate FactsPDF for less than 32 consecutive calendar days
+without a separate agreement. The Small Business and Noncommercial options are
+unchanged.
+
 ## PolyForm Small Business 1.0.0 or PolyForm Noncommercial 1.0.0 - 5 November 2026
 
 LICENSE.md now offers FactsPDF under the licensee's choice of the standard

@@ -713,8 +713,10 @@ under USD 1,000,000 (2019, CPI-adjusted) revenue, counting affiliates, may use
 it free in proprietary commercial applications; noncommercial, charitable,
 educational and government use is also free.
 
-Other uses, including evaluation by larger companies, require a separately
-agreed authorization from Koala Facts Trading Pty Ltd. Commercial arrangements
+Any company may also evaluate FactsPDF for less than 32 consecutive calendar
+days under PolyForm Free Trial 1.0.0. Other uses, including production use by
+larger companies, require a separately agreed authorization from Koala Facts
+Trading Pty Ltd. Commercial arrangements
 can cover agreed application, hosted-service or redistribution needs.
 Application code, templates and generated PDFs do not become public by
 using FactsPDF.

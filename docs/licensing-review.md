@@ -22,8 +22,9 @@ that a license eliminates all legal risk.
 - [ ] Ask counsel how AI-assisted authorship affects copyright in the code.
 - [x] Replace the custom FactsPDF Community License with the standard
   PolyForm Small Business 1.0.0 or PolyForm Noncommercial 1.0.0 choice (owner
-  decision, 5 November 2026). The texts in LICENSE.md are verbatim copies of
-  the official PolyForm files.
+  decision, 5 November 2026), plus PolyForm Free Trial 1.0.0 for evaluation
+  by any company (owner decision, same day). The texts in LICENSE.md are
+  verbatim copies of the official PolyForm files.
 - [ ] Obtain review by counsel familiar with software licensing, Australia, and
   intended sales jurisdictions. With standard public licenses in place, the
   review can focus on the commercial agreement and on how the licensor
