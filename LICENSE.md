@@ -2,7 +2,7 @@
 
 Version 1.1 - 9 October 2026
 
-Copyright (c) 2026 KoalaFacts Trading Pty Ltd and other identified copyright holders.
+Copyright (c) 2026 Koala Facts Trading Pty Ltd and other identified copyright holders.
 
 **This is a custom source-available license, not MIT, Apache-2.0, or an
 OSI-approved open-source license. Free use is conditional on the eligibility
@@ -20,10 +20,11 @@ own license; this license does not replace it.
 
 "Licensor" means each copyright holder, or its duly authorized licensing
 representative, offering its rights in the Software under this license. Each
-Licensor grants only rights it is entitled to grant. KoalaFacts Trading Pty Ltd,
-an Australian proprietary company, is the project's licensor and the only party
-that may grant a Commercial License. The KoalaFacts GitHub organization name
-does not by itself establish ownership of another person's work.
+Licensor grants only rights it is entitled to grant. Koala Facts Trading Pty Ltd
+(ABN 88 602 884 408), an Australian proprietary company, is the project's
+licensor and the only party that may grant a Commercial License. The KoalaFacts
+GitHub organization name does not by itself establish ownership of another
+person's work.
 
 "You" means the individual or legal entity exercising these rights. When an
 employee, contractor, or agent acts for an organization, that organization is
@@ -470,4 +471,4 @@ agreement validly selects governing law or jurisdiction.
 For initial licensing enquiries, contact the maintainers through
 https://github.com/KoalaFacts/FactsPDF/issues. Ask for a private channel before
 sending personal, financial, or contractual information. Commercial agreements
-are made only with KoalaFacts Trading Pty Ltd.
+are made only with Koala Facts Trading Pty Ltd.

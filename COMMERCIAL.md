@@ -49,7 +49,7 @@ commercial sublicensing rights over that author's work; see
 
 ## Before authorization can be issued
 
-The licensor is **KoalaFacts Trading Pty Ltd**. An agreement must be recorded
+The licensor is **Koala Facts Trading Pty Ltd** (ABN 88 602 884 408). An agreement must be recorded
 and accepted by both parties, with the licensor's legal identity and contact
 details stated in it. A GitHub organization name alone is not sufficient. The licensor must have rights to sublicense all
 code included in the commercial grant, including accepted contributions.
@@ -91,7 +91,7 @@ addresses, contracts, or payment details. Do not put confidential details or
 keys in an issue. Maintainers must verify the sender and contracting authority
 before accepting terms or payment.
 
-Commercial Licenses are issued by KoalaFacts Trading Pty Ltd. No private sales
-address has been published yet. Only a person authorized by KoalaFacts Trading
+Commercial Licenses are issued by Koala Facts Trading Pty Ltd. No private sales
+address has been published yet. Only a person authorized by Koala Facts Trading
 Pty Ltd may sign on its behalf; publishing these process rules authorizes no
 one to sign for it or for other copyright holders.

@@ -2,7 +2,7 @@
 
 ## Licensor identification - 5 November 2026
 
-LICENSE.md now names KoalaFacts Trading Pty Ltd as copyright holder and
+LICENSE.md now names Koala Facts Trading Pty Ltd as copyright holder and
 licensor, replacing the unnamed "FactsPDF authors" wording. The grant, its
 conditions and the version number are unchanged; this identifies the party
 that grants them.
