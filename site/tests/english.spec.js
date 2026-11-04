@@ -124,7 +124,7 @@ test('empty-result clearing keeps rows, empty state and pagination consistent ac
   await page.evaluate(()=>{location.hash='#q=FPDF1102';});
   await expect(empty).toHaveCount(0);
   // <hr>, <blockquote> and now <pre> render, so the actual unsupported-element search has 74 records.
-  await expect(pager).toHaveText('Page 1 / 4 · 74 records');
+  await expect(pager).toHaveText('Page 1 / 3 · 74 records');
   await page.locator('.reset').click();await full();
   await page.goBack();
   await expect(search).toHaveValue('zz-no-such-feature-qa');

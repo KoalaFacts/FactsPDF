@@ -181,10 +181,10 @@ test('cached empty state follows locale and route navigation after recovery', as
   await navigate('#q=FPDF1102');
   assert.equal(document.querySelector('.empty'),null);
   assert.equal(document.querySelector('.results-heading h2 span').textContent,'74');
-  assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 4 · 74 records/);
+  assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 3 · 74 records/);
   assert.equal(document.querySelectorAll('tbody tr').length,25);
   document.querySelector('[aria-label="Next page"]').click();await settled();
-  assert.match(document.querySelector('.pagination').textContent,/Page 2 \/ 4 · 74 records/);
+  assert.match(document.querySelector('.pagination').textContent,/Page 2 \/ 3 · 74 records/);
   document.querySelector('.reset').click();await settled();
   assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 17 · 418 records/);
 });
