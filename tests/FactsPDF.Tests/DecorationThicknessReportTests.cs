@@ -63,12 +63,12 @@ public sealed class DecorationThicknessReportTests
     [Test]
     public void RelativeWidthsResolveAgainstFinalFontAndRootAfterImportantCascade()
     {
-        const string source = "<style>html{font-size:15pt}.label{font-size:20pt!important;text-decoration-thickness:0.1em}</style>" +
+        const string source = "<html><head><style>html{font-size:15pt}.label{font-size:20pt!important;text-decoration-thickness:0.1em}</style></head><body>" +
             "<p class=label style='font-size:9pt;text-decoration-line:underline'>AB</p>" +
-            "<p style='font-size:8pt;text-decoration:overline;text-decoration-thickness:0.1rem'>AB</p>";
-        const string oracle = "<style>html{font-size:15pt}</style>" +
+            "<p style='font-size:8pt;text-decoration:overline;text-decoration-thickness:0.1rem'>AB</p></body></html>";
+        const string oracle = "<html><head><style>html{font-size:15pt}</style></head><body>" +
             "<p style='font-size:20pt;text-decoration:underline;text-decoration-thickness:2pt'>AB</p>" +
-            "<p style='font-size:8pt;text-decoration:overline;text-decoration-thickness:1.5pt'>AB</p>";
+            "<p style='font-size:8pt;text-decoration:overline;text-decoration-thickness:1.5pt'>AB</p></body></html>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
     }
 
@@ -119,8 +119,12 @@ public sealed class DecorationThicknessReportTests
     {
         var source = Example("report-decoration-thickness.html");
         var oracle = Example("report-decoration-thickness-oracle.html");
-        Assert.That(Layout(source).Count, Is.GreaterThan(1));
-        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+        // The report's 145mm content panel requires real A4, not the 220pt
+        // narrow-page fixture used by the isolated text-decoration tests.
+        // Default CLI/native reports also use this exact A4 geometry.
+        var a4 = new PdfOptions();
+        Assert.That(Layout(source, a4).Count, Is.GreaterThan(1));
+        Assert.That(Pdf(source, a4), Is.EqualTo(Pdf(oracle, a4)));
     }
 
     [Test]
