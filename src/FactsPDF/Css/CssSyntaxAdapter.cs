@@ -400,31 +400,35 @@ internal static class CssSyntaxAdapter
                 continue;
             }
             // Bounded text-decoration shorthand: exactly one line kind and
-            // optional opaque colour and solid/dashed/dotted stroke. Lower all
-            // three longhands through the normal CSS winner/cascade pipeline,
+            // optional opaque colour, bounded thickness and solid/dashed/dotted stroke. Lower all
+            // four longhands through the normal CSS winner/cascade pipeline,
             // so a later !important longhand can override one component and a
             // new shorthand resets omitted components rather than ignoring them.
             if (name == "text-decoration")
             {
-                if (terms.Count > 3)
+                if (terms.Count > 4)
                     throw new FactsPdfException("FPDF1202",
-                        "Text decoration accepts one line kind, a stroke and an opaque colour.", node.Span.Start);
+                        "Text decoration accepts one line kind, stroke, thickness and opaque colour.", node.Span.Start);
                 if (terms.Count == 1 && Wide(terms[0]))
                 {
                     var wideOffset = valueTokens[0].Token.Span.Start;
                     Emit(CssProperty.TextDecoration, terms[0], wideOffset, "text-decoration-line");
                     Emit(CssProperty.TextDecorationStyle, terms[0], wideOffset, "text-decoration-style");
                     Emit(CssProperty.TextDecorationColor, terms[0], wideOffset, "text-decoration-color");
+                    Emit(CssProperty.TextDecorationThickness, terms[0], wideOffset, "text-decoration-thickness");
                     continue;
                 }
                 string? line = null;
                 var stroke = "solid";
                 var ink = "currentcolor";
+                var thickness = "auto";
                 var strokeSeen = false;
                 var inkSeen = false;
+                var thicknessSeen = false;
                 var lineOffset = node.Span.Start;
                 var strokeOffset = node.Span.Start;
                 var inkOffset = node.Span.Start;
+                var thicknessOffset = node.Span.Start;
                 for (var i = 0; i < terms.Count; i++)
                 {
                     var word = terms[i];
@@ -445,6 +449,14 @@ internal static class CssSyntaxAdapter
                             throw new FactsPdfException("FPDF1202", "Duplicate decoration stroke.", at);
                         stroke = word; strokeSeen = true; strokeOffset = at;
                     }
+                    else if (word == "auto" || valueTokens[i].Token.Kind is CssSyntaxTokenKind.Dimension
+                        or CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage)
+                    {
+                        if (thicknessSeen)
+                            throw new FactsPdfException("FPDF1202", "Duplicate decoration thickness.", at);
+                        ValidateComponent("text-decoration-thickness", word, at);
+                        thickness = word; thicknessSeen = true; thicknessOffset = at;
+                    }
                     else
                     {
                         if (inkSeen)
@@ -459,6 +471,7 @@ internal static class CssSyntaxAdapter
                 Emit(CssProperty.TextDecoration, line, lineOffset, "text-decoration-line");
                 Emit(CssProperty.TextDecorationStyle, stroke, strokeOffset, "text-decoration-style");
                 Emit(CssProperty.TextDecorationColor, ink, inkOffset, "text-decoration-color");
+                Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");
                 continue;
             }
             // Restricted list-style shorthand: exactly one supported marker
@@ -568,6 +581,7 @@ internal static class CssSyntaxAdapter
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "text-decoration-color" => CssProperty.TextDecorationColor,
         "text-decoration-style" => CssProperty.TextDecorationStyle,
+        "text-decoration-thickness" => CssProperty.TextDecorationThickness,
         "border-radius" => CssProperty.BorderRadius,
         "border-top-left-radius" => CssProperty.BorderTopLeftRadius,
         "border-top-right-radius" => CssProperty.BorderTopRightRadius,
@@ -864,6 +878,23 @@ internal static class CssSyntaxAdapter
             // Check syntax even for an unmatched selector, but resolve the
             // final font and bounded glyph advance only for the CSS winner.
             _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+        }
+        else if (name == "text-decoration-thickness")
+        {
+            if (token != "auto")
+            {
+                var length = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+                // Relative widths may change when a selector wins the cascade.
+                // Absolute out-of-range values fail even in unmatched rules.
+                var relative = token.EndsWith("em", StringComparison.Ordinal);
+                // Never silently accept an unmatched relative length that cannot
+                // become valid at any supported 1–144pt font size.
+                if (length.IsPercent ||
+                    (relative && (length.Value <= 0 || length.Value > 12 || length.Value * 144 < 0.2)) ||
+                    (!relative && length.Value is < 0.2 or > 12))
+                    throw new FactsPdfException("FPDF1202",
+                        "Text-decoration thickness requires auto or a bounded positive length (0.2pt to 12pt after resolving em/rem).", offset);
+            }
         }
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);

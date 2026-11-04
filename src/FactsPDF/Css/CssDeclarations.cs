@@ -10,7 +10,7 @@ internal enum CssProperty
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
-    WordBreak, MaxHeight, BreakInside
+    WordBreak, MaxHeight, BreakInside, TextDecorationThickness
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -95,6 +95,20 @@ internal static class CssDeclarations
                     ? style with { MarginBefore = margin }
                     : style with { MarginAfter = margin };
             }
+            if (property == CssProperty.TextDecorationThickness)
+            {
+                // Compute the winning length after font-size, just as for other
+                // relative text metrics; 1em uses this element, 1rem the root.
+                if (declaration.Value == "auto")
+                    return style with { DecorationThickness = null };
+                var width = CssBoxValues.Length(declaration.Value, declaration.Offset,
+                    rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true);
+                if (width.IsPercent || width.Value is < 0.2 or > 12)
+                    throw new FactsPdfException("FPDF1202",
+                        "Computed text-decoration-thickness must be 0.2pt to 12pt; percentages are unsupported.",
+                        declaration.Offset);
+                return style with { DecorationThickness = width.Value };
+            }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform;
@@ -110,6 +124,7 @@ internal static class CssDeclarations
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
             CssProperty.TextDecorationColor => style with { DecorationColor = source.DecorationColor },
             CssProperty.TextDecorationStyle => style with { DecorationPattern = source.DecorationPattern },
+            CssProperty.TextDecorationThickness => style with { DecorationThickness = source.DecorationThickness },
             CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap, PreserveLineBreaks = source.PreserveLineBreaks, PreserveSpaces = source.PreserveSpaces },
             CssProperty.OverflowWrap => style with { BreakWords = source.BreakWords },
             CssProperty.WordBreak => style with { BreakAll = source.BreakAll },

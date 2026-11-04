@@ -20,7 +20,9 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BreakInside + 1];
+    // Allocate for every accepted CSS property; new bounded components must
+    // not index past the last legacy enum member in Native AOT or managed builds.
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextDecorationThickness + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -250,7 +252,7 @@ internal sealed class CssStylesheets
                     or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201",
                     "Relative em/rem report box lengths are supported only on ordinary block boxes.", declaration.Offset);
-            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle))
+            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
@@ -439,7 +441,8 @@ internal sealed class CssStylesheets
                 // FontSize precedes these properties in the fixed enum.
                 var computedRoot = element.Name == "html"
                     && declaration.Property is (CssProperty.LineHeight
-                        or CssProperty.LetterSpacing or CssProperty.WordSpacing)
+                        or CssProperty.LetterSpacing or CssProperty.WordSpacing
+                        or CssProperty.TextDecorationThickness)
                     ? style.FontSize : rootFontSize;
                 // Explicit paragraph/heading margin/break:inherit must read
                 // the direct panel's computed BoxStyle. Neither property is

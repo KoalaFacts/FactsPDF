@@ -59,7 +59,7 @@ internal static class PdfPaintSerializer
     {
         if (run.Style.Decoration == TextDecoration.None || run.Width <= 0) return;
         var size = run.Style.FontSize;
-        var thickness = Math.Max(0.3, size * 0.06);
+        var thickness = run.Style.DecorationThickness ?? Math.Max(0.3, size * 0.06);
         var centre = run.Style.Decoration switch
         {
             TextDecoration.Underline => run.Baseline - 0.12 * size,

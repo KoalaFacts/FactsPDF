@@ -1,3 +1,35 @@
+## Bounded printable text-decoration thickness (source only)
+
+For business quotations and approval corrections, `text-decoration-thickness`
+now controls the **actual measured PDF stroke width** of one existing
+underline, overline or strike-through. The value is `auto` (legacy
+font-relative width), or a positive physical `pt/px/mm/cm/in/pc/q`,
+computed element `em` or root `rem` length, bounded **0.2–12pt**.
+For example, `text-decoration:underline dashed #285d91 1pt` includes the
+optional fourth shorthand component, and
+`text-decoration-thickness:0.1em` computes from the final element font.
+A shorthand without an authored width resets it to `auto`.
+Specificity, source order, independent `!important` and
+`inherit/initial/unset` work across the existing supported text targets.
+
+The renderer paints the computed width as a PDF solid rectangle or
+page-local clipped dashed/dotted stroke, with searchable real glyphs and
+true line/page wrapping. Default `auto` retains exact legacy PDF bytes.
+No CSS `from-font`, percentages, `calc()`, arbitrary offsets, unbounded
+widths, combined decoration lines or general browser propagation.
+Out-of-range/unsupported declarations, including unmatched selector rules,
+reject explicitly and preserve any pre-existing PDF.
+
+The [44-record register](../examples/report-decoration-thickness.html)
+matches a separately authored
+[explicit-point oracle](../examples/report-decoration-thickness-oracle.html).
+[NUnit PDF/CLI/TrueType/negative tests](../tests/FactsPDF.Tests/DecorationThicknessReportTests.cs)
+and [Native AOT qpdf/Poppler verification](../scripts/verify_stylesheets.py)
+exercise the complete source path. Engine source
+[1e9c86ea](https://github.com/KoalaFacts/FactsPDF/commit/1e9c86ea98ed3233b49e552b734823ef9bf158f9)
+plus [shorthand/report follow-up](https://github.com/KoalaFacts/FactsPDF/commit/34ffb2cbbd8d555b8167ec8ced71b3609ac981e6).
+No public package, updated private candidate, human approval or commercial grant.
+
 ## Clickable PDF references in controlled report templates (source-only)
 
 The new bounded `a[href]` text path emits real searchable glyphs and page-local

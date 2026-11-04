@@ -303,6 +303,41 @@ def main():
         lines = re.findall(rb'\b[0-9]+(?:\.[0-9]+)? 0\.66 re f Q\n', qdf.read_bytes())
         if len(lines) != 2:
             raise AssertionError(f'Expected two actual Native AOT decoration paths, found {len(lines)}')
+        # Native AOT renders measured custom decoration strokes, not just CSS.
+        register = Path('examples/report-decoration-thickness.html')
+        oracle = Path('examples/report-decoration-thickness-oracle.html')
+        register_pdf = temp / 'register-thickness.pdf'
+        oracle_pdf = temp / 'register-thickness-oracle.pdf'
+        run(exe, register, register_pdf)
+        run(exe, oracle, oracle_pdf)
+        run('qpdf', '--check', register_pdf)
+        if register_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Native custom decoration width differs from independent point oracle')
+        extract = run('pdftotext', '-raw', register_pdf, '-').decode('utf-8')
+        if 'R001' not in extract or 'R044' not in extract:
+            raise AssertionError('Native decoration register lost searchable text')
+        info = run('pdfinfo', register_pdf).decode('utf-8')
+        page_match = re.search(r'^Pages:\s*(\d+)$', info, re.MULTILINE)
+        if not page_match or int(page_match.group(1)) < 2:
+            raise AssertionError('Native decoration register did not paginate')
+        qdf = temp / 'register-thickness-qdf.pdf'
+        run('qpdf', '--qdf', '--object-streams=disable', register_pdf, qdf)
+        if len(re.findall(rb'\b1 w ', qdf.read_bytes())) < 20:
+            raise AssertionError('Native custom dashed thickness did not paint PDF strokes')
+        invalid = temp / 'invalid-thickness.html'
+        invalid.write_text(
+            "<style>.absent{text-decoration-thickness:50%}</style><p>Safe</p>",
+            encoding='utf-8')
+        register_pdf.write_bytes(b'keep-customer-pdf')
+        failure = subprocess.run([str(exe), str(invalid), str(register_pdf), '--overwrite'],
+                                 capture_output=True, timeout=120)
+        if failure.returncode != 3 or b'FPDF1202' not in failure.stderr or failure.stdout:
+            raise AssertionError('Unsupported Native decoration width did not fail closed')
+        if register_pdf.read_bytes() != b'keep-customer-pdf':
+            raise AssertionError('Native unsupported width replaced customer PDF')
+        run(exe, register, register_pdf, '--overwrite')
+        if register_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Native decoration recovery changed PDF bytes')
         short = temp / 'short.html'
         long = temp / 'long.html'
         short.write_text("<div style='width:2in;padding:0.125in;border:0.03125in solid red'>"
@@ -1500,6 +1535,7 @@ def main():
                    'page_pixels_equal_120dpi': True, 'text_inside_page': True, 'two_embedded_subset_fonts': True, 'native_color_background_parity': True,
                    'native_background_recovery': True, 'native_print_spacing_and_recovery': True,
                     'native_text_decoration_paths_and_recovery': True,
+                     'native_decoration_thickness_pdf_parity_pagination_and_recovery': True,
                      'native_opaque_rgb_equivalence_and_recovery': True,
                      'native_relative_font_sizing_equivalence_and_recovery': True,
                      'native_computed_line_height_equivalence_and_recovery': True,
