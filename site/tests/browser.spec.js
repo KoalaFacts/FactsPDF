@@ -380,5 +380,6 @@ test('opaque HSL colours expose PDF scope and strict limits',async({page})=>{
  await page.goto('/FactsPDF/#feature=css.color');
  const d=page.getByRole('dialog');await expect(d).toBeVisible();
  await expect(d).toContainText('HSL');await expect(d).toContainText('alpha');await expect(d).toContainText('percentage');
- await expect(d.locator('a[href*="OpaqueRgbCssTests.cs"]')).toHaveCount(1);
+ await expect(d.locator('a[href*="CssNamedColorTests.cs"]')).toHaveCount(1);
+  await expect(d).toContainText('148 standard opaque CSS named colours');
 });
