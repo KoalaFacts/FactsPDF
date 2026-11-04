@@ -386,7 +386,7 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
 
     sdk = run("dotnet", "--version").strip()
     runtimes = run("dotnet", "--list-runtimes")
-    require(sdk == "10.0.403" and re.search(r"(?m)^Microsoft\.NETCore\.App 10\.0\.13 \[", runtimes),
+    require(sdk == "10.0.403" and re.search(r"(?m)^Microsoft\.NETCore\.App 10\.0\.14 \[", runtimes),
             "SDK or managed runtime not installed at pinned version")
     require(current_source(root) == head, "Source changed during independent check")
     output.mkdir(mode=0o700)
