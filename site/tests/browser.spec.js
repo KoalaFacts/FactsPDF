@@ -403,4 +403,16 @@ test('bilingual logical-border audit distinguishes LTR painted PDF edges from un
   await expect(panel).toContainText('RTL');
 });
 
-test('new LTR border component CSS is discoverable in the audited site',async({page})=>{await page.goto('/FactsPDF/#feature=css.border');await expect(page.getByText('99328f07',{exact:true}).first()).toBeVisible();await expect(page.locator('#detail-title')).toHaveText('border');await expect(page.locator('body')).toContainText('border-inline-width');});
+test('new LTR border component CSS is discoverable with its exact historical PDF evidence',async({page})=>{
+  const {readFile}=await import('node:fs/promises');
+  const snapshot=JSON.parse(await readFile(new URL('../data/compatibility.json',import.meta.url)));
+  const border=snapshot.features.find(feature=>feature.id==='css.border');
+  expect(border.last_audited_commit).toBe('99328f071395d5d7cc1eedad9138f05ee118fb0f');
+  expect(border.test_reference).toBe('https://github.com/KoalaFacts/FactsPDF/blob/99328f071395d5d7cc1eedad9138f05ee118fb0f/tests/FactsPDF.Tests/LogicalBorderComponentTests.cs');
+  await page.goto('/FactsPDF/#feature=css.border');
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details.locator(`a[href="${border.test_reference}"]`)).toHaveCount(1);
+  await expect(page.locator('#detail-title')).toHaveText('border');
+  await expect(details).toContainText('border-inline-width');
+});
