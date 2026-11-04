@@ -412,7 +412,9 @@ test('new LTR border component CSS is discoverable with its exact historical PDF
   await page.goto('/FactsPDF/#feature=css.border');
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
-  await expect(details.locator(`a[href="${border.test_reference}"]`)).toHaveCount(1);
+  // The audited source appears as both a primary test reference and a cited source link.
+  // Both links must point to the exact historical regression, not the latest global commit.
+  await expect(details.locator(`a[href="${border.test_reference}"]`)).toHaveCount(2);
   await expect(page.locator('#detail-title')).toHaveText('border');
   await expect(details).toContainText('border-inline-width');
 });
