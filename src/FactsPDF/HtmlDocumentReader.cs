@@ -10,7 +10,7 @@ internal static class HtmlDocumentReader
         || ParagraphTag(name) || Container(name) && name != "html";
 
     private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
-        or "small" or "u" or "s" or "del" or "ins";
+        or "small" or "u" or "s" or "del" or "ins" or "a";
 
     // Keep the old internal paragraph view for existing editor/tests; actual
     // conversions now receive a structured document via ReadTree.
@@ -223,6 +223,7 @@ internal static class HtmlDocumentReader
             // measured glyphs and PDF decoration strokes. CSS can override
             // these tag defaults through the normal cascade.
             if (name == "small") style = style with { FontSize = style.FontSize * (5d / 6d) };
+            if (name == "a") style = style with { Color = new Rgb(0, 0, 0.8), Decoration = TextDecoration.Underline };
             if (name is "u" or "ins") style = style with { Decoration = TextDecoration.Underline };
             if (name is "s" or "del") style = style with { Decoration = TextDecoration.LineThrough };
             if (name == "pre") style = style with
@@ -233,6 +234,7 @@ internal static class HtmlDocumentReader
                 style = style with { FontSize = style.FontSize * (name[1] switch
                 { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 }) };
             var columnSpan = 1;
+            string? href = null;
             int? listStart = null, listValue = null;
             var listReversed = false;
             foreach (var (attribute, value) in token.Attributes!)
@@ -243,6 +245,8 @@ internal static class HtmlDocumentReader
                         throw new FactsPdfException("FPDF1103", "Styling this metadata/void element is not supported.", token.Offset);
                     // Declarations were parsed once during source collection.
                 }
+                else if (attribute == "href" && name == "a")
+                    href = PdfLinkAnnotations.ValidateUri(value, token.Offset);
                 else if (attribute == "colspan" && name is "td" or "th")
                     columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count, token.Offset, cancellation);
                 else if (attribute == "start" && name == "ol")
@@ -260,6 +264,13 @@ internal static class HtmlDocumentReader
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (attribute is "id" or "class" or "lang" or "title" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
+            }
+            if (name == "a")
+            {
+                if (href is null) throw new FactsPdfException("FPDF1103", "a requires a bounded HTTPS or mailto href.", token.Offset);
+                if (stack.Any(frame => frame.Name == "a"))
+                    throw new FactsPdfException("FPDF1101", "Nested links are not supported.", token.Offset);
+                style = style with { LinkUri = href };
             }
             if (name == "meta") continue;
             path.Add(CssElement.From(token));

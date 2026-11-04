@@ -11,6 +11,7 @@ internal static class PdfSerializer
         var offsets = new List<long> { 0 };
         var images = new PdfImageWriter(pages, cancellation);
         var firstImage = 4 + 2 * pages.Count;
+        var links = new PdfLinkAnnotations(pages, o, firstImage + images.ObjectCount, cancellation);
         void Write(string text)
         {
             if (output.Length + text.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
@@ -81,7 +82,7 @@ internal static class PdfSerializer
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 var content = contents.ToString();
-                Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {5 + 2 * i} 0 R >>");
+                Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {5 + 2 * i} 0 R{links.PageEntry(i)} >>");
                 Object(5 + 2 * i, $"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
             }
             for (var i = 0; i < images.ObjectCount; i++)
@@ -90,6 +91,8 @@ internal static class PdfSerializer
                 offsets.Add(output.Position);
                 images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
+            for (var i = 0; i < links.Count; i++)
+                Object(firstImage + images.ObjectCount + i, links.ObjectBody(i));
             int? infoId = null;
             var info = PdfDocumentMetadata.BuildInfo(o);
             if (info is not null)

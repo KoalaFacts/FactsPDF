@@ -76,6 +76,7 @@ internal static class UnicodePdfSerializer
             var courierId = 3 + fonts.Count * 6;
             var firstPage = courierId + (hasCourier ? 1 : 0);
             var firstImage = firstPage + 2 * pages.Count;
+            var links = new PdfLinkAnnotations(pages, o, firstImage + images.ObjectCount, cancellation);
             Obj(2, $"<< /Type /Pages /Count {pages.Count.ToString(CultureInfo.InvariantCulture)} /Kids [" + string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => (firstPage + 2 * i).ToString(CultureInfo.InvariantCulture) + " 0 R")) + "] >>");
             foreach (var use in fonts)
             {
@@ -139,7 +140,7 @@ internal static class UnicodePdfSerializer
                     PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes);
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
-                Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R >>"));
+                Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R{links.PageEntry(i)} >>"));
                 StreamObject(firstPage + 2 * i + 1, Encoding.ASCII.GetBytes(content.ToString()));
             }
             for (var i = 0; i < images.ObjectCount; i++)
@@ -148,6 +149,8 @@ internal static class UnicodePdfSerializer
                 offsets.Add(output.Position);
                 images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
+            for (var i = 0; i < links.Count; i++)
+                Obj(firstImage + images.ObjectCount + i, links.ObjectBody(i));
             int? infoId = null;
             var info = PdfDocumentMetadata.BuildInfo(o);
             if (info is not null)

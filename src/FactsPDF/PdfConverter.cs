@@ -29,6 +29,7 @@ public static class PdfConverter
         {
             cancellationToken.ThrowIfCancellationRequested();
             displayCommands += (long)page.Runs.Count + page.Runs.Count(run => run.Style.Decoration != TextDecoration.None)
+                + page.Runs.Count(run => run.Style.LinkUri is not null)
                 + page.Discs.Count + page.Images.Count;
             foreach (var box in page.PaintBoxes) displayCommands += box.CommandCount;
             if (displayCommands > options.MaxDisplayCommands)

@@ -19,7 +19,7 @@ internal sealed class TableMarkup(TableNode node)
             ? name is "p" or "img"
                 ? parent is "td" or "th"
                 : name is "span" or "b" or "strong" or "i" or "em" or "small"
-                    or "u" or "s" or "del" or "ins" or "br"
+                    or "u" or "s" or "del" or "ins" or "a" or "br"
             : parent switch
             {
                 "table" => name == "colgroup" && phase == Phase.NeedColumns
