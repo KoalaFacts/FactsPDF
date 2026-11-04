@@ -201,6 +201,7 @@ hand-written equivalent; you do not need them to use FactsPDF.
 | Understand one feature in depth | [Feature notes](docs/feature-notes.md), [CSS contract](docs/css-stylesheets.md) |
 | Build, test or package locally | [Development guide](docs/development.md) |
 | See test and acceptance evidence | [Support matrix](docs/acceptance/support-matrix.md) |
+| See what the first preview contains and what blocks its release | [0.1.0-preview.1 release notes (draft)](docs/releases/0.1.0-preview.1.md) |
 | Run or deploy the Can I Render site | [Compatibility site](docs/compatibility-site.md) |
 | Contribute | [Contribution policy](CONTRIBUTING.md) |
 
