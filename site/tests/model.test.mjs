@@ -821,7 +821,7 @@ test('six LTR logical border shorthands are source-bound to existing physical PD
   assert.match(row.scope, /跨页PDF/);
   assert.match(row.limitations, /RTL.*竖排/);
   assert.match(row.limitations, /border-width\/style\/color/);
-  assert.match(row.sources.join(' '), /6916ef5da96068c167690ef3a0b5f1c94d41f255\/tests\/FactsPDF.Tests\/LogicalBorderReportTests.cs/);
+  assert.match(row.sources.join(' '), /e237b2737572489d7b69227a7bc3c00c2591b3be\/tests\/FactsPDF.Tests\/LogicalBorderReportTests.cs/);
   assert.match(dataset.audit_method, /44-row real paginated report and independent physical-edge PDF oracle/);
   assert.match(dataset.css_inventory_note, /从83增加至89/);
   assert.deepEqual(counts(dataset.features), {full:44, partial:154, none:212, unknown:6, na:2});
