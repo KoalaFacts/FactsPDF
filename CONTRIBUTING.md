@@ -1,8 +1,9 @@
 # Contributions and inbound rights
 
-FactsPDF plans conditional Community licensing and separate commercial grants.
-Clear inbound rights are required before another person's copyrightable work
-can be incorporated into that distribution model.
+FactsPDF is licensed by Koala Facts Trading Pty Ltd under PolyForm Small
+Business 1.0.0 or PolyForm Noncommercial 1.0.0, with separate commercial
+licenses. Clear inbound rights are required before another person's
+copyrightable work can be incorporated into that distribution model.
 
 ## Current acceptance policy
 
@@ -28,20 +29,14 @@ sign-off alone must not be treated as copyright assignment or an unrestricted
 right to issue commercial sublicenses. This file does not itself impose a new
 contributor agreement or retrospectively change a submitted work's license.
 
-## Publication is not an upstream contribution agreement
+## Forks and private changes
 
-Sections 4.1-4.5 of [Community License 1.1](LICENSE.md) require public release of
-Covered Modifications when the specified triggers occur. A public fork or
-complete patch set can satisfy that duty; an upstream pull request or merger
-is not mandatory. Publishing under the Community License does not assign
-copyright or automatically grant the project separate commercial sublicensing
-rights. Maintainers must still complete the inbound-rights process above before
-incorporating another person's changes into commercially licensed releases.
-
-The source-sharing duty concerns the engine modifications and necessary build
-materials, not an independent user's whole application or confidential data.
-Do not publish secrets, private rights records, or customer documents with a
-contribution; use non-secret placeholders and synthetic fixtures as appropriate.
+Neither PolyForm license requires anyone to publish changes to FactsPDF. A
+public fork does not grant the project any rights in its changes; maintainers
+must still complete the inbound-rights process above before incorporating
+another person's work into licensed releases. Do not publish secrets, private
+rights records or customer documents with a contribution; use non-secret
+placeholders and synthetic fixtures.
 
 ## Third-party and generated material
 

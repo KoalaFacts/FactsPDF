@@ -1,5 +1,27 @@
 # FactsPDF license history
 
+## PolyForm Small Business 1.0.0 or PolyForm Noncommercial 1.0.0 - 5 November 2026
+
+LICENSE.md now offers FactsPDF under the licensee's choice of the standard
+PolyForm Small Business License 1.0.0 or PolyForm Noncommercial License 1.0.0,
+with commercial licenses from Koala Facts Trading Pty Ltd. This replaces the
+custom FactsPDF Community License 1.1 for source published from this change
+onwards.
+
+Main differences from Community License 1.1:
+
+- The free commercial threshold adds a headcount limit (fewer than 100
+  employees and contractors) to the revenue limit, which is now USD 1,000,000
+  in 2019 dollars adjusted for US CPI.
+- Changes to the engine no longer have to be published.
+- Charitable and other noncommercial use is covered by PolyForm Noncommercial;
+  there is no separate open-source-project category and no 90-day transition.
+
+The last Community License 1.1 text is available at
+[commit `1868184009135fd0037ae1da65fe3e176c4d19d5`](https://github.com/KoalaFacts/FactsPDF/blob/1868184009135fd0037ae1da65fe3e176c4d19d5/LICENSE.md)
+(Git blob `64ddf584c09498fb5cc4fb30f958d6d5c3420fc9`). Copies obtained under it keep the rights it
+granted.
+
 ## Licensor identification - 5 November 2026
 
 LICENSE.md now names Koala Facts Trading Pty Ltd as copyright holder and
