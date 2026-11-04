@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'ca3aef91e20792782edb49004369dfbf1e9712b3');
-  assert.match(dataset.commit_url, /ca3aef91e20792782edb49004369dfbf1e9712b3/);
+  assert.equal(dataset.commit, 'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
+  assert.match(dataset.commit_url, /b95f1bd3c5d8275bff21f399c9cf59a2d413c024/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -39,7 +39,9 @@ test('418 stable records retain provenance with scoped preview capability update
     assert.equal(entry.status,'partial');
     assert.equal(entry.introduced_release,null);
   }
-  assert.equal(fontSize.last_audited_commit,'f14550afd22ca40569998398b9fb8595d9f0e509');
+  assert.equal(fontSize.last_audited_commit,'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
+  assert.match(fontSize.scope,/smaller\/larger/);
+  assert.match(fontSize.test_reference,/FontSizeKeywordTests.cs/);
   assert.equal(relative.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
   assert.match(fontSize.scope,/rem/);
   assert.match(fontSize.scope,/em/);
@@ -264,7 +266,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.print-physical-pc-q');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.font-size-keywords');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -714,7 +716,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
   assert.equal(dataset.dataset_version, 'audit-2026-11-04.print-physical-pc-q');
-  assert.equal(dataset.commit, 'ca3aef91e20792782edb49004369dfbf1e9712b3');
+  assert.equal(dataset.commit, 'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -771,7 +773,7 @@ test('bounded keep-together card is a real, narrowly tracked PDF capability', ()
 });
 
 test('pc and q physical lengths retain 418 audit rows and 83 CSS property names', () => {
-  const extension=dataset.features.filter(f=>f.physical_unit_extension_commit==='ca3aef91e20792782edb49004369dfbf1e9712b3');
+  const extension=dataset.features.filter(f=>f.physical_unit_extension_commit==='b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
   assert.equal(extension.length,37);
   assert.equal(extension.filter(f=>f.id.startsWith('css.')).length,36);
   assert(extension.every(f=>f.scope.includes('pc') && f.scope.includes('q')));

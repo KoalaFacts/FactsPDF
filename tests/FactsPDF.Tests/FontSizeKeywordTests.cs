@@ -65,8 +65,8 @@ public sealed class FontSizeKeywordTests
     [Test]
     public void FortyEntryReportPaginatesAndPreservesTrueTypePdfBytes()
     {
-        var actual = File.ReadAllText("examples/report-font-size-keywords.html");
-        var control = File.ReadAllText("examples/report-font-size-keywords-oracle.html");
+        var actual = ReadExample("report-font-size-keywords.html");
+        var control = ReadExample("report-font-size-keywords-oracle.html");
         Assert.That(TextLayout.Layout(
             HtmlDocumentReader.ReadTree(actual, Page, default), Page, default).Count,
             Is.GreaterThan(1));
@@ -91,6 +91,16 @@ public sealed class FontSizeKeywordTests
     {
         Reject("<section style='font-size:140pt'><p style='font-size:larger'>Overflow</p></section>");
         Reject("<style>.unused{font-size:xxx-large}</style><p>Visible</p>");
+    }
+
+    private static string ReadExample(string name)
+    {
+        // Resolve fixtures from the checkout regardless of the test working directory.
+        var folder = new DirectoryInfo(AppContext.BaseDirectory);
+        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "FactsPDF.slnx")))
+            folder = folder.Parent;
+        Assert.That(folder, Is.Not.Null, "A source checkout is required for report fixtures.");
+        return File.ReadAllText(Path.Combine(folder!.FullName, "examples", name));
     }
 
     private static void Reject(string html)

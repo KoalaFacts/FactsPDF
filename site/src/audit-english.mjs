@@ -142,10 +142,10 @@ Class/id values remain case-sensitive; not Unicode case folding.
 Arbitrary HTML5 tree construction / error recovery
 Bounded nesting and p auto-closing rules.
 Invalid block/inline nesting produces FPDF1101; browser recovery algorithms are not reproduced.
-pt/px/mm/cm/in; positive % and em use the parent's computed font size; positive rem uses the computed html root size, or PdfOptions.FontSize without html. Root self-reference uses the initial size. The result must be 1–144pt and affects actual glyphs, wrapping and pagination.
-No ex/ch/lh/rlh, font-size keywords or calc. Root rem also applies to ordinary box width/padding and bounded p/h margins. This audited row still excludes rem on general container margins, borders, text spacing and image/table sizing; out-of-range sizes reject. Not full CSS font-size support.
+pt/px/mm/cm/in; positive % and em use the parent's computed font size; positive rem uses the computed html root size, or PdfOptions.FontSize without html. Root self-reference uses the initial size. Seven bounded keywords use the 7.2/9/10/12/14.4/18/24pt scale, with smaller/larger at 5/6 and 6/5 of the computed parent. The result must be 1–144pt and affects actual glyphs, wrapping and pagination.
+No ex/ch/lh/rlh, other font-size keywords or calc. Root rem also applies to ordinary box width/padding and bounded p/h margins. This audited row still excludes rem on general container margins, borders, text spacing and image/table sizing; out-of-range sizes reject. Not full CSS font-size support.
 Supported text elements; paragraph behaviour is applied to actual paragraphs.
-Bounded root-rem spacing implementation, independent point-value PDF samples and NUnit/Native AOT verification paths are pushed. Final exact-head CI, independent review, private candidate and human PDF approval are verified separately.
+Bounded root-rem spacing and an additional 40-entry keyword/point-size PDF oracle, plus NUnit/Native AOT verification paths are pushed. Final exact-head CI, independent review, private candidate and human PDF approval are verified separately.
 #rgb/#rrggbb, specified named colours and opaque integer rgb(35,68,107), rgb(35 68 107), rgba(35,68,107,1).
 No transparent/translucent alpha, percentage/fractional RGB channels, hsl(), currentColor or complete CSS colour syntax.
 Source-scoped actual PDF/API/CLI and native AOT test-path audit; merge, CI and human page approval are verified independently.
