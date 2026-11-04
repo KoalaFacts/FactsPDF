@@ -458,7 +458,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
     assert.equal(feature.introduced_release,null,id);
   }
   assert.equal(dataset.features.find(f=>f.id==='css.font-size').last_audited_commit,
-    'f14550afd22ca40569998398b9fb8595d9f0e509');
+    'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);

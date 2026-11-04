@@ -256,12 +256,12 @@ class PrivateBuildContractTests(unittest.TestCase):
                     record['packages'][0]['contentSha512'])
                 save()
 
-                changed = libraries.pop(ids[1] + '/10.0.13')
+                changed = libraries.pop(ids[1] + '/10.0.14')
                 libraries[ids[1] + '/10.0.13'] = changed
                 save()
                 with self.assertRaisesRegex(ValueError, 'version mismatch'):
                     _native_compiler_origin('dotnet', root, 'local-linux')
-                libraries.pop(ids[1] + '/10.0.14')
+                libraries.pop(ids[1] + '/10.0.13')
                 libraries[ids[1] + '/10.0.14'] = changed
                 save()
 
