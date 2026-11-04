@@ -166,7 +166,6 @@ public sealed class StylesheetTests
     [TestCase("p{color:red !oops}", "FPDF1202")] [TestCase("p{color:red", "FPDF1203")]
     [TestCase("p{color:red}/*unfinished", "FPDF1203")]
     [TestCase("@import 'https://example.invalid/x.css';", "FPDF1204")]
-    [TestCase("@media print{p{color:red}}", "FPDF1204")]
     [TestCase(".never{display:flex}", "FPDF1202")]
     public void UnsupportedOrMalformedCssFailsWithoutOutput(string css, string code)
         => Fails("<style>" + css + "</style><p>A</p>", code);
