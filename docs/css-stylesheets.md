@@ -1,3 +1,28 @@
+## LTR logical border component longhands (source-only)
+
+On ordinary horizontal left-to-right report elements that already accept
+physical borders, the 18 bounded names `border-inline-width/style/color`,
+`border-block-width/style/color`, and `border-inline-start/end-{width,style,color}`
+or `border-block-start/end-{width,style,color}` lower to physical left/right
+or top/bottom independent cascade slots. The two paired forms on each axis
+accept **one or two** widths, line styles or opaque colours; a named single
+side accepts **one**. A lone CSS-wide keyword `inherit`, `initial` or
+`unset` applies to all targeted physical sides. Per-side widths actually
+change report content geometry, solid/dashed/dotted strokes paint PDF bytes,
+and authored colours including opaque rgb/hsl/currentColor reach PDF paint.
+Existing font layout, stylesheet specificity, `!important`, source order,
+fragmented boxes and explicit error/output preservation are unchanged.
+
+No RTL/vertical text, unlisted border properties, transparency, double
+styles, `calc()`, mixed CSS-wide components or new inline/table contexts.
+Unmatched invalid declarations still fail `FPDF1202`; inapplicable
+elements fail `FPDF1201`. See [44-entry logical HTML](../examples/report-logical-border-components.html),
+[physical longhand oracle](../examples/report-logical-border-components-oracle.html),
+`LogicalBorderComponentTests.cs` and the real Native AOT verifier.
+Introduced at [`99328f07`](https://github.com/KoalaFacts/FactsPDF/commit/99328f071395d5d7cc1eedad9138f05ee118fb0f);
+source changes are not independent review, final CI, a private/public
+binary, human PDF approval or customer licence.
+
 ## Bounded LTR logical border shorthands for report boxes (source-only)
 
 On the same report boxes that already accept physical `border-*`, the

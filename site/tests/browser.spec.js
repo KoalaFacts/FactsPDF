@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('6916ef5d',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('99328f07',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -402,3 +402,5 @@ test('bilingual logical-border audit distinguishes LTR painted PDF edges from un
   await expect(panel).toContainText('no new element applicability');
   await expect(panel).toContainText('RTL');
 });
+
+test('new LTR border component CSS is discoverable in the audited site',async({page})=>{await page.goto('/FactsPDF/#feature=css.border');await expect(page.getByText('99328f07',{exact:true}).first()).toBeVisible();await expect(page.locator('#detail-title')).toHaveText('border');await expect(page.locator('body')).toContainText('border-inline-width');});

@@ -1,3 +1,28 @@
+## LTR logical border component styling for business reports (source-only)
+
+Use `border-inline-width:2pt 4pt`, `border-block-style:solid dashed`,
+`border-inline-color:rebeccapurple #315f82`, or individual
+`border-inline-start-width`, `border-inline-end-style`,
+`border-block-start-color` and corresponding component sides.
+These **18 bounded CSS property spellings** map LTR inline-start/end to
+physical left/right and block-start/end to top/bottom. Paired components
+take one or two values; single sides take one value. Every width,
+solid/none/dashed/dotted style, and opaque colour uses the existing
+validated physical-border rendering path. `inherit`, `initial` and
+`unset` stand alone and apply per side; `!important`, physical
+longhands, existing shorthands and source order cascade independently.
+
+The [44-entry PDF report](examples/report-logical-border-components.html)
+and [separately authored physical-border oracle](examples/report-logical-border-components-oracle.html)
+test actual painted strokes, geometry, page breaks, text order, supplied
+TrueType, API/CLI, Linux/Windows native qpdf/Poppler and protected
+invalid-to-success recovery. Unknown values also reject in unmatched
+stylesheet rules. RTL, vertical writing, new applicable elements, alpha,
+logical corner radii and the full CSS Borders specification remain
+unsupported. First implemented in source
+[`99328f07`](https://github.com/KoalaFacts/FactsPDF/commit/99328f071395d5d7cc1eedad9138f05ee118fb0f);
+this is not a new package, approved reference PDF or distribution grant.
+
 ## LTR logical borders for printable report cards (source-only)
 
 Controlled horizontal left-to-right report layouts may use `border-inline`
