@@ -165,8 +165,11 @@ public sealed class LogicalBorderReportTests
         var root = FindRoot();
         var html = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders.html"));
         var control = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders-oracle.html"));
-        Assert.That(Pdf(html), Is.EqualTo(Pdf(control)));
-        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        // The checked-in print template uses a 360pt-wide panel and the
+        // normal A4 content width; the small Page test fixture is not valid.
+        var options = new PdfOptions();
+        Assert.That(Pdf(html, options), Is.EqualTo(Pdf(control, options)));
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(pages.SelectMany(p => p.Runs)
             .Count(r => r.Text.StartsWith("EDGE-", StringComparison.Ordinal)), Is.EqualTo(44));
