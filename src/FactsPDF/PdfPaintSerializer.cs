@@ -62,7 +62,7 @@ internal static class PdfPaintSerializer
         var thickness = run.Style.DecorationThickness ?? Math.Max(0.3, size * 0.06);
         var centre = run.Style.Decoration switch
         {
-            TextDecoration.Underline => run.Baseline - 0.12 * size,
+            TextDecoration.Underline => run.Baseline - (run.Style.UnderlineOffset ?? 0.12 * size),
             TextDecoration.LineThrough => run.Baseline + 0.29 * size,
             TextDecoration.Overline => run.Baseline + 0.78 * size,
             _ => throw new InvalidOperationException("Unsupported text decoration.")

@@ -582,6 +582,7 @@ internal static class CssSyntaxAdapter
         "text-decoration-color" => CssProperty.TextDecorationColor,
         "text-decoration-style" => CssProperty.TextDecorationStyle,
         "text-decoration-thickness" => CssProperty.TextDecorationThickness,
+        "text-underline-offset" => CssProperty.TextUnderlineOffset,
         "border-radius" => CssProperty.BorderRadius,
         "border-top-left-radius" => CssProperty.BorderTopLeftRadius,
         "border-top-right-radius" => CssProperty.BorderTopRightRadius,
@@ -894,6 +895,18 @@ internal static class CssSyntaxAdapter
                     (!relative && length.Value is < 0.2 or > 12))
                     throw new FactsPdfException("FPDF1202",
                         "Text-decoration thickness requires auto or a bounded positive length (0.2pt to 12pt after resolving em/rem).", offset);
+            }
+        }
+        else if (name == "text-underline-offset")
+        {
+            if (token != "auto")
+            {
+                var length = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
+                // Validate unmatched rules as well as winners. Relative lengths
+                // will be range-checked again against the computed font.
+                if (length.IsPercent || length.Value > 24)
+                    throw new FactsPdfException("FPDF1202",
+                        "Text-underline-offset requires auto or a nonnegative 0–24pt physical/em/rem length.", offset);
             }
         }
         else if (name == "list-style-type")
