@@ -9,8 +9,10 @@ that a license eliminates all legal risk.
 
 - [x] Name the commercial licensor: **Koala Facts Trading Pty Ltd** (owner
   decision, 5 November 2026). LICENSE.md and COMMERCIAL.md identify it.
-- [ ] Record the company's ABN/ACN and an authorized contact in the private
-  sales records.
+- [x] Record the company's ABN: 88 602 884 408 (stated in LICENSE.md and
+  COMMERCIAL.md).
+- [ ] Record an authorized contact for the company in the private sales
+  records.
 - [ ] Assign or license existing maintainer-authored FactsPDF code to
   Koala Facts Trading Pty Ltd in writing, so the company holds the rights it
   licenses.

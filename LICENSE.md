@@ -20,8 +20,8 @@ own license; this license does not replace it.
 
 "Licensor" means each copyright holder, or its duly authorized licensing
 representative, offering its rights in the Software under this license. Each
-Licensor grants only rights it is entitled to grant. Koala Facts Trading Pty Ltd,
-an Australian proprietary company, is the project's licensor and the only party
+Licensor grants only rights it is entitled to grant. Koala Facts Trading Pty Ltd
+(ABN 88 602 884 408), an Australian proprietary company, is the project's licensor and the only party
 that may grant a Commercial License. The KoalaFacts GitHub organization name
 does not by itself establish ownership of another person's work.
 
