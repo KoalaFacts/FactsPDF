@@ -57,13 +57,38 @@ public sealed class CurrentColorReportTests
     }
 
     [Test]
-    public void InheritedBackgroundColourCopiesParentComputedInkRatherThanChildColour()
+    public void InheritedCurrentColorBackgroundUsesReceivingElementInkThroughNestedPanels()
     {
         const string actual = "<div style='color:#315f82;background:currentColor'>" +
+            "<div style='color:#c25224;background:inherit'>" +
+            "<div style='color:#214d28;background:inherit'><p>Inherited swatch</p></div></div></div>";
+        const string hex = "<div style='color:#315f82;background:#315f82'>" +
+            "<div style='color:#c25224;background:#c25224'>" +
+            "<div style='color:#214d28;background:#214d28'><p>Inherited swatch</p></div></div></div>";
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(hex)));
+        var root = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        var child = (BlockNode)root.Children.Single();
+        var grandchild = (BlockNode)child.Children.Single();
+        Assert.That(root.BoxStyle.BackgroundUsesCurrentColor, Is.True);
+        Assert.That(child.BoxStyle.BackgroundUsesCurrentColor, Is.True);
+        Assert.That(grandchild.BoxStyle.BackgroundUsesCurrentColor, Is.True);
+        Assert.That(child.BoxStyle.BackgroundColor, Is.EqualTo(child.Style.Color));
+        Assert.That(grandchild.BoxStyle.BackgroundColor, Is.EqualTo(grandchild.Style.Color));
+    }
+
+    [Test]
+    public void InheritedLiteralRgbBackgroundKeepsParentInkInsteadOfChildInk()
+    {
+        const string actual = "<div style='color:#315f82;background:#315f82'>" +
             "<div style='color:#c25224;background:inherit'><p>Inherited swatch</p></div></div>";
         const string hex = "<div style='color:#315f82;background:#315f82'>" +
             "<div style='color:#c25224;background:#315f82'><p>Inherited swatch</p></div></div>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(hex)));
+        var parent = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        var child = (BlockNode)parent.Children.Single();
+        Assert.That(parent.BoxStyle.BackgroundUsesCurrentColor, Is.False);
+        Assert.That(child.BoxStyle.BackgroundUsesCurrentColor, Is.False);
+        Assert.That(child.BoxStyle.BackgroundColor, Is.Not.EqualTo(child.Style.Color));
     }
 
     [Test]

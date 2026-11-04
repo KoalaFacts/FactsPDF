@@ -135,6 +135,10 @@ internal sealed record BoxStyle(
     // intact rather than letting its paragraphs split between PDF pages.
     public bool AvoidBreakInside { get; init; }
     public Rgb? BackgroundColor { get; init; } // null: transparent
+    // Retain the currentColor token when background:inherit is authored on a
+    // child: its actual ink resolves against the receiving element's colour.
+    // The renderer still consumes only the final BackgroundColor RGB value.
+    public bool BackgroundUsesCurrentColor { get; init; }
     // Rounded-corner shorthand computes TL / TR / BR / BL physical radii.
     // CornerRadius keeps the original TL member so one-value reports retain
     // their source layout and exact legacy PDF bytes.
