@@ -159,4 +159,29 @@ public sealed class LogicalBorderReportTests
         Assert.That(error!.Code, Is.EqualTo("FPDF1205"));
         Assert.That(stream.ToArray(), Is.EqualTo("SAFE"u8.ToArray()));
     }
+    [Test]
+    public void CheckedInReportAndIndependentPhysicalEdgeOracleGenerateIdenticalRealPdf()
+    {
+        var root = FindRoot();
+        var html = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders.html"));
+        var control = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders-oracle.html"));
+        Assert.That(Pdf(html), Is.EqualTo(Pdf(control)));
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        Assert.That(pages.Count, Is.GreaterThan(1));
+        Assert.That(pages.SelectMany(p => p.Runs)
+            .Count(r => r.Text.StartsWith("EDGE-", StringComparison.Ordinal)), Is.EqualTo(44));
+        Assert.That(pages.SelectMany(p => p.Runs).Last().Text, Is.EqualTo("COMPLETE"));
+    }
+
+    private static string FindRoot()
+    {
+        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (directory != null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
+                return directory.FullName;
+            directory = directory.Parent;
+        }
+        throw new InvalidOperationException("Repository root not found.");
+    }
 }
