@@ -5819,7 +5819,7 @@
       "feature": "font-weight",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "normal/bold、数值100–900（百位步进）以及bolder/lighter；后二者按显式两角色阶梯选择bold/normal，已在端点则保持该角色；继承/级联/!important；实际PDF字形宽度、换行、分页",
+      "scope": "normal/bold、数值100–900（100–500采用normal，600–900采用bold，百位步进）以及bolder/lighter；后二者按显式两角色阶梯选择bold/normal，已在端点则保持该角色；继承/级联/!important；实际PDF字形宽度、换行、分页",
       "limitations": "仅使用调用方提供的normal/bold及斜体组合字体链；bolder/lighter不合成中间字重，也不实现完整九档相对字重查找；非百位数字重、可变字体轴和font-family匹配不支持；缺字体角色FPDF1507，缺字FPDF1504",
       "stage": "显式样式选择/实际字形渲染",
       "applicability": "共享核心（CLI / .NET）",
