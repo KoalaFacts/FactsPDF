@@ -24,6 +24,12 @@ discussion, not a software trial, licence grant or support contract.
 
 The detailed source-only feature notes and test evidence follow.
 
+### Relative bold/light styling for report text (source-only)
+
+Use `font-weight:bolder` or `font-weight:lighter` in existing paragraphs, headings and spans to select the explicitly configured **bold** or **normal** TrueType role. For example, a bold inspection card can contain a lighter detail line and a bold status. The PDF really changes font metrics, embedded faces, text wrapping and pagination. This deliberately bounded two-role model does not synthesize CSS 100–900 weights or discover fonts: missing bold faces fail with `FPDF1507`, preserving the previous PDF.
+
+[48-entry report](examples/report-relative-font-weights.html) · [Independent explicit-role control](examples/report-relative-font-weights-oracle.html) · [Exact scope](docs/css-stylesheets.md#bounded-bolderlighter-font-roles-for-report-typography-source-only). Source `e94987af`; no new installable candidate or customer distribution rights.
+
 ### Familiar font-size keywords for report text (source-only)
 
 For controlled report text, `font-size:xx-small/x-small/small/medium/large/x-large/xx-large`

@@ -1,3 +1,7 @@
+## Bounded relative font weights for source-built reports
+
+Source [`e94987af`](https://github.com/KoalaFacts/FactsPDF/commit/e94987af9b07c2d7502c25b41625b85aa393f63f) adds `font-weight:bolder/lighter` in the existing text CSS cascade, selecting the caller's actual bold/normal font chains. On this explicit **two-role** ladder, either endpoint saturates; numeric hundreds still map 100–500 to normal and 600–900 to bold. The 48-entry report, separate 400/700 role PDF-byte oracle, NUnit, real Native AOT/qpdf/Poppler, missing-font diagnostics, pagination and protected-output tests are source prepared. This is not CSS's complete nine-weight matching, synthesized fonts, a new distribution candidate, an actual CI/review approval or customer licensing.
+
 ## Bounded font-size keywords for printable business reports (source-only)
 
 For existing report text and inline spans, `font-size` accepts seven absolute

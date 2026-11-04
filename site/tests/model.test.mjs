@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
-  assert.match(dataset.commit_url, /b95f1bd3c5d8275bff21f399c9cf59a2d413c024/);
+  assert.equal(dataset.commit, 'e94987af9b07c2d7502c25b41625b85aa393f63f');
+  assert.match(dataset.commit_url, /e94987af9b07c2d7502c25b41625b85aa393f63f/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -266,7 +266,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.font-size-keywords');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.relative-font-weights');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -469,13 +469,15 @@ test('element em geometric scope is audited without weakening rejection',()=>{
 test('numeric hundred-step report font weights use the explicit source-audited role scope', () => {
   const row=dataset.features.find(x=>x.id==='css.font-weight');
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'7fc2f9c2b3c6c434bd8832afa7b383e02f3ee750');
+  assert.equal(row.last_audited_commit,'e94987af9b07c2d7502c25b41625b85aa393f63f');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/100–900/);
   assert.match(row.scope,/100–500/);
   assert.match(row.scope,/600–900/);
   assert.match(row.limitations,/FPDF1507/);
-  assert.match(row.limitations,/bolder\/lighter/);
+  assert.match(row.scope,/bolder\/lighter/);
+  assert.match(row.limitations,/两角色|九档/);
+  assert.match(row.evidence_level,/48条/);
   assert.match(dataset.audit_method,/417 full feature records preserve/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,83);
@@ -715,8 +717,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.font-size-keywords');
-  assert.equal(dataset.commit, 'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.relative-font-weights');
+  assert.equal(dataset.commit, 'e94987af9b07c2d7502c25b41625b85aa393f63f');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);

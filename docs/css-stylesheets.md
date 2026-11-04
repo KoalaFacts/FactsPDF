@@ -1,3 +1,17 @@
+## Bounded bolder/lighter font roles for report typography (source-only)
+
+`font-weight:bolder` and `font-weight:lighter` are now accepted on existing styled report text, including headings, paragraphs and spans. They select the caller's **real supplied bold or normal font chain**, respectively. In FactsPDF's explicit two-role model, a bolder request at bold stays bold and a lighter request at normal stays normal. Nested inheritance, source-order cascade, selectors, `!important` and CSS-wide `inherit/initial/unset` retain their existing rules. A relative value is computed from the supported parent role ladder, not a fabricated intermediate face; previously supported numeric 100–900 values continue to resolve to normal (100–500) and bold (600–900).
+
+```html
+<section style="font-weight:bold">
+  <p style="font-weight:lighter">Service item <span style="font-weight:bolder">APPROVED</span></p>
+</section>
+```
+
+The font choices affect embedded TrueType glyph widths, actual PDF text, wrapping and pagination. A missing requested bold chain still raises `FPDF1507`; unsupported values, unmatched invalid declarations and 650-like numeric weights fail `FPDF1202`, without replacing an existing PDF. This is **not** a full CSS font-weight relative algorithm over nine font weights, variable axes, synthetic bold, system font discovery, or `font-family` selection.
+
+A 48-entry paginated report and an independently specified explicit normal/bold role oracle are in `examples/report-relative-font-weights.html` and `examples/report-relative-font-weights-oracle.html`. `RelativeFontWeightTests.cs` and Native AOT/qpdf/Poppler report/role-byte, pagination, real-font and protected-output checks target source `e94987af9b07c2d7502c25b41625b85aa393f63f`. CI and independent review must be checked on the final head; this does not create a new preview binary, public release, human PDF approval or customer licence.
+
 ## Bounded font-size keywords for printable business reports (source-only)
 
 For existing report text and inline spans, `font-size` accepts seven absolute
@@ -800,7 +814,7 @@ Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1
 | Property | Values / applicability |
 | --- | --- |
 | font-size | pt/px/mm/cm/in lengths, positive parent-relative percentages and `em`, or positive `rem` relative to the computed `html` root font (configured initial font when absent); computed 1–144pt |
-| font-weight | normal/bold or numeric hundred steps 100–900 (100–500 normal role; 600–900 bold role), including equivalent CSS number tokens; explicit normal/bold font-chain resources required |
+| font-weight | normal/bold, numeric hundred steps 100–900 (100–500 normal role; 600–900 bold role), or bounded bolder/lighter (selects explicit bold/normal role, saturating at endpoints), including equivalent numeric CSS tokens; real matching font chains required, no synthetic intermediate weights |
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |

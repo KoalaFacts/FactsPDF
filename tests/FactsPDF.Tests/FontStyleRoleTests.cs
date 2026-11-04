@@ -198,9 +198,9 @@ public sealed class FontStyleRoleTests
         Fails(html, options with { MaxOutputBytes = 100 }, "FPDF1401");
     }
 
-    [TestCase("font-weight:650")][TestCase("font-weight:bolder")][TestCase("font-weight:400%")]
+    [TestCase("font-weight:650")][TestCase("font-weight:bolder lighter")][TestCase("font-weight:400%")]
     [TestCase("font-style:oblique")][TestCase("font-style:oblique 10deg")]
-    [TestCase("font-style:bold")][TestCase("font-weight:lighter")]
+    [TestCase("font-style:bold")][TestCase("font-weight:light")]
     public void UnsupportedValuesAreRejectedEvenInUnmatchedRules(string css)
         => Fails($"<style>.absent{{{css}}}</style><p>A</p>", AllRoles(), "FPDF1202");
 
