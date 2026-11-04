@@ -148,7 +148,7 @@ internal static class CssDeclarations
     }
 
     internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration,
-        double rootFontSize, double elementFontSize)
+        double rootFontSize, double elementFontSize, Rgb elementColor)
     {
         var property = declaration.Property;
         if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
@@ -258,7 +258,7 @@ internal static class CssDeclarations
         }
         if (property == CssProperty.BackgroundColor)
             return current with { BackgroundColor = wide ? from.BackgroundColor :
-                CssPaintValues.Background(value, declaration.Offset) };
+                CssPaintValues.Background(value, declaration.Offset, elementColor) };
 
         var index = (int)property - (int)CssProperty.BorderTopWidth;
         var side = index % 4;

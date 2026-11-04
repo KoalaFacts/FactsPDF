@@ -3,8 +3,15 @@ namespace FactsPDF;
 /// <summary>Strict CSS paint semantics; neither parser nor layout loads external resources.</summary>
 internal static class CssPaintValues
 {
-    internal static Rgb? Background(string value, int offset)
-        => value == "transparent" ? null : InlineCss.Color(value, offset);
+    internal static Rgb? Background(string value, int offset, Rgb? currentColor = null)
+        => value switch
+        {
+            "transparent" => null,
+            // Validation runs without a computed style; the winning box
+            // declaration supplies the element's final text colour later.
+            "currentcolor" => currentColor,
+            _ => InlineCss.Color(value, offset)
+        };
 
     // Each physical corner radius is zero or a visible 0.25–72pt length.
     // No percentages, elliptical slash syntax or font-relative units.
