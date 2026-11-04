@@ -93,7 +93,7 @@ public sealed class PrintMediaReportTests
         var font = PdfFont.LoadTrueType(fontBytes);
         var options = SmallPage with { Fonts = [font], BoldFonts = [font] };
         const string html = "<style>@media print { .status{font-weight:bold;color:blue;font-size:15pt} }</style>" +
-            "<p class=status>Service complete</p>";
+            "<p class=status>AB</p>";
         var expected = Pdf(html, options);
         var name = Path.Combine(Path.GetTempPath(), $"factspdf-media-{Guid.NewGuid():N}.ttf");
         try
