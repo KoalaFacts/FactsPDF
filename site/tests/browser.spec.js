@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('b95f1bd3',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('e94987af',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -23,6 +23,8 @@ test('numeric font-weight describes real normal/bold role selection and limits',
   await expect(details).toContainText('600–900');
   await expect(details).toContainText('FPDF1507');
   await expect(details).toContainText('variable font');
+  await expect(details).toContainText('bolder/lighter');
+  await expect(details).toContainText('supplied bold or normal role');
   await page.keyboard.press('Escape');
   await expect(details).not.toBeVisible();
 });
