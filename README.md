@@ -1,3 +1,32 @@
+## LTR logical borders for printable report cards (source-only)
+
+Controlled horizontal left-to-right report layouts may use `border-inline`
+and `border-block` for paired side strokes, or
+`border-inline-start`, `border-inline-end`, `border-block-start` and
+`border-block-end` for a single side. In this explicitly LTR model,
+inline-start/end map to **left/right** and block-start/end to **top/bottom**.
+Each accepts the same existing width/style/opaque colour terms as a physical
+`border-left` or `border-top`, in any order, or one CSS-wide
+`inherit`/`initial`/`unset` keyword. Omitted components reset to the
+same physical border defaults; each affected width, style and colour
+participates independently in the actual CSS cascade.
+
+```html
+<section style="padding:8pt;border-inline:2pt solid #315f82;
+                border-block-end:1pt dashed rebeccapurple">
+  <p style="margin:0">Service inspection complete</p>
+</section>
+```
+
+The [44-entry paginated report](examples/report-logical-borders.html) and
+[explicit physical-side control](examples/report-logical-borders-oracle.html)
+exercise real PDF borders, content positions, page fragmentation, TrueType,
+API/CLI, Linux/Windows native qpdf/Poppler and protected errors. No RTL,
+vertical writing modes, logical border-width/style/color subproperties,
+CSS Borders in general, arbitrary alpha, or additional applicable elements
+are claimed. Source implementation [`6916ef5d`](https://github.com/KoalaFacts/FactsPDF/commit/6916ef5da96068c167690ef3a0b5f1c94d41f255).
+This is not a newly distributed/private binary or human/customer approval.
+
 # FactsPDF
 
 ## Computed currentColor for brand-consistent reports (source-only)
