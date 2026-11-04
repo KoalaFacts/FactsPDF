@@ -106,7 +106,7 @@ public sealed class ReportHyperlinksTests
         var font = PdfFont.LoadTrueType(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string source = "<table style='width:240pt'><colgroup><col style='width:240pt'></colgroup>" +
-            "<tbody><tr><td><p>Contact <a href='mailto:sales@example.com'>Email sales</a></p></td></tr>" +
+            "<tbody><tr><td><p>AB <a href='mailto:sales@example.com'>AB</a></p></td></tr>" +
             "</tbody></table>";
         var text = Encoding.Latin1.GetString(Pdf(source, options));
         Assert.That(text, Does.Contain("/Subtype /Type0"));
@@ -149,6 +149,8 @@ public sealed class ReportHyperlinksTests
     [TestCase("<a href='#page'>Local fragment</a>", "FPDF1103")]
     [TestCase("<a href='https://user:pass@example.com'>Credentials</a>", "FPDF1103")]
     [TestCase("<a href='https://example.com/%ZZ'>Broken escape</a>", "FPDF1103")]
+    [TestCase("<a href='https://example.com/orders#section'>Unsupported fragment</a>", "FPDF1103")]
+    [TestCase("<a href='mailto:sales@example.com%0Asubject'>Encoded mailto injection</a>", "FPDF1103")]
     [TestCase("<a href='mailto:sales@example.com?subject=hi'>Email query</a>", "FPDF1103")]
     [TestCase("<a href='https://example.com'><a href='https://example.com'>Nested</a></a>", "FPDF1101")]
     [TestCase("<a href='https://example.com'><div>Block</div></a>", "FPDF1101")]

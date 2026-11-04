@@ -71,14 +71,14 @@ internal sealed class PdfLinkAnnotations
             throw Invalid(offset);
         if (input.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
             parsed.Scheme == Uri.UriSchemeHttps && parsed.Host.Length > 0 &&
-            parsed.UserInfo.Length == 0)
+            parsed.UserInfo.Length == 0 && parsed.Fragment.Length == 0)
             return input;
         if (input.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) &&
             parsed.Scheme == Uri.UriSchemeMailto && !input.Contains('?') && !input.Contains('#'))
         {
             var address = input[7..];
             if (address.Count(c => c == '@') == 1 &&
-                !address.Contains(',') && !address.Contains(';') &&
+                !address.Contains(',') && !address.Contains(';') && !address.Contains('%') &&
                 address.IndexOf('@') is > 0 and < 255 &&
                 address.IndexOf('@') < address.Length - 1)
                 return input;
