@@ -1722,6 +1722,48 @@ def verify_native_logical_borders(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+
+def verify_native_logical_border_components(executable, output, work):
+    """Verify all LTR component edges through actual native PDF paint and safe retry."""
+    source = ROOT / 'examples/report-logical-border-components.html'
+    oracle = ROOT / 'examples/report-logical-border-components-oracle.html'
+    actual = output / 'logical-border-components.pdf'
+    control = output / 'logical-border-components-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), 'Logical component paint differs from physical PDF'
+    pages = count_pages(actual)
+    assert pages >= 2, '44 component register rows must produce multiple pages'
+    positioned = [page_boxes(actual, page) for page in range(1, pages + 1)]
+    assert positioned == [page_boxes(control, page) for page in range(1, pages + 1)], (
+        'Logical component changed searchable PDF text coordinates')
+    words = [word[0] for _, _, page in positioned for word in page]
+    assert [word for word in words if re.fullmatch(r'COMP-\d{2}', word)] == [
+        f'COMP-{i:02d}' for i in range(1, 45)], 'Component register text missing or reordered'
+    assert 'COMPLETE' in words, 'Component report truncated'
+    invalid = work / 'logical-component-invalid.html'
+    saved = output / 'logical-component-preserved.pdf'
+    for css in ('border-inline-width:1pt 2pt 3pt',
+                'border-block-style:solid double',
+                'border-inline-color:rgba(2,3,4,0.5)',
+                'border-block-end-width:calc(2pt + 1pt)'):
+        invalid.write_text('<style>.unmatched{' + css + '}</style><p>SAFE</p>', encoding='utf-8')
+        saved.write_bytes(b'original customer PDF protected')
+        result = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert result.returncode == 3 and b'FPDF1202' in result.stderr and not result.stdout, (
+            'Invalid native logical border component did not fail closed',
+            css, result.returncode, result.stderr)
+        assert saved.read_bytes() == b'original customer PDF protected'
+    assert not run(executable, source, saved, '--overwrite', cwd=work)
+    assert saved.read_bytes() == actual.read_bytes(), 'Recovered component output drifted'
+    return {'records': 44, 'pages': pages,
+            'sourceSha256': sha(source), 'oracleSha256': sha(oracle),
+            'pdfSha256': sha(actual), 'physicalPdfByteParity': True,
+            'popplerTextAndGeometry': True, 'protectedFailureRecovery': True}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1804,6 +1846,7 @@ def main():
         named_colours = verify_native_named_colours(isolated, output, work)
         current_colour = verify_native_current_colour(isolated, output, work)
         logical_borders = verify_native_logical_borders(isolated, output, work)
+        logical_border_components = verify_native_logical_border_components(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1841,6 +1884,7 @@ def main():
             'namedColours': named_colours,
             'currentColour': current_colour,
             'logicalBorders': logical_borders,
+            'logicalBorderComponents': logical_border_components,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

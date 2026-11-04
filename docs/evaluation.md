@@ -1,3 +1,23 @@
+## LTR logical border components for printable reports (source-only)
+
+Existing `border-inline` / `border-block` shorthands now also have scoped
+`border-inline-width:2pt 4pt`, `border-block-style:dotted solid`,
+`border-inline-color:red blue` and individual logical-side
+`-{width,style,color}` variants: **18 names** total. LTR logical
+start/end maps to physical left/right/top/bottom, with true PDF stroke
+and text geometry, independent cascade, bounded opaque colours and
+cross-page paint. Pair values may have one or two terms; a single-side
+longhand takes one; CSS-wide keywords only stand alone. Invalid/unmatched
+declarations fail closed, not silently omitted. No RTL, vertical text,
+other border component families, alpha or expanded element applicability.
+
+See the [44-entry print report](../examples/report-logical-border-components.html)
+and [physical longhand control](../examples/report-logical-border-components-oracle.html);
+the new NUnit, CLI/TrueType and Linux/Windows Native AOT qpdf/Poppler
+checks exercise real PDF bytes, text positions and protected recovery.
+Source `99328f071395d5d7cc1eedad9138f05ee118fb0f`; CI, review, prior private package, human approval
+and distribution rights are distinct.
+
 ## LTR logical border report styling (source-only)
 
 Existing report cards can use `border-inline:2pt solid #315f82`,

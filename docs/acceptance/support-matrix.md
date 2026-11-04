@@ -1,3 +1,25 @@
+## Scoped LTR logical border width/style/colour components (source-only)
+
+The existing six logical border shorthands now have 18 scoped component
+property spellings: `border-inline-width/style/color`,
+`border-block-width/style/color`, and the individual
+`border-inline-start/end-{width,style,color}` and
+`border-block-start/end-{width,style,color}`. Pairs accept one or two
+values and individual sides accept one. All lower to existing per-side
+physical border cascade, width-dependent text geometry and actual PDF
+opaque stroke paint; `inherit/initial/unset` must stand alone and
+`!important` applies to the authored declaration. Same supported
+LTR elements, original limits and error safeguards, not RTL or complete
+CSS Borders.
+
+[44-row two-page source](../../examples/report-logical-border-components.html)
+and [independently authored physical-side oracle](../../examples/report-logical-border-components-oracle.html)
+check true PDF byte parity, glyph positions, page fragmentation, supplied
+TrueType, CLI, Linux/Windows Native AOT qpdf/Poppler and invalid-input
+destination recovery. Source [`99328f07`](https://github.com/KoalaFacts/FactsPDF/commit/99328f071395d5d7cc1eedad9138f05ee118fb0f);
+CI, independent review, publication, human PDF approval and commercial
+licences are separate.
+
 ## Bounded LTR logical border shortcuts (source-only)
 
 Six familiar CSS border shorthands are implemented only for horizontal
