@@ -814,7 +814,7 @@ test('six LTR logical border shorthands are source-bound to existing physical PD
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
-  assert.match(row.test_reference, /LogicalBorderReportTests\.cs$/);
+  assert.match(row.test_reference, /LogicalBorderComponentTests\.cs$/);
   for (const shorthand of ['border-inline', 'border-block',
       'border-inline-start/end', 'border-block-start/end'])
     assert.ok(row.scope.includes(shorthand), shorthand);
@@ -827,4 +827,4 @@ test('six LTR logical border shorthands are source-bound to existing physical PD
   assert.deepEqual(counts(dataset.features), {full:44, partial:154, none:212, unknown:6, na:2});
 });
 
-test('eighteen bounded LTR logical border component names share real per-side PDF geometry',()=>{const r=dataset.features.find(x=>x.id==='css.border');assert.equal(dataset.accepted_css_property_count,107);assert.equal(dataset.features.length,418);assert.equal(r.last_audited_commit,'99328f071395d5d7cc1eedad9138f05ee118fb0f');for(let p of ['border-inline-width/style/color','border-block-width/style/color','border-inline-start/end-{width,style,color}','border-block-start/end-{width,style,color}'])assert.ok(r.scope.includes(p));assert.match(r.test_reference,/LogicalBorderComponentTests\\.cs$/);assert.match(r.limitations,/RTL/);assert.match(r.sources.join(' '),/99328f071395d5d7cc1eedad9138f05ee118fb0f\/tests\/FactsPDF\/LogicalBorderComponentTests.cs/);});
+test('eighteen bounded LTR logical border component names share real per-side PDF geometry',()=>{const r=dataset.features.find(x=>x.id==='css.border');assert.equal(dataset.accepted_css_property_count,107);assert.equal(dataset.features.length,418);assert.equal(r.last_audited_commit,'99328f071395d5d7cc1eedad9138f05ee118fb0f');for(let p of ['border-inline-width/style/color','border-block-width/style/color','border-inline-start/end-{width,style,color}','border-block-start/end-{width,style,color}'])assert.ok(r.scope.includes(p));assert.match(r.test_reference,/LogicalBorderComponentTests\.cs$/);assert.match(r.limitations,/RTL/);assert.ok(r.sources.some(s=>s.includes('99328f071395d5d7cc1eedad9138f05ee118fb0f/tests/FactsPDF.Tests/LogicalBorderComponentTests.cs')));});
