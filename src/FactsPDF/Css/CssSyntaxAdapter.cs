@@ -78,6 +78,55 @@ internal static class CssSyntaxAdapter
                 var order = budget.Declaration(sourceOffset);
                 output.Add(new(target, targetName ?? name, value, node.Important, order, sourceOffset));
             }
+            // Logical border component declarations use the existing *physical*
+            // per-side width/style/colour cascade slots. The pair forms accept
+            // one or two values (start/end); individual sides exactly one.
+            // Only horizontal LTR normal-flow print layouts are supported.
+            if (name is "border-inline-width" or "border-inline-style" or "border-inline-color"
+                or "border-block-width" or "border-block-style" or "border-block-color"
+                or "border-inline-start-width" or "border-inline-start-style" or "border-inline-start-color"
+                or "border-inline-end-width" or "border-inline-end-style" or "border-inline-end-color"
+                or "border-block-start-width" or "border-block-start-style" or "border-block-start-color"
+                or "border-block-end-width" or "border-block-end-style" or "border-block-end-color")
+            {
+                var component = name[(name.LastIndexOf('-') + 1)..];
+                var logicalAxis = name[..^(component.Length + 1)];
+                string[] physicalSides = logicalAxis switch
+                {
+                    "border-inline" => ["border-left", "border-right"],
+                    "border-block" => ["border-top", "border-bottom"],
+                    "border-inline-start" => ["border-left"],
+                    "border-inline-end" => ["border-right"],
+                    "border-block-start" => ["border-top"],
+                    "border-block-end" => ["border-bottom"],
+                    _ => throw new InvalidOperationException("Unrecognized logical border component.")
+                };
+                if (terms.Count > physicalSides.Length)
+                    throw new FactsPdfException("FPDF1202",
+                        "Logical border component expects one or two values for a pair, one for a side.",
+                        node.Span.Start);
+                var parts = terms.ToArray();
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    var source = valueTokens[i].Token;
+                    if (source.Kind == CssSyntaxTokenKind.Number &&
+                        CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                        parts[i] = "0";
+                    if (Wide(parts[i]) && parts.Length != 1)
+                        throw new FactsPdfException("FPDF1202",
+                            "A CSS-wide logical border component must be the only value.", source.Span.Start);
+                    if (!Wide(parts[i]))
+                        ValidateComponent(physicalSides[i] + "-" + component, parts[i], source.Span.Start);
+                }
+                for (var i = 0; i < physicalSides.Length; i++)
+                {
+                    var sourceIndex = Math.Min(i, parts.Length - 1);
+                    var sourceOffset = valueTokens[sourceIndex].Token.Span.Start;
+                    var physical = physicalSides[i] + "-" + component;
+                    Emit(Property(physical, sourceOffset), parts[sourceIndex], sourceOffset, physical);
+                }
+                continue;
+            }
             // Eight LTR logical *longhands* name the same physical sides as
             // the existing two-sided logical shorthands. Lowering before
             // cascade preserves physical/logical declaration ordering and
@@ -539,6 +588,18 @@ internal static class CssSyntaxAdapter
         "padding-bottom" or "padding-block-end" => CssProperty.PaddingBottom,
         "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
+        "border-inline-width" or "border-inline-start-width" => CssProperty.BorderLeftWidth,
+        "border-inline-end-width" => CssProperty.BorderRightWidth,
+        "border-block-width" or "border-block-start-width" => CssProperty.BorderTopWidth,
+        "border-block-end-width" => CssProperty.BorderBottomWidth,
+        "border-inline-style" or "border-inline-start-style" => CssProperty.BorderLeftStyle,
+        "border-inline-end-style" => CssProperty.BorderRightStyle,
+        "border-block-style" or "border-block-start-style" => CssProperty.BorderTopStyle,
+        "border-block-end-style" => CssProperty.BorderBottomStyle,
+        "border-inline-color" or "border-inline-start-color" => CssProperty.BorderLeftColor,
+        "border-inline-end-color" => CssProperty.BorderRightColor,
+        "border-block-color" or "border-block-start-color" => CssProperty.BorderTopColor,
+        "border-block-end-color" => CssProperty.BorderBottomColor,
         "border" or "border-top" or "border-width" or "border-top-width"
             or "border-inline" or "border-block" or "border-inline-start" or "border-inline-end"
             or "border-block-start" or "border-block-end" => CssProperty.BorderTopWidth,
