@@ -70,13 +70,25 @@ public sealed class FontSizeKeywordTests
         Assert.That(TextLayout.Layout(
             HtmlDocumentReader.ReadTree(actual, Page, default), Page, default).Count,
             Is.GreaterThan(1));
-        foreach (var options in new[]
-        {
-            Page,
-            Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] }
-        })
-            Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(control, options)));
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)),
+            "The full 40-entry service report must preserve every PDF glyph and page.");
         Assert.That(Pdf(actual), Is.Not.EqualTo(Pdf("<p>Service entry 01</p>")));
+
+        // The synthetic FontFixture deliberately supports AB/W but not Q;
+        // use only its actual glyph repertoire rather than weakening FPDF1504.
+        const string prefix = "<section style='font-size:15pt'>";
+        var keywordRows = string.Concat(Enumerable.Repeat(
+            "<p style='font-size:smaller;margin:0'>AB <span style='font-size:larger'>WA</span></p>", 40));
+        var explicitRows = string.Concat(Enumerable.Repeat(
+            "<p style='font-size:12.5pt;margin:0'>AB <span style='font-size:15pt'>WA</span></p>", 40));
+        const string suffix = "</section>";
+        var typeOptions = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var typePages = TextLayout.Layout(
+            HtmlDocumentReader.ReadTree(prefix + keywordRows + suffix, typeOptions, default),
+            typeOptions, default);
+        Assert.That(typePages.Count, Is.GreaterThan(1));
+        Assert.That(Pdf(prefix + keywordRows + suffix, typeOptions),
+            Is.EqualTo(Pdf(prefix + explicitRows + suffix, typeOptions)));
     }
 
     [TestCase("xxx-large")]

@@ -715,7 +715,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.print-physical-pc-q');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.font-size-keywords');
   assert.equal(dataset.commit, 'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
@@ -773,7 +773,7 @@ test('bounded keep-together card is a real, narrowly tracked PDF capability', ()
 });
 
 test('pc and q physical lengths retain 418 audit rows and 83 CSS property names', () => {
-  const extension=dataset.features.filter(f=>f.physical_unit_extension_commit==='b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
+  const extension=dataset.features.filter(f=>f.physical_unit_extension_commit==='ca3aef91e20792782edb49004369dfbf1e9712b3');
   assert.equal(extension.length,37);
   assert.equal(extension.filter(f=>f.id.startsWith('css.')).length,36);
   assert(extension.every(f=>f.scope.includes('pc') && f.scope.includes('q')));
