@@ -59,3 +59,17 @@ chain of authority where employment or contracting terms may apply.
 Keep rights records securely; do not publish private contracts or identity
 records in this repository. A future automated CLA check is not implemented
 and is not claimed by this policy.
+
+## Documenting a new feature
+
+Keep `README.md` a short front door; it is also the NuGet package page. Do not
+add a per-feature section to it. For a new capability:
+
+1. Update its record in `site/data/compatibility.json` (Can I Render).
+2. Add a note under the matching area in `docs/feature-notes.md`, with the
+   example report, oracle, test evidence and source commit.
+3. Update the exact contract in the relevant `docs/` page, such as
+   `docs/css-stylesheets.md`.
+
+Change the README only when its summary tables, quick start or status become
+inaccurate.

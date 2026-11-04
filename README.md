@@ -1,520 +1,40 @@
-## Print-only stylesheet rules for business reports (source-only)
-
-Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
-
-```html
-<style>
-  @media print {
-    .invoice { padding:8pt; background:#edf4fa; border:2pt solid #315f82 }
-    .invoice p { margin:0; color:#27618b; font-size:11pt }
-  }
-</style>
-<section class="invoice"><p>Inspection completed</p></section>
-```
-
-Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import`, `@page` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
-
-The [44-record multi-page print report](examples/report-print-media.html) is compared against a [separately written inline-style PDF oracle](examples/report-print-media-oracle.html), with NUnit, supplied TrueType, managed CLI, Native AOT qpdf/Poppler and protected failure/retry checks. Bounded engine source [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403). This is not full CSS Media Queries, a public package, new private binary, human PDF approval or a customer licence.
-
-## LTR logical border component styling for business reports (source-only)
-
-Use `border-inline-width:2pt 4pt`, `border-block-style:solid dashed`,
-`border-inline-color:rebeccapurple #315f82`, or individual
-`border-inline-start-width`, `border-inline-end-style`,
-`border-block-start-color` and corresponding component sides.
-These **18 bounded CSS property spellings** map LTR inline-start/end to
-physical left/right and block-start/end to top/bottom. Paired components
-take one or two values; single sides take one value. Every width,
-solid/none/dashed/dotted style, and opaque colour uses the existing
-validated physical-border rendering path. `inherit`, `initial` and
-`unset` stand alone and apply per side; `!important`, physical
-longhands, existing shorthands and source order cascade independently.
-
-The [44-entry PDF report](examples/report-logical-border-components.html)
-and [separately authored physical-border oracle](examples/report-logical-border-components-oracle.html)
-test actual painted strokes, geometry, page breaks, text order, supplied
-TrueType, API/CLI, Linux/Windows native qpdf/Poppler and protected
-invalid-to-success recovery. Unknown values also reject in unmatched
-stylesheet rules. RTL, vertical writing, new applicable elements, alpha,
-logical corner radii and the full CSS Borders specification remain
-unsupported. First implemented in source
-[`99328f07`](https://github.com/KoalaFacts/FactsPDF/commit/99328f071395d5d7cc1eedad9138f05ee118fb0f);
-this is not a new package, approved reference PDF or distribution grant.
-
-## LTR logical borders for printable report cards (source-only)
-
-Controlled horizontal left-to-right report layouts may use `border-inline`
-and `border-block` for paired side strokes, or
-`border-inline-start`, `border-inline-end`, `border-block-start` and
-`border-block-end` for a single side. In this explicitly LTR model,
-inline-start/end map to **left/right** and block-start/end to **top/bottom**.
-Each accepts the same existing width/style/opaque colour terms as a physical
-`border-left` or `border-top`, in any order, or one CSS-wide
-`inherit`/`initial`/`unset` keyword. Omitted components reset to the
-same physical border defaults; each affected width, style and colour
-participates independently in the actual CSS cascade.
-
-```html
-<section style="padding:8pt;border-inline:2pt solid #315f82;
-                border-block-end:1pt dashed rebeccapurple">
-  <p style="margin:0">Service inspection complete</p>
-</section>
-```
-
-The [44-entry paginated report](examples/report-logical-borders.html) and
-[explicit physical-side control](examples/report-logical-borders-oracle.html)
-exercise real PDF borders, content positions, page fragmentation, TrueType,
-API/CLI, Linux/Windows native qpdf/Poppler and protected errors. No RTL,
-vertical writing modes, logical border-width/style/color subproperties,
-CSS Borders in general, arbitrary alpha, or additional applicable elements
-are claimed. Source implementation [`6916ef5d`](https://github.com/KoalaFacts/FactsPDF/commit/6916ef5da96068c167690ef3a0b5f1c94d41f255).
-This is not a newly distributed/private binary or human/customer approval.
-
 # FactsPDF
-
-## Computed currentColor for brand-consistent reports (source-only)
-
-Report templates can reuse one text colour for solid paint:
-`color:currentColor` preserves the **computed inherited parent text ink**;
-`background:currentColor` and `background-color:currentColor` paint the
-**final computed colour on that element**. Existing border and decoration
-`currentColor` values continue through the same opaque PDF ink path.
-Stylesheet/inline cascade, `!important`, inheritance, real font metrics,
-nested panels and page continuation are honoured.
-
-The [48-entry inspection report](examples/report-current-colour.html) and
-[independently authored HEX control](examples/report-current-colour-oracle.html)
-must emit identical PDF bytes. Tests cover font roles, managed API/CLI,
-pagination, text geometry and preserved output on invalid input. Native
-Linux/Windows AOT probes additionally inspect qpdf/Poppler text/coordinates.
-No alpha, system colours, `color:transparent`, gradients, URLs or general CSS
-Color are implied. Implementation [`3dbcded4`](https://github.com/KoalaFacts/FactsPDF/commit/3dbcded4f5d39b16b79bbff7aac4132305659d4a).
-This is source-only, not a revised private candidate, public package,
-human PDF approval or permission to distribute.
-
-## Standard opaque CSS named colours for printable reports (source-only)
-
-Controlled templates may now use all **148 standard opaque CSS named colours** in
-the existing supported colour slots. Examples: `color:rebeccapurple`,
-`background:aliceblue`, `border:2pt solid slategray` and
-`text-decoration:underline dotted teal`. Aliases such as
-`gray/grey`, `aqua/cyan` and `fuchsia/magenta` resolve to the same
-fixed RGB values. They affect real PDF text, background fills, borders and
-decorations, not only CSS parsing. Existing inheritance, specificity,
-font metrics, page geometry, resource limits and fragmentation still apply.
-
-The [64-record report](examples/report-named-colours.html) and
-[independently authored HEX oracle](examples/report-named-colours-oracle.html)
-must render identical PDF bytes. Source NUnit tests every name against explicit
-hex values, including supplied TrueType font roles, cascading, managed CLI
-and protected failures. Linux/Windows Native AOT checks additionally use
-qpdf/Poppler for searchability, positions, pages and recovery.
-
-This is a bounded colour *value* extension, not 148 new CSS properties or full
-CSS Color: `background:transparent` retains its previous limited meaning;
-`color:transparent`, system/theme colours, arbitrary `currentColor`,
-alpha blending, gradients and unsupported selectors/elements still reject.
-Implementation source [`c9138808`](https://github.com/KoalaFacts/FactsPDF/commit/c9138808d785986712f17e977fa2371854cb6aed).
-Exact-head CI, independent review, private software, human reference approval
-and customer permission remain separate; no public release is implied.
-
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
-
-## Bounded percentage RGB colours for business reports (source-only)
-
-Report templates may now use `rgb(20%,40%,60%)`, `rgb(10% 25% 50%)`
-and `rgba(0%,50%,0%,1)` in the existing colour, background, border and
-text-decoration paint slots. Exactly **three percentage channels** (0–100%,
-fractional values allowed) are converted to 8-bit opaque PDF RGB; midpoint
-conversion rounds to the nearest byte with ties up. The existing three
-integer-channel forms still work. CSS specificity, `!important`, inheritance,
-real PDF text/paint, pagination, resources and previous-output protection
-use the same established engine paths.
-
-Mixed percentage/integer channels, decimal *numeric* channels, transparency,
-slash alpha, nesting, `calc()` and general CSS Color remain unsupported;
-unrecognized syntax rejects with `FPDF1202`, including unmatched rules.
-This is not a general CSS Colors or alpha-compositing implementation.
-
-[48-entry real paginated report](examples/report-rgb-percent-colours.html) and
-[independently authored HEX control](examples/report-rgb-percent-colours-oracle.html)
-target exact PDF byte, searchable body, page/position, managed API/CLI,
-Linux/Windows Native AOT qpdf/Poppler and failure/recovery equivalence.
-Implementation source [`6a79f3f6`](https://github.com/KoalaFacts/FactsPDF/commit/6a79f3f69f381f39a2cfb83bc2aa505e34c0af0d).
-Actual CI, independent review, retained preview binary, human approval
-and customer distribution are separate checks; no release is implied.
-
-## Bounded opaque HSL report colours (source-only)
-
-Business-report templates can use `hsl(210,60%,40%)`,
-`hsl(210deg 60% 40%)` or `hsla(120,100%,25%,1)` as scoped
-`color`, `background`/`background-color`, border colours and
-text-decoration colour. Hue is a finite number or `deg` from
--3600 through 3600 (wrapped by 360); saturation/lightness accept
-0–100% including fractions. HSL is converted to opaque 8-bit RGB
-before the existing PDF ink/background/border paths, retaining CSS
-cascade, font/layout geometry, pagination and resource protection.
-
-The [48-entry colour report](examples/report-hsl-colours.html)
-and [independent fixed-hex oracle](examples/report-hsl-colours-oracle.html)
-must produce identical actual PDF bytes. Source NUnit, managed CLI
-and Linux/Windows Native AOT qpdf/Poppler check searchability, multi-page
-geometry and original-output recovery. No transparency, slash alpha,
-turn/rad, nesting, gradients or general CSS Color: unsupported values
-fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
-independent review, private software, human approval and customer
-distribution remain separate.
-
-## Have a PDF report template to assess?
-
-FactsPDF is a **source-available, experimental .NET report renderer** for controlled
-HTML/CSS templates such as invoices, inspection reports and status summaries.
-It is **not** a general webpage-to-PDF converter.
-
-**Current availability:** source version `0.1.0-preview.1`; no publicly released
-NuGet/CLI package, stable SDK, general evaluation permission or guaranteed
-template compatibility. The [Community and Commercial licensing rules](LICENSING.md)
-apply **before** building or running the engine.
-
-**Start with your report, not a sales call:** read the
-[template and runtime fit checklist](docs/evaluation.md#check-template-fit-before-integration),
-then [open a non-confidential template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md)
-describing the report layout, required behaviour and target .NET environment.
-Use synthetic examples only; **do not attach customer documents, passwords,
-private templates or proprietary business data**. A request starts a scope
-discussion, not a software trial, licence grant or support contract.
-
-The detailed source-only feature notes and test evidence follow.
-
-### Relative bold/light styling for report text (source-only)
-
-Use `font-weight:bolder` or `font-weight:lighter` in existing paragraphs, headings and spans to select the explicitly configured **bold** or **normal** TrueType role. For example, a bold inspection card can contain a lighter detail line and a bold status. The PDF really changes font metrics, embedded faces, text wrapping and pagination. This deliberately bounded two-role model does not synthesize CSS 100–900 weights or discover fonts: missing bold faces fail with `FPDF1507`, preserving the previous PDF.
-
-[48-entry report](examples/report-relative-font-weights.html) · [Independent explicit-role control](examples/report-relative-font-weights-oracle.html) · [Exact scope](docs/css-stylesheets.md#bounded-bolderlighter-font-roles-for-report-typography-source-only). Source `e94987af`; no new installable candidate or customer distribution rights.
-
-### Familiar font-size keywords for report text (source-only)
-
-For controlled report text, `font-size:xx-small/x-small/small/medium/large/x-large/xx-large`
-uses the documented fixed 7.2/9/10/12/14.4/18/24pt scale.
-`smaller` and `larger` compute from the parent font at 5/6 and 6/5.
-This works through existing cascade, `!important`, inherited text and
-actual PDF glyphs, wrapping and pagination, not merely CSS parsing.
-Unsupported values and computed sizes outside 1–144pt reject with
-`FPDF1202` and protect the previous PDF. No general font shorthand or
-browser system-font selection is implied.
-
-The [40-entry paginated report](examples/report-font-size-keywords.html),
-[independent point-size oracle](examples/report-font-size-keywords-oracle.html),
-NUnit and Native AOT/qpdf/Poppler checks cover this source-only feature at
-[`b95f1bd3`](https://github.com/KoalaFacts/FactsPDF/commit/b95f1bd3c5d8275bff21f399c9cf59a2d413c024).
-No updated private binary, public release, human reference approval or
-customer licence is implied. [Exact limits](docs/css-stylesheets.md#bounded-font-size-keywords-for-printable-business-reports-source-only).
-
-### Optional searchable PDF document properties (source-only)
-
-For invoices and inspection reports, set real PDF document information using
-`--title`, `--author`, `--subject` and `--keywords`, or the matching
-public `PdfOptions` properties. This is **PDF Info metadata**, not text
-printed on the page, extracted from HTML or a CSS feature:
-
-```sh
-dotnet run --project src/FactsPDF.Cli -- examples/first-document.html report.pdf --title "Facilities inspection — 澳新" --author "Koala Facts" --subject "Quarterly status" --keywords "inspection, report"
-```
-
-Each optional field is 1–1024 UTF-16 units, nonblank, single-line and
-well-formed Unicode. The PDF stores each field with a UTF-16BE BOM,
-including Chinese and supplementary characters. Without any fields, the
-legacy PDF is byte-identical; no timestamps or machine identity are added.
-Missing, repeated or malformed CLI fields fail with exit code 2 and
-preserve an existing file. **PDF recipients can view these properties:
-never put confidential data or credentials in them.**
-
-Source NUnit verifies exact API/CLI PDF bytes, the two serialization
-paths, PNG, text pages, bounded errors and recovery; Linux/Windows Native
-AOT checks additionally use Poppler `pdfinfo`, qpdf and original body
-geometry. Not XMP, HTML `<title>` inference, PDF/UA tagging, an updated
-private candidate, a public release or customer rights.
-
-### Print on custom physical paper (source-only)
-
-Reports that need A5, US Legal, stationery or other defined stock can supply
-**both** `--page-width` and `--page-height` in `pt/px/mm/cm/in`.
-The CLI passes the actual point dimensions to the existing PDF renderer before
-text wrapping, image positioning, pagination and page furniture are computed:
-
-```sh
-dotnet run --project src/FactsPDF.Cli -- examples/first-document.html a5-report.pdf --page-width 148mm --page-height 210mm --margin 12mm
-```
-
-Each physical dimension must be finite, 72–14400pt (1–200 inches) and fit the
-uniform selected margin. Supply the pair together, without `--page-size` or
-`--landscape`; to rotate custom paper, swap the two dimensions explicitly.
-Missing, conflicting, repeated or out-of-range arguments exit 2, without
-overwriting an existing customer PDF. Existing A4 portrait defaults, Letter,
-landscape and `--margin` behaviour are unchanged. This is not CSS `@page`,
-printer bleed or paper auto-detection. See `CliCustomPaperTests.cs` and the
-Linux/Windows Native AOT Poppler/qpdf checks in
-`scripts/verify_native_feature_paths.py`. Introduced in source
-`271d05350f363857cf2a6d44f1ea40e876f8573c`; not in the previously
-retained private preview or any public binary.
-
-### Choose a physical report margin in the CLI (source-only)
-
-The CLI accepts `--margin 15mm` (or `0`, `pt`, `px`, `cm`, `in`) alongside
-`--page-size a4|letter` and `--landscape`. It sets **all four physical page
-margins** before actual PDF text wrapping, pagination, images and page
-furniture are laid out. The default remains 36pt on every side, preserving
-the existing PDF bytes when no new flag is provided. For example:
-
-```sh
-dotnet run --project src/FactsPDF.Cli -- examples/first-document.html report.pdf --page-size a4 --margin 15mm
-```
-
-Lengths are invariant-culture, nonnegative and strictly less than half the
-shorter selected page dimension. Unsupported, repeated or impossible
-arguments fail with exit code 2; file output uses the existing atomic
-replacement guard. This is not CSS `@page`, different margins per side,
-printer bleed, an automatic paper fit or a released CLI. See
-`CliPageMarginTests.cs` and the real Linux/Windows Native AOT
-`verify_native_feature_paths.py` Poppler/qpdf geometry and text gates.
-
-
-
-### Keep multi-paragraph sign-off cards together (source-only)
-
-Use `break-inside:avoid` (or legacy `page-break-inside:avoid`)
-on a **top-level** `div/section/article/blockquote` containing one to eight
-direct, nonempty `p/pre/h1–h6` children. FactsPDF measures actual glyph wraps,
-padding, borders and text margins **before** PDF placement; if a card does not
-fit at the current page end, its whole painted box and text move to the next
-page. A card taller than one usable page rejects with `FPDF1302`, retaining
-the previous PDF. `auto`, `inherit/initial/unset`, `!important`
-and the existing cascade apply. No new page for a card that fits.
-
-This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
-explicit inner page breaks, fixed/minimum-height cards, more than eight direct
-children, arbitrary children, left/right pages, or widows/orphans are not
-implemented. Inapplicable structures reject `FPDF1201`; unsupported values
-reject `FPDF1202`. [Exact CSS contract](docs/css-stylesheets.md#current-source-keep-together-business-report-cards),
-[printable card](examples/report-keep-together.html),
-[independently authored forced-page control](examples/report-keep-together-oracle.html),
-`ReportKeepTogetherTests.cs`, and Linux/Windows Native AOT/qpdf/Poppler
-witness are provided for review. Source first implemented at
-`ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
-private software, human PDF approval and customer rights are separate.
-
-### Bounded image height limits for report logos and photos (source-only)
-
-Explicitly bound JPEG/PNG images now accept nonnegative physical
-`max-height` and `min-height` in `pt/px/mm/cm/in`, or `max-height:none`
-and `min-height:initial` to remove a constraint. With `height:auto`,
-the **actual PDF image matrix** preserves native pixel aspect ratio when a
-vertical limit changes height; with an explicit physical `height`, the
-width axis remains independently authored. `min-height` wins contradictory
-`max-height`, and `box-sizing:border-box` includes vertical
-padding/borders exactly once. Applicable to standalone images and direct
-fixed-column table-cell items; no network resources, percentage/em/rem
-height limits, `calc`, `object-fit`, arbitrary aspect-ratio fitting
-or silently violated horizontal constraints. Impossible dimensions
-fail `FPDF1201/1202/1302` while preserving existing PDFs.
-
-The [36-record height-constrained report](examples/report-image-height-limits.html)
-and [separately authored physical matrix control](examples/report-image-height-limits-oracle.html)
-exercise multiple PDF pages, searchable text, PNG resources, Linux/Windows
-Native AOT, qpdf/Poppler geometry, and failure recovery. This is a current
-**source** capability under review; it is not a rebuilt private candidate,
-human-approved page or customer licence.
-[Exact boundary](docs/images.md#bounded-image-height-limits).
-
-### Explicit physical image heights for logos and report photos (source-only)
-
-Explicitly bound JPEG/PNG images now support `height:36pt` for standalone
-images and direct fixed-column `td/th` image items. With automatic width,
-the used PDF image width follows the source image's intrinsic pixel ratio.
-Specifying both width and height independently controls the PDF image matrix.
-`box-sizing:border-box` deducts vertical padding and borders once, and
-existing min/max-width only constrains the width axis when height is fixed.
-
-The [36-record report](examples/report-image-heights.html) and
-[independently authored physical-width oracle](examples/report-image-heights-oracle.html)
-are exercised through NUnit and Linux/Windows Native AOT/qpdf/Poppler PDF
-geometry, searchable text and recovery gates. No percentages, image em/rem,
-object-fit, implicit auto-shrink or network loading. Unsupported or unplaceable
-dimensions fail without replacing a previous PDF. This is current **source**
-at `7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd`, not a rebuilt private preview, human approval or customer grant.
-[Precise image contract](docs/images.md#explicit-physical-image-heights).
-
-### Bounded image sizing for report logos and evidence photos (source-only)
-
-Explicitly bound JPEG/PNG images can now use `max-width:100%` and
-`min-width` (bounded nonnegative print lengths/percentages), with
-`box-sizing:border-box` for image padding and borders. Actual PDF image
-matrices scale to the used **content** width while preserving the source
-aspect ratio; direct images in fixed-column cells use the true cell width,
-including `colspan`. The existing CSS cascade and explicit
-`inherit/initial/unset` apply. No unrequested automatic shrinking,
-`height`, `object-fit`, network fetch, `calc()`, image `em/rem`,
-transforms, or fractional page splits. Unplaceable images fail before
-replacing an existing output.
-
-The [36-record inspection report](examples/report-responsive-images.html),
-[independently authored fixed-width control](examples/report-responsive-images-oracle.html),
-NUnit image/row tests and Linux/Windows Native AOT/qpdf/Poppler gate verify
-real PDF bytes, searchability, pagination and protected error recovery.
-[Precise image contract](docs/images.md#responsive-standalone-and-cell-image-widths).
-Engine source `b6bebe8e3b97f13190148c6f53bed49ec2678ede`;
-new private software, human reference approval, CI and customer rights are separate.
-
-### Full-width invoice identifier wrapping (source-only)
-
-For tightly spaced reference numbers, use `word-break:break-all` on a whole
-`p` or `h1`–`h6` (including a flat `p` inside a fixed-column table cell).
-Unlike `overflow-wrap:break-word`, which moves a fitting word whole to the
-next line, `break-all` fills the remaining available PDF line using real font
-glyph advances; the rest of the identifier continues in source order. CSS
-cascade, `!important`, `normal`, explicit `inherit/initial/unset` and
-existing `white-space:nowrap` rules apply. It is a bounded simple-glyph
-renderer, **not** Unicode grapheme segmentation or a browser CSS Text engine.
-
-The [48-record report](examples/report-word-break-identifiers.html) and
-[separately authored explicit-break control](examples/report-word-break-identifiers-oracle.html)
-exercise source NUnit and real Linux/Windows Native AOT PDF-byte, page-text and
-failure-recovery gates. Unsupported `keep-all`, `break-word` as a value of
-`word-break`, inline spans, arbitrary container declarations, complex shaping
-and width too small for one glyph fail without replacing the previous PDF.
-[Exact CSS contract](docs/css-stylesheets.md#current-source-word-break-for-invoice-identifiers).
-Source implementation is ac6cec7000b308b403dd95abcd14441240b1f791; this does not update the retained private
-`0.1.0-preview.1` candidate, grant customer rights or constitute human PDF approval.
-
-### Fixed-height report cards (source-only)
-
-Invoices, inspection reports and status summaries can now use `height:85pt`
-on ordinary `div/section/article/blockquote` panels outside tables and lists.
-Unlike a syntax-only declaration, it reserves **actual PDF panel height**,
-paints the background and borders through that height and moves following
-text accordingly. `box-sizing:content-box` adds vertical padding/borders;
-`border-box` includes them. CSS cascade, computed `em/rem` and the
-independent `min-height` lower bound apply.
-
-The [40-card report](examples/report-fixed-height-cards.html) and its
-[minimum-height physical PDF oracle](examples/report-fixed-height-cards-oracle.html)
-exercise actual Native AOT PDF text, page geometry and protected failures.
-Fixed cards must fit on one page **with all their content**: overflow
-explicitly fails `FPDF1302` instead of silently clipping or overlapping
-the next section. No percentages, `calc()`, `max-height`, list/table/inline
-targets or general CSS Sizing. This is current source only at
-`9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc`, not the older private
-preview, an approved reference page or a customer grant.
-[Exact CSS contract](docs/css-stylesheets.md#current-source-fixed-height-report-panels).
-
-### Print-ready report section page boundaries (source-only)
-
-Use `break-before:page` and `break-after:page` on normal
-`div/section/article/blockquote` report panels outside tables/lists.
-Legacy print templates may use `page-break-before:always` and
-`page-break-after:always` (also `auto`) as equivalent aliases on the same
-scoped panels and explicit paragraphs/headings. Real PDF pages and painted
-panel fragments move together, including nesting, first-page handling,
-`!important` and explicit CSS-wide reset/inheritance.
-
-The [three-page facilities report](examples/report-section-page-breaks.html)
-and [independently authored modern-break control](examples/report-section-page-breaks-oracle.html)
-are checked as actual Native AOT PDFs, not accepted syntax alone.
-`break-after:avoid` remains **heading-only**, not a section keep-together;
-left/right, RTL, tables/lists and general CSS Paged Media are unsupported.
-A separately documented top-level flat-card `break-inside:avoid` subset
-does not change these forced-boundary semantics. This is
-source-only at `67566764419232585632d8ea6f2106aeeeff2f70`, pending
-exact-head CI, independent review and the separate private/customer gates.
-[Precise CSS scope](docs/css-stylesheets.md#current-source-print-section-page-boundaries).
-
-### Independent CSS corner-radius longhands (source-only)
-
-For invoices, summary cards and branded report headings, four separate CSS
-`border-top-left-radius`, `border-top-right-radius`,
-`border-bottom-right-radius` and `border-bottom-left-radius`
-longhands set individual **real PDF vector corners**, including across pages.
-Each takes one physical `pt/px/mm/cm/in` length (zero or 0.25–72pt) or
-a CSS-wide keyword, independently competing with `border-radius`
-shorthand using specificity, `!important` and source order. Only ordinary
-report blocks outside tables/lists, opaque fills and equal-width/colour solid
-border rings are supported; no percentages, elliptical two-axis radii,
-font-relative radii, rounded images/tables, or full CSS Borders.
-The [50-card longhand report](examples/report-corner-longhands.html)
-is compared at native PDF-byte level against the existing independently
-authored [four-corner control](examples/report-asymmetric-rounded-panels.html).
-Read [the exact CSS contract](docs/css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
-This is source implementation, not a new public/private distributable,
-customer use right or human PDF approval.
-
-### Minimum-height inspection cards (source-only)
-
-A controlled business report panel can reserve a visible minimum area using
-`min-height:90pt` (also `px/mm/cm/in`, scoped `em/rem` and exact zero).
-`div`, `section`, `article` and `blockquote` outside lists and tables
-paint their backgrounds/borders over the **actual** minimum height; later text
-starts after that box. `box-sizing:border-box` counts vertical padding and
-borders inside the specified minimum, while the default `content-box` adds
-them. CSS cascade and existing pagination/resource checks apply, and invalid
-or unplaceable input preserves the original PDF.
-
-See [the bounded CSS and failure contract](docs/css-stylesheets.md#current-source-minimum-height-report-panels),
-[a ready-to-run inspection example](examples/report-min-height-cards.html)
-and [the native PDF / physical spacer oracle](examples/report-min-height-cards-native.html).
-This is not general CSS `height`/`max-height`, percentages, tables, lists,
-flex/grid, arbitrary sizing, a new released binary or customer authorization.
-A separate, strictly one-page fixed-`height` panel subset is documented above.
-
-### Rounded commercial report cards (source-only)
-
-`border-radius:12pt 9pt 6pt 3pt` now paints four independent PDF corner curves
-for ordinary report panels (one-to-four physical shorthand values). The existing
-single-radius output remains byte-identical. Text, pagination, border protection
-and unsupported-value errors remain scoped. The [54-card single-radius report](examples/report-rounded-panels.html),
-[50-card four-corner report](examples/report-asymmetric-rounded-panels.html)
-and [independent physical-unit oracle](examples/report-asymmetric-rounded-panels-oracle.html) are scoped,
-not browser CSS conformance. See [precise value and failure rules](docs/css-stylesheets.md#current-source-rounded-business-report-cards-2026-11-01).
-No new installable preview, human reference approval or customer grant is implied.
-
-FactsPDF is a KoalaFacts rendering engine for applications and command-line jobs
-that control their report templates. It supports English and Chinese text,
-explicit font styles, transparent PNGs, tables and pagination through a
-documented HTML/CSS subset. Fonts and images are supplied by the caller.
-
-> **Current stage: unreleased `0.1.0-preview.1`; source-bound private candidate retained for maintainer evaluation.**
-> [Merged-main CI 40561057964](https://github.com/KoalaFacts/FactsPDF/actions/runs/40561057964) at `47bc97910843ad6f72f11a285ec5b74e13862623` passed managed/API and actual Linux/Windows x64 Native AOT checks; [six other applicable main workflows](https://github.com/KoalaFacts/FactsPDF/issues/51#issuecomment-6452146222) also passed. The owner separately verified and privately retained the matching NuGet, managed CLI, Linux native CLI, examples and source components, and executed the Linux native first-use and restricted-font recovery paths.
-> **No public NuGet/CLI release, customer software delivery, stable API or general evaluation grant exists.** Human approval of new PDF pages and legal distribution rights remain separate. See the [evaluation guide](docs/evaluation.md) and [licensing](#licensing); private engineering checks do not grant usage rights.
-
-[Quick start](#generate-your-first-pdf) · [C# API](#use-the-net-api) ·
-[Compatibility lookup](#compatibility-lookup) · [Examples](#choose-a-report-example) ·
-[Licensing](#licensing)
-
-**Have a business report template to assess?** [Request a template-fit check](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md) with a public, non-confidential description of the layout and runtime. Maintainers can compare it with the documented support boundaries and discuss evaluation rights. This is not a trial grant, a package release or a promise of production suitability.
-
-### Pica and quarter-millimetre CSS for printed reports (source-only)
-
-Use `width:14pc`, `padding:4q`, `border:4q solid #23456a`,
-`margin:1pc 0` and `font-size:1pc` in controlled HTML report templates
-(one `pc` = 12pt, four `q` = 1mm). Existing bounded CSS properties
-render these print lengths in actual PDF text, geometry and pagination.
-Invalid values and unsupported elements fail under the original rules
-without replacing a previous PDF. See the
-[40-entry report](examples/report-print-pica-q.html), [independent
-physical PDF oracle](examples/report-print-pica-q-oracle.html), and
-[exact scope](docs/css-stylesheets.md#physical-pica-and-quarter-millimetre-css-print-units-source-only).
-
-No new CSS property names, full CSS Values/Paged Media, `calc`, CLI
-paper-size/`--margin` pc/q flags or distributable preview are implied.
-Source commit `ca3aef91e20792782edb49004369dfbf1e9712b3`; the retained candidate has an older SHA.
-
-## Generate your first PDF
-
-You need Git and a **.NET 10 SDK** compatible with [global.json](global.json).
-Check the [Community or Commercial licensing requirements](#licensing) before
-building or running the engine; there is no general free trial for ineligible
-organizations.
+FactsPDF is a .NET 10 library and command-line tool that turns a *controlled*
+HTML/CSS template (an invoice, inspection report, quote or status summary)
+into a real PDF: selectable text, embedded TrueType fonts, vector borders and
+backgrounds, images, tables and page numbers. It does not start Chromium or any
+other browser, and it never fetches anything from the network.
+
+It is **not** a general webpage-to-PDF converter. It implements a deliberately
+bounded subset of HTML and CSS, and anything outside that subset fails with an
+explicit error code instead of rendering something approximate.
+
+### 👉 Can I Render? — check what is supported
+
+**[koalafacts.github.io/FactsPDF](https://koalafacts.github.io/FactsPDF/)** is
+the searchable compatibility site for every HTML element, CSS property and
+value, text, PDF and runtime feature. Each record shows its exact scope,
+limitations and the tests that prove it. Check it before you write a template.
+
+> **Status: experimental, unreleased (`0.1.0-preview.1`).** There is no public
+> NuGet package or CLI download yet, no stable API and no general evaluation
+> licence. You build it from source, and the [licensing rules](#licensing)
+> apply **before** you build or run it. Progress is tracked in
+> [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
+
+**Contents:** [Quick start](#quick-start) · [C# API](#use-from-c) ·
+[Fonts and images](#fonts-and-images) · [What is supported](#what-is-supported) ·
+[What is not](#what-is-not-supported) · [Errors](#when-something-fails) ·
+[Examples](#examples) · [Documentation](#documentation) · [Licensing](#licensing)
+
+---
+
+## Quick start
+
+You need Git and a **.NET 10 SDK** matching [global.json](global.json).
 
 ```sh
 git clone https://github.com/KoalaFacts/FactsPDF.git
@@ -522,65 +42,49 @@ cd FactsPDF
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html quick-start.pdf
 ```
 
-Open `quick-start.pdf`: a one-page service report with a styled table, using
-ASCII text and built-in Courier. This example needs no external fonts or images.
+Open `quick-start.pdf`: a one-page service report with a styled table. It uses
+ASCII text and the built-in Courier font, so it needs no font or image files.
 
-To add a header, footer and current page number:
+The command is always `<input.html> <output.pdf> [options]` (use `-` for
+stdin/stdout). Common options:
+
+| Option | Effect |
+| --- | --- |
+| `--header-text "…"`, `--footer-text "…"` | Centred text on every page |
+| `--page-numbers` | Append ` \| N` to the footer (or show the number alone) |
+| `--page-furniture file.json` | Styled left/centre/right header and footer regions, `{page}`/`{pages}` labels ([guide](docs/page-furniture-cli.md)) |
+| `--page-size a4\|letter`, `--landscape` | Paper size and orientation (default A4 portrait) |
+| `--page-width 148mm --page-height 210mm` | Custom paper size (pt/px/mm/cm/in) |
+| `--margin 15mm` | Uniform page margin (default 36pt) |
+| `--title`, `--author`, `--subject`, `--keywords` | PDF document properties |
+| `--font`, `--font-bold`, `--font-italic`, `--font-bold-italic` | TrueType font files, see [below](#fonts-and-images) |
+| `--subset-fonts` | Embed only the glyphs used |
+| `--image name=path.png` | Bind an image resource, see [below](#fonts-and-images) |
+| `--overwrite` | Allow replacing an existing output file |
+| `--help`, `--version` | Show usage, or the exact build version and commit |
+
+Example with a header, footer and page numbers:
 
 ```sh
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html numbered-report.pdf --header-text "Service report" --footer-text "Internal" --page-numbers
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html report.pdf \
+  --header-text "Service report" --footer-text "Internal" --page-numbers
 ```
 
-The source CLI can also render genuinely different physical paper sizes and
-orientations. A4 portrait (595.28 × 841.89 PDF points) remains the default,
-so existing commands keep exactly their previous page geometry:
+## Use from C#
 
-```sh
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html wide-report.pdf --page-size a4 --landscape
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html us-letter.pdf --page-size letter
-```
-
-`--page-size` accepts `a4` or `letter` (case-insensitive); `--landscape`
-swaps the physical width and height for either size. It updates the actual
-PDF MediaBox, text wrapping, page breaks and page furniture coordinates; it
-does **not** scale an already-rendered page or implement CSS `@page`.
-The `.NET` API continues to use `PdfOptions.PageWidth/PageHeight` for
-explicit geometry. Source implementation began at `bb34436538b8a02f1ace0878be1f97eb5bbff77d`;
-this is not part of the older retained private preview or a public binary.
-
-The footer reads `Internal | 1`. Existing output files require `--overwrite`;
-conversion failures preserve the existing file. Diagnostics go to stderr, and
-failure returns a nonzero exit code. Use `--help` for the CLI options.
-
-To identify the **actual built CLI** during deployment or a support request,
-run `dotnet run --project src/FactsPDF.Cli -c Release -- --version` from a
-source checkout, or `FactsPDF.Cli --version` for an installed executable.
-This reads no report input or resources and prints the assembly's informational
-version, including the source commit suffix when stamped by the build. It does
-not attest toolchain signatures or imply that a public package is released.
-
-Missing fonts, glyphs, style roles, embedding permission or images? The current source CLI keeps the
-original error code and adds an actionable hint. Follow the
-[first-use recovery recipes](docs/first-use-troubleshooting.md); resources remain
-explicit and a failed conversion does not become a partially successful PDF.
-
-## Use the .NET API
-
-For a source-based evaluation, create a console app beside the checkout and
-reference the library project. Run these commands from the `FactsPDF` directory:
+Until a package is published, reference the library project from a console app
+next to your checkout (run from the `FactsPDF` directory):
 
 ```sh
 dotnet new console --framework net10.0 --output ../FactsPdfDemo
 dotnet add ../FactsPdfDemo/FactsPdfDemo.csproj reference src/FactsPDF/FactsPDF.csproj
 ```
 
-Replace `../FactsPdfDemo/Program.cs` with:
-
 ```csharp
 using FactsPDF;
 
 using var pdf = new MemoryStream();
-var result = PdfConverter.Convert(
+PdfConversionResult result = PdfConverter.Convert(
     "<h1>Service report</h1><p>Prepared for Example Client.</p>",
     pdf,
     new PdfOptions
@@ -591,620 +95,155 @@ var result = PdfConverter.Convert(
     });
 
 File.WriteAllBytes("report.pdf", pdf.ToArray());
-Console.WriteLine($"Created {result.PageCount} page(s), {result.BytesWritten} bytes.");
+Console.WriteLine($"{result.PageCount} page(s), {result.BytesWritten} bytes");
 ```
+
+`PdfOptions` also controls page geometry (`PageWidth`, `PageHeight`, `Margin`),
+fonts, images, document properties and resource limits (input size, element
+count, pages, output bytes and so on). `Convert` accepts a `CancellationToken`.
+See the [API guide](docs/development.md#library-api) and the
+[local-package recipe](docs/development.md#first-use-from-local-artifacts).
+
+## Fonts and images
+
+FactsPDF never guesses resources. **You pass every font and image explicitly**;
+nothing is discovered from the system or loaded from HTML URLs.
+
+**Fonts.** Without fonts, only ASCII text in built-in Courier is available.
+For Chinese or other non-ASCII text, supply licensed static TrueType files.
+Repeating `--font` defines a fallback order; bold, italic and bold-italic text
+each need their own chain. Fonts are fully embedded unless you add
+`--subset-fonts`, and embedding restrictions in the font are respected.
 
 ```sh
-dotnet run --project ../FactsPdfDemo -c Release
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html bilingual.pdf \
+  --font fonts/Latin.ttf --font fonts/Chinese.ttf --font-bold fonts/Latin-Bold.ttf --subset-fonts
 ```
 
-This writes `report.pdf` in the current directory after conversion succeeds.
-The API also accepts page geometry, font/image resources, resource limits and a
-cancellation token. See the [API guide](docs/development.md#library-api) and the
-[local-package consumer recipe](docs/development.md#first-use-from-local-artifacts)
-for integration without a source-project reference.
-
-### Current-source multiline report notes
-
-For controlled invoices, inspections and customer notes, explicit paragraphs and
-headings can use `white-space:pre-line` to **retain authored line breaks** from
-LF, CRLF, CR and form-feed while continuing to collapse ordinary spaces/tabs.
-Lines still soft-wrap to the measured PDF content width and continue across pages;
-the final source segment break is discarded. An explicit `<br>` remains a break.
-Scoped stylesheet/inline CSS, cascade and explicit p-in-table-cell width work,
-but container/span declarations, `break-spaces`, RTL/shaping and
-unrestricted CSS Text do not. For unwrapped source lines, use the separate
-bounded `<pre>` or `white-space:pre` report mode. Use the separate bounded `pre-wrap` mode when
-an authored report must retain visible U+0020 space advances.
-
-The [72-record report](examples/report-pre-line-notes.html) has an
-[independently authored explicit-break oracle](examples/report-pre-line-notes-oracle.html).
-Source and Native AOT PDF text, position, pagination and output restoration
-are checked by `WhiteSpacePreLineTests` and `verify_native_feature_paths.py`.
-This source feature is not a released package or evaluation grant.
-
-### Current-source preserved-space multiline report notes
-
-Explicit business-report paragraphs and headings can now use
-`white-space:pre-wrap` to keep **every authored ASCII space** (including
-leading, repeated and trailing spaces) and CRLF/CR/LF/form-feed line breaks.
-The spaces are measured PDF glyphs: they affect word positions, automatic
-wrapping, paragraph alignment, table-cell line occupancy and pagination.
-
-```html
-<p style="white-space:pre-wrap">REF001  ASSET   CHECK
-  OWNER:  AB</p>
-```
-
-The source-only boundary is deliberate: no tab stops or other control
-whitespace (explicit `FPDF1305`), no `break-spaces` or span/container
-white-space declarations, RTL or full CSS Text. The separate `pre` mode
-preserves these spaces and authored breaks but forbids all automatic wrapping. An unbreakable word or
-single unfit space errors with `FPDF1302`, preserving an existing PDF.
-CSS cascade, `!important` and CSS-wide reset values use the same
-paragraph-style path as `pre-line`; ordinary `normal` and `nowrap` PDFs
-remain unchanged.
-
-See the [72-record authored report](examples/report-preserved-space-notes.html),
-[independently authored collapsed-space control](examples/report-preserved-space-notes-oracle.html)
-and [scoped contract](docs/css-stylesheets.md#current-source-preserved-space-report-notes).
-Source NUnit and Linux/Windows Native AOT/Poppler evidence check the actual
-glyph positions, line breaks, pagination and failed-output restoration.
-No released binary, NuGet package or customer grant follows from this change.
-
-### Current-source preformatted report audit blocks
-
-For inspection logs, reconciliations and aligned audit notes, an explicitly
-closed `<pre>…</pre>` block or `white-space:pre` on an existing `p`/heading
-preserves **every authored U+0020 space** and CRLF/CR/LF/form-feed newline,
-without soft-wrapping a line. This is real PDF glyph positioning and pagination,
-not an HTML tag accepted without rendering. An explicitly styled inline span
-may colour part of a line; `<br>` remains a manual break. The engine uses the
-caller's chosen font chain (or built-in Courier when no font is supplied) and
-does not silently substitute a browser-style monospace face.
-
-```html
-<pre>REF001   OK
-REF002   NEEDS REVIEW
-TOTAL    002</pre>
-```
-
-Long lines that do not fit the resolved content width fail `FPDF1302` rather
-than wrapping, shrinking or clipping. Tabs and other control whitespace fail
-`FPDF1305`; no tab stops, general CSS Text, nested blocks, or `pre` within
-lists/tables are implemented. `<pre>` is an ordinary standalone block, not
-a full HTML5 preformatted/semantic renderer. Stylesheets, `!important`,
-`inherit`/`initial`/`unset`, page breaks, true font metrics and protected
-output still use the established paragraph pipeline. This is source code only,
-not a new installable binary or distribution grant.
-
-See the [72-row audit report](examples/report-preformatted-audit.html),
-[independent pre-wrap PDF oracle](examples/report-preformatted-audit-oracle.html),
-[CSS/HTML contract](docs/css-stylesheets.md#current-source-preformatted-audit-blocks),
-and source/Native AOT tests.
-
-### Current-source dashed and dotted report borders
-
-Business report panels and existing decorated text, image and table boxes may
-use `border:2pt dashed #28557a`, `border:2pt dotted #a3452e` or individual
-`border-*-style` values. Dashed edges use bounded PDF dash strokes; dotted
-edges use round-cap PDF strokes. Width, colour, padding, containing width and
-page continuation use the existing box model; a side's dash pattern restarts
-per page fragment, while only the first and last fragments paint their top
-and bottom edges. Unstyled and solid-border reports retain their legacy PDF
-bytes. This is **not** arbitrary/multi-corner rounded or double borders or full CSS Borders support. One bounded border-radius is separately documented below.
-
-See the [76-record real report](examples/report-patterned-borders.html),
-[scope and failure contract](docs/css-stylesheets.md#current-source-bounded-patterned-report-borders),
-and [Native AOT geometry/recovery evidence](scripts/verify_native_feature_paths.py).
-No public binary or customer distribution rights follow from this source change.
-
-## What works today
-
-| Area | Implemented capability | Details |
-| --- | --- | --- |
-| Text and fonts | English/Chinese text; explicit normal, bold, italic and bold-italic font chains; ordered character fallback; optional font subsetting | [Fonts](docs/unicode-fonts.md), [styles](docs/font-styles.md), [subsetting](docs/font-subsetting.md) |
-| Document layout | Headings, paragraphs, nested blocks, lists up to two levels, page breaks and heading keeps; fixed widths, padding, backgrounds and solid borders that continue across pages | [Layout scope](docs/development.md#current-content-and-layout-scope), [box fragmentation](docs/box-fragmentation.md) |
-| Stylesheets | Inline CSS and embedded `<style>` rules; documented selectors and cascade; print-length units `mm/cm/in` for supported lengths, parent-relative `font-size:125%`/`1.125em`, root-relative `font-size:1.2rem`, computed `line-height:150%`/`1.5em`/`1.5rem`/physical leading, four-sided paragraph/heading `margin` shorthand with scoped root-relative `rem` and element-relative `em` lengths, horizontal `auto` centring for explicit-width boxes, opt-in `box-sizing:border-box` report panel sizing, bounded real `min-width`/`max-width` constraints and actual horizontal `margin:0 auto` centring of `div`/`section`/`article` panels (bounded nonnegative vertical margins outside painted borders) plus computed-root `rem` and own-font `em` widths/padding for ordinary report blocks, bounded paragraph/heading `white-space:nowrap`, `white-space:pre-line`, `white-space:pre-wrap` or unwrapped `white-space:pre` with real authored breaks and spaces and opt-in `overflow-wrap:break-word` for long report identifiers, first-line paragraph/heading `text-indent` with real wrapping, bounded physical `letter-spacing` for report labels and inline text, measured soft-wrapped `text-align:justify` using PDF word gaps, ASCII-only `text-transform:uppercase/lowercase/capitalize` on report text, colour-only `background` and measured underline/overline/strike-through decorations with scoped opaque inks and solid/dashed/dotted strokes | [CSS and spacing boundaries](docs/css-stylesheets.md) |
-| Images | Explicit baseline JPEG and supported static, non-interlaced PNG, including transparency; standalone images and direct image items in table cells | [Images and resource binding](docs/images.md) |
-| Tables | Explicit fixed columns, `colspan`, flat paragraph/image cells, repeated single-row headers, oversized body-row continuation and scoped whole-row `vertical-align:top/middle/bottom` for cell content | [Table rules and limits](docs/tables.md) |
-| Headers, footers and page numbers | Legacy centered literal text and current page number; development-source `PageFurniture` adds styled left/center/right regions, `{page}`/`{pages}` labels and whole first-page replacement | [Legacy page text](docs/page-margins.md), [structured page furniture](docs/page-furniture-cli.md) |
-| Integration | .NET library and CLI; Linux/Windows x64 Native AOT execution checks | [Build and platform verification](docs/development.md#native-aot-and-verification) |
-
-For inspection findings, revised quotes and status notes, `text-decoration:overline dashed blue` or `text-decoration:underline dotted #ff0000` paints a real clipped vector line at the font-measured text position. You can also set `text-decoration-color` and `text-decoration-style` individually; their CSS-wide cascade and `currentcolor` follow the existing styling rules. The unstyled and legacy solid paths preserve existing bytes. One line only; no double, wavy, multi-line, alpha/transparency, variable thickness or browser-wide propagation. See the [source example](examples/report-text-decoration-paint.html), [PDF implementation tests](tests/FactsPDF.Tests/TextDecorationPaintTests.cs), and [bounded CSS contract](docs/css-stylesheets.md#current-source-colored-and-patterned-report-text-decorations). This is current source, not a newly distributed binary or customer licence.
-
-For business tables with multiline descriptions, `td`/`th` now accept `vertical-align:top`, `middle` or `bottom` to position a shorter cell's text or image within the complete painted row. Whole rows and intact repeated headers work across pages. Rows needing independent cell-by-cell continuation reject `middle`/`bottom` instead of pretending to align; inline baseline alignment, `rowspan` and general CSS table layout remain unsupported. See the [40-row report](examples/report-table-vertical-align.html), [physical-padding oracle](examples/report-table-vertical-align-oracle.html) and [table contract](docs/tables.md#vertical-alignment-in-whole-table-rows).
-
-### Headers and footers: current limits
-
-`HeaderText` and `FooterText` repeat on every page as centered, normal black
-10pt text. `PageNumbers = true` appends ` | N` to a nonempty footer, or shows
-the number alone. Text is literal: `{page}`, `{pages}` and HTML are not expanded.
-It must fit on one line in the existing margins; overflow is an error.
-
-The current source API also supports total-page labels, left/center/right regions,
-explicit styles and whole first-page replacement through `PdfOptions.PageFurniture`.
-These additions are implemented in the development source and have not been
-released as a package. See the [page-furniture CLI guide](docs/page-furniture-cli.md)
-for configuration and limits.
-
-Controlled `div`, `section` and `article` report panels can now be
-centred using bounded horizontal `margin:0 auto`, including constrained
-`max-width`, nested decorated boxes and page fragments. Report panels also accept bounded nonnegative vertical percentage margins
-relative to their containing content width; ordinary paragraphs/headings
-retain their separate nonpercentage vertical-margin contract. The [50-entry percentage-margin report](examples/report-percentage-panel-margins.html)
-and [independent point-length oracle](examples/report-percentage-panel-margins-oracle.html)
-verify actual nested PDF panel spacing, text, paint and continuation pages.
-Paragraph/heading percentages and direct inheritance of a percentage panel
-margin into these text elements fail explicitly. This source change
-(`0518b51d7a34457798c748db6753c4270ce20996`) does not relabel previously retained software or authorise
-customer release. See the
-[panel-margin CSS scope](docs/css-stylesheets.md#current-source-centred-report-panels),
-[50-entry example](examples/report-panel-margins.html) and
-[independent point oracle](examples/report-panel-margins-oracle.html).
-This is source-only functionality, not a new installable candidate or
-public release.
-
-**Current source typography:** report templates may use numeric `font-weight`
-in exact hundred steps from `100` to `900`. Values `100`–`500` select the
-caller-supplied normal font chain and `600`–`900` the caller-supplied bold
-chain, including inline labels, CSS selectors and cascade. Real font advances
-affect PDF line wrapping and pagination. Missing bold resources fail explicitly;
-FactsPDF does not synthesize variable weights. See the
-[64-entry example](examples/report-numeric-font-weights.html) and
-[font role contract](docs/font-styles.md). This source addition is not a new
-public NuGet binary or stable CSS Fonts implementation.
-
-### Current-source business-report quotations
-
-The standard `<blockquote>…</blockquote>` element now creates a **real**
-inset PDF report panel, with default outside margins of **8pt vertically
-and 24pt horizontally**. Quoted paragraphs and inline emphasis inherit the
-existing font styles, while measured text, optional solid borders, backgrounds,
-padding and page continuation use the same renderer as `div` report panels.
-For example:
-
-```html
-<blockquote style="border-left:2pt solid #28557a;padding:7pt">
-  <p>Inspection evidence: all nominated checks were completed.</p>
-</blockquote>
-```
-
-This is a bounded quote **layout** feature, not citation metadata, Tagged PDF
-or browser-complete `blockquote` semantics. `cite` attributes, nesting inside
-lists/tables/inline elements, negative vertical margins (and percentage vertical margins on paragraphs),
-margin collapse, CSS `height`, arbitrary/per-corner rounded geometry and arbitrary HTML are
-unsupported and explicitly rejected. The quote is source-only: it does not
-update the retained preview binaries or grant customer distribution rights.
-[Real 44-item quote report](examples/report-blockquotes.html),
-[independently authored div oracle](examples/report-blockquotes-oracle.html) and
-[exact CSS/HTML contract](docs/css-stylesheets.md#current-source-bounded-quoted-report-panels).
-
-### Current-source ASCII capitalized report labels
-
-`text-transform:capitalize` now formats English service-register labels as
-actual PDF glyphs before font selection, wrapping and pagination. Only the
-first lowercase ASCII letter in each ASCII letters/digits token is capitalized;
-punctuation starts another token while styled inline spans do not. Mixed-case
-remainder stays unchanged. Non-ASCII cased Unicode text fails explicitly
-rather than being silently transformed. See the
-[54-entry report](examples/report-capitalized-register.html),
-[independently authored literal-case PDF oracle](examples/report-capitalized-register-oracle.html)
-and [bounded CSS contract](docs/css-stylesheets.md#current-source-ascii-report-text-transform).
-This source capability is not a rebuilt binary or a public NuGet release.
-
-### Current-source selectable report-list markers
-
-Business reports may set `list-style-type` on an existing `ol`, `ul`
-or individual `li` to render actual numbered or unnumbered PDF lists.
-For example:
-
-```html
-<style>
-  ol.inspections { list-style-type: lower-alpha; }
-  ol.actions { list-style-type: upper-roman; }
-</style>
-<ol class="inspections"><li>Inspect equipment</li><li>Record outcome</li></ol>
-<ol class="actions"><li>Assign owner</li><li>Schedule follow-up</li></ol>
-```
-
-Supported kinds: `disc`, `circle`, `square`, `decimal`, `lower-alpha`,
-`upper-alpha`, `lower-roman`, `upper-roman`, `none`. Ordered lists normally remain
-decimal and unordered lists remain vector discs, preserving old PDF bytes.
-`circle` paints a transparent-centre stroked ring; `square` paints a filled
-vector square in the item colour. Both honour the measured list gutter,
-first-line marker placement, page continuation and display-command limits.
-Alphabetic labels progress `a`…`z`…`aa` and Roman labels use standard
-subtractive notation through 3999. Text markers use caller-supplied fonts,
-measured per-list gutters, and one marker on the first line even across
-pages. `none` removes the marker, not the item's text; it retains the
-existing list layout indentation. CSS cascade, `!important`, and
-`inherit/initial/unset` apply; nested lists retain their own defaults
-unless explicitly overridden. Unsupported marker kinds, lists over two
-levels, placement on non-list elements and unavailable marker glyphs fail
-explicitly, preserving the existing PDF destination.
-
-[74-entry paginated facilities report](examples/report-list-marker-styles.html),
-[80-entry circle/square multi-page report](examples/report-list-vector-shapes.html),
-[bounded CSS contract](docs/css-stylesheets.md#current-source-bounded-list-marker-types),
-[full list mechanics](docs/lists.md). This is a source-only capability:
-**no preview binary, NuGet publication, commercial grant or human PDF
-approval** follows from this change.
-
-### Current-source report list continuation and numbering
-
-Ordered business report actions can continue from `<ol start="21">`,
-count down via `<ol reversed>`, or reset an item with `<li value="43">`
-inside `ol`. A one-token shorthand such as `list-style:upper-roman`
-or `list-style:square` uses the same real PDF text/vector marker,
-CSS cascade, font measurement and pagination as `list-style-type`.
-Unstyled lists retain byte-identical PDF output.
-
-This is a **bounded subset**: only ASCII positive ordinals 1–999999,
-only direct `ol > li` value overrides, and one existing marker kind or
-CSS-wide keyword per `list-style`. No arbitrary CSS Lists semantics,
-inside/position/images/counters, HTML `type`, negative ordinals or
-list-item `value` on `ul`; invalid inputs fail without overwriting
-a destination. See the
-[77-entry pagination example](examples/report-list-continuations.html)
-and [exact list contract](docs/lists.md#current-source-ordered-list-sequencing-and-one-token-shorthand).
-This is current source, **not** a new retained binary, public NuGet or
-customer distribution grant.
-
-### Current-source print-only report sections (bounded display)
-
-Use `display:none` to omit a draft, internal note, or unused ordinary
-report block from the generated PDF **without leaving blank space**;
-`display:block` preserves the ordinary block layout. Embedded stylesheets,
-inline rules, specificity, source order and `!important` participate in the
-same CSS cascade.
-
-```html
-<style>.internal-only { display: none; }</style>
-<section class="internal-only"><p>Draft for internal approval</p></section>
-<section><p>Customer-facing report</p></section>
-```
-
-Supported targets are `p`/`h1`–`h6`, `div`/`section`/`article`
-and `blockquote` **outside lists/tables**. A hidden block and its complete
-validated subtree never reach PDF glyph layout, margin/padding geometry,
-pagination or painted backgrounds/borders. Invalid HTML/CSS, absent resources
-and input budgets are **still checked inside hidden markup**; this is not
-a validator bypass. The HTML `hidden` attribute, CSS-wide display keywords,
-inline/flex/grid layout, image/`hr`/table/list suppression, JavaScript and
-media-query display switches are not supported.
-
-See [exact source contract](docs/css-stylesheets.md#current-source-bounded-report-display-suppression),
-[40-entry example](examples/report-display-visibility.html), and
-[visible-only PDF oracle](examples/report-display-visibility-oracle.html).
-Source implementation is not a published NuGet binary or customer licence.
-
-### Current-source logical report spacing (LTR only)
-
-Controlled left-to-right business reports can now use
-`margin-inline`, `margin-block`, `padding-inline` and
-`padding-block` with one or two values, as alternatives to the corresponding
-physical longhands. For example, `margin-inline:auto` centres an explicitly
-sized panel, while `padding-inline:8pt 12pt` adds measurable left/right
-insets and `margin-block:6pt 9pt` creates real vertical gaps. The same ordinary report boxes also support **eight individual LTR logical
-side longhands**: `margin-inline-start`/`margin-inline-end`,
-`margin-block-start`/`margin-block-end`,
-`padding-inline-start`/`padding-inline-end`, and
-`padding-block-start`/`padding-block-end`. For example,
-`margin-inline-start:auto;margin-inline-end:auto` centres a fixed-width
-report card; `padding-inline-start:6pt` changes the actual first glyph X;
-and `margin-block-end:8pt` adds real space below a paragraph or card.
-Each longhand takes **exactly one** value and participates independently in
-normal physical-side cascade, `!important`, `inherit/initial/unset`,
-print and font-relative lengths, box painting, page continuation and strict
-failure restoration. A 40-reference paginated report has a separately
-written physical-side [PDF oracle](examples/report-logical-longhands-oracle.html)
-for the [logical-side example](examples/report-logical-longhands.html).
-
-This is **LTR normal-flow mapping only**: inline-start = left, inline-end =
-right, block-start = top, block-end = bottom. `direction`, RTL/vertical writing
-modes, negative values, CSS margin collapse, other logical properties,
-`calc()` and unsupported elements remain outside scope. Body/list/table/
-image/inline margins remain rejected, as with their physical longhands.
-See the [CSS contract](docs/css-stylesheets.md#current-source-ltr-logical-report-spacing)
-and [real report + physical-longhand oracle](examples/report-logical-spacing.html).
-This source change does not update the historical private binary candidate.
-
-### Current-source horizontal report dividers
-
-A standalone HTML `<hr>` now paints a real **1pt current-text-colour rule**
-with 8pt non-collapsing outside spacing above and below. `<hr />` is
-equivalent. Templates may customise the separator through the existing
-bounded `width`, `min-width`, `max-width`, `margin` (nonnegative
-vertical lengths and horizontal `auto`), `padding`, `box-sizing`,
-`color`, `background` and solid `border` declarations. The rule
-follows its containing width and moves intact to the next page when needed.
-`font-size` affects only supported rule-local `em` box lengths.
-
-This is a **void block separator**, not unrestricted HTML or CSS: no
-content, table/paragraph/list/inline nesting, arbitrary `height`,
-pseudo-elements, arbitrary/patterned rounded borders, margin collapse or resource URLs.
-Unsupported declarations fail explicitly and preserve an existing output.
-See the [scoped CSS contract](docs/css-stylesheets.md#current-source-html-horizontal-report-rules),
-[44-entry report](examples/report-horizontal-rules.html), and the
-[independently authored painted-box oracle](examples/report-horizontal-rules-oracle.html).
-This source feature is not a public NuGet/CLI release or a new private binary.
-
-### Current-source LTR text alignment for report labels
-
-Common report templates can now write `text-align:start` or
-`text-align:end` on paragraphs, headings and inherited ordinary
-containers. In the engine's **left-to-right horizontal** text model,
-these correspond respectively to `left` and `right`: the actual PDF
-glyph X coordinates, font measurement, first-line indentation, wrapping and
-cross-page continuation follow the existing physical-alignment renderer.
-
-This applies through embedded stylesheets, inline declarations, normal
-cascade and inheritance; it does **not** add RTL, `direction`, HTML `dir`,
-vertical writing, inline-span start/end alignment or full CSS Text behavior.
-Unsupported values and directions fail without replacing an existing PDF.
-Compare the [46-entry printable report](examples/report-logical-text-align.html)
-with its [physical alignment oracle](examples/report-logical-text-align-oracle.html)
-and the [exact CSS contract](docs/css-stylesheets.md#current-source-ltr-text-align-startend).
-This is current source only, not an updated package or distribution grant.
-
-## Compatibility lookup
-
-The **Can I Render** site provides searchable support records for HTML,
-CSS, text, PDF behavior and runtime integration. Filter by category or status,
-open a feature's precise scope and limitations, and follow its source/test
-evidence. It supports Chinese/English interface labels, shareable feature links
-and JSON/CSV export.
-
-This is a **code-audit snapshot**, not a released-version comparison matrix.
-Each record carries its own audit commit; unknown introduction versions remain
-unknown. A supported subfeature does not make its whole parent standard supported.
-
-- [Read the current support data](site/data/compatibility.json).
-- [Run, verify or deploy the site](docs/compatibility-site.md).
-- [Browse Can I Render](https://koalafacts.github.io/FactsPDF/).
-- [Site build and deployment status](https://github.com/KoalaFacts/FactsPDF/actions/workflows/compatibility-pages.yml).
-  Pages publishing is configured; the public site is separate from engine package releases.
-
-To browse locally, use Node 24 and npm, starting from the repository root:
-
-```sh
-cd site
-npm ci
-npm run dev
-```
-
-Open the local URL printed by Vite, normally `http://127.0.0.1:5173/FactsPDF/`.
-
-Source-built business report templates can scale **text spacing**
-with typography: `text-indent:0.4em`, `letter-spacing:0.1em`
-and `word-spacing:0.15rem`. Each length uses its element's final font
-or the computed `html` root, then changes actual glyph positioning,
-first-line wrapping and pagination. Letter/word advances remain bounded
-to 0–24pt after computation; percentage letter/word spacing, negative
-values, inline text indentation and general browser CSS remain unsupported.
-See [the contract](docs/css-stylesheets.md#current-source-font-relative-report-text-spacing)
-and [72-entry example](examples/report-relative-text-spacing.html).
-This source feature does not update retained private installable software.
-
-For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans, containers and table-cell paragraphs cannot set it; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
-
-Report headings, labels and inline text can use a bounded, nonnegative
-`letter-spacing:0.75pt` or equivalent `px/mm/cm/in` print length. This changes
-real PDF glyph advances, line breaks, horizontal alignment and text-decoration
-widths, including with explicitly bound Chinese TrueType glyphs. `normal` and
-zero retain legacy PDF bytes. Negative spacing, percentages, `calc()`
-and spacing over 24pt are rejected, rather than silently dropped. See the
-[scoped tracking contract](docs/css-stylesheets.md#current-source-bounded-letter-spacing).
-
-Controlled report prose can opt into `text-align:justify` to distribute the measured remaining width among collapsed U+0020 spaces on **automatically wrapped** lines. The final line, explicit `<br>` lines, single-line/nowrap text and lines without retained word spaces remain ragged; no RTL, CJK inter-character or full CSS Text claim is made. Both Courier and explicit TrueType paths use real PDF `TJ` displacement. See [bounded justification](docs/css-stylesheets.md#current-source-soft-wrapped-report-justification).
-
-Controlled report prose can opt into `word-spacing:0.01in` (equivalent to `0.72pt`) at collapsed word spaces. This changes actual PDF word positions, line wrapping, alignment and pagination; the `normal`/zero path preserves legacy PDF bytes. The renderer uses PDF `TJ` displacement for Courier and embedded CID TrueType, not byte-specific `Tw`. Only nonnegative print lengths up to 24pt are supported. See [word-spacing boundaries](docs/css-stylesheets.md#current-source-bounded-word-spacing).
-
-Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](docs/css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](examples/report-overflow-wrap.html), and [independent manual-break oracle](examples/report-overflow-wrap-oracle.html).
-
-Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` and headings; multiline inspection notes can use `white-space:pre-line` instead. Spaces still collapse, explicit `<br>` works, and content too wide for the measured line fails with `FPDF1302` without replacing the output. `normal` is byte-identical to the default; `pre` is separately supported as a bounded unwrapped preservation mode, while `break-spaces` and arbitrary inline white-space spans remain unsupported. See [bounded white-space](docs/css-stylesheets.md#current-source-nonwrapping-report-labels) and [multiline notes](docs/css-stylesheets.md#current-source-multiline-report-notes).
-
-Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `line-height:18pt` or print units such as `0.25in`. Percent/em compute an absolute line height against the element's own computed font size; that fixed height is inherited unchanged even when nested text changes font size. Unitless `line-height:1.5` remains a multiplier inherited by children. These values affect real line boxes and pagination and reject invalid input before replacing output. See [line-height contract](docs/css-stylesheets.md#current-source-computed-report-line-height).
-
-On current source, business report templates can opt into `font-size:1.2rem` and `line-height:1.5rem`. `rem` uses the `<html>` element's computed font size, or `PdfOptions.FontSize` when no `html` element exists. On `html` itself, `font-size:rem` resolves against the initial configured font size to avoid a self-reference; `line-height:rem` uses its newly computed root size. Font sizes resolve to 1–144pt; fixed line heights resolve to 0.1–1440pt and inherit as points. This feeds actual glyph layout, wrapping and pagination (not merely syntax acceptance). This typography feature is separate from the newer scoped `rem` lengths for ordinary report box width/min-max/padding; `rem` margins are now limited to paragraphs/headings outside table cells; borders and image/table/column sizing still reject `rem`; only bounded text-indent/letter-spacing/word-spacing now accept it. See the [root-relative contract](docs/css-stylesheets.md#current-source-root-relative-report-typography) and [runnable multi-page example](examples/report-root-relative-typography.html); these source changes are not the previously retained installable candidate.
-
-Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders. These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](docs/css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](examples/report-print-spacing.html).
-For a fontless case-formatting example with a preserved proper-name span, see the
-[report case labels](examples/report-case-labels.html).
-
-For source-built business report boxes, `width:13rem`, `max-width:14rem`,
-`min-width:10rem`, and `padding:0.5rem` now resolve against the
-computed `html` root font size, or `PdfOptions.FontSize` if there is no
-`html` element. The resulting point lengths drive actual box/content widths,
-text wrap, centring, borders/backgrounds and page continuation. `rem`
-is limited to ordinary blocks, paragraphs and headings for these properties;
-image/table/column lengths and border `rem` still reject; bounded text-indent/letter-spacing/word-spacing and paragraph/heading margins accept `rem`.
-Unsupported values and unsafe geometry preserve previous output bytes.
-The separate **element-relative `em` layout** is also available in source-built controlled reports:
-`width:12em`, `min-width:8em`, `max-width:14em`, `padding:0.25em` and
-paragraph/heading `margin:0.2em 0.5em` resolve against the **element's own
-computed font-size after cascade**, unlike `rem` (the `html` root).
-They change real PDF line wrapping, painted boxes and page breaks; negative
-or overwide geometry rejects before replacing output. Inline/table/image/col
-box lengths, table-cell `em` margins, border/text-spacing `em`, `calc()` and
-general container margins remain unsupported. The
-[32-entry `em` report](examples/report-em-layout.html) has a separately authored
-[point-value oracle](examples/report-em-layout-oracle.html) and targeted tests;
-this is not part of the retained installable candidate.
-See the [root-relative box contract](docs/css-stylesheets.md#current-source-root-relative-report-box-lengths)
-and [69-record report](examples/report-rem-box-lengths.html) with its
-[independent absolute-point oracle](examples/report-rem-box-lengths-oracle.html).
-This feature is source-only and not part of the retained installable preview.
-
-For printed business reports, `div`, `section` and `article` now
-support nonnegative top/bottom margins alongside horizontal `margin:0 auto`.
-For example, `margin:12pt auto 7pt` centres a painted card and leaves
-12pt above and 7pt below its **outside** border, including nested/multipage
-PDF content without CSS margin collapsing.
-See the [50-entry sample](examples/report-panel-vertical-margins.html),
-[independent fixed-spacer oracle](examples/report-panel-vertical-margins-oracle.html)
-and [bounded CSS contract](docs/css-stylesheets.md#current-source-real-vertical-report-panel-margins).
-Body, lists, tables, images and inline margins remain unsupported.
-No new installable candidate or human PDF approval is implied.
-
-Scoped report paragraphs/headings also accept `margin:0.25rem 0.5rem`,
-`margin-top:0.5rem` and 1–4 side shorthand values. The computed `html`
-root (or `PdfOptions.FontSize` fallback) drives real PDF vertical gaps,
-horizontal text/paint position, wrapping and pagination. Horizontal `auto`
-still combines with supported lengths. Negative margins, vertical `%`/`auto`,
-`calc()`, body/list/table/image/inline margins and table-cell `rem`/`em` margins
-remain rejected; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](docs/css-stylesheets.md#current-source-root-relative-paragraph-margins),
-the [32-entry report](examples/report-rem-margins.html) and its separately
-authored [fixed-point oracle](examples/report-rem-margins-oracle.html).
-Unfit output preserves the prior destination. This is source-only.
-
-For source-built business reports, `min-width` and `max-width` now constrain
-real used block widths, including `width:auto` panels and horizontal auto
-margins. For example, `max-width:146mm` caps a report panel, while
-`min-width:82mm;max-width:90mm` bounds an invoice-reference box.
-`box-sizing:border-box` applies constraints to the padded/bordered outer box;
-the default `content-box` constrains the content width instead. Supported
-lengths are nonnegative `pt/px/mm/cm/in/%` or zero; `min-width:auto`
-and `max-width:none` remove the constraint. Actual over-constrained geometry
-is rejected without replacing prior output. This is only ordinary report
-blocks/paragraphs/headings; table and inline sizing stay separate; image constraints use their own bounded, aspect-ratio-preserving layout.
-See [CSS scope](docs/css-stylesheets.md#current-source-bounded-report-minmax-widths)
-and the [runnable report](examples/report-width-constraints.html).
-
-### Check your template against these boundaries
-
-- Tables need explicit column widths. Short tables and rows that fit a fresh
-  page stay whole; only eligible oversized body rows continue at whole text-line
-  or image boundaries. Headers and images remain indivisible. No automatic
-  column widths, `rowspan` or nested tables.
-- PNG support is bounded: no interlaced/16-bit PNG, APNG or SVG. Images are
-  explicit resources, not URLs or files automatically loaded from HTML.
-- Fonts are explicit static TrueType files. There is no system-font discovery,
-  CSS font-family matching, synthetic bold/italic, full complex-script shaping
-  or RTL layout.
-- General flex/grid, external stylesheets, CSS Paged Media and arbitrary webpage
-  conversion are outside the supported subset. Unsupported input produces
-  explicit diagnostics.
-
-## Fonts and images are explicit inputs
-
-For Chinese or other supported non-ASCII text, provide appropriately licensed
-font files. The paths below are placeholders for files you supply:
-
-```sh
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html bilingual.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
-```
-
-Repeated `--font` options define fallback order. Bold, italic and bold-italic
-content need their own `--font-bold`, `--font-italic` and `--font-bold-italic`
-chains. Fonts are not bundled; full embedding is the default. Subsetting is
-opt-in and respects the supplied font's embedding restrictions.
-
-An HTML image such as `<img src="logo">` names a resource. Bind it using
-`--image logo=path/to/logo.png`, or `PdfOptions.Images` in the API. To try the
-branded example with a generated synthetic logo, use Python 3 for the fixture
-generation step, then the same CLI:
+In C#, load fonts with `PdfFont.LoadTrueType(stream)` into `PdfOptions.Fonts`,
+`BoldFonts`, `ItalicFonts` and `BoldItalicFonts`.
+
+**Images.** `<img src="logo">` names a resource; it is not a path or URL.
+Bind it with `--image logo=path/to/logo.png`, or in C# with
+`PdfOptions.Images` (`PdfImage.LoadImage(stream)`). Baseline JPEG and static,
+non-interlaced PNG (including transparency) are supported.
+
+To try the branded example with a generated synthetic logo (needs Python 3):
 
 ```sh
 python3 scripts/png_fixtures.py --output artifacts/readme-images
-dotnet run --project src/FactsPDF.Cli -c Release -- examples/branded-business-report.html branded-report.pdf --image logo=artifacts/readme-images/brand-mark.png --header-text "Service report" --footer-text "Internal" --page-numbers
+dotnet run --project src/FactsPDF.Cli -c Release -- examples/branded-business-report.html branded-report.pdf \
+  --image logo=artifacts/readme-images/brand-mark.png
 ```
 
-## Choose a report example
+## What is supported
 
-| Example | What it demonstrates | Inputs beyond HTML |
+A summary only. **For any specific property or value, look it up on
+[Can I Render](https://koalafacts.github.io/FactsPDF/)**; the
+[feature notes](docs/feature-notes.md) explain each capability in detail.
+
+| Area | Summary | Details |
 | --- | --- | --- |
-| [Quick start](examples/quick-start.html) | A one-page service report with a styled table | None; ASCII/Courier |
-| [Print spacing report](examples/report-print-spacing.html) | Print units (`mm/cm/in`), real computed line heights and four-sided paragraph margins affecting text, page layout and painted panels | None; ASCII/Courier |
-| [Long invoice identifiers](examples/report-overflow-wrap.html) | 32 unbroken references, actual measured emergency wrapping, and [independent manual-break oracle](examples/report-overflow-wrap-oracle.html) | None; ASCII/Courier |
-| [Root-relative margins](examples/report-rem-margins.html) | 32-entry multi-page service report with computed-root `rem` margins, compared against a separate [point-value oracle](examples/report-rem-margins-oracle.html) | None; ASCII/Courier |
-| [Element-relative report layout](examples/report-em-layout.html) | 32-entry service report with `em` box widths, padding and paragraph/heading margins based on each element's computed font; compared to a separate [fixed-point oracle](examples/report-em-layout-oracle.html) | None; ASCII/Courier |
-| [Branded report](examples/branded-business-report.html) | Transparent logo beside company details and line items | The explicit `logo` binding above |
-| [Detailed service report](examples/business-table-rich-cells.html) | Column spans and ordered paragraphs/images inside cells | The same `logo` binding |
-| [Long service report](examples/business-table-long-description.html) | A long description continues across pages; short values occur once and totals follow | The same `logo` binding |
-| [Combined reports](docs/combined-report.md#run-a-report) | English/Chinese text, four font roles, lists, image, table and page text together | Four explicit font-role chains, JPEG binding and page options; complete command in the guide |
+| HTML | Headings, paragraphs, `div`/`section`/`article` panels, `span`, `br`, `pre`, `blockquote`, `hr`, lists up to two levels, tables, images | [Layout scope](docs/development.md#current-content-and-layout-scope) |
+| CSS input | Inline `style` and embedded `<style>` rules (including `@media print`/`all` blocks) with documented selectors, specificity, `!important`, inheritance and `inherit`/`initial`/`unset` | [CSS contract](docs/css-stylesheets.md) |
+| Lengths | `pt px mm cm in pc q`, `%`, `em`, `rem` where documented | [Lengths and spacing](docs/feature-notes.md#lengths-margins-and-spacing) |
+| Colours | Hex, opaque `rgb()`/`rgba(…,1)`, `hsl()`, 148 named colours, `currentColor`; no transparency | [Colours](docs/feature-notes.md#colours) |
+| Text and fonts | Chinese and English text, normal/bold/italic/bold-italic roles, font size and weight, line height, letter/word spacing, `text-indent`, alignment and justification, ASCII `text-transform`, underline/overline/strike-through | [Fonts](docs/unicode-fonts.md), [typography](docs/feature-notes.md#text-fonts-and-typography) |
+| Wrapping | `white-space` `nowrap`/`pre`/`pre-line`/`pre-wrap`, `overflow-wrap:break-word`, `word-break:break-all` | [White space](docs/feature-notes.md#white-space-and-line-wrapping) |
+| Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
+| Tables | Fixed column widths, `colspan`, paragraph/image cells, repeated headers, long rows continuing across pages, cell `vertical-align` | [Tables](docs/tables.md) |
+| Pages | Automatic pagination, `break-before`/`break-after`/`break-inside`, heading keeps, headers/footers, page numbers, paper size, margins, PDF metadata | [Pages](docs/feature-notes.md#pages-pagination-and-document-properties) |
+| Runtime | .NET library and CLI; Linux and Windows x64 Native AOT are tested | [Build and verification](docs/development.md#native-aot-and-verification) |
 
-The [evaluation guide](docs/evaluation.md) helps match a real customer template
-and deployment environment to the current scope.
+## What is not supported
 
-## Development and delivery status
+- Arbitrary webpages, JavaScript, external stylesheets or any network loading.
+- Flexbox, grid, floats, positioning and CSS Paged Media (`@page`).
+- Automatic table column widths, `rowspan` and nested tables.
+- System font discovery, CSS `font-family` matching, synthetic bold/italic,
+  complex-script shaping, right-to-left and vertical text.
+- Transparency, gradients, SVG, interlaced or 16-bit PNG and APNG.
 
-CI runs managed tests on Windows, Linux and macOS, and executes actual Linux x64
-and Windows x64 Native AOT CLIs. Independent PDF checks cover content, geometry,
-fonts, images, pagination and error recovery. The [merged native feature-path gate
-(#58)](https://github.com/KoalaFacts/FactsPDF/pull/58) executes structured page
-furniture and oversized-row continuation on both Linux and Windows Native AOT;
-the [private candidate PR (#60)](https://github.com/KoalaFacts/FactsPDF/pull/60)
-additionally checks native software-ZIP extraction and actual CLI execution.
-These checks apply to their exact tested revisions, not to a released product.
+Unsupported input is rejected with a diagnostic, never silently ignored.
 
-The [Node subprocess](docs/node-cli-probe.md) and
-[browser WASM](docs/browser-wasm-probe.md) integrations are experimental probes,
-not published SDKs. Performance results apply to their documented workloads and
-environments; there is no general speed or resource guarantee.
+## When something fails
 
-Structured page furniture and the locked `0.1.0-preview.1` candidate toolchain
-are implemented in the development source ([#57](https://github.com/KoalaFacts/FactsPDF/pull/57),
-[#60](https://github.com/KoalaFacts/FactsPDF/pull/60)).
-The owner privately retained all five components built for **merged main
-`47bc97910843ad6f72f11a285ec5b74e13862623`**, with source-bound
-checksums and real offline Linux Native AOT first-use and
-`FPDF1505` font-permission recovery checks. Actual main
-[CI 40561057964](https://github.com/KoalaFacts/FactsPDF/actions/runs/40561057964)
-passed after a targeted retry of a Windows-native dependency-mirror failure
-that occurred before compilation; six other applicable workflow groups
-also passed. CI validation and owner-only retention do **not** mean public
-distribution, independent signature attestation or customer acceptance.
+Every failure has a stable code such as `FPDF1202` (unsupported CSS value) or
+`FPDF1302` (content does not fit). The CLI prints it to stderr with a hint and
+exits nonzero; the API throws `FactsPdfException` with `Code` and
+`SourceOffset`. **A failed conversion never replaces an existing output file**
+and never produces a partial PDF. Fixes for common first-run problems (missing
+fonts, glyphs, bold faces or images) are in
+[first-use troubleshooting](docs/first-use-troubleshooting.md).
 
-At earlier engine source `1a81f69a4beaf92a8710e5b79ce355440efb00b0`,
-real managed-CLI replay matched all **52 original PDFs / 311 pages** byte for
-byte. A separate real Linux Native AOT replay at
-`e1dfe3b8ea0b5a0cc1cbd612abf22dd8a59748ea` also matched **52/52**.
-Those are scoped historical executions, not a fresh `47bc9791` replay.
-The original Unicode 10/30/100-record report inputs and positive C1
-four-distinct-Chinese-font-style evidence were inspected in
-[PR #71's actual API/managed/native acceptance artifact](https://github.com/KoalaFacts/FactsPDF/actions/runs/40497304548);
-the original reports exercise Chinese regular/bold, while C1 separately
-exercises Chinese regular/bold/italic/bold-italic.
-Engineering evidence does not approve new PDF pages on the user's behalf.
-New-page human sign-off, the fixed-environment performance budget,
-distribution authority and customer evaluation terms remain open.
-Strict local qpdf checking has not been asserted complete.
-There is no public NuGet/CLI, Release or customer delivery; follow
-[issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
+## Examples
 
-| Task | Documentation |
+Every file in [examples/](examples) is a runnable report. Good starting points:
+
+| Example | Shows | Extra inputs |
+| --- | --- | --- |
+| [quick-start.html](examples/quick-start.html) | One-page service report with a styled table | None |
+| [report-print-spacing.html](examples/report-print-spacing.html) | Print units, line heights and paragraph margins | None |
+| [branded-business-report.html](examples/branded-business-report.html) | Transparent logo beside company details and line items | `logo` image |
+| [business-table-rich-cells.html](examples/business-table-rich-cells.html) | Column spans with paragraphs and images in cells | `logo` image |
+| [business-table-long-description.html](examples/business-table-long-description.html) | A long table row continuing across pages | `logo` image |
+| [Combined report](docs/combined-report.md#run-a-report) | English/Chinese text, four font roles, lists, image, table and page text | Fonts, JPEG, page options |
+
+Files named `report-*-oracle.html` are independently written control versions
+used by the tests to check that a feature renders the same PDF as its
+hand-written equivalent; you do not need them to use FactsPDF.
+
+## Documentation
+
+| I want to… | Read |
 | --- | --- |
-| Build, test, package locally or inspect Native AOT output | [Development guide](docs/development.md) |
-| Check exact support and acceptance evidence | [Engineering support matrix](docs/acceptance/support-matrix.md) |
-| Inspect CSS parsing and differential verification | [CSS syntax](docs/css-syntax-core.md), [quality gates](docs/css-syntax-quality-gates.md) |
-| Contribute code or review licensing obligations | [Contribution policy](CONTRIBUTING.md), [licensing guide](LICENSING.md) |
+| Check whether my template will work | [Can I Render](https://koalafacts.github.io/FactsPDF/), [evaluation guide](docs/evaluation.md) |
+| Understand one feature in depth | [Feature notes](docs/feature-notes.md), [CSS contract](docs/css-stylesheets.md) |
+| Build, test or package locally | [Development guide](docs/development.md) |
+| See test and acceptance evidence | [Support matrix](docs/acceptance/support-matrix.md) |
+| Run or deploy the Can I Render site | [Compatibility site](docs/compatibility-site.md) |
+| Contribute | [Contribution policy](CONTRIBUTING.md) |
+
+Have a template you want assessed? Read the
+[template-fit checklist](docs/evaluation.md#check-template-fit-before-integration),
+then [open a template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md).
+Use synthetic examples only: **do not attach customer documents, private
+templates or business data**. A request starts a discussion; it is not a trial,
+licence or support contract.
+
+## Project status
+
+- CI runs the managed tests on Windows, Linux and macOS and executes real
+  Linux x64 and Windows x64 Native AOT builds, with independent PDF checks of
+  text, geometry, fonts, images, pagination and error recovery.
+- A `0.1.0-preview.1` candidate has been built and retained privately by the
+  maintainer. That is not a release: there is no public NuGet/CLI package,
+  customer delivery or stable API yet.
+- The [Node subprocess](docs/node-cli-probe.md) and
+  [browser WASM](docs/browser-wasm-probe.md) integrations are experimental
+  probes, not SDKs. Benchmarks apply only to their documented workloads.
+
+Detailed delivery evidence is in the [development ledger](docs/development-ledger.md)
+and [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 ## Licensing
 
-FactsPDF is **source-available, not MIT or OSI-approved open source**. It offers
-Community and separately agreed Commercial licensing paths.
+FactsPDF is **source-available, not MIT or OSI open source**.
 
-- The [Community License 1.1](LICENSE.md) covers qualifying personal use,
-  entities with Group annual gross revenue at most **USD 1,000,000** (including
-  proprietary commercial use), and qualifying charitable/open-source-project
-  uses within their defined scope. The full license controls eligibility.
-- Uses outside Community eligibility need written evaluation or commercial
-  authorization **before building or running** the engine. Commercial licences
-  are [available by arrangement](COMMERCIAL.md#contact-and-safe-handling).
-- Covered engine changes and corresponding build materials must be published
-  under Community License 1.1 before distribution or operational use, including
-  internal use and SaaS, subject to the license's controlled-development/testing
-  exception. An independent application's code, customer data, templates and
-  generated PDFs do not become public merely by calling FactsPDF.
-- Paying for a Commercial License does not automatically permit private engine
-  modifications or include support, an SLA, updates or unlimited deployments.
+- **Community License 1.1** ([LICENSE.md](LICENSE.md)) covers qualifying personal
+  use, organisations with group annual gross revenue up to **USD 1,000,000**
+  (including commercial use), and qualifying charitable and open-source uses.
+  The licence text decides eligibility.
+- Everyone else needs written evaluation or **commercial** authorisation
+  **before building or running** the engine. See [COMMERCIAL.md](COMMERCIAL.md).
+- Changes to the engine itself must be published under Community License 1.1
+  before you distribute or operate them (including internally and as SaaS),
+  subject to the licence's development/testing exception. Your own
+  application code, templates, data and generated PDFs stay yours.
+- A Commercial License does not by itself include private engine modifications,
+  support, an SLA, updates or unlimited deployments.
+- Receiving a PDF generated by FactsPDF does not require a licence.
 
-See [licensing examples](LICENSING.md), [commercial terms and enquiry process](COMMERCIAL.md)
-and [release requirements](docs/licensing-review.md). Enquiries are welcome.
-Maintainers must complete the repository's release and authorization checks
-before publishing software packages or accepting paid license orders.
-Request a private channel before sharing customer templates or confidential
-business details. Receiving an ordinary generated PDF does not itself require
-an engine license.
+See [licensing examples](LICENSING.md) and
+[release requirements](docs/licensing-review.md). Ask for a private channel
+before sharing customer templates or confidential details.
