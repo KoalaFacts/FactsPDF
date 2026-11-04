@@ -804,6 +804,37 @@ customer distribution grant.
 
 ## Report elements
 
+### Clickable HTTPS and mailto report references (source-only)
+
+Controlled reports may place `<a href="https://example.com/order/42">Track the
+order</a>` or `<a href="mailto:sales@example.com">Email sales</a>` inside
+existing inline text contexts, including flat table cells. FactsPDF writes
+actual PDF `/Link` URI annotations on the already laid-out glyph runs, with
+page-local rectangles following wrapping and pagination; the text remains
+selectable/searchable. By default anchor text is blue and underlined; scoped
+CSS colour, font and `text-decoration` rules (including `!important`) work
+through the existing cascade. Each linked run counts toward the display
+command limit. No network requests are made while generating the PDF.
+
+A valid `href` is required and limited to an absolute ASCII HTTPS URI with a
+host and no embedded credentials, or a single plain unquoted ASCII `mailto:` mailbox with dot-separated
+DNS-style labels (not a quoted mailbox, address literal, path or port), without
+query parameters. URL length is limited to 2048 characters, percent escapes
+must be well formed. An invalid/relative/HTTP/file/JavaScript URL or missing
+`href` fails `FPDF1103` without replacing an existing PDF. Nested anchors,
+block descendants and general DOM navigation fail; clickable linked images,
+`target`, `download`, fragments, local-page destinations and full HTML anchor
+semantics are not implemented. Links are external PDF actions, not embedded
+content or a claim that target addresses are trusted.
+
+[Business order sample](../examples/report-clickable-orders.html),
+[real PDF/CLI/TrueType/NUnit cases](../tests/FactsPDF.Tests/ReportHyperlinksTests.cs)
+and [Linux/Windows Native AOT verifier](../scripts/verify_stylesheets.py).
+Implementation source `9a19096a69f323bda3c7678c590a96b19ad98864`;
+exact-head checks, independent review, human approval, private software and
+commercial distribution rights remain separate.
+
+
 ### Current-source business-report quotations
 
 The standard `<blockquote>…</blockquote>` element now creates a **real**

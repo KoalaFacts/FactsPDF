@@ -16,7 +16,7 @@ internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, 
     bool NoWrap = false, CssLength FirstLineIndent = default, double LetterSpacing = 0, double WordSpacing = 0, TextTransform Transform = TextTransform.None,
     bool BreakWords = false, bool PreserveLineBreaks = false, bool PreserveSpaces = false,
     Rgb? DecorationColor = null, TextDecorationPattern DecorationPattern = TextDecorationPattern.Solid,
-    bool BreakAll = false);
+    bool BreakAll = false, string? LinkUri = null);
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);

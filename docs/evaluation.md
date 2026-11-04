@@ -1,3 +1,22 @@
+## Clickable PDF references in controlled report templates (source-only)
+
+The new bounded `a[href]` text path emits real searchable glyphs and page-local
+PDF `/Link` URI annotations after actual layout, including repeated references
+across page breaks and permitted fixed-column table-cell text. Initial blue
+underlined link text can be overridden by supported CSS cascade. Only validated
+absolute ASCII HTTPS without credentials and plain single-address mailto
+are accepted (2048-character maximum). Missing/unsafe href, unsupported block
+nesting/attributes and output-budget violations fail with their existing
+explicit error codes and preserve the prior output. No linked image, browser
+navigation, file/javascript/HTTP URLs or fetching of targets is provided.
+
+See [sample](../examples/report-clickable-orders.html),
+[PDF/CLI/NUnit evidence](../tests/FactsPDF.Tests/ReportHyperlinksTests.cs) and
+[real Linux/Windows Native AOT verification](../scripts/verify_stylesheets.py).
+Engine implementation source `9a19096a69f323bda3c7678c590a96b19ad98864`;
+actual CI, independent review, distribution rights, retained private candidate
+and human PDF acceptance are separately gated.
+
 ## Print-style template fit — bounded media blocks (source-only)
 
 Controlled business templates may place existing supported styles in

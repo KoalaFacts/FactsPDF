@@ -93,7 +93,8 @@ test('translated text keeps important scope restrictions and failure codes', asy
   assert.match(byId('css.word-spacing').scope, /PDF TJ/);
   assert.match(byId('css.text-transform').limitations, /FPDF1305/);
   assert.match(byId('pdf.headers').limitations, /65536/);
-  assert.match(byId('html.a').limitations, /rejection does not count as support/);
+  assert.match(byId('html.a').limitations, /2048 characters/);
+  assert.match(byId('html.a').scope, /clickable PDF \/Link URI annotations/);
 });
 
 test('source catalogue binding rejects stale text even when the string count is unchanged', async () => {

@@ -144,7 +144,7 @@ A summary only. **For any specific property or value, look it up on
 
 | Area | Summary | Details |
 | --- | --- | --- |
-| HTML | Headings, paragraphs, `div`/`section`/`article` panels, `span`, `small`, `u`/`s`/`del`/`ins` inline edit marks, `br`, `pre`, `blockquote`, `hr`, lists up to two levels, tables, images | [Layout scope](docs/development.md#current-content-and-layout-scope) |
+| HTML | Headings, paragraphs, `div`/`section`/`article` panels, `span`, scoped clickable `a` links, `small`, `u`/`s`/`del`/`ins` inline edit marks, `br`, `pre`, `blockquote`, `hr`, lists up to two levels, tables, images | [Layout scope](docs/development.md#current-content-and-layout-scope) |
 | CSS input | Inline `style` and embedded `<style>` rules (including `@media print`/`all` blocks) with documented selectors, specificity, `!important`, inheritance and `inherit`/`initial`/`unset` | [CSS contract](docs/css-stylesheets.md) |
 | Lengths | `pt px mm cm in pc q`, `%`, `em`, `rem` where documented | [Lengths and spacing](docs/feature-notes.md#lengths-margins-and-spacing) |
 | Colours | Hex, opaque `rgb()`/`rgba(…,1)`, `hsl()`, 148 named colours, `currentColor`; no transparency | [Colours](docs/feature-notes.md#colours) |

@@ -273,7 +273,7 @@ internal sealed class CssStylesheets
             if (declaration.Property == CssProperty.TextAlign
                 && declaration.Value is ("justify" or "start" or "end")
                 && (element.Name is "span" or "b" or "strong" or "i" or "em"
-                    or "small" or "u" or "s" or "del" or "ins"))
+                    or "small" or "u" or "s" or "del" or "ins" or "a"))
                 throw new FactsPdfException("FPDF1201", "text-align:justify/start/end cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
