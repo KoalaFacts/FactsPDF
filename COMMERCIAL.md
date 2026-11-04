@@ -14,7 +14,7 @@ You need a commercial license when your use is not permitted by the PolyForm
 Small Business License 1.0.0, the PolyForm Noncommercial License 1.0.0 or the
 PolyForm Free Trial License 1.0.0, typically a company at or above 100 people
 or USD 1,000,000 (2019, CPI-adjusted) annual revenue, counting affiliates, once
-its evaluation of under 32 days is over. See
+its evaluation of up to 90 days is over. See
 [LICENSING.md](LICENSING.md). A company that already qualifies may also ask for
 a commercial agreement, for example to obtain support or redistribution rights.
 

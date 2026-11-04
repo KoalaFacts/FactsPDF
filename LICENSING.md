@@ -11,7 +11,7 @@ choice of:
 
 - [PolyForm Small Business License 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0), or
 - [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0), or
-- [PolyForm Free Trial License 1.0.0](https://polyformproject.org/licenses/free-trial/1.0.0).
+- [PolyForm Free Trial License 1.0.0](https://polyformproject.org/licenses/free-trial/1.0.0), with the trial period extended to 90 days (see LICENSE.md).
 
 You only need to qualify under one of them. Everyone else needs a commercial
 license from Koala Facts Trading Pty Ltd.
@@ -28,7 +28,7 @@ unrestricted use grant.
 | Personal study, hobby or research with no anticipated commercial application | Noncommercial | Yes |
 | Charity, school or university, public research body, public safety or health body, environmental body or government institution | Noncommercial | Yes, regardless of funding source |
 | Any other noncommercial purpose | Noncommercial | Yes |
-| Any company, of any size, evaluating whether FactsPDF suits an application, for less than 32 consecutive calendar days | Free Trial | Yes, evaluation only |
+| Any company, of any size, evaluating whether FactsPDF suits an application, for up to 90 consecutive calendar days | Free Trial | Yes, evaluation only |
 | A company at or above either Small Business threshold, for commercial use | — | No; commercial license required |
 | Receiving a PDF that FactsPDF generated | — | No license needed to use the PDF |
 
@@ -45,7 +45,7 @@ its own use is noncommercial or the people using FactsPDF work for a qualifying
 small business.
 
 **Evaluation** by a company above the thresholds is covered by the Free Trial
-license for less than 32 consecutive calendar days. It does not cover
+license for up to 90 consecutive calendar days. It does not cover
 production use or distributing FactsPDF, and it ends immediately on any
 violation. Ask for a commercial license, or written permission for a longer
 evaluation, before that period ends.

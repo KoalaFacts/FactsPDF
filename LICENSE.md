@@ -13,11 +13,19 @@ any of the following standard licenses, reproduced in full below:
    (SPDX `PolyForm-Noncommercial-1.0.0`) — for noncommercial purposes,
    personal use, and charitable, educational, public research, public safety
    or health, environmental and government organizations.
-3. **PolyForm Free Trial License 1.0.0**
-   (SPDX `PolyForm-Free-Trial-1.0.0`) — for anyone, including larger
-   companies, to evaluate FactsPDF for less than 32 consecutive calendar days.
+3. **PolyForm Free Trial License 1.0.0, with a 90-day trial period**
+   (SPDX `PolyForm-Free-Trial-1.0.0`, extended as stated below) — for anyone,
+   including larger companies, to evaluate FactsPDF for up to 90 consecutive
+   calendar days.
+
+**Extended trial period.** For option 3, Koala Facts Trading Pty Ltd grants you
+a license on the terms of the PolyForm Free Trial License 1.0.0 reproduced
+below, except that in its Free Trial section "for less than 32 consecutive
+calendar days" reads "for up to 90 consecutive calendar days". The PolyForm text
+itself is reproduced unchanged.
 
 SPDX expression: `PolyForm-Small-Business-1.0.0 OR PolyForm-Noncommercial-1.0.0 OR PolyForm-Free-Trial-1.0.0`
+(the Free Trial option carries the extended trial period above)
 
 Any use that none of these licenses permits requires a separate written commercial
 license from Koala Facts Trading Pty Ltd. See [COMMERCIAL.md](COMMERCIAL.md).
