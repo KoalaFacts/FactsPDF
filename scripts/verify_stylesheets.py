@@ -1393,6 +1393,47 @@ def main():
             raise AssertionError('Native print media recovery differs from independently authored PDF')
         print('Native 44-entry @media print/all PDF/TrueType/pagination/text/geometry/recovery verified')
 
+    # Native AOT HTML-to-PDF acceptance for fine print and change markup.
+    # This checks real fonts, searchable pages and protected output, not
+    # just that the HTML/CSS parser accepted five new tag names.
+    with tempfile.TemporaryDirectory(prefix='factspdf-inline-edits-') as folder:
+        temp = Path(folder)
+        actual_pdf, oracle_pdf = temp / 'changes.pdf', temp / 'explicit.pdf'
+        for html, pdf in (
+            (Path('examples/report-inline-changes.html'), actual_pdf),
+            (Path('examples/report-inline-changes-oracle.html'), oracle_pdf)
+        ):
+            run(exe, html, pdf, '--font', fonts[0], '--subset-fonts')
+            run('qpdf', '--check', pdf)
+        if actual_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Semantic changes differ from explicit CSS PDF bytes')
+        info = run('pdfinfo', actual_pdf).decode('utf-8')
+        pages = next((int(line.split(':', 1)[1].strip())
+                      for line in info.splitlines() if line.startswith('Pages:')), 0)
+        if pages < 2:
+            raise AssertionError('Native changed-service report did not paginate')
+        rendered = ' '.join(run('pdftotext', '-raw', actual_pdf, '-').decode('utf-8').split())
+        hits = [rendered.find(f'Change {n:02d}') for n in range(1, 45)]
+        if any(p < 0 for p in hits) or hits != sorted(hits) or len(set(hits)) != 44:
+            raise AssertionError('Native semantic edit report lost/reordered searchable rows')
+        bad = temp / 'invalid.html'
+        bad.write_text("<p><del datetime='2026-11-01'>Not supported</del></p>", encoding='utf-8')
+        protected = temp / 'existing.pdf'
+        protected.write_bytes(b'original-report')
+        try:
+            run(exe, bad, protected, '--overwrite')
+            raise AssertionError('Unsupported del datetime attribute was silently accepted')
+        except RuntimeError as error:
+            if 'FPDF1103' not in str(error):
+                raise
+        if protected.read_bytes() != b'original-report':
+            raise AssertionError('Invalid inline markup replaced existing PDF bytes')
+        run(exe, Path('examples/report-inline-changes.html'), protected,
+            '--font', fonts[0], '--subset-fonts', '--overwrite')
+        if protected.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Valid report failed to recover after rejected inline metadata')
+        print('Native semantic inline report: font, 44 rows, pages, PDF bytes, recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
