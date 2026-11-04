@@ -86,9 +86,11 @@ public sealed class RelativeFontWeightTests
     public void FortyEightEntryReportUsesActualBoldAndNormalGlyphsAndPages()
     {
         var options = Roles();
-        var rows = string.Concat(Enumerable.Range(1, 48).Select(i =>
-            $"<p class='entry'>AB {i:00} <span class='status'>W</span> " +
-            "<span class='amount'>AB</span></p>"));
+        // The synthetic TrueType fixture covers AB/W and space, not ASCII
+        // digits; keep the role test glyph-complete rather than weakening
+        // missing-glyph diagnostics. The native report checks numbered rows.
+        var rows = string.Concat(Enumerable.Repeat(
+            "<p class='entry'>AB <span class='status'>W</span> <span class='amount'>AB</span></p>", 48));
         var source = "<style>section{font-weight:bolder}.entry{font-weight:lighter}" +
             ".entry .status{font-weight:bolder}.entry .amount{font-weight:lighter}</style>" +
             "<section>" + rows + "</section>";
