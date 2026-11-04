@@ -20,19 +20,17 @@ that a license eliminates all legal risk.
   confirmation, 5 November 2026). Repeat this check for any future contributor
   or contractor.
 - [ ] Ask counsel how AI-assisted authorship affects copyright in the code.
+- [x] Replace the custom FactsPDF Community License with the standard
+  PolyForm Small Business 1.0.0 or PolyForm Noncommercial 1.0.0 choice (owner
+  decision, 5 November 2026). The texts in LICENSE.md are verbatim copies of
+  the official PolyForm files.
 - [ ] Obtain review by counsel familiar with software licensing, Australia, and
-  intended sales jurisdictions. Review free-category definitions, Group revenue,
-  financial-year boundaries, the 90-day transition, downstream execution, and
-  open-source-license compatibility against the intended business model.
-- [ ] Review the 1.1 modification-publication terms: engine/application scope,
-  internal and hosted operational-use triggers, the controlled development
-  exception, source/build requirements, public access, three-year retention,
-  third-party rights, privacy/security implications, and practical enforcement.
-  These are custom terms, not a claim of MPL/GPL/AGPL equivalence or OSI approval.
-- [ ] Ensure the actual standard commercial agreement expressly incorporates
-  the engine-source publication obligations; payment or a license key is not a
-  waiver. Do not assume changing a README amends an existing paid agreement.
-  Verify inbound commercial rights separately from public source availability.
+  intended sales jurisdictions. With standard public licenses in place, the
+  review can focus on the commercial agreement and on how the licensor
+  handles earlier copies released under the Community License.
+- [ ] Do not assume changing a README or LICENSE.md amends an existing paid
+  agreement. Verify inbound commercial rights separately from public source
+  availability.
 - [ ] Review acceptance mechanics, termination, warranty and liability provisions,
   mandatory consumer protections, and unfair-contract-term obligations. A broad
   disclaimer or a savings clause alone does not guarantee compliance.
@@ -46,7 +44,8 @@ that a license eliminates all legal risk.
   NuGet, CLI, WASM, container, and language-binding distribution. Verify the
   actual archive, not only the repository. Do not label the engine MIT.
 - [ ] When a NuGet package exists, use a packed license file via PackageLicenseFile
-  (LICENSE.md), not a fabricated SPDX license expression. For a future npm
+  (LICENSE.md). NuGet license expressions accept only OSI/FSF-approved
+  identifiers, so do not use the PolyForm SPDX expression there. For a future npm
   package use `"license": "SEE LICENSE IN LICENSE.md"` and include that file.
 - [ ] Preserve license/version evidence for releases; do not retroactively
   replace historical notices. Confirm README and sales summaries match the

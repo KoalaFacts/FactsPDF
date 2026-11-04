@@ -707,16 +707,17 @@ For precise values and diagnostics, see [CSS](css-stylesheets.md),
 
 ## Discuss an evaluation or commercial arrangement
 
-The [Community License](../LICENSE.md) allows qualifying entities with Group
-annual gross revenue at most USD 1,000,000 to use FactsPDF in proprietary
-commercial applications. The license also defines separate charitable and
-open-source-project categories.
+FactsPDF is licensed under [PolyForm Small Business 1.0.0 or PolyForm
+Noncommercial 1.0.0](../LICENSE.md). Companies with fewer than 100 people and
+under USD 1,000,000 (2019, CPI-adjusted) revenue, counting affiliates, may use
+it free in proprietary commercial applications; noncommercial, charitable,
+educational and government use is also free.
 
-Uses outside those categories require a separately agreed authorization.
-Commercial arrangements can cover agreed application, hosted-service or
-redistribution needs. The standard policy retains the requirement to publish
-covered engine modifications; ordinary application code and templates do not
-become public merely by calling FactsPDF.
+Other uses, including evaluation by larger companies, require a separately
+agreed authorization from Koala Facts Trading Pty Ltd. Commercial arrangements
+can cover agreed application, hosted-service or redistribution needs.
+Application code, templates and generated PDFs do not become public by
+using FactsPDF.
 
 [Start a licensing enquiry](../COMMERCIAL.md#contact-and-safe-handling). Use the
 initial public issue only to request a private discussion; keep customer
