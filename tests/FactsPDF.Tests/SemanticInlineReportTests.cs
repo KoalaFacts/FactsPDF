@@ -99,6 +99,40 @@ public sealed class SemanticInlineReportTests
         Reject(source, "FPDF1303", Page with { MaxPages = 1 });
     }
 
+
+    [Test]
+    public void NewInlineTagsWorkInFixedTableCellsAndFlatCellParagraphs()
+    {
+        const string before = "<table style='width:140pt'><colgroup><col style='width:140pt'></colgroup>" +
+            "<tbody><tr><td style='padding:3pt'>";
+        const string after = "</td></tr></tbody></table>";
+        const string source = "AB <small>AB</small> <del>AB</del> <ins>AB</ins> " +
+            "<p>AB <u>AB</u> <s>AB</s></p>";
+        const string oracle = "AB <span style='font-size:10pt'>AB</span> " +
+            "<span style='text-decoration:line-through'>AB</span> " +
+            "<span style='text-decoration:underline'>AB</span> " +
+            "<p>AB <span style='text-decoration:underline'>AB</span> " +
+            "<span style='text-decoration:line-through'>AB</span></p>";
+        var sample = before + source + after;
+        Assert.That(Pdf(sample), Is.EqualTo(Pdf(before + oracle + after)));
+        Assert.That(Layout(sample).SelectMany(page => page.Runs).Any(run =>
+            run.Style.Decoration == TextDecoration.Underline), Is.True);
+        Assert.That(Layout(sample).SelectMany(page => page.Runs).Any(run =>
+            run.Style.Decoration == TextDecoration.LineThrough), Is.True);
+    }
+
+    [TestCase("small", "justify")]
+    [TestCase("u", "start")]
+    [TestCase("s", "end")]
+    [TestCase("del", "justify")]
+    [TestCase("ins", "justify")]
+    public void UnsupportedInlineAlignmentFailsClosedInsteadOfBeingIgnored(string tag, string alignment)
+    {
+        Reject($"<p>A <{tag} style='text-align:{alignment}'>AB</{tag}></p>", "FPDF1201");
+        Reject($"<style>{tag}.unused{{text-align:{alignment}}}</style>" +
+            $"<p><{tag} class='unused'>AB</{tag}></p>", "FPDF1201");
+    }
+
     [TestCase("<small style='font-size:999pt'>AB</small>", "FPDF1202")]
     [TestCase("<p style='font-size:1pt'><small>AB</small></p>", "FPDF1202")]
     [TestCase("<del datetime='2026-11-01'>AB</del>", "FPDF1103")]
