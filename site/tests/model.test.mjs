@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'c9138808d785986712f17e977fa2371854cb6aed');
-  assert.match(dataset.commit_url, /c9138808d785986712f17e977fa2371854cb6aed/);
+  assert.equal(dataset.commit, '3dbcded4f5d39b16b79bbff7aac4132305659d4a');
+  assert.match(dataset.commit_url, /3dbcded4f5d39b16b79bbff7aac4132305659d4a/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -57,13 +57,22 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(rgb.scope,/rgba/);
   for(const id of ["css.color","css.background","css.background-color","css.border","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color"]) {
     const feature=dataset.features.find(f=>f.id===id);
-    assert.equal(feature.last_audited_commit,'c9138808d785986712f17e977fa2371854cb6aed');
+    assert.equal(feature.last_audited_commit, ['css.color','css.background','css.background-color'].includes(id) ? '3dbcded4f5d39b16b79bbff7aac4132305659d4a' : 'c9138808d785986712f17e977fa2371854cb6aed');
     assert.match(feature.scope,/hsl\(/);
     assert.match(feature.limitations,/alpha/);
-    assert.match(feature.test_reference,/CssNamedColorTests/);
+    assert.match(feature.test_reference, ['css.color','css.background','css.background-color'].includes(id) ? /CurrentColorReportTests/ : /CssNamedColorTests/);
     assert.equal(feature.introduced_release,null);
   }
   assert.equal(rgb.last_audited_commit,'6a79f3f69f381f39a2cfb83bc2aa505e34c0af0d');
+  for (const id of ['css.color','css.background-color','css.background']) {
+    const feature=dataset.features.find(f=>f.id===id);
+    assert.equal(feature.last_audited_commit,'3dbcded4f5d39b16b79bbff7aac4132305659d4a');
+    assert.match(feature.scope,/currentColor/);
+    assert.equal(feature.introduced_release,null);
+    assert.match(feature.test_reference,/CurrentColorReportTests.cs/);
+  }
+  assert.match(dataset.features.find(f=>f.id==='css.background-color').limitations,/currentColor/);
+  assert.match(dataset.audit_method,/All other 415 stable records/);
 
   assert.deepEqual(counts(dataset.features), { full:44, partial:154, none:212, unknown:6, na:2 });
 });
@@ -272,7 +281,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.named-colours-148');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.current-color-report');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -729,8 +738,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.named-colours-148');
-  assert.equal(dataset.commit, 'c9138808d785986712f17e977fa2371854cb6aed');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.current-color-report');
+  assert.equal(dataset.commit, '3dbcded4f5d39b16b79bbff7aac4132305659d4a');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);

@@ -148,7 +148,7 @@ internal static class CssDeclarations
     }
 
     internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration,
-        double rootFontSize, double elementFontSize)
+        double rootFontSize, double elementFontSize, Rgb elementColor)
     {
         var property = declaration.Property;
         if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
@@ -257,8 +257,20 @@ internal static class CssDeclarations
                 };
         }
         if (property == CssProperty.BackgroundColor)
-            return current with { BackgroundColor = wide ? from.BackgroundColor :
-                CssPaintValues.Background(value, declaration.Offset) };
+        {
+            // CSS Color: an inherited currentColor background is a retained
+            // token, not the parent's already-painted RGB. The child resolves
+            // it against its own computed text ink. A literal inherited RGB
+            // remains literal, and initial/unset/transparent clear the marker.
+            var usesCurrent = wide ? from.BackgroundUsesCurrentColor : value == "currentcolor";
+            return current with
+            {
+                BackgroundUsesCurrentColor = usesCurrent,
+                BackgroundColor = usesCurrent ? elementColor : wide
+                    ? from.BackgroundColor
+                    : CssPaintValues.Background(value, declaration.Offset, elementColor)
+            };
+        }
 
         var index = (int)property - (int)CssProperty.BorderTopWidth;
         var side = index % 4;

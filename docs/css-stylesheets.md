@@ -1,5 +1,26 @@
 ## Standard opaque CSS named colours for printable reports (source-only)
 
+## Scoped currentColor report ink (source-only; 2026-11-04)
+
+`color:currentColor` selects the inherited parent computed opaque text
+colour. On existing supported report blocks, `background-color:currentColor`
+and single-colour `background:currentColor` paint the element's **final**
+computed text ink, after stylesheet/inline cascade and `!important`.
+The pre-existing border/text-decoration currentColor behaviour is preserved.
+CSS-wide resets, inheritance, actual PDF background fragments, font metrics
+and page continuation use the ordinary renderer paths. No transparency,
+system colours, gradients, URLs, additional elements, arbitrary CSS Color or
+new layout model is accepted.
+
+Source `3dbcded4f5d39b16b79bbff7aac4132305659d4a` with [48-entry HTML](../examples/report-current-colour.html)
+and [separately authored fixed-HEX PDF control](../examples/report-current-colour-oracle.html).
+Positive and negative regression scope: true multi-page text order and
+geometry, background colour and nested inheritance, TrueType, managed CLI,
+source-bound native AOT, Poppler/qpdf PDF parsing/coordinates and protection of
+prior PDF on invalid input. CI, independent review, human PDF approval,
+private candidate and customer distribution are distinct milestones.
+
+
 Controlled templates may now use all **148 standard opaque CSS named colours** in
 the existing supported colour slots. Examples: `color:rebeccapurple`,
 `background:aliceblue`, `border:2pt solid slategray` and

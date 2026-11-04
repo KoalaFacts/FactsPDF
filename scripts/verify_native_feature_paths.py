@@ -1644,6 +1644,44 @@ def verify_native_named_colours(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_current_colour(executable, output, work):
+    """Native cross-page currentColor parity, Poppler geometry and failure recovery."""
+    source = ROOT / 'examples/report-current-colour.html'
+    oracle = ROOT / 'examples/report-current-colour-oracle.html'
+    actual = output / 'current-colour.pdf'
+    control = output / 'current-colour-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), 'Computed currentColor PDF differs from authored hex'
+    pages = count_pages(actual)
+    assert pages >= 2, '48 inspection records must paginate'
+    positioned = [page_boxes(actual, i) for i in range(1, pages + 1)]
+    assert positioned == [page_boxes(control, i) for i in range(1, pages + 1)], (
+        'Native currentColor changed text geometry or extraction')
+    words = [w for _, _, page in positioned for w in page]
+    assert [w[0] for w in words if re.fullmatch(r'INK-\d{2}', w[0])] == [
+        f'INK-{i:02d}' for i in range(1, 49)], 'Missing currentColor register entry'
+    assert 'COMPLETE' in [w[0] for w in words], 'Final report text was lost'
+    invalid = work / 'current-colour-invalid.html'
+    saved = output / 'current-colour-preserved.pdf'
+    for css in ('background:currentcolor url(secret.png)',
+                'color:transparent', 'background:rgba(1,2,3,0.5)'):
+        invalid.write_text('<style>.unmatched{' + css + '}</style><p>Safe</p>', encoding='utf-8')
+        saved.write_bytes(b'previous customer PDF')
+        failure = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
+                                 cwd=work, capture_output=True, timeout=120)
+        assert failure.returncode == 3 and b'FPDF1202' in failure.stderr and not failure.stdout, (
+            'Unsupported native currentColor was accepted', css, failure.returncode, failure.stderr)
+        assert saved.read_bytes() == b'previous customer PDF', 'Failure damaged customer PDF'
+    assert not run(executable, source, saved, '--overwrite', cwd=work)
+    assert saved.read_bytes() == actual.read_bytes(), 'Recovery currentColor output drifted'
+    return {'records': 48, 'pages': pages, 'pdfSha256': sha(actual),
+            'independentHexPdfParity': True, 'popplerTextAndGeometry': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1724,6 +1762,7 @@ def main():
         hsl_colours = verify_native_hsl_colours(isolated, output, work)
         percent_rgb = verify_native_percentage_rgb(isolated, output, work)
         named_colours = verify_native_named_colours(isolated, output, work)
+        current_colour = verify_native_current_colour(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1759,6 +1798,7 @@ def main():
             'hslColours': hsl_colours,
             'percentageRgb': percent_rgb,
             'namedColours': named_colours,
+            'currentColour': current_colour,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

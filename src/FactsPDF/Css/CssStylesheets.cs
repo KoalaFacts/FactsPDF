@@ -406,7 +406,8 @@ internal sealed class CssStylesheets
                     _ => throw new InvalidOperationException("Unvalidated break-inside.")
                 } };
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
-                box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize);
+                box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize,
+                    style.Color);
             else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 box = CssDeclarations.ApplyPanelVerticalMargin(box, parentBox, declaration,

@@ -47,7 +47,12 @@ internal static class InlineCss
                     if (size is < 1 or > 144) throw Invalid("font-size must be between 1pt and 144pt.", offset);
                     style = style with { FontSize = size };
                     break;
-                case "color": style = style with { Color = Color(value, offset) }; break;
+                case "color":
+                    // The computed colour of currentColor is the inherited text
+                    // colour, not a previous losing declaration or a PDF alpha.
+                    // CSS winner selection leaves style.Color at the parent ink.
+                    style = style with { Color = value == "currentcolor" ? style.Color : Color(value, offset) };
+                    break;
                 case "text-decoration" or "text-decoration-line":
                     style = style with { Decoration = value switch
                     {
