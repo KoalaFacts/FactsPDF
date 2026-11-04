@@ -104,7 +104,7 @@ public sealed class LogicalBorderReportTests
         Assert.That(pages.SelectMany(x => x.Runs)
             .Count(x => x.Text.StartsWith("ITEM-", StringComparison.Ordinal)), Is.EqualTo(44));
         Assert.That(pages.SelectMany(x => x.Runs).Last().Text, Is.EqualTo("COMPLETE"));
-        Assert.That(pages.SelectMany(x => x.PaintBoxes).Any(x => x.BorderLeft.EffectiveWidth > 0), Is.True);
+        Assert.That(pages.SelectMany(x => x.PaintBoxes).Any(x => x.Style.BorderLeft.EffectiveWidth > 0), Is.True);
     }
 
     [Test]
