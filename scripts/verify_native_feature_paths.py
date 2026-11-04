@@ -1661,7 +1661,7 @@ def verify_native_current_colour(executable, output, work):
     assert positioned == [page_boxes(control, i) for i in range(1, pages + 1)], (
         'Native currentColor changed text geometry or extraction')
     words = [w for _, _, page in positioned for w in page]
-    assert [w[0] for w in words if re.fullmatch(r'INK-\\d{2}', w[0])] == [
+    assert [w[0] for w in words if re.fullmatch(r'INK-\d{2}', w[0])] == [
         f'INK-{i:02d}' for i in range(1, 49)], 'Missing currentColor register entry'
     assert 'COMPLETE' in [w[0] for w in words], 'Final report text was lost'
     invalid = work / 'current-colour-invalid.html'

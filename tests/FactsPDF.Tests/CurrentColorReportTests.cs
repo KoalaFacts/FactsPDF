@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class CurrentColorReportTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 180, Margin = 18 };
+    private static readonly PdfOptions Page = new() { PageWidth = 595, PageHeight = 250, Margin = 18 };
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var result = new MemoryStream();
