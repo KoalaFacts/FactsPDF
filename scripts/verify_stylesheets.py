@@ -1346,6 +1346,53 @@ def main():
             raise AssertionError('Native font-size keyword recovery did not restore report bytes')
         print('Native 40-entry keyword font-size report PDF parity, pagination and recovery verified')
 
+    # Bounded print media rules must execute the normal CSS cascade in the
+    # Native AOT CLI, with actual font resources, painted geometry, pagination
+    # and an independently written inline-style PDF oracle.
+    with tempfile.TemporaryDirectory(prefix='factspdf-print-media-') as folder:
+        temp = Path(folder)
+        source = Path('examples/report-print-media.html')
+        reference = Path('examples/report-print-media-oracle.html')
+        actual_pdf, oracle_pdf = temp / 'media.pdf', temp / 'explicit.pdf'
+        for html, pdf in ((source, actual_pdf), (reference, oracle_pdf)):
+            run(exe, html, pdf, '--font', fonts[0], '--subset-fonts')
+            run('qpdf', '--check', pdf)
+        if actual_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Native @media print/all PDF paint/geometry differs from explicit inline control')
+        info = run('pdfinfo', actual_pdf).decode('utf-8')
+        count = next((int(line.split(':', 1)[1].strip()) for line in info.splitlines()
+                      if line.startswith('Pages:')), 0)
+        if count != 2:
+            raise AssertionError('Media print report expected two distinct pages: ' + info)
+        rendered = ' '.join(run('pdftotext', '-raw', actual_pdf, '-').decode('utf-8').split())
+        rows = [f'MEDIA-{n:02d} inspected' for n in range(1, 45)]
+        locations = [rendered.find(row) for row in rows]
+        if any(location < 0 for location in locations) or locations != sorted(locations) or len(set(locations)) != 44:
+            raise AssertionError('Native print media PDF lost or reordered business report rows')
+        if 'Quarterly maintenance review' not in rendered or 'COMPLETE' not in rendered:
+            raise AssertionError('Native print media PDF lost report title or completion footer')
+        # Real PDF geometry: every searchable glyph remains within its page.
+        bbox = ET.fromstring(run('pdftotext', '-bbox', actual_pdf, '-'))
+        for page in bbox.iter('{http://www.w3.org/1999/xhtml}page'):
+            for word in page.iter('{http://www.w3.org/1999/xhtml}word'):
+                if not (0 <= float(word.attrib['xMin']) <= float(word.attrib['xMax']) <= float(page.attrib['width'])
+                        and 0 <= float(word.attrib['yMin']) <= float(word.attrib['yMax']) <= float(page.attrib['height'])):
+                    raise AssertionError('Print media text extends beyond page geometry')
+        invalid = temp / 'invalid.html'
+        invalid.write_text('<style>@media screen{p{color:red}}</style><p>Must not render</p>',
+                           encoding='utf-8')
+        actual_pdf.write_bytes(b'original-approved-report')
+        rejected = subprocess.run([str(exe), str(invalid), str(actual_pdf), '--overwrite'],
+                                  capture_output=True, timeout=120)
+        if rejected.returncode != 3 or b'FPDF1204' not in rejected.stderr or rejected.stdout:
+            raise AssertionError('Unsupported media query did not fail closed')
+        if actual_pdf.read_bytes() != b'original-approved-report':
+            raise AssertionError('Rejected media query replaced the previous PDF')
+        run(exe, source, actual_pdf, '--font', fonts[0], '--subset-fonts', '--overwrite')
+        if actual_pdf.read_bytes() != oracle_pdf.read_bytes():
+            raise AssertionError('Native print media recovery differs from independently authored PDF')
+        print('Native 44-entry @media print/all PDF/TrueType/pagination/text/geometry/recovery verified')
+
     report = {
         'source_sha': os.environ.get('FACTSPDF_SOURCE_SHA'),
         'checkout_sha': run('git', 'rev-parse', 'HEAD').decode().strip(),
@@ -1385,7 +1432,8 @@ def main():
                              'native_report_display_none_pdf_parity_pagination_and_recovery': True,
                              'native_ltr_text_align_pdf_parity_pagination_and_recovery': True,
                              'native_pica_quarter_mm_pdf_parity_pagination_text_and_recovery': True,
-                             'native_keyword_font_sizes_pdf_parity_pagination_and_recovery': True},
+                             'native_keyword_font_sizes_pdf_parity_pagination_and_recovery': True,
+                             'native_print_media_pdf_parity_fonts_pagination_recovery': True},
         'scope': 'One bilingual controlled fixture plus NUnit regressions. This is not browser/full-CSS conformance, a benchmark or independent code review.'
     }
     (output / 'verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

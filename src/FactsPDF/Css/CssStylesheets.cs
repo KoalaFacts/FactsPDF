@@ -102,8 +102,27 @@ internal sealed class CssStylesheets
         foreach (var rule in rules)
         {
             budget.Token.ThrowIfCancellationRequested();
-            if (rule is CssAtRuleNode)
-                throw new FactsPdfException("FPDF1204", "CSS at-rules and imports are not supported.", rule.Span.Start);
+            if (rule is CssAtRuleNode at)
+            {
+                // Bounded print-only conditionals: no device queries, nesting,
+                // imports or ignored rules. Reuse the exact same selector,
+                // declaration, cascade and resource budgets as top-level CSS.
+                if (!at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) || at.Contents is null)
+                    throw new FactsPdfException("FPDF1204", "Only block-form @media print/all is supported.", rule.Span.Start);
+                var prelude = at.Prelude
+                    .Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
+                    .ToArray();
+                if (prelude.Length != 1 || prelude[0] is not CssTokenComponent
+                    { Token.Kind: CssSyntaxTokenKind.Ident } medium ||
+                    !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
+                      || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
+                    throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
+                if (at.Contents.Any(x => x is not CssQualifiedRuleNode))
+                    throw new FactsPdfException("FPDF1204",
+                        "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
+                ParseRules(at.Contents.Cast<CssRuleNode>().ToArray());
+                continue;
+            }
             if (rule is not CssQualifiedRuleNode qualified)
                 throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", rule.Span.Start);
             var selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start);

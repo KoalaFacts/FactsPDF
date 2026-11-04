@@ -38,9 +38,9 @@ public sealed class CssSyntaxIntegrationTests
     }
 
     [Test]
-    public void ValidUnknownAtRuleIsRejectedAsUnsupportedRenderingNotInvalidSyntax()
+    public void ValidUnimplementedSupportsAtRuleIsRejectedAsUnsupportedRenderingNotInvalidSyntax()
     {
-        Failure("<style>@media print{p{color:red}}</style><p>A</p>", "FPDF1204");
+        Failure("<style>@supports(display:grid){p{color:red}}</style><p>A</p>", "FPDF1204");
     }
 
     [Test]

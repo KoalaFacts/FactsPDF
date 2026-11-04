@@ -1,3 +1,16 @@
+## Print-style template fit — bounded media blocks (source-only)
+
+Controlled business templates may place existing supported styles in
+`@media print { ... }` or `@media all { ... }` inside an embedded `<style>`.
+These apply to actual PDF text/paint/layout and share the existing CSS
+cascade and budgets. Before integration, reject templates relying on
+`screen`, condition expressions, media lists, nesting, `@supports`,
+`@container`, `@import` or `@page`; they are not silently ignored.
+[Example 44-record printable report](../examples/report-print-media.html) and
+[independently authored inline control](../examples/report-print-media-oracle.html)
+exercise scope. Source `70f37e7e881bade30851ecaa06528a27813f0403`;
+no public package, human page approval or licence is implied.
+
 ## LTR logical border components for printable reports (source-only)
 
 Existing `border-inline` / `border-block` shorthands now also have scoped
