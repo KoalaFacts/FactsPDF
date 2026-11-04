@@ -88,6 +88,29 @@ public sealed class DecorationThicknessReportTests
     }
 
     [Test]
+    public void FourPartShorthandWidthMatchesExplicitLonghandAndResetsOmittedWidth()
+    {
+        const string source = "<p style='font-size:10pt;text-decoration:overline dotted blue 1.5pt'>AB</p>";
+        const string oracle = "<p style='font-size:10pt;text-decoration:overline dotted blue;text-decoration-thickness:1.5pt'>AB</p>";
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+        Assert.That(Pdf("<p style='text-decoration-thickness:2pt;text-decoration:underline red'>AB</p>"),
+            Is.EqualTo(Pdf("<p style='text-decoration:underline red;text-decoration-thickness:auto'>AB</p>")));
+        const string important = "<style>.x{text-decoration-thickness:2pt!important}</style><p class=x style='text-decoration:underline red 1pt'>AB</p>";
+        Assert.That(Pdf(important), Is.EqualTo(Pdf("<p style='text-decoration:underline red 2pt'>AB</p>")));
+        Reject("<p style='text-decoration:underline 1pt 2pt'>AB</p>", "FPDF1202");
+        Reject("<style>.unused{text-decoration:underline 50%}</style><p>AB</p>", "FPDF1202");
+    }
+
+    [Test]
+    public void RunnableFortyFourEntryInvoiceMatchesIndependentPointUnitOracle()
+    {
+        var source = Example("report-decoration-thickness.html");
+        var oracle = Example("report-decoration-thickness-oracle.html");
+        Assert.That(Layout(source).Count, Is.GreaterThan(1));
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+    }
+
+    [Test]
     public void TrueTypeTableTextAndPagedReportHaveActualWidthAndStableOracle()
     {
         var font = PdfFont.LoadTrueType(FontFixture.Create());
@@ -128,6 +151,15 @@ public sealed class DecorationThicknessReportTests
     [Test]
     public void StandaloneImageCannotClaimTextPaintWidth()
         => Reject("<img src='brand' style='text-decoration-thickness:2pt'>", "FPDF1201");
+
+    private static string Example(string name)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
+            directory = directory.Parent;
+        Assert.That(directory, Is.Not.Null);
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+    }
 
     [Test]
     public void CliProducesSameRealPdfAndDisplayCommandBudgetStillApplies()
