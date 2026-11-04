@@ -441,7 +441,8 @@ internal sealed class CssStylesheets
                 // FontSize precedes these properties in the fixed enum.
                 var computedRoot = element.Name == "html"
                     && declaration.Property is (CssProperty.LineHeight
-                        or CssProperty.LetterSpacing or CssProperty.WordSpacing)
+                        or CssProperty.LetterSpacing or CssProperty.WordSpacing
+                        or CssProperty.TextDecorationThickness)
                     ? style.FontSize : rootFontSize;
                 // Explicit paragraph/heading margin/break:inherit must read
                 // the direct panel's computed BoxStyle. Neither property is

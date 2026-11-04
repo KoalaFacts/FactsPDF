@@ -64,12 +64,24 @@ public sealed class DecorationThicknessReportTests
     public void RelativeWidthsResolveAgainstFinalFontAndRootAfterImportantCascade()
     {
         const string source = "<style>html{font-size:15pt}.label{font-size:20pt!important;text-decoration-thickness:0.1em}</style>" +
-            "<p class=label style='font-size:9pt;text-decoration:underline'>AB</p>" +
+            "<p class=label style='font-size:9pt;text-decoration-line:underline'>AB</p>" +
             "<p style='font-size:8pt;text-decoration:overline;text-decoration-thickness:0.1rem'>AB</p>";
         const string oracle = "<style>html{font-size:15pt}</style>" +
             "<p style='font-size:20pt;text-decoration:underline;text-decoration-thickness:2pt'>AB</p>" +
             "<p style='font-size:8pt;text-decoration:overline;text-decoration-thickness:1.5pt'>AB</p>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+    }
+
+    [Test]
+    public void HtmlRootRemThicknessUsesFinalComputedRootRatherThanConfiguredInitial()
+    {
+        const string source = "<html style='font-size:20pt;text-decoration-thickness:0.1rem'><body>" +
+            "<p style='text-decoration-line:underline'>AB</p></body></html>";
+        const string expected = "<html style='font-size:20pt;text-decoration-thickness:2pt'><body>" +
+            "<p style='text-decoration-line:underline'>AB</p></body></html>";
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(expected)));
+        Reject("<html style='font-size:144pt;text-decoration-thickness:0.1rem'><body>" +
+            "<p style='text-decoration-line:underline'>AB</p></body></html>", "FPDF1202");
     }
 
     [Test]
@@ -99,6 +111,7 @@ public sealed class DecorationThicknessReportTests
         Assert.That(Pdf(important), Is.EqualTo(Pdf("<p style='text-decoration:underline red 2pt'>AB</p>")));
         Reject("<p style='text-decoration:underline 1pt 2pt'>AB</p>", "FPDF1202");
         Reject("<style>.unused{text-decoration:underline 50%}</style><p>AB</p>", "FPDF1202");
+        Reject("<style>.unused{text-decoration:underline 0em}</style><p>AB</p>", "FPDF1202");
     }
 
     [Test]
@@ -135,6 +148,10 @@ public sealed class DecorationThicknessReportTests
     }
 
     [TestCase("text-decoration-thickness:0", "FPDF1202")]
+    [TestCase("text-decoration-thickness:0em", "FPDF1202")]
+    [TestCase("text-decoration-thickness:0rem", "FPDF1202")]
+    [TestCase("text-decoration-thickness:0.0001em", "FPDF1202")]
+    [TestCase("text-decoration-thickness:13rem", "FPDF1202")]
     [TestCase("text-decoration-thickness:-1pt", "FPDF1202")]
     [TestCase("text-decoration-thickness:13pt", "FPDF1202")]
     [TestCase("text-decoration-thickness:50%", "FPDF1202")]

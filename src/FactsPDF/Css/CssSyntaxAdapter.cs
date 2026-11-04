@@ -887,7 +887,11 @@ internal static class CssSyntaxAdapter
                 // Relative widths may change when a selector wins the cascade.
                 // Absolute out-of-range values fail even in unmatched rules.
                 var relative = token.EndsWith("em", StringComparison.Ordinal);
-                if (length.IsPercent || (!relative && length.Value is < 0.2 or > 12))
+                // Never silently accept an unmatched relative length that cannot
+                // become valid at any supported 1–144pt font size.
+                if (length.IsPercent ||
+                    (relative && (length.Value <= 0 || length.Value > 12 || length.Value * 144 < 0.2)) ||
+                    (!relative && length.Value is < 0.2 or > 12))
                     throw new FactsPdfException("FPDF1202",
                         "Text-decoration thickness requires auto or a bounded positive length (0.2pt to 12pt after resolving em/rem).", offset);
             }
