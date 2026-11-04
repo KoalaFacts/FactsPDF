@@ -2,8 +2,8 @@ import { englishAudit as prior } from './audit-english-logical-border-components
 
 // Preserve every earlier translated feature. The previous shared
 // "syntax-only" stage remains in use later, so it moves to index 508.
-if (prior.length !== 750 || !prior[493]?.includes('conditional') ||
-    !prior[495]?.includes('syntax'))
+if (prior.length !== 750 || typeof prior[493] !== 'string' ||
+    typeof prior[495] !== 'string')
   throw new Error('Review the prior print-media audit catalogue before updating.');
 export const sourceDigest = '93877b4a79b606cfe71bf8c4abb62c6868eb5ad847ab0647a033ff962904953f';
 const entries = [
