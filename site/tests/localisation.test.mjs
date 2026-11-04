@@ -402,3 +402,16 @@ test('kept-card source scope has complete English while preserving all old metho
   assert.match(translate(data.css_inventory_note),/83 scoped CSS property names/);
   assert.doesNotMatch(translate(data.css_inventory_note),han);
 });
+
+test('HSL colour support has exact English scope and leaves RGB history intact',async()=>{
+  const {englishFeature,translate}=await localisation();
+  for(const id of ['css.color','css.background','css.background-color','css.border','css.border-color',
+    'css.border-top-color','css.border-right-color','css.border-bottom-color','css.border-left-color']) {
+    const f=englishFeature(data.features.find(f=>f.id===id));
+    assert.equal(f.last_audited_commit,'ee5af1a67d8aa88fa23da281ea6ab23414f9ef22');
+    assert.match(f.scope,/Opaque HSL/);assert.match(f.limitations,/alpha/);
+    assert.doesNotMatch(f.scope+' '+f.limitations,han);
+  }
+  assert.match(englishFeature(data.features.find(f=>f.id==='value.color.rgbfunc')).limitations,/historical RGB audit/);
+  assert.match(translate(data.audit_method),/2026-11-04 source-only opaque-HSL audit/);
+});
