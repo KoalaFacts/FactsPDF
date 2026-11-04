@@ -1682,6 +1682,46 @@ def verify_native_current_colour(executable, output, work):
             'protectedFailureRecovery': True}
 
 
+def verify_native_logical_borders(executable, output, work):
+    """Verify actual native LTR border paint, multi-page positions and safe recovery."""
+    source = ROOT / 'examples/report-logical-borders.html'
+    oracle = ROOT / 'examples/report-logical-borders-oracle.html'
+    actual = output / 'logical-borders.pdf'
+    control = output / 'logical-borders-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), 'Logical border paint differs from physical-edge PDF'
+    pages = count_pages(actual)
+    assert pages >= 2, '44 report rows must produce a multi-page PDF'
+    positioned = [page_boxes(actual, i) for i in range(1, pages + 1)]
+    assert positioned == [page_boxes(control, i) for i in range(1, pages + 1)], (
+        'Logical border paint changed report text coordinates')
+    words = [w[0] for _, _, page in positioned for w in page]
+    assert [word for word in words if re.fullmatch(r'EDGE-\d{2}', word)] == [
+        f'EDGE-{i:02d}' for i in range(1, 45)], 'Lost or reordered border register entries'
+    assert 'COMPLETE' in words, 'Logical border report truncated'
+    invalid = work / 'logical-border-invalid.html'
+    saved = output / 'logical-border-preserved.pdf'
+    for css in ('border-inline:1pt double red',
+                'border-block:1pt solid rgba(2,3,4,0.5)',
+                'border-inline-start:calc(2pt + 1pt) solid blue'):
+        invalid.write_text('<style>.absent{' + css + '}</style><p>SAFE</p>', encoding='utf-8')
+        saved.write_bytes(b'customer PDF protected')
+        result = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
+                                cwd=work, capture_output=True, timeout=120)
+        assert result.returncode == 3 and b'FPDF1202' in result.stderr and not result.stdout, (
+            'Invalid native logical border did not fail closed', css, result.returncode, result.stderr)
+        assert saved.read_bytes() == b'customer PDF protected'
+    assert not run(executable, source, saved, '--overwrite', cwd=work)
+    assert saved.read_bytes() == actual.read_bytes(), 'Valid retry produced different logical border PDF'
+    return {'records': 44, 'pages': pages, 'sourceSha256': sha(source),
+            'oracleSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'physicalPdfByteParity': True, 'popplerTextAndGeometry': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1763,6 +1803,7 @@ def main():
         percent_rgb = verify_native_percentage_rgb(isolated, output, work)
         named_colours = verify_native_named_colours(isolated, output, work)
         current_colour = verify_native_current_colour(isolated, output, work)
+        logical_borders = verify_native_logical_borders(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1799,6 +1840,7 @@ def main():
             'percentageRgb': percent_rgb,
             'namedColours': named_colours,
             'currentColour': current_colour,
+            'logicalBorders': logical_borders,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }
