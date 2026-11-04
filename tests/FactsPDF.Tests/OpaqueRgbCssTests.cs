@@ -114,7 +114,6 @@ public sealed class OpaqueRgbCssTests
     [TestCase("background:rgba(1,2,3,0)")]
     [TestCase("background:rgb(1 2 3 / 1)")]
     [TestCase("background:rgb(calc(1),2,3)")]
-    [TestCase("background:hsl(0,0%,0%)")]
     [TestCase("background:linear-gradient(red,blue)")]
     public void UnsupportedFunctionsAndAlphaFailBeforeReplacingOutput(string css) => Reject(css);
 

@@ -1527,6 +1527,45 @@ def verify_native_pdf_metadata(executable, first, output, work, baseline):
             'badInputPreserved': True, 'recoveryByteIdentical': True}
 
 
+def verify_native_hsl_colours(executable, output, work):
+    """Exercise real native HSL report paints against an independently fixed hex witness."""
+    source = ROOT / 'examples/report-hsl-colours.html'
+    oracle = ROOT / 'examples/report-hsl-colours-oracle.html'
+    actual = output / 'hsl-colours.pdf'
+    control = output / 'hsl-colours-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), 'HSL PDF differs from authored hex control'
+    pages = count_pages(actual)
+    assert pages >= 2, '48-record native HSL report should span pages'
+    placed = [page_boxes(actual, page) for page in range(1, pages + 1)]
+    assert placed == [page_boxes(control, page) for page in range(1, pages + 1)], (
+        'HSL ink changed document text/position')
+    words = [word[0] for _, _, items in placed for word in items]
+    assert [w for w in words if re.fullmatch(r'REC-\d{2}', w)] == [
+        f'REC-{n:02d}' for n in range(1, 49)], 'HSL report text missing or reordered'
+    invalid = work / 'hsl-invalid.html'
+    retained = output / 'hsl-preserved.pdf'
+    for css in ('hsl(12,50%,50%,.5)', 'hsla(12,50%,50%,.5)',
+                'hsl(12 50% 50% / 1)', 'hsl(12,150%,50%)'):
+        invalid.write_text('<style>.unused{color:' + css + '}</style><p>Protected</p>',
+                           encoding='utf-8')
+        retained.write_bytes(b'prior customer PDF')
+        failed = subprocess.run([str(executable), str(invalid), str(retained),
+                                '--overwrite'], cwd=work, capture_output=True, timeout=120)
+        assert failed.returncode == 3 and b'FPDF1202' in failed.stderr and not failed.stdout, (
+            'Native invalid HSL not rejected', css, failed.returncode, failed.stderr)
+        assert retained.read_bytes() == b'prior customer PDF', 'Invalid HSL destroyed output'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), 'Recovered HSL PDF bytes differ'
+    return {'records': 48, 'pages': pages, 'sourceSha256': sha(source),
+            'controlSha256': sha(oracle), 'pdfSha256': sha(actual),
+            'independentHexByteParity': True, 'popplerTextAndGeometry': True,
+            'protectedFailureRecovery': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
@@ -1604,6 +1643,7 @@ def main():
         responsive_images = verify_native_responsive_images(isolated, output, work, logo)
         image_heights = verify_native_image_heights(isolated, output, work, logo)
         image_height_limits = verify_native_image_height_limits(isolated, output, work, logo)
+        hsl_colours = verify_native_hsl_colours(isolated, output, work)
         report = {
             'sourceHead': run('git', '-C', ROOT, 'rev-parse', 'HEAD').decode().strip(),
             'platform': __import__('platform').platform(),
@@ -1636,6 +1676,7 @@ def main():
             'responsiveImages': responsive_images,
             'imageHeights': image_heights,
             'imageHeightLimits': image_height_limits,
+            'hslColours': hsl_colours,
             'gates': {'nativeProcess': True, 'independentPoppler': True,
                       'humanReferenceApproval': False, 'published': False}
         }

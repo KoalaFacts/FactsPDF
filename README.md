@@ -3,6 +3,27 @@
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
 
+## Bounded opaque HSL report colours (source-only)
+
+Business-report templates can use `hsl(210,60%,40%)`,
+`hsl(210deg 60% 40%)` or `hsla(120,100%,25%,1)` as scoped
+`color`, `background`/`background-color`, border colours and
+text-decoration colour. Hue is a finite number or `deg` from
+-3600 through 3600 (wrapped by 360); saturation/lightness accept
+0–100% including fractions. HSL is converted to opaque 8-bit RGB
+before the existing PDF ink/background/border paths, retaining CSS
+cascade, font/layout geometry, pagination and resource protection.
+
+The [48-entry colour report](examples/report-hsl-colours.html)
+and [independent fixed-hex oracle](examples/report-hsl-colours-oracle.html)
+must produce identical actual PDF bytes. Source NUnit, managed CLI
+and Linux/Windows Native AOT qpdf/Poppler check searchability, multi-page
+geometry and original-output recovery. No transparency, slash alpha,
+turn/rad, nesting, gradients or general CSS Color: unsupported values
+fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
+independent review, private software, human approval and customer
+distribution remain separate.
+
 ## Have a PDF report template to assess?
 
 FactsPDF is a **source-available, experimental .NET report renderer** for controlled

@@ -23,8 +23,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'e94987af9b07c2d7502c25b41625b85aa393f63f');
-  assert.match(dataset.commit_url, /e94987af9b07c2d7502c25b41625b85aa393f63f/);
+  assert.equal(dataset.commit, 'ee5af1a67d8aa88fa23da281ea6ab23414f9ef22');
+  assert.match(dataset.commit_url, /ee5af1a67d8aa88fa23da281ea6ab23414f9ef22/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -55,9 +55,15 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(rgb.status,'partial');
   assert.equal(rgb.last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
   assert.match(rgb.scope,/rgba/);
-  for(const id of ["css.color","css.background","css.background-color","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color","value.color.rgbfunc"]) {
-    assert.equal(dataset.features.find(f=>f.id===id).last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
+  for(const id of ["css.color","css.background","css.background-color","css.border","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color"]) {
+    const feature=dataset.features.find(f=>f.id===id);
+    assert.equal(feature.last_audited_commit,'ee5af1a67d8aa88fa23da281ea6ab23414f9ef22');
+    assert.match(feature.scope,/hsl\(/);
+    assert.match(feature.limitations,/alpha/);
+    assert.match(feature.test_reference,/OpaqueHslCssTests/);
+    assert.equal(feature.introduced_release,null);
   }
+  assert.equal(rgb.last_audited_commit,'b35413c2a5a4cdc584d03374c964fc3ed6ccee43');
 
   assert.deepEqual(counts(dataset.features), { full:44, partial:154, none:212, unknown:6, na:2 });
 });
@@ -266,7 +272,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.relative-font-weights');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.opaque-hsl-report-colours');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -577,14 +583,19 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
   for(const id of ["css.border","css.border-top","css.border-right","css.border-bottom","css.border-left","css.border-style","css.border-top-style","css.border-right-style","css.border-bottom-style","css.border-left-style"]){
     const row=dataset.features.find(f=>f.id===id);
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'4b5d6da3553579dad75dd00bfb041e1f3c200d90');
+    // Only css.border has a newer exact HSL paint audit; other physical
+    // border longhands retain their historical patterned-border source SHA.
+    assert.equal(row.last_audited_commit,id==='css.border'
+      ? 'ee5af1a67d8aa88fa23da281ea6ab23414f9ef22'
+      : '4b5d6da3553579dad75dd00bfb041e1f3c200d90');
     assert.match(row.scope,/dashed/);
     assert.match(row.scope,/dotted/);
     if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))
       assert.match(row.limitations,/圆角或图片边框/, id);
     else
       assert.match(row.limitations,/double/, id);
-    assert.match(row.test_reference,/ReportPatternedBorderTests/);
+    assert.match(row.test_reference,id==='css.border'
+      ? /OpaqueHslCssTests/ : /ReportPatternedBorderTests/);
     assert.equal(row.introduced_release,null);
   }
   assert.equal(dataset.accepted_css_property_count,83);
@@ -717,8 +728,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-04.relative-font-weights');
-  assert.equal(dataset.commit, 'e94987af9b07c2d7502c25b41625b85aa393f63f');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-04.opaque-hsl-report-colours');
+  assert.equal(dataset.commit, 'ee5af1a67d8aa88fa23da281ea6ab23414f9ef22');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);

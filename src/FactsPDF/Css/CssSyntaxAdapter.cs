@@ -65,7 +65,7 @@ internal static class CssSyntaxAdapter
             // Only opaque RGB functions are lowered to their equivalent hex
             // colour. All downstream cascade, box paint and PDF serializers
             // therefore use exactly the already audited solid-colour path.
-            var values = node.Values.Select(CanonicalOpaqueRgb).ToArray();
+            var values = node.Values.Select(CanonicalOpaqueColor).ToArray();
             var terms = Terms(node with { Values = values });
             var valueTokens = values.OfType<CssTokenComponent>()
                 .Where(x => x.Token.Kind != CssSyntaxTokenKind.Whitespace).ToArray();
@@ -549,12 +549,13 @@ internal static class CssSyntaxAdapter
     // The AST retains CSS functions rather than accepting arbitrary raw text.
     // Fail closed on alpha blending, percentages, arithmetic and nested functions:
     // none of them can be painted as a fully opaque PDF RGB colour.
-    private static CssSyntaxComponent CanonicalOpaqueRgb(CssSyntaxComponent component)
+    private static CssSyntaxComponent CanonicalOpaqueColor(CssSyntaxComponent component)
     {
         if (component is not CssFunctionComponent function) return component;
         var name = function.Name.ToLowerInvariant();
-        if (name is not ("rgb" or "rgba"))
-            throw new FactsPdfException("FPDF1202", "Only opaque rgb()/rgba() integer colours are supported.", function.Span.Start);
+        if (name is not ("rgb" or "rgba" or "hsl" or "hsla"))
+            throw new FactsPdfException("FPDF1202",
+                "Only opaque rgb()/rgba() and bounded hsl()/hsla() colours are supported.", function.Span.Start);
 
         var tokens = new List<CssSyntaxToken>();
         var spaced = new List<bool>();
@@ -571,6 +572,80 @@ internal static class CssSyntaxAdapter
             tokens.Add(item.Token);
             spaced.Add(whitespace);
             whitespace = false;
+        }
+
+        // Independently authored HSL report colours share the existing opaque RGB
+        // PDF paint path. The bounded subset accepts numbers or deg hue in
+        // [-3600,3600], saturation/lightness percentages, legacy comma syntax,
+        // and modern space syntax without slash alpha. hsla() requires comma
+        // syntax and precisely opaque alpha. No colour-space/blending fallback.
+        if (name is "hsl" or "hsla")
+        {
+            var commaHsl = tokens.Count == (name == "hsl" ? 5 : 7);
+            if (commaHsl)
+                for (var i = 1; i < tokens.Count; i += 2)
+                    commaHsl &= tokens[i].Kind == CssSyntaxTokenKind.Comma;
+            var spaceHsl = name == "hsl" && tokens.Count == 3 && spaced[1] && spaced[2];
+            if (!commaHsl && !spaceHsl)
+                throw new FactsPdfException("FPDF1202",
+                    "hsl() requires hue and two percentages; hsla() requires comma-form alpha exactly 1.",
+                    function.Span.Start);
+            var hueToken = tokens[0];
+            if (hueToken.Kind != CssSyntaxTokenKind.Number &&
+                !(hueToken.Kind == CssSyntaxTokenKind.Dimension &&
+                  string.Equals(hueToken.Unit, "deg", StringComparison.OrdinalIgnoreCase)))
+                throw new FactsPdfException("FPDF1202",
+                    "HSL hue must be a number or degrees.", hueToken.Span.Start);
+            // Use decimal throughout HSL channel calculation. Binary double
+            // cancellation at 5% / 95% turns exact .5 byte midpoints into
+            // 25.499999... and silently changes the promised 8-bit PDF ink.
+            if (!decimal.TryParse(hueToken.Value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var hue) ||
+                hue is < -3600m or > 3600m)
+                throw new FactsPdfException("FPDF1202",
+                    "HSL hue must be finite and between -3600 and 3600 degrees.", hueToken.Span.Start);
+            decimal Percent(int index)
+            {
+                var channel = tokens[commaHsl ? index * 2 : index];
+                if (channel.Kind != CssSyntaxTokenKind.Percentage ||
+                    !decimal.TryParse(channel.Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var value) ||
+                    value is < 0m or > 100m)
+                    throw new FactsPdfException("FPDF1202",
+                        "HSL saturation and lightness must be percentages from 0% to 100%.",
+                        channel.Span.Start);
+                return value / 100m;
+            }
+            var saturation = Percent(1);
+            var lightness = Percent(2);
+            if (name == "hsla")
+            {
+                var alpha = tokens[6];
+                if (alpha.Kind != CssSyntaxTokenKind.Number || !IsExactlyOne(alpha.Value))
+                    throw new FactsPdfException("FPDF1202",
+                        "HSL alpha compositing is unsupported; hsla() alpha must be exactly 1.",
+                        alpha.Span.Start);
+            }
+            var normalizedHue = ((hue % 360m) + 360m) % 360m;
+            var chroma = (1m - Math.Abs(2m * lightness - 1m)) * saturation;
+            var sector = normalizedHue / 60m;
+            var x = chroma * (1m - Math.Abs(sector % 2m - 1m));
+            var m = lightness - chroma / 2m;
+            (decimal red, decimal green, decimal blue) = sector switch
+            {
+                < 1m => (chroma, x, 0m),
+                < 2m => (x, chroma, 0m),
+                < 3m => (0m, chroma, x),
+                < 4m => (0m, x, chroma),
+                < 5m => (x, 0m, chroma),
+                _ => (chroma, 0m, x)
+            };
+            static byte Byte(decimal channel) =>
+                (byte)decimal.Round(channel * 255m, 0, MidpointRounding.AwayFromZero);
+            var hslHex = $"{Byte(red + m):x2}{Byte(green + m):x2}{Byte(blue + m):x2}";
+            return new CssTokenComponent(new CssSyntaxToken(
+                CssSyntaxTokenKind.Hash, hslHex, "#" + hslHex, function.Span));
         }
 
         // Legacy comma syntax and modern space-delimited rgb(), without alpha.
