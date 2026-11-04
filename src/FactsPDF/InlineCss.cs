@@ -34,7 +34,7 @@ internal static class InlineCss
                     } };
                     break;
                 case "font-size":
-                    var size = Length(value, offset);
+                    var size = KeywordFontSize(value, style.FontSize) ?? Length(value, offset);
                     if (size is < 1 or > 144) throw Invalid("font-size must be between 1pt and 144pt.", offset);
                     style = style with { FontSize = size };
                     break;
@@ -169,6 +169,23 @@ internal static class InlineCss
         }
         return style;
     }
+
+    // Bounded, deterministic source-only keyword sizes for controlled report text.
+    // Absolute keywords use the documented 12pt medium reference; relative
+    // keywords use the *computed parent* size during stylesheet resolution.
+    internal static double? KeywordFontSize(string value, double parentFontSize) => value switch
+    {
+        "xx-small" => 7.2,
+        "x-small" => 9,
+        "small" => 10,
+        "medium" => 12,
+        "large" => 14.4,
+        "x-large" => 18,
+        "xx-large" => 24,
+        "smaller" => parentFontSize * (5d / 6d),
+        "larger" => parentFontSize * (6d / 5d),
+        _ => null
+    };
 
     // Unmatched rules are validated without assuming a synthetic computed root.
     internal static double? RootRelativeScale(string value, int offset, double maxFactor)

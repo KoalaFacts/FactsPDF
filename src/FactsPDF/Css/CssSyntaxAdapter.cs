@@ -680,7 +680,8 @@ internal static class CssSyntaxAdapter
         {
             // Parse relative syntax even for a rule that does not match any
             // element. Actual parent-relative resolution happens after cascade.
-            if (!InlineCss.RootRelativeScale(token, offset, 144).HasValue
+            if (!InlineCss.KeywordFontSize(token, ValidationStyle.FontSize).HasValue
+                && !InlineCss.RootRelativeScale(token, offset, 144).HasValue
                 && !InlineCss.RelativeFontSizeScale(token, offset).HasValue)
                 _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
                     paragraph: true, inline: false, offset);

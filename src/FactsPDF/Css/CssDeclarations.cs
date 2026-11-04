@@ -25,6 +25,15 @@ internal static class CssDeclarations
         {
             if (property == CssProperty.FontSize)
             {
+                var keyword = InlineCss.KeywordFontSize(declaration.Value, parent.FontSize);
+                if (keyword.HasValue)
+                {
+                    var computed = keyword.Value;
+                    if (!double.IsFinite(computed) || computed is < 1 or > 144)
+                        throw new FactsPdfException("FPDF1202",
+                            "Computed keyword font-size must be between 1pt and 144pt.", declaration.Offset);
+                    return style with { FontSize = computed };
+                }
                 var rem = InlineCss.RootRelativeScale(declaration.Value, declaration.Offset, 144);
                 if (rem.HasValue)
                 {
