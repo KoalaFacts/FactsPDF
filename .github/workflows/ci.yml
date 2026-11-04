@@ -13,9 +13,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # macos-latest (macOS 26 arm64) hosted-runner acquisition repeatedly failed
+    # before any steps with 15-minute cancellations. macos-15 is a supported
+    # ARM64 macOS runner on a distinct OS-image pool; full tests stay required.
+    timeout-minutes: ${{ matrix.os == 'macos-15' && 30 || 15 }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
