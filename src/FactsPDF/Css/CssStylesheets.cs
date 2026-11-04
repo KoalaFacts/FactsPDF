@@ -20,7 +20,9 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BreakInside + 1];
+    // Allocate for every accepted CSS property; new bounded components must
+    // not index past the last legacy enum member in Native AOT or managed builds.
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextDecorationThickness + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 

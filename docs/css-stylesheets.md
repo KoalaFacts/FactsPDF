@@ -545,8 +545,10 @@ decoration line: `none`, `underline`, `line-through` or `overline`.
 `solid`, `dashed` or `dotted`, and `text-decoration-color` accepts `currentcolor`
 or opaque `#rgb`, `#rrggbb`, named/RGB colours from the existing palette.
 The `text-decoration` shorthand takes exactly one line keyword plus optionally
-one supported stroke and one colour, in any order. `none` stands alone.
-Shorthand omission resets stroke to `solid` and ink to `currentcolor`.
+one supported stroke, one colour and optionally one bounded length for the
+decoration thickness, in any order. `none` stands alone.
+Shorthand omission resets stroke to `solid`, ink to `currentcolor` and
+thickness to `auto`.
 Normal declaration order, specificity, `!important` and CSS-wide
 `inherit`/`initial`/`unset` work through the existing cascade.
 
@@ -568,7 +570,8 @@ underline/strike-through output remains byte-identical by default.
 
 This is a deliberately **bounded** CSS Text Decoration subset: no simultaneous
 lines, `double`, `wavy`, alpha, unbounded thickness/offset,
-HTML `<u>`/`<s>`, browser-style descendant decoration propagation, bidi,
+general HTML edit semantics (though u/s now render actual lines),
+browser-style descendant decoration propagation, bidi,
 or complex shaping. Invalid values and targets raise `FPDF1202`/`FPDF1201`,
 unpaintable geometry `FPDF1302`, and insufficient paint/byte budget `FPDF1401`.
 Failures preserve the original PDF destination. Tests cover API/CLI, actual

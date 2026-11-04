@@ -6061,7 +6061,7 @@
       "feature": "text-decoration",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "报告文字的单条 text-decoration/text-decoration-line（none、underline、overline、line-through）实际绘制 PDF 可搜索字形；text-decoration 简写可任选单条线型、solid/dashed/dotted、不透明颜色及一个受限线粗。text-decoration-thickness:auto 使用旧有字号比例；非零 pt/px/mm/cm/in/pc/q、基于元素计算字号的 em 或 html 根字号的 rem 在最终计算后须为 0.2–12pt，真实改变 PDF 连续或虚点装饰线的宽度、跨行跨页描绘。独立属性按 CSS 正常层叠、!important、inherit/initial/unset 计算；简写缺少线粗时重置 auto。现有 148 种具名不透明色、currentColor 与字体/版面约束继续适用。",
+      "scope": "报告文字的单条 text-decoration/text-decoration-line（none、underline、overline、line-through）实际绘制 PDF 可搜索字形；text-decoration-color 与 text-decoration-style 保持已实现的不透明颜色和线型；text-decoration 简写可任选单条线型、solid/dashed/dotted、不透明颜色及一个受限线粗。text-decoration-thickness:auto 使用旧有字号比例；非零 pt/px/mm/cm/in/pc/q、基于元素计算字号的 em 或 html 根字号的 rem 在最终计算后须为 0.2–12pt，真实改变 PDF 连续或虚点装饰线的宽度、跨行跨页描绘。独立属性按 CSS 正常层叠、!important、inherit/initial/unset 计算；简写缺少线粗时重置 auto。全部 148 种标准不透明 CSS 具名颜色、currentColor 与字体/版面约束继续适用。",
       "limitations": "只能绘制单条文本装饰线，auto 使用旧有字体比例；固定线粗范围 0.2–12pt，不支持 0、负数、百分比、from-font、calc、无界值、任意偏移、double/wavy、多条同时绘制、alpha、RTL、复杂 shaping 或浏览器后代装饰传播。未支持值及单独 img 使用明确报错，失败不覆盖已有 PDF；未声称通用 CSS Text Decoration 支持。",
       "stage": "CSS 层叠、实际 PDF 字形与绘制路径（限定范围）",
       "applicability": "已支持的 p/h1–h6、span/b/strong/i/em/small/u/s/del/ins/a 文字，以及限定固定表格单元格文字；实际 PDF 字符测量、TrueType、跨行分页和原有资源/输出预算仍适用，不支持单独图片的文字线粗。",
