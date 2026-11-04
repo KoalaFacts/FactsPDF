@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.402'
+          dotnet-version: '10.0.403'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.402'
+          dotnet-version: '10.0.403'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -147,7 +147,7 @@ jobs:
           python3 scripts/verify_release_candidate.py \
             --cli-dll "$RUNNER_TEMP/factspdf-private-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
             --package "$RUNNER_TEMP/factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg" \
-            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --expected-sdk 10.0.403 --expected-runtime 10.0.14 \
             --dotnet "$(command -v dotnet)" --output "$RUNNER_TEMP/factspdf-private-managed-first-use"
           cp "$RUNNER_TEMP/factspdf-private-managed/managed-archive.json" artifacts/first-use/private-managed-archive.json
           cp "$RUNNER_TEMP/factspdf-private-managed-first-use/report.json" artifacts/first-use/private-managed-first-use.json
@@ -220,7 +220,7 @@ jobs:
             --cli-dll "$RUNNER_TEMP/factspdf-private-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
             --package "$RUNNER_TEMP/factspdf-private-build/packages/FactsPDF.0.1.0-preview.1.nupkg" \
             --consumer-source "$RUNNER_TEMP/factspdf-private-examples-extracted/FactsPDF.Examples/first-use" \
-            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --expected-sdk 10.0.403 --expected-runtime 10.0.14 \
             --dotnet "$(command -v dotnet)" \
             --output "$RUNNER_TEMP/factspdf-private-examples-first-use"
           cp "$RUNNER_TEMP/factspdf-private-examples/examples-archive.json" artifacts/first-use/private-examples-archive.json
@@ -259,7 +259,7 @@ jobs:
           assert [p['packageId'] for p in compiler['packages']] == [
               'Microsoft.DotNet.ILCompiler',
               'runtime.linux-x64.Microsoft.DotNet.ILCompiler']
-          assert all(p['version'] == '10.0.13' for p in compiler['packages'])
+          assert all(p['version'] == '10.0.14' for p in compiler['packages'])
           pinned = {'LICENSE.TXT': 'cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310',
                     'THIRD-PARTY-NOTICES.TXT': '66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54'}
           assert {n['filename']: n['sha256'] for n in build['nativeNoticeOrigin']['notices']} == pinned
@@ -380,18 +380,18 @@ jobs:
           test ! -e "$source_root/.git"
           source_head="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sourceHead"])' "$source_root/SOURCE-MANIFEST.json")"
           test "$source_head" = "$(git rev-parse HEAD)"
-          test "$(dotnet --version)" = "10.0.402"
+          test "$(dotnet --version)" = "10.0.403"
           offline_config="$RUNNER_TEMP/factspdf-private-source-nuget.config"
           source_feed="$RUNNER_TEMP/factspdf-private-source-feed"
           mkdir -p "$RUNNER_TEMP/factspdf-private-source-packages" "$source_feed"
-          # SDK 10.0.402 requires the pinned ILLink.Tasks 10.0.13 package.
+          # SDK 10.0.403 requires the pinned ILLink.Tasks 10.0.14 package.
           # Copy only its hashed NuGet archive from the earlier clean build into
           # a local feed; never restore from checkout outputs or the network.
           python3 - <<'PY'
           import base64, hashlib, os, pathlib, shutil
-          cache = pathlib.Path.home() / '.nuget/packages/microsoft.net.illink.tasks/10.0.13'
-          archive = cache / 'microsoft.net.illink.tasks.10.0.13.nupkg'
-          digest_file = cache / 'microsoft.net.illink.tasks.10.0.13.nupkg.sha512'
+          cache = pathlib.Path.home() / '.nuget/packages/microsoft.net.illink.tasks/10.0.14'
+          archive = cache / 'microsoft.net.illink.tasks.10.0.14.nupkg'
+          digest_file = cache / 'microsoft.net.illink.tasks.10.0.14.nupkg.sha512'
           for path in (archive, digest_file):
               if not path.is_file() or path.is_symlink() or not path.stat().st_size:
                   raise AssertionError('Missing/invalid pinned ILLink package cache member: ' + str(path))
@@ -403,16 +403,16 @@ jobs:
           if actual != digest_file.read_text(encoding='ascii').strip():
               raise AssertionError('ILLink package archive differs from recorded NuGet cache SHA512')
           shutil.copyfile(archive, pathlib.Path(os.environ['RUNNER_TEMP']) / 'factspdf-private-source-feed' / archive.name)
-          print('Pinned ILLink.Tasks 10.0.13 archive checksum verified for offline extracted-source restore')
+          print('Pinned ILLink.Tasks 10.0.14 archive checksum verified for offline extracted-source restore')
           PY
           printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<configuration><packageSources><clear /><add key="verified-local" value="'"$source_feed"'" /></packageSources></configuration>' > "$offline_config"
           (
             cd "$source_root"
             export NUGET_PACKAGES="$RUNNER_TEMP/factspdf-private-source-packages"
-            dotnet restore src/FactsPDF.Cli/FactsPDF.Cli.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.13
-            dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.13
-            dotnet restore tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.13
-            dotnet build tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.13
+            dotnet restore src/FactsPDF.Cli/FactsPDF.Cli.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.14
+            dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.14
+            dotnet restore tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.14
+            dotnet build tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.14
             dotnet src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll examples/quick-start.html "$RUNNER_TEMP/factspdf-private-source-rebuilt.pdf"
           )
           qpdf --check "$RUNNER_TEMP/factspdf-private-source-rebuilt.pdf"
@@ -621,7 +621,7 @@ jobs:
             --cli-dll "$RUNNER_TEMP/factspdf-staged-managed-extracted/FactsPDF.Cli/FactsPDF.Cli.dll" \
             --package "$RUNNER_TEMP/factspdf-private-five-staged/FactsPDF.0.1.0-preview.1.nupkg" \
             --consumer-source "$RUNNER_TEMP/factspdf-staged-examples-extracted/FactsPDF.Examples/first-use" \
-            --expected-sdk 10.0.402 --expected-runtime 10.0.13 \
+            --expected-sdk 10.0.403 --expected-runtime 10.0.14 \
             --dotnet "$(command -v dotnet)" \
             --output "$RUNNER_TEMP/factspdf-staged-five-installed-consumer"
           python3 scripts/verify_native_feature_paths.py \
@@ -684,8 +684,8 @@ jobs:
           assert manifest['sourceHead'] == source
           assert identity['profile'] == 'local-linux'
           assert identity['version'] == '0.1.0-preview.1'
-          assert identity['sdkVersion'] == '10.0.402'
-          assert identity['managedRuntimeVersion'] == '10.0.13'
+          assert identity['sdkVersion'] == '10.0.403'
+          assert identity['managedRuntimeVersion'] == '10.0.14'
           assert manifest['independentlyValidated'] is True
           assert manifest['candidateAssembled'] is True
           assert all(manifest[k] is False for k in (
@@ -809,7 +809,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.402'
+          dotnet-version: '10.0.403'
       - name: Gate Windows private candidate source and inspector inputs before build
         shell: pwsh
         run: |
@@ -909,9 +909,9 @@ jobs:
           assert [p['packageId'] for p in compiler['packages']] == [
               'Microsoft.DotNet.ILCompiler',
               'runtime.win-x64.Microsoft.DotNet.ILCompiler']
-          assert all(p['version'] == '10.0.13' for p in compiler['packages'])
+          assert all(p['version'] == '10.0.14' for p in compiler['packages'])
           assert report['nativeNoticeOrigin']['packageId'] == 'Microsoft.NETCore.App.Runtime.NativeAOT.win-x64'
-          assert report['nativeNoticeOrigin']['version'] == '10.0.13'
+          assert report['nativeNoticeOrigin']['version'] == '10.0.14'
           extracted = temp / 'factspdf-private-windows-extracted'
           extracted.mkdir()
           with zipfile.ZipFile(archive) as z:
