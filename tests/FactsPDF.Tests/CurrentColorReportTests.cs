@@ -99,9 +99,9 @@ public sealed class CurrentColorReportTests
         var font = PdfFont.LoadTrueType(FontFixture.Create());
         var options = Page with { Fonts = [font], BoldFonts = [font] };
         const string actual = "<div style='color:#315f82;background:currentColor;padding:4pt'>" +
-            "<p style='font-size:12pt;text-decoration:underline dotted currentColor'>Audit</p></div>";
+            "<p style='font-size:12pt;text-decoration:underline dotted currentColor'>AB</p></div>";
         const string fixedInk = "<div style='color:#315f82;background:#315f82;padding:4pt'>" +
-            "<p style='font-size:12pt;text-decoration:underline dotted #315f82'>Audit</p></div>";
+            "<p style='font-size:12pt;text-decoration:underline dotted #315f82'>AB</p></div>";
         Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(fixedInk, options)));
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(actual));
         using var output = new MemoryStream();
