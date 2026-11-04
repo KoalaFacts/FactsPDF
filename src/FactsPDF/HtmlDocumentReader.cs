@@ -9,7 +9,8 @@ internal static class HtmlDocumentReader
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 
-    private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em";
+    private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
+        or "small" or "u" or "s" or "del" or "ins";
 
     // Keep the old internal paragraph view for existing editor/tests; actual
     // conversions now receive a structured document via ReadTree.
@@ -218,6 +219,12 @@ internal static class HtmlDocumentReader
                 BreakBefore = false, BreakAfter = false, KeepWithNext = false };
             if (name is "b" or "strong" or "th") style = style with { Bold = true };
             if (name is "i" or "em") style = style with { Italic = true };
+            // Real inline report editing semantics, rendered with existing
+            // measured glyphs and PDF decoration strokes. CSS can override
+            // these tag defaults through the normal cascade.
+            if (name == "small") style = style with { FontSize = style.FontSize * (5d / 6d) };
+            if (name is "u" or "ins") style = style with { Decoration = TextDecoration.Underline };
+            if (name is "s" or "del") style = style with { Decoration = TextDecoration.LineThrough };
             if (name == "pre") style = style with
             {
                 NoWrap = true, PreserveLineBreaks = true, PreserveSpaces = true
