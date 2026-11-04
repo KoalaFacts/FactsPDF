@@ -110,7 +110,8 @@ public sealed class LogicalBorderReportTests
     [Test]
     public void SuppliedTrueTypeAndManagedCliPaintSameBorderGeometry()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var fontBytes = FontFixture.Create();
+        var font = PdfFont.LoadTrueType(fontBytes);
         var options = Page with { Fonts = [font], BoldFonts = [font] };
         const string source = "<div style='border-inline:2pt solid #315f82;" +
             "border-block:1pt dashed #246637;padding:4pt'>" +
@@ -120,14 +121,26 @@ public sealed class LogicalBorderReportTests
             "border-bottom:1pt dashed #246637;padding:4pt'>" +
             "<p style='margin:0;font-weight:bold'>AB</p></div>";
         Assert.That(Pdf(source, options), Is.EqualTo(Pdf(control, options)));
-        using var input = new MemoryStream(Encoding.UTF8.GetBytes(source));
-        using var output = new MemoryStream();
-        using var diagnostics = new StringWriter();
-        Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero,
-            diagnostics.ToString());
-        using var expected = new MemoryStream();
-        PdfConverter.Convert(source, expected);
-        Assert.That(output.ToArray(), Is.EqualTo(expected.ToArray()));
+        // CLI has independent font-role chains and independent page options.
+        // Supply the same real synthetic TrueType bytes and page geometry as the API.
+        var path = Path.Combine(Path.GetTempPath(),
+            $"factspdf-logical-borders-{Guid.NewGuid():N}.ttf");
+        try
+        {
+            File.WriteAllBytes(path, fontBytes);
+            using var input = new MemoryStream(Encoding.UTF8.GetBytes(source));
+            using var output = new MemoryStream();
+            using var diagnostics = new StringWriter();
+            Assert.That(CliApplication.Run(["-", "-", "--page-width", "310pt",
+                "--page-height", "165pt", "--margin", "18pt",
+                "--font", path, "--font-bold", path], input, output, diagnostics), Is.Zero,
+                diagnostics.ToString());
+            Assert.That(output.ToArray(), Is.EqualTo(Pdf(source, options)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [TestCase("border-inline:1pt solid red blue", "FPDF1202")]
@@ -165,8 +178,8 @@ public sealed class LogicalBorderReportTests
         var root = FindRoot();
         var html = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders.html"));
         var control = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders-oracle.html"));
-        // The checked-in print template uses a 360pt-wide panel and the
-        // normal A4 content width; the small Page test fixture is not valid.
+        // Two explicit print panels each fit an A4 content area; a hard page
+        // boundary retains all 44 entries while exercising real page painting.
         var options = new PdfOptions();
         Assert.That(Pdf(html, options), Is.EqualTo(Pdf(control, options)));
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
