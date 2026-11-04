@@ -7,9 +7,17 @@ that a license eliminates all legal risk.
 
 ## Before the first software-package release or paid order
 
-- [ ] Identify the actual copyright holders and authorized commercial licensor;
-  verify employment/contractor and contribution rights. Do not substitute the
-  KoalaFacts GitHub organization label for an unknown incorporated entity.
+- [x] Name the commercial licensor: **KoalaFacts Trading Pty Ltd** (owner
+  decision, 5 November 2026). LICENSE.md and COMMERCIAL.md identify it.
+- [ ] Record the company's ABN/ACN and an authorized contact in the private
+  sales records.
+- [ ] Assign or license existing maintainer-authored FactsPDF code to
+  KoalaFacts Trading Pty Ltd in writing, so the company holds the rights it
+  licenses.
+- [x] Confirm no employer of the owner has a claim on FactsPDF (owner
+  confirmation, 5 November 2026). Repeat this check for any future contributor
+  or contractor.
+- [ ] Ask counsel how AI-assisted authorship affects copyright in the code.
 - [ ] Obtain review by counsel familiar with software licensing, Australia, and
   intended sales jurisdictions. Review free-category definitions, Group revenue,
   financial-year boundaries, the 90-day transition, downstream execution, and

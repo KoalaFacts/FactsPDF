@@ -49,9 +49,9 @@ commercial sublicensing rights over that author's work; see
 
 ## Before authorization can be issued
 
-An agreement must be recorded and accepted by both parties, with the authorized
-licensor's legal identity and contact details verified. A GitHub organization
-name alone is not sufficient. The licensor must have rights to sublicense all
+The licensor is **KoalaFacts Trading Pty Ltd**. An agreement must be recorded
+and accepted by both parties, with the licensor's legal identity and contact
+details stated in it. A GitHub organization name alone is not sufficient. The licensor must have rights to sublicense all
 code included in the commercial grant, including accepted contributions.
 
 The completed agreement must expressly state:
@@ -91,6 +91,7 @@ addresses, contracts, or payment details. Do not put confidential details or
 keys in an issue. Maintainers must verify the sender and contracting authority
 before accepting terms or payment.
 
-No private sales address or incorporated seller has been invented for this
-repository. Publishing these process rules does not authorize any maintainer to
-sign on behalf of an unidentified company or other copyright holders.
+Commercial Licenses are issued by KoalaFacts Trading Pty Ltd. No private sales
+address has been published yet. Only a person authorized by KoalaFacts Trading
+Pty Ltd may sign on its behalf; publishing these process rules authorizes no
+one to sign for it or for other copyright holders.

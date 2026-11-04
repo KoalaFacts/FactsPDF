@@ -1,5 +1,12 @@
 # FactsPDF license history
 
+## Licensor identification - 5 November 2026
+
+LICENSE.md now names KoalaFacts Trading Pty Ltd as copyright holder and
+licensor, replacing the unnamed "FactsPDF authors" wording. The grant, its
+conditions and the version number are unchanged; this identifies the party
+that grants them.
+
 ## Community License 1.1 - 9 October 2026
 
 The current controlling text is [LICENSE.md](../LICENSE.md). Version 1.1 adds
