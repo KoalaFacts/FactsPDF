@@ -94,9 +94,8 @@ internal sealed class PdfLinkAnnotations
         throw Invalid(offset);
     }
 
-    // Deliberately bounded unquoted ASCII mailbox subset; not all RFC 5322
-    // forms. Reject path/port suffixes and malformed labels instead of making
-    // a superficially clickable PDF action to a non-address.
+    // Deliberately narrow plain ASCII mailbox subset: not general RFC syntax.
+    // Both local and domain segments must be complete, not URL paths or ports.
     private static bool IsPlainMailbox(string address)
     {
         var at = address.IndexOf('@');
@@ -105,18 +104,10 @@ internal sealed class PdfLinkAnnotations
         var domain = address[(at + 1)..];
         if (domain.Length is < 1 or > 253 || local[0] == '.' || local[^1] == '.' ||
             local.Contains("..", StringComparison.Ordinal) ||
-            !local.All(c => char.IsAsciiLetterOrDigit(c) ||
-                c is '.' or '!' or '#' or '
-        "Link href requires an absolute ASCII HTTPS URL or one mailto address (max 2048 chars).", offset);
-
-    private static string N(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
-}
- or '&' or '\'' or '*' or '+' or '-' or
-                    '/' or '=' or '^' or '_' or '{' or '|' or '}' or '~'))
+            !local.All(c => char.IsAsciiLetterOrDigit(c) || c == '.' || c == '+' || c == '-' || c == '_'))
             return false;
         return domain.Split('.').All(label =>
-            label.Length is > 0 and <= 63 &&
-            label[0] != '-' && label[^1] != '-' &&
+            label.Length is > 0 and <= 63 && label[0] != '-' && label[^1] != '-' &&
             label.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'));
     }
 
