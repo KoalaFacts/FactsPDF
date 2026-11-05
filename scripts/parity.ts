@@ -5,12 +5,16 @@
 //   node scripts/parity.ts [--base <ref>] [--work <dir>] [--font <path.ttf>]
 //                          [--dotnet <path>] [--python <path>] [--jobs <n>]
 //
-// Defaults: --base origin/main, --work <tmp>/factspdf-parity,
+// --work is a parent folder outside the repository (default: the system temp
+// folder); each run builds in a new subfolder of it and nothing else there is
+// touched, except that the report is also copied to <work>/parity.json. The
+// subfolder is removed when every run is identical.
+// Defaults: --base origin/main,
 // --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf.
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 export interface OptionSet {
   name: string;
@@ -40,7 +44,7 @@ export interface ParityOptions {
 
 const defaults: ParityOptions = {
   base: 'origin/main',
-  work: join(tmpdir(), 'factspdf-parity'),
+  work: tmpdir(),
   font: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
   dotnet: 'dotnet',
   python: 'python3',
@@ -125,11 +129,26 @@ export function compareRuns(base: RunResult, head: RunResult): string | null {
   return null;
 }
 
+/** The exit code of a finished process; a launch failure or a signal is an error, never a result. */
+export function exitCodeOf(error: { code?: unknown; signal?: unknown } | null): number {
+  if (error === null) {
+    return 0;
+  }
+  if (typeof error.code === 'number' && (error.signal === null || error.signal === undefined)) {
+    return error.code;
+  }
+  const cause = error.signal ? `signal ${String(error.signal)}` : `error ${String(error.code)}`;
+  throw new Error(`the CLI did not run to completion (${cause})`);
+}
+
 function run(file: string, args: readonly string[], cwd: string): Promise<{ code: number; stderr: string }> {
-  return new Promise((done) => {
+  return new Promise((done, fail) => {
     execFile(file, args, { cwd, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' }, (error, _stdout, stderr) => {
-      const code = error === null ? 0 : typeof error.code === 'number' ? error.code : -1;
-      done({ code, stderr });
+      try {
+        done({ code: exitCodeOf(error), stderr });
+      } catch (failure) {
+        fail(new Error(`${failure instanceof Error ? failure.message : String(failure)}: ${args.join(' ')}`));
+      }
     });
   });
 }
@@ -162,15 +181,26 @@ async function pool<T>(items: readonly T[], jobs: number, work: (item: T) => Pro
   await Promise.all(workers);
 }
 
-export async function checkParity(repo: string, options: ParityOptions): Promise<{ runs: number; exitCodes: Record<string, Record<string, number>>; differences: Difference[] }> {
+/** Rejects a --work folder inside the repository, which the run would litter or clobber. */
+export function workParent(repo: string, work: string): string {
+  const parent = resolve(work);
+  const inside = relative(resolve(repo), parent);
+  if (inside === '' || (!inside.startsWith('..') && !isAbsolute(inside))) {
+    throw new Error(`--work must be outside the repository: ${parent}`);
+  }
+  return parent;
+}
+
+export async function checkParity(repo: string, options: ParityOptions): Promise<{ runs: number; report: string; exitCodes: Record<string, Record<string, number>>; differences: Difference[] }> {
   if (!existsSync(options.font)) {
     throw new Error(`font not found: ${options.font} (pass --font)`);
   }
   const baseCommit = execFileSync('git', ['rev-parse', '--verify', `${options.base}^{commit}`], { cwd: repo, encoding: 'utf8' }).trim();
-  const work = resolve(options.work);
+  const parent = workParent(repo, options.work);
+  mkdirSync(parent, { recursive: true });
+  const work = mkdtempSync(join(parent, 'factspdf-parity-'));
   const tree = join(work, 'base-tree');
-  rmSync(work, { recursive: true, force: true });
-  mkdirSync(work, { recursive: true });
+  let identical = false;
   execFileSync('git', ['worktree', 'prune'], { cwd: repo });
   execFileSync('git', ['worktree', 'add', '--detach', tree, baseCommit], { cwd: repo, stdio: 'ignore' });
   try {
@@ -200,10 +230,17 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       }
     });
     differences.sort((a, b) => `${a.example}.${a.set}`.localeCompare(`${b.example}.${b.set}`));
-    writeFileSync(join(work, 'parity.json'), JSON.stringify({ base: baseCommit, runs: cases.length, exitCodes, differences }, null, 2) + '\n');
-    return { runs: cases.length, exitCodes, differences };
+    const report = JSON.stringify({ base: baseCommit, runs: cases.length, exitCodes, differences }, null, 2) + '\n';
+    writeFileSync(join(work, 'parity.json'), report);
+    writeFileSync(join(parent, 'parity.json'), report);
+    identical = differences.length === 0;
+    return { runs: cases.length, report: join(parent, 'parity.json'), exitCodes, differences };
   } finally {
     execFileSync('git', ['worktree', 'remove', '--force', tree], { cwd: repo, stdio: 'ignore' });
+    if (identical) {
+      // Only the subfolder this run created; keep it for inspection when anything differs.
+      rmSync(work, { recursive: true, force: true });
+    }
   }
 }
 
@@ -211,14 +248,14 @@ if (import.meta.main) {
   const repo = resolve(import.meta.dirname, '..');
   try {
     const options = parseArguments(process.argv.slice(2));
-    const { runs, exitCodes, differences } = await checkParity(repo, options);
+    const { runs, report, exitCodes, differences } = await checkParity(repo, options);
     for (const [set, tally] of Object.entries(exitCodes)) {
       console.log(`parity: ${set} exit codes ${JSON.stringify(tally)}`);
     }
     for (const difference of differences) {
       console.error(`${difference.example} [${difference.set}]: ${difference.reason}`);
     }
-    console.log(`parity: ${runs - differences.length}/${runs} runs identical (report: ${join(resolve(options.work), 'parity.json')})`);
+    console.log(`parity: ${runs - differences.length}/${runs} runs identical (report: ${report})`);
     process.exit(differences.length === 0 ? 0 : 1);
   } catch (error) {
     console.error(`parity: ${error instanceof Error ? error.message : String(error)}`);

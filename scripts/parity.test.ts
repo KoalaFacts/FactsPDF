@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { compareRuns, optionSets, parseArguments, type RunResult } from './parity.ts';
+import { compareRuns, exitCodeOf, optionSets, parseArguments, type RunResult, workParent } from './parity.ts';
 
 const pdf = (text: string) => Buffer.from(text, 'latin1');
 const ok = (bytes: string): RunResult => ({ exitCode: 0, stderr: '', pdf: pdf(bytes) });
@@ -57,4 +57,18 @@ test('uses the three documented option sets', () => {
   assert.ok(furniture.includes('--page-furniture /repo/examples/business-page-furniture.json'));
   assert.ok(furniture.includes('--page-width 148mm --page-height 210mm'));
   assert.ok(!furniture.includes('--subset-fonts'), 'the furniture set embeds the full font');
+});
+
+test('a signal or launch failure is an error, not a comparable exit code', () => {
+  assert.equal(exitCodeOf(null), 0);
+  assert.equal(exitCodeOf({ code: 3, signal: null }), 3);
+  assert.throws(() => exitCodeOf({ code: null, signal: 'SIGTERM' }), /did not run to completion \(signal SIGTERM\)/);
+  assert.throws(() => exitCodeOf({ code: 'ENOENT' }), /did not run to completion \(error ENOENT\)/);
+});
+
+test('refuses a work folder inside the repository', () => {
+  assert.throws(() => workParent('/repo', '/repo'), /outside the repository/);
+  assert.throws(() => workParent('/repo', '/repo/artifacts'), /outside the repository/);
+  assert.equal(workParent('/repo', '/tmp/parity'), '/tmp/parity');
+  assert.equal(workParent('/repo', '/repository-sibling'), '/repository-sibling');
 });

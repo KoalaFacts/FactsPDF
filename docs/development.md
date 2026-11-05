@@ -375,8 +375,9 @@ Sans, `--subset-fonts --page-numbers --header-text H --title T`, the
 and with `--page-furniture examples/business-page-furniture.json --page-width
 148mm --page-height 210mm` and the fully embedded font. It fails when any exit
 code, stderr text or PDF byte differs, and writes `parity.json` to its work
-folder. `--base <ref>`, `--font <path.ttf>` and `--work <dir>` override the
-defaults. CI runs it on every pull request against the PR's base commit; a PR
+folder. `--base <ref>`, `--font <path.ttf>` and `--work <dir>` (a folder
+outside the repository; each run uses a new subfolder of it) override the
+defaults. A CLI that crashes or is killed fails the check. CI runs it on every pull request against the PR's base commit; a PR
 that changes output on purpose explains each difference.
 
 ## Document map
