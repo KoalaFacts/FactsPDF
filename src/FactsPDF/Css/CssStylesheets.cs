@@ -153,10 +153,11 @@ internal sealed class CssStylesheets
     {
         Array.Clear(winners); var element = path[^1];
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
-        // white-space is inherited CSS text state. Scoped document and report
-        // containers may set it for their descendant text paragraphs, without
-        // granting inline, list or table declarations new layout semantics.
-        var whiteSpaceHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "blockquote")
+        // These inherited text-flow controls can be authored on document or
+        // ordinary report containers. Their computed state reaches the same
+        // measured paragraph/heading renderer, not a separate box approximation.
+        // Direct inline, list and table declarations remain unsupported.
+        var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "blockquote")
             && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                 or "td" or "th" or "thead" or "tbody" or "tfoot");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
@@ -356,7 +357,8 @@ internal sealed class CssStylesheets
             if (!paragraph && !panelMargin && !panelPageBreak && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
                 or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
-                && !(whiteSpaceHost && declaration.Property == CssProperty.WhiteSpace))
+                && !(reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
+                    or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
@@ -486,8 +488,9 @@ internal sealed class CssStylesheets
                 // FontSize precedes these properties in the fixed enum.
                 var computedRoot = element.Name == "html"
                     && declaration.Property is (CssProperty.LineHeight
-                        or CssProperty.LetterSpacing or CssProperty.WordSpacing
-                        or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset)
+                        or CssProperty.TextIndent or CssProperty.LetterSpacing
+                        or CssProperty.WordSpacing or CssProperty.TextDecorationThickness
+                        or CssProperty.TextUnderlineOffset)
                     ? style.FontSize : rootFontSize;
                 // Explicit paragraph/heading margin/break:inherit must read
                 // the direct panel's computed BoxStyle. Neither property is
@@ -505,7 +508,8 @@ internal sealed class CssStylesheets
                             BreakAfter = parentBox.BreakAfter }
                         : parent;
                 style = CssDeclarations.Apply(style, inheritedParent, initial, declaration,
-                    paragraph || whiteSpaceHost && declaration.Property == CssProperty.WhiteSpace, computedRoot);
+                    paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
+                        or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
         }
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)

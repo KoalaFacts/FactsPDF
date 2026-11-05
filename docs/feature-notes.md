@@ -490,7 +490,7 @@ This source feature does not update retained private installable software.
 
 ### First-line `text-indent` (source-only)
 
-For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans, containers and table-cell paragraphs cannot set it; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
+For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans and table-cell paragraphs cannot declare it directly. Document roots and ordinary report containers may now declare it for inheritance, including into flat fixed-column cell paragraphs; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
 
 ### Bounded `letter-spacing` (source-only)
 
@@ -546,6 +546,20 @@ This source capability is not a rebuilt binary or a public NuGet release.
 For inspection findings, revised quotes and status notes, `text-decoration:overline dashed blue` or `text-decoration:underline dotted #ff0000` paints a real clipped vector line at the font-measured text position. You can also set `text-decoration-color` and `text-decoration-style` individually; their CSS-wide cascade and `currentcolor` follow the existing styling rules. The unstyled and legacy solid paths preserve existing bytes. One line only; no double, wavy, multi-line, alpha/transparency, variable thickness or browser-wide propagation. See the [source example](../examples/report-text-decoration-paint.html), [PDF implementation tests](../tests/FactsPDF.Tests/TextDecorationPaintTests.cs), and [bounded CSS contract](css-stylesheets.md#current-source-colored-and-patterned-report-text-decorations). This is current source, not a newly distributed binary or customer licence.
 
 ## White space and line wrapping
+
+### Inherited report text flow (source-only)
+
+The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all`
+and nonnegative `text-indent` values can now be declared on `html`, `body`
+or ordinary report `div`/`section`/`article`/`blockquote` containers.
+Their computed values inherit into descendant paragraphs and headings and
+control actual PDF word wrapping, first-line X coordinates and pagination.
+An inherited `text-indent` also positions a flat paragraph inside a fixed-column
+table cell, including left/centre/right alignment; it does not permit a
+direct `text-indent` declaration on the table or its cell paragraph.
+Inline elements, list/table structural declarations, unsupported values and
+complex text shaping remain outside scope. See the
+[bounded inherited CSS contract](css-stylesheets.md#current-source-inherited-report-text-flow).
 
 ### Inherited report white-space from document and panels (source-only)
 

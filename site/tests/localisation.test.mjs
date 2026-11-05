@@ -141,9 +141,10 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'052f7a8d3da5f87d9dfb6c7b687dd35b1eb97097');
-  assert.match(display.scope,/fixed-column table cells/);
-  assert.match(display.limitations,/nowrap prohibits automatic breaks/);
+  assert.equal(display.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.match(display.scope,/flat cell paragraphs/);
+  assert.match(display.scope,/outside lists\/tables/);
+  assert.match(display.limitations,/nowrap\/pre forbids soft wraps/);
   assert.match(display.limitations,/FPDF1302/);
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
   assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
@@ -368,7 +369,7 @@ test('scoped word-break English audit distinguishes normal emergency wrap from b
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(item=>item.id==='css.word-break'));
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'ac6cec7000b308b403dd95abcd14441240b1f791');
+  assert.equal(row.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.match(row.scope,/current PDF line/);
   assert.match(row.scope,/glyph/);
   assert.match(row.limitations,/keep-all/);
