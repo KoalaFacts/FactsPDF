@@ -714,6 +714,50 @@ def verify_native_table_vertical_align(executable, output, work):
             'failureRecovery': True, 'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
 
+def verify_native_underline_offset(executable, output, work):
+    """Real Native AOT underline baseline paint against independently authored point offsets."""
+    source = ROOT / 'examples/report-underline-offset.html'
+    oracle = ROOT / 'examples/report-underline-offset-oracle.html'
+    assert source.is_file() and oracle.is_file(), 'Missing underline-offset HTML/control pair'
+    html = source.read_text(encoding='utf-8')
+    assert html.count('<p class="item">') == 44, 'Expected 44 authored quote entries'
+    actual = output / 'underline-offset.pdf'
+    control = output / 'underline-offset-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, oracle, control, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', control)
+    assert actual.read_bytes() == control.read_bytes(), (
+        'Native computed em/rem underline positions differ from explicit point PDF paint')
+    pages = count_pages(actual)
+    assert pages >= 2, 'Authored underline quotation must span physical A4 pages'
+    words = [word[0] for number in range(1, pages + 1)
+             for word in page_boxes(actual, number)[2]]
+    assert words.count('Item') == 44, 'Native PDF lost or duplicated source quote entries'
+    streams = b'\n'.join(extract_vector_page_streams(actual.read_bytes(), pages))
+    assert streams.count(b' re W n ') >= 44, 'Native dotted underline marks were not painted'
+    assert b' re f Q' in streams, 'Native solid heading underline was not painted'
+    invalid = output / 'underline-offset-invalid.html'
+    assert 'text-underline-offset: 0.2em;' in html
+    invalid.write_text(html.replace('text-underline-offset: 0.2em;',
+                                    'text-underline-offset: -1pt;', 1), encoding='utf-8')
+    retained = output / 'underline-offset-retained.pdf'
+    retained.write_bytes(b'previous accepted PDF')
+    fail = subprocess.run([str(executable), str(invalid), str(retained), '--overwrite'],
+                          cwd=work, capture_output=True, timeout=120)
+    assert fail.returncode == 3 and b'FPDF1202' in fail.stderr, (
+        'Invalid native underline offset did not fail closed', fail.returncode, fail.stderr)
+    assert retained.read_bytes() == b'previous accepted PDF', (
+        'Native invalid underline offset clobbered existing PDF')
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes(), (
+        'Native valid retry differs from original accepted quotation')
+    return {'pages': pages, 'entries': 44, 'physicalPointPdfBytesEqual': True,
+            'realPdfUnderlinePaint': True, 'invalidDestinationPreserved': True,
+            'validRetryBytesEqual': True, 'pdfSha256': sha(actual),
+            'sourceSha256': sha(source)}
+
+
 def verify_native_decoration_paint(executable, output, work):
     """Verify 60 authored report rows and real clipped vector ink in Native AOT PDF."""
     source = ROOT / 'examples/report-text-decoration-paint.html'
@@ -1828,6 +1872,7 @@ def main():
         preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
         table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
+        underline_offset = verify_native_underline_offset(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
         minimum_height = verify_native_minimum_height(isolated, output, work)
         fixed_height = verify_native_fixed_height(isolated, output, work)
@@ -1866,6 +1911,7 @@ def main():
             'preformattedAudit': preformatted_audit,
             'tableVerticalAlign': table_vertical_align,
             'decorationPaint': decoration_paint,
+            'underlineOffset': underline_offset,
             'roundedPanels': rounded_panels,
             'minimumHeight': minimum_height,
             'fixedHeight': fixed_height,
