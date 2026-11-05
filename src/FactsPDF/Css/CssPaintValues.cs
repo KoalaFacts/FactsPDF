@@ -68,6 +68,25 @@ internal static class CssPaintValues
         catch (FactsPdfException) { return false; }
     }
 
+    // Outlines use bounded visible widths and do not alter the box model.
+    internal static double OutlineWidth(string value, int offset)
+    {
+        var width = BorderWidth(value, offset);
+        if (width > 6 || width > 0 && width < 0.2)
+            throw new FactsPdfException("FPDF1202",
+                "Outline width must be zero or from 0.2pt to 6pt.", offset);
+        return width;
+    }
+
+    internal static double OutlineOffset(string value, int offset)
+    {
+        var length = CssBoxValues.Length(value, offset);
+        if (length.IsPercent || length.Value > 12)
+            throw new FactsPdfException("FPDF1202",
+                "Outline offset must be a nonnegative physical length no larger than 12pt.", offset);
+        return length.Value;
+    }
+
     internal static double BorderWidth(string value, int offset)
     {
         if (!TryBorderWidth(value, out var result))
