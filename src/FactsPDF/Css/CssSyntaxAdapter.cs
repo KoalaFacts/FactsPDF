@@ -494,20 +494,46 @@ internal static class CssSyntaxAdapter
                 Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");
                 continue;
             }
-            // Restricted list-style shorthand: exactly one supported marker
-            // type or one CSS-wide keyword. Position/images are not implemented,
-            // so accepting or dropping any other term would falsely render it.
-            // Lower to the existing list-style-type cascade and PDF marker path.
+            // List shorthands reset BOTH inherited marker type and position.
+            // Support only marker type plus optional inside/outside; never
+            // silently accept a URL, counter or arbitrary list-style image.
             if (name == "list-style")
             {
-                if (terms.Count != 1 || valueTokens.Count() != 1
-                    || valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
+                if (terms.Count is < 1 or > 2 || valueTokens.Length != terms.Count ||
+                    valueTokens.Any(t => t.Token.Kind != CssSyntaxTokenKind.Ident))
                     throw new FactsPdfException("FPDF1202",
-                        "list-style accepts exactly one supported marker type.", node.Span.Start);
-                var kind = terms[0];
-                var kindOffset = valueTokens[0].Token.Span.Start;
-                if (!Wide(kind)) _ = ListMarkerTypes.Parse(kind, kindOffset);
-                Emit(CssProperty.ListStyleType, kind, kindOffset);
+                        "list-style accepts one marker type and optional inside/outside.", node.Span.Start);
+                if (terms.Count == 1 && Wide(terms[0]))
+                {
+                    Emit(CssProperty.ListStyleType, terms[0], valueTokens[0].Token.Span.Start, "list-style-type");
+                    Emit(CssProperty.ListStylePosition, terms[0], valueTokens[0].Token.Span.Start, "list-style-position");
+                    continue;
+                }
+                var kind = "disc";
+                var position = "outside";
+                var kindSeen = false;
+                var positionSeen = false;
+                for (var i = 0; i < terms.Count; i++)
+                {
+                    var word = terms[i];
+                    var at = valueTokens[i].Token.Span.Start;
+                    if (Wide(word))
+                        throw new FactsPdfException("FPDF1202",
+                            "CSS-wide list-style keywords must stand alone.", at);
+                    if (word is "inside" or "outside")
+                    {
+                        if (positionSeen) throw new FactsPdfException("FPDF1202", "Duplicate list marker position.", at);
+                        position = word; positionSeen = true;
+                    }
+                    else
+                    {
+                        if (kindSeen) throw new FactsPdfException("FPDF1202", "Duplicate list marker type.", at);
+                        _ = ListMarkerTypes.Parse(word, at);
+                        kind = word; kindSeen = true;
+                    }
+                }
+                Emit(CssProperty.ListStyleType, kind, node.Span.Start, "list-style-type");
+                Emit(CssProperty.ListStylePosition, position, node.Span.Start, "list-style-position");
                 continue;
             }
             if (terms.Count != 1)
@@ -540,7 +566,7 @@ internal static class CssSyntaxAdapter
             if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
                 || !(Wide(token) || token is "normal" or "italic")))
                 throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
-            if (property == CssProperty.ListStyleType && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
+            if (property is CssProperty.ListStyleType or CssProperty.ListStylePosition && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
                 throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
@@ -598,6 +624,7 @@ internal static class CssSyntaxAdapter
         "text-transform" => CssProperty.TextTransform,
         "display" => CssProperty.Display,
         "list-style-type" or "list-style" => CssProperty.ListStyleType,
+        "list-style-position" => CssProperty.ListStylePosition,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
         "text-decoration-color" => CssProperty.TextDecorationColor,
         "text-decoration-style" => CssProperty.TextDecorationStyle,
@@ -931,6 +958,12 @@ internal static class CssSyntaxAdapter
         }
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);
+        else if (name == "list-style-position")
+        {
+            if (token is not ("inside" or "outside"))
+                throw new FactsPdfException("FPDF1202",
+                    "list-style-position supports only inside or outside.", offset);
+        }
         else if (name == "break-inside")
         {
             if (token is not ("auto" or "avoid"))

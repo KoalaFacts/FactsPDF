@@ -123,6 +123,9 @@ internal sealed record BoxStyle(
     // Unlike painted box sides, list-style-type is inherited through li and
     // other containers. The ol/ul HTML defaults are applied in CSS computing.
     public ListMarkerKind MarkerKind { get; init; } = ListMarkerKind.Disc;
+    // Inherited list marker placement. Outside retains all previous PDF geometry;
+    // inside reserves inline advance on the first text line only.
+    public bool MarkerInside { get; init; }
     // Opt-in width constraints. Percentages resolve against the containing
     // content width; the constrained measure follows box-sizing.
     public CssLength? MinWidth { get; init; }

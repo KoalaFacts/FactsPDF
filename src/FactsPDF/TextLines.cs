@@ -71,7 +71,7 @@ internal static class TextLines
 
     internal static IEnumerable<Line> Wrap(Paragraph paragraph, double available, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
-        ListMarker? firstMarker = null)
+        ListMarker? firstMarker = null, double firstLineMarkerInset = 0)
     {
         Glyph Resolve(int scalar, TextStyle style, int sourceOffset)
         {
@@ -223,7 +223,7 @@ internal static class TextLines
         // The opt-in first-line inset is relative to the paragraph's resolved
         // content width, not to the page or its painted border box. It belongs
         // only to the first logical line; continuation pages never re-indent.
-        var firstIndent = paragraph.Style.FirstLineIndent.Resolve(available);
+        var firstIndent = paragraph.Style.FirstLineIndent.Resolve(available) + firstLineMarkerInset;
         // Resolve the complete paragraph before reporting width errors, and
         // validate every word before yielding a line to pagination. Recording
         // a width failure (rather than throwing immediately) keeps the legacy

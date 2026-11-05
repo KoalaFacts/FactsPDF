@@ -22,7 +22,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextUnderlineOffset + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.ListStylePosition + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -205,10 +205,10 @@ internal sealed class CssStylesheets
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "break-inside is supported only on ordinary report panels outside lists/tables.", declaration.Offset);
-            if (declaration.Property == CssProperty.ListStyleType &&
+            if (declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition &&
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
-                    "list-style-type is supported only on ol, ul and li.", declaration.Offset);
+                    "List marker properties are supported only on ol, ul and li.", declaration.Offset);
             if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("td" or "th"))
                 throw new FactsPdfException("FPDF1201",
                     "vertical-align applies only to fixed-column table td/th cells.", declaration.Offset);
@@ -376,12 +376,16 @@ internal sealed class CssStylesheets
         };
         // UA list defaults are decimal for ol and disc for ul. Other elements
         // propagate the inherited marker type, including li and nested panels.
-        box = box with { MarkerKind = element.Name switch
+        box = box with
         {
-            "ol" => ListMarkerKind.Decimal,
-            "ul" => ListMarkerKind.Disc,
-            _ => parentBox.MarkerKind
-        } };
+            MarkerKind = element.Name switch
+            {
+                "ol" => ListMarkerKind.Decimal,
+                "ul" => ListMarkerKind.Disc,
+                _ => parentBox.MarkerKind
+            },
+            MarkerInside = parentBox.MarkerInside
+        };
         foreach (var winner in winners)
         {
             if (!winner.HasValue) continue;
@@ -394,6 +398,14 @@ internal sealed class CssStylesheets
                     "inherit" or "unset" => parentBox.MarkerKind,
                     "initial" => ListMarkerKind.Disc,
                     _ => ListMarkerTypes.Parse(declaration.Value, declaration.Offset)
+                } };
+            else if (declaration.Property == CssProperty.ListStylePosition)
+                box = box with { MarkerInside = declaration.Value switch
+                {
+                    "inherit" or "unset" => parentBox.MarkerInside,
+                    "initial" or "outside" => false,
+                    "inside" => true,
+                    _ => throw new InvalidOperationException("Unvalidated list marker position.")
                 } };
             else if (declaration.Property == CssProperty.VerticalAlign)
                 box = box with { VerticalAlign = declaration.Value switch

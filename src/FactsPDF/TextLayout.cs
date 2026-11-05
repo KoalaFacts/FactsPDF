@@ -701,7 +701,10 @@ internal static class TextLayout
             // without emitting text commands and must retain that behavior.
             if (displayCommands == o.MaxDisplayCommands && (item.Marker is not null || HasTextContent(paragraph, cancellation)))
                 ChargeDisplayCommands(1, item.Marker?.SourceOffset ?? -1);
-            using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation, item.Marker).GetEnumerator();
+            var insideMarkerInset = item.Marker is { Inside: true } inside
+                ? inside.Width + 0.5 * inside.Style.FontSize : 0d;
+            using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation,
+                item.Marker, insideMarkerInset).GetEnumerator();
             if (!lines.MoveNext())
             {
                 // Empty painted/padded paragraphs still occupy box geometry
@@ -795,19 +798,23 @@ internal static class TextLayout
                 var baseline = o.PageHeight - y - line.Ascent;
                 if (pendingMarker is { } marker)
                 {
+                    // Inside markers consume first-line inline advance and align
+                    // with that line. Outside markers retain the legacy gutter.
+                    var markerRightX = marker.Inside
+                        ? x - 0.5 * marker.Style.FontSize : item.MarkerRightX;
                     if (marker.Text is not null)
                     {
                         var markerParagraph = new Paragraph(marker.Style, marker.SourceOffset);
                         markerParagraph.Runs.Add(new(marker.Text, marker.Style, SourceOffset: marker.SourceOffset));
                         using var markerLines = Wrap(markerParagraph, marker.Width, o, resolved, cancellation).GetEnumerator();
                         if (!markerLines.MoveNext()) throw new InvalidOperationException("Missing decimal marker line.");
-                        PlaceLine(markerLines.Current, item.MarkerRightX - marker.Width, baseline, marker.SourceOffset);
+                        PlaceLine(markerLines.Current, markerRightX - marker.Width, baseline, marker.SourceOffset);
                     }
                     else
                     {
                         ChargeDisplayCommands(1, marker.SourceOffset);
                         var radius = marker.Width / 2;
-                        pages[^1].Discs.Add(new(item.MarkerRightX - radius,
+                        pages[^1].Discs.Add(new(markerRightX - radius,
                             baseline + 0.3 * marker.Style.FontSize, radius, marker.Style.Color, marker.Kind));
                     }
                     pendingMarker = null;

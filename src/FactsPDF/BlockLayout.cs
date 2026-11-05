@@ -71,7 +71,7 @@ internal static class BlockLayout
                 case BlockNode node:
                 {
                     var style = node.BoxStyle;
-                    var gutter = node.Name == "li" ? frame.Gutter : 0;
+                    var gutter = node.Name == "li" && !style.MarkerInside ? frame.Gutter : 0;
                     var containing = frame.ContentWidth - gutter;
                     if (containing < -0.000001)
                         throw new FactsPdfException("FPDF1302", "List marker gutter exceeds containing content width.", node.SourceOffset);
