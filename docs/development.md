@@ -365,6 +365,20 @@ Explicit font-weight/font-style selection and independent four-role chains are d
 
 Decimal/disc lists, two-level nesting, marker gutters and list pagination limits are documented in the [list guide](lists.md).
 
+### Byte parity with main
+
+`node scripts/parity.ts` (Node 24, the .NET SDK and Python 3) builds the CLI
+from `origin/main` in a temporary git worktree and from your working tree, then
+renders every `examples/*.html` with both: with default options; with DejaVu
+Sans, `--subset-fonts --page-numbers --header-text H --title T`, the
+`scripts/png_fixtures.py` images, `--page-size letter --landscape --margin 20mm`;
+and with `--page-furniture examples/business-page-furniture.json --page-width
+148mm --page-height 210mm` and the fully embedded font. It fails when any exit
+code, stderr text or PDF byte differs, and writes `parity.json` to its work
+folder. `--base <ref>`, `--font <path.ttf>` and `--work <dir>` override the
+defaults. CI runs it on every pull request against the PR's base commit; a PR
+that changes output on purpose explains each difference.
+
 ## Document map
 
 Guides that README and the pages above do not already link. Historical pages
