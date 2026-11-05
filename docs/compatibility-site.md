@@ -4,7 +4,7 @@ A static engineering-support lookup, not an engine release announcement. The onl
 
 ## Local and CI use
 
-Use Node >=22.12, then `cd site && npm ci && npx playwright install chromium && npm run verify`. The lockfile pins the published npm packages, including Purity core/plugin 0.3.4, Vite 8.3.4 and Playwright 1.64.0. No framework is vendored, no CDN is required, and no fonts or tracking scripts are downloaded by the page.
+Use Node 24 or later (`site/.nvmrc`), then `cd site && npm ci && npx playwright install chromium && npm run verify`. The lockfile pins the published npm packages, including Purity core/plugin 0.5.1, Vite 8.3.4 and Playwright 1.64.0. No framework is vendored, no CDN is required, and no fonts or tracking scripts are downloaded by the page.
 
 On Linux hosts missing browser system libraries, use `npx playwright install --with-deps chromium` with the host administrator's permission, as hosted CI does. This installs the matching pinned browser; do not bypass managed browser policies. Restricted environments can run `npm test && npm run build` and use authorized hosted CI for browser coverage.
 
@@ -24,7 +24,7 @@ The original 418-row audit remains in Git history with SHA-256 `c740aa1e2614a9f5
 
 ### Production template regression
 
-The Purity 0.3.4 AOT compiler emits a U+200B text placeholder for a lone
+The Purity AOT compiler (0.3.4 through 0.5.1) emits a U+200B text placeholder for a lone
 `tbody` interpolation. HTML table parsing moves this text before the table,
 invalidating the compiled DOM paths and preventing startup. The adjacent empty
 interpolation in `main.js` deliberately selects the compiler's comment-slot

@@ -28,7 +28,7 @@ jobs:
           dotnet-version: '10.0.403'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Verify Node subprocess boundary without renderer dependencies
         run: node --test scripts/test_node_cli_process.mjs
       - run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
@@ -44,7 +44,7 @@ jobs:
           dotnet-version: '10.0.403'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Gate private candidate source and inspector inputs before build
         run: |
           python3 -m unittest discover -s scripts -p 'test_stage_delivery_candidate.py' -v
