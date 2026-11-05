@@ -109,8 +109,9 @@ public sealed class LastLineAlignmentReportTests
         // The explicitly broken first line contains one measurable U+0020
         // gap; the final line has no space and is never stretched.
         Assert.That(aligned.First().X, Is.EqualTo(36).Within(0.000001));
-        Assert.That(aligned.Take(aligned.Count - 1).Last() is { } word &&
-            word.X + word.Width, Is.EqualTo(126).Within(0.000001));
+        var lastRunOnFirstLine = aligned.Take(aligned.Count - 1).Last();
+        Assert.That(lastRunOnFirstLine.X + lastRunOnFirstLine.Width,
+            Is.EqualTo(126).Within(0.000001));
         Assert.That(aligned[^1].X, Is.EqualTo(36).Within(0.000001));
         Assert.That(Pdf(justified), Is.Not.EqualTo(Pdf(original)));
     }

@@ -767,7 +767,7 @@ def verify_native_last_line_alignment(executable, output, work):
     oracle = ROOT / 'examples/report-last-line-alignment-oracle.html'
     authored = source.read_text(encoding='utf-8')
     assert authored.count('text-align-last:center') == 44, 'Missing authored alignment cases'
-    assert len(re.findall(r'<p>R\\d{3}</p>', authored)) == 44, 'Missing report records'
+    assert len(re.findall(r'<p>R\d{3}</p>', authored)) == 44, 'Missing report records'
     actual = output / 'report-last-line-alignment.pdf'
     expected = output / 'report-last-line-alignment-oracle.pdf'
     assert not run(executable, source, actual, cwd=work)
@@ -778,16 +778,14 @@ def verify_native_last_line_alignment(executable, output, work):
     pages = count_pages(actual)
     assert pages >= 2, 'Native last-line audit must actually paginate'
     raw = run('pdftotext', '-raw', actual, '-').decode('utf-8')
-    assert re.findall(r'R(\\d{3})', raw) == [f'{n:03d}' for n in range(1, 45)], \\
-        'Native report records missing, duplicated or out of order'
+    assert re.findall(r'R(\d{3})', raw) == [f'{n:03d}' for n in range(1, 45)], 'Native report records missing, duplicated or out of order'
     aligned = []
     for page in range(1, pages + 1):
         w, h, words = page_boxes(actual, page)
         assert w > 500 and h > 800
         aligned.extend(x for x in words if x[0] == 'Gamma')
     assert len(aligned) == 44, 'Last-line words omitted from native report'
-    assert all(abs(word[1] - 51) < 2 for word in aligned), \\
-        'Last-line PDF word X coordinate did not match centred 60pt track'
+    assert all(abs(word[1] - 51) < 2 for word in aligned), 'Last-line PDF word X coordinate did not match centred 60pt track'
     invalid = output / 'report-last-line-alignment-invalid.html'
     invalid.write_text(authored.replace('text-align-last:center',
                                         'text-align-last:stretch', 1), encoding='utf-8')
@@ -795,8 +793,7 @@ def verify_native_last_line_alignment(executable, output, work):
     retained.write_bytes(b'previous PDF')
     failed = subprocess.run([str(executable), str(invalid), str(retained), '--overwrite'],
                             cwd=work, capture_output=True, timeout=120)
-    assert failed.returncode == 3 and b'FPDF1202' in failed.stderr, \\
-        'Invalid alignment did not fail explicitly'
+    assert failed.returncode == 3 and b'FPDF1202' in failed.stderr, 'Invalid alignment did not fail explicitly'
     assert retained.read_bytes() == b'previous PDF', 'Rejected input replaced existing PDF'
     assert not run(executable, source, retained, '--overwrite', cwd=work)
     assert retained.read_bytes() == actual.read_bytes(), 'Recovery PDF differs'
