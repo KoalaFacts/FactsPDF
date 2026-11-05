@@ -1,4 +1,4 @@
-import { sourceDigest, englishAudit } from './audit-english-attribute-selectors.mjs';
+import { sourceDigest, englishAudit } from './audit-english-attribute-operators.mjs';
 import { diagnosticEnglish } from './diagnostic-english.mjs';
 
 export const auditFields = ['feature','scope','limitations','stage','applicability','planning_bucket','evidence_level','test_reference'];
