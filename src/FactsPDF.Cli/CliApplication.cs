@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using FactsPDF.Configuration;
+using FactsPDF.Text;
 
 namespace FactsPDF.CommandLine;
 
@@ -233,19 +234,10 @@ public static class CliApplication
         }
     }
 
-    // Line and column (in Unicode scalar values) of a diagnostic offset; never echoes input text.
+    // Reports only the position, never input text.
     private static string DescribeLocation(string html, int offset)
     {
-        int line = 1, column = 1;
-        for (var i = 0; i < offset; i++)
-        {
-            var c = html[i];
-            // CRLF (Windows) first, consumed as one break; then lone CR (classic Mac) or LF (Unix).
-            if (c == '\r' && i + 1 < html.Length && html[i + 1] == '\n') { line++; column = 1; i++; continue; }
-            if (c is '\r' or '\n') { line++; column = 1; continue; }
-            // A surrogate pair is one character.
-            if (!char.IsLowSurrogate(c) || i == 0 || !char.IsHighSurrogate(html[i - 1])) column++;
-        }
+        var (line, column) = html.LineAndColumnAt(offset);
         return $"Location: line {line}, column {column}.";
     }
 
