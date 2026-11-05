@@ -89,13 +89,21 @@ internal static class UnicodePdfSerializer
                 var widths = string.Join(" ", use.Characters.Select(c => N(c.Width)));
                 Obj(id + 1, FormattableString.Invariant($"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor {id + 2} 0 R /CIDToGIDMap {id + 5} 0 R /DW 1000 /W [1 [{widths}]] >>"));
                 Obj(id + 2, FormattableString.Invariant($"<< /Type /FontDescriptor /FontName /{name} /Flags 4 /FontBBox [{N(font.XMin1000)} {N(font.YMin1000)} {N(font.XMax1000)} {N(font.YMax1000)}] /ItalicAngle {N(font.ItalicAngle)} /Ascent {N(font.Ascent1000)} /Descent {N(font.Descent1000)} /CapHeight {N(font.CapHeight1000)} /StemV 80 /FontFile2 {id + 3} 0 R >>"));
-                using (var compressed = new LimitedBuffer(o.MaxOutputBytes, cancellation))
+                var length1 = " /Filter /FlateDecode /Length1 " + embeddedData.Length.ToString(CultureInfo.InvariantCulture);
+                if (subset is null)
                 {
-                    using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
-                        for (var at = 0; at < embeddedData.Length; at += Math.Min(16384, embeddedData.Length - at))
-                        { cancellation.ThrowIfCancellationRequested(); zlib.Write(embeddedData.Slice(at, Math.Min(16384, embeddedData.Length - at))); }
-                    StreamObject(id + 3, compressed.GetBuffer().AsSpan(0, checked((int)compressed.Length)), " /Filter /FlateDecode /Length1 " + embeddedData.Length.ToString(CultureInfo.InvariantCulture));
+                    var program = font.CompressedData(cancellation);
+                    if (program.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
+                    StreamObject(id + 3, program, length1);
                 }
+                else
+                    using (var compressed = new LimitedBuffer(o.MaxOutputBytes, cancellation))
+                    {
+                        using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+                            for (var at = 0; at < embeddedData.Length; at += Math.Min(16384, embeddedData.Length - at))
+                            { cancellation.ThrowIfCancellationRequested(); zlib.Write(embeddedData.Slice(at, Math.Min(16384, embeddedData.Length - at))); }
+                        StreamObject(id + 3, compressed.GetBuffer().AsSpan(0, checked((int)compressed.Length)), length1);
+                    }
                 StreamObject(id + 4, Encoding.ASCII.GetBytes(ToUnicode(use)));
                 var map = new byte[(use.Characters.Count + 1) * 2];
                 for (var i = 0; i < use.Characters.Count; i++)

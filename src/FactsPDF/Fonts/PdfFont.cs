@@ -1,9 +1,12 @@
+using System.IO.Compression;
 using System.Text;
 using static FactsPDF.SfntDirectory;
 
 namespace FactsPDF;
 
 /// <summary>Immutable explicitly supplied static TrueType font. No filesystem or network discovery.</summary>
+/// <remarks>Thread-safe. Reuse one instance across conversions: full (non-subset) embedding compresses the font
+/// program on first use and keeps that compressed copy for the lifetime of the instance.</remarks>
 public sealed class PdfFont
 {
     /// <summary>Default maximum font file size accepted by <see cref="FromBytes(ReadOnlySpan{byte}, int, CancellationToken)"/> and the other loaders (32 MiB).</summary>
@@ -17,6 +20,10 @@ public sealed class PdfFont
     /// <summary>Size of the font file in bytes.</summary>
     public int ByteLength => data.Length;
     internal ReadOnlySpan<byte> Data => data;
+    // The zlib-compressed font program for full (non-subset) embedding. The font is immutable and zlib
+    // output is deterministic for identical input, so the result is computed once and shared by every
+    // conversion that embeds the whole font. Racing first conversions may each compress; one result wins.
+    private byte[]? compressedData;
     internal SfntDirectory Directory { get; }
     internal bool AllowsSubsetting => (U16(Directory.Table("OS/2", 10), 8) & 256) == 0;
     internal double Ascent1000 { get; }
@@ -27,6 +34,20 @@ public sealed class PdfFont
     internal double XMax1000 { get; }
     internal double YMax1000 { get; }
     internal double ItalicAngle { get; }
+
+    internal ReadOnlySpan<byte> CompressedData(CancellationToken cancellation)
+    {
+        var cached = Volatile.Read(ref compressedData);
+        if (cached is not null) return cached;
+        using var compressed = new MemoryStream(data.Length / 2 + 64);
+        using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+            for (var at = 0; at < data.Length; at += 16384)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                zlib.Write(data, at, Math.Min(16384, data.Length - at));
+            }
+        return Interlocked.CompareExchange(ref compressedData, compressed.ToArray(), null) ?? compressedData!;
+    }
 
     private PdfFont(byte[] ownedBytes, CancellationToken cancellation)
     {
