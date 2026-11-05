@@ -6,6 +6,7 @@ public sealed class PngValidationTests
 {
     private static byte[] H(byte depth = 8, byte type = 6) => PngFixture.Header(1, 1, depth, type);
     private static byte[] Z() => PngFixture.Zlib([0, 10, 20, 30, 128]);
+    private static byte[] PresetDictionary() => [0x78, 0xbb, 0, 0, 0, 1, .. Z()[2..]];
     private static byte[] File(params (string, byte[])[] chunks) => PngFixture.File(chunks);
     public static IEnumerable<TestCaseData> Malformed()
     {
@@ -54,6 +55,8 @@ public sealed class PngValidationTests
         var checksum = Z(); checksum[^1] ^= 1;
         yield return new TestCaseData(File(("IHDR", H()), ("IDAT", checksum), ("IEND", []))).SetName("PngAdlerMismatch");
         yield return new TestCaseData(File(("IHDR", H()), ("IDAT", new byte[] { 0x78, 0x9c, 0xff, 0xff, 0xff, 0xff }), ("IEND", []))).SetName("PngCorruptDeflate");
+        // FDICT is forbidden by PNG; the BCL inflater reports it as ZLibException (an IOException), found by fuzzing.
+        yield return new TestCaseData(File(("IHDR", H()), ("IDAT", PresetDictionary()), ("IEND", []))).SetName("PngPresetDictionary");
     }
     [TestCaseSource(nameof(Malformed))]
     public void MalformedDataHasStableDiagnostic(byte[] bytes)
