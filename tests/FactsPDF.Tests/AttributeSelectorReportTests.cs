@@ -74,7 +74,7 @@ public sealed class AttributeSelectorReportTests
     public void RealHtmlReportTemplateMatchesIndependentExplicitStyleOracle()
     {
         var repoRoot = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
-            "..", "..", "..", "..", "..", ".."));
+            "..", "..", "..", "..", ".."));
         var actualPath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides.html");
         var oraclePath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides-oracle.html");
         var actual = File.ReadAllText(actualPath);
