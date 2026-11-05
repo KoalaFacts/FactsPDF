@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace FactsPDF;
@@ -6,6 +5,7 @@ namespace FactsPDF;
 // The same identity-based registry, placement and binary writer serve both font paths.
 internal sealed class PdfImageWriter
 {
+    private const string Number = "0.######";
     private readonly Dictionary<PdfImage, int> indices = new(ReferenceEqualityComparer.Instance);
     private readonly List<(PdfImage Image, bool Mask)> images = [];
     internal int ObjectCount => images.Count;
@@ -43,7 +43,9 @@ internal sealed class PdfImageWriter
         foreach (var placed in page.Images)
         {
             cancellation.ThrowIfCancellationRequested();
-            content.Append(CultureInfo.InvariantCulture, $"q {placed.Width:0.######} 0 0 {placed.Height:0.######} {placed.X:0.######} {options.PageHeight - placed.Top - placed.Height:0.######} cm /Im{indices[placed.Image] + 1} Do Q\n");
+            content.Append("q ").AppendInvariant(placed.Width, Number).Append(" 0 0 ").AppendInvariant(placed.Height, Number).Append(' ')
+                .AppendInvariant(placed.X, Number).Append(' ').AppendInvariant(options.PageHeight - placed.Top - placed.Height, Number)
+                .Append(" cm /Im").Append(indices[placed.Image] + 1).Append(" Do Q\n");
             Check(content.Length, options.MaxOutputBytes);
         }
     }

@@ -55,8 +55,8 @@ internal static class PdfSerializer
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    contents.Append(CultureInfo.InvariantCulture, $"BT /F1 {(run.Style.FontSize):0.###} Tf {tracking}{(color.R):0.###} {(color.G):0.###} {(color.B):0.###} rg ");
-                    contents.Append(CultureInfo.InvariantCulture, $"1 0 0 1 {(run.X):0.###} {(run.Baseline):0.###} Tm ");
+                    contents.Append("BT /F1 ").AppendInvariant(run.Style.FontSize, Number).Append(" Tf ").Append(tracking).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ");
+                    contents.Append("1 0 0 1 ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(run.Baseline, Number).Append(" Tm ");
                     if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
                     {
                         contents.Append('<');
@@ -75,7 +75,7 @@ internal static class PdfSerializer
                             contents.Append('<');
                             PdfAscii.AppendHex(contents, run.Text.AsSpan(start, j + 1 - start));
                             contents.Append("> ");
-                            contents.Append(CultureInfo.InvariantCulture, $"{(-run.Style.WordSpacing * 1000 / run.Style.FontSize):0.###}").Append(' ');
+                            contents.AppendInvariant(-run.Style.WordSpacing * 1000 / run.Style.FontSize, Number).Append(' ');
                             start = j + 1;
                         }
                         if (start < run.Text.Length)
@@ -122,5 +122,6 @@ internal static class PdfSerializer
         catch { output.Dispose(); throw; }
     }
 
-    private static string N(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    private const string Number = "0.###";
+    private static string N(double value) => value.ToString(Number, CultureInfo.InvariantCulture);
 }

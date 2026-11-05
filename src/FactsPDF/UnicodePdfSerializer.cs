@@ -123,15 +123,17 @@ internal static class UnicodePdfSerializer
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    content.Append(CultureInfo.InvariantCulture, $"BT /{use?.Resource ?? "F0"} {(run.Style.FontSize):0.######} Tf {tracking}{(color.R):0.######} {(color.G):0.######} {(color.B):0.######} rg 1 0 0 1 {(run.X):0.######} {(run.Baseline):0.######} Tm ");
+                    content.Append("BT /").Append(use?.Resource ?? "F0").Append(' ').AppendInvariant(run.Style.FontSize, Number).Append(" Tf ").Append(tracking)
+                        .AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number)
+                        .Append(" rg 1 0 0 1 ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(run.Baseline, Number).Append(" Tm ");
                     var spaced = run.Style.WordSpacing != 0 && run.Text.Contains(' ');
                     content.Append(spaced ? "[<" : "<");
                     foreach (var rune in run.Text.EnumerateRunes())
                     {
-                        if (use is null) content.Append(CultureInfo.InvariantCulture, $"{rune.Value:X2}");
-                        else content.Append(CultureInfo.InvariantCulture, $"{use.Codes[rune.Value]:X4}");
+                        if (use is null) content.AppendHex(rune.Value, 2);
+                        else content.AppendHex(use.Codes[rune.Value], 4);
                         if (spaced && rune.Value == 32)
-                            content.Append("> ").Append(CultureInfo.InvariantCulture, $"{(-run.Style.WordSpacing * 1000 / run.Style.FontSize):0.######}").Append(" <");
+                            content.Append("> ").AppendInvariant(-run.Style.WordSpacing * 1000 / run.Style.FontSize, Number).Append(" <");
                     }
                     content.Append(spaced ? ">] TJ ET\n" : "> Tj ET\n");
                     PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes);
@@ -183,5 +185,6 @@ internal static class UnicodePdfSerializer
         }
         return text.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n").ToString();
     }
-    private static string N(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
+    private const string Number = "0.######";
+    private static string N(double value) => value.ToString(Number, CultureInfo.InvariantCulture);
 }
