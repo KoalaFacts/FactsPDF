@@ -54,8 +54,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
-  assert.match(dataset.commit_url, /845ab1799149e8b833306f2e49b3f8b240d699c8/);
+  assert.equal(dataset.commit, '488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.match(dataset.commit_url, /488691c604e43c5bd1cf8c2b444e0d7cfb388699/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -139,7 +139,7 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
+  assert.equal(feature.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/nowrap/);
   assert.match(feature.scope,/br/);
@@ -147,14 +147,14 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.limitations,/FPDF1302/);
   assert.equal(feature.example,'white-space:pre-wrap');
   assert.match(feature.scope,/normal.*nowrap.*pre-line.*pre-wrap/);
-  assert.match(feature.scope,/CRLF\/CR\/LF\/FF/);
+  assert.match(feature.scope,/html\/body.*div\/section\/article\/blockquote/);
   assert.match(feature.limitations,/制表符/);
   assert.match(feature.limitations,/FPDF1305/);
   assert.match(feature.limitations,/FPDF1201/);
   assert.match(feature.limitations,/FPDF1202/);
-  assert.match(feature.test_reference,/PreformattedReportTests\.cs/);
-  assert.match(feature.evidence_level,/原有 pre-wrap 测试/,
-    'The new preformatted audit must retain explicit evidence of the prior pre-wrap regressions.');
+  assert.match(feature.test_reference,/InheritedWhiteSpaceReportTests\.cs/);
+  assert.match(feature.evidence_level,/五个模式继承和显式子节点逐字节对照/,
+    'The inherited report white-space audit must retain explicit positive actual PDF equivalence evidence.');
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
     ['css.white-space','css.word-break','css.word-spacing','html.pre']);
 });
@@ -312,7 +312,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-white-space');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -657,7 +657,7 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
   const css=dataset.features.find(feature => feature.id==='css.white-space');
   assert.equal(pre.status,'partial');
   assert.equal(pre.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
-  assert.equal(css.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
+  assert.equal(css.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
   assert.match(pre.scope,/U\+0020/);
   assert.match(pre.limitations,/FPDF1305/);
   assert.match(css.scope,/pre-wrap.*pre/);
@@ -776,8 +776,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
-  assert.equal(dataset.commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-white-space');
+  assert.equal(dataset.commit, '488691c604e43c5bd1cf8c2b444e0d7cfb388699');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -848,7 +848,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-white-space');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
@@ -930,7 +930,7 @@ test('bounded text-align-last keeps existing 418 feature IDs and precisely audit
 test('bounded attribute selectors move a real syntax feature to partial without inflating CSS property names', () => {
   const row = dataset.features.find(f => f.id === 'selector.attribute');
   assert.equal(row.status, 'partial');
-  assert.equal(row.last_audited_commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
+  assert.equal(row.last_audited_commit, '488691c604e43c5bd1cf8c2b444e0d7cfb388699');
   assert.equal(dataset.accepted_css_property_count, 116);
   assert.match(row.scope, /\[attr\]/);
   assert.match(row.scope, /\[attr=value\]/);

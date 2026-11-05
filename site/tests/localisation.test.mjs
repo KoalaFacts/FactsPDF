@@ -78,6 +78,21 @@ test('missing translations fail explicitly instead of displaying stale or invent
   const changed=structuredClone(data); changed.features[0].scope='未翻译的新范围';
   assert.throws(() => validateTranslations(changed), /Missing English audit translation/);
 });
+test('English inherited white-space audit stays partial and documents real PDF and unsupported elements', async () => {
+  const {englishFeature}=await localisation();
+  const raw=data.features.find(row=>row.id==='css.white-space');
+  const row=englishFeature(raw);
+  assert.equal(row.status,'partial');
+  assert.equal(row.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.match(row.scope,/html\/body/);
+  assert.match(row.scope,/div\/section\/article\/blockquote/);
+  assert.match(row.scope,/real PDF/);
+  assert.match(row.limitations,/list\/table structural/);
+  assert.match(row.limitations,/FPDF1201/);
+  assert.match(row.limitations,/FPDF1305/);
+  assert.doesNotMatch([row.scope,row.limitations,row.evidence_level].join(' '),han);
+});
+
 test('translated text keeps important scope restrictions and failure codes', async () => {
   const { englishFeature } = await localisation();
   const byId = id => englishFeature(data.features.find(row=>row.id===id));
