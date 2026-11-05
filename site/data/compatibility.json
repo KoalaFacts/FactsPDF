@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "FactsPDF Compatibility Tracker",
-  "dataset_version": "audit-2026-11-05.bounded-underline-offset",
+  "dataset_version": "audit-2026-11-05.combined-text-decoration-lines",
   "audited_at": "2026-11-04",
   "repository": "KoalaFacts/FactsPDF",
   "commit": "70f37e7e881bade30851ecaa06528a27813f0403",
@@ -6061,8 +6061,8 @@
       "feature": "text-decoration",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "报告文字的单条 text-decoration/text-decoration-line（none、underline、overline、line-through）实际绘制 PDF 可搜索字形；text-decoration-color 与 text-decoration-style 保持已实现的不透明颜色和线型；text-decoration 简写可任选单条线型、solid/dashed/dotted、不透明颜色及一个受限线粗。text-decoration-thickness:auto 使用旧有字号比例；非零 pt/px/mm/cm/in/pc/q、基于元素计算字号的 em 或 html 根字号的 rem 在最终计算后须为 0.2–12pt，真实改变 PDF 连续或虚点装饰线的宽度、跨行跨页描绘。独立属性按 CSS 正常层叠、!important、inherit/initial/unset 计算；简写缺少线粗时重置 auto。全部 148 种标准不透明 CSS 具名颜色、currentColor 与字体/版面约束继续适用。 新增独立 text-underline-offset:auto 或 0–24pt 的非负物理长度/em/rem，沿基线向下移动真正PDF下划线；仅underline受影响，原有上划线/删除线的绘制位置不变。独立属性受层叠、!important、inherit/unset继承及initial重置控制，auto保留旧PDF字节。",
-      "limitations": "只能绘制单条文本装饰线，auto 使用旧有字体比例；固定线粗范围 0.2–12pt，不支持 0、负数、百分比、from-font、calc、无界值、负偏移、超出0–24pt的下划线偏移、double/wavy、多条同时绘制、alpha、RTL、复杂 shaping 或浏览器后代装饰传播。未支持值及单独 img 使用明确报错，失败不覆盖已有 PDF；未声称通用 CSS Text Decoration 支持。 text-underline-offset仅作用于单条下划线，不支持负值、百分比、from-font、calc、CSS自动字体下划线定位或独立图片；不模拟全部CSS Text Decoration。",
+      "scope": "报告文字的 text-decoration/text-decoration-line（单独 none，或 underline、overline、line-through 中 1–3 个互不重复线型）实际绘制 PDF 可搜索字形；text-decoration-color 与 text-decoration-style 保持已实现的不透明颜色和线型；text-decoration 简写可选择最多三条不同线型、solid/dashed/dotted、不透明颜色及一个受限线粗。text-decoration-thickness:auto 使用旧有字号比例；非零 pt/px/mm/cm/in/pc/q、基于元素计算字号的 em 或 html 根字号的 rem 在最终计算后须为 0.2–12pt，真实改变 PDF 连续或虚点装饰线的宽度、跨行跨页描绘。独立属性按 CSS 正常层叠、!important、inherit/initial/unset 计算；简写缺少线粗时重置 auto。全部 148 种标准不透明 CSS 具名颜色、currentColor 与字体/版面约束继续适用。 新增独立 text-underline-offset:auto 或 0–24pt 的非负物理长度/em/rem，沿基线向下移动真正PDF下划线；仅underline受影响，原有上划线/删除线的绘制位置不变。独立属性受层叠、!important、inherit/unset继承及initial重置控制，auto保留旧PDF字节。 现在同一 PDF 字形运行可同时绘制 1–3 条独立描绘路径，线条数逐条计入绘制预算；依旧保持字体、文字可搜索、样式层叠、表格及分页与旧单线PDF字节行为。",
+      "limitations": "最多绘制三条不同的文本装饰线，auto 使用旧有字体比例；固定线粗范围 0.2–12pt，不支持 0、负数、百分比、from-font、calc、无界值、负偏移、超出0–24pt的下划线偏移、double/wavy、重复线条或 none 混合线条、alpha、RTL、复杂 shaping 或浏览器后代装饰传播。未支持值及单独 img 使用明确报错，失败不覆盖已有 PDF；未声称通用 CSS Text Decoration 支持。 text-underline-offset仅作用于单条下划线，不支持负值、百分比、from-font、calc、CSS自动字体下划线定位或独立图片；不模拟全部CSS Text Decoration。",
       "stage": "CSS 层叠、实际 PDF 字形与绘制路径（限定范围）",
       "applicability": "已支持的 p/h1–h6、span/b/strong/i/em/small/u/s/del/ins/a 文字，以及限定固定表格单元格文字；实际 PDF 字符测量、TrueType、跨行分页和原有资源/输出预算仍适用，不支持单独图片的文字线粗。",
       "example": "<p style='text-decoration:underline dashed #285d91 1pt'>Revised quotation</p><p style='font-size:10pt;text-decoration:line-through solid red;text-decoration-thickness:0.1em'>Prior amount</p><p style='text-decoration:underline solid #285d91;text-underline-offset:2pt'>Subtotal AUD 2,980</p>",
@@ -6070,10 +6070,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "b8f9b938ec42b108fb6f325715a4dd9b692e027d",
+      "last_audited_commit": "2d18399e25c65267431f0decc7fe716dde82688a",
       "last_audited_date": "2026-11-05",
-      "evidence_level": "限定引擎源码与严格单测已提交，44条多页报价修改记录对照独立物理点值模板，覆盖真实PDF线宽、字体、层叠、CLI、非法输入与原目标恢复；Native AOT/qpdf/Poppler 路径已提交。当前PR准确head CI及真实独立审查要另行完成，不代表人工PDF批准或任何公开软件包与分发许可。 新增 text-underline-offset 引擎源提交b8f9b938ec42b108fb6f325715a4dd9b692e027d：44条多页报价实际PDF与独立绝对点值对照，实测基线偏移、em/rem字号、TrueType、CLI、严格失败与重试；准确head CI与独立审查仍待确认，不代表新二进制或人工验收。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/f15d976c6a6c6d46c0f113f3ccf1ec86d904004b/tests/FactsPDF.Tests/UnderlineOffsetReportTests.cs",
+      "evidence_level": "限定引擎源码与严格单测已提交，44条多页报价修改记录对照独立物理点值模板，覆盖真实PDF线宽、字体、层叠、CLI、非法输入与原目标恢复；Native AOT/qpdf/Poppler 路径已提交。当前PR准确head CI及真实独立审查要另行完成，不代表人工PDF批准或任何公开软件包与分发许可。 新增 text-underline-offset 引擎源提交b8f9b938ec42b108fb6f325715a4dd9b692e027d：44条多页报价实际PDF与独立绝对点值对照，实测基线偏移、em/rem字号、TrueType、CLI、严格失败与重试；准确head CI与独立审查仍待确认，不代表新二进制或人工验收。 本次多装饰线源提交2d18399e25c65267431f0decc7fe716dde82688a，新增44项多页报价字节对照、每线PDF绘制位置、TrueType表格、CLI、CSS级联与负向保护回归；准确head CI、独立审查、人工批准与候选仍须分别核实。",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/2d18399e25c65267431f0decc7fe716dde82688a/tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/41c6f9577a4b3040c272be747a663501abdb181d/src/FactsPDF/Css/CssSyntaxAdapter.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/41c6f9577a4b3040c272be747a663501abdb181d/src/FactsPDF/Css/CssDeclarations.cs",
@@ -6087,7 +6087,10 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/1e9c86ea98ed3233b49e552b734823ef9bf158f9/src/FactsPDF/PdfPaintSerializer.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b8f9b938ec42b108fb6f325715a4dd9b692e027d/src/FactsPDF/Css/CssSyntaxAdapter.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b8f9b938ec42b108fb6f325715a4dd9b692e027d/src/FactsPDF/Css/CssDeclarations.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/b8f9b938ec42b108fb6f325715a4dd9b692e027d/src/FactsPDF/PdfPaintSerializer.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/b8f9b938ec42b108fb6f325715a4dd9b692e027d/src/FactsPDF/PdfPaintSerializer.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/2d18399e25c65267431f0decc7fe716dde82688a/src/FactsPDF/Css/CssSyntaxAdapter.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/2d18399e25c65267431f0decc7fe716dde82688a/src/FactsPDF/PdfPaintSerializer.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/2d18399e25c65267431f0decc7fe716dde82688a/src/FactsPDF/TextLines.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

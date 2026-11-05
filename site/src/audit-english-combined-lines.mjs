@@ -1,0 +1,12 @@
+import { englishAudit as previous } from './audit-english-underline-offset.mjs';
+
+// Source-bound update of one scoped CSS record: preserve all historical labels.
+if (previous.length !== 763) throw new Error('Prior English catalogue changed.');
+export const sourceDigest = 'a6ca72b0cc3475fcf73c11349353c01690d4404cdb75866afdecc8c926c8f30c';
+const entries = [...previous];
+entries[282] = "Report text accepts standalone none or one, two or three distinct underline, overline or line-through strokes. Each paints a separate glyph-measured, searchable PDF path, including actual TrueType, flat table-cell text, page-local wrapping and pagination. The shorthand accepts up to three line kinds with one solid/dashed/dotted style, one opaque colour and an optional computed 0.2–12pt thickness, resetting omitted thickness to auto. All 148 standard opaque CSS named colours, currentColor, ordinary cascade, !important and CSS-wide keywords remain in scope; single-line PDF bytes are preserved. text-underline-offset:auto retains the legacy baseline and 0–24pt physical/em/rem values shift only an actual underline, not the other lines. Each path consumes its own display-command budget.";
+entries[283] = "At most three distinct strokes, with none valid only alone. Duplicate lines, unknown kinds, extra colour/style/thickness terms, zero or negative thickness, percentages, from-font, calc, unbounded widths, negative offset or offset above 24pt, double/wavy, alpha, RTL, complex shaping, browser descendant propagation and standalone-image use reject explicitly. Invalid unmatched stylesheet rules also fail without replacing existing PDF files. Not complete CSS Text Decoration conformance.";
+entries[286] = "Source implementation includes a 44-item multi-page quotation compared with an independently authored explicit-longhand PDF oracle, individual line geometry, glyph measurement, TrueType cell text, CSS cascade, CLI, negative-input and protected-output checks. Multi-line source commit 2d18399e25c65267431f0decc7fe716dde82688a; exact-head CI, independent review, a new private candidate, human PDF approval and distribution are separately gated. Historical paint/offset/thickness source identities remain distinct.";
+export const englishAudit = Object.freeze(entries);
+if (englishAudit.length !== 763 || englishAudit.some(value => typeof value !== 'string' || !value.trim() || /[\u3400-\u9fff]/u.test(value)))
+  throw new Error('Combined-line translation catalogue is incomplete.');
