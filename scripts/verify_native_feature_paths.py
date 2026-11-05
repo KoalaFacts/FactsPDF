@@ -714,6 +714,50 @@ def verify_native_table_vertical_align(executable, output, work):
             'failureRecovery': True, 'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
 
+def verify_native_panel_outlines(executable, output, work):
+    """Native PDF/Poppler witness for exterior outline strokes, text and recovery."""
+    source = ROOT / 'examples/report-panel-outlines.html'
+    control = ROOT / 'examples/report-panel-outlines-oracle.html'
+    authored = source.read_text(encoding='utf-8')
+    assert len(re.findall(r'<p>Record \\d{2}:', authored)) == 44, 'Expected 44 report records'
+    pdf = output / 'panel-outlines.pdf'
+    reference = output / 'panel-outlines-oracle.pdf'
+    assert not run(executable, source, pdf, cwd=work)
+    assert not run(executable, control, reference, cwd=work)
+    run('qpdf', '--check', pdf)
+    run('qpdf', '--check', reference)
+    assert pdf.read_bytes() == reference.read_bytes(), (
+        'Native outline shorthand and independently authored physical longhands differ')
+    pages = count_pages(pdf)
+    assert pages >= 2, 'Outline report must paginate across A4 pages'
+    content = run('pdftotext', '-raw', pdf, '-').decode('utf-8')
+    assert [int(value) for value in re.findall(r'Record\\s+(\\d{2}):', content)] == list(range(1, 45)), (
+        'Native outline report lost, duplicated or reordered records')
+    streams = extract_vector_page_streams(pdf.read_bytes(), pages)
+    assert all(page.count(b' RG 2 w [6 6] 0 d ') == 1 for page in streams), (
+        'Each report page fragment must have one real 2pt dashed outer path')
+    assert sum(page.count(b' RG 1 w 1 J [0.001 2] 0 d ') for page in streams) == 1, (
+        'Status card exterior dotted stroke missing or duplicated')
+    invalid = output / 'panel-outlines-invalid.html'
+    invalid.write_text(authored.replace('outline: 2pt dashed #b31f37',
+                                       'outline: 5pt dashed #b31f37', 1),
+                       encoding='utf-8')
+    preserved = output / 'panel-outlines-retained.pdf'
+    preserved.write_bytes(b'previous valid report')
+    failure = subprocess.run([str(executable), str(invalid), str(preserved), '--overwrite'],
+                             cwd=work, capture_output=True, timeout=120)
+    assert failure.returncode == 3 and b'FPDF1202' in failure.stderr and not failure.stdout, (
+        'Invalid native outline width did not fail closed', failure.returncode, failure.stderr)
+    assert preserved.read_bytes() == b'previous valid report', (
+        'Native rejected outline clobbered the output file')
+    assert not run(executable, source, preserved, '--overwrite', cwd=work)
+    assert preserved.read_bytes() == pdf.read_bytes(), 'Valid native retry was not deterministic'
+    return {'pages': pages, 'records': 44, 'nativePdfAndLonghandBytesEqual': True,
+            'realPdfOutlineStrokes': True, 'invalidDestinationPreserved': True,
+            'validRetryBytesEqual': True, 'pdfSha256': sha(pdf),
+            'sourceSha256': sha(source), 'oracleSha256': sha(control)}
+
+
 def verify_native_underline_offset(executable, output, work):
     """Real Native AOT underline baseline paint against independently authored point offsets."""
     source = ROOT / 'examples/report-underline-offset.html'
@@ -1924,6 +1968,7 @@ def main():
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
         combined_decorations = verify_native_combined_decorations(isolated, output, work)
         underline_offset = verify_native_underline_offset(isolated, output, work)
+        panel_outlines = verify_native_panel_outlines(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
         minimum_height = verify_native_minimum_height(isolated, output, work)
         fixed_height = verify_native_fixed_height(isolated, output, work)
@@ -1964,6 +2009,7 @@ def main():
             'decorationPaint': decoration_paint,
             'combinedDecorations': combined_decorations,
             'underlineOffset': underline_offset,
+            'panelOutlines': panel_outlines,
             'roundedPanels': rounded_panels,
             'minimumHeight': minimum_height,
             'fixedHeight': fixed_height,
