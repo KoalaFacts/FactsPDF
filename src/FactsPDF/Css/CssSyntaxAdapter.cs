@@ -566,7 +566,7 @@ internal static class CssSyntaxAdapter
             if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
                 || !(Wide(token) || token is "normal" or "italic")))
                 throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
-            if (property is CssProperty.ListStyleType or CssProperty.ListStylePosition && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
+            if ((property is CssProperty.ListStyleType or CssProperty.ListStylePosition) && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
                 throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);

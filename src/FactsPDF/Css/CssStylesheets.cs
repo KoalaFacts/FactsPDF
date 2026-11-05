@@ -205,7 +205,7 @@ internal sealed class CssStylesheets
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "break-inside is supported only on ordinary report panels outside lists/tables.", declaration.Offset);
-            if (declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition &&
+            if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);

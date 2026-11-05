@@ -467,6 +467,53 @@ def verify_native_list_markers(executable, root, output, work):
 
 
 
+def verify_native_inside_markers(executable, output, work):
+    """44 real list entries: first-line marker PDF geometry, source oracle and recovery."""
+    source = ROOT / 'examples/report-list-marker-inside.html'
+    oracle = ROOT / 'examples/report-list-marker-inside-oracle.html'
+    outside = ROOT / 'examples/report-list-marker-outside-control.html'
+    assert all(p.is_file() for p in (source, oracle, outside)), 'Missing authored marker position controls'
+    actual = output / 'inside-markers.pdf'
+    expected = output / 'inside-markers-oracle.pdf'
+    control = output / 'outside-markers-control.pdf'
+    for template, destination in ((source, actual), (oracle, expected), (outside, control)):
+        assert not run(executable, template, destination, cwd=work), 'Native list-marker CLI wrote stdout'
+        run('qpdf', '--check', destination)
+    assert actual.read_bytes() == expected.read_bytes(), 'Inside marker PDF differs from independently authored longhand'
+    assert actual.read_bytes() != control.read_bytes(), 'Inside marker position was not painted'
+    count = count_pages(actual)
+    assert count >= 2, '44 records must span at least two actual pages'
+    positioned = [page_boxes(actual, page) for page in range(1, count + 1)]
+    marked = 0
+    for page, (width, height, words) in enumerate(positioned, start=1):
+        markers = [w for w in words if re.fullmatch(r'[1-9][0-9]?\\.', w[0])]
+        entries = [w for w in words if re.fullmatch(r'REF[0-9]{3}', w[0])]
+        assert len(markers) == len(entries), ('Marker and entry counts differ', page)
+        for marker, entry in zip(markers, entries):
+            assert abs(marker[2] - entry[2]) < 3.0, ('Inside marker baseline shifted', page, marker, entry)
+            assert marker[3] < entry[1], ('Inside marker collides with first content word', page, marker, entry)
+            assert marker[1] > 0 and marker[3] < width and entry[3] < width, 'Marker/text outside page'
+        marked += len(markers)
+    assert marked == 44, ('Missing or duplicated source markers', marked)
+    labels = [word[0] for _, _, words in positioned for word in words]
+    assert all(labels.count(f'REF{i:03d}') == 1 for i in range(1, 45)), 'Missing source rows'
+    assert labels.count('FINALCHECK') == 1, 'Missing final summary'
+    invalid = output / 'inside-marker-invalid.html'
+    invalid.write_text('<ol style="list-style-position:centre"><li>BAD</li></ol>', encoding='utf-8')
+    saved = output / 'inside-marker-protected.pdf'
+    saved.write_bytes(b'keep the original')
+    failed = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
+                            cwd=work, capture_output=True, timeout=120)
+    assert failed.returncode == 3 and b'FPDF1202' in failed.stderr and not failed.stdout, 'Invalid marker was accepted'
+    assert saved.read_bytes() == b'keep the original', 'Invalid CSS overwrote existing output'
+    assert not run(executable, source, saved, '--overwrite', cwd=work), 'Recovery conversion wrote stdout'
+    assert saved.read_bytes() == actual.read_bytes(), 'Failure recovery changed expected report bytes'
+    return {'pages': count, 'sourceRecords': 44, 'actualPdfSha256': sha(actual),
+            'sourceSha256': sha(source), 'oracleSha256': sha(oracle),
+            'independentLonghandPdfByteParity': True, 'nativePopplerMarkerGeometry': True,
+            'protectedOutputAndRecovery': True}
+
+
 def verify_native_multiline_notes(executable, output, work):
     """Compare native rendered LF/CR paragraph breaks with separately authored HTML br."""
     source = ROOT / 'examples/report-pre-line-notes.html'
@@ -1916,6 +1963,7 @@ def main():
             assert len(list(output.glob(stem + '-*.png'))) == 2, 'Missing native page preview'
         assert not list(output.glob('.factspdf-*.tmp')), 'Leaked CLI temporary output'
         list_markers = verify_native_list_markers(isolated, ROOT, output, work)
+        list_markers['insidePosition'] = verify_native_inside_markers(isolated, output, work)
         patterned_borders = verify_native_patterned_borders(isolated, output, work)
         multiline_notes = verify_native_multiline_notes(isolated, output, work)
         preserved_spaces = verify_native_preserved_space_notes(isolated, output, work)
