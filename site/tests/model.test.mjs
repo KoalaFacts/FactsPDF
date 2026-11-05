@@ -930,7 +930,7 @@ test('bounded text-align-last keeps existing 418 feature IDs and precisely audit
 test('bounded attribute selectors move a real syntax feature to partial without inflating CSS property names', () => {
   const row = dataset.features.find(f => f.id === 'selector.attribute');
   assert.equal(row.status, 'partial');
-  assert.equal(row.last_audited_commit, '488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.equal(row.last_audited_commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
   assert.equal(dataset.accepted_css_property_count, 116);
   assert.match(row.scope, /\[attr\]/);
   assert.match(row.scope, /\[attr=value\]/);
