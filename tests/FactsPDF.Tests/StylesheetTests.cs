@@ -158,7 +158,7 @@ public sealed class StylesheetTests
     public void ValidEscapedCssClassSelectorIsRecognizedAfterSyntaxUpgrade()
         => Assert.That(Read(".\\78{color:red}", "<p class=x>A</p>")[0].Style.Color, Is.EqualTo(Red));
 
-    [TestCase("p:hover{color:red}", "FPDF1203")] [TestCase("[id^=x]{color:red}", "FPDF1203")]
+    [TestCase("p:hover{color:red}", "FPDF1203")] [TestCase("[id^ =x]{color:red}", "FPDF1203")]
     [TestCase("p+p{color:red}", "FPDF1203")] [TestCase("p~p{color:red}", "FPDF1203")]
      [TestCase("p, {color:red}", "FPDF1203")]
     [TestCase("p/**/span{color:red}", "FPDF1203")] [TestCase("p > > span{color:red}", "FPDF1203")]

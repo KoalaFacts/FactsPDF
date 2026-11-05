@@ -54,8 +54,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, 'd7fee5d311f9abebccf37a58c3c9198de78750e8');
-  assert.match(dataset.commit_url, /d7fee5d311f9abebccf37a58c3c9198de78750e8/);
+  assert.equal(dataset.commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
+  assert.match(dataset.commit_url, /845ab1799149e8b833306f2e49b3f8b240d699c8/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -312,7 +312,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-05.attribute-selector-rendering');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -776,8 +776,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-05.attribute-selector-rendering');
-  assert.equal(dataset.commit, 'd7fee5d311f9abebccf37a58c3c9198de78750e8');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
+  assert.equal(dataset.commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -848,7 +848,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-05.attribute-selector-rendering');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
@@ -930,12 +930,14 @@ test('bounded text-align-last keeps existing 418 feature IDs and precisely audit
 test('bounded attribute selectors move a real syntax feature to partial without inflating CSS property names', () => {
   const row = dataset.features.find(f => f.id === 'selector.attribute');
   assert.equal(row.status, 'partial');
-  assert.equal(row.last_audited_commit, 'd7fee5d311f9abebccf37a58c3c9198de78750e8');
+  assert.equal(row.last_audited_commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
   assert.equal(dataset.accepted_css_property_count, 116);
   assert.match(row.scope, /\[attr\]/);
   assert.match(row.scope, /\[attr=value\]/);
+  assert.match(row.scope, /\[attr\^=value\]/);
+  assert.match(row.scope, /\[attr\*=value\]/);
   assert.match(row.limitations, /CSS Selectors/);
-  assert.match(row.test_reference, /AttributeSelectorReportTests\.cs$/);
+  assert.match(row.test_reference, /AttributeOperatorReportTests\.cs$/);
   assert.equal(row.introduced_release, null);
   assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
 });

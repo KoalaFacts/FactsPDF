@@ -1,28 +1,34 @@
 ## Attribute selectors on actual invoice/report fields
 
-The renderer now matches actual accepted HTML attributes using `[name]` and
-`[name=value]` (quoted string or identifier). Supported names are
-`id`, `class`, `title`, `lang`, `href`, `src`, `alt` and
-nonempty `data-*` names. Attribute names are ASCII-insensitive (as in parsed
-HTML); exact values are case-sensitive and compare decoded HTML attribute values.
-These terms work alone or alongside tag/class/ID terms, comma groups, child
-(`>`) and descendant selectors, and contribute class-level specificity.
-`!important`, inline overrides, per-property cascade and inherited values
-retain their existing rules. Matching CSS styles actual PDF text, colours,
-padding/borders, explicitly supplied images and paginated report blocks.
+The renderer matches accepted HTML attributes with `[name]`,
+`[name=value]`, `[name^=value]` (prefix), `[name$=value]` (suffix),
+`[name*=value]` (substring), `[name~=value]` (complete whitespace-separated
+word), and `[name|=value]` (exact or followed by a hyphen). Values may be CSS
+identifiers or quoted strings, with optional `i` (ASCII-case-insensitive) or
+`s` (case-sensitive) flags on comparisons. The default is case-sensitive.
+HTML attributes are decoded before matching. `~=` uses ASCII whitespace only;
+`|=` is useful for `lang` such as `en` or `en-AU`. Empty non-equality
+operands deliberately reject. Empty equality strings are valid.
 
-No substring/word/language/dash selectors (`^=`, `$=`, `*=`, `~=`,
-`|=`), selector value flags (`i`/`s`), arbitrary or unsupported HTML
-attributes, pseudo-selectors, sibling selectors, or complex CSS selectors.
-Unknown syntax or attributes fail explicitly with FPDF1203; no silent styling
-fallback, remote resources, or full CSS Selectors conformance claim.
+Supported attribute names are `id`, `class`, `title`, `lang`, `href`,
+`src`, `alt` and nonempty `data-*` names. Attribute names are
+ASCII-insensitive; attribute values with the `i` flag fold **ASCII letters
+only**, not arbitrary Unicode. All operators compose with supported type,
+class, ID, comma, descendant and direct-child selectors and contribute
+class-level specificity. Existing `!important`, cascade, inheritance and
+match-operation budgets remain effective. Real PDF text, borders, padding,
+images, and continued report boxes consume the winning styles.
 
-The [44-entry invoice-status report](../examples/report-attribute-style-overrides.html)
-and its [independent explicit-style control](../examples/report-attribute-style-overrides-oracle.html)
-are compared in [actual PDF, layout, TrueType, image, cascade, negative and
-failure-recovery tests](../tests/FactsPDF.Tests/AttributeSelectorReportTests.cs).
-Initial source implementation `d7fee5d311f9abebccf37a58c3c9198de78750e8`;
-CI and independent review apply to their separately verified commits.
+Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
+malformed/whitespace-split operators, empty non-equality operands, pseudos,
+sibling combinators and nested selectors fail explicitly with FPDF1203;
+no network access or full CSS Selectors claim. This remains a **partial**
+selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
+and [independent inline control](../examples/report-attribute-operators-oracle.html)
+are compared in [real PDF, cascade, image, TrueType and fail-safe tests](../tests/FactsPDF.Tests/AttributeOperatorReportTests.cs).
+Initial presence/equality implementation: `d7fee5d311f9abebccf37a58c3c9198de78750e8`;
+operator-family engine source: `845ab1799149e8b833306f2e49b3f8b240d699c8`. CI, independent review
+and the actual merged main are separate evidence.
 
 
 ## Last-line alignment for quotation text (source implementation)

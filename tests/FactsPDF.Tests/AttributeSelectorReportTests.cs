@@ -121,14 +121,14 @@ public sealed class AttributeSelectorReportTests
         Assert.That(Layout(actual, options).Single().Runs.Single().Text, Is.EqualTo("中文"));
     }
 
-    [TestCase("p[data-state^=paid]")]
-    [TestCase("p[data-state*=paid]")]
-    [TestCase("p[data-state=paid i]")]
-    [TestCase("p[data-state~=paid]")]
+    [TestCase("p[data-state^ =paid]")]
+    [TestCase("p[data-state*=\"\"]")]
+    [TestCase("p[data-state=paid q]")]
+    [TestCase("p[data-state~=paid ii]")]
     [TestCase("p[data-state \"=\" paid]")]
     [TestCase("p[data-state \"]\"\"[\"title]")]
     [TestCase("p[unknown]")]
-    public void UnimplementedOperatorsFlagsAndAttributesRejectWithoutReplacingOutput(string selector)
+    public void MalformedOperatorsFlagsAndAttributesRejectWithoutReplacingOutput(string selector)
     {
         using var output = new MemoryStream();
         output.Write("previous PDF"u8);
