@@ -224,7 +224,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         // Charge both prefix preparation and every actual comparison to the
         // same CSS work budget used for the rest of selector matching.
         var prefix = new int[expected.Length];
-        for (var i = 1, matched = 0; i < expected.Length;)
+        for (int i = 1, matched = 0; i < expected.Length;)
         {
             budget.Work(offset);
             if (EqualChar(expected[i], expected[matched], fold))
@@ -234,7 +234,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             else
                 prefix[i++] = 0;
         }
-        for (var i = 0, matched = 0; i < actual.Length;)
+        for (int i = 0, matched = 0; i < actual.Length;)
         {
             budget.Work(offset);
             if (EqualChar(actual[i], expected[matched], fold))
