@@ -47,7 +47,8 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-          fetch-depth: 0
+          # The PR merge commit and its first parent, the base it is compared with.
+          fetch-depth: 2
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '10.0.403'
@@ -59,9 +60,7 @@ jobs:
       - name: Test the parity script
         run: node --test scripts/parity.test.ts
       - name: Compare example output with the base commit
-        env:
-          PARITY_BASE: ${{ github.event.pull_request.base.sha }}
-        run: node scripts/parity.ts --base "$PARITY_BASE" --work "$RUNNER_TEMP/parity"
+        run: node scripts/parity.ts --base HEAD^1 --work "$RUNNER_TEMP/parity"
       - name: Retain the parity report
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

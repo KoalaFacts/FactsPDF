@@ -12,9 +12,9 @@
 // Defaults: --base origin/main,
 // --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf.
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 export interface OptionSet {
   name: string;
@@ -100,6 +100,7 @@ export function optionSets(repo: string, font: string, images: string): OptionSe
       name: 'furniture-a5',
       args: [
         '--font', font,
+        ...image('logo', 'brand-mark.png'), ...image('chart', 'rgb.png'), ...image('quality-chart', 'rgba.png'),
         '--page-furniture', join(repo, 'examples', 'business-page-furniture.json'),
         '--page-width', '148mm', '--page-height', '210mm',
       ],
@@ -184,8 +185,9 @@ async function pool<T>(items: readonly T[], jobs: number, work: (item: T) => Pro
 /** Rejects a --work folder inside the repository, which the run would litter or clobber. */
 export function workParent(repo: string, work: string): string {
   const parent = resolve(work);
-  const inside = relative(resolve(repo), parent);
-  if (inside === '' || (!inside.startsWith('..') && !isAbsolute(inside))) {
+  const real = (path: string) => (existsSync(path) ? realpathSync(path) : path);
+  const inside = relative(real(resolve(repo)), real(parent));
+  if (inside === '' || (inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside))) {
     throw new Error(`--work must be outside the repository: ${parent}`);
   }
   return parent;
@@ -229,6 +231,11 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
         differences.push({ example, set: set.name, reason });
       }
     });
+    for (const set of sets) {
+      if ((exitCodes[set.name]?.['0'] ?? 0) === 0) {
+        throw new Error(`no example rendered with the ${set.name} option set, so it checks nothing`);
+      }
+    }
     differences.sort((a, b) => `${a.example}.${a.set}`.localeCompare(`${b.example}.${b.set}`));
     const report = JSON.stringify({ base: baseCommit, runs: cases.length, exitCodes, differences }, null, 2) + '\n';
     writeFileSync(join(work, 'parity.json'), report);
@@ -236,7 +243,11 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
     identical = differences.length === 0;
     return { runs: cases.length, report: join(parent, 'parity.json'), exitCodes, differences };
   } finally {
-    execFileSync('git', ['worktree', 'remove', '--force', tree], { cwd: repo, stdio: 'ignore' });
+    try {
+      execFileSync('git', ['worktree', 'remove', '--force', tree], { cwd: repo, stdio: 'ignore' });
+    } catch (error) {
+      console.error(`parity: could not remove the worktree ${tree}: ${error instanceof Error ? error.message : String(error)}`);
+    }
     if (identical) {
       // Only the subfolder this run created; keep it for inspection when anything differs.
       rmSync(work, { recursive: true, force: true });

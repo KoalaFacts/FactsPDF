@@ -56,12 +56,14 @@ test('uses the three documented option sets', () => {
   const furniture = sets[2].args.join(' ');
   assert.ok(furniture.includes('--page-furniture /repo/examples/business-page-furniture.json'));
   assert.ok(furniture.includes('--page-width 148mm --page-height 210mm'));
+  assert.ok(furniture.includes('logo=/img/brand-mark.png'), 'the furniture set renders image examples too');
   assert.ok(!furniture.includes('--subset-fonts'), 'the furniture set embeds the full font');
 });
 
 test('a signal or launch failure is an error, not a comparable exit code', () => {
   assert.equal(exitCodeOf(null), 0);
   assert.equal(exitCodeOf({ code: 3, signal: null }), 3);
+  assert.throws(() => exitCodeOf({ code: 1, signal: 'SIGKILL' }), /signal SIGKILL/);
   assert.throws(() => exitCodeOf({ code: null, signal: 'SIGTERM' }), /did not run to completion \(signal SIGTERM\)/);
   assert.throws(() => exitCodeOf({ code: 'ENOENT' }), /did not run to completion \(error ENOENT\)/);
 });
@@ -71,4 +73,5 @@ test('refuses a work folder inside the repository', () => {
   assert.throws(() => workParent('/repo', '/repo/artifacts'), /outside the repository/);
   assert.equal(workParent('/repo', '/tmp/parity'), '/tmp/parity');
   assert.equal(workParent('/repo', '/repository-sibling'), '/repository-sibling');
+  assert.throws(() => workParent('/repo', '/repo/..cache'), /outside the repository/);
 });
