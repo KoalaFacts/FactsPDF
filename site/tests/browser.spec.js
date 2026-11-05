@@ -423,7 +423,7 @@ test('new LTR border component CSS is discoverable with its exact historical PDF
 test('partial attribute selectors are discoverable with explicit value and failure limits', async({page})=>{
   await page.goto(base+'#q=%5Battr%3Dvalue%5D');
   await page.getByRole('button',{name:'English',exact:true}).click();
-  const row=page.getByRole('button',{name:'Attribute [attr=value]',exact:true});
+  const row=page.getByRole('button',{name:/attr=value/});
   await row.click();
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();

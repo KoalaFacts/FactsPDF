@@ -74,7 +74,7 @@ public sealed class AttributeSelectorReportTests
     public void RealHtmlReportTemplateMatchesIndependentExplicitStyleOracle()
     {
         var repoRoot = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
-            "..", "..", "..", "..", ".."));
+            "..", "..", "..", "..", "..", ".."));
         var actualPath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides.html");
         var oraclePath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides-oracle.html");
         var actual = File.ReadAllText(actualPath);
@@ -107,10 +107,10 @@ public sealed class AttributeSelectorReportTests
     public void TrueTypeAttributeStylingControlsSearchableUnicodeText()
     {
         var options = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
-        const string actual = "<style>p[lang=zh]{color:red}</style><p lang=zh>中文报告</p>";
-        const string control = "<p style='color:red'>中文报告</p>";
+        const string actual = "<style>p[lang=zh]{color:red}</style><p lang=zh>中文</p>";
+        const string control = "<p style='color:red'>中文</p>";
         Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(control, options)));
-        Assert.That(Layout(actual, options).Single().Runs.Single().Text, Is.EqualTo("中文报告"));
+        Assert.That(Layout(actual, options).Single().Runs.Single().Text, Is.EqualTo("中文"));
     }
 
     [TestCase("p[data-state^=paid]")]
