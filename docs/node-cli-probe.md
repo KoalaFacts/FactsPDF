@@ -8,7 +8,7 @@ TypeScript SDK, or WASM implementation. It has no npm dependencies.
 
 ## Reproduce
 
-Use Node 22 or later and the repository's .NET 10 SDK. Independent integration
+Use Node 24 or later and the repository's .NET 10 SDK. Independent integration
 inspection needs qpdf and Poppler's pdftotext, plus two explicitly supplied trusted
 static TrueType files covering the test's Latin and Chinese text. No font is
 downloaded or discovered by the probe. No font, executable or PDF is uploaded.

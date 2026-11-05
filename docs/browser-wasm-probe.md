@@ -14,7 +14,7 @@ The project targets `browser-wasm`, uses `WasmBuildNative=false`, and rejects AO
 
 ## Reproduce
 
-Prerequisites: .NET 10 SDK, Node 22+, official Playwright Chromium capable of sandboxed execution, qpdf, Poppler (`pdftotext`, `pdfinfo`, `pdftoppm`), and explicit static TrueType fonts covering the fixtures. The CI workflow installs official tooling and distro verification packages. Local setup must not require system-security changes.
+Prerequisites: .NET 10 SDK, Node 24+, official Playwright Chromium capable of sandboxed execution, qpdf, Poppler (`pdftotext`, `pdfinfo`, `pdftoppm`), and explicit static TrueType fonts covering the fixtures. The CI workflow installs official tooling and distro verification packages. Local setup must not require system-security changes.
 
 From the repository root:
 
