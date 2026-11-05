@@ -443,10 +443,21 @@ internal static class TextLayout
                         if (painted.Width > 0 && painted.Height > 0 && outlineWidth > 0)
                         {
                             var overhang = painted.Style.OutlineOffset + outlineWidth;
+                            // A joined solid corner fills the outer quadrant
+                            // by a full stroke width. On continuation pages,
+                            // however, the missing top/bottom cap leaves an
+                            // open, butt-capped vertical segment: it extends
+                            // only half a stroke past its centreline. Keep
+                            // conservative full-width bounds for dashed/dotted.
+                            var solid = painted.Style.Outline.Pattern == BorderPattern.Solid;
+                            var topOverhang = painted.Style.OutlineOffset +
+                                (solid && !painted.IsFirstFragment ? outlineWidth / 2 : outlineWidth);
+                            var bottomOverhang = painted.Style.OutlineOffset +
+                                (solid && !painted.IsLastFragment ? outlineWidth / 2 : outlineWidth);
                             if (painted.X - overhang < -0.000001 ||
                                 painted.X + painted.Width + overhang > o.PageWidth + 0.000001 ||
-                                painted.Top - overhang < -0.000001 ||
-                                painted.Top + painted.Height + overhang > o.PageHeight + 0.000001)
+                                painted.Top - topOverhang < -0.000001 ||
+                                painted.Top + painted.Height + bottomOverhang > o.PageHeight + 0.000001)
                                 throw new FactsPdfException("FPDF1302",
                                     "Report outline extends outside the physical PDF page.", scope.SourceOffset);
                         }
