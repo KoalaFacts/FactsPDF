@@ -173,6 +173,35 @@ public sealed class ReportOutlineTests
     }
 
     [Test]
+    public void OutlineOnlySolidContinuationUsesOpenEndBoundsOnPhysicalSheet()
+    {
+        var tight = Page with { Margin = 4 };
+        const string source = "<p style='margin:0'>INTRO</p>" +
+            "<section style='margin-left:10pt;width:100pt;outline:6pt solid red'>" +
+            "<p style='margin:0'>A</p>" +
+            "<p style='break-before:page;margin:0'>B</p></section>";
+        var pages = Layout(source, tight);
+        Assert.That(pages.Count, Is.EqualTo(2));
+        var first = pages[0].PaintBoxes.Single(b => b.Style.Outline.EffectiveWidth == 6);
+        var last = pages[1].PaintBoxes.Single(b => b.Style.Outline.EffectiveWidth == 6);
+        Assert.That(first.IsFirstFragment, Is.True);
+        Assert.That(first.IsLastFragment, Is.False);
+        Assert.That(last.IsFirstFragment, Is.False);
+        Assert.That(last.IsLastFragment, Is.True);
+        Assert.That(first.Top + first.Height, Is.EqualTo(tight.PageHeight - tight.Margin)
+            .Within(0.001));
+        Assert.That(first.Top + first.Height + first.Style.Outline.EffectiveWidth / 2,
+            Is.LessThanOrEqualTo(tight.PageHeight));
+        Assert.That(last.Top - last.Style.Outline.EffectiveWidth / 2,
+            Is.GreaterThanOrEqualTo(0));
+        Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text),
+            Is.EqualTo(new[] { "INTRO", "A", "B" }));
+        var pdf = Encoding.Latin1.GetString(Pdf(source, tight));
+        Assert.That(pdf, Does.Contain("RG 6 w 0 j "));
+        Assert.That(pdf, Does.Contain(" Tj ET"));
+    }
+
+    [Test]
     public void SolidOutlineConnectsOuterCornersWithClosedMiterJoinedPdfPath()
     {
         const string single = "<section style='outline:6pt solid red'>AB</section>";

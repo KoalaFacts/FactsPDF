@@ -426,9 +426,20 @@ internal static class TextLayout
                         var fragmentTop = isFirst ? scope.StartY : o.Margin;
                         var fragmentEnd = isLast ? finish : bottom;
                         var height = Math.Max(0, fragmentEnd - fragmentTop);
+                        // An outline-only solid continuation has no lower cap.
+                        // Its open vertical strokes end at the line centre plus
+                        // half a stroke, not at the full joined-corner overhang.
+                        // The final fragment still has its bottom cap and keeps
+                        // the original full-width physical-sheet bound.
+                        var fragmentPaintBottom = physicalPaintBottom;
+                        if (!isLast && !scope.Style.HasLayoutPaint &&
+                            scope.Style.Outline.EffectiveWidth > 0 &&
+                            scope.Style.Outline.Pattern == BorderPattern.Solid)
+                            fragmentPaintBottom = o.PageHeight - scope.Style.OutlineOffset -
+                                scope.Style.Outline.EffectiveWidth / 2;
                         if (fragmentEnd < fragmentTop - 0.000001 ||
                             fragmentTop < o.Margin - 0.000001 ||
-                            fragmentEnd > physicalPaintBottom + 0.000001)
+                            fragmentEnd > fragmentPaintBottom + 0.000001)
                             throw new FactsPdfException("FPDF1302",
                                 "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
