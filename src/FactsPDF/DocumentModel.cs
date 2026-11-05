@@ -97,80 +97,85 @@ internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
     internal double EffectiveWidth => Solid ? Width : 0;
 }
 
-internal sealed record BoxStyle(
-    CssLength? Width = null,
-    CssLength PaddingTop = default,
-    CssLength PaddingRight = default,
-    CssLength PaddingBottom = default,
-    CssLength PaddingLeft = default)
+// Computed box style. Treat every published instance as immutable: Initial, a parent's box and any
+// box stored in the document model are shared. The setters exist only so CSS computing can apply
+// all of one element's declarations to a single private copy (CssStylesheets.Compute), instead of
+// allocating a full copy per declaration. Nothing else may assign these properties.
+internal sealed record BoxStyle
 {
-    // The CSS initial box. Records are immutable, so one shared instance replaces a
-    // fresh allocation for every element and every CSS-wide initial/unset keyword.
+    // The CSS initial box, shared by every element without box declarations and by every
+    // CSS-wide initial/unset keyword. Never mutate it.
     internal static readonly BoxStyle Initial = new();
+
+    public CssLength? Width { get; set; }
+    public CssLength PaddingTop { get; set; }
+    public CssLength PaddingRight { get; set; }
+    public CssLength PaddingBottom { get; set; }
+    public CssLength PaddingLeft { get; set; }
 
     // Report panel vertical margins are outside paint and have no general CSS
     // collapsing behaviour. Existing paragraph/heading vertical margins remain
     // in TextStyle, where their historical overlap rules are preserved.
-    public CssLength MarginTop { get; init; }
-    public CssLength MarginBottom { get; init; }
+    public CssLength MarginTop { get; set; }
+    public CssLength MarginBottom { get; set; }
     // Outside the paragraph/heading border box; percentages use the containing width.
-    public CssLength MarginLeft { get; init; }
-    public CssLength MarginRight { get; init; }
+    public CssLength MarginLeft { get; set; }
+    public CssLength MarginRight { get; set; }
     // Auto is distinguished from an explicit zero without changing legacy lengths.
-    public bool MarginLeftAuto { get; init; }
-    public bool MarginRightAuto { get; init; }
+    public bool MarginLeftAuto { get; set; }
+    public bool MarginRightAuto { get; set; }
     // Explicit width includes padding/borders when requested; defaults unchanged.
-    public bool BorderBoxSizing { get; init; }
+    public bool BorderBoxSizing { get; set; }
     // Only ordinary block display:none is modelled. The parser removes the
     // complete validated subtree before any PDF layout or paint commands.
-    public bool DisplayNone { get; init; }
+    public bool DisplayNone { get; set; }
     // Only td/th cells consume this property; rows needing fragmentation reject middle/bottom.
-    public CellVerticalAlign VerticalAlign { get; init; } = CellVerticalAlign.Top;
+    public CellVerticalAlign VerticalAlign { get; set; } = CellVerticalAlign.Top;
     // Unlike painted box sides, list-style-type is inherited through li and
     // other containers. The ol/ul HTML defaults are applied in CSS computing.
-    public ListMarkerKind MarkerKind { get; init; } = ListMarkerKind.Disc;
+    public ListMarkerKind MarkerKind { get; set; } = ListMarkerKind.Disc;
     // Inherited list marker placement. Outside retains all previous PDF geometry;
     // inside reserves inline advance on the first text line only.
-    public bool MarkerInside { get; init; }
+    public bool MarkerInside { get; set; }
     // Opt-in width constraints. Percentages resolve against the containing
     // content width; the constrained measure follows box-sizing.
-    public CssLength? MinWidth { get; init; }
-    public CssLength? MaxWidth { get; init; }
+    public CssLength? MinWidth { get; set; }
+    public CssLength? MaxWidth { get; set; }
     // Nonnegative minimum content-box height, or border-box with box-sizing.
     // Only ordinary report panels consume it during PDF page placement.
-    public CssLength? MinHeight { get; init; }
+    public CssLength? MinHeight { get; set; }
     // Only explicitly bound images consume a physical maximum height.
-    public CssLength? MaxHeight { get; init; }
+    public CssLength? MaxHeight { get; set; }
     // Fixed, non-fragmented report panels reject overflow instead of clipping.
-    public CssLength? Height { get; init; }
+    public CssLength? Height { get; set; }
     // Explicit before/after page boundaries for ordinary report panels.
     // These never inherit unless the winning CSS keyword is inherit.
-    public bool BreakBefore { get; init; }
-    public bool BreakAfter { get; init; }
+    public bool BreakBefore { get; set; }
+    public bool BreakAfter { get; set; }
     // A bounded, top-level flat report card can be preflighted and moved
     // intact rather than letting its paragraphs split between PDF pages.
-    public bool AvoidBreakInside { get; init; }
-    public Rgb? BackgroundColor { get; init; } // null: transparent
+    public bool AvoidBreakInside { get; set; }
+    public Rgb? BackgroundColor { get; set; } // null: transparent
     // Retain the currentColor token when background:inherit is authored on a
     // child: its actual ink resolves against the receiving element's colour.
     // The renderer still consumes only the final BackgroundColor RGB value.
-    public bool BackgroundUsesCurrentColor { get; init; }
+    public bool BackgroundUsesCurrentColor { get; set; }
     // Rounded-corner shorthand computes TL / TR / BR / BL physical radii.
     // CornerRadius keeps the original TL member so one-value reports retain
     // their source layout and exact legacy PDF bytes.
-    public double CornerRadius { get; init; }
-    public double CornerTopRightRadius { get; init; }
-    public double CornerBottomRightRadius { get; init; }
-    public double CornerBottomLeftRadius { get; init; }
+    public double CornerRadius { get; set; }
+    public double CornerTopRightRadius { get; set; }
+    public double CornerBottomRightRadius { get; set; }
+    public double CornerBottomLeftRadius { get; set; }
     public bool HasRoundedCorners => CornerRadius > 0 || CornerTopRightRadius > 0 ||
         CornerBottomRightRadius > 0 || CornerBottomLeftRadius > 0;
     // This non-inherited outline is painted outside the border box.
-    public BorderEdge Outline { get; init; } = BorderEdge.Initial;
-    public double OutlineOffset { get; init; }
-    public BorderEdge BorderTop { get; init; } = BorderEdge.Initial;
-    public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
-    public BorderEdge BorderBottom { get; init; } = BorderEdge.Initial;
-    public BorderEdge BorderLeft { get; init; } = BorderEdge.Initial;
+    public BorderEdge Outline { get; set; } = BorderEdge.Initial;
+    public double OutlineOffset { get; set; }
+    public BorderEdge BorderTop { get; set; } = BorderEdge.Initial;
+    public BorderEdge BorderRight { get; set; } = BorderEdge.Initial;
+    public BorderEdge BorderBottom { get; set; } = BorderEdge.Initial;
+    public BorderEdge BorderLeft { get; set; } = BorderEdge.Initial;
     // Ordinary fill and border paint can anchor a box's leading layout across
     // page breaks. An outside outline is ink only: it must not consume padding
     // or change the page on which a panel's first text is placed.
