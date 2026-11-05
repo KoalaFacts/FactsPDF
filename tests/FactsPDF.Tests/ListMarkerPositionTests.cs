@@ -37,6 +37,38 @@ public sealed class ListMarkerPositionTests
     }
 
     [Test]
+    public void FirstWordCanFollowAnInsideMarkerOnTheNextLineWithoutTruncation()
+    {
+        const string html = "<div style='width:100pt'><ol style='list-style-position:inside'><li>ABCDEFGHIJKL</li></ol></div>";
+        var runs = Layout(html).SelectMany(p => p.Runs).ToArray();
+        var marker = runs.Single(r => r.Text == "1.");
+        var word = runs.Single(r => r.Text == "ABCDEFGHIJKL");
+        Assert.That(marker.Baseline, Is.GreaterThan(word.Baseline));
+        Assert.That(word.X, Is.EqualTo(marker.X).Within(0.000001));
+        Assert.That(Pdf(html).AsSpan(0, 4).SequenceEqual("%PDF"u8), Is.True);
+    }
+
+    [Test]
+    public void InsideMarkerPrecedesBlockChildInsteadOfEnteringItsNarrowContentBox()
+    {
+        const string html = "<ol style='list-style-position:inside'><li><p style='width:15pt'>A</p></li></ol>";
+        var runs = Layout(html).SelectMany(p => p.Runs).ToArray();
+        var marker = runs.Single(r => r.Text == "1.");
+        var word = runs.Single(r => r.Text == "A");
+        Assert.That(marker.Baseline, Is.GreaterThan(word.Baseline));
+        Assert.That(word.X, Is.EqualTo(marker.X).Within(0.000001));
+        Assert.That(Pdf(html).AsSpan(0, 4).SequenceEqual("%PDF"u8), Is.True);
+    }
+
+    [Test]
+    public void AuthoredTextIndentStillRejectsFirstWordThatCannotFit()
+    {
+        const string html = "<p style='width:100pt;text-indent:20pt'>ABCDEFGHIJKL</p>";
+        var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+    }
+
+    [Test]
     public void OutsideIsDefaultAndRetainsIdenticalPdfBytes()
     {
         const string body = "<li>Alpha Beta Gamma Delta</li><li>Small details</li>";

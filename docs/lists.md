@@ -50,13 +50,17 @@ the marker and its paint/display command while retaining the normal
 list-item indentation, body text, and pagination. Existing documents
 without the new declaration retain the old marker bytes.
 
-Unsupported multi-term `list-style` shorthand, `list-style-position`,
-list images, CSS counters, custom glyph markers,
-`::marker`, inside placement, whole-item keep, widows or orphans still
-fail as unsupported. Invalid values reject with `FPDF1202`; declarations
-on non-list elements reject with `FPDF1201`, and errors preserve
-existing PDF output. Element and font limits, list nesting and
-cancellation retain their existing contracts.
+`list-style-position:inside|outside` applies on `ol`, `ul` and `li`.
+Inside markers occupy measured first-line space; a first word that fits
+the item but not the marker line wraps to the next line, and a leading
+block child gets a separate marker-only line outside its box.
+Outside remains the byte-compatible default. The bounded `list-style`
+shorthand accepts a marker kind, a position, or one of each in either
+order; see the exact grammar below. Images, counters, custom glyphs,
+`::marker`, duplicate terms, whole-item keep, widows and orphans
+remain unsupported. Invalid values reject `FPDF1202`, non-list
+targets reject `FPDF1201`, and errors preserve existing PDF output.
+Element/font limits, nesting and cancellation remain unchanged.
 
 The [74-entry print report](../examples/report-list-marker-styles.html)
 uses 40 alphabetic inspection rows, 25 Roman corrective actions,
@@ -73,13 +77,13 @@ and Linux/Windows Native AOT Poppler/PDF-path evidence in
 is not the historical private 0.1.0-preview.1 candidate,
 a public NuGet release, or human approval.
 
-There is no other list CSS, counters, image/custom markers, marker pseudo-element, inside placement, whole-item keep, widows or orphans support. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. A line can occur alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
+Other list CSS, counters, image/custom markers, marker pseudo-elements, whole-item keep, widows and orphans remain unsupported. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. A line can occur alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
 
 The [design](superpowers/specs/2026-10-17-bounded-lists-design.md) and [plan](superpowers/plans/2026-10-17-bounded-lists.md) specify the precise acceptance contract. Local evidence includes 629 passing core tests and a five-page report from direct API, CLI and freshly built Linux Native AOT with identical PDF bytes. All five first-render pages were opened; independent qpdf/text/geometry/font checks and deliberately corrupted checker inputs passed. These are observed local results, not user reference approval or evidence of completed final-head CI/PR review. Protected browser results and final exact-head gates belong to the PR evidence.
 
 `scripts/verify_lists.py` checks the authored complete text, 17 decimal markers, two discs, nested gutter coordinates, actual font outlines/advances/permissions, page bounds and CLI/API/AOT parity. Its direct API host checks ten failure/cancellation cases and recovery; managed/native CLI checks cover stdout, existing files and new destinations. Browser verification uses the existing protected WASM workflow and normal PDF viewer interaction, with no printing or policy changes. The old nine-product-target denominator is unchanged; the small T-list smoke is only a candidate, and full C2 evidence is separate.
 
-## Current-source ordered-list sequencing and one-token shorthand
+## Current-source ordered-list sequencing and bounded shorthand
 
 An ordered business action register may use `<ol start="21">`, count down
 using `<ol reversed>` (or `reversed="reversed"`), and restart the next
@@ -97,14 +101,16 @@ arithmetic overflow and numbering past the positive limit fail with
 `FPDF1103`. Roman marker types retain their existing 1–3999 limit,
 with `FPDF1202` for unrepresentable Roman ordinals.
 
-The restricted CSS `list-style` shorthand accepts **exactly one** existing
+The restricted CSS `list-style` shorthand accepts a supported
 `list-style-type` marker kind (`disc`, `circle`, `square`, `decimal`,
-`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, `none`)
-or a single `inherit`, `initial` or `unset`. It expands into the actual
-`list-style-type` CSS winner, preserving specificity, source order,
-`!important`, real glyph/font measurements, PDF vectors and pagination.
-Position terms, images, URLs, custom counters, multi-token combinations and
-non-list targets are unsupported and explicitly rejected.
+`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, `none`),
+one `inside`/`outside` position, or both in either order. A single
+`inherit`, `initial` or `unset` resolves both longhands.
+Omitted type/position reset to `disc`/`outside`, respectively, even
+on `ol`. Both participate in specificity, source order and
+`!important` with actual PDF geometry and pagination.
+Images, URLs, custom counters, duplicate kinds/positions, more than
+two tokens and non-list targets reject explicitly.
 
 The [77-entry pagination register](../examples/report-list-continuations.html)
 has an independent ordered-marker and Poppler word-position oracle under

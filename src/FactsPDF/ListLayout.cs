@@ -119,10 +119,23 @@ internal sealed class ListLayout
                 var width = text is null ? 0.3 * item.Style.FontSize : Measure(text, item.Style, item.SourceOffset);
                 maximum = Math.Max(maximum, width);
                 Paragraph? paragraph = null;
-                foreach (var descendant in Descendants(item.Children, cancellation))
+                if (item.BoxStyle.MarkerInside)
                 {
-                    if (descendant is BlockNode { Name: "ol" or "ul" }) break;
-                    if (descendant is ParagraphNode leaf) { paragraph = leaf.Paragraph; break; }
+                    // An inside marker belongs to the item's own first inline
+                    // paragraph, never to a block child's independent box.
+                    // A leading block gets a separate marker-only line.
+                    if (item.Children.Count > 0 &&
+                        item.Children[0] is ParagraphNode { IsAnonymous: true } direct)
+                        paragraph = direct.Paragraph;
+                }
+                else
+                {
+                    // Preserve the legacy outside-marker attachment and bytes.
+                    foreach (var descendant in Descendants(item.Children, cancellation))
+                    {
+                        if (descendant is BlockNode { Name: "ol" or "ul" }) break;
+                        if (descendant is ParagraphNode leaf) { paragraph = leaf.Paragraph; break; }
+                    }
                 }
                 if (paragraph is null)
                 {

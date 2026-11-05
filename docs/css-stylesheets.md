@@ -1181,13 +1181,14 @@ subtractive and deliberately supported only up to 3999 items
 (`FPDF1202` beyond). Missing requested-font marker glyphs fail
 with the existing FPDF1504/1507 paths rather than being substituted.
 
-This is not full CSS Lists: `list-style` shorthand,
-`list-style-position`, images, counters,
-`::marker`, arbitrary nesting, or declarations on non-list elements
-are unsupported and rejected. Invalid values reject FPDF1202,
+This is not full CSS Lists: the shorthand and position are limited
+to the bounded grammar above; images, counters, duplicate position/type
+tokens, `::marker`, arbitrary nesting and non-list targets remain
+unsupported and rejected. Invalid values reject FPDF1202,
 invalid target elements FPDF1201, and failed output leaves an
-existing PDF unchanged. No HTML `ol start`/`li value` or new
-fonts/platforms are implied. Source implementation
+existing PDF unchanged. Bounded HTML `ol start`/`li value` numbering
+is documented in the current [list contract](lists.md). No new
+fonts/platforms are implied. Earlier marker-type source implementation
 `e137e523264d1250702656ee1968c5ff2f61e8fe` (initial list types),
 `7665f2fbafa34e14f9d792e7e7728d67f268e0e3` (circle/square shapes),
 with an [80-item Native AOT report](../examples/report-list-vector-shapes.html);
