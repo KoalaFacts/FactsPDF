@@ -9,7 +9,7 @@ internal static class ExtensionsToString
 {
     /// <summary>
     /// Splits text into lines the way editors number them: CRLF (Windows) is checked first and counts
-    /// as one break, then a lone CR (classic Mac) or LF (Unix). Unlike <see cref="MemoryExtensions.EnumerateLines"/>,
+    /// as one break, then a lone CR (classic Mac) or LF (Unix). Unlike <see cref="MemoryExtensions.EnumerateLines(ReadOnlySpan{char})"/>,
     /// form feed, NEL and U+2028/U+2029 do not end a line. Each range excludes its terminator; text
     /// ending in a break yields a final empty line.
     /// </summary>
