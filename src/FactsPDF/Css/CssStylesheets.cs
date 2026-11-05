@@ -22,7 +22,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextUnderlineOffset + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.OutlineColor + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -167,6 +167,15 @@ internal sealed class CssStylesheets
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "display is supported only on ordinary report blocks outside lists and tables.", declaration.Offset);
+            // Outlines are real outside-box PDF paint on ordinary report panels
+            // only. Table/list/image/inline boxes cannot silently discard them.
+            if (declaration.Property is (CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor)
+                && (element.Name is not ("div" or "section" or "article" or "blockquote")
+                    || path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                        or "td" or "th" or "thead" or "tbody" or "tfoot")))
+                throw new FactsPdfException("FPDF1201",
+                    "Outline is supported only on flat ordinary report panels outside lists and tables.",
+                    declaration.Offset);
             // Rounded paint is deliberately scoped to ordinary report boxes, not
             // table/list/image geometry or inline text. Unsupported matches fail
             // even if a later cascade winner would remove the radius.
@@ -465,6 +474,10 @@ internal sealed class CssStylesheets
         }
         if (box.HasRoundedCorners)
         {
+            if (box.Outline.EffectiveWidth > 0)
+                throw new FactsPdfException("FPDF1201",
+                    "A painted outline cannot be combined with rounded panel corners in this renderer.",
+                    winners[(int)CssProperty.OutlineStyle]?.Declaration.Offset ?? elementOffset);
             // Nonzero corner radii may not silently flatten asymmetric or
             // patterned borders. The uniform ring has four independent curved
             // corners and is actually painted;

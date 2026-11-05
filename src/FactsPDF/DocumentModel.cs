@@ -59,10 +59,12 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     {
         get
         {
+            var outlineCommands = Width > 0 && Height > 0 && Style.Outline.EffectiveWidth > 0 ? 1 : 0;
             if (Style.HasRoundedCorners)
                 return Width > 0 && Height > 0
                     ? (Style.BackgroundColor.HasValue ? 1 : 0)
                       + (Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+                      + outlineCommands
                     : 0;
             var top = TopBorderHeight;
             var bottom = BottomBorderHeight;
@@ -71,7 +73,8 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
                 + (Width > 0 && top > 0 ? 1 : 0)
                 + (Width > 0 && bottom > 0 ? 1 : 0)
                 + (middleHeight > 0 && Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
-                + (middleHeight > 0 && Style.BorderRight.EffectiveWidth > 0 ? 1 : 0);
+                + (middleHeight > 0 && Style.BorderRight.EffectiveWidth > 0 ? 1 : 0)
+                + outlineCommands;
         }
     }
 }
@@ -159,7 +162,10 @@ internal sealed record BoxStyle(
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderBottom { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderLeft { get; init; } = BorderEdge.Initial;
-    public bool HasPaint => BackgroundColor.HasValue ||
+    // A non-layout rectangular exterior stroke for flat report panels.
+    // Outline does not change the box model or pagination measurements.
+    public BorderEdge Outline { get; init; } = BorderEdge.Initial;
+    public bool HasPaint => Outline.EffectiveWidth > 0 || BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
 }

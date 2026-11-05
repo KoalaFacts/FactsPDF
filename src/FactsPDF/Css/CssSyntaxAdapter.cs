@@ -342,7 +342,7 @@ internal static class CssSyntaxAdapter
             // This is a shorthand family, not directional writing-mode support.
             // Lower each affected edge to the three existing independent
             // width/style/colour cascade slots before PDF layout and paint.
-            if (name is "border" or "border-top" or "border-right" or "border-bottom" or "border-left"
+            if (name is "outline" or "border" or "border-top" or "border-right" or "border-bottom" or "border-left"
                 or "border-inline" or "border-block" or "border-inline-start" or "border-inline-end"
                 or "border-block-start" or "border-block-end")
             {
@@ -380,6 +380,13 @@ internal static class CssSyntaxAdapter
                             color = word; hasColor = true; colorOffset = offset;
                         }
                     }
+                }
+                if (name == "outline")
+                {
+                    Emit(CssProperty.OutlineWidth, width, widthOffset, "outline-width");
+                    Emit(CssProperty.OutlineStyle, style, styleOffset, "outline-style");
+                    Emit(CssProperty.OutlineColor, color, colorOffset, "outline-color");
+                    continue;
                 }
                 var edges = name switch
                 {
@@ -603,6 +610,9 @@ internal static class CssSyntaxAdapter
         "text-decoration-style" => CssProperty.TextDecorationStyle,
         "text-decoration-thickness" => CssProperty.TextDecorationThickness,
         "text-underline-offset" => CssProperty.TextUnderlineOffset,
+        "outline" or "outline-width" => CssProperty.OutlineWidth,
+        "outline-style" => CssProperty.OutlineStyle,
+        "outline-color" => CssProperty.OutlineColor,
         "border-radius" => CssProperty.BorderRadius,
         "border-top-left-radius" => CssProperty.BorderTopLeftRadius,
         "border-top-right-radius" => CssProperty.BorderTopRightRadius,
@@ -995,7 +1005,8 @@ internal static class CssSyntaxAdapter
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
-        else if (name.Contains("border", StringComparison.Ordinal))
+        else if (name.Contains("border", StringComparison.Ordinal)
+            || name.StartsWith("outline-", StringComparison.Ordinal))
         {
             if (name.EndsWith("width", StringComparison.Ordinal)) _ = CssPaintValues.BorderWidth(token, offset);
             else if (name.EndsWith("style", StringComparison.Ordinal)) _ = CssPaintValues.BorderStyle(token, offset);

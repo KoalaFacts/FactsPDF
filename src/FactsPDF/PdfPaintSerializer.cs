@@ -155,7 +155,49 @@ internal static class PdfPaintSerializer
             if (right > 0)
                 Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
                     horizontal: false, pageHeight, maxOutputBytes);
+            if (s.Outline.EffectiveWidth > 0 && width > 0 && height > 0)
+                PanelOutline(output, box, pageHeight, maxOutputBytes);
         }
+    }
+
+    // An outline is a single bounded PDF stroke, outside the border box.
+    // Continued panels retain left/right sides, but only the first page owns
+    // the top line and the final page owns the bottom line.
+    private static void PanelOutline(StringBuilder output, PaintedBox box,
+        double pageHeight, int maxOutputBytes)
+    {
+        var edge = box.Style.Outline;
+        var thickness = edge.EffectiveWidth;
+        var half = thickness / 2;
+        var left = box.X - half;
+        var right = box.X + box.Width + half;
+        var top = pageHeight - box.Top + half;
+        var bottom = pageHeight - box.Top - box.Height - half;
+        if (!double.IsFinite(left + right + top + bottom + thickness))
+            throw new FactsPdfException("FPDF1302", "Invalid outline paint geometry.");
+        var color = edge.Color ?? box.TextColor;
+        output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
+            .Append(N(color.B)).Append(" RG ").Append(N(thickness)).Append(" w ");
+        if (edge.Pattern == BorderPattern.Dashed)
+            output.Append('[').Append(N(3 * thickness)).Append(' ')
+                .Append(N(3 * thickness)).Append("] 0 d ");
+        else if (edge.Pattern == BorderPattern.Dotted)
+            output.Append("1 J [0.001 ").Append(N(2 * thickness)).Append("] 0 d ");
+        else if (edge.Pattern != BorderPattern.Solid)
+            throw new InvalidOperationException("Invalid panel outline pattern.");
+        if (box.IsFirstFragment)
+            output.Append(N(left)).Append(' ').Append(N(top)).Append(" m ")
+                .Append(N(right)).Append(' ').Append(N(top)).Append(" l ");
+        output.Append(N(left)).Append(' ').Append(N(top)).Append(" m ")
+            .Append(N(left)).Append(' ').Append(N(bottom)).Append(" l ")
+            .Append(N(right)).Append(' ').Append(N(top)).Append(" m ")
+            .Append(N(right)).Append(' ').Append(N(bottom)).Append(" l ");
+        if (box.IsLastFragment)
+            output.Append(N(left)).Append(' ').Append(N(bottom)).Append(" m ")
+                .Append(N(right)).Append(' ').Append(N(bottom)).Append(" l ");
+        output.Append("S Q\n");
+        if (output.Length > maxOutputBytes)
+            throw new FactsPdfException("FPDF1401", "PDF outline paint exceeds MaxOutputBytes.");
     }
 
 

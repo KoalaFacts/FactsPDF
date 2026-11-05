@@ -10,7 +10,8 @@ internal enum CssProperty
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
-    WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset
+    WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset,
+    OutlineWidth, OutlineStyle, OutlineColor
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -157,7 +158,8 @@ internal static class CssDeclarations
     }
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
-        or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius;
+        or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
+        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor;
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -186,6 +188,32 @@ internal static class CssDeclarations
         var value = declaration.Value;
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : new BoxStyle();
+        if (property is CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor)
+        {
+            var edge = current.Outline;
+            var inherited = from.Outline;
+            var updated = property switch
+            {
+                CssProperty.OutlineWidth => edge with
+                {
+                    Width = wide ? inherited.Width : CssPaintValues.BorderWidth(value, declaration.Offset)
+                },
+                CssProperty.OutlineStyle => edge with
+                {
+                    Solid = wide ? inherited.Solid : value != "none",
+                    Pattern = wide ? inherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
+                },
+                CssProperty.OutlineColor => edge with
+                {
+                    Color = wide ? inherited.Color : CssPaintValues.BorderColor(value, declaration.Offset)
+                },
+                _ => throw new InvalidOperationException()
+            };
+            if (updated.EffectiveWidth > 4)
+                throw new FactsPdfException("FPDF1202",
+                    "Report outlines are limited to a computed width of 4pt.", declaration.Offset);
+            return current with { Outline = updated };
+        }
 
         if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
             or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius)
