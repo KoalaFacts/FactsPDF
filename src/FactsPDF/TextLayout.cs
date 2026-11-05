@@ -97,8 +97,8 @@ internal static class TextLayout
                 // containing panel is unpainted. Its occupied descendants
                 // must also retain consumed top padding across the break.
                 var retainOrigin = scope.HasOccupiedDescendant &&
-                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue || continuedPanel);
-                if ((scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) &&
+                    (scope.Style.HasLayoutPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue || continuedPanel);
+                if ((scope.Style.HasLayoutPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) &&
                     (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
                     continuedPanel = true;
                 if (hasText || scope.TopConsumed) continue;
@@ -239,7 +239,7 @@ internal static class TextLayout
                 // Only real prior page content warrants an extra page: deferred
                 // top margins alone cannot produce a phantom leading page.
                 var forcePanelBreak = begin.Style.BreakBefore;
-                if (forcePanelBreak || breakNext && (begin.Style.HasPaint ||
+                if (forcePanelBreak || breakNext && (begin.Style.HasLayoutPaint ||
                     begin.MinimumOuterHeight > 0 || begin.FixedOuterHeight.HasValue || begin.PaddingTop > 0 ||
                     begin.MarginTop > 0 || begin.TrailingSpace > 0))
                 {
@@ -723,7 +723,7 @@ internal static class TextLayout
                 }
                 if (opened.Count > 0 && opened[^1].IsParagraph &&
                     opened[^1].ContentEpoch == contentEpoch &&
-                    (opened[^1].Style.HasPaint || opened[^1].Top > 0))
+                    (opened[^1].Style.HasLayoutPaint || opened[^1].Top > 0))
                 {
                     var before = Math.Max(after, marginBefore);
                     opened[^1] = opened[^1] with

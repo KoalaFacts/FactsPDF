@@ -167,9 +167,13 @@ internal sealed record BoxStyle(
     public BorderEdge BorderRight { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderBottom { get; init; } = BorderEdge.Initial;
     public BorderEdge BorderLeft { get; init; } = BorderEdge.Initial;
-    public bool HasPaint => BackgroundColor.HasValue || Outline.EffectiveWidth > 0 ||
+    // Ordinary fill and border paint can anchor a box's leading layout across
+    // page breaks. An outside outline is ink only: it must not consume padding
+    // or change the page on which a panel's first text is placed.
+    public bool HasLayoutPaint => BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
+    public bool HasPaint => HasLayoutPaint || Outline.EffectiveWidth > 0;
 }
 
 internal abstract record BlockChild;

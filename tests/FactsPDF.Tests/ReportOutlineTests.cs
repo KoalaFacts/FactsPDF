@@ -76,6 +76,40 @@ public sealed class ReportOutlineTests
     }
 
     [Test]
+    public void OutlineInkDoesNotConsumeUnpaintedAncestorPaddingAtForcedPageBreak()
+    {
+        const string body = "<p style='margin:0'>A</p>" +
+            "<div style='padding-top:10pt'><div style='padding-top:30pt'></div>" +
+            "<p style='break-before:page;margin:0'>B</p></div>";
+        var withOutline = body.Replace("padding-top:10pt'", "padding-top:10pt;outline:2pt solid red'",
+            StringComparison.Ordinal);
+        var original = Layout(body);
+        var outlined = Layout(withOutline);
+        Assert.That(original.Count, Is.GreaterThan(1));
+        Assert.That(outlined.Count, Is.EqualTo(original.Count));
+        Assert.That(outlined.SelectMany(p => p.Runs).Select(r => (r.Text, r.X, r.Baseline)),
+            Is.EqualTo(original.SelectMany(p => p.Runs).Select(r => (r.Text, r.X, r.Baseline))));
+    }
+
+    [Test]
+    public void SolidOutlineConnectsOuterCornersWithClosedMiterJoinedPdfPath()
+    {
+        const string single = "<section style='outline:6pt solid red'>AB</section>";
+        var content = Encoding.Latin1.GetString(Pdf(single));
+        Assert.That(content, Does.Contain("RG 6 w 0 j "));
+        Assert.That(content, Does.Contain(" l h S Q"));
+        var fragmented = "<section style='outline:6pt solid red'>" +
+            "<p style='margin:0'>A</p><p style='break-before:page;margin:0'>B</p></section>";
+        var pages = Layout(fragmented);
+        Assert.That(pages.Count, Is.EqualTo(2));
+        Assert.That(pages[0].PaintBoxes.Single().IsLastFragment, Is.False);
+        Assert.That(pages[1].PaintBoxes.Single().IsFirstFragment, Is.False);
+        var splitPdf = Encoding.Latin1.GetString(Pdf(fragmented));
+        Assert.That(splitPdf, Does.Not.Contain(" l h S Q"));
+        Assert.That(splitPdf, Does.Contain("RG 6 w 0 j "));
+    }
+
+    [Test]
     public void CssCascadeAndImportantCanOverrideOneOutlineComponent()
     {
         const string source = "<style>.report{outline-width:2pt!important;" +

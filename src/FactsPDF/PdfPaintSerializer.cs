@@ -186,16 +186,49 @@ internal static class PdfPaintSerializer
             output.Append("1 J [0.001 ").Append(N(2 * thickness)).Append("] 0 d ");
         else if (edge.Pattern != BorderPattern.Solid)
             throw new InvalidOperationException("Invalid outline pattern.");
-        output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
-            .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
-            .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
-            .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
-        if (box.IsFirstFragment)
+        if (edge.Pattern == BorderPattern.Solid)
+        {
+            // A solid outline must be one joined path at each visible corner.
+            // Independent butt-capped edge subpaths leave an unpainted outer
+            // quadrant at thick corners. The default miter join closes it.
+            // Continuations have no imaginary top/bottom cap across pages.
+            output.Append("0 j ");
+            if (box.IsFirstFragment && box.IsLastFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l h ");
+            else if (box.IsFirstFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+            else if (box.IsLastFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
+            else
+                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+        }
+        else
+        {
+            // Dashed/dotted paths intentionally remain separate: their dash
+            // phase and rounded caps restart at each scoped report-panel edge.
             output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
-                .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
-        if (box.IsLastFragment)
-            output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
+                .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
                 .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+            if (box.IsFirstFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
+            if (box.IsLastFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+        }
         output.Append("S Q\n");
         if (output.Length > maxOutputBytes)
             throw new FactsPdfException("FPDF1401", "PDF outline content exceeds MaxOutputBytes.");
