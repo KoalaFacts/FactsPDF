@@ -20,7 +20,7 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | P0 | Parity check as a TypeScript script under `scripts/`, run by CI if it fits an existing workflow | Makes the byte-parity gate repeatable by every contributor | todo | |
 | Z2 | Page content streams written as ASCII bytes into pooled buffers | `StringBuilder` → `string` → `byte[]` copies per page | todo | |
 | Z3 | `TextStyle`: one private copy per element, as in Z0c | 202 KiB of `TextStyle` in the 200-row table | todo | |
-| Z4 | CSS syntax allocations (`CssSyntaxToken[]`, strings, LINQ iterators) | Largest remaining parse-phase types | todo | |
+| Z4 | CSS syntax allocations (`CssSyntaxToken[]`, strings, LINQ iterators) | Largest remaining parse-phase types | in progress (Z4a tokenizer strings and token list: perf/css-tokenizer-strings; Z4b parser LINQ and adapter next) | Z4a: CSS collecting in the 200-row table 2,615 → 2,090 KiB; table 6,562 → 6,037 KiB; quick-start 345 → 314 KiB; 402/402 runs identical |
 | Z5 | Layout-phase allocations | About 2.4 MB in the 200-row table | todo | |
 | R1 | Soak and limits: memory and time bounds for every `Max*` limit; cancellation on every output path | Bounded resources are an MVP promise | todo | |
 | R2 | SDK usability: complete XML docs, README/examples compile, every FPDF code has a clear message with location | Ease of use | todo | |
