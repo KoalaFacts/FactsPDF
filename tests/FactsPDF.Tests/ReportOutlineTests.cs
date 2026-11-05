@@ -148,6 +148,22 @@ public sealed class ReportOutlineTests
         Assert.That(Pdf(source, a4), Is.EqualTo(Pdf(oracle, a4)));
         Assert.That(layout.SelectMany(p => p.PaintBoxes).Any(b =>
             b.Style.Outline.EffectiveWidth == 2), Is.True);
+        // Actual page geometry must leave text clear of the *outside* outline:
+        // without explicit clearance the last dotted stroke overlapped this
+        // footer even though the engine correctly kept outline out of layout.
+        var lastPanelPage = layout.FindLastIndex(p => p.PaintBoxes.Any(b =>
+            b.Style.Outline.EffectiveWidth == 2));
+        var footerPage = layout.FindIndex(p => p.Runs.Any(r =>
+            r.Text.Contains("REPORT COMPLETE", StringComparison.Ordinal)));
+        Assert.That(footerPage, Is.EqualTo(lastPanelPage));
+        var lastPanel = layout[footerPage].PaintBoxes.Single(b =>
+            b.Style.Outline.EffectiveWidth == 2);
+        var footer = layout[footerPage].Runs.Single(r =>
+            r.Text.Contains("REPORT COMPLETE", StringComparison.Ordinal));
+        var bottomStrokeEdge = lastPanel.Top + lastPanel.Height +
+            lastPanel.Style.OutlineOffset + lastPanel.Style.Outline.EffectiveWidth;
+        var footerTop = a4.PageHeight - footer.Baseline - footer.Style.FontSize;
+        Assert.That(footerTop, Is.GreaterThan(bottomStrokeEdge + 3));
     }
 
     [Test]
