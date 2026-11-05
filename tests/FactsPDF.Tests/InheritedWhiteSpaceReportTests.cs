@@ -100,6 +100,23 @@ public sealed class InheritedWhiteSpaceReportTests
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
     }
 
+    [TestCase("pre")]
+    [TestCase("pre-wrap")]
+    public void AnonymousLeadingSpacesRetainActualPdfTextAndPosition(string mode)
+    {
+        var actual = "<div style='white-space:" + mode + "'>  <span>AB</span></div>";
+        var oracle = "<p style='margin:0;white-space:" + mode + "'>  <span>AB</span></p>";
+        var text = Layout(actual).SelectMany(page => page.Runs).ToArray();
+        Assert.That(string.Concat(text.Select(run => run.Text)), Is.EqualTo("  AB"));
+        Assert.That(Render(actual), Is.EqualTo(Render(oracle)),
+            "Anonymous inherited whitespace must use the same PDF glyph advances as explicit text.");
+    }
+
+    [TestCase("pre")]
+    [TestCase("pre-wrap")]
+    public void AnonymousLeadingTabDoesNotBypassPreservingModeValidation(string mode)
+        => Reject("<section style='white-space:" + mode + "'>\\t<span>A</span></section>", "FPDF1305");
+
     [TestCase("<section style='white-space:break-spaces'><p>A</p></section>", "FPDF1202")]
     [TestCase("<span style='white-space:pre-line'>A  B</span>", "FPDF1201")]
     [TestCase("<table style='white-space:pre-line'><colgroup><col style='width:80pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]

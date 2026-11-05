@@ -93,7 +93,12 @@ internal static class HtmlDocumentReader
         }
         void Add(string text, TextStyle style, bool lineBreak = false)
         {
-            if (current is null && !lineBreak && text.All(HtmlTokens.Space)) return;
+            // Inherited pre/pre-wrap spaces (and pre-line authored breaks) are
+            // meaningful even before the first inline run of an anonymous
+            // report paragraph. Retain them for the same PDF measurement and
+            // tab/control validation used by explicitly styled paragraphs.
+            if (current is null && !lineBreak && text.All(HtmlTokens.Space) &&
+                !style.PreserveSpaces && !style.PreserveLineBreaks) return;
             if (current is null)
             {
                 // Preserve the existing text-layout paragraph style for a
