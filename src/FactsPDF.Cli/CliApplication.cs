@@ -239,10 +239,12 @@ public static class CliApplication
         int line = 1, column = 1;
         for (var i = 0; i < offset; i++)
         {
-            // LF (Unix), CRLF (Windows) and lone CR (classic Mac) each end exactly one line.
-            if (html[i] == '\n' && i > 0 && html[i - 1] == '\r') continue;
-            if (html[i] is '\r' or '\n') { line++; column = 1; }
-            else if (!char.IsLowSurrogate(html[i]) || i == 0 || !char.IsHighSurrogate(html[i - 1])) column++;
+            var c = html[i];
+            // CRLF (Windows) first, consumed as one break; then lone CR (classic Mac) or LF (Unix).
+            if (c == '\r' && i + 1 < html.Length && html[i + 1] == '\n') { line++; column = 1; i++; continue; }
+            if (c is '\r' or '\n') { line++; column = 1; continue; }
+            // A surrogate pair is one character.
+            if (!char.IsLowSurrogate(c) || i == 0 || !char.IsHighSurrogate(html[i - 1])) column++;
         }
         return $"Location: line {line}, column {column}.";
     }
