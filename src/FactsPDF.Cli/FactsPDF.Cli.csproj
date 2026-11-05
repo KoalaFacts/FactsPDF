@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="../FactsPDF/FactsPDF.csproj" />
     <Compile Include="../../shared/PageFurnitureJson.cs" Link="Configuration/PageFurnitureJson.cs" />
+    <Compile Include="../../shared/ExtensionsToString.cs" Link="Text/ExtensionsToString.cs" />
   </ItemGroup>
 </Project>

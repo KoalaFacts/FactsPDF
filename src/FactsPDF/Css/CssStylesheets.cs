@@ -22,7 +22,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.ListStylePosition + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.OutlineOffset + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -167,6 +167,16 @@ internal sealed class CssStylesheets
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "display is supported only on ordinary report blocks outside lists and tables.", declaration.Offset);
+            // Outlines use report-panel paint geometry only, never table,
+            // list, image or inline formatting contexts.
+            if (declaration.Property is (CssProperty.OutlineWidth or CssProperty.OutlineStyle
+                    or CssProperty.OutlineColor or CssProperty.OutlineOffset) &&
+                (element.Name is not ("div" or "section" or "article" or "blockquote") ||
+                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
+                throw new FactsPdfException("FPDF1201",
+                    "Outlines apply only to ordinary report panels outside lists and tables.",
+                    declaration.Offset);
             // Rounded paint is deliberately scoped to ordinary report boxes, not
             // table/list/image geometry or inline text. Unsupported matches fail
             // even if a later cascade winner would remove the radius.
@@ -475,6 +485,10 @@ internal sealed class CssStylesheets
                     paragraph, computedRoot);
             }
         }
+        if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)
+            throw new FactsPdfException("FPDF1201",
+                "Rectangular report outlines cannot be combined with rounded corners.",
+                winners[(int)CssProperty.OutlineStyle]?.Declaration.Offset ?? elementOffset);
         if (box.HasRoundedCorners)
         {
             // Nonzero corner radii may not silently flatten asymmetric or

@@ -761,6 +761,43 @@ def verify_native_table_vertical_align(executable, output, work):
             'failureRecovery': True, 'pdfSha256': sha(pdf), 'sourceSha256': sha(source)}
 
 
+def verify_native_report_outline(executable, output, work):
+    """Validate real native PDF report outline ink and 44 record order."""
+    source = ROOT / 'examples/report-outlines.html'
+    control = ROOT / 'examples/report-outlines-oracle.html'
+    authored = source.read_text(encoding='utf-8')
+    assert authored.count('Service record ') == 44
+    actual = output / 'report-outlines.pdf'
+    expected = output / 'report-outlines-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, control, expected, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', expected)
+    assert actual.read_bytes() == expected.read_bytes(), 'Outline PDF differs from longhand'
+    pages = count_pages(actual)
+    assert pages >= 2
+    words = run('pdftotext', '-raw', actual, '-').decode('utf-8')
+    assert re.findall(r'Service record (\d{2})', words) == [
+        f'{i:02d}' for i in range(1, 45)], 'Native report records missing'
+    paint = b'\n'.join(extract_vector_page_streams(actual.read_bytes(), pages))
+    assert paint.count(b'1 J [0.001 4] 0 d') >= pages, 'PDF lacks dotted outlines'
+    invalid = output / 'report-outlines-invalid.html'
+    assert 'outline:2pt dotted #285d91' in authored
+    invalid.write_text(authored.replace('outline:2pt dotted #285d91',
+                                        'outline:2pt wavy #285d91', 1), encoding='utf-8')
+    retained = output / 'report-outlines-retained.pdf'
+    retained.write_bytes(b'previous PDF')
+    failed = subprocess.run([str(executable), str(invalid), str(retained), '--overwrite'],
+                            cwd=work, capture_output=True, timeout=120)
+    assert failed.returncode == 3 and b'FPDF1202' in failed.stderr
+    assert retained.read_bytes() == b'previous PDF'
+    assert not run(executable, source, retained, '--overwrite', cwd=work)
+    assert retained.read_bytes() == actual.read_bytes()
+    return {'pages': pages, 'entries': 44, 'longhandBytesEqual': True,
+            'dottedOutlinePainted': True, 'invalidDestinationPreserved': True,
+            'retryBytesEqual': True, 'sourceSha256': sha(source), 'pdfSha256': sha(actual)}
+
+
 def verify_native_underline_offset(executable, output, work):
     """Real Native AOT underline baseline paint against independently authored point offsets."""
     source = ROOT / 'examples/report-underline-offset.html'
@@ -1972,6 +2009,7 @@ def main():
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
         combined_decorations = verify_native_combined_decorations(isolated, output, work)
         underline_offset = verify_native_underline_offset(isolated, output, work)
+        report_outline = verify_native_report_outline(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
         minimum_height = verify_native_minimum_height(isolated, output, work)
         fixed_height = verify_native_fixed_height(isolated, output, work)
@@ -2012,6 +2050,7 @@ def main():
             'decorationPaint': decoration_paint,
             'combinedDecorations': combined_decorations,
             'underlineOffset': underline_offset,
+            'reportOutline': report_outline,
             'roundedPanels': rounded_panels,
             'minimumHeight': minimum_height,
             'fixedHeight': fixed_height,

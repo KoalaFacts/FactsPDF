@@ -10,7 +10,8 @@ internal enum CssProperty
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
-    WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition
+    WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -157,7 +158,8 @@ internal static class CssDeclarations
     }
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
-        or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius;
+        or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
+        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset;
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -301,6 +303,31 @@ internal static class CssDeclarations
                     ? from.BackgroundColor
                     : CssPaintValues.Background(value, declaration.Offset, elementColor)
             };
+        }
+
+        // Outline is a separate painted box decoration, not a layout edge.
+        if (property is CssProperty.OutlineWidth or CssProperty.OutlineStyle
+            or CssProperty.OutlineColor or CssProperty.OutlineOffset)
+        {
+            if (property == CssProperty.OutlineOffset)
+                return current with { OutlineOffset = wide ? from.OutlineOffset
+                    : CssPaintValues.OutlineOffset(value, declaration.Offset) };
+            var edge = current.Outline;
+            var outlineInherited = from.Outline;
+            var outlineChanged = property switch
+            {
+                CssProperty.OutlineWidth => edge with { Width = wide ? outlineInherited.Width
+                    : CssPaintValues.OutlineWidth(value, declaration.Offset) },
+                CssProperty.OutlineStyle => edge with
+                {
+                    Solid = wide ? outlineInherited.Solid : value != "none",
+                    Pattern = wide ? outlineInherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
+                },
+                CssProperty.OutlineColor => edge with { Color = wide ? outlineInherited.Color
+                    : CssPaintValues.BorderColor(value, declaration.Offset) },
+                _ => throw new InvalidOperationException()
+            };
+            return current with { Outline = outlineChanged };
         }
 
         var index = (int)property - (int)CssProperty.BorderTopWidth;

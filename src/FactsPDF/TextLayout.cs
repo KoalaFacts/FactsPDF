@@ -97,8 +97,8 @@ internal static class TextLayout
                 // containing panel is unpainted. Its occupied descendants
                 // must also retain consumed top padding across the break.
                 var retainOrigin = scope.HasOccupiedDescendant &&
-                    (scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue || continuedPanel);
-                if ((scope.Style.HasPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) &&
+                    (scope.Style.HasLayoutPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue || continuedPanel);
+                if ((scope.Style.HasLayoutPaint || scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) &&
                     (hasText || scope.TopConsumed || scope.HasOccupiedDescendant))
                     continuedPanel = true;
                 if (hasText || scope.TopConsumed) continue;
@@ -239,7 +239,7 @@ internal static class TextLayout
                 // Only real prior page content warrants an extra page: deferred
                 // top margins alone cannot produce a phantom leading page.
                 var forcePanelBreak = begin.Style.BreakBefore;
-                if (forcePanelBreak || breakNext && (begin.Style.HasPaint ||
+                if (forcePanelBreak || breakNext && (begin.Style.HasLayoutPaint ||
                     begin.MinimumOuterHeight > 0 || begin.FixedOuterHeight.HasValue || begin.PaddingTop > 0 ||
                     begin.MarginTop > 0 || begin.TrailingSpace > 0))
                 {
@@ -366,6 +366,17 @@ internal static class TextLayout
                          scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue)
                         ? after : 0d;
                     var finalPage = pages.Count - 1;
+                    // A paint-only outline must not promote an otherwise valid
+                    // empty/padded panel into an extra page. The unpainted panel
+                    // can consume its deferred padding within the physical
+                    // sheet's bottom margin. Permit the same geometry only
+                    // while the *whole* outside stroke remains on that sheet;
+                    // ordinary filled/bordered boxes keep their stricter
+                    // content-area bound, including all legacy failures.
+                    var physicalPaintBottom = !scope.Style.HasLayoutPaint &&
+                        scope.Style.Outline.EffectiveWidth > 0
+                        ? o.PageHeight - scope.Style.OutlineOffset - scope.Style.Outline.EffectiveWidth
+                        : bottom;
                     // The first page's border-box origin and the last page's
                     // cursor use different page-local coordinate systems.
                     // Never use the first-page starting Y as a lower bound
@@ -396,7 +407,7 @@ internal static class TextLayout
                         if (finalPage - scope.StartPage > 1)
                             CheckFragment(o.Margin, bottom, false, false);
                     }
-                    if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
+                    if (!double.IsFinite(finish) || finish > physicalPaintBottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
                         scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
@@ -415,14 +426,52 @@ internal static class TextLayout
                         var fragmentTop = isFirst ? scope.StartY : o.Margin;
                         var fragmentEnd = isLast ? finish : bottom;
                         var height = Math.Max(0, fragmentEnd - fragmentTop);
+                        // An outline-only solid continuation has no lower cap.
+                        // Its open vertical strokes end at the line centre plus
+                        // half a stroke, not at the full joined-corner overhang.
+                        // The final fragment still has its bottom cap and keeps
+                        // the original full-width physical-sheet bound.
+                        var fragmentPaintBottom = physicalPaintBottom;
+                        if (!isLast && !scope.Style.HasLayoutPaint &&
+                            scope.Style.Outline.EffectiveWidth > 0 &&
+                            scope.Style.Outline.Pattern == BorderPattern.Solid)
+                            fragmentPaintBottom = o.PageHeight - scope.Style.OutlineOffset -
+                                scope.Style.Outline.EffectiveWidth / 2;
                         if (fragmentEnd < fragmentTop - 0.000001 ||
                             fragmentTop < o.Margin - 0.000001 ||
-                            fragmentEnd > bottom + 0.000001)
+                            fragmentEnd > fragmentPaintBottom + 0.000001)
                             throw new FactsPdfException("FPDF1302",
                                 "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
                             scope.Style, scope.TextColor, scope.Order,
                             IsFirstFragment: isFirst, IsLastFragment: isLast);
+                        // Outlines are ink outside the measured box. Allow an
+                        // outline-only empty panel to extend past the printable
+                        // bottom margin, but never off the physical PDF sheet.
+                        // Check all four stroke edges, including join width:
+                        // the final PDF painter has no clipping compensation.
+                        var outlineWidth = painted.Style.Outline.EffectiveWidth;
+                        if (painted.Width > 0 && painted.Height > 0 && outlineWidth > 0)
+                        {
+                            var overhang = painted.Style.OutlineOffset + outlineWidth;
+                            // A joined solid corner fills the outer quadrant
+                            // by a full stroke width. On continuation pages,
+                            // however, the missing top/bottom cap leaves an
+                            // open, butt-capped vertical segment: it extends
+                            // only half a stroke past its centreline. Keep
+                            // conservative full-width bounds for dashed/dotted.
+                            var solid = painted.Style.Outline.Pattern == BorderPattern.Solid;
+                            var topOverhang = painted.Style.OutlineOffset +
+                                (solid && !painted.IsFirstFragment ? outlineWidth / 2 : outlineWidth);
+                            var bottomOverhang = painted.Style.OutlineOffset +
+                                (solid && !painted.IsLastFragment ? outlineWidth / 2 : outlineWidth);
+                            if (painted.X - overhang < -0.000001 ||
+                                painted.X + painted.Width + overhang > o.PageWidth + 0.000001 ||
+                                painted.Top - topOverhang < -0.000001 ||
+                                painted.Top + painted.Height + bottomOverhang > o.PageHeight + 0.000001)
+                                throw new FactsPdfException("FPDF1302",
+                                    "Report outline extends outside the physical PDF page.", scope.SourceOffset);
+                        }
                         ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
                         pages[pageIndex].PaintBoxes.Add(painted);
                         // Only paint generated on this page can make this page
@@ -723,7 +772,7 @@ internal static class TextLayout
                 }
                 if (opened.Count > 0 && opened[^1].IsParagraph &&
                     opened[^1].ContentEpoch == contentEpoch &&
-                    (opened[^1].Style.HasPaint || opened[^1].Top > 0))
+                    (opened[^1].Style.HasLayoutPaint || opened[^1].Top > 0))
                 {
                     var before = Math.Max(after, marginBefore);
                     opened[^1] = opened[^1] with
