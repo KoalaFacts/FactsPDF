@@ -27,5 +27,4 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | R3 | Fixed-seed fuzzing extended to stylesheets and page furniture | Untrusted input must never crash | todo | |
 | R4 | Packaging: `dotnet pack` output checked; first-use example built from the packed package | What users install must work | todo | |
 
-The dated run log is in each PR body; docs housekeeping is the latest merged
-`docs/housekeeping-*` PR.
+Each PR body carries its dated run log.

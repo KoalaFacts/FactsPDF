@@ -368,7 +368,7 @@ Decimal/disc lists, two-level nesting, marker gutters and list pagination limits
 ## Document map
 
 Guides that README and the pages above do not already link. Historical pages
-record evidence for one finished milestone and are not updated.
+record evidence for one finished milestone; only broken links in them are fixed.
 
 `node scripts/check-docs.ts` (Node 24) fails on a broken relative link or
 anchor, a doc under `docs/` that README does not reach, or a named repository

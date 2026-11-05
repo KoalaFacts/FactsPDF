@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -95,6 +96,42 @@ test('ignores links and paths inside fenced code, and external links', () => {
       'README.md': '```\n[x](docs/none.md) `scripts/none.ts`\n```\n[site](https://example.com/a.md)\n',
     }),
     [],
+  );
+});
+
+test('checks badge, image, titled and reference-style links', () => {
+  assert.deepEqual(
+    messages({
+      'README.md':
+        "[![b](docs/b.png)](docs/gone.md)\n![i](docs/none.png)\n[t](docs/t.md 'Title')\n[r]: docs/ref.md\n[^1]: A footnote\n",
+      'docs/b.png': '',
+    }),
+    [
+      'README.md:1: broken link docs/gone.md',
+      'README.md:2: broken link docs/none.png',
+      'README.md:3: broken link docs/t.md',
+      'README.md:4: broken link docs/ref.md',
+    ],
+  );
+});
+
+test('reports links that leave the repository or cannot be decoded', () => {
+  assert.deepEqual(messages({ 'README.md': '[up](../outside.md)\n[bad](docs/%E0%A4%A.md)\n' }), [
+    'README.md:1: link leaves the repository: ../outside.md',
+    'README.md:2: malformed link docs/%E0%A4%A.md',
+  ]);
+});
+
+test('matches HTML anchors without regard to case', () => {
+  assert.deepEqual(messages({ 'README.md': '<a id="Foo"></a>\n[x](#foo)\n' }), []);
+});
+
+test('allows git-ignored build outputs as named paths', () => {
+  const root = repo({ 'README.md': 'Publishes `site/dist` but not `site/missing`.\n', 'site/.gitignore': 'dist/\n' });
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  assert.deepEqual(
+    checkDocs(root, ['README.md']).map((p) => p.message),
+    ['named path does not exist: site/missing'],
   );
 });
 

@@ -30,8 +30,9 @@ const pathRoots = [
 ];
 
 const fencePattern = /^\s*(```|~~~)/;
-const linkPattern = /!?\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g;
-const referencePattern = /^\s*\[[^\]]+\]:\s*<?(\S+?)>?(?:\s+.*)?$/;
+const imagePattern = /!\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
+const linkPattern = /\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
+const referencePattern = /^\s*\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s+.*)?$/;
 const codeSpanPattern = /`([^`\n]+)`/g;
 const headingPattern = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
 const anchorTagPattern = /<a\s+(?:name|id)="([^"]+)"/g;
@@ -73,7 +74,7 @@ export function anchorsOf(text: string): Set<string> {
       counts.set(slug, seen + 1);
     }
     for (const tag of line.matchAll(anchorTagPattern)) {
-      anchors.add(tag[1]);
+      anchors.add(tag[1].toLowerCase());
     }
   }
   return anchors;
@@ -88,7 +89,12 @@ function linksOf(text: string): Link[] {
   const links: Link[] = [];
   const lines = proseLines(text);
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].replace(codeSpanPattern, '');
+    let line = lines[i].replace(codeSpanPattern, '');
+    // Images first, so a badge [![alt](img)](target) still yields its outer link.
+    for (const match of line.matchAll(imagePattern)) {
+      links.push({ line: i + 1, target: match[1] });
+    }
+    line = line.replace(imagePattern, 'image');
     for (const match of line.matchAll(linkPattern)) {
       links.push({ line: i + 1, target: match[1] });
     }
