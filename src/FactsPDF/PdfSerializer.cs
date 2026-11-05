@@ -5,9 +5,9 @@ namespace FactsPDF;
 
 internal static class PdfSerializer
 {
-    public static MemoryStream Build(List<LayoutPage> pages, PdfOptions o, CancellationToken cancellation)
+    public static PdfBuffer Build(List<LayoutPage> pages, PdfOptions o, CancellationToken cancellation)
     {
-        var output = new MemoryStream(Math.Min(4096, o.MaxOutputBytes));
+        var output = new PdfBuffer(o.MaxOutputBytes, cancellation);
         var offsets = new List<long> { 0 };
         var images = new PdfImageWriter(pages, cancellation);
         var firstImage = 4 + 2 * pages.Count;

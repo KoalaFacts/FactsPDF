@@ -164,7 +164,7 @@ public sealed class PdfWriter
         ArgumentNullException.ThrowIfNull(output);
         if (!output.CanWrite) throw new ArgumentException("Output must be writable.", nameof(output));
         using var pdf = PdfConverter.Render(html, Options, cancellationToken, out var pageCount);
-        await output.WriteAsync(pdf.GetBuffer().AsMemory(0, checked((int)pdf.Length)), cancellationToken).ConfigureAwait(false);
+        await output.WriteAsync(pdf.WrittenMemory, cancellationToken).ConfigureAwait(false);
         return new(pageCount, pdf.Length);
     }
 
@@ -179,7 +179,7 @@ public sealed class PdfWriter
     {
         ArgumentNullException.ThrowIfNull(output);
         using var pdf = PdfConverter.Render(html, Options, cancellationToken, out var pageCount);
-        var data = pdf.GetBuffer().AsSpan(0, checked((int)pdf.Length));
+        var data = pdf.WrittenSpan;
         output.Write(data);
         return new(pageCount, data.Length);
     }
@@ -200,7 +200,7 @@ public sealed class PdfWriter
         ReplaceFile(path, temporary =>
         {
             using var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            file.Write(pdf.GetBuffer(), 0, length);
+            file.Write(pdf.WrittenSpan);
             file.Flush(flushToDisk: true);
             cancellationToken.ThrowIfCancellationRequested();
         });
@@ -224,7 +224,7 @@ public sealed class PdfWriter
         {
             await using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
             {
-                await file.WriteAsync(pdf.GetBuffer().AsMemory(0, length), cancellationToken).ConfigureAwait(false);
+                await file.WriteAsync(pdf.WrittenMemory, cancellationToken).ConfigureAwait(false);
                 await file.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
             cancellationToken.ThrowIfCancellationRequested();
