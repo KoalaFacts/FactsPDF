@@ -161,7 +161,7 @@ public sealed class UnicodeFontTests
     public void OrderedFallbackEmbedsOnlyUsedFontsOnce()
     {
         var f = Font(latinOnly: true); var cjk = Font(); var pdf = Render("<p>A中文B</p><p>中文</p>", new PdfOptions { Fonts = [f, cjk, cjk] }).Pdf;
-        Assert.That(Regex.Matches(pdf, @"/Subtype /Type0\b").Count, Is.EqualTo(2)); Assert.That(pdf, Does.Contain("/F2 12 Tf"));
+        Assert.That(Regex.Count(pdf, @"/Subtype /Type0\b"), Is.EqualTo(2)); Assert.That(pdf, Does.Contain("/F2 12 Tf"));
     }
     [Test]
     public void MissingGlyphFailsWithoutOutput()

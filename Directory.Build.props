@@ -4,6 +4,16 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- .NET recommended analyzers plus the code-style rules in .editorconfig, enforced in every
+         build; with TreatWarningsAsErrors any violation fails the build. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Needed for IDE0005 (unnecessary usings) on build. Only the packaged FactsPDF library must
+         document its public API; publish payloads never carry documentation files. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn Condition="'$(MSBuildProjectName)' != 'FactsPDF'">$(NoWarn);CS1591</NoWarn>
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <Deterministic>true</Deterministic>
     <Version>0.1.0-preview.1</Version>
     <Company>Koala Facts Trading Pty Ltd</Company>

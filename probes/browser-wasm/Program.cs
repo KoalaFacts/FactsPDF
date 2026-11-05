@@ -59,4 +59,4 @@ public static partial class BrowserExports
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(ProbeResult))]
-internal partial class ProbeJsonContext : JsonSerializerContext;
+internal sealed partial class ProbeJsonContext : JsonSerializerContext;

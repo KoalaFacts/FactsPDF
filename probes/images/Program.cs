@@ -28,28 +28,28 @@ foreach (var item in contract.RootElement.GetProperty("cases").EnumerateArray())
                 "MaxDisplayCommands" => o with { MaxDisplayCommands = setting.Value.GetInt32() },
                 "MaxOutputBytes" => o with { MaxOutputBytes = setting.Value.GetInt32() },
                 "MaxImageResources" => o with { MaxImageResources = setting.Value.GetInt32() },
-                _ => throw new Exception("Unimplemented acceptance option: " + setting.Name)
+                _ => throw new InvalidOperationException("Unimplemented acceptance option: " + setting.Name)
             };
     using var output = new MemoryStream(); var expect = item.GetProperty("expect");
     if (expect.TryGetProperty("code", out var code))
     {
         output.Write("sentinel"u8); output.Position = 2;
-        try { PdfConverter.Convert(html, output, o); throw new Exception("Expected failure: " + id); }
+        try { PdfConverter.Convert(html, output, o); throw new InvalidOperationException("Expected failure: " + id); }
         catch (FactsPdfException error)
         {
             if (error.Code != code.GetString() || output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)
                 || expect.TryGetProperty("source_offset", out var offset) && error.SourceOffset != offset.GetInt32())
-                throw new Exception("Wrong diagnostic or changed output: " + id, error);
+                throw new InvalidOperationException("Wrong diagnostic or changed output: " + id, error);
             evidence.Add(new { id, code = error.Code, sourceOffset = error.SourceOffset, outputUnchanged = true });
         }
     }
     else
     {
         var result = PdfConverter.Convert(html, output, o); var bytes = output.ToArray();
-        if (result.PageCount != expect.GetProperty("page_count").GetInt32()) throw new Exception("Page count: " + id);
+        if (result.PageCount != expect.GetProperty("page_count").GetInt32()) throw new InvalidOperationException("Page count: " + id);
         File.WriteAllBytes(Path.Combine(outputDirectory, id + "-api.pdf"), bytes);
         using var second = new MemoryStream(); PdfConverter.Convert(html, second, o);
-        if (!second.ToArray().AsSpan().SequenceEqual(bytes)) throw new Exception("Nondeterministic: " + id);
+        if (!second.ToArray().AsSpan().SequenceEqual(bytes)) throw new InvalidOperationException("Nondeterministic: " + id);
         evidence.Add(new { id, pages = result.PageCount, bytes = bytes.Length, sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)) });
     }
 }
@@ -58,16 +58,16 @@ using (var output = new MemoryStream())
 {
     output.Write("sentinel"u8); output.Position = 2;
     var images = Enumerable.Range(0, 17).ToDictionary(i => "image" + i, _ => image);
-    try { PdfConverter.Convert("<p>ASCII</p>", output, new() { Images = images }); throw new Exception("Expected resource count failure"); }
+    try { PdfConverter.Convert("<p>ASCII</p>", output, new() { Images = images }); throw new InvalidOperationException("Expected resource count failure"); }
     catch (FactsPdfException error) when (error.Code == "FPDF1603")
     {
-        if (output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)) throw new Exception("Resource failure changed output");
+        if (output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)) throw new InvalidOperationException("Resource failure changed output");
         evidence.Add(new { id = "D1-default-image-count", code = error.Code, outputUnchanged = true });
     }
 }
 var huge = new byte[8_388_609];
 File.ReadAllBytes(Path.Combine(fixtures, "rgb-420.jpg")).CopyTo(huge, 0);
-try { PdfImage.LoadImage(huge); throw new Exception("Expected byte limit failure"); }
+try { PdfImage.LoadImage(huge); throw new InvalidOperationException("Expected byte limit failure"); }
 catch (FactsPdfException error) when (error.Code == "FPDF1603")
 { evidence.Add(new { id = "D1-default-byte-cap", code = error.Code }); }
 File.WriteAllText(Path.Combine(outputDirectory, "api-results.json"), JsonSerializer.Serialize(evidence, new JsonSerializerOptions { WriteIndented = true }));

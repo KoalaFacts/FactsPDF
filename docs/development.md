@@ -16,6 +16,11 @@ dotnet test FactsPDF.slnx -c Release
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/first-document.html first-document.pdf
 ```
 
+Every build runs the .NET `latest-recommended` analyzers and the code-style rules
+in `.editorconfig`, and treats warnings as errors, so a new warning fails the
+build and CI. Fix the cause; where a rule genuinely does not apply, suppress it
+in source with `#pragma warning disable <id> // reason`, never project-wide.
+
 For a bilingual stylesheet template, supply your own trusted, appropriately licensed static TrueType files:
 
 ```sh

@@ -81,7 +81,7 @@ public sealed class PdfFont
     public static PdfFont LoadTrueType(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {
-        if (maxBytes < 1) throw new ArgumentOutOfRangeException(nameof(maxBytes));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
         cancellationToken.ThrowIfCancellationRequested();
         if (source.Length > maxBytes) throw new FactsPdfException("FPDF1503", "Font exceeds its byte limit.");
         return new PdfFont(source.ToArray(), cancellationToken);
@@ -98,7 +98,7 @@ public sealed class PdfFont
     {
         ArgumentNullException.ThrowIfNull(source);
         if (!source.CanRead) throw new ArgumentException("Font stream must be readable.", nameof(source));
-        if (maxBytes < 1) throw new ArgumentOutOfRangeException(nameof(maxBytes));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
         cancellationToken.ThrowIfCancellationRequested();
         using var buffer = new MemoryStream(Math.Min(maxBytes, 8192));
         var chunk = new byte[8192];

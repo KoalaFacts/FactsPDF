@@ -68,7 +68,7 @@ public sealed class FontStyleRoleTests
         Assert.That(runs.Select(r => r.Font!.PostScriptName).Distinct().Count(), Is.EqualTo(1),
             "Identical PostScript names must not merge distinct explicit font objects.");
         var pdf = Encoding.Latin1.GetString(Pdf("<p>A<b>A</b><i>A</i><b><i>A</i></b></p>", options));
-        Assert.That(System.Text.RegularExpressions.Regex.Matches(pdf, "/Subtype /Type0").Count, Is.EqualTo(4));
+        Assert.That(System.Text.RegularExpressions.Regex.Count(pdf, "/Subtype /Type0"), Is.EqualTo(4));
     }
 
     [Test]

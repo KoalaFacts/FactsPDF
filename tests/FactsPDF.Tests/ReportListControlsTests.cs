@@ -25,7 +25,7 @@ public sealed class ReportListControlsTests
 
     private static string[] TextMarkers(string html, PdfOptions? options = null)
         => Layout(html, options).SelectMany(page => page.Runs)
-            .Where(run => run.Text.EndsWith(".", StringComparison.Ordinal))
+            .Where(run => run.Text.EndsWith('.'))
             .Select(run => run.Text).ToArray();
 
     private static void Rejects(string html, string code)

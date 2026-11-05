@@ -23,7 +23,7 @@ MAX_MEMBER = 8 * 1024 * 1024
 MAX_TOTAL = 64 * 1024 * 1024
 MAX_FILES = 512
 TOP_FILES = frozenset({
-    'Directory.Build.props', 'global.json', 'LICENSE.md', 'README.md',
+    '.editorconfig', 'Directory.Build.props', 'global.json', 'LICENSE.md', 'README.md',
     'LICENSING.md', 'COMMERCIAL.md', 'CONTRIBUTING.md',
     'eng/delivery-candidate.json',
 })

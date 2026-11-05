@@ -27,7 +27,7 @@ internal static class PdfPaintSerializer
             var color = disc.Color;
             if (disc.Kind == ListMarkerKind.Square)
             {
-                output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x - r)} {N(y - r)} {N(2 * r)} {N(2 * r)} re f Q\n");
+                output.Append(CultureInfo.InvariantCulture, $"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x - r)} {N(y - r)} {N(2 * r)} {N(2 * r)} re f Q\n");
             }
             else
             {
@@ -40,13 +40,13 @@ internal static class PdfPaintSerializer
                 var radius = hollow ? r * 0.8 : r;
                 var k = radius * 0.5522847498307936;
                 if (hollow)
-                    output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} RG {N(r * 0.25)} w {N(x + radius)} {N(y)} m ");
+                    output.Append(CultureInfo.InvariantCulture, $"q {N(color.R)} {N(color.G)} {N(color.B)} RG {N(r * 0.25)} w {N(x + radius)} {N(y)} m ");
                 else
-                    output.Append($"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x + r)} {N(y)} m ");
-                output.Append($"{N(x + radius)} {N(y + k)} {N(x + k)} {N(y + radius)} {N(x)} {N(y + radius)} c ");
-                output.Append($"{N(x - k)} {N(y + radius)} {N(x - radius)} {N(y + k)} {N(x - radius)} {N(y)} c ");
-                output.Append($"{N(x - radius)} {N(y - k)} {N(x - k)} {N(y - radius)} {N(x)} {N(y - radius)} c ");
-                output.Append($"{N(x + k)} {N(y - radius)} {N(x + radius)} {N(y - k)} {N(x + radius)} {N(y)} c");
+                    output.Append(CultureInfo.InvariantCulture, $"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x + r)} {N(y)} m ");
+                output.Append(CultureInfo.InvariantCulture, $"{N(x + radius)} {N(y + k)} {N(x + k)} {N(y + radius)} {N(x)} {N(y + radius)} c ");
+                output.Append(CultureInfo.InvariantCulture, $"{N(x - k)} {N(y + radius)} {N(x - radius)} {N(y + k)} {N(x - radius)} {N(y)} c ");
+                output.Append(CultureInfo.InvariantCulture, $"{N(x - radius)} {N(y - k)} {N(x - k)} {N(y - radius)} {N(x)} {N(y - radius)} c ");
+                output.Append(CultureInfo.InvariantCulture, $"{N(x + k)} {N(y - radius)} {N(x + radius)} {N(y - k)} {N(x + radius)} {N(y)} c");
                 output.Append(hollow ? " S Q\n" : " f Q\n");
             }
             if (output.Length > maxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");

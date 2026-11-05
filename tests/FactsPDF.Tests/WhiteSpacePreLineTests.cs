@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using NUnit.Framework;
 
@@ -121,10 +122,10 @@ public sealed class WhiteSpacePreLineTests
     public void PreLineStillAutomaticallyWrapsAndPaginatesRealReportNotes()
     {
         var content = string.Concat(Enumerable.Range(1, 72).Select(i =>
-            "<p style='white-space:pre-line'>REF" + i.ToString("000") +
+            "<p style='white-space:pre-line'>REF" + i.ToString("000", CultureInfo.InvariantCulture) +
             "\n  INSPECTION   COMPLETE  </p>"));
         var oracle = string.Concat(Enumerable.Range(1, 72).Select(i =>
-            "<p>REF" + i.ToString("000") + "<br>INSPECTION COMPLETE</p>"));
+            "<p>REF" + i.ToString("000", CultureInfo.InvariantCulture) + "<br>INSPECTION COMPLETE</p>"));
         Assert.That(Pdf(content), Is.EqualTo(Pdf(oracle)));
         var pages = Pages(content);
         Assert.That(pages.Count, Is.GreaterThan(2));

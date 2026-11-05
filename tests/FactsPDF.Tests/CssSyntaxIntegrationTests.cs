@@ -1,5 +1,4 @@
 using System.Text;
-using FactsPDF;
 using NUnit.Framework;
 
 namespace FactsPDF.Tests;

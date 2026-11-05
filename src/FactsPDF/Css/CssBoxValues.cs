@@ -70,7 +70,7 @@ internal static class CssBoxValues
         // Print physical units: 1pc = 12pt; 4q = 1mm.
         else if (value.EndsWith("pc", StringComparison.Ordinal))
         { number = value[..^2]; scale = 12d; percent = false; }
-        else if (value.EndsWith("q", StringComparison.Ordinal))
+        else if (value.EndsWith('q'))
         { number = value[..^1]; scale = (72d / 25.4d) / 4d; percent = false; }
         else if (allowRem && value.EndsWith("rem", StringComparison.Ordinal))
         { number = value[..^3]; scale = rootFontSize ?? 1; percent = false; }

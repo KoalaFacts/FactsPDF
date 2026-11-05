@@ -35,7 +35,7 @@ public sealed class CssSyntaxWptCases
 
     private static CssSyntaxLimits Limits => new();
 
-    private static IReadOnlyList<CssSyntaxToken> Tokens(string css)
+    private static CssSyntaxToken[] Tokens(string css)
     {
         var limits = Limits;
         return CssSyntaxTokenizer.Tokenize(CssSourceText.Create(css, 0, limits), limits)

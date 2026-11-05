@@ -552,8 +552,8 @@ internal static class TextLayout
             if (step is LayoutTable table)
             {
                 var freshSpace = new TableFreshSpace(bottom - o.Margin, MoveUnconsumedBlocksToNewPage(apply: false));
-                var measured = TableLayout.Measure(table, o, resolved, cancellation,
-                    ChargeDisplayCommands, EnsureDisplayCommands, freshSpace);
+                var measured = TableLayout.Measure(table, o, resolved,
+                    ChargeDisplayCommands, EnsureDisplayCommands, cancellation, freshSpace);
                 // A validated but invisible table does not occupy page space.
                 // Leave deferred breaks and ancestor decoration for the next
                 // visible content, just as an empty undecorated block does.

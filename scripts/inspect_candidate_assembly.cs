@@ -1,6 +1,4 @@
 // Offline metadata reader: never loads or executes the inspected assembly.
-using System;
-using System.IO;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.Json;
@@ -23,7 +21,7 @@ foreach (var handle in definition.GetCustomAttributes())
     var value = metadata.GetBlobReader(attribute.Value);
     if (value.ReadUInt16() != 1) throw new BadImageFormatException("Invalid attribute prolog");
     var text = value.ReadSerializedString();
-    if (fullName.EndsWith(".TargetFrameworkAttribute"))
+    if (fullName.EndsWith(".TargetFrameworkAttribute", StringComparison.Ordinal))
     {
         if (sawTarget) throw new BadImageFormatException("Duplicate framework attribute");
         sawTarget = true;

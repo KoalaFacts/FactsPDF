@@ -5,6 +5,8 @@ namespace FactsPDF;
 /// <summary>Strict semantic bridge: a syntactically valid CSS construct need not be renderable.</summary>
 internal static class CssSyntaxAdapter
 {
+    private static readonly string[] DecorationLineOrder = ["underline", "line-through", "overline"];
+
     private static readonly TextStyle ValidationStyle =
         new(12, 1.2, new(0, 0, 0), TextAlignment.Left);
 
@@ -535,7 +537,7 @@ internal static class CssSyntaxAdapter
                     throw new FactsPdfException("FPDF1202",
                         "Text decoration shorthand requires visible lines or standalone none.", node.Span.Start);
                 var orderedLines = lines.Contains("none") ? "none" : string.Join(" ",
-                    new[] { "underline", "line-through", "overline" }.Where(lines.Contains));
+                    DecorationLineOrder.Where(lines.Contains));
                 _ = InlineCss.ParseDecorationLines(orderedLines, lineOffset);
                 Emit(CssProperty.TextDecoration, orderedLines, lineOffset, "text-decoration-line");
                 Emit(CssProperty.TextDecorationStyle, stroke, strokeOffset, "text-decoration-style");

@@ -48,7 +48,7 @@ public sealed class TextDecorationPaintTests
                 "text-decoration-color:currentcolor;text-decoration-style:solid'>AB</p>")));
         var stream = Encoding.Latin1.GetString(Pdf(legacy));
         Assert.That(stream, Does.Contain("0 0 1 rg "));
-        Assert.That(Regex.Matches(stream, @" re f Q").Count, Is.EqualTo(1));
+        Assert.That(Regex.Count(stream, @" re f Q"), Is.EqualTo(1));
         Assert.That(stream, Does.Not.Contain(" re W n "));
     }
 
@@ -134,7 +134,7 @@ public sealed class TextDecorationPaintTests
         Assert.That(runs[1].X, Is.EqualTo(runs[0].X + runs[0].Width).Within(0.000001));
         Assert.That(runs[2].X, Is.EqualTo(runs[1].X + runs[1].Width).Within(0.000001));
         var pdf = Encoding.Latin1.GetString(Pdf(sample, options));
-        Assert.That(Regex.Matches(pdf, @" re W n ").Count, Is.EqualTo(3));
+        Assert.That(Regex.Count(pdf, @" re W n "), Is.EqualTo(3));
 
         var html = string.Concat(Enumerable.Repeat(
             "<p style='font-size:10pt;margin-bottom:0pt;text-decoration:underline dotted red'>ABA</p>", 45));
@@ -142,7 +142,7 @@ public sealed class TextDecorationPaintTests
         Assert.That(pages.Count, Is.GreaterThan(2));
         var expectedCount = pages.Sum(p => p.Runs.Count(r => r.Style.Decoration != TextDecoration.None));
         var paged = Encoding.Latin1.GetString(Pdf(html, options));
-        Assert.That(Regex.Matches(paged, @" re W n ").Count, Is.EqualTo(expectedCount));
+        Assert.That(Regex.Count(paged, @" re W n "), Is.EqualTo(expectedCount));
     }
 
     [TestCase("text-decoration:underline wavy", "FPDF1202")]

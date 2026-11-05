@@ -29,7 +29,7 @@ internal static class ListMarkerTypes
 
     internal static string? MarkerText(ListMarkerKind kind, int ordinal, int offset)
     {
-        if (ordinal <= 0) throw new ArgumentOutOfRangeException(nameof(ordinal));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ordinal);
         return kind switch
         {
             ListMarkerKind.Disc or ListMarkerKind.Circle or ListMarkerKind.Square or ListMarkerKind.None => null,

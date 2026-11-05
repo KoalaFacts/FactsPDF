@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class StylesheetTests
 {
-    private static readonly Rgb Red = new(1, 0, 0), Blue = new(0, 0, 1), Green = new(0, 128d / 255, 0), Black = new(0, 0, 0);
+    private static readonly Rgb Red = new(1, 0, 0), Blue = new(0, 0, 1), Black = new(0, 0, 0);
     private static List<Paragraph> Read(string css, string body = "<p>A</p>", PdfOptions? options = null)
         => HtmlDocumentReader.Read("<html><head><style>" + css + "</style></head><body>" + body + "</body></html>", options ?? new(), CancellationToken.None);
     private static byte[] Pdf(string html, PdfOptions? options = null)

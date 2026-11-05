@@ -30,7 +30,7 @@ if (code is not null) { output.Write("sentinel"u8); output.Position = 2; }
 try
 {
     var result = PdfConverter.Convert(html, output, options);
-    if (code is not null) throw new Exception("Expected " + code);
+    if (code is not null) throw new InvalidOperationException("Expected " + code);
     File.WriteAllBytes(args[1], output.ToArray());
     Console.WriteLine(JsonSerializer.Serialize(new { pages = result.PageCount, bytes = result.BytesWritten,
         dynamicCodeSupported = System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported }));
@@ -38,7 +38,7 @@ try
 catch (FactsPdfException error) when (code is not null)
 {
     if (error.Code != code || output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8))
-        throw new Exception("Wrong diagnostic or modified caller stream", error);
+        throw new InvalidOperationException("Wrong diagnostic or modified caller stream", error);
     Console.WriteLine(JsonSerializer.Serialize(new { mode, code, outputUnchanged = true, positionUnchanged = true }));
 }
 return 0;

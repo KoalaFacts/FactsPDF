@@ -201,5 +201,5 @@ internal static class PageFurnitureJson
     }
 
     private static ArgumentException Invalid(string location, string message, Exception? inner = null) =>
-        new($"PageFurniture {location}: {message}.", "PageFurniture", inner);
+        new($"PageFurniture {location}: {message}.", inner);
 }

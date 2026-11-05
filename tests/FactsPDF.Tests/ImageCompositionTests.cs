@@ -95,7 +95,7 @@ public sealed class ImageCompositionTests
         var result = PdfConverter.Convert(html, full, options);
         Assert.That(result.PageCount, Is.EqualTo(2));
         var text = Encoding.Latin1.GetString(full.ToArray());
-        Assert.That(Regex.Matches(text, @"/Subtype /Image").Count, Is.EqualTo(1));
+        Assert.That(Regex.Count(text, @"/Subtype /Image"), Is.EqualTo(1));
         foreach (var limited in new[] { options with { MaxPages = 1 }, options with { MaxDisplayCommands = 4 },
             options with { MaxOutputBytes = checked((int)full.Length - 1) } })
         {

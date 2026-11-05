@@ -108,6 +108,6 @@ public sealed class PngValidationTests
     {
         var bytes = PngFixture.Image([0, 10, 20, 30, 128], 1);
         for (var end = 8; end < bytes.Length; end++)
-            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes[..end]))!.Code, Is.EqualTo("FPDF1601"), $"PNG prefix {end}");
+            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes.AsSpan(..end)))!.Code, Is.EqualTo("FPDF1601"), $"PNG prefix {end}");
     }
 }

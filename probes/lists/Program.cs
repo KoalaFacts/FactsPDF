@@ -34,24 +34,24 @@ foreach (var (name, input, settings, expected) in new[]
 })
 {
     using var output = new MemoryStream(); output.Write("sentinel"u8); output.Position = 2;
-    try { PdfConverter.Convert(input, output, settings); throw new Exception("Expected failure: " + name); }
+    try { PdfConverter.Convert(input, output, settings); throw new InvalidOperationException("Expected failure: " + name); }
     catch (FactsPdfException error)
     {
         if (error.Code != expected || output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8))
-            throw new Exception("Wrong diagnostic or changed output: " + name, error);
+            throw new InvalidOperationException("Wrong diagnostic or changed output: " + name, error);
         errors.Add(new { name, code = error.Code, sourceOffset = error.SourceOffset, outputUnchanged = true });
     }
 }
 using (var output = new MemoryStream())
 {
     output.Write("sentinel"u8); output.Position = 2;
-    try { PdfConverter.Convert(html, output, options, new CancellationToken(true)); throw new Exception("Expected cancellation"); }
+    try { PdfConverter.Convert(html, output, options, new CancellationToken(true)); throw new InvalidOperationException("Expected cancellation"); }
     catch (OperationCanceledException)
     {
-        if (output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)) throw new Exception("Cancellation changed output");
+        if (output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)) throw new InvalidOperationException("Cancellation changed output");
         errors.Add(new { name = "cancelled", code = "cancelled", sourceOffset = -1, outputUnchanged = true });
     }
 }
-if (!Convert(html, options).AsSpan().SequenceEqual(pdf)) throw new Exception("Success/failure/success differs");
+if (!Convert(html, options).AsSpan().SequenceEqual(pdf)) throw new InvalidOperationException("Success/failure/success differs");
 Console.WriteLine(JsonSerializer.Serialize(new { bytes = pdf.Length, errors, recoveryByteEquality = true }));
 return 0;

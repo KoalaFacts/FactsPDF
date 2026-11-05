@@ -21,7 +21,7 @@ internal sealed class CssSourceText
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(limits);
-        if (absoluteStart < 0) throw new ArgumentOutOfRangeException(nameof(absoluteStart));
+        ArgumentOutOfRangeException.ThrowIfNegative(absoluteStart);
         if (limits.MaxCharacters < 1 || limits.MaxNodes < 1 || limits.MaxDepth < 1)
             throw new ArgumentOutOfRangeException(nameof(limits), "All CSS syntax budgets must be positive.");
         limits.Cancellation.ThrowIfCancellationRequested();

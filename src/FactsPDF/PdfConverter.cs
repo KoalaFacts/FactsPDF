@@ -67,14 +67,20 @@ public static class PdfConverter
         return new(pages.Count, length);
     }
 
-    private static void Validate(PdfOptions o)
+    // ParamName is always the public "options" parameter; the message names the property.
+    private static void Validate(PdfOptions options)
     {
-        if (!double.IsFinite(o.PageWidth) || o.PageWidth is < 72 or > 14_400) throw new ArgumentOutOfRangeException(nameof(o.PageWidth));
-        if (!double.IsFinite(o.PageHeight) || o.PageHeight is < 72 or > 14_400) throw new ArgumentOutOfRangeException(nameof(o.PageHeight));
-        if (!double.IsFinite(o.Margin) || o.Margin < 0 || 2 * o.Margin >= Math.Min(o.PageWidth, o.PageHeight)) throw new ArgumentOutOfRangeException(nameof(o.Margin));
-        if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144) throw new ArgumentOutOfRangeException(nameof(o.FontSize));
+        var o = options;
+        if (!double.IsFinite(o.PageWidth) || o.PageWidth is < 72 or > 14_400)
+            throw new ArgumentOutOfRangeException(nameof(options), o.PageWidth, "PageWidth must be from 72 to 14400 points.");
+        if (!double.IsFinite(o.PageHeight) || o.PageHeight is < 72 or > 14_400)
+            throw new ArgumentOutOfRangeException(nameof(options), o.PageHeight, "PageHeight must be from 72 to 14400 points.");
+        if (!double.IsFinite(o.Margin) || o.Margin < 0 || 2 * o.Margin >= Math.Min(o.PageWidth, o.PageHeight))
+            throw new ArgumentOutOfRangeException(nameof(options), o.Margin, "Margin must be nonnegative and less than half the shorter page side.");
+        if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144)
+            throw new ArgumentOutOfRangeException(nameof(options), o.FontSize, "FontSize must be from 1 to 144 points.");
         if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxDisplayCommands < 1
             || o.MaxImageResources < 1 || o.MaxTotalImageBytes < 1)
-            throw new ArgumentOutOfRangeException(nameof(o), "All resource limits must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(options), "All resource limits must be positive.");
     }
 }

@@ -1,0 +1,46 @@
+# Shared formatting and analyzer settings. Directory.Build.props enables the
+# .NET "latest-recommended" analyzer set and enforces these code-style rules
+# during build; TreatWarningsAsErrors turns every enabled warning into an error.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csx}]
+indent_size = 4
+
+[*.{csproj,props,targets,slnx,xml,json,yml,yaml}]
+indent_size = 2
+
+[*.cs]
+# Namespaces: file-scoped, matching the folder (extensions to a BCL type may
+# opt out in source with #pragma, see shared/ExtensionsToString.cs).
+csharp_style_namespace_declarations = file_scoped:warning
+dotnet_diagnostic.IDE0161.severity = warning
+dotnet_style_namespace_match_folder = true
+dotnet_diagnostic.IDE0130.severity = warning
+
+# Usings outside the namespace, System first; flag unused usings.
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+dotnet_diagnostic.IDE0065.severity = warning
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Simplifications that keep code honest.
+dotnet_diagnostic.IDE0035.severity = warning # unreachable code
+dotnet_diagnostic.IDE0043.severity = warning # invalid format string
+dotnet_diagnostic.IDE0051.severity = warning # unused private member
+dotnet_diagnostic.IDE0052.severity = warning # unread private member
+dotnet_diagnostic.IDE0060.severity = warning # unused parameter
+
+# The core library deliberately keeps one flat public namespace (FactsPDF);
+# its subfolders only organise files, so namespace-folder matching is off there.
+[src/FactsPDF/**.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
+# Tests: literal arrays in assertions and test cases are clearer inline.
+[tests/**.cs]
+dotnet_diagnostic.CA1861.severity = none

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FactsPDF.CommandLine;
 using NUnit.Framework;
@@ -67,7 +68,7 @@ public sealed class PreformattedReportTests
     public void AuthoredBreaksAloneDrivePaginationAcrossSeventyTwoAuditRows()
     {
         var text = string.Concat(Enumerable.Range(1, 72).Select(i =>
-            "R" + i.ToString("000") + "   OK\n")) + "FINAL";
+            "R" + i.ToString("000", CultureInfo.InvariantCulture) + "   OK\n")) + "FINAL";
         var html = "<pre>" + text + "</pre>";
         var oracle = "<p style='white-space:pre-wrap'>" + text + "</p>";
         var pages = Layout(html);

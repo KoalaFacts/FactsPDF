@@ -25,7 +25,7 @@ public sealed class PngIntegrationTests
         var maskId = int.Parse(Regex.Match(main.Dictionary, @"/SMask (\d+) 0 R").Groups[1].Value, CultureInfo.InvariantCulture);
         Assert.That(objects.Single(o => o.Id == maskId).Pixels, Is.EqualTo(new byte[] { 0, 128 }));
         Assert.That(objects.Single(o => o.Dictionary.Contains("/DCTDecode", StringComparison.Ordinal)).Pixels, Is.EqualTo(JpegResourceTests.Bytes("gray")));
-        Assert.That(Regex.Matches(text, @"/Im\d+ Do").Count, Is.EqualTo(4));
+        Assert.That(Regex.Count(text, @"/Im\d+ Do"), Is.EqualTo(4));
         var xref = int.Parse(Regex.Match(text, @"startxref\n(\d+)").Groups[1].Value, CultureInfo.InvariantCulture);
         Assert.That(text[xref..], Does.StartWith("xref\n"));
         var table = text[xref..].Split('\n'); var count = int.Parse(table[1].Split(' ')[1], CultureInfo.InvariantCulture);
