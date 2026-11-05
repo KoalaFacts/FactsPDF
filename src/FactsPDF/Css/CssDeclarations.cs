@@ -163,6 +163,7 @@ internal static class CssDeclarations
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
+    // Assigns into current, which must be the caller's private copy (see BoxStyle), and returns it.
     internal static BoxStyle ApplyPanelVerticalMargin(BoxStyle current, BoxStyle parent,
         CssDeclaration declaration, double rootFontSize, double elementFontSize)
     {
@@ -172,14 +173,16 @@ internal static class CssDeclarations
             rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
         // Preserve percentage units until the box layout knows the actual
         // containing content width; rem/em have already resolved to points.
-        return declaration.Property switch
+        switch (declaration.Property)
         {
-            CssProperty.MarginTop => current with { MarginTop = wide ? inherited.MarginTop : length },
-            CssProperty.MarginBottom => current with { MarginBottom = wide ? inherited.MarginBottom : length },
-            _ => throw new InvalidOperationException("Expected vertical panel margin.")
-        };
+            case CssProperty.MarginTop: current.MarginTop = wide ? inherited.MarginTop : length; break;
+            case CssProperty.MarginBottom: current.MarginBottom = wide ? inherited.MarginBottom : length; break;
+            default: throw new InvalidOperationException("Expected vertical panel margin.");
+        }
+        return current;
     }
 
+    // Assigns into current, which must be the caller's private copy (see BoxStyle), and returns it.
     internal static BoxStyle ApplyBox(BoxStyle current, BoxStyle parent, CssDeclaration declaration,
         double rootFontSize, double elementFontSize, Rgb elementColor)
     {
@@ -199,13 +202,14 @@ internal static class CssDeclarations
                 CssProperty.BorderBottomRightRadius => from.CornerBottomRightRadius,
                 _ => from.CornerBottomLeftRadius
             } : CssPaintValues.BorderRadius(value, declaration.Offset);
-            return property switch
+            switch (property)
             {
-                CssProperty.BorderTopLeftRadius => current with { CornerRadius = radius },
-                CssProperty.BorderTopRightRadius => current with { CornerTopRightRadius = radius },
-                CssProperty.BorderBottomRightRadius => current with { CornerBottomRightRadius = radius },
-                _ => current with { CornerBottomLeftRadius = radius }
-            };
+                case CssProperty.BorderTopLeftRadius: current.CornerRadius = radius; break;
+                case CssProperty.BorderTopRightRadius: current.CornerTopRightRadius = radius; break;
+                case CssProperty.BorderBottomRightRadius: current.CornerBottomRightRadius = radius; break;
+                default: current.CornerBottomLeftRadius = radius; break;
+            }
+            return current;
         }
         if (property == CssProperty.BorderRadius)
         {
@@ -213,13 +217,13 @@ internal static class CssDeclarations
                 ? (from.CornerRadius, from.CornerTopRightRadius,
                     from.CornerBottomRightRadius, from.CornerBottomLeftRadius)
                 : CssPaintValues.BorderRadii(value, declaration.Offset);
-            return current with
             {
-                CornerRadius = corners.Item1,
-                CornerTopRightRadius = corners.Item2,
-                CornerBottomRightRadius = corners.Item3,
-                CornerBottomLeftRadius = corners.Item4
-            };
+                current.CornerRadius = corners.Item1;
+                current.CornerTopRightRadius = corners.Item2;
+                current.CornerBottomRightRadius = corners.Item3;
+                current.CornerBottomLeftRadius = corners.Item4;
+                return current;
+            }
         }
         if (property == CssProperty.MinHeight)
         {
@@ -228,7 +232,8 @@ internal static class CssDeclarations
             if (length?.IsPercent == true)
                 throw new FactsPdfException("FPDF1202",
                     "Report panel min-height does not support percentages.", declaration.Offset);
-            return current with { MinHeight = wide ? from.MinHeight : length };
+            current.MinHeight = wide ? from.MinHeight : length;
+            return current;
         }
         if (property == CssProperty.Height)
         {
@@ -238,7 +243,8 @@ internal static class CssDeclarations
             if (length?.IsPercent == true)
                 throw new FactsPdfException("FPDF1202",
                     "Report panel height does not support percentages.", declaration.Offset);
-            return current with { Height = wide ? from.Height : length };
+            current.Height = wide ? from.Height : length;
+            return current;
         }
         if (property == CssProperty.MaxHeight)
         {
@@ -247,47 +253,61 @@ internal static class CssDeclarations
             if (length?.IsPercent == true)
                 throw new FactsPdfException("FPDF1202",
                     "Image max-height does not support percentages.", declaration.Offset);
-            return current with { MaxHeight = wide ? from.MaxHeight : length };
+            current.MaxHeight = wide ? from.MaxHeight : length;
+            return current;
         }
         if (property == CssProperty.BoxSizing)
-            return current with { BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box" };
+        {
+            current.BorderBoxSizing = wide ? from.BorderBoxSizing : value == "border-box";
+            return current;
+        }
         if (property == CssProperty.Width)
-            return current with { Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset, rootFontSize, elementFontSize) };
+        {
+            current.Width = wide ? from.Width : CssBoxValues.Width(value, declaration.Offset, rootFontSize, elementFontSize);
+            return current;
+        }
         if (property == CssProperty.MinWidth)
-            return current with { MinWidth = wide ? from.MinWidth : value == "auto" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
-                elementFontSize: elementFontSize, allowEm: true) };
+        {
+            current.MinWidth = wide ? from.MinWidth : value == "auto" ? null : CssBoxValues.Length(value, declaration.Offset,
+                rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
+            return current;
+        }
         if (property == CssProperty.MaxWidth)
-            return current with { MaxWidth = wide ? from.MaxWidth : value == "none" ? null : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
-                elementFontSize: elementFontSize, allowEm: true) };
+        {
+            current.MaxWidth = wide ? from.MaxWidth : value == "none" ? null : CssBoxValues.Length(value, declaration.Offset,
+                rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
+            return current;
+        }
         if (property >= CssProperty.PaddingTop && property <= CssProperty.PaddingLeft)
         {
             var length = wide ? default : CssBoxValues.Length(value, declaration.Offset, rootFontSize, allowRem: true,
                 elementFontSize: elementFontSize, allowEm: true);
-            return property switch
+            switch (property)
             {
-                CssProperty.PaddingTop => current with { PaddingTop = wide ? from.PaddingTop : length },
-                CssProperty.PaddingRight => current with { PaddingRight = wide ? from.PaddingRight : length },
-                CssProperty.PaddingBottom => current with { PaddingBottom = wide ? from.PaddingBottom : length },
-                CssProperty.PaddingLeft => current with { PaddingLeft = wide ? from.PaddingLeft : length },
-                _ => throw new InvalidOperationException()
-            };
+                case CssProperty.PaddingTop: current.PaddingTop = wide ? from.PaddingTop : length; break;
+                case CssProperty.PaddingRight: current.PaddingRight = wide ? from.PaddingRight : length; break;
+                case CssProperty.PaddingBottom: current.PaddingBottom = wide ? from.PaddingBottom : length; break;
+                case CssProperty.PaddingLeft: current.PaddingLeft = wide ? from.PaddingLeft : length; break;
+                default: throw new InvalidOperationException();
+            }
+            return current;
         }
         if (property is CssProperty.MarginLeft or CssProperty.MarginRight)
         {
             var auto = !wide && value == "auto";
             var length = wide || auto ? default : CssBoxValues.Length(value, declaration.Offset,
                 rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
-            return property == CssProperty.MarginLeft
-                ? current with
-                {
-                    MarginLeft = wide ? from.MarginLeft : length,
-                    MarginLeftAuto = wide ? from.MarginLeftAuto : auto
-                }
-                : current with
-                {
-                    MarginRight = wide ? from.MarginRight : length,
-                    MarginRightAuto = wide ? from.MarginRightAuto : auto
-                };
+            if (property == CssProperty.MarginLeft)
+            {
+                current.MarginLeft = wide ? from.MarginLeft : length;
+                current.MarginLeftAuto = wide ? from.MarginLeftAuto : auto;
+            }
+            else
+            {
+                current.MarginRight = wide ? from.MarginRight : length;
+                current.MarginRightAuto = wide ? from.MarginRightAuto : auto;
+            }
+            return current;
         }
         if (property == CssProperty.BackgroundColor)
         {
@@ -296,13 +316,11 @@ internal static class CssDeclarations
             // it against its own computed text ink. A literal inherited RGB
             // remains literal, and initial/unset/transparent clear the marker.
             var usesCurrent = wide ? from.BackgroundUsesCurrentColor : value == "currentcolor";
-            return current with
             {
-                BackgroundUsesCurrentColor = usesCurrent,
-                BackgroundColor = usesCurrent ? elementColor : wide
-                    ? from.BackgroundColor
-                    : CssPaintValues.Background(value, declaration.Offset, elementColor)
-            };
+                current.BackgroundUsesCurrentColor = usesCurrent;
+                current.BackgroundColor = usesCurrent ? elementColor : wide ? from.BackgroundColor : CssPaintValues.Background(value, declaration.Offset, elementColor);
+                return current;
+            }
         }
 
         // Outline is a separate painted box decoration, not a layout edge.
@@ -310,8 +328,10 @@ internal static class CssDeclarations
             or CssProperty.OutlineColor or CssProperty.OutlineOffset)
         {
             if (property == CssProperty.OutlineOffset)
-                return current with { OutlineOffset = wide ? from.OutlineOffset
-                    : CssPaintValues.OutlineOffset(value, declaration.Offset) };
+            {
+                current.OutlineOffset = wide ? from.OutlineOffset : CssPaintValues.OutlineOffset(value, declaration.Offset);
+                return current;
+            }
             var edge = current.Outline;
             var outlineInherited = from.Outline;
             var outlineChanged = property switch
@@ -327,7 +347,10 @@ internal static class CssDeclarations
                     : CssPaintValues.BorderColor(value, declaration.Offset) },
                 _ => throw new InvalidOperationException()
             };
-            return current with { Outline = outlineChanged };
+            {
+                current.Outline = outlineChanged;
+                return current;
+            }
         }
 
         var index = (int)property - (int)CssProperty.BorderTopWidth;
@@ -354,13 +377,14 @@ internal static class CssDeclarations
             2 => old with { Color = wide ? inherited.Color : CssPaintValues.BorderColor(value, declaration.Offset) },
             _ => throw new InvalidOperationException("Unrecognized border property.")
         };
-        return side switch
+        switch (side)
         {
-            0 => current with { BorderTop = changed },
-            1 => current with { BorderRight = changed },
-            2 => current with { BorderBottom = changed },
-            3 => current with { BorderLeft = changed },
-            _ => throw new InvalidOperationException()
-        };
+            case 0: current.BorderTop = changed; break;
+            case 1: current.BorderRight = changed; break;
+            case 2: current.BorderBottom = changed; break;
+            case 3: current.BorderLeft = changed; break;
+            default: throw new InvalidOperationException();
+        }
+        return current;
     }
 }

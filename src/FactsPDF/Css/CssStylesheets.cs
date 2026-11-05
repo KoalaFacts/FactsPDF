@@ -393,38 +393,49 @@ internal sealed class CssStylesheets
             "ul" => ListMarkerKind.Disc,
             _ => parentBox.MarkerKind
         };
+        // All of this element's declarations are applied to one private copy, made on the first
+        // change; shared boxes (Initial, the parent's) are never assigned (see BoxStyle).
+        var owned = false;
+        BoxStyle Own()
+        {
+            if (!owned) { box = box with { }; owned = true; }
+            return box;
+        }
         if (box.MarkerKind != markerKind || box.MarkerInside != parentBox.MarkerInside)
-            box = box with { MarkerKind = markerKind, MarkerInside = parentBox.MarkerInside };
+        {
+            Own().MarkerKind = markerKind;
+            box.MarkerInside = parentBox.MarkerInside;
+        }
         foreach (var winner in winners)
         {
             if (!winner.HasValue) continue;
             var declaration = winner.Value.Declaration;
             if (declaration.Property == CssProperty.Display)
-                box = box with { DisplayNone = declaration.Value == "none" };
+                Own().DisplayNone = declaration.Value == "none";
             else if (declaration.Property == CssProperty.ListStyleType)
-                box = box with { MarkerKind = declaration.Value switch
+                Own().MarkerKind = declaration.Value switch
                 {
                     "inherit" or "unset" => parentBox.MarkerKind,
                     "initial" => ListMarkerKind.Disc,
                     _ => ListMarkerTypes.Parse(declaration.Value, declaration.Offset)
-                } };
+                };
             else if (declaration.Property == CssProperty.ListStylePosition)
-                box = box with { MarkerInside = declaration.Value switch
+                Own().MarkerInside = declaration.Value switch
                 {
                     "inherit" or "unset" => parentBox.MarkerInside,
                     "initial" or "outside" => false,
                     "inside" => true,
                     _ => throw new InvalidOperationException("Unvalidated list marker position.")
-                } };
+                };
             else if (declaration.Property == CssProperty.VerticalAlign)
-                box = box with { VerticalAlign = declaration.Value switch
+                Own().VerticalAlign = declaration.Value switch
                 {
                     "inherit" => parentBox.VerticalAlign,
                     "initial" or "unset" or "top" => CellVerticalAlign.Top,
                     "middle" => CellVerticalAlign.Middle,
                     "bottom" => CellVerticalAlign.Bottom,
                     _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
-                } };
+                };
             else if (element.Name is ("div" or "section" or "article" or "blockquote")
                 && declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter))
             {
@@ -436,24 +447,23 @@ internal sealed class CssStylesheets
                         ? parentBox.BreakBefore : parentBox.BreakAfter,
                     _ => throw new InvalidOperationException("Unvalidated report-panel page break.")
                 };
-                box = declaration.Property == CssProperty.BreakBefore
-                    ? box with { BreakBefore = value }
-                    : box with { BreakAfter = value };
+                if (declaration.Property == CssProperty.BreakBefore) Own().BreakBefore = value;
+                else Own().BreakAfter = value;
             }
             else if (declaration.Property == CssProperty.BreakInside)
-                box = box with { AvoidBreakInside = declaration.Value switch
+                Own().AvoidBreakInside = declaration.Value switch
                 {
                     "avoid" => true,
                     "auto" or "initial" or "unset" => false,
                     "inherit" => parentBox.AvoidBreakInside,
                     _ => throw new InvalidOperationException("Unvalidated break-inside.")
-                } };
+                };
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
-                box = CssDeclarations.ApplyBox(box, parentBox, declaration, rootFontSize, style.FontSize,
+                CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
             else if (element.Name is ("div" or "section" or "article" or "blockquote" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
-                box = CssDeclarations.ApplyPanelVerticalMargin(box, parentBox, declaration,
+                CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
             else
             {
