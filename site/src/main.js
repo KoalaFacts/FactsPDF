@@ -1,4 +1,5 @@
-import { html, mount, state, compute, each, when, onMount, onDispose, watch } from '@purityjs/core';
+import { html } from '@purityjs/core/jit';
+import { mount, state, compute, each, when, onMount, onDispose, watch } from '@purityjs/core';
 import { STATUSES, validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash, pageSlice, csv } from './model.mjs';
 import { prepareTranslations, readLocale, saveLocale, auditFields } from './localisation.mjs';
 import './style.css';
@@ -113,7 +114,7 @@ function Tracker(data,translations){
         <div class="share"><button @click=${copy}>${()=>t('复制此项链接','Copy feature link')}</button><input aria-label="Feature link" readonly .value=${featureUrl} /></div>
       </div>`;
   }
-  // Purity 0.3.4 emits a text placeholder for a lone tbody expression.
+  // Purity 0.3.4-0.5.1 emit a text placeholder for a lone tbody expression.
   // Adjacent empty interpolation forces comment slots, which the HTML table
   // parser keeps inside tbody instead of foster-parenting before the table.
   return html`
