@@ -114,7 +114,7 @@ internal static class BlockLayout
                             paragraph.Style.MarginBefore == 0 && paragraph.Style.MarginAfter == 0 &&
                             !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
                             !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
-                            !paragraph.BoxStyle.HasPaint &&
+                            !paragraph.BoxStyle.HasLayoutPaint &&
                             paragraph.BoxStyle.PaddingTop.Value == 0 &&
                             paragraph.BoxStyle.PaddingBottom.Value == 0 &&
                             paragraph.BoxStyle.MinHeight is null &&
@@ -125,7 +125,7 @@ internal static class BlockLayout
                     var emptyOuterHeight = box.Top + box.Bottom +
                         (blankNested ? blankNestedHeight : 0);
                     var requiredEmptyPaintHeight = node.Name == "hr" ||
-                        (noOccupiedChildren && (style.HasPaint || blankNestedHeight > 0))
+                        (noOccupiedChildren && (style.HasLayoutPaint || blankNestedHeight > 0))
                         ? emptyOuterHeight : 0;
                     // min-height is genuine reserved page space. Content-box
                     // adds vertical decoration; border-box counts it inside.
@@ -224,7 +224,7 @@ internal static class BlockLayout
             if (item is not BlockNode child)
                 return false;
             var box = child.BoxStyle;
-            if (box.HasPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
+            if (box.HasLayoutPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
                 box.AvoidBreakInside || box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
                 ((box.MinHeight.HasValue || box.Height.HasValue) && child.Children.Count != 0) ||
                 child.Style.BreakBefore || child.Style.BreakAfter)

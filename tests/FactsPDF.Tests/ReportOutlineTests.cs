@@ -92,6 +92,24 @@ public sealed class ReportOutlineTests
     }
 
     [Test]
+    public void OutlineOnlyEmptyPanelDoesNotTriggerLayoutPaintPreflightOrPhantomPage()
+    {
+        const string plain = "<p style='margin:0'>A</p>" +
+            "<div style='padding-top:110pt'></div>" +
+            "<p style='break-before:page;margin:0'>B</p>";
+        var outlined = plain.Replace("padding-top:110pt'",
+            "padding-top:110pt;outline:2pt solid red'", StringComparison.Ordinal);
+        var a = Layout(plain);
+        var b = Layout(outlined);
+        Assert.That(a.Count, Is.EqualTo(2));
+        Assert.That(b.Count, Is.EqualTo(a.Count));
+        Assert.That(b.SelectMany(p => p.Runs).Select(r => (r.Text, r.X, r.Baseline)),
+            Is.EqualTo(a.SelectMany(p => p.Runs).Select(r => (r.Text, r.X, r.Baseline))));
+        Assert.That(b.SelectMany(p => p.PaintBoxes).Any(x =>
+            x.Style.Outline.EffectiveWidth == 2), Is.True);
+    }
+
+    [Test]
     public void SolidOutlineConnectsOuterCornersWithClosedMiterJoinedPdfPath()
     {
         const string single = "<section style='outline:6pt solid red'>AB</section>";
