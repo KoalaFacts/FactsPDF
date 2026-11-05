@@ -107,9 +107,10 @@ internal static class UnicodePdfSerializer
                 Obj(courierId, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
                 resources += " /F0 " + courierId.ToString(CultureInfo.InvariantCulture) + " 0 R";
             }
+            var content = new StringBuilder();
             for (var i = 0; i < pages.Count; i++)
             {
-                cancellation.ThrowIfCancellationRequested(); var content = new StringBuilder();
+                cancellation.ThrowIfCancellationRequested(); content.Clear();
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation);
                 images.Append(content, pages[i], o, cancellation);
@@ -122,22 +123,25 @@ internal static class UnicodePdfSerializer
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    content.Append(CultureInfo.InvariantCulture, $"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
+                    content.Append(CultureInfo.InvariantCulture, $"BT /{use?.Resource ?? "F0"} {(run.Style.FontSize):0.######} Tf {tracking}{(color.R):0.######} {(color.G):0.######} {(color.B):0.######} rg 1 0 0 1 {(run.X):0.######} {(run.Baseline):0.######} Tm ");
                     var spaced = run.Style.WordSpacing != 0 && run.Text.Contains(' ');
                     content.Append(spaced ? "[<" : "<");
                     foreach (var rune in run.Text.EnumerateRunes())
                     {
-                        content.Append(use is null ? rune.Value.ToString("X2", CultureInfo.InvariantCulture)
-                            : use.Codes[rune.Value].ToString("X4", CultureInfo.InvariantCulture));
+                        if (use is null) content.Append(CultureInfo.InvariantCulture, $"{rune.Value:X2}");
+                        else content.Append(CultureInfo.InvariantCulture, $"{use.Codes[rune.Value]:X4}");
                         if (spaced && rune.Value == 32)
-                            content.Append("> ").Append(N(-run.Style.WordSpacing * 1000 / run.Style.FontSize)).Append(" <");
+                            content.Append("> ").Append(CultureInfo.InvariantCulture, $"{(-run.Style.WordSpacing * 1000 / run.Style.FontSize):0.######}").Append(" <");
                     }
                     content.Append(spaced ? ">] TJ ET\n" : "> Tj ET\n");
                     PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes);
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R{links.PageEntry(i)} >>"));
-                StreamObject(firstPage + 2 * i + 1, Encoding.ASCII.GetBytes(content.ToString()));
+                Begin(firstPage + 2 * i + 1);
+                Write("<< /Length " + PdfAscii.ByteCount(content).ToString(CultureInfo.InvariantCulture) + " >>\nstream\n");
+                PdfAscii.Write(output, content, cancellation);
+                Write("\nendstream\nendobj\n");
             }
             for (var i = 0; i < images.ObjectCount; i++)
             {

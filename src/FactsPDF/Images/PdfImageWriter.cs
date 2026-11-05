@@ -43,7 +43,7 @@ internal sealed class PdfImageWriter
         foreach (var placed in page.Images)
         {
             cancellation.ThrowIfCancellationRequested();
-            content.Append(FormattableString.Invariant($"q {N(placed.Width)} 0 0 {N(placed.Height)} {N(placed.X)} {N(options.PageHeight - placed.Top - placed.Height)} cm /Im{indices[placed.Image] + 1} Do Q\n"));
+            content.Append(CultureInfo.InvariantCulture, $"q {placed.Width:0.######} 0 0 {placed.Height:0.######} {placed.X:0.######} {options.PageHeight - placed.Top - placed.Height:0.######} cm /Im{indices[placed.Image] + 1} Do Q\n");
             Check(content.Length, options.MaxOutputBytes);
         }
     }
@@ -79,5 +79,4 @@ internal sealed class PdfImageWriter
     {
         if (length > limit) throw new FactsPdfException("FPDF1401", "PDF image content exceeds MaxOutputBytes.");
     }
-    private static string N(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
 }
