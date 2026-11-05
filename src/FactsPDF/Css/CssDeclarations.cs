@@ -209,7 +209,7 @@ internal static class CssDeclarations
                 },
                 _ => throw new InvalidOperationException()
             };
-            if (updated.EffectiveWidth > 4)
+            if (updated.Width > 4)
                 throw new FactsPdfException("FPDF1202",
                     "Report outlines are limited to a computed width of 4pt.", declaration.Offset);
             return current with { Outline = updated };
