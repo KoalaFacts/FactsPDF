@@ -142,7 +142,8 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
   assert.equal(display.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
-  assert.match(display.scope,/fixed-column table cells/);
+  assert.match(display.scope,/flat cell paragraphs/);
+  assert.match(display.scope,/outside lists\/tables/);
   assert.match(display.limitations,/nowrap prohibits automatic breaks/);
   assert.match(display.limitations,/FPDF1302/);
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
