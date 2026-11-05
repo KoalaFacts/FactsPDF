@@ -1,3 +1,13 @@
+## Bounded PDF last-line alignment in real report text
+
+Source `09a186b4e6f33355db3014ef0b0fcd61df224bc3` implements `text-align-last` for final and
+explicit-break lines, with glyph-measured alignment and optional U+0020
+justification on printable paragraphs/headings and flat fixed-column cells.
+The 44-record multi-page report and independent manually broken oracle,
+NUnit PDF equality/coordinates, CSS cascade and output-recovery checks
+form the source-level evidence; actual CI and separate reviewer findings
+must be checked against their exact commit.
+
 ## Source-only quote revision decoration lines
 
 Reports can simultaneously paint selected underline, overline and

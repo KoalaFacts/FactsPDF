@@ -17,7 +17,7 @@ internal static class TextLines
     // Glyph storage is borrowed until the next MoveNext. Each consumer copies
     // every placed text run before advancing; the iterator reuses its glyph storage.
     internal readonly record struct Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent,
-        double FirstLineIndent = 0);
+        double FirstLineIndent = 0, TextAlignment? AlignmentOverride = null);
 
     internal static void AppendLine(Line line, double x, double baseline, List<PlacedText> target,
         Action<int, int> charge, CancellationToken cancellation, int sourceOffset = -1)
@@ -298,7 +298,8 @@ internal static class TextLines
             // ragged end. Stretch existing collapsed U+0020 space advances;
             // this uses the same WordSpacing/TJ paint path as authored gaps.
             var paintedWidth = width;
-            if (softWrapped && paragraph.Style.Alignment == TextAlignment.Justify)
+            if (softWrapped && paragraph.Style.Alignment == TextAlignment.Justify ||
+                !softWrapped && paragraph.Style.LastLineAlignment == TextAlignment.Justify)
             {
                 var spaces = 0;
                 foreach (var glyph in current)
@@ -337,7 +338,9 @@ internal static class TextLines
                 ascent = Math.Max(ascent, glyphAscent);
                 descent = Math.Max(descent, glyphDescent);
             }
-            return new(current, paintedWidth, ascent + descent, ascent, descent, firstLine ? firstIndent : 0);
+            return new(current, paintedWidth, ascent + descent, ascent, descent,
+                firstLine ? firstIndent : 0,
+                softWrapped ? null : paragraph.Style.LastLineAlignment);
         }
         void ResetLine()
         {

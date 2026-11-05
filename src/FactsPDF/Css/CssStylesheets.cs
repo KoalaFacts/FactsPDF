@@ -22,7 +22,7 @@ internal sealed class CssStylesheets
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.OutlineOffset + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -278,6 +278,13 @@ internal sealed class CssStylesheets
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
+            // Last-line alignment belongs to a paragraph's line box, never
+            // a single inline run (including losing CSS declarations).
+            if (declaration.Property == CssProperty.TextAlignLast &&
+                element.Name is ("span" or "b" or "strong" or "i" or "em"
+                    or "small" or "u" or "s" or "del" or "ins" or "a"))
+                throw new FactsPdfException("FPDF1201",
+                    "text-align-last cannot be declared on inline text.", declaration.Offset);
             // Inline spans cannot independently align paragraph lines.
             // Preserve legacy left/right values, but reject logical start/end
             // just like justify: accepting them would only change one text run.

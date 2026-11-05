@@ -11,7 +11,7 @@ internal enum CssProperty
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
-    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -127,7 +127,7 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         return property switch
         {
@@ -137,6 +137,7 @@ internal static class CssDeclarations
             CssProperty.Color => style with { Color = source.Color },
             CssProperty.LineHeight => style with { LineHeight = source.LineHeight, AbsoluteLineHeight = source.AbsoluteLineHeight },
             CssProperty.TextAlign => style with { Alignment = source.Alignment },
+            CssProperty.TextAlignLast => style with { LastLineAlignment = source.LastLineAlignment },
             CssProperty.TextDecoration => style with { Decoration = source.Decoration },
             CssProperty.TextDecorationColor => style with { DecorationColor = source.DecorationColor },
             CssProperty.TextDecorationStyle => style with { DecorationPattern = source.DecorationPattern },
