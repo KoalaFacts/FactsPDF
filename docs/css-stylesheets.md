@@ -754,6 +754,31 @@ check cascade, all sides, exact solid byte preservation, cross-page borders,
 resource limits and invalid values. That is scoped engineering evidence,
 **not** human page approval, release, or full CSS Borders conformance.
 
+## Current-source inherited report text flow
+
+Existing bounded `overflow-wrap:normal|break-word`,
+`word-break:normal|break-all` and nonnegative `text-indent` may now be
+declared on `html`, `body` and ordinary `div`/`section`/`article`/`blockquote`
+report containers outside list/table structures. The computed values inherit
+to descendant `p`/headings; they affect the measured glyphs, wrapping,
+first-line placement and page flow, rather than merely parsing CSS. A child
+declaration, `!important` cascade or CSS-wide keyword continues to win
+according to the existing scoped CSS rules. Percent indentation resolves
+against the final paragraph content width; `em` uses the declaring host font.
+
+A flat paragraph inside a fixed-column table cell may inherit these text
+behaviours from an outer report container. The first line's `text-indent`
+is included in the actual cell glyph X position and remaining width for
+left/centre/right alignment, while later wrapped or explicit-break lines do
+not indent again. Direct `text-indent` on the cell paragraph and CSS
+declarations on table/list structural elements or inline spans still reject
+with `FPDF1201`. Unsupported words/units and unfit glyph geometry keep the
+existing `FPDF1202/1302` protection. This does not implement general
+CSS Text, `word-break:keep-all`, `overflow-wrap:anywhere`, RTL or complex
+Unicode shaping. The independent HTML-to-PDF coordinate, byte and
+failure-recovery tests are in
+[`InheritedReportTextFlowTests.cs`](../tests/FactsPDF.Tests/InheritedReportTextFlowTests.cs).
+
 ## Current-source inherited white-space in business report containers
 
 A declaration of `white-space:normal`, `nowrap`, `pre-line`, `pre-wrap`
@@ -1240,7 +1265,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 
 These properties also accept `inherit`, `initial`, `unset` and `!important`. Paragraph-only breaks and text styles remain inapplicable on containers/spans, even for losing declarations; report-panel margins are a separate bounded exception. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
-This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `calc()`, container-level declarations, inline spans or table-cell paragraph indents. It affects actual glyph positions and first-line wrapping, not painted box geometry; the usual CSS inheritance/wide-keyword resolution is retained only where an applicable paragraph/heading declaration can be expressed.
+This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `calc()`, inline spans, direct table-cell paragraph declarations or arbitrary container declarations. Ordinary report containers and the document root may now declare inherited text-indent; a flat fixed-column cell paragraph can inherit it and position real PDF glyphs. It affects first-line wrapping and text placement, not painted box geometry; the scoped CSS cascade and wide-keyword resolution remain in effect.
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
 

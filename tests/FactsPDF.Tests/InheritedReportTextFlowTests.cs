@@ -134,6 +134,54 @@ public sealed class InheritedReportTextFlowTests
             Does.Contain("REF-48-LONGREFERENCE2026"));
     }
 
+    [TestCase("left", 12d)]
+    [TestCase("center", 6d)]
+    [TestCase("right", 0d)]
+    public void InheritedTableCellIndentAlignsTheActualFirstLineWithoutMovingContinuation(
+        string alignment, double firstLineShift)
+    {
+        var table = "<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup>" +
+            "<tbody><tr><td><p style='text-align:" + alignment +
+            "'>FIRST<br>SECOND<br>THIRD</p></td></tr></tbody></table>";
+        var inherited = "<section style='text-indent:12pt'>" + table + "</section>";
+        var unindented = "<section>" + table + "</section>";
+        var placed = Layout(inherited).SelectMany(page => page.Runs).ToArray();
+        var baseline = Layout(unindented).SelectMany(page => page.Runs).ToArray();
+
+        Assert.That(placed.Select(run => run.Text),
+            Is.EqualTo(new[] { "FIRST", "SECOND", "THIRD" }));
+        Assert.That(placed[0].X - baseline[0].X,
+            Is.EqualTo(firstLineShift).Within(0.001),
+            "An inherited indent must change the printed first-line X coordinate, not just wrapping.");
+        for (var i = 1; i < placed.Length; i++)
+            Assert.That(placed[i].X, Is.EqualTo(baseline[i].X).Within(0.001),
+                "Explicit breaks must not inherit a second indentation.");
+        Assert.That(placed.Select(run => run.Baseline),
+            Is.EqualTo(baseline.Select(run => run.Baseline)).Within(0.001));
+        Assert.That(Pdf(inherited), Is.Not.Empty);
+        if (alignment != "right")
+            Assert.That(Pdf(inherited), Is.Not.EqualTo(Pdf(unindented)),
+                "Correct coordinates must survive actual PDF drawing.");
+    }
+
+    [Test]
+    public void InheritedTableIndentWrapsLongCellTextAndProtectsUnfitOutput()
+    {
+        const string content = "LONGREFERENCEINVOICENUMBER2026";
+        const string table = "<table style='width:75pt'><colgroup><col style='width:75pt'></colgroup>" +
+            "<tbody><tr><td><p style='word-break:break-all'>" + content +
+            "</p></td></tr></tbody></table>";
+        var actual = "<div style='text-indent:9pt'>" + table + "</div>";
+        var lines = Layout(actual).SelectMany(page => page.Runs).ToArray();
+        var noIndent = Layout("<div>" + table + "</div>").SelectMany(page => page.Runs).ToArray();
+        Assert.That(lines.Length, Is.GreaterThan(1));
+        Assert.That(lines[0].X - noIndent[0].X, Is.EqualTo(9).Within(0.001));
+        Assert.That(string.Concat(lines.Select(line => line.Text)), Is.EqualTo(content));
+        Assert.That(Pdf(actual), Is.Not.EqualTo(Pdf("<div>" + table + "</div>")));
+        RejectWithoutChangingDestination("<section style='text-indent:120pt'>" + table +
+            "</section>", "FPDF1302");
+    }
+
     [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
     [TestCase("<ul style='word-break:break-all'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<table style='text-indent:10pt'><colgroup><col style='width:80pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]

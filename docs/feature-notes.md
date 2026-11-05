@@ -547,6 +547,20 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ## White space and line wrapping
 
+### Inherited report text flow (source-only)
+
+The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all`
+and nonnegative `text-indent` values can now be declared on `html`, `body`
+or ordinary report `div`/`section`/`article`/`blockquote` containers.
+Their computed values inherit into descendant paragraphs and headings and
+control actual PDF word wrapping, first-line X coordinates and pagination.
+An inherited `text-indent` also positions a flat paragraph inside a fixed-column
+table cell, including left/centre/right alignment; it does not permit a
+direct `text-indent` declaration on the table or its cell paragraph.
+Inline elements, list/table structural declarations, unsupported values and
+complex text shaping remain outside scope. See the
+[bounded inherited CSS contract](css-stylesheets.md#current-source-inherited-report-text-flow).
+
 ### Inherited report white-space from document and panels (source-only)
 
 A supported `white-space:normal|nowrap|pre-line|pre-wrap|pre` declaration on
