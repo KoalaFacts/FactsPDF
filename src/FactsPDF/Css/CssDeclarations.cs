@@ -313,21 +313,21 @@ internal static class CssDeclarations
                 return current with { OutlineOffset = wide ? from.OutlineOffset
                     : CssPaintValues.OutlineOffset(value, declaration.Offset) };
             var edge = current.Outline;
-            var inherited = from.Outline;
-            var changed = property switch
+            var outlineInherited = from.Outline;
+            var outlineChanged = property switch
             {
-                CssProperty.OutlineWidth => edge with { Width = wide ? inherited.Width
+                CssProperty.OutlineWidth => edge with { Width = wide ? outlineInherited.Width
                     : CssPaintValues.OutlineWidth(value, declaration.Offset) },
                 CssProperty.OutlineStyle => edge with
                 {
-                    Solid = wide ? inherited.Solid : value != "none",
-                    Pattern = wide ? inherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
+                    Solid = wide ? outlineInherited.Solid : value != "none",
+                    Pattern = wide ? outlineInherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
                 },
-                CssProperty.OutlineColor => edge with { Color = wide ? inherited.Color
+                CssProperty.OutlineColor => edge with { Color = wide ? outlineInherited.Color
                     : CssPaintValues.BorderColor(value, declaration.Offset) },
                 _ => throw new InvalidOperationException()
             };
-            return current with { Outline = changed };
+            return current with { Outline = outlineChanged };
         }
 
         var index = (int)property - (int)CssProperty.BorderTopWidth;
