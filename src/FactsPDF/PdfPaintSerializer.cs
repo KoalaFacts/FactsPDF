@@ -155,9 +155,84 @@ internal static class PdfPaintSerializer
             if (right > 0)
                 Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
                     horizontal: false, pageHeight, maxOutputBytes);
+            AppendOutline(output, box, pageHeight, maxOutputBytes);
         }
     }
 
+
+    // One PDF paint operation, separated from border geometry and text flow.
+    // Side strokes continue on every page; horizontal strokes are present
+    // only on the first and last page fragment, respectively.
+    private static void AppendOutline(StringBuilder output, PaintedBox box,
+        double pageHeight, int maxOutputBytes)
+    {
+        var edge = box.Style.Outline;
+        if (edge.EffectiveWidth <= 0 || box.Width <= 0 || box.Height <= 0) return;
+        var thickness = edge.EffectiveWidth;
+        var gap = box.Style.OutlineOffset + thickness / 2;
+        var xLeft = box.X - gap;
+        var xRight = box.X + box.Width + gap;
+        var yTop = pageHeight - box.Top + gap;
+        var yBottom = pageHeight - box.Top - box.Height - gap;
+        if (!double.IsFinite(xLeft + xRight + yTop + yBottom))
+            throw new FactsPdfException("FPDF1302", "Invalid report outline geometry.");
+        var ink = edge.Color ?? box.TextColor;
+        output.Append("q ").Append(N(ink.R)).Append(' ').Append(N(ink.G)).Append(' ')
+            .Append(N(ink.B)).Append(" RG ").Append(N(thickness)).Append(" w ");
+        if (edge.Pattern == BorderPattern.Dashed)
+            output.Append('[').Append(N(3 * thickness)).Append(' ')
+                .Append(N(3 * thickness)).Append("] 0 d ");
+        else if (edge.Pattern == BorderPattern.Dotted)
+            output.Append("1 J [0.001 ").Append(N(2 * thickness)).Append("] 0 d ");
+        else if (edge.Pattern != BorderPattern.Solid)
+            throw new InvalidOperationException("Invalid outline pattern.");
+        if (edge.Pattern == BorderPattern.Solid)
+        {
+            // A solid outline must be one joined path at each visible corner.
+            // Independent butt-capped edge subpaths leave an unpainted outer
+            // quadrant at thick corners. The default miter join closes it.
+            // Continuations have no imaginary top/bottom cap across pages.
+            output.Append("0 j ");
+            if (box.IsFirstFragment && box.IsLastFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l h ");
+            else if (box.IsFirstFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+            else if (box.IsLastFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
+            else
+                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+        }
+        else
+        {
+            // Dashed/dotted paths intentionally remain separate: their dash
+            // phase and rounded caps restart at each scoped report-panel edge.
+            output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
+                .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
+                .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+            if (box.IsFirstFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
+                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
+            if (box.IsLastFragment)
+                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
+                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+        }
+        output.Append("S Q\n");
+        if (output.Length > maxOutputBytes)
+            throw new FactsPdfException("FPDF1401", "PDF outline content exceeds MaxOutputBytes.");
+    }
 
     // Four physical corners paint one closed outer background and one even-odd
     // border ring. On continued boxes the top two radii belong only to the

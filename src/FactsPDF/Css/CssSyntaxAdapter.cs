@@ -338,6 +338,55 @@ internal static class CssSyntaxAdapter
                 }
                 continue;
             }
+            // Expand the outline shorthand into three separately cascading
+            // components. Omitted terms reset to initial values, not the
+            // previously winning outline longhand.
+            if (name == "outline")
+            {
+                if (terms.Count > 3)
+                    throw new FactsPdfException("FPDF1202",
+                        "Outline accepts up to three width/style/colour terms.", node.Span.Start);
+                var at = valueTokens[0].Token.Span.Start;
+                if (terms.Count == 1 && Wide(terms[0]))
+                {
+                    Emit(CssProperty.OutlineWidth, terms[0], at, "outline-width");
+                    Emit(CssProperty.OutlineStyle, terms[0], at, "outline-style");
+                    Emit(CssProperty.OutlineColor, terms[0], at, "outline-color");
+                    continue;
+                }
+                var width = "medium"; var style = "none"; var color = "currentcolor";
+                var widthAt = at; var styleAt = at; var colorAt = at;
+                var seenWidth = false; var seenStyle = false; var seenColor = false;
+                for (var i = 0; i < terms.Count; i++)
+                {
+                    var word = terms[i];
+                    var tokenAt = valueTokens[i].Token.Span.Start;
+                    if (Wide(word))
+                        throw new FactsPdfException("FPDF1202",
+                            "CSS-wide outline value must stand alone.", tokenAt);
+                    if (CssPaintValues.TryBorderWidth(word, out _))
+                    {
+                        if (seenWidth) throw new FactsPdfException("FPDF1202", "Duplicate outline width.", tokenAt);
+                        _ = CssPaintValues.OutlineWidth(word, tokenAt);
+                        width = word; widthAt = tokenAt; seenWidth = true;
+                    }
+                    else if (word is "solid" or "none" or "dashed" or "dotted")
+                    {
+                        if (seenStyle) throw new FactsPdfException("FPDF1202", "Duplicate outline style.", tokenAt);
+                        style = word; styleAt = tokenAt; seenStyle = true;
+                    }
+                    else
+                    {
+                        if (seenColor) throw new FactsPdfException("FPDF1202", "Duplicate outline colour.", tokenAt);
+                        _ = CssPaintValues.BorderColor(word, tokenAt);
+                        color = word; colorAt = tokenAt; seenColor = true;
+                    }
+                }
+                Emit(CssProperty.OutlineWidth, width, widthAt, "outline-width");
+                Emit(CssProperty.OutlineStyle, style, styleAt, "outline-style");
+                Emit(CssProperty.OutlineColor, color, colorAt, "outline-color");
+                continue;
+            }
             // Only horizontal LTR logical borders are mapped to physical PDF edges.
             // This is a shorthand family, not directional writing-mode support.
             // Lower each affected edge to the three existing independent
@@ -645,6 +694,10 @@ internal static class CssSyntaxAdapter
         "min-height" => CssProperty.MinHeight, "height" => CssProperty.Height,
         "max-height" => CssProperty.MaxHeight,
         "box-sizing" => CssProperty.BoxSizing,
+        "outline" or "outline-width" => CssProperty.OutlineWidth,
+        "outline-style" => CssProperty.OutlineStyle,
+        "outline-color" => CssProperty.OutlineColor,
+        "outline-offset" => CssProperty.OutlineOffset,
         "padding" or "padding-top" or "padding-block" or "padding-block-start" => CssProperty.PaddingTop,
         "padding-right" or "padding-inline-end" => CssProperty.PaddingRight,
         "padding-bottom" or "padding-block-end" => CssProperty.PaddingBottom,
@@ -976,6 +1029,10 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202",
                     "Table-cell vertical-align supports only top, middle and bottom.", offset);
         }
+        else if (name == "outline-width") _ = CssPaintValues.OutlineWidth(token, offset);
+        else if (name == "outline-offset") _ = CssPaintValues.OutlineOffset(token, offset);
+        else if (name == "outline-style") _ = CssPaintValues.BorderStyle(token, offset);
+        else if (name == "outline-color") _ = CssPaintValues.BorderColor(token, offset);
         else if (name == "border-radius")
             _ = CssPaintValues.BorderRadius(token, offset);
         else if (name == "box-sizing")
