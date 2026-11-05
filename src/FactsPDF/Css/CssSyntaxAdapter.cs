@@ -1108,6 +1108,36 @@ internal static class CssSyntaxAdapter
         foreach (var item in prelude)
         {
             budget.Token.ThrowIfCancellationRequested();
+            if (item is CssBlockComponent { Opening: CssSyntaxTokenKind.OpenSquare } square)
+            {
+                // CSS Syntax groups square brackets into a simple block.
+                // Flatten only atomic attribute terms, preserving decoded strings.
+                tokens.Add(new(CssTokenKind.Symbol, "[", space, square.Span.Start));
+                var insideSpace = false;
+                foreach (var component in square.Values)
+                {
+                    if (component is not CssTokenComponent value)
+                        throw new FactsPdfException("FPDF1203",
+                            "Nested attribute selector components are unsupported.", component.Span.Start);
+                    var t = value.Token;
+                    if (t.Kind == CssSyntaxTokenKind.Whitespace) { insideSpace = true; continue; }
+                    var kind = t.Kind switch
+                    {
+                        CssSyntaxTokenKind.Ident => CssTokenKind.Identifier,
+                        CssSyntaxTokenKind.String => CssTokenKind.String,
+                        CssSyntaxTokenKind.Delim => CssTokenKind.Symbol,
+                        _ => throw new FactsPdfException("FPDF1203",
+                            "Unsupported attribute selector token.", t.Span.Start)
+                    };
+                    tokens.Add(new(kind, t.Kind is CssSyntaxTokenKind.Ident or CssSyntaxTokenKind.String
+                        ? t.Value : t.Raw, insideSpace, t.Span.Start));
+                    insideSpace = false;
+                }
+                tokens.Add(new(CssTokenKind.Symbol, "]", false,
+                    square.Span.Start + square.Span.Length - 1));
+                space = false;
+                continue;
+            }
             if (item is not CssTokenComponent entry)
                 throw new FactsPdfException("FPDF1203", "Selector functions and nested components are not supported.", item.Span.Start);
             var t = entry.Token;
