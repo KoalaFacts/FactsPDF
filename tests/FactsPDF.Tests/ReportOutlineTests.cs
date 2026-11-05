@@ -105,8 +105,14 @@ public sealed class ReportOutlineTests
         Assert.That(b.Count, Is.EqualTo(a.Count));
         Assert.That(b.SelectMany(p => p.Runs).Select(r => (r.Text, r.X, r.Baseline)),
             Is.EqualTo(a.SelectMany(p => p.Runs).Select(r => (r.Text, r.X, r.Baseline))));
-        Assert.That(b.SelectMany(p => p.PaintBoxes).Any(x =>
-            x.Style.Outline.EffectiveWidth == 2), Is.True);
+        var painted = b.SelectMany(p => p.PaintBoxes).Single(x =>
+            x.Style.Outline.EffectiveWidth == 2);
+        Assert.That(painted.Top + painted.Height + painted.Style.OutlineOffset +
+            painted.Style.Outline.EffectiveWidth, Is.LessThan(Page.PageHeight));
+        Assert.That(Pdf(outlined).Length, Is.GreaterThan(100));
+        // An outline too tall even for the physical sheet must fail, not
+        // silently clip or spill into the next page.
+        Reject("<div style='padding-top:200pt;outline:2pt solid red'></div>", "FPDF1302");
     }
 
     [Test]

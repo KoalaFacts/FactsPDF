@@ -366,6 +366,17 @@ internal static class TextLayout
                          scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue)
                         ? after : 0d;
                     var finalPage = pages.Count - 1;
+                    // A paint-only outline must not promote an otherwise valid
+                    // empty/padded panel into an extra page. The unpainted panel
+                    // can consume its deferred padding within the physical
+                    // sheet's bottom margin. Permit the same geometry only
+                    // while the *whole* outside stroke remains on that sheet;
+                    // ordinary filled/bordered boxes keep their stricter
+                    // content-area bound, including all legacy failures.
+                    var physicalPaintBottom = !scope.Style.HasLayoutPaint &&
+                        scope.Style.Outline.EffectiveWidth > 0
+                        ? o.PageHeight - scope.Style.OutlineOffset - scope.Style.Outline.EffectiveWidth
+                        : bottom;
                     // The first page's border-box origin and the last page's
                     // cursor use different page-local coordinate systems.
                     // Never use the first-page starting Y as a lower bound
@@ -396,7 +407,7 @@ internal static class TextLayout
                         if (finalPage - scope.StartPage > 1)
                             CheckFragment(o.Margin, bottom, false, false);
                     }
-                    if (!double.IsFinite(finish) || finish > bottom + 0.000001 ||
+                    if (!double.IsFinite(finish) || finish > physicalPaintBottom + 0.000001 ||
                         scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
                         scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
@@ -417,7 +428,7 @@ internal static class TextLayout
                         var height = Math.Max(0, fragmentEnd - fragmentTop);
                         if (fragmentEnd < fragmentTop - 0.000001 ||
                             fragmentTop < o.Margin - 0.000001 ||
-                            fragmentEnd > bottom + 0.000001)
+                            fragmentEnd > physicalPaintBottom + 0.000001)
                             throw new FactsPdfException("FPDF1302",
                                 "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
