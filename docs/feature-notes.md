@@ -547,6 +547,23 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ## White space and line wrapping
 
+### Inherited report white-space from document and panels (source-only)
+
+A supported `white-space:normal|nowrap|pre-line|pre-wrap|pre` declaration on
+`html`, `body`, `div`, `section`, `article` or `blockquote` now passes its
+computed text-whitespace mode to nested report paragraphs and headings.
+For example, `section.invoice-notes { white-space:pre-line }` preserves authored
+newlines in descendant `p` text without restyling each paragraph. The
+renderer uses the same measured line breaking, glyph placement, page
+fragmentation and failure modes as an explicit declaration on each child.
+A child's winning declaration or `initial` overrides the inherited mode;
+`inherit` and `unset` on the container follow CSS text inheritance.
+The [PDF equivalence and multi-page NUnit checks](../tests/FactsPDF.Tests/InheritedWhiteSpaceReportTests.cs)
+compare inherited and explicitly styled reports and protect prior output
+on invalid CSS. Inline `span`, table structural elements, list containers
+and unsupported text modes still cannot declare this property. This is a
+bounded inheritance extension, not arbitrary CSS Text support.
+
 ### Current-source multiline report notes
 
 For controlled invoices, inspections and customer notes, explicit paragraphs and
@@ -555,7 +572,7 @@ LF, CRLF, CR and form-feed while continuing to collapse ordinary spaces/tabs.
 Lines still soft-wrap to the measured PDF content width and continue across pages;
 the final source segment break is discarded. An explicit `<br>` remains a break.
 Scoped stylesheet/inline CSS, cascade and explicit p-in-table-cell width work,
-but container/span declarations, `break-spaces`, RTL/shaping and
+but inline/span and table-structural declarations, `break-spaces`, RTL/shaping and
 unrestricted CSS Text do not. For unwrapped source lines, use the separate
 bounded `<pre>` or `white-space:pre` report mode. Use the separate bounded `pre-wrap` mode when
 an authored report must retain visible U+0020 space advances.
