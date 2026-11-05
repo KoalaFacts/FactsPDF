@@ -1,12 +1,15 @@
+using System.IO.Compression;
 using System.Text;
 using static FactsPDF.SfntDirectory;
 
 namespace FactsPDF;
 
 /// <summary>Immutable explicitly supplied static TrueType font. No filesystem or network discovery.</summary>
+/// <remarks>Thread-safe. Reuse one instance across conversions: full (non-subset) embedding compresses the font
+/// program on first use and keeps that compressed copy for the lifetime of the instance.</remarks>
 public sealed class PdfFont
 {
-    /// <summary>Default maximum font file size accepted by <see cref="LoadTrueType(ReadOnlySpan{byte}, int, CancellationToken)"/> (32 MiB).</summary>
+    /// <summary>Default maximum font file size accepted by <see cref="FromBytes(ReadOnlySpan{byte}, int, CancellationToken)"/> and the other loaders (32 MiB).</summary>
     public const int DefaultMaxBytes = 33_554_432;
     private readonly byte[] data;
     private readonly UnicodeCmap cmap;
@@ -17,6 +20,10 @@ public sealed class PdfFont
     /// <summary>Size of the font file in bytes.</summary>
     public int ByteLength => data.Length;
     internal ReadOnlySpan<byte> Data => data;
+    // The zlib-compressed font program for full (non-subset) embedding. The font is immutable and zlib
+    // output is deterministic for identical input, so the result is computed once and shared by every
+    // conversion that embeds the whole font. Racing first conversions may each compress; one result wins.
+    private byte[]? compressedData;
     internal SfntDirectory Directory { get; }
     internal bool AllowsSubsetting => (U16(Directory.Table("OS/2", 10), 8) & 256) == 0;
     internal double Ascent1000 { get; }
@@ -27,6 +34,20 @@ public sealed class PdfFont
     internal double XMax1000 { get; }
     internal double YMax1000 { get; }
     internal double ItalicAngle { get; }
+
+    internal ReadOnlySpan<byte> CompressedData(CancellationToken cancellation)
+    {
+        var cached = Volatile.Read(ref compressedData);
+        if (cached is not null) return cached;
+        using var compressed = new MemoryStream(data.Length / 2 + 64);
+        using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+            for (var at = 0; at < data.Length; at += 16384)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                zlib.Write(data, at, Math.Min(16384, data.Length - at));
+            }
+        return Interlocked.CompareExchange(ref compressedData, compressed.ToArray(), null) ?? compressedData!;
+    }
 
     private PdfFont(byte[] ownedBytes, CancellationToken cancellation)
     {
@@ -78,7 +99,7 @@ public sealed class PdfFont
     /// <returns>An immutable font that can be shared across conversions and threads.</returns>
     /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
-    public static PdfFont LoadTrueType(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
+    public static PdfFont FromBytes(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
@@ -93,7 +114,7 @@ public sealed class PdfFont
     /// <returns>An immutable font that can be shared across conversions and threads.</returns>
     /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
-    public static PdfFont LoadTrueType(Stream source, int maxBytes = DefaultMaxBytes,
+    public static PdfFont FromStream(Stream source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -112,6 +133,19 @@ public sealed class PdfFont
         }
         return new PdfFont(buffer.ToArray(), cancellationToken);
     }
+    /// <summary>Reads and validates a static TrueType (glyf) font file.</summary>
+    /// <param name="path">Path of the font file; only this file is read.</param>
+    /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
+    /// <param name="cancellationToken">Cancels reading and validation.</param>
+    /// <returns>An immutable font that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The file is not a supported font or exceeds <paramref name="maxBytes"/>.</exception>
+    public static PdfFont FromFile(string path, int maxBytes = DefaultMaxBytes, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
+        return FromStream(file, maxBytes, cancellationToken);
+    }
+
     internal ushort GlyphFor(int scalar) => cmap.GlyphFor(scalar);
     internal double Width1000(ushort glyph) => glyph < advances.Length ? advances[glyph] * scale : throw new FactsPdfException("FPDF1501", "Invalid glyph index.");
 

@@ -142,7 +142,7 @@ public sealed class TextIndentTests
     [Test]
     public void IndentedTrueTypeChineseUsesActualGlyphWidthsAndKeepsEveryCharacter()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var page = Page with { PageWidth = 120, Margin = 12, Fonts = [font] };
         const string text = "中文中文中文中文中文中文";
         var layout = Layout("<p style='text-indent:12pt'>" + text + "</p>", page);

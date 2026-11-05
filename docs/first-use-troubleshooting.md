@@ -68,10 +68,10 @@ Provide the role named by the diagnostic:
 
 | Text role | CLI option | .NET option |
 | --- | --- | --- |
-| Normal | `--font` | `PdfOptions.Fonts` |
-| Bold | `--font-bold` | `PdfOptions.BoldFonts` |
-| Italic | `--font-italic` | `PdfOptions.ItalicFonts` |
-| Bold and italic | `--font-bold-italic` | `PdfOptions.BoldItalicFonts` |
+| Normal | `--font` | `WithFonts(f => f.Regular(…))` |
+| Bold | `--font-bold` | `WithFonts(f => f.Bold(…))` |
+| Italic | `--font-italic` | `WithFonts(f => f.Italic(…))` |
+| Bold and italic | `--font-bold-italic` | `WithFonts(f => f.BoldItalic(…))` |
 
 For normal Chinese text and a bold heading, provide both normal and bold fonts:
 
@@ -94,7 +94,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --imag
 
 Supported static PNG and baseline JPEG formats are detected from the supplied
 bytes, not the extension. In .NET, bind a loaded `PdfImage` under the same name
-in `PdfOptions.Images`. See [image constraints](images.md) before changing a
+with `WithImage("logo", image)`. See [image constraints](images.md) before changing a
 format; a resource hint does not make SVG, network images or other unsupported
 formats valid.
 

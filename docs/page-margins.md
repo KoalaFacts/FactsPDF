@@ -1,13 +1,13 @@
 # Static page headers and footers (F3)
 
-`HeaderText` and `FooterText` are optional literal strings, defaulting to null. They repeat on every actual output page in the existing top and bottom margins. Leaving them disabled preserves default and number-only output.
+`WithHeaderText` and `WithFooterText` set optional literal strings; by default there are none. They repeat on every actual output page in the existing top and bottom margins. Leaving them disabled preserves default and number-only output.
 
 ```csharp
-PdfConverter.Convert(html, output, new PdfOptions {
-    HeaderText = "Quarterly report",
-    FooterText = "Internal",
-    PageNumbers = true
-});
+byte[] pdf = Pdf.Write()
+    .WithHeaderText("Quarterly report")
+    .WithFooterText("Internal")
+    .WithPageNumbers()
+    .ToBytes(html);
 ```
 
 ```sh

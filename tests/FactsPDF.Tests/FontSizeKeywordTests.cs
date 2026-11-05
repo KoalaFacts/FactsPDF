@@ -82,7 +82,7 @@ public sealed class FontSizeKeywordTests
         var explicitRows = string.Concat(Enumerable.Repeat(
             "<p style='font-size:12.5pt;margin:0'>AB <span style='font-size:15pt'>WA</span></p>", 40));
         const string suffix = "</section>";
-        var typeOptions = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var typeOptions = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var typePages = TextLayout.Layout(
             HtmlDocumentReader.ReadTree(prefix + keywordRows + suffix, typeOptions, default),
             typeOptions, default);

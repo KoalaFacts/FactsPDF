@@ -119,7 +119,7 @@ public sealed class LastLineAlignmentReportTests
     [Test]
     public void ExplicitTrueTypeRetainsActualFontAndMeasuredLastLineGeometry()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = new PdfOptions { Fonts = [font], PageWidth = 300, Margin = 30 };
         const string html = "<p style='width:110pt;font-size:10pt;margin:0;text-align-last:center'>AA<br>B</p>";
         var runs = Layout(html, options).Single().Runs;

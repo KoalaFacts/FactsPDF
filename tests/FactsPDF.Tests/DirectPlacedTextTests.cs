@@ -41,7 +41,7 @@ public sealed class DirectPlacedTextTests
     [TestCase("（中）文，A。")]
     public void MixedBmpAndSupplementaryScalarsRemainExact(string text)
     {
-        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var runs = TextLayout.Layout([Paragraph(text)], options, default).SelectMany(p => p.Runs).ToArray();
         Assert.That(string.Concat(runs.Select(r => r.Text)), Is.EqualTo(text));
         Assert.That(runs.All(r => !r.Text.Contains('\0') && !r.Text.Contains('\uFFFD')), Is.True);
@@ -52,8 +52,8 @@ public sealed class DirectPlacedTextTests
     [Test]
     public void StylesAndFontsRemainSeparateWhileSurrogatePairsRemainWhole()
     {
-        var latin = PdfFont.LoadTrueType(FontFixture.Create(latinOnly: true));
-        var unicode = PdfFont.LoadTrueType(FontFixture.Create());
+        var latin = PdfFont.FromBytes(FontFixture.Create(latinOnly: true));
+        var unicode = PdfFont.FromBytes(FontFixture.Create());
         var red = Style with { Color = new Rgb(1, 0, 0) };
         var p = new Paragraph(Style);
         p.Runs.Add(new TextRun("A𠀀", Style));
@@ -70,7 +70,7 @@ public sealed class DirectPlacedTextTests
     public void EarlierPlacedStringsSurviveLaterLineBufferReuse()
     {
         const string text = "𠀀中𠀀文𠀀A𠀀B𠀀中文𠀀";
-        var options = Page with { PageWidth = 65, Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Page with { PageWidth = 65, Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var runs = TextLayout.Layout([Paragraph(text)], options, default).SelectMany(p => p.Runs).ToArray();
         Assert.That(runs.Length, Is.GreaterThan(3));
         Assert.That(string.Concat(runs.Select(r => r.Text)), Is.EqualTo(text));
@@ -82,7 +82,7 @@ public sealed class DirectPlacedTextTests
     {
         using var output = new MemoryStream();
         var result = PdfConverter.Convert("<p>A中𠀀B</p>", output,
-            Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] });
+            Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] });
         var pdf = Encoding.Latin1.GetString(output.ToArray());
         Assert.That(result.PageCount, Is.EqualTo(1));
         Assert.That(pdf, Does.Contain("/ToUnicode"));

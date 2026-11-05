@@ -1,29 +1,29 @@
 namespace FactsPDF;
 
-/// <summary>Converts controlled HTML and CSS to PDF without a browser.</summary>
-/// <remarks>The supported subset is listed at https://koalafacts.github.io/FactsPDF/. Conversion is deterministic,
-/// performs no file or network access, and is safe to call concurrently.</remarks>
-public static class PdfConverter
+// The engine entry point behind the public Pdf.Write() builder. Rendering always completes
+// in memory before any byte reaches a caller's output, so every output path is atomic up to
+// the final copy.
+internal static class PdfConverter
 {
-    /// <summary>Renders an HTML document to PDF and writes it to <paramref name="output"/>.</summary>
-    /// <param name="html">The complete HTML document.</param>
-    /// <param name="output">Writable destination, which is not closed. Any failure before the finished PDF is copied leaves it untouched;
-    /// an I/O failure or cancellation during that final copy may leave a partial prefix. Write to a temporary file and move it
-    /// into place, as the CLI does, when the destination must never hold a partial PDF.</param>
-    /// <param name="options">Geometry, fonts, images and limits; null uses the defaults.</param>
-    /// <param name="cancellationToken">Cancels the conversion.</param>
-    /// <returns>The page count and number of bytes written.</returns>
-    /// <exception cref="FactsPdfException">The input uses an unsupported feature, is malformed, or exceeds a limit.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">An option is outside its valid range.</exception>
-    /// <exception cref="ArgumentException"><paramref name="output"/> is not writable.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="html"/> or <paramref name="output"/> is null.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
-    public static PdfConversionResult Convert(string html, Stream output,
+    internal static PdfWriteResult Convert(string html, Stream output,
         PdfOptions? options = null, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(html);
         ArgumentNullException.ThrowIfNull(output);
         if (!output.CanWrite) throw new ArgumentException("Output must be writable.", nameof(output));
+        using var pdf = Render(html, options, cancellationToken, out var pageCount);
+        var data = pdf.GetBuffer(); var length = checked((int)pdf.Length);
+        for (var offset = 0; offset < length; offset += Math.Min(16_384, length - offset))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            output.Write(data.AsSpan(offset, Math.Min(16_384, length - offset)));
+        }
+        return new(pageCount, length);
+    }
+
+    // Returns the complete PDF in a MemoryStream whose buffer the caller may read with GetBuffer().
+    internal static MemoryStream Render(string html, PdfOptions? options, CancellationToken cancellationToken, out int pageCount)
+    {
+        ArgumentNullException.ThrowIfNull(html);
         options ??= new PdfOptions();
         cancellationToken.ThrowIfCancellationRequested();
         Validate(options);
@@ -54,17 +54,13 @@ public static class PdfConverter
             PageFurnitureLayout.Append(pages, options, displayCommands, cancellationToken);
         else if (options.PageNumbers || options.HeaderText is not null || options.FooterText is not null)
             PageMarginLayout.Append(pages, options, displayCommands, cancellationToken);
-        using var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
+        var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        var data = pdf.GetBuffer(); var length = checked((int)pdf.Length);
-        for (var offset = 0; offset < length; offset += Math.Min(16_384, length - offset))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            output.Write(data.AsSpan(offset, Math.Min(16_384, length - offset)));
-        }
-        return new(pages.Count, length);
+        try { cancellationToken.ThrowIfCancellationRequested(); }
+        catch { pdf.Dispose(); throw; }
+        pageCount = pages.Count;
+        return pdf;
     }
 
     // ParamName is always the public "options" parameter; the message names the property.

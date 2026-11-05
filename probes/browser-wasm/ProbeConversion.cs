@@ -59,7 +59,7 @@ internal static class ProbeConversion
             var offset = 0;
             for (var i = 0; i < lengths.Length; i++)
             {
-                chains[roles[i]].Add(PdfFont.LoadTrueType(packed.AsSpan(offset, lengths[i])));
+                chains[roles[i]].Add(PdfFont.FromBytes(packed.AsSpan(offset, lengths[i])));
                 offset += lengths[i];
             }
             options = options with { Fonts = chains[0], BoldFonts = chains[1], ItalicFonts = chains[2], BoldItalicFonts = chains[3] };
@@ -68,7 +68,7 @@ internal static class ProbeConversion
                 var images = new Dictionary<string, PdfImage>(StringComparer.Ordinal); offset = 0;
                 for (var i = 0; i < imageLengths.Length; i++)
                 {
-                    images.Add(imageNames[i], PdfImage.LoadImage(imageBytes.AsSpan(offset, imageLengths[i])));
+                    images.Add(imageNames[i], PdfImage.FromBytes(imageBytes.AsSpan(offset, imageLengths[i])));
                     offset += imageLengths[i];
                 }
                 options = options with { Images = images };
@@ -88,7 +88,7 @@ internal static class ProbeConversion
         {
             var fonts = new List<PdfFont>();
             foreach (var bytes in new[] { latinFont, cjkFont })
-                if (bytes.Length > 0) fonts.Add(PdfFont.LoadTrueType(bytes));
+                if (bytes.Length > 0) fonts.Add(PdfFont.FromBytes(bytes));
             return Convert(html, new PdfOptions { Fonts = fonts, SubsetFonts = subsetFonts }, before);
         }
         catch (FactsPdfException error)

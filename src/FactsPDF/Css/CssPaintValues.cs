@@ -57,15 +57,9 @@ internal static class CssPaintValues
         width = 0;
         if (value is "thin" or "medium" or "thick")
         { width = value == "thin" ? 0.75 : value == "medium" ? 2.25 : 3.75; return true; }
-        try
-        {
-            if (value.EndsWith('%')) return false;
-            var x = CssBoxValues.Length(value, 0);
-            if (x.IsPercent) return false;
-            width = x.Value;
-            return true;
-        }
-        catch (FactsPdfException) { return false; }
+        if (value.EndsWith('%') || !CssBoxValues.TryLength(value, out var x, out _) || x.IsPercent) return false;
+        width = x.Value;
+        return true;
     }
 
     // Outlines use bounded visible widths and do not alter the box model.

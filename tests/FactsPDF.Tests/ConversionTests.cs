@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class ConversionTests
 {
-    private static (PdfConversionResult Result, string Pdf) Render(string html, PdfOptions? options = null)
+    private static (PdfWriteResult Result, string Pdf) Render(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
         var result = PdfConverter.Convert(html, output, options);

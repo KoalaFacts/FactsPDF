@@ -34,9 +34,9 @@ test('bounded LTR soft-wrap justification is discoverable without claiming full 
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
   await expect(details).toContainText('PDF TJ');
-  await expect(details).toContainText('text-align-last:auto');
   await expect(details).toContainText('start/end');
   await expect(details).toContainText('RTL');
+  await expect(details).toContainText('text-align-last:auto');
   await page.keyboard.press('Escape');
   await expect(details).not.toBeVisible();
 });

@@ -11,7 +11,7 @@ public sealed class RelativeFontWeightTests
     {
         var bytes = FontFixture.Create();
         FontFixture.U16(bytes, FontFixture.Table(bytes, "hmtx") + 8, advance);
-        return PdfFont.LoadTrueType(bytes);
+        return PdfFont.FromBytes(bytes);
     }
 
     private static PdfOptions Roles() => new()

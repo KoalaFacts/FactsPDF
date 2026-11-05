@@ -5,7 +5,7 @@ using FactsPDF;
 if (args.Length != 3) return 2;
 using var manifest = JsonDocument.Parse(File.ReadAllText(args[2]));
 var fonts = manifest.RootElement.GetProperty("roles").GetProperty("normal").EnumerateArray()
-    .Select(path => PdfFont.LoadTrueType(File.ReadAllBytes(path.GetString()!))).ToArray();
+    .Select(path => PdfFont.FromBytes(File.ReadAllBytes(path.GetString()!))).ToArray();
 var options = new PdfOptions { Fonts = fonts, SubsetFonts = true };
 var html = File.ReadAllText(args[0]);
 byte[] Convert(string input, PdfOptions settings)

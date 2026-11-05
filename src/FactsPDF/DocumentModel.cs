@@ -104,6 +104,10 @@ internal sealed record BoxStyle(
     CssLength PaddingBottom = default,
     CssLength PaddingLeft = default)
 {
+    // The CSS initial box. Records are immutable, so one shared instance replaces a
+    // fresh allocation for every element and every CSS-wide initial/unset keyword.
+    internal static readonly BoxStyle Initial = new();
+
     // Report panel vertical margins are outside paint and have no general CSS
     // collapsing behaviour. Existing paragraph/heading vertical margins remain
     // in TextStyle, where their historical overlap rules are preserved.

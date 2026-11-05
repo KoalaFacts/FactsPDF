@@ -6,7 +6,7 @@ The 2026-10-14 local investigation successfully published the host with .NET SDK
 
 ## Build and resource contract
 
-`probes/browser-wasm` references the existing core and calls `PdfFont.LoadTrueType` and `PdfConverter.Convert`. `[JSExport]` exposes a test-only method accepting HTML, two ordered font byte arrays, and the existing subset flag. Empty arrays select the existing no-font ASCII/Courier mode. The response contains base64 PDF bytes, page count, or the original `FactsPdfException` code/message. No prior PDF is retained. Source-generated JSON metadata works with trimming.
+`probes/browser-wasm` references the existing core, loads fonts with `PdfFont.FromBytes` and converts in-process. `[JSExport]` exposes a test-only method accepting HTML, two ordered font byte arrays, and the existing subset flag. Empty arrays select the existing no-font ASCII/Courier mode. The response contains base64 PDF bytes, page count, or the original `FactsPdfException` code/message. No prior PDF is retained. Source-generated JSON metadata works with trimming.
 
 The browser host loads explicit HTML/font URLs with HTTP status checks and fatal UTF-8 decoding. Missing or empty selected fonts fail before conversion. The original export retains its two-font limit; the C1 style export permits eight combined entries across four roles. Fonts are never discovered, packaged in the repository, or fetched implicitly. The test server serves an explicit map of static bytes on loopback and rejects non-GET/HEAD requests; it cannot generate a PDF.
 

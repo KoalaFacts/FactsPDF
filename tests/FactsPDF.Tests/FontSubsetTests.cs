@@ -20,7 +20,7 @@ public sealed class FontSubsetTests
         return FontFixture.Table(b, "glyf") + (U16(b, FontFixture.Table(b, "head") + 50) == 1 ? U32(b, loca + id * 4) : U16(b, loca + id * 2) * 2);
     }
     private static FontSubset Subset(byte[] bytes, params int[] scalars)
-        => TrueTypeSubsetter.Create(PdfFont.LoadTrueType(bytes), scalars);
+        => TrueTypeSubsetter.Create(PdfFont.FromBytes(bytes), scalars);
     private static byte[] Composite(params int[] children)
     {
         var data = FontFixture.Create(); var at = GlyphOffset(data, 7);
@@ -32,7 +32,7 @@ public sealed class FontSubsetTests
     private static (string Pdf, byte[] Font) Render(byte[] font, bool subset, string text = "中文𠀀")
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert("<p>" + text + "</p>", output, new PdfOptions { Fonts = [PdfFont.LoadTrueType(font)], SubsetFonts = subset });
+        PdfConverter.Convert("<p>" + text + "</p>", output, new PdfOptions { Fonts = [PdfFont.FromBytes(font)], SubsetFonts = subset });
         var data = output.ToArray(); var pdf = Encoding.Latin1.GetString(data);
         var id = Regex.Match(pdf, @"/FontFile2 (\d+) 0 R").Groups[1].Value;
         var m = Regex.Match(pdf, @"\n" + id + @" 0 obj\n<< /Length (\d+) /Filter /FlateDecode /Length1 (\d+) >>\nstream\n");
@@ -47,7 +47,7 @@ public sealed class FontSubsetTests
     {
         var original = FontFixture.Create(format12); var subset = Subset(original, 65);
         Assert.That(GlyphCount(subset.Bytes), Is.EqualTo(2)); Assert.That(subset.GlyphMap[2], Is.EqualTo(1));
-        var loaded = PdfFont.LoadTrueType(subset.Bytes);
+        var loaded = PdfFont.FromBytes(subset.Bytes);
         Assert.That(loaded.GlyphFor(65), Is.EqualTo(1)); Assert.That(loaded.GlyphFor(0x4e2d), Is.Zero);
         Assert.That(subset.PostScriptName, Does.Match(@"^[A-Z]{6}\+FactsPDFTest$"));
         Assert.That(loaded.PostScriptName, Is.EqualTo(subset.PostScriptName));
@@ -57,7 +57,7 @@ public sealed class FontSubsetTests
     public void PreservesActualAdvancesAndOutlineBytes()
     {
         var original = FontFixture.Create(); var subset = Subset(original, 87);
-        Assert.That(PdfFont.LoadTrueType(subset.Bytes).Width1000(subset.GlyphMap[5]), Is.EqualTo(900));
+        Assert.That(PdfFont.FromBytes(subset.Bytes).Width1000(subset.GlyphMap[5]), Is.EqualTo(900));
         Assert.That(subset.Bytes.AsSpan(GlyphOffset(subset.Bytes, subset.GlyphMap[5]), 34).ToArray(),
             Is.EqualTo(original.AsSpan(GlyphOffset(original, 5), 34).ToArray()));
         Assert.That(GlyphCount(subset.Bytes), Is.EqualTo(2));
@@ -69,7 +69,7 @@ public sealed class FontSubsetTests
     public void EmptySpaceGlyphAndSharedAliasesArePreserved()
     {
         var subset = Subset(FontFixture.Create(), 32, 160, 0x6587, 0x3002, 0x20000);
-        var f = PdfFont.LoadTrueType(subset.Bytes);
+        var f = PdfFont.FromBytes(subset.Bytes);
         Assert.That(GlyphCount(subset.Bytes), Is.EqualTo(4));
         Assert.That(f.GlyphFor(32), Is.EqualTo(f.GlyphFor(160)));
         Assert.That(f.GlyphFor(0x6587), Is.EqualTo(f.GlyphFor(0x3002)));
@@ -109,7 +109,7 @@ public sealed class FontSubsetTests
     }
     [Test]
     public void SubsetRespectsCancellation()
-        => Assert.Throws<OperationCanceledException>(() => TrueTypeSubsetter.Create(PdfFont.LoadTrueType(FontFixture.Create()), [65], new CancellationToken(true)));
+        => Assert.Throws<OperationCanceledException>(() => TrueTypeSubsetter.Create(PdfFont.FromBytes(FontFixture.Create()), [65], new CancellationToken(true)));
     [Test]
     public void MissingRequestedGlyphIsAnError()
         => Assert.That(Assert.Throws<FactsPdfException>(() => Subset(FontFixture.Create(), 90))!.Code, Is.EqualTo("FPDF1504"));
@@ -130,7 +130,7 @@ public sealed class FontSubsetTests
     [Test]
     public void PdfMapsItsCidsToNewGlyphIdsAndRetainsUnicodeAliases()
     {
-        var result = Render(FontFixture.Create(), true, "文。𠀀"); var subset = PdfFont.LoadTrueType(result.Font);
+        var result = Render(FontFixture.Create(), true, "文。𠀀"); var subset = PdfFont.FromBytes(result.Font);
         Assert.That(GlyphCount(result.Font), Is.EqualTo(3));
         Assert.That(result.Pdf, Does.Contain("<0001> <6587>")); Assert.That(result.Pdf, Does.Contain("<0002> <3002>"));
         Assert.That(result.Pdf, Does.Contain("<0003> <D840DC00>"));
@@ -144,7 +144,7 @@ public sealed class FontSubsetTests
     [Test]
     public void SubsetIsDeterministicAndLeavesLoadedFontUntouched()
     {
-        var original = FontFixture.Create(); var f = PdfFont.LoadTrueType(original);
+        var original = FontFixture.Create(); var f = PdfFont.FromBytes(original);
         var a = TrueTypeSubsetter.Create(f, [65, 0x4e2d]); var b = TrueTypeSubsetter.Create(f, [0x4e2d, 65, 65]);
         Assert.That(a.Bytes, Is.EqualTo(b.Bytes)); Assert.That(f.Data.ToArray(), Is.EqualTo(original));
         Assert.That(a.PostScriptName, Is.Not.EqualTo(TrueTypeSubsetter.Create(f, [87]).PostScriptName));

@@ -116,7 +116,7 @@ public sealed class PreformattedReportTests
     [Test]
     public void ExplicitTrueTypeAndManagedCliUseRealPdfPath()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string html = "<pre>AB  WA\n  BA</pre>";
         var bytes = Pdf(html, options);

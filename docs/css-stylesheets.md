@@ -1125,7 +1125,7 @@ No new command-line flag is required to enable stylesheets. With the .NET 10 SDK
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document.html stylesheet.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
 ```
 
-Font paths are examples, not shipped files. The fontless ASCII mode still works. Library callers use the same `PdfConverter.Convert(html, output, options)` entry point.
+Font paths are examples, not shipped files. The fontless ASCII mode still works. Library callers use the same `Pdf.Write()` writer, for example `writer.ToBytes(html)`.
 
 ## Sources and selectors
 
@@ -1158,7 +1158,7 @@ Only actually matching arms of a grouped selector contribute specificity. Repeat
 
 Inherited values are the parent's computed values; the parent's importance and selector specificity do not compete with declarations on a child. `inherit`, `initial` and `unset` are supported for the text properties below. `unset` resolves to inheritance or the initial value, not a lower-priority heading/paragraph default.
 
-Renderer initial values are `PdfOptions.FontSize` (normally 12pt), line-height 1.2, black, left alignment, zero margins and automatic breaks. These are explicitly FactsPDF defaults, not a claim of browser initial font/theme behavior. Heading font-size multipliers and the default 8pt paragraph-after gap remain when no author declaration replaces them.
+Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(…))`, normally 12pt), line-height 1.2, black, left alignment, zero margins and automatic breaks. These are explicitly FactsPDF defaults, not a claim of browser initial font/theme behavior. Heading font-size multipliers and the default 8pt paragraph-after gap remain when no author declaration replaces them.
 
 ## Property scope
 
@@ -1255,7 +1255,7 @@ computed font-size** after stylesheet cascade, even if a later or
 higher-priority font-size declaration wins. `rem` uses the computed
 `html` font-size. On `html` itself, spacing `rem` uses its
 newly computed font-size; a document without `html` uses
-`PdfOptions.FontSize`. Inherited spacing stays fixed in points rather
+the writer's base font size. Inherited spacing stays fixed in points rather
 than recomputing on each child. A child's explicit declaration uses its
 own newly computed font.
 
@@ -1490,7 +1490,7 @@ Controlled reports may now author `font-size:1.2rem` and
 `line-height:1.5rem` on supported text elements, including paragraphs,
 headings and inline spans. The base is the **computed font-size of the
 actual `html` element**, not the enclosing `body` or the immediate parent.
-If `html` is omitted, the base is the configured `PdfOptions.FontSize`
+If `html` is omitted, the base is the writer's configured base font size
 (default 12pt). An `html` element using `font-size:2rem` resolves that
 self-reference against the configured initial size; `line-height:1.5rem`
 on the same root uses its newly computed font size. For example:
@@ -1531,7 +1531,7 @@ commercial rights and human page approval are separate gates.
 Controlled report blocks, paragraphs and headings can now use
 `width:13rem`, `min-width:10rem`, `max-width:14rem`,
 `padding:0.5rem` and corresponding padding longhands. Each length resolves
-to **the computed `html` font size** (or `PdfOptions.FontSize` when
+to **the computed `html` font size** (or the writer's base font size when
 `html` is absent), including a root self-reference resolved from the initial
 font size. It is a fixed point length after cascade, not a percentage of the
 parent, and does not change with the immediate parent's font size.
@@ -1713,7 +1713,7 @@ Controlled report paragraphs and headings (`p`, `h1`–`h6`) outside tables now
 accept `margin:0.25rem 0.5rem`, `margin-top:0.4rem` and one to four
 top/right/bottom/left values, with existing horizontal `auto` and `%`
 rules. Each `rem` is resolved against the actual computed `html` font
-size (or the configured `PdfOptions.FontSize` if `html` is absent).
+size (or the writer's base font size if `html` is absent).
 An `html` root using `font-size:2rem` refers to the configured initial
 font size for that self-reference. The immediate paragraph/heading or body
 font size does not change the margin's root-relative length.
@@ -1887,9 +1887,9 @@ Neither establishes a published version or new installable candidate.
 
 ## Budgets and diagnostics
 
-`PdfOptions` includes per-conversion limits:
+`WithLimits(l => …)` sets per-conversion limits:
 
-| Option | Default |
+| Limit | Default |
 | --- | ---: |
 | MaxCssCharacters | 262144 across embedded and decoded inline CSS, including comments |
 | MaxCssSelectors | 4096 selector arms, including comma groups and empty blocks |

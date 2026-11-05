@@ -19,7 +19,7 @@ The existing converter, CLI, Native AOT and browser WASM adapter share this tabl
 </table>
 ```
 
-This fontless example explicitly resets header weight to normal. A `th` otherwise defaults to **bold** and requires a supplied bold font chain, using `PdfOptions.BoldFonts` or repeated `--font-bold` flags. Cells use the existing explicit normal/bold/italic/bold-italic fallback chains and text restrictions; there is no synthetic font styling or implicit discovery. See [font styles](font-styles.md).
+This fontless example explicitly resets header weight to normal. A `th` otherwise defaults to **bold** and requires a supplied bold font chain, set with `WithFonts(f => f.Bold(…))` or repeated `--font-bold` flags. Cells use the existing explicit normal/bold/italic/bold-italic fallback chains and text restrictions; there is no synthetic font styling or implicit discovery. See [font styles](font-styles.md).
 
 ## Structure and placement
 

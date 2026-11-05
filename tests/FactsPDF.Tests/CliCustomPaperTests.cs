@@ -129,8 +129,8 @@ public sealed class CliCustomPaperTests
             var result = PdfConverter.Convert(html, expected, new PdfOptions
             {
                 PageWidth = 432, PageHeight = 648, Margin = 18, PageNumbers = true,
-                Fonts = [PdfFont.LoadTrueType(fontBytes)],
-                Images = new Dictionary<string, PdfImage> { ["logo"] = PdfImage.LoadImage(pngBytes) }
+                Fonts = [PdfFont.FromBytes(fontBytes)],
+                Images = new Dictionary<string, PdfImage> { ["logo"] = PdfImage.FromBytes(pngBytes) }
             });
             Assert.That(result.PageCount, Is.EqualTo(2));
             Assert.That(actual.Pdf, Is.EqualTo(expected.ToArray()));

@@ -17,17 +17,15 @@ Library example (load trusted font files once, reuse the immutable objects):
 ```csharp
 using FactsPDF;
 
-using var latinFile = File.OpenRead("fonts/Latin.ttf");
-using var chineseFile = File.OpenRead("fonts/Chinese.ttf");
-var latin = PdfFont.LoadTrueType(latinFile);
-var chinese = PdfFont.LoadTrueType(chineseFile);
-var options = new PdfOptions { Fonts = [latin, chinese], SubsetFonts = true };
+var latin = PdfFont.FromFile("fonts/Latin.ttf");
+var chinese = PdfFont.FromFile("fonts/Chinese.ttf");
 
-using var output = File.Create("output.pdf");
-var result = PdfConverter.Convert("<p>Hello，中文。</p>", output, options);
+var result = Pdf.Write()
+    .WithFonts(f => f.Regular(latin, chinese).Subset())
+    .ToFile("<p>Hello，中文。</p>", "output.pdf");
 ```
 
-This illustrates the current .NET binding, not a language-specific product identity. Other bindings still need implementation. `File.Create` in this library example overwrites an existing file immediately; use the CLI or your own temporary-file policy when existing destinations must be protected. `LoadTrueType` also accepts a `ReadOnlySpan<byte>`. The byte overload snapshots its input. The stream overload reads from the current position, supports non-seekable short reads and leaves the caller's stream open. Do not mutate a font-list collection concurrently with conversion; font objects themselves can be reused concurrently.
+This illustrates the current .NET binding, not a language-specific product identity. Other bindings still need implementation. `ToFile` replaces an existing file only after the PDF is complete, so a failed conversion leaves it untouched. `PdfFont.FromBytes` snapshots its `ReadOnlySpan<byte>` input. `FromStream` reads from the current position, supports non-seekable short reads and leaves the caller's stream open. `WithFonts` copies each chain, so later changes to your own arrays have no effect; font objects and writers can be reused concurrently.
 
 ## Implemented subset
 

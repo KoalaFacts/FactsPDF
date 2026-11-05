@@ -110,7 +110,7 @@ public sealed class RootRelativeTypographyTests
         {
             Options,
             new PdfOptions { PageWidth = 300, PageHeight = 230, Margin = 20,
-                Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] }
+                Fonts = [PdfFont.FromBytes(FontFixture.Create())] }
         })
         {
             var actual = Pdf(relative + body + "</body></html>", options);

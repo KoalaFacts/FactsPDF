@@ -89,7 +89,7 @@ public sealed class TextTransformTests
     [Test]
     public void CjkCaselessCharactersStayIntactWhileLatinGlyphsChangeInTrueType()
     {
-        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         const string transformed = "<p style='text-transform:uppercase'>中文ab</p>";
         const string projected = "<p>中文AB</p>";
         Assert.That(Pdf(transformed, options), Is.EqualTo(Pdf(projected, options)));
@@ -101,7 +101,7 @@ public sealed class TextTransformTests
     [TestCase("\u24d0")]
     public void OtherUnicodeCasedSymbolsWithRealSuppliedGlyphsRejectExplicitly(string input)
     {
-        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create(unicodeCaseSymbols: true))] };
+        var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create(unicodeCaseSymbols: true))] };
         Assert.That(Pdf("<p>" + input + "</p>", options), Is.Not.Empty,
             "The synthetic supplied font genuinely contains the untransformed scalar.");
         Reject("<p style='text-transform:uppercase'>" + input + "</p>", "FPDF1305", options);
@@ -110,7 +110,7 @@ public sealed class TextTransformTests
     [Test]
     public void CaseChangeSelectsActualGlyphInsteadOfCheckingOnlyTheInputCodepoint()
     {
-        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         // The fixture contains capital A but deliberately lacks lowercase a.
         Reject("<p style='text-transform:lowercase'>A</p>", "FPDF1504", options);
     }
@@ -142,7 +142,7 @@ public sealed class TextTransformTests
     [Test]
     public void CapitalizePrecedesTrueTypeGlyphResolutionAndRejectsUnicodeCasing()
     {
-        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         // The synthetic font contains A and lowercase i, but no a or capital I.
         Assert.That(Pdf("<p style='text-transform:capitalize'>a</p>", options),
             Is.EqualTo(Pdf("<p>A</p>", options)));

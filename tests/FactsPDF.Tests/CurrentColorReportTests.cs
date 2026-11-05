@@ -121,7 +121,7 @@ public sealed class CurrentColorReportTests
     [Test]
     public void ExplicitSuppliedFontAndManagedCliRenderSameActualInk()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font], BoldFonts = [font] };
         const string actual = "<div style='color:#315f82;background:currentColor;padding:4pt'>" +
             "<p style='font-size:12pt;text-decoration:underline dotted currentColor'>AB</p></div>";

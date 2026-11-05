@@ -10,7 +10,7 @@ Directory.CreateDirectory(directory);
 using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(fixtures, "table-row-fragments.json")));
 var images = new Dictionary<string, PdfImage>(StringComparer.Ordinal)
 {
-    ["sample"] = PdfImage.LoadImage(File.ReadAllBytes(Path.Combine(fixtures, "sample.png")))
+    ["sample"] = PdfImage.FromBytes(File.ReadAllBytes(Path.Combine(fixtures, "sample.png")))
 };
 PdfOptions Options(JsonElement item)
 {

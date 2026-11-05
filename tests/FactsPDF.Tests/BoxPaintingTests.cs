@@ -13,7 +13,7 @@ public sealed class BoxPaintingTests
     private static readonly PdfOptions Options = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
     private static BlockNode Block(string html, PdfOptions? options = null)
         => (BlockNode)HtmlDocumentReader.ReadTree(html, options ?? Options, default).Children.Single();
-    private static (PdfConversionResult Result, string Pdf) Render(string html, PdfOptions? options = null)
+    private static (PdfWriteResult Result, string Pdf) Render(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
         var result = PdfConverter.Convert(html, stream, options ?? Options);
@@ -209,7 +209,7 @@ public sealed class BoxPaintingTests
     public void EmbeddedUnicodeFontUsesTheSamePaintCommandsAsAscii()
     {
         var fonts = new PdfOptions { PageWidth = 300, PageHeight = 500, Margin = 20,
-            Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+            Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         using var output = new MemoryStream();
         PdfConverter.Convert("<div style='background-color:#cee8fb;" +
             "border:2pt solid red;padding:10pt'><p>A中文B</p></div>", output, fonts);

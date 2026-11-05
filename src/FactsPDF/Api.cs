@@ -1,10 +1,7 @@
 namespace FactsPDF;
 
-/// <summary>Page geometry, explicit fonts and images, page furniture and resource limits for one conversion.</summary>
-/// <remarks>Lengths are PDF points (1/72 inch). Invalid geometry or a non-positive limit makes
-/// <see cref="PdfConverter.Convert"/> throw <see cref="ArgumentOutOfRangeException"/>; input that exceeds a
-/// limit throws <see cref="FactsPdfException"/>.</remarks>
-public sealed record PdfOptions
+// Engine options. Internal: the public API is the immutable Pdf.Write() builder, which produces these.
+internal sealed record PdfOptions
 {
     /// <summary>Page width in points, from 72 to 14,400. The default is A4 width (595.28pt).</summary>
     public double PageWidth { get; init; } = 595.28;
@@ -74,10 +71,10 @@ public sealed record PdfOptions
     public int MaxDisplayCommands { get; init; } = 200_000;
 }
 
-/// <summary>Outcome of a successful <see cref="PdfConverter.Convert"/> call.</summary>
+/// <summary>Outcome of a successful <see cref="PdfWriter"/> write.</summary>
 /// <param name="PageCount">Number of pages in the generated PDF.</param>
-/// <param name="BytesWritten">Number of bytes written to the output stream.</param>
-public sealed record PdfConversionResult(int PageCount, long BytesWritten);
+/// <param name="BytesWritten">Number of bytes written to the output.</param>
+public sealed record PdfWriteResult(int PageCount, long BytesWritten);
 
 /// <summary>Input that FactsPDF cannot render exactly, or that exceeds a resource limit.</summary>
 /// <remarks>Nothing is written to the output stream when this is thrown. Branch on <see cref="Code"/>,

@@ -9,7 +9,7 @@ using var manifest = JsonDocument.Parse(File.ReadAllText(args[2]));
 var roles = manifest.RootElement.GetProperty("roles");
 PdfFont[] Load(string role) => args.ElementAtOrDefault(4) == "courier" && role != "italic" ? []
     : roles.GetProperty(role).EnumerateArray().Take(args.ElementAtOrDefault(4) == "latin-only" ? 1 : 8)
-        .Select(path => PdfFont.LoadTrueType(File.ReadAllBytes(path.GetString()!))).ToArray();
+        .Select(path => PdfFont.FromBytes(File.ReadAllBytes(path.GetString()!))).ToArray();
 var options = new PdfOptions { Fonts = Load("normal"), BoldFonts = Load("bold"),
     ItalicFonts = Load("italic"), BoldItalicFonts = Load("boldItalic"), SubsetFonts = args[3] == "subset" };
 using var output = new MemoryStream();

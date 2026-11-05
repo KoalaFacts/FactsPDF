@@ -23,7 +23,7 @@ internal static class HtmlDocumentReader
         var sheets = CssStylesheets.Collect(html, options, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
-        var stack = new List<Frame> { new("#root", root, new BoxStyle(), null) };
+        var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
         var result = new DocumentRoot();
         Paragraph? current = null;
@@ -214,7 +214,7 @@ internal static class HtmlDocumentReader
 
             var parent = stack[^1].Style;
             var parentBox = stack[^1].BoxStyle;
-            var boxStyle = new BoxStyle();
+            var boxStyle = BoxStyle.Initial;
             var style = parent with { MarginBefore = 0, MarginAfter = ParagraphTag(name) ? 8 : 0,
                 BreakBefore = false, BreakAfter = false, KeepWithNext = false };
             if (name is "b" or "strong" or "th") style = style with { Bold = true };

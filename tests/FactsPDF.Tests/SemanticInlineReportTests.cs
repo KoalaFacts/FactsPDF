@@ -79,7 +79,7 @@ public sealed class SemanticInlineReportTests
     [Test]
     public void SuppliedTrueTypeUsesExistingFontAndInkPaths()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string source = "<p style='font-size:12pt'>AB <small>AB</small> <del>AB</del> <ins>AB</ins></p>";
         const string oracle = "<p style='font-size:12pt'>AB <span style='font-size:10pt'>AB</span> " +

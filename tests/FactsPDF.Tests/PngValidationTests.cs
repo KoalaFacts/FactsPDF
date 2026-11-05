@@ -60,27 +60,27 @@ public sealed class PngValidationTests
     }
     [TestCaseSource(nameof(Malformed))]
     public void MalformedDataHasStableDiagnostic(byte[] bytes)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes))!.Code, Is.EqualTo("FPDF1601"));
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(bytes))!.Code, Is.EqualTo("FPDF1601"));
 
     [TestCase("acTL")][TestCase("fcTL")][TestCase("fdAT")][TestCase("iCCP")]
     [TestCase("cICP")][TestCase("mDCV")][TestCase("cLLI")][TestCase("ABCD")]
     public void UnsupportedAnimationColorTransformsAndCriticalChunksAreExplicit(string type)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(File(("IHDR", H()), (type, []), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1602"));
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(File(("IHDR", H()), (type, []), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1602"));
     [TestCase(16, 6, 0)][TestCase(8, 6, 1)]
     public void UnsupportedDepthAndAdam7AreExplicit(byte depth, byte type, byte interlace)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(File(("IHDR", PngFixture.Header(1, 1, depth, type, interlace)), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1602"));
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(File(("IHDR", PngFixture.Header(1, 1, depth, type, interlace)), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1602"));
     [Test]
     public void EveryTruncatedZlibPrefixIsRejectedEvenWithFreshValidChunkCrc()
     {
         var compressed = Z();
         for (var end = 0; end < compressed.Length; end++)
-            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(File(("IHDR", H()), ("IDAT", compressed[..end]), ("IEND", []))))!.Code,
+            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(File(("IHDR", H()), ("IDAT", compressed[..end]), ("IEND", []))))!.Code,
                 Is.EqualTo("FPDF1601"), $"Zlib prefix {end}");
     }
     [Test]
     public void UnusedTailAfterZlibEndIsPermittedByPng()
     {
-        var image = PdfImage.LoadImage(File(("IHDR", H()), ("IDAT", [.. Z(), 1, 2, 3, 4, 5]), ("IEND", [])));
+        var image = PdfImage.FromBytes(File(("IHDR", H()), ("IDAT", [.. Z(), 1, 2, 3, 4, 5]), ("IEND", [])));
         Assert.That(PngFixture.ImageObjects(PngFixture.Pdf(image))[0].Pixels, Is.EqualTo(new byte[] { 10, 20, 30 }));
     }
     [Test]
@@ -88,26 +88,26 @@ public sealed class PngValidationTests
     {
         // RFC1950 header + final stored block (five bytes) + independently summed Adler32.
         byte[] zlib = [0x78, 0x01, 0x01, 0x05, 0x00, 0xfa, 0xff, 0, 10, 20, 30, 128, 0x01, 0x25, 0x00, 0xbd];
-        var image = PdfImage.LoadImage(File(("IHDR", H()), ("IDAT", zlib), ("IEND", [])));
+        var image = PdfImage.FromBytes(File(("IHDR", H()), ("IDAT", zlib), ("IEND", [])));
         Assert.That(PngFixture.ImageObjects(PngFixture.Pdf(image))[0].Pixels, Is.EqualTo(new byte[] { 10, 20, 30 }));
     }
     [Test]
     public void SecondZlibStreamIsUnusedTailAndDoesNotAddPixels()
     {
-        var image = PdfImage.LoadImage(File(("IHDR", H()), ("IDAT", [.. Z(), .. PngFixture.Zlib([0, 1, 2, 3, 255])]), ("IEND", [])));
+        var image = PdfImage.FromBytes(File(("IHDR", H()), ("IDAT", [.. Z(), .. PngFixture.Zlib([0, 1, 2, 3, 255])]), ("IEND", [])));
         Assert.That(PngFixture.ImageObjects(PngFixture.Pdf(image))[0].Pixels, Is.EqualTo(new byte[] { 10, 20, 30 }));
     }
     [TestCase(0, 0)][TestCase(-1, 1)][TestCase(1, -1)]
     public void InvalidDimensionsAreMalformed(int width, int height)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(File(("IHDR", PngFixture.Header(width, height)), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1601"));
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(File(("IHDR", PngFixture.Header(width, height)), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1601"));
     [TestCase(1, 2)][TestCase(2, 4)][TestCase(16, 3)][TestCase(8, 1)]
     public void InvalidColorAndDepthCombinationsAreMalformed(byte depth, byte type)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(File(("IHDR", H(depth, type)), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1601"));
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(File(("IHDR", H(depth, type)), ("IDAT", Z()), ("IEND", []))))!.Code, Is.EqualTo("FPDF1601"));
     [Test]
     public void EveryPngChunkTruncationAfterSignatureFailsAsMalformed()
     {
         var bytes = PngFixture.Image([0, 10, 20, 30, 128], 1);
         for (var end = 8; end < bytes.Length; end++)
-            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes.AsSpan(..end)))!.Code, Is.EqualTo("FPDF1601"), $"PNG prefix {end}");
+            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(bytes.AsSpan(..end)))!.Code, Is.EqualTo("FPDF1601"), $"PNG prefix {end}");
     }
 }

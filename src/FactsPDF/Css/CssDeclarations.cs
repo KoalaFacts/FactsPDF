@@ -168,7 +168,7 @@ internal static class CssDeclarations
         CssDeclaration declaration, double rootFontSize, double elementFontSize)
     {
         var wide = declaration.Value is "inherit" or "initial" or "unset";
-        var inherited = declaration.Value == "inherit" ? parent : new BoxStyle();
+        var inherited = declaration.Value == "inherit" ? parent : BoxStyle.Initial;
         var length = wide ? default : CssBoxValues.Length(declaration.Value, declaration.Offset,
             rootFontSize, allowRem: true, elementFontSize: elementFontSize, allowEm: true);
         // Preserve percentage units until the box layout knows the actual
@@ -188,7 +188,7 @@ internal static class CssDeclarations
         if (!IsBoxProperty(property)) throw new InvalidOperationException("Expected a box property.");
         var value = declaration.Value;
         var wide = value is "inherit" or "initial" or "unset";
-        var from = value == "inherit" ? parent : new BoxStyle();
+        var from = value == "inherit" ? parent : BoxStyle.Initial;
 
         if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
             or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius)

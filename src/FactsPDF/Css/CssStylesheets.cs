@@ -389,20 +389,19 @@ internal sealed class CssStylesheets
                 MarginLeft = new CssLength(24),
                 MarginRight = new CssLength(24)
             },
-            _ => new BoxStyle()
+            _ => BoxStyle.Initial
         };
         // UA list defaults are decimal for ol and disc for ul. Other elements
         // propagate the inherited marker type, including li and nested panels.
-        box = box with
+        // Copy the box only when a marker setting actually differs.
+        var markerKind = element.Name switch
         {
-            MarkerKind = element.Name switch
-            {
-                "ol" => ListMarkerKind.Decimal,
-                "ul" => ListMarkerKind.Disc,
-                _ => parentBox.MarkerKind
-            },
-            MarkerInside = parentBox.MarkerInside
+            "ol" => ListMarkerKind.Decimal,
+            "ul" => ListMarkerKind.Disc,
+            _ => parentBox.MarkerKind
         };
+        if (box.MarkerKind != markerKind || box.MarkerInside != parentBox.MarkerInside)
+            box = box with { MarkerKind = markerKind, MarkerInside = parentBox.MarkerInside };
         foreach (var winner in winners)
         {
             if (!winner.HasValue) continue;

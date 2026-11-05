@@ -91,15 +91,15 @@ public sealed class PageNumberTests
 
     [Test]
     public void SuppliedNormalFontMissingDigitsDoesNotUseCourier()
-        => Fails("<p>A</p>",Numbered(Page with { Fonts=[PdfFont.LoadTrueType(FontFixture.Create())] }),"FPDF1504");
+        => Fails("<p>A</p>",Numbered(Page with { Fonts=[PdfFont.FromBytes(FontFixture.Create())] }),"FPDF1504");
 
     [Test]
     public void BodyDisplayLimitPrecedesMissingNumberGlyph()
-        => Fails("<p>A</p>",Numbered(Page with { Fonts=[PdfFont.LoadTrueType(FontFixture.Create())],MaxDisplayCommands=1 }),"FPDF1401");
+        => Fails("<p>A</p>",Numbered(Page with { Fonts=[PdfFont.FromBytes(FontFixture.Create())],MaxDisplayCommands=1 }),"FPDF1401");
 
     [Test]
     public void NumberGlyphErrorPrecedesSerializedOutputLimit()
-        => Fails("<p>A</p>",Numbered(Page with { Fonts=[PdfFont.LoadTrueType(FontFixture.Create())],MaxOutputBytes=1 }),"FPDF1504");
+        => Fails("<p>A</p>",Numbered(Page with { Fonts=[PdfFont.FromBytes(FontFixture.Create())],MaxOutputBytes=1 }),"FPDF1504");
 
     [Test]
     public void BodyFailureStillPrecedesFooterFailure()
@@ -151,7 +151,7 @@ public sealed class PageNumberTests
                 if(System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(at))=='0') FontFixture.U32(bytes,at+8,0);
             }
         }
-        return PdfFont.LoadTrueType(bytes);
+        return PdfFont.FromBytes(bytes);
     }
 
     [Test]

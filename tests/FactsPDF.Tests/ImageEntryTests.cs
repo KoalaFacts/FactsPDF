@@ -32,7 +32,7 @@ public sealed class ImageEntryTests
         var result = Cli(["-", "-", "--image", "chart=" + path]);
         Assert.That(result.Exit, Is.Zero, result.Error);
         using var expected = new MemoryStream(); PdfConverter.Convert("<img src='chart'>", expected,
-            new() { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.LoadImage(bytes) } });
+            new() { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(bytes) } });
         Assert.That(result.Bytes, Is.EqualTo(expected.ToArray()));
         var output = FilePath("output.pdf"); Assert.That(Cli(["-", output, "--image", "chart=" + path]).Exit, Is.Zero);
         Assert.That(File.ReadAllBytes(output), Is.EqualTo(result.Bytes));
@@ -90,7 +90,7 @@ public sealed class ImageEntryTests
         var bytes = JpegResourceTests.Bytes("rgb-420"); var good = Wasm(bytes, [bytes.Length], ["chart"]);
         Assert.That(good.ErrorCode, Is.Null);
         using var expected = new MemoryStream(); PdfConverter.Convert("<img src='chart'>", expected,
-            new() { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.LoadImage(bytes) }, SubsetFonts = true });
+            new() { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(bytes) }, SubsetFonts = true });
         Assert.That(Convert.FromBase64String(good.PdfBase64!), Is.EqualTo(expected.ToArray()));
         var bad = Wasm([1, 2, 3], [3], ["chart"]);
         Assert.That(bad.ErrorCode, Is.EqualTo("FPDF1602")); Assert.That(bad.PdfBase64, Is.Null);

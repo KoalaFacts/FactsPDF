@@ -94,7 +94,7 @@ public sealed class LetterSpacingTests
     [Test]
     public void TrueTypeTrackedSpanAlsoResetsTcBeforeUntrackedGlyphs()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         var html = "<p><span style='letter-spacing:2pt'>中文</span>中文</p>";
         var runs = Layout(html, options).Single().Runs;
@@ -138,7 +138,7 @@ public sealed class LetterSpacingTests
     [Test]
     public void RealChineseTrueTypeUsesTheSameMeasuredAdvanceAndCidPdfCommand()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string content = "中文中文";
         var normal = Layout("<p>" + content + "</p>", options).Single().Runs.Single();

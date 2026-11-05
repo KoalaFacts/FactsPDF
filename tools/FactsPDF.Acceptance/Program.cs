@@ -118,7 +118,7 @@ internal sealed class Settings
             using var file = File.OpenRead(path);
             var remaining = Options.MaxTotalFontBytes - total;
             if (remaining <= 0) throw new FactsPdfException("FPDF1503", "Font quota exhausted");
-            var font = PdfFont.LoadTrueType(file, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), token);
+            var font = PdfFont.FromStream(file, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), token);
             fonts.Add(font); total += font.ByteLength;
         }
         return Options with { Fonts = fonts.ToArray() };
