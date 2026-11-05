@@ -668,6 +668,7 @@ internal static class CssSyntaxAdapter
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
+        "text-align-last" => CssProperty.TextAlignLast,
         "vertical-align" => CssProperty.VerticalAlign,
         "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap,
         "word-break" => CssProperty.WordBreak, "text-indent" => CssProperty.TextIndent,

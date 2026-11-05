@@ -199,7 +199,7 @@ internal static class TableLayout
                         {
                             cancellation.ThrowIfCancellationRequested();
                             CheckHeight(height + line.Height + cellEdges.Bottom, offset);
-                            var alignedX = x + cellEdges.Left + (paragraph.Style.Alignment switch
+                            var alignedX = x + cellEdges.Left + ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
                             {
                                 TextAlignment.Center => (contentWidth - line.Width) / 2,
                                 TextAlignment.Right => contentWidth - line.Width,

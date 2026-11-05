@@ -159,6 +159,17 @@ internal static class InlineCss
                     // content width at layout time, after margins/padding.
                     style = style with { FirstLineIndent = CssBoxValues.Length(value, offset) };
                     break;
+                case "text-align-last" when !inline:
+                    style = style with { LastLineAlignment = value switch
+                    {
+                        "auto" => null,
+                        "left" or "start" => TextAlignment.Left,
+                        "center" => TextAlignment.Center,
+                        "right" or "end" => TextAlignment.Right,
+                        "justify" => TextAlignment.Justify,
+                        _ => throw Invalid("text-align-last supports auto, left, center, right, LTR start/end and justify.", offset)
+                    } };
+                    break;
                 case "text-align" when !inline:
                     style = style with { Alignment = value switch
                     {
