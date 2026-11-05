@@ -47,7 +47,8 @@ def stage_executable(source, directory):
 
 
 def validate_diagnostic(result):
-    expected = "FPDF1102: Element 'script' is not supported in this development slice.\n"
+    expected = ("FPDF1102: Element 'script' is not supported in this development slice.\n"
+                "Location: line 1, column 1.\n")
     assert result.returncode == 3 and not result.stdout, 'Unsupported input exit/stdout'
     assert result.stderr.decode('utf-8').replace('\r\n', '\n') == expected, 'Exact unsupported input diagnostic'
 
