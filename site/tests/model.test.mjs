@@ -54,7 +54,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.equal(dataset.commit, 'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.match(dataset.commit_url, /488691c604e43c5bd1cf8c2b444e0d7cfb388699/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
@@ -125,13 +125,14 @@ test('standalone horizontal rules are real scoped PDF separators, not full HTML/
 test('bounded report overflow-wrap audit has real scope and exact source evidence', () => {
   const f=dataset.features.find(x=>x.id==='css.overflow-wrap');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'052f7a8d3da5f87d9dfb6c7b687dd35b1eb97097');
+  assert.equal(f.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/break-word/);
   assert.match(f.scope,/PDF/);
   assert.match(f.limitations,/nowrap/);
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/anywhere/);
+  assert.match(f.scope,/html\/body.*div\/section\/article\/blockquote/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.overflow-wrap']);
   assert.equal(dataset.accepted_css_property_count,116);
 });
@@ -312,7 +313,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-white-space');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-report-text-flow');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -342,12 +343,13 @@ test('bounded LTR alignment provenance and historical justification remain preci
 test('text-indent remains a limited renderable CSS feature after relative audit', () => {
   const f=dataset.features.find(f=>f.id==='css.text-indent');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
+  assert.equal(f.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/实际内容宽度/);
   assert.match(f.scope,/PDF/);
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/表格单元格/);
+  assert.match(f.scope,/html\/body.*div\/section\/article\/blockquote/);
   assert.equal(f.example,'text-indent:0.25in');
   assert.deepEqual(filterFeatures(dataset.features,{q:'text-indent',status:'partial'})
     .map(f=>f.id).sort(), ['css.text-indent','value.length.relative']);
@@ -388,12 +390,13 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   for(const id of ['css.text-indent','css.letter-spacing','css.word-spacing','value.length.relative']){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
+    assert.equal(feature.last_audited_commit,id==='css.text-indent' ? 'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba' : '92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
     assert.match(feature.scope,/em/,id);
     assert.match(feature.scope,/rem/,id);
     assert.equal(feature.introduced_release,null,id);
-    assert.equal(feature.test_reference,
-      'https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs');
+    assert.equal(feature.test_reference,id==='css.text-indent'
+      ? 'https://github.com/KoalaFacts/FactsPDF/blob/c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba/tests/FactsPDF.Tests/InheritedReportTextFlowTests.cs'
+      : 'https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs');
   }
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
@@ -745,12 +748,13 @@ test('bounded report height is a real PDF layout feature with a precise source i
 test('scoped word-break actually places glyphs and preserves all 418 feature identities', () => {
   const row=dataset.features.find(item=>item.id==='css.word-break');
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'ac6cec7000b308b403dd95abcd14441240b1f791');
+  assert.equal(row.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/word-break:normal\/break-all/);
   assert.match(row.scope,/PDF/);
   assert.match(row.limitations,/FPDF1301\/1302/);
-  assert.match(row.test_reference,/WordBreakTests.cs/);
+  assert.match(row.scope,/html\/body.*div\/section\/article\/blockquote/);
+  assert.match(row.test_reference,/InheritedReportTextFlowTests.cs/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
 });
@@ -776,8 +780,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-white-space');
-  assert.equal(dataset.commit, '488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-report-text-flow');
+  assert.equal(dataset.commit, 'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -848,7 +852,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-white-space');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.inherited-report-text-flow');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
