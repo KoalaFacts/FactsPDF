@@ -16,7 +16,7 @@ internal static class CssSyntaxTokenizer
         limits.Cancellation.ThrowIfCancellationRequested();
         var text = source.Normalized;
         // One reusable token list per thread (tokenizing never re-enters itself); the result is a
-        // right-sized copy. A list grown by a very large stylesheet is not kept.
+        // right-sized copy. A list grown past MaxPooledTokens is not kept.
         var result = pooledTokens ?? [];
         pooledTokens = null;
         List<CssSyntaxDiagnostic>? diagnostics = null;
@@ -168,7 +168,8 @@ internal static class CssSyntaxTokenizer
         return new CssSyntaxTokenizationResult(tokens, diagnostics?.ToArray() ?? []);
     }
 
-    private const int MaxPooledTokens = 4096;
+    // Keeps the pooled array under the large-object threshold (about 48 bytes per token).
+    private const int MaxPooledTokens = 1024;
     [ThreadStatic] private static List<CssSyntaxToken>? pooledTokens;
     // Shared one-character strings for the ASCII punctuation, whitespace and digits that make up
     // most short tokens.

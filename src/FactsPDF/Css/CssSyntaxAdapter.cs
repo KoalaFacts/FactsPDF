@@ -946,6 +946,8 @@ internal static class CssSyntaxAdapter
         return tokens;
     }
 
+    private static bool NoEscapes(CssSyntaxToken token) => !token.Raw.Contains('\\');
+
     private static List<string> Terms(CssDeclarationNode node)
     {
         var terms = new List<string>();
@@ -962,10 +964,9 @@ internal static class CssSyntaxAdapter
             {
                 CssSyntaxTokenKind.Ident or CssSyntaxTokenKind.Number => token.Value,
                 // Without escapes the source text is exactly the joined value, so reuse it.
-                CssSyntaxTokenKind.Dimension => token.Raw.Length == token.Value.Length + token.Unit!.Length
-                    ? token.Raw : token.Value + token.Unit,
-                CssSyntaxTokenKind.Percentage => token.Raw.Length == token.Value.Length + 1 ? token.Raw : token.Value + "%",
-                CssSyntaxTokenKind.Hash => token.Raw.Length == token.Value.Length + 1 ? token.Raw : "#" + token.Value,
+                CssSyntaxTokenKind.Dimension => NoEscapes(token) ? token.Raw : token.Value + token.Unit,
+                CssSyntaxTokenKind.Percentage => NoEscapes(token) ? token.Raw : token.Value + "%",
+                CssSyntaxTokenKind.Hash => NoEscapes(token) ? token.Raw : "#" + token.Value,
                 _ => throw new FactsPdfException("FPDF1202", "Unsupported CSS value token.", token.Span.Start)
             };
             terms.Add(value.ToLowerInvariant());

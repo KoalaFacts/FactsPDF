@@ -48,4 +48,15 @@ public sealed class CssDeclarationTermReuseTests
         Assert.That(result.Declarations.Select(d => d.Name), Is.EqualTo(new[] { "color" }));
         Assert.That(result.Diagnostics.Count(d => d.Message.StartsWith("A CSS brace block", StringComparison.Ordinal)), Is.EqualTo(1));
     }
+
+    [TestCase("width:10px\\")]
+    [TestCase("padding-top:3pt\\")]
+    [TestCase("color:#abc\\")]
+    public void ATermEndingInABackslashIsStillRejected(string css)
+    {
+        // A final backslash decodes to U+FFFD without shortening the text, so the raw text must
+        // not stand in for the decoded term.
+        var error = Assert.Throws<FactsPdfException>(() => Compile(css));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
+    }
 }
