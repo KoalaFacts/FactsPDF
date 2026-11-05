@@ -58,7 +58,9 @@ audited blob `105cb01058cac00da7af67c8165f16652704b301`.
    Approve the configured `production` environment when requested.
 
 The current source declares **FactsPDF / 0.1.0-preview.1 / net10.0**, with SDK
-**10.0.402** and strict consumer runtime **10.0.13**. A different input cannot
+**10.0.403** and strict consumer runtime **10.0.14** (pinned in
+`eng/delivery-candidate.json`; the repository `global.json` accepts any .NET 10
+SDK for development). A different input cannot
 relabel the current build. Changing the source version/toolchain requires the
 existing candidate-contract updates and reviews; this workflow is not a stable
 release or arbitrary-version publisher.

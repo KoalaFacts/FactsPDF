@@ -359,5 +359,30 @@ class PrivateBuildContractTests(unittest.TestCase):
         self.assertIn(f'SDK {sdk} and runtime {runtime}', examples)
         self.assertEqual(examples.count(f'-p:RuntimeFrameworkVersion={runtime}'), 2)
 
+class SdkConfigAdmitsTests(unittest.TestCase):
+    def test_development_range_admits_candidate_within_major_minor(self):
+        from stage_delivery_candidate import sdk_config_admits as admits
+        ok = {'version': '10.0.100', 'rollForward': 'latestFeature', 'allowPrerelease': False}
+        self.assertTrue(admits({'sdk': ok}, '10.0.403'))
+        self.assertTrue(admits({'sdk': {'version': '10.0.403', 'rollForward': 'disable',
+                                        'allowPrerelease': False}}, '10.0.403'))
+        self.assertTrue(admits({'sdk': {'version': '10.0.400', 'rollForward': 'latestPatch',
+                                        'allowPrerelease': False}}, '10.0.403'))
+
+    def test_rejects_other_versions_majors_policies_and_previews(self):
+        from stage_delivery_candidate import sdk_config_admits as admits
+        base = {'version': '10.0.100', 'rollForward': 'latestFeature', 'allowPrerelease': False}
+        for change in ({'rollForward': 'latestMajor'}, {'rollForward': 'latestMinor'},
+                       {'allowPrerelease': True}, {'version': '10.0.500'}, {'version': '11.0.100'},
+                       {'version': '10.0.403-rc.1'}):
+            self.assertFalse(admits({'sdk': {**base, **change}}, '10.0.403'), change)
+        self.assertFalse(admits({'sdk': {'version': '10.0.402', 'rollForward': 'disable',
+                                         'allowPrerelease': False}}, '10.0.403'))
+        self.assertFalse(admits({'sdk': {'version': '10.0.300', 'rollForward': 'latestPatch',
+                                         'allowPrerelease': False}}, '10.0.403'))
+        self.assertFalse(admits({'sdk': {**base, 'extra': 1}}, '10.0.403'))
+        self.assertFalse(admits({}, '10.0.403'))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -34,7 +34,7 @@ limitations and the tests that prove it. Check it before you write a template.
 
 ## Quick start
 
-You need Git and a **.NET 10 SDK** matching [global.json](global.json).
+You need Git and any **.NET 10 SDK** (10.0.100 or later).
 
 ```sh
 git clone https://github.com/KoalaFacts/FactsPDF.git

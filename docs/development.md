@@ -6,7 +6,10 @@ The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](
 
 ## Run from source
 
-Use the .NET 10 SDK selected by `global.json`, from the repository root:
+Any .NET 10 SDK (10.0.100 or later) works for development; `global.json` accepts
+the whole .NET 10 range. Release and delivery-candidate builds are stricter: they
+require the exact SDK and runtime in `eng/delivery-candidate.json` (currently
+10.0.403 / 10.0.14) and verify the SDK actually used. From the repository root:
 
 ```sh
 dotnet test FactsPDF.slnx -c Release
@@ -173,7 +176,7 @@ toolchain and local dev package**, after the clean pack/publish recipe above:
 python3 scripts/verify_release_candidate.py \
   --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
   --dotnet "$(command -v dotnet)" --output artifacts/exact-toolchain \
-  --expected-sdk 10.0.402 --expected-runtime 10.0.13
+  --expected-sdk 10.0.403 --expected-runtime 10.0.14
 ```
 
 For an actual release candidate, obtain the expected versions from the confirmed
@@ -232,7 +235,7 @@ and the already packed dev artifact; it is not a .NET 11 RC result:
 python3 scripts/verify_first_use.py \
   --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll \
   --dotnet "$(command -v dotnet)" --output artifacts/exact-probe \
-  --consumer-tfm net10.0 --probe-sdk 10.0.402 --probe-runtime 10.0.13
+  --consumer-tfm net10.0 --probe-sdk 10.0.403 --probe-runtime 10.0.14
 ```
 
 This records `toolchainConstraint.mode=exact-probe`, both generated configuration

@@ -37,15 +37,51 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _sdk_version(text: object) -> tuple[int, int, int]:
+    match = re.fullmatch(r'(\d+)\.(\d+)\.(\d+)', text) if isinstance(text, str) else None
+    if match is None:
+        raise ValueError('SDK version must be a stable major.minor.patch')
+    return tuple(int(part) for part in match.groups())
+
+
+def sdk_config_admits(config: object, sdk: str) -> bool:
+    """Whether a global.json lets `sdk` be selected without leaving its .NET version.
+
+    The development pin may accept a range, but only within the candidate's major
+    and minor version; release builds still verify the observed SDK exactly.
+    """
+    section = config.get('sdk') if isinstance(config, dict) else None
+    if not isinstance(section, dict) or set(section) - {'version', 'rollForward', 'allowPrerelease'}:
+        return False
+    if section.get('allowPrerelease') is not False:
+        return False
+    try:
+        floor = _sdk_version(section.get('version'))
+    except ValueError:
+        return False
+    wanted = _sdk_version(sdk)
+    policy = section.get('rollForward')
+    if policy == 'disable':
+        return floor == wanted
+    if floor[:2] != wanted[:2] or wanted < floor:
+        return False
+    if policy in ('latestFeature', 'feature'):
+        return True
+    if policy in ('latestPatch', 'patch'):
+        return floor[2] // 100 == wanted[2] // 100
+    return False
+
+
 def identity(root: Path, profile: str) -> dict:
     if profile not in PROFILES:
         raise ValueError('Unknown delivery profile')
     version, target = expected_contract(root)
     if (version, target) != (VERSION, TARGET):
         raise ValueError('Fixed candidate source version/target mismatch')
-    sdk = json.loads((root / 'global.json').read_text(encoding='utf-8'))
-    if sdk != {'sdk': {'version': SDK, 'rollForward': 'disable', 'allowPrerelease': False}}:
-        raise ValueError('Fixed candidate SDK roll-forward mismatch')
+    development_sdk = json.loads((root / 'global.json').read_text(encoding='utf-8'))
+    if not sdk_config_admits(development_sdk, SDK):
+        raise ValueError('Repository global.json does not admit the fixed candidate SDK')
+    sdk = {'sdk': {'version': SDK, 'rollForward': 'disable', 'allowPrerelease': False}}
     data = json.loads((root / 'eng/delivery-candidate.json').read_text(encoding='utf-8'))
     fields = {'schemaVersion': 1, 'packageId': 'FactsPDF', 'version': VERSION,
               'targetFramework': TARGET}
