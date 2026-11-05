@@ -22,6 +22,7 @@ authoritative CSS contract, see [CSS stylesheets](css-stylesheets.md).
 - [Tables and lists](#tables-and-lists)
 - [Report elements](#report-elements)
 - [Pages, pagination and document properties](#pages-pagination-and-document-properties)
+- [Diagnostics](#diagnostics)
 
 ## Stylesheets
 
@@ -1131,3 +1132,24 @@ reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-t
 witness are provided for review. Source first implemented at
 `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
 private software, human PDF approval and customer rights are separate.
+
+## Diagnostics
+
+### Line and column for CLI errors (source-only)
+
+When a rejected template's diagnostic carries a source offset, the CLI prints
+the position after the `FPDF` line, so authors can go straight to the cause:
+
+```text
+FPDF1202: Report display supports only block and none.
+Location: line 3, column 19.
+```
+
+The offset usually points at the offending CSS value or element. Lines end at
+LF (Unix), CRLF (Windows) or a lone CR (classic Mac), each counted once, and
+columns count characters, so CJK text and emoji count as one column each. No
+input text is echoed. Diagnostics without an offset (font or image loading,
+resource limits) are unchanged, and the existing resource `Hint:` line still
+follows. The library exposes the same value as `FactsPdfException.SourceOffset`.
+Source implemented at `306012538553815967d0e364ef95842648c446bb`; it is not part
+of the older retained private preview or a public binary.

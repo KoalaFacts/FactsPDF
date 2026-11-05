@@ -7,7 +7,8 @@ and [licensing](../LICENSING.md) before building or running the engine.
 
 The first stderr line retains the original `FPDF` diagnostic. When the engine
 knows where in the HTML the problem is, the next line gives its position, for
-example `Location: line 12, column 19.`; columns count characters, and no input
+example `Location: line 12, column 19.`; LF, CRLF and CR line endings each count
+as one line, columns count characters, and no input
 text is echoed. These five codes also receive one static `Hint:` line naming the
 existing resource options.
 Conversion still exits with code **3**; scripts should use the exit status and
