@@ -399,16 +399,32 @@ internal static class CssSyntaxAdapter
                 }
                 continue;
             }
-            // Bounded text-decoration shorthand: exactly one line kind and
+            // A bounded text-decoration-line set can paint any nonempty subset
+            // of underline/overline/line-through, or standalone none. Parse and
+            // validate even unmatched selectors before entering the cascade.
+            if (name == "text-decoration-line")
+            {
+                if (terms.Count > 3 || valueTokens.Length != terms.Count ||
+                    valueTokens.Any(t => t.Token.Kind != CssSyntaxTokenKind.Ident))
+                    throw new FactsPdfException("FPDF1202",
+                        "text-decoration-line accepts up to three distinct line keywords.", node.Span.Start);
+                var at = valueTokens[0].Token.Span.Start;
+                var lines = string.Join(" ", terms);
+                if (!(terms.Count == 1 && Wide(terms[0])))
+                    _ = InlineCss.ParseDecorationLines(lines, at);
+                Emit(CssProperty.TextDecoration, lines, at, "text-decoration-line");
+                continue;
+            }
+            // Bounded text-decoration shorthand: a nonempty line set and
             // optional opaque colour, bounded thickness and solid/dashed/dotted stroke. Lower all
             // four longhands through the normal CSS winner/cascade pipeline,
             // so a later !important longhand can override one component and a
             // new shorthand resets omitted components rather than ignoring them.
             if (name == "text-decoration")
             {
-                if (terms.Count > 4)
+                if (terms.Count > 6)
                     throw new FactsPdfException("FPDF1202",
-                        "Text decoration accepts one line kind, stroke, thickness and opaque colour.", node.Span.Start);
+                        "Text decoration accepts up to three lines, one stroke, thickness and opaque colour.", node.Span.Start);
                 if (terms.Count == 1 && Wide(terms[0]))
                 {
                     var wideOffset = valueTokens[0].Token.Span.Start;
@@ -418,7 +434,7 @@ internal static class CssSyntaxAdapter
                     Emit(CssProperty.TextDecorationThickness, terms[0], wideOffset, "text-decoration-thickness");
                     continue;
                 }
-                string? line = null;
+                var lines = new List<string>(3);
                 var stroke = "solid";
                 var ink = "currentcolor";
                 var thickness = "auto";
@@ -438,10 +454,11 @@ internal static class CssSyntaxAdapter
                             "CSS-wide decoration values must stand alone.", at);
                     if (word is "none" or "underline" or "line-through" or "overline")
                     {
-                        if (line is not null)
+                        if (lines.Contains(word))
                             throw new FactsPdfException("FPDF1202",
-                                "Only one text decoration line is supported.", at);
-                        line = word; lineOffset = at;
+                                "Duplicate text decoration line.", at);
+                        if (lines.Count == 0) lineOffset = at;
+                        lines.Add(word);
                     }
                     else if (word is "solid" or "dashed" or "dotted")
                     {
@@ -465,10 +482,13 @@ internal static class CssSyntaxAdapter
                         ink = word; inkSeen = true; inkOffset = at;
                     }
                 }
-                if (line is null || line == "none" && terms.Count > 1)
+                if (lines.Count == 0 || lines.Contains("none") && terms.Count > 1)
                     throw new FactsPdfException("FPDF1202",
-                        "Text decoration shorthand requires one visible line or standalone none.", node.Span.Start);
-                Emit(CssProperty.TextDecoration, line, lineOffset, "text-decoration-line");
+                        "Text decoration shorthand requires visible lines or standalone none.", node.Span.Start);
+                var orderedLines = lines.Contains("none") ? "none" : string.Join(" ",
+                    new[] { "underline", "line-through", "overline" }.Where(lines.Contains));
+                _ = InlineCss.ParseDecorationLines(orderedLines, lineOffset);
+                Emit(CssProperty.TextDecoration, orderedLines, lineOffset, "text-decoration-line");
                 Emit(CssProperty.TextDecorationStyle, stroke, strokeOffset, "text-decoration-style");
                 Emit(CssProperty.TextDecorationColor, ink, inkOffset, "text-decoration-color");
                 Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");

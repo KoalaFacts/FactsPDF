@@ -3,7 +3,13 @@ namespace FactsPDF;
 internal enum TextAlignment { Left, Center, Right, Justify }
 // Table-cell content placement within a measured whole row; not CSS inline baseline alignment.
 internal enum CellVerticalAlign { Top, Middle, Bottom }
-internal enum TextDecoration { None, Underline, LineThrough, Overline }
+[Flags]
+internal enum TextDecoration { None = 0, Underline = 1, LineThrough = 2, Overline = 4 }
+internal static class TextDecorationCommands
+{
+    internal static int Count(TextDecoration decoration) =>
+        System.Numerics.BitOperations.PopCount((uint)decoration);
+}
 internal enum TextDecorationPattern { Solid, Dashed, Dotted }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.

@@ -1,3 +1,13 @@
+## Source-only combined report text-decoration lines
+
+Engine source [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a)
+paints 1–3 distinct underline/line-through/overline paths per measured PDF
+run; font, table cell, CSS cascade, pagination and display budgets remain
+bounded. The [44-item report](../../examples/report-combined-text-decorations.html) is byte-compared with its
+[independent longhand control](../../examples/report-combined-text-decorations-oracle.html) in
+[actual PDF/CLI/TrueType/negative tests](../../tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs).
+This is a limited PDF drawing subset, not full CSS Text Decoration.
+
 ## Actual printable underline-offset subset
 
 `text-underline-offset:auto` retains the existing baseline and PDF bytes.
@@ -31,7 +41,7 @@ The renderer paints the computed width as a PDF solid rectangle or
 page-local clipped dashed/dotted stroke, with searchable real glyphs and
 true line/page wrapping. Default `auto` retains exact legacy PDF bytes.
 No CSS `from-font`, percentages, `calc()`, arbitrary offsets, unbounded
-widths, combined decoration lines or general browser propagation.
+widths or general browser propagation.
 Out-of-range/unsupported declarations, including unmatched selector rules,
 reject explicitly and preserve any pre-existing PDF.
 

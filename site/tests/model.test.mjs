@@ -50,7 +50,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.equal(dataset.accepted_css_property_count,109);
   const decor=dataset.features.find(f=>f.id==='css.text-decoration');
   assert.equal(decor.status,'partial');
-  assert.equal(decor.last_audited_commit,'b8f9b938ec42b108fb6f325715a4dd9b692e027d');
+  assert.equal(decor.last_audited_commit,'2d18399e25c65267431f0decc7fe716dde82688a');
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
@@ -312,7 +312,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-05.bounded-underline-offset');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-05.combined-text-decoration-lines');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -769,7 +769,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-05.bounded-underline-offset');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-05.combined-text-decoration-lines');
   assert.equal(dataset.commit, '70f37e7e881bade30851ecaa06528a27813f0403');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
@@ -841,7 +841,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,109);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-05.bounded-underline-offset');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-05.combined-text-decoration-lines');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
@@ -882,21 +882,24 @@ test('bounded CSS decoration ink thickness is provenance-linked without new audi
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,109);
   const x=dataset.features.find(f=>f.id==='css.text-decoration');
-  assert.equal(x.last_audited_commit,'b8f9b938ec42b108fb6f325715a4dd9b692e027d');
+  assert.equal(x.last_audited_commit,'2d18399e25c65267431f0decc7fe716dde82688a');
   assert.match(x.scope,/text-decoration-thickness/);
   assert.match(x.scope,/0.2–12pt/);
   assert.match(x.limitations,/from-font/);
-  assert.match(x.test_reference,/UnderlineOffsetReportTests\.cs$/);
+  assert.match(x.test_reference,/CombinedTextDecorationReportTests\.cs$/);
+  assert.ok(x.sources.some(url=>url.includes('b8f9b938ec42b108fb6f325715a4dd9b692e027d/src/FactsPDF/Css/CssSyntaxAdapter.cs')));
   assert.match(dataset.css_inventory_note,/由107增至108/);
 });
 
 test('bounded text underline offset changes real geometry without new IDs or release claims', () => {
   const row = dataset.features.find(f => f.id === 'css.text-decoration');
-  assert.equal(row.last_audited_commit,'b8f9b938ec42b108fb6f325715a4dd9b692e027d');
+  assert.equal(row.last_audited_commit,'2d18399e25c65267431f0decc7fe716dde82688a');
   assert.match(row.scope, /text-underline-offset:auto/);
   assert.match(row.scope, /0–24pt/);
   assert.match(row.limitations, /负偏移/);
-  assert.match(row.test_reference, /UnderlineOffsetReportTests.cs/);
+  assert.match(row.test_reference, /CombinedTextDecorationReportTests.cs/);
+  assert.match(row.scope, /1–3 个互不重复线型/);
+  assert.ok(row.sources.some(url=>url.includes('2d18399e25c65267431f0decc7fe716dde82688a/src/FactsPDF/PdfPaintSerializer.cs')));
   assert.equal(row.introduced_release,null);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,109);

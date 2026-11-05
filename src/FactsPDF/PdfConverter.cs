@@ -28,7 +28,7 @@ public static class PdfConverter
         foreach (var page in pages)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            displayCommands += (long)page.Runs.Count + page.Runs.Count(run => run.Style.Decoration != TextDecoration.None)
+            displayCommands += (long)page.Runs.Count + page.Runs.Sum(run => TextDecorationCommands.Count(run.Style.Decoration))
                 + page.Runs.Count(run => run.Style.LinkUri is not null)
                 + page.Discs.Count + page.Images.Count;
             foreach (var box in page.PaintBoxes) displayCommands += box.CommandCount;
