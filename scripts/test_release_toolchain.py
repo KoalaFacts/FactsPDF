@@ -239,11 +239,12 @@ class ReleaseToolchainTests(unittest.TestCase):
                          ('FactsPDF', '0.1.0-preview.1', 'net10.0'))
         self.assertEqual(package_check.expected_contract(ROOT),
                          (identity['version'], identity['targetFramework']))
-        sdk = json.loads((ROOT / 'global.json').read_text())['sdk']
-        self.assertEqual(sdk, {'version': '10.0.403',
-                               'rollForward': 'disable', 'allowPrerelease': False})
-        self.assertEqual(identity['sdk']['version'], sdk['version'])
-        self.assertEqual(identity['sdk']['rollForward'], sdk['rollForward'])
+        import stage_delivery_candidate as stage
+        self.assertEqual({k: identity['sdk'][k] for k in ('version', 'rollForward', 'allowPrerelease')},
+                         {'version': '10.0.403', 'rollForward': 'disable', 'allowPrerelease': False})
+        # The development global.json may accept any .NET 10 SDK, but must admit the candidate SDK.
+        self.assertTrue(stage.sdk_config_admits(
+            json.loads((ROOT / 'global.json').read_text()), identity['sdk']['version']))
         self.assertEqual(identity['managedRuntime'],
                          {'framework': 'Microsoft.NETCore.App', 'version': '10.0.14',
                           'rollForward': 'Disable'})
