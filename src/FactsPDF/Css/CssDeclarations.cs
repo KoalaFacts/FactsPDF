@@ -10,7 +10,7 @@ internal enum CssProperty
     MarginRight, MarginLeft, BoxSizing, MinWidth, MaxWidth, Display, ListStyleType, VerticalAlign,
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
-    WordBreak, MaxHeight, BreakInside, TextDecorationThickness
+    WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset
 }
 internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
 
@@ -109,9 +109,24 @@ internal static class CssDeclarations
                         declaration.Offset);
                 return style with { DecorationThickness = width.Value };
             }
+            if (property == CssProperty.TextUnderlineOffset)
+            {
+                // Positive CSS offset is the distance below the alphabetic baseline.
+                // Compute after the final font-size winner, never from a UA/default
+                // size or from an overridden declaration.
+                if (declaration.Value == "auto")
+                    return style with { UnderlineOffset = null };
+                var offset = CssBoxValues.Length(declaration.Value, declaration.Offset,
+                    rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true);
+                if (offset.IsPercent || offset.Value > 24)
+                    throw new FactsPdfException("FPDF1202",
+                        "Computed text-underline-offset must be from 0pt to 24pt; percentages are unsupported.",
+                        declaration.Offset);
+                return style with { UnderlineOffset = offset.Value };
+            }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         return property switch
         {
@@ -125,6 +140,7 @@ internal static class CssDeclarations
             CssProperty.TextDecorationColor => style with { DecorationColor = source.DecorationColor },
             CssProperty.TextDecorationStyle => style with { DecorationPattern = source.DecorationPattern },
             CssProperty.TextDecorationThickness => style with { DecorationThickness = source.DecorationThickness },
+            CssProperty.TextUnderlineOffset => style with { UnderlineOffset = source.UnderlineOffset },
             CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap, PreserveLineBreaks = source.PreserveLineBreaks, PreserveSpaces = source.PreserveSpaces },
             CssProperty.OverflowWrap => style with { BreakWords = source.BreakWords },
             CssProperty.WordBreak => style with { BreakAll = source.BreakAll },

@@ -246,6 +246,34 @@ No new installable preview, human reference approval or customer grant is implie
 
 ## Text, fonts and typography
 
+### Bounded PDF underline offset
+
+The independent CSS property `text-underline-offset` moves the **actual
+measured PDF underline** below the text baseline, without moving glyphs,
+overlines or strike-throughs. `auto` (the default) preserves the legacy
+font-relative underline position and byte-identical output. A nonnegative
+`pt/px/mm/cm/in/pc/q` value or computed `em` (final element font size) /
+`rem` (final HTML root font size) must resolve to **0–24pt**. For example,
+`text-decoration:underline dotted #285d91;text-underline-offset:2pt`
+draws the dotted underline 2pt below the baseline.
+
+This bounded, inherited CSS longhand uses ordinary source order,
+specificity, `!important`, `inherit`/`unset` and `initial` reset.
+It applies to already-supported underline-bearing paragraph, heading, inline
+text and flat table-cell text; line wrapping and page-local decoration
+fragments continue through existing layout and paint. It does not add
+multiple decoration lines, CSS underline-position or browser propagation.
+Negative offsets, percentages, `calc()`, `from-font`, computed values above
+24pt and standalone-image use fail explicitly; conversion errors preserve the
+previous destination PDF.
+
+The [44-row, multipage quotation](../examples/report-underline-offset.html)
+uses computed `em`/`rem` and has an
+[independent absolute-point PDF control](../examples/report-underline-offset-oracle.html).
+[Actual PDF geometry, font, CSS, CLI and recovery tests](../tests/FactsPDF.Tests/UnderlineOffsetReportTests.cs)
+are tied to engine source
+[`b8f9b938`](https://github.com/KoalaFacts/FactsPDF/commit/b8f9b938ec42b108fb6f325715a4dd9b692e027d).
+
 ## Bounded printable text-decoration thickness (source only)
 
 For business quotations and approval corrections, `text-decoration-thickness`
