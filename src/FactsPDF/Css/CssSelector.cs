@@ -1,6 +1,7 @@
 namespace FactsPDF;
 
-internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes)
+internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes,
+    IReadOnlyDictionary<string, string> Attributes)
 {
     internal static CssElement From(HtmlToken token)
     {
@@ -15,7 +16,7 @@ internal sealed record CssElement(string Name, string? Id, HashSet<string> Class
                 if (i > start) classes.Add(text[start..i]);
             }
         }
-        return new(token.Value, id, classes);
+        return new(token.Value, id, classes, token.Attributes);
     }
 }
 internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) : IComparable<CssSpecificity>
@@ -23,10 +24,15 @@ internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) 
     public int CompareTo(CssSpecificity other)
     { var c = Ids.CompareTo(other.Ids); if (c != 0) return c; c = Classes.CompareTo(other.Classes); return c != 0 ? c : Types.CompareTo(other.Types); }
 }
-internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes, bool ChildOfPrevious);
+internal readonly record struct CssAttributeMatch(string Name, string? Value);
+internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
+    CssAttributeMatch[] Attributes, bool ChildOfPrevious);
 
 internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset)
 {
+    private static bool IsSymbol(CssToken token, string value)
+        => token.Kind == CssTokenKind.Symbol && token.Is(value);
+
     internal CssCompound Rightmost => parts[^1];
     internal CssSpecificity Specificity => specificity;
     internal int Offset => offset;
@@ -39,14 +45,15 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         {
             budget.Token.ThrowIfCancellationRequested();
             CssBudget.Check(parts.Count < 32, "A selector may contain at most 32 compounds.", offset);
-            string? type = null; var ids = new List<string>(); var classes = new List<string>(); var simple = 0;
+            string? type = null; var ids = new List<string>(); var classes = new List<string>();
+            var attrs = new List<CssAttributeMatch>(); var simple = 0;
             if (tokens[i].Kind == CssTokenKind.Identifier) { type = tokens[i++].Text.ToLowerInvariant(); simple++; typeCount++; }
-            else if (tokens[i].Is("*")) { i++; simple++; }
+            else if (IsSymbol(tokens[i], "*")) { i++; simple++; }
             while (true)
             {
                 var current = tokens[i];
                 if (simple > 0 && current.LeadingSpace) break;
-                if (current.Is("."))
+                if (IsSymbol(current, "."))
                 {
                     i++;
                     if (tokens[i].Kind != CssTokenKind.Identifier || tokens[i].LeadingSpace) throw CssTokens.Invalid("Expected a class identifier adjacent to '.'.", current.Offset);
@@ -58,14 +65,39 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                     if (!CssTokens.IdentifierStart(id, 0)) throw CssTokens.Invalid("Escaped/numeric ID selectors are not supported.", current.Offset);
                     ids.Add(id); idCount++; i++;
                 }
+                else if (IsSymbol(current, "["))
+                {
+                    // Match actual HTML attributes, not an inferred CSS class.
+                    i++;
+                    if (tokens[i].Kind != CssTokenKind.Identifier)
+                        throw CssTokens.Invalid("Expected an attribute name.", current.Offset);
+                    var name = tokens[i++].Text.ToLowerInvariant();
+                    var supported = name is "id" or "class" or "title" or "lang"
+                        or "href" or "src" or "alt"
+                        || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5;
+                    if (!supported)
+                        throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);
+                    string? expected = null;
+                    if (IsSymbol(tokens[i], "="))
+                    {
+                        i++;
+                        if (tokens[i].Kind is not (CssTokenKind.Identifier or CssTokenKind.String))
+                            throw CssTokens.Invalid("Attribute equality requires an identifier or quoted string.", current.Offset);
+                        expected = tokens[i++].Text;
+                    }
+                    if (!IsSymbol(tokens[i], "]"))
+                        throw CssTokens.Invalid("Only [attribute] and [attribute=value] are supported.", current.Offset);
+                    i++;
+                    attrs.Add(new(name, expected)); classCount++;
+                }
                 else break;
                 CssBudget.Check(++simple <= 32, "A compound selector may contain at most 32 simple terms.", offset);
             }
             if (simple == 0) throw CssTokens.Invalid("Expected a supported selector.", tokens[i].Offset);
-            parts.Add(new(type, ids.ToArray(), classes.ToArray(), child));
-            if (tokens[i].Is(",") || tokens[i].Is("{")) break;
+            parts.Add(new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), child));
+            if (IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")) break;
             if (tokens[i].Kind == CssTokenKind.End) throw CssTokens.Invalid("Expected a CSS declaration block.", tokens[i].Offset);
-            if (tokens[i].Is(">")) { child = true; i++; }
+            if (IsSymbol(tokens[i], ">")) { child = true; i++; }
             else if (tokens[i].LeadingSpace) child = false;
             else throw CssTokens.Invalid("Unsupported or malformed selector/combinator.", tokens[i].Offset);
         }
@@ -102,6 +134,13 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         if (part.Type is not null && !part.Type.Equals(element.Name, StringComparison.OrdinalIgnoreCase)) return false;
         foreach (var id in part.Ids) { budget.Work(offset); if (!id.Equals(element.Id, StringComparison.Ordinal)) return false; }
         foreach (var name in part.Classes) { budget.Work(offset); if (!element.Classes.Contains(name)) return false; }
+        foreach (var attribute in part.Attributes)
+        {
+            budget.Work(offset);
+            if (!element.Attributes.TryGetValue(attribute.Name, out var actual) ||
+                attribute.Value is not null && !attribute.Value.Equals(actual, StringComparison.Ordinal))
+                return false;
+        }
         return true;
     }
 }

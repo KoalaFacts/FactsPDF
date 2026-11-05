@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('09a186b4',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('d7fee5d3',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -418,4 +418,19 @@ test('new LTR border component CSS is discoverable with its exact historical PDF
   await expect(details.locator(`a[href="${border.test_reference}"]`)).toHaveCount(2);
   await expect(page.locator('#detail-title')).toHaveText('border');
   await expect(details).toContainText('border-inline-width');
+});
+
+test('partial attribute selectors are discoverable with explicit value and failure limits', async({page})=>{
+  await page.goto(base+'#q=%5Battr%3Dvalue%5D');
+  await page.getByRole('button',{name:'English',exact:true}).click();
+  const row=page.getByRole('button',{name:/attr=value/});
+  await row.click();
+  const details=page.getByRole('dialog');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('[attr]');
+  await expect(details).toContainText('data-*');
+  await expect(details).toContainText('class-level specificity');
+  await expect(details).toContainText('substring');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
 });

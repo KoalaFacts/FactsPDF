@@ -1,3 +1,29 @@
+## Bounded attribute selectors for report templates (source implementation)
+
+The renderer now matches actual accepted HTML attributes using `[name]` and
+`[name=value]` (quoted string or identifier). Supported names are
+`id`, `class`, `title`, `lang`, `href`, `src`, `alt` and
+nonempty `data-*` names. Attribute names are ASCII-insensitive (as in parsed
+HTML); exact values are case-sensitive and compare decoded HTML attribute values.
+These terms work alone or alongside tag/class/ID terms, comma groups, child
+(`>`) and descendant selectors, and contribute class-level specificity.
+`!important`, inline overrides, per-property cascade and inherited values
+retain their existing rules. Matching CSS styles actual PDF text, colours,
+padding/borders, explicitly supplied images and paginated report blocks.
+
+No substring/word/language/dash selectors (`^=`, `$=`, `*=`, `~=`,
+`|=`), selector value flags (`i`/`s`), arbitrary or unsupported HTML
+attributes, pseudo-selectors, sibling selectors, or complex CSS selectors.
+Unknown syntax or attributes fail explicitly with FPDF1203; no silent styling
+fallback, remote resources, or full CSS Selectors conformance claim.
+
+The [44-entry invoice-status report](../examples/report-attribute-style-overrides.html)
+and its [independent explicit-style control](../examples/report-attribute-style-overrides-oracle.html)
+are compared in [actual PDF, layout, TrueType, image, cascade, negative and
+failure-recovery tests](../tests/FactsPDF.Tests/AttributeSelectorReportTests.cs).
+Initial source implementation `d7fee5d311f9abebccf37a58c3c9198de78750e8`;
+CI and independent review apply to their separately verified commits.
+
 ## Bounded PDF last-line alignment (source implementation)
  
 A controlled report paragraph/heading or flat fixed-column table cell may set
