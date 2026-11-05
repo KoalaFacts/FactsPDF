@@ -274,7 +274,8 @@ internal static class TextLines
         if (tooWide)
             throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
 
-        var current = new List<Glyph>(); var width = 0d; Glyph? space = null;
+        using var buffers = GlyphBuffers.Rent();
+        var current = buffers.Line; var width = 0d; Glyph? space = null;
         var firstLine = true;
         // CSS Inline Layout: a specified (non-normal) line-height uses the
         // metrics of the *first available font*, even if fallback fonts draw
@@ -350,7 +351,7 @@ internal static class TextLines
         // The consumer finishes a borrowed line before MoveNext clears it.
         // Retained page strings/paint and the PDF buffer are unchanged: this
         // is line-at-a-time wrapping, not a streaming document serializer.
-        var word = new List<Glyph>();
+        var word = buffers.Word;
         using var cursor = ReadGlyphs().GetEnumerator();
         var hasGlyph = cursor.MoveNext();
         while (hasGlyph)
@@ -482,6 +483,32 @@ internal static class TextLines
             width += wordWidth; space = null;
         }
         if (current.Count > 0 || firstLine && firstMarker is not null) yield return CurrentLine();
+    }
+
+    // Wrap's line and word glyph lists, reused across paragraphs on one thread. A Wrap that starts
+    // while another is still open (a list marker's line inside its paragraph) finds the slot empty
+    // and allocates its own. Returned lists are cleared, and lists grown past MaxPooledGlyphs are dropped.
+    private sealed class GlyphBuffers : IDisposable
+    {
+        private const int MaxPooledGlyphs = 4096;
+        [ThreadStatic] private static GlyphBuffers? pooled;
+
+        internal List<Glyph> Line { get; } = [];
+        internal List<Glyph> Word { get; } = [];
+
+        internal static GlyphBuffers Rent()
+        {
+            var buffers = pooled ?? new GlyphBuffers();
+            pooled = null;
+            return buffers;
+        }
+
+        public void Dispose()
+        {
+            Line.Clear();
+            Word.Clear();
+            if (Line.Capacity <= MaxPooledGlyphs && Word.Capacity <= MaxPooledGlyphs) pooled = this;
+        }
     }
 
     private static void CheckSimpleScalar(int scalar)
