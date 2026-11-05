@@ -185,16 +185,16 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         var fold = attribute.IgnoreCase;
         return attribute.Operator switch
         {
-            CssAttributeOperator.Equals => Equal(actual.AsSpan(), expected.AsSpan(), fold),
+            CssAttributeOperator.Equals => Equal(actual.AsSpan(), expected.AsSpan(), fold, budget),
             CssAttributeOperator.StartsWith => actual.Length >= expected.Length &&
-                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold),
+                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold, budget),
             CssAttributeOperator.EndsWith => actual.Length >= expected.Length &&
-                Equal(actual.AsSpan(actual.Length - expected.Length), expected.AsSpan(), fold),
+                Equal(actual.AsSpan(actual.Length - expected.Length), expected.AsSpan(), fold, budget),
             CssAttributeOperator.Contains => Contains(actual, expected, fold, budget),
             CssAttributeOperator.Includes => Includes(actual, expected, fold, budget),
-            CssAttributeOperator.Dash => Equal(actual.AsSpan(), expected.AsSpan(), fold) ||
+            CssAttributeOperator.Dash => Equal(actual.AsSpan(), expected.AsSpan(), fold, budget) ||
                 actual.Length > expected.Length && actual[expected.Length] == '-' &&
-                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold),
+                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold, budget),
             _ => throw new InvalidOperationException("Unsupported attribute operator.")
         };
     }
@@ -208,12 +208,17 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         return a == b;
     }
 
-    private static bool Equal(ReadOnlySpan<char> left, ReadOnlySpan<char> right, bool ignoreCase)
+    // Charge every compared character, including long ancestor attributes
+    // repeatedly checked for descendant selectors.
+    private bool Equal(ReadOnlySpan<char> left, ReadOnlySpan<char> right,
+        bool ignoreCase, CssBudget budget)
     {
         if (left.Length != right.Length) return false;
-        if (!ignoreCase) return left.SequenceEqual(right);
         for (var i = 0; i < left.Length; i++)
+        {
+            budget.Work(offset);
             if (!EqualChar(left[i], right[i], ignoreCase)) return false;
+        }
         return true;
     }
 
@@ -253,17 +258,29 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
     private bool Includes(string actual, string expected, bool fold, CssBudget budget)
     {
         // ~= matches complete ASCII-whitespace-separated words, not substrings.
-        if (expected.AsSpan().IndexOfAny(" \t\r\n\f") >= 0) return false;
+        foreach (var ch in expected)
+        {
+            budget.Work(offset);
+            if (HtmlTokens.Space(ch)) return false;
+        }
         var i = 0;
         while (i < actual.Length)
         {
-            while (i < actual.Length && HtmlTokens.Space(actual[i])) i++;
+            while (i < actual.Length && HtmlTokens.Space(actual[i]))
+            {
+                budget.Work(offset);
+                i++;
+            }
             var start = i;
-            while (i < actual.Length && !HtmlTokens.Space(actual[i])) i++;
+            while (i < actual.Length && !HtmlTokens.Space(actual[i]))
+            {
+                budget.Work(offset);
+                i++;
+            }
             if (start < i)
             {
                 budget.Work(offset);
-                if (Equal(actual.AsSpan(start, i - start), expected.AsSpan(), fold)) return true;
+                if (Equal(actual.AsSpan(start, i - start), expected.AsSpan(), fold, budget)) return true;
             }
         }
         return false;

@@ -81,6 +81,31 @@ public sealed class AttributeOperatorReportTests
         Assert.That(output.Position, Is.EqualTo(3));
     }
 
+    [TestCase("=")]
+    [TestCase("^=")]
+    [TestCase("$=")]
+    [TestCase("|=")]
+    [TestCase("~=")]
+    public void LongAncestorAttributeComparisonsChargeWorkAndPreserveOutput(string op)
+    {
+        // Long ancestor attributes must not evade MaxCssMatchOperations.
+        var actualValue = op == "~=" ? new string(' ', 4_000) :
+            op == "|=" ? new string('a', 2_000) + "-AU" : new string('a', 2_000);
+        var expected = op == "~=" ? "priority" : new string('a', 1_999) + "b";
+        var html = "<style>article[data-x" + op + "=\"" + expected +
+            "\" i] p{color:red}</style><article data-x='" + actualValue + "'>" +
+            string.Concat(Enumerable.Repeat("<p>ROW</p>", 20)) + "</article>";
+        using var output = new MemoryStream();
+        output.Write("existing PDF"u8);
+        output.Position = 3;
+        var saved = output.ToArray();
+        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
+            html, output, new PdfOptions { MaxCssMatchOperations = 700 }));
+        Assert.That(ex!.Code, Is.EqualTo("FPDF1205"));
+        Assert.That(output.ToArray(), Is.EqualTo(saved));
+        Assert.That(output.Position, Is.EqualTo(3));
+    }
+
     [Test]
     public void CompoundCascadeImportantAndAncestorsStyleActualPageGeometry()
     {
