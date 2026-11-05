@@ -25,9 +25,9 @@ internal static class TextLines
         for (var start = 0; start < line.Glyphs.Count;)
         {
             var first = line.Glyphs[start];
-            // A decorated run emits one additional filled-path command; charge
-            // before retaining its text, so MaxDisplayCommands remains exact.
-            charge(1 + (first.Style.Decoration == TextDecoration.None ? 0 : 1)
+            // Charge each real decoration path before retaining the run;
+            // a combined underline/strike/overline uses up to three commands.
+            charge(1 + TextDecorationCommands.Count(first.Style.Decoration)
                 + (first.Style.LinkUri is null ? 0 : 1), sourceOffset); var width = 0d; var end = start; var utf16Length = 0;
             while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
             {

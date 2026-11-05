@@ -54,14 +54,7 @@ internal static class InlineCss
                     style = style with { Color = value == "currentcolor" ? style.Color : Color(value, offset) };
                     break;
                 case "text-decoration" or "text-decoration-line":
-                    style = style with { Decoration = value switch
-                    {
-                        "none" => TextDecoration.None,
-                        "underline" => TextDecoration.Underline,
-                        "line-through" => TextDecoration.LineThrough,
-                        "overline" => TextDecoration.Overline,
-                        _ => throw Invalid("Only none, underline, overline and line-through text decorations are supported.", offset)
-                    } };
+                    style = style with { Decoration = ParseDecorationLines(value, offset) };
                     break;
                 case "text-decoration-color":
                     // Nullable means CSS currentColor, resolved at paint time
@@ -187,6 +180,31 @@ internal static class InlineCss
     // Bounded, deterministic source-only keyword sizes for controlled report text.
     // Absolute keywords use the documented 12pt medium reference; relative
     // keywords use the *computed parent* size during stylesheet resolution.
+    // Lines are an unordered CSS set. Keep deterministic flags, reject duplicates,
+    // and never interpret 'none' combined with a visible line as an empty paint.
+    internal static TextDecoration ParseDecorationLines(string value, int offset)
+    {
+        if (value == "none") return TextDecoration.None;
+        var decoration = TextDecoration.None;
+        var terms = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (terms.Length is < 1 or > 3)
+            throw Invalid("Text decoration accepts one to three distinct visible line kinds.", offset);
+        foreach (var term in terms)
+        {
+            var line = term switch
+            {
+                "underline" => TextDecoration.Underline,
+                "line-through" => TextDecoration.LineThrough,
+                "overline" => TextDecoration.Overline,
+                _ => throw Invalid("Text decoration lines support underline, overline, line-through, or standalone none.", offset)
+            };
+            if ((decoration & line) != TextDecoration.None)
+                throw Invalid("Duplicate text decoration line.", offset);
+            decoration |= line;
+        }
+        return decoration;
+    }
+
     internal static double? KeywordFontSize(string value, double parentFontSize) => value switch
     {
         "xx-small" => 7.2,
