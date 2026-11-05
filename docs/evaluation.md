@@ -1,6 +1,6 @@
 ## Bounded PDF last-line alignment in real report text
 
-Source `61da678fbfcada09bf9ae5ee10eee414d1879c27` implements `text-align-last` for final and
+Source `09a186b4e6f33355db3014ef0b0fcd61df224bc3` implements `text-align-last` for final and
 explicit-break lines, with glyph-measured alignment and optional U+0020
 justification on printable paragraphs/headings and flat fixed-column cells.
 The 44-record multi-page report and independent manually broken oracle,

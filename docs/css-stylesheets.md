@@ -17,7 +17,7 @@ replacing the existing destination. The
 [independent manually broken control](../examples/report-last-line-alignment-oracle.html),
 and [NUnit PDF, cascade, table, geometry and recovery checks](../tests/FactsPDF.Tests/LastLineAlignmentReportTests.cs)
 exercise actual content and fail-safe behavior. Initial implementation
-[61da678f](https://github.com/KoalaFacts/FactsPDF/commit/61da678fbfcada09bf9ae5ee10eee414d1879c27).
+[61da678f](https://github.com/KoalaFacts/FactsPDF/commit/09a186b4e6f33355db3014ef0b0fcd61df224bc3).
  
 ## Bounded physical outlines for report panels
 

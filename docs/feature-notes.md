@@ -8,7 +8,7 @@ bytes. The [44-row report](../examples/report-last-line-alignment.html)
 matches an [independent explicit-break control](../examples/report-last-line-alignment-oracle.html)
 in [source PDF/geometry/error tests](../tests/FactsPDF.Tests/LastLineAlignmentReportTests.cs).
 See the [bounded CSS contract](css-stylesheets.md#bounded-pdf-last-line-alignment-source-implementation).
-Source `61da678fbfcada09bf9ae5ee10eee414d1879c27`; independent review and current-head checks are separate.
+Source `09a186b4e6f33355db3014ef0b0fcd61df224bc3`; independent review and current-head checks are separate.
 
 # FactsPDF feature notes
 

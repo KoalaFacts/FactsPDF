@@ -54,8 +54,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '61da678fbfcada09bf9ae5ee10eee414d1879c27');
-  assert.match(dataset.commit_url, /61da678fbfcada09bf9ae5ee10eee414d1879c27/);
+  assert.equal(dataset.commit, '09a186b4e6f33355db3014ef0b0fcd61df224bc3');
+  assert.match(dataset.commit_url, /09a186b4e6f33355db3014ef0b0fcd61df224bc3/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -324,7 +324,7 @@ test('bounded LTR alignment provenance and historical justification remain preci
   const values=dataset.features.find(x=>x.id==='value.align.justify');
   assert.equal(property.status, 'partial');
   assert.equal(values.status, 'partial');
-  assert.equal(property.last_audited_commit,'61da678fbfcada09bf9ae5ee10eee414d1879c27');
+  assert.equal(property.last_audited_commit,'09a186b4e6f33355db3014ef0b0fcd61df224bc3');
   assert.equal(values.last_audited_commit,'748867bb7ece222cc552a4d315143572fb1bd642');
   assert.equal(values.introduced_release,null);
   assert.equal(property.example,'text-align:justify');
@@ -777,7 +777,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
   assert.equal(dataset.dataset_version, 'audit-2026-11-05.report-last-line-alignment');
-  assert.equal(dataset.commit, '61da678fbfcada09bf9ae5ee10eee414d1879c27');
+  assert.equal(dataset.commit, '09a186b4e6f33355db3014ef0b0fcd61df224bc3');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -920,7 +920,7 @@ test('bounded text-align-last keeps existing 418 feature IDs and precisely audit
   assert.match(feature.scope,/text-align-last:auto\/left\/center\/right\/start\/end\/justify/);
   assert.match(feature.scope,/真实 PDF 字形X坐标/);
   assert.match(feature.limitations,/inline span/);
-  assert.equal(feature.last_audited_commit,'61da678fbfcada09bf9ae5ee10eee414d1879c27');
+  assert.equal(feature.last_audited_commit,'09a186b4e6f33355db3014ef0b0fcd61df224bc3');
   assert.match(feature.test_reference,/LastLineAlignmentReportTests.cs$/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'text-align-last',status:'partial',category:'CSS属性'})
     .map(row=>row.id),['css.text-align']);
