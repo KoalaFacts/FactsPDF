@@ -116,7 +116,7 @@ internal static class PageFurnitureLayout
                         : name.EndsWith("Right", StringComparison.Ordinal) ? TextAlignment.Right : TextAlignment.Center;
                     var style = new TextStyle(field.FontSize, 1.2,
                         new Rgb(field.Color.R / 255d, field.Color.G / 255d, field.Color.B / 255d),
-                        alignment, Bold: field.Bold, Italic: field.Italic);
+                        alignment) { Bold = field.Bold, Italic = field.Italic };
                     var paragraph = new Paragraph(style);
                     paragraph.Runs.Add(new TextRun(text, style));
                     Line line;

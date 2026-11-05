@@ -16,10 +16,10 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | Z0a | Shared `BoxStyle.Initial`; non-throwing CSS length parsing | Fewer allocations; no exceptions on the border hot path | done (#174) | quick-start 698 → 484 KiB |
 | Z0b | Compress a fully embedded font program once per `PdfFont` | Full embedding recompressed the whole font every conversion | done (#175) | serialize 2216 → 1196 KiB (DejaVu Sans) |
 | Z0c | One private `BoxStyle` copy per element | One full record copy per declaration | done (#176) | table 9,129 → 6,836 KiB; `BoxStyle` 2,479 → 285 KiB |
-| Z1 | Pooled, cleared output buffer for both serializers | The growing `MemoryStream` allocated about twice the PDF size | in progress (perf/pdf-output-buffer) | full-embedding serialize 1196 → 100 KiB |
-| P0 | Parity check as a TypeScript script under `scripts/`, run by CI if it fits an existing workflow | Makes the byte-parity gate repeatable by every contributor | todo | |
-| Z2 | Page content streams written as ASCII bytes into pooled buffers | `StringBuilder` → `string` → `byte[]` copies per page | todo | |
-| Z3 | `TextStyle`: one private copy per element, as in Z0c | 202 KiB of `TextStyle` in the 200-row table | todo | |
+| Z1 | Pooled, cleared output buffer for both serializers | The growing `MemoryStream` allocated about twice the PDF size | done (#177) | full-embedding serialize 1196 → 100 KiB |
+| P0 | Parity check as a TypeScript script under `scripts/`, run by CI if it fits an existing workflow | Makes the byte-parity gate repeatable by every contributor | blocked (#180 green and reviewed, stacked on #178; the scheduled run's merge is refused as "merge without review" in two runs; owner decision: approve or merge #178 then #180) | 390/390 runs identical in CI |
+| Z2 | Page content streams written as ASCII bytes into pooled buffers | `StringBuilder` → `string` → `byte[]` copies per page | blocked (Z2a #181, Z2b #182, stacked on #180; same merge refusal; owner decision: merge after #180) | table serialize 1,009 → 77 KiB (Courier) |
+| Z3 | `TextStyle`: at most one private copy per element, shared with the parent when unchanged | 202 KiB of `TextStyle` in the 200-row table | in progress (perf/text-style-builder) | 200-row table 6,562 → 6,380 KiB; quick-start 345 → 334 KiB; `TextStyle` no longer sampled; 402/402 runs identical |
 | Z4 | CSS syntax allocations (`CssSyntaxToken[]`, strings, LINQ iterators) | Largest remaining parse-phase types | todo | |
 | Z5 | Layout-phase allocations | About 2.4 MB in the 200-row table | todo | |
 | R1 | Soak and limits: memory and time bounds for every `Max*` limit; cancellation on every output path | Bounded resources are an MVP promise | todo | |
