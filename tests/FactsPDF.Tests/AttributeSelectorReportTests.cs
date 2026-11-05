@@ -40,9 +40,9 @@ public sealed class AttributeSelectorReportTests
             "<div><p data-state=paid style='color:red'>PAID</p></div>" +
             "</section>";
         const string control = "<section data-report=invoice>" +
-            "<p style='color:blue' title='Overdue notice'>OVERDUE</p>" +
+            "<p style='color:red' title='Overdue notice'>OVERDUE</p>" +
             "<div><p style='color:green' data-state=paid>PAID</p></div></section>";
-        // Equal specificity is decided by source order; important outranks inline.
+        // Two attribute terms outrank one class; important outranks inline.
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
     }
 
@@ -71,6 +71,22 @@ public sealed class AttributeSelectorReportTests
     }
 
     [Test]
+    public void RealHtmlReportTemplateMatchesIndependentExplicitStyleOracle()
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
+            "..", "..", "..", "..", ".."));
+        var actualPath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides.html");
+        var oraclePath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides-oracle.html");
+        var actual = File.ReadAllText(actualPath);
+        var control = File.ReadAllText(oraclePath);
+        var pages = Layout(actual);
+        Assert.That(pages.Count, Is.GreaterThan(1));
+        Assert.That(pages.SelectMany(page => page.Runs).Count(run =>
+            run.Text.StartsWith("Invoice ", StringComparison.Ordinal)), Is.EqualTo(44));
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
+    }
+
+    [Test]
     public void AttributeSelectorActuallySizesAnExplicitImageResource()
     {
         var options = new PdfOptions
@@ -85,6 +101,16 @@ public sealed class AttributeSelectorReportTests
         const string control = "<img src=chart style='width:80pt'><p>AFTER IMAGE</p>";
         Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(control, options)));
         Assert.That(Layout(actual, options).Single().Images.Single().Width, Is.EqualTo(80));
+    }
+
+    [Test]
+    public void TrueTypeAttributeStylingControlsSearchableUnicodeText()
+    {
+        var options = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
+        const string actual = "<style>p[lang=zh]{color:red}</style><p lang=zh>中文报告</p>";
+        const string control = "<p style='color:red'>中文报告</p>";
+        Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(control, options)));
+        Assert.That(Layout(actual, options).Single().Runs.Single().Text, Is.EqualTo("中文报告"));
     }
 
     [TestCase("p[data-state^=paid]")]
