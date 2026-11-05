@@ -46,8 +46,9 @@ public sealed class UnderlineOffsetReportTests
         Assert.That(Pdf(automatic), Is.EqualTo(Pdf(original)));
         Assert.That(Layout(automatic).Single().Runs.Single().Style.UnderlineOffset, Is.Null);
         const string strike = "<p style='font-size:10pt;text-decoration:line-through dotted red'>AB</p>";
-        Assert.That(Pdf(strike.Replace("</p>", "", StringComparison.Ordinal) +
-            "</p>"), Is.EqualTo(Pdf(strike)));
+        const string overline = "<p style='font-size:10pt;text-decoration:overline dotted red'>AB</p>";
+        Assert.That(Pdf(overline.Replace("'>AB", ";text-underline-offset:4pt'>AB", StringComparison.Ordinal)),
+            Is.EqualTo(Pdf(overline)));
         Assert.That(Pdf(strike.Replace("'>AB", ";text-underline-offset:4pt'>AB", StringComparison.Ordinal)),
             Is.EqualTo(Pdf(strike)));
     }
@@ -78,10 +79,10 @@ public sealed class UnderlineOffsetReportTests
     [Test]
     public void FinalFontAndRootResolveEmRemAfterImportantCascade()
     {
-        const string source = "<html><head><style>html{font-size:15pt}.a{font-size:20pt!important;text-underline-offset:0.1em}</style></head><body>" +
+        const string source = "<html><head><style>html{font-size:15pt}.a{font-size:20pt!important;text-underline-offset:0.1em!important}</style></head><body>" +
             "<p class=a style='font-size:9pt;text-decoration:underline;text-underline-offset:1pt'>AB</p>" +
             "<p style='font-size:8pt;text-decoration:underline;text-underline-offset:0.2rem'>AB</p></body></html>";
-        const string oracle = "<html><head><style>html{font-size:15pt}.a{font-size:20pt!important;text-underline-offset:2pt}</style></head><body>" +
+        const string oracle = "<html><head><style>html{font-size:15pt}.a{font-size:20pt!important;text-underline-offset:2pt!important}</style></head><body>" +
             "<p class=a style='font-size:9pt;text-decoration:underline;text-underline-offset:1pt'>AB</p>" +
             "<p style='font-size:8pt;text-decoration:underline;text-underline-offset:3pt'>AB</p></body></html>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
