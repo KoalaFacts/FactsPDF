@@ -30,10 +30,11 @@ test('numeric font-weight describes real normal/bold role selection and limits',
 });
 test('bounded LTR soft-wrap justification is discoverable without claiming full CSS Text',async({page})=>{
   await page.goto(base+'#q=text-align%3Ajustify');
-  await page.getByRole('button',{name:'text-align',exact:true}).click();
+  await page.getByRole('button',{name:'text-align / text-align-last',exact:true}).click();
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
   await expect(details).toContainText('PDF TJ');
+  await expect(details).toContainText('text-align-last:auto');
   await expect(details).toContainText('start/end');
   await expect(details).toContainText('RTL');
   await page.keyboard.press('Escape');
