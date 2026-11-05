@@ -41,7 +41,6 @@ export function slugify(heading: string): string {
   const text = heading
     .replace(/`/g, '')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/<[^>]+>/g, '')
     .trim()
     .toLowerCase();
   return text.replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
