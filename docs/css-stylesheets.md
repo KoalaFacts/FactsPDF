@@ -754,6 +754,31 @@ check cascade, all sides, exact solid byte preservation, cross-page borders,
 resource limits and invalid values. That is scoped engineering evidence,
 **not** human page approval, release, or full CSS Borders conformance.
 
+## Current-source inherited white-space in business report containers
+
+A declaration of `white-space:normal`, `nowrap`, `pre-line`, `pre-wrap`
+or `pre` on `html`, `body`, or an ordinary
+`div`/`section`/`article`/`blockquote` now sets inherited
+whitespace behavior for nested paragraphs and headings. The final paragraph
+uses the same measured glyph geometry, wrapping and PDF page breaks as if
+that paragraph declared the computed value itself. Thus a whole report section
+can opt into multiline preserved text without repeating CSS on every `p`.
+The existing CSS cascade and `!important` select the container's winner;
+children may override it or reset with `initial`. Both style attributes and
+stylesheets take the same path. This does not authorize declarations on
+inline elements, list/table structural elements or image boxes, nor new
+whitespace keywords, tabs, shaping or general browser layout.
+
+```html
+<style>.customer-note { white-space: pre-line }</style>
+<section class="customer-note"><p>Work completed
+Follow up Friday</p><p style="white-space:normal">Invoice settled</p></section>
+```
+
+The [inherited-mode PDF tests](../tests/FactsPDF.Tests/InheritedWhiteSpaceReportTests.cs)
+use explicit-child style oracles, a 48-entry paginated report and protected
+invalid-input recovery. Existing paragraph/table-cell limits remain unchanged.
+
 ## Current-source multiline report notes
 
 Explicit `p` / `h1`–`h6` report text, including an explicit paragraph in
@@ -777,8 +802,8 @@ Stylesheet selectors, inline declarations, `!important`, `inherit`,
 whole-paragraph cascade as `normal`/`nowrap`. `pre-line` does **not** retain
 runs of spaces or tabs, allow arbitrary preformatted text, or enable RTL,
 vertical writing, bidi, complex shaping, negative length or new font sources.
-Explicit declarations on containers, spans, images and table structural elements
-still fail `FPDF1201`. `break-spaces`, functions and mixed
+Explicit declarations on spans, images and table structural elements
+still fail `FPDF1201`; ordinary document/report containers can now set inherited white-space. `break-spaces`, functions and mixed
 keyword values still fail `FPDF1202`, including unmatched selector declarations.
 Overwide unbreakable tokens fail `FPDF1302`; missing fonts retain their
 existing resource errors. Failed CLI/API output preserves a previous PDF.
@@ -1202,7 +1227,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
-| white-space | `normal` (default), `nowrap`, scoped `pre-line`, bounded `pre-wrap` and unwrapped `pre` on explicit `p` / `h1`–`h6` or supported `<pre>`; `pre-line` collapses spaces, `pre-wrap` retains each space and soft-wraps, `pre` retains each space and source break without auto-wrap; tab stops fail `FPDF1305` in preserving modes |
+| white-space | `normal` (default), `nowrap`, scoped `pre-line`, bounded `pre-wrap` and unwrapped `pre` on explicit `p` / `h1`–`h6` or supported `<pre>`, inherited from `html`/`body`/ordinary report `div`/`section`/`article`/`blockquote`; `pre-line` collapses spaces, `pre-wrap` retains each space and soft-wraps, `pre` retains each space and source break without auto-wrap; tab stops fail `FPDF1305` in preserving modes |
 | letter-spacing | Supported report text and inline spans: `normal`, nonnegative 0–24pt print lengths, or scoped `em` (own computed font) / `rem` (computed root); resolved to fixed points before real PDF glyph advances, wrapping, centring and decorations; negative/%/calc unsupported |
 | word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells: nonnegative `pt/px/mm/cm/in/%`, scoped own-font `em` / root `rem`, or zero; percentages use resolved content width, `em/rem` fixed at cascade; only first logical line indented, later wrap/`br`/page fragments retain normal x; unfit first words fail `FPDF1302` with output preservation |
@@ -1398,9 +1423,9 @@ segment is wider than its actual containing content width, conversion raises
 `FPDF1302` and preserves any existing destination, rather than clipping,
 shrinking or silently inserting an automatic break. The same strict behaviour
 applies to explicitly sized and nested report blocks. The current scope is
-**whole explicit paragraphs/headings only**: authoring `white-space` on a
-`span`, container, table structural element or image is rejected with
-`FPDF1201`. A paragraph inside a table cell still uses its actual cell width
+**actual paragraph/heading text only**, including text inheriting a mode
+from an ordinary report container, `html` or `body`: explicit declaration on a
+`span`, list/table structural element or image is rejected with `FPDF1201`. A paragraph inside a table cell still uses its actual cell width
 and will fail when an unbreakable label does not fit. `break-spaces`,
 other `word-break` values, Unicode grapheme shaping and non-breaking span fragments remain unsupported; `pre-line`
 retains breaks but collapses spaces, `pre-wrap` preserves spaces with soft
