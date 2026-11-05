@@ -41,7 +41,7 @@ public sealed class ListMarkerStyleTests
             string.Concat(Enumerable.Range(1, 27).Select(i => "<li>Entry" + i + "</li>")) + "</ol>";
         var page = Layout(html, Page with { PageHeight = 3000 })[0];
         var runs = page.Runs;
-        var markers = runs.Where(r => r.Text.EndsWith(".", StringComparison.Ordinal)).ToArray();
+        var markers = runs.Where(r => r.Text.EndsWith('.')).ToArray();
         Assert.That(markers, Has.Length.EqualTo(27));
         Assert.That(markers[0].Text, Is.EqualTo(first));
         Assert.That(markers[25].Text, Is.EqualTo(twentySixth));
@@ -59,7 +59,7 @@ public sealed class ListMarkerStyleTests
         var html = "<ol style='list-style-type:" + kind + "'>" +
             string.Concat(Enumerable.Range(1, 14).Select(i => "<li>Row" + i + "</li>")) + "</ol>";
         var pages = Layout(html, Page with { PageHeight = 95 });
-        var markers = pages.SelectMany(p => p.Runs).Where(r => r.Text.EndsWith(".", StringComparison.Ordinal))
+        var markers = pages.SelectMany(p => p.Runs).Where(r => r.Text.EndsWith('.'))
             .Select(r => r.Text).ToArray();
         Assert.That(pages.Count, Is.GreaterThan(2));
         Assert.That(markers, Has.Length.EqualTo(14));
@@ -117,7 +117,7 @@ public sealed class ListMarkerStyleTests
         const string html = "<ol style='list-style-type:lower-roman;text-transform:capitalize'>" +
             "<li>A</li><li>A</li></ol>";
         var page = Layout(html, fonts).Single();
-        var markers = page.Runs.Where(r => r.Text.EndsWith(".", StringComparison.Ordinal)).ToArray();
+        var markers = page.Runs.Where(r => r.Text.EndsWith('.')).ToArray();
         Assert.That(markers.Select(r => r.Text), Is.EqualTo(new[] { "I.", "Ii." }));
         Assert.That(markers[0].Width, Is.EqualTo(1.1 * fonts.FontSize).Within(0.000001));
         Assert.That(markers[1].Width, Is.EqualTo(1.3 * fonts.FontSize).Within(0.000001));
@@ -141,7 +141,7 @@ public sealed class ListMarkerStyleTests
             "<ol style='list-style-type:lower-alpha'><li>First</li><li>Second</li></ol>";
         var expected = "<ol style='list-style-type:upper-alpha'><li>First</li><li>Second</li></ol>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(expected)));
-        Assert.That(Layout(source)[0].Runs.Where(r => r.Text.EndsWith(".", StringComparison.Ordinal))
+        Assert.That(Layout(source)[0].Runs.Where(r => r.Text.EndsWith('.'))
             .Select(r => r.Text), Is.EqualTo(new[] { "A.", "B." }));
     }
 
@@ -154,7 +154,7 @@ public sealed class ListMarkerStyleTests
             "<li style='list-style-type:unset'>D</li></ol>";
         var pages = Layout(source, Page with { PageHeight = 3000 });
         var runs = pages.SelectMany(p => p.Runs).Select(r => r.Text).ToArray();
-        Assert.That(runs.Where(x => x.EndsWith(".", StringComparison.Ordinal)),
+        Assert.That(runs.Where(x => x.EndsWith('.')),
             Is.EqualTo(new[] { "a.", "a.", "c." }));
         Assert.That(pages.Sum(p => p.Discs.Count), Is.EqualTo(1));
         Assert.That(Pdf(source).Length, Is.GreaterThan(300));
@@ -179,7 +179,7 @@ public sealed class ListMarkerStyleTests
         var source = "<ol><li>A</li><li style='list-style-type:none'>B</li>" +
             "<li style='list-style-type:upper-roman'>C</li><li>D</li></ol>";
         var pages = Layout(source);
-        Assert.That(pages.SelectMany(p => p.Runs).Where(r => r.Text.EndsWith(".", StringComparison.Ordinal))
+        Assert.That(pages.SelectMany(p => p.Runs).Where(r => r.Text.EndsWith('.'))
             .Select(r => r.Text), Is.EqualTo(new[] { "1.", "III.", "4." }));
         Assert.That(Pdf(source).Length, Is.GreaterThan(300));
     }
@@ -266,7 +266,7 @@ public sealed class ListMarkerStyleTests
     {
         var source = "<ol style='list-style-type:lower-alpha'><li>A<ul><li>B</li></ul></li></ol>";
         var actual = Layout(source);
-        Assert.That(actual.SelectMany(p => p.Runs).Where(r => r.Text.EndsWith(".", StringComparison.Ordinal))
+        Assert.That(actual.SelectMany(p => p.Runs).Where(r => r.Text.EndsWith('.'))
             .Select(r => r.Text), Is.EqualTo(new[] { "a." }));
         Assert.That(actual.Sum(p => p.Discs.Count), Is.EqualTo(1));
         Assert.That(Pdf(source).Length, Is.GreaterThan(300));

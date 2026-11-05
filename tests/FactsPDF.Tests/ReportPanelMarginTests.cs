@@ -1,4 +1,4 @@
-using System.Text;
+using System.Globalization;
 using NUnit.Framework;
 
 namespace FactsPDF.Tests;
@@ -113,7 +113,7 @@ public sealed class ReportPanelMarginTests
     public void CentredDecoratedReportContinuesWithSameWidthAndXAcrossPages()
     {
         var page = Page with { PageHeight = 150 };
-        var rows = string.Join("<br>", Enumerable.Range(1, 18).Select(i => "Inspection " + i.ToString("00")));
+        var rows = string.Join("<br>", Enumerable.Range(1, 18).Select(i => "Inspection " + i.ToString("00", CultureInfo.InvariantCulture)));
         const string prefix = "<section style='width:110pt;padding:5pt;border:2pt solid red;background:#e5f1f6;";
         var suffix = "'><p style='margin:0'>" + rows + "</p></section>";
         var actual = prefix + "margin:0 auto" + suffix;

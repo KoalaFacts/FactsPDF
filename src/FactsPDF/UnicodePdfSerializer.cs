@@ -126,7 +126,7 @@ internal static class UnicodePdfSerializer
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    content.Append($"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
+                    content.Append(CultureInfo.InvariantCulture, $"BT /{use?.Resource ?? "F0"} {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg 1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
                     var spaced = run.Style.WordSpacing != 0 && run.Text.Contains(' ');
                     content.Append(spaced ? "[<" : "<");
                     foreach (var rune in run.Text.EnumerateRunes())

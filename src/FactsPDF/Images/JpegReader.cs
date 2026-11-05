@@ -28,8 +28,8 @@ internal ref struct JpegReader
     private JpegInfo info;
     private bool hasFrame, hasExif;
 
-    private JpegReader(ReadOnlySpan<byte> bytes, PdfImageLimits bounds, CancellationToken token,
-        Action<int>? scanCheckpoint, Action<int>? headerCheckpoint)
+    private JpegReader(ReadOnlySpan<byte> bytes, PdfImageLimits bounds,
+        Action<int>? scanCheckpoint, Action<int>? headerCheckpoint, CancellationToken token)
     {
         data = bytes; limits = bounds; cancellation = token;
         onScanBlockCheckpoint = scanCheckpoint; onHeaderByteCheckpoint = headerCheckpoint;
@@ -42,7 +42,7 @@ internal ref struct JpegReader
     internal static JpegInfo Read(ReadOnlySpan<byte> bytes, PdfImageLimits limits, CancellationToken cancellation,
         Action<int>? onScanBlockCheckpoint = null, Action<int>? onHeaderByteCheckpoint = null)
     {
-        var reader = new JpegReader(bytes, limits, cancellation, onScanBlockCheckpoint, onHeaderByteCheckpoint);
+        var reader = new JpegReader(bytes, limits, onScanBlockCheckpoint, onHeaderByteCheckpoint, cancellation);
         return reader.Read();
     }
 

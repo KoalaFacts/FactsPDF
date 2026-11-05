@@ -266,7 +266,7 @@ public sealed class TableRowFragmentationTests
     {
         var tree = HtmlDocumentReader.ReadTree(ThreeCells(), Page, default);
         var step = (LayoutTable)BlockLayout.Steps(tree, Page, default).Single();
-        var measured = TableLayout.Measure(step, Page, new(), default, (_, _) => { }, (_, _) => { });
+        var measured = TableLayout.Measure(step, Page, new(), (_, _) => { }, (_, _) => { }, default);
         var row = measured.Rows[1]; var indices = new int[3]; var cursor = new RowContinuation(indices, true);
         var fit = TableRowFragmentation.Fit(row, cursor, 66, 0, true, default);
         Assert.That(indices, Is.EqualTo(new[] { 0, 0, 0 }));

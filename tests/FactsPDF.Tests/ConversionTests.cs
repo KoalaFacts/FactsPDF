@@ -40,14 +40,14 @@ public sealed class ConversionTests
         var match = Regex.Match(pdf, @"xref\n0 (\d+)\n0000000000 65535 f \n((?:\d{10} 00000 n \n)+)");
         Assert.That(match.Success, Is.True);
         var offsets = Regex.Matches(match.Groups[2].Value, @"(\d{10}) 00000 n");
-        Assert.That(offsets.Count, Is.EqualTo(int.Parse(match.Groups[1].Value) - 1));
+        Assert.That(offsets.Count, Is.EqualTo(int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) - 1));
         for (var i = 0; i < offsets.Count; i++)
         {
-            var offset = int.Parse(offsets[i].Groups[1].Value);
+            var offset = int.Parse(offsets[i].Groups[1].Value, CultureInfo.InvariantCulture);
             Assert.That(pdf[offset..], Does.StartWith($"{i + 1} 0 obj\n"));
         }
         var start = Regex.Match(pdf, @"startxref\n(\d+)\n");
-        Assert.That(pdf[int.Parse(start.Groups[1].Value)..], Does.StartWith("xref\n"));
+        Assert.That(pdf[int.Parse(start.Groups[1].Value, CultureInfo.InvariantCulture)..], Does.StartWith("xref\n"));
     }
 
     [Test]
@@ -57,7 +57,7 @@ public sealed class ConversionTests
         var streams = Regex.Matches(pdf, @"/Length (\d+) >>\nstream\n(.*?)\nendstream", RegexOptions.Singleline);
         Assert.That(streams.Count, Is.GreaterThan(0));
         foreach (Match stream in streams)
-            Assert.That(int.Parse(stream.Groups[1].Value), Is.EqualTo(Encoding.ASCII.GetByteCount(stream.Groups[2].Value)));
+            Assert.That(int.Parse(stream.Groups[1].Value, CultureInfo.InvariantCulture), Is.EqualTo(Encoding.ASCII.GetByteCount(stream.Groups[2].Value)));
         Assert.That(Text(pdf), Is.EqualTo("(parentheses) \\ backslash <tag>"));
     }
 

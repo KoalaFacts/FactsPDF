@@ -233,8 +233,8 @@ public sealed class TableRichTests
         Assert.Throws<OperationCanceledException>(() => paragraphs.MoveNext());
         using var measuring = new CancellationTokenSource();
         var table = (LayoutTable)BlockLayout.Steps(root, options, default).Single();
-        Assert.Throws<OperationCanceledException>(() => TableLayout.Measure(table, options, new(), measuring.Token,
-            (_, _) => measuring.Cancel(), (_, _) => { }));
+        Assert.Throws<OperationCanceledException>(() => TableLayout.Measure(table, options, new(),
+            (_, _) => measuring.Cancel(), (_, _) => { }, measuring.Token));
     }
 
     [Test]

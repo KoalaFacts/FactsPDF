@@ -105,7 +105,7 @@ public sealed class CombinedTextDecorationReportTests
         Assert.That(ReferenceEquals(run.Font, font), Is.True);
         Assert.That(run.Style.DecorationThickness, Is.EqualTo(1));
         var pdf = Encoding.Latin1.GetString(Pdf(html, options));
-        Assert.That(Regex.Matches(pdf, @" re f Q").Count, Is.EqualTo(3));
+        Assert.That(Regex.Count(pdf, @" re f Q"), Is.EqualTo(3));
     }
 
     [Test]

@@ -29,6 +29,15 @@ working in this repository.
   3. Update the exact contract in the relevant `docs/` page, such as
      `docs/css-stylesheets.md`.
 
+## Code conventions
+
+- Builds treat warnings as errors with the .NET recommended analyzers and
+  `.editorconfig` code-style rules. Fix warnings at the cause; suppress a rule
+  only in source with `#pragma warning disable <id> // reason`.
+- Extension methods for a type `Xxx` go in a static class named
+  `ExtensionsToXxx`, declared in the namespace of `Xxx` (for example
+  `ExtensionsToString` in `System`) and disabling IDE0130 in that file.
+
 ## Other rules
 
 - Never put a person's name in any file, commit, PR or copy; refer to the

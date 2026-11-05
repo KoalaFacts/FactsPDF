@@ -340,7 +340,7 @@ public static class CliApplication
         Span<byte> sentinel = stackalloc byte[1];
         var extra = input.Read(sentinel);
         cancellation.ThrowIfCancellationRequested();
-        if (extra != 0) throw new ArgumentException("PageFurniture must not exceed 65536 UTF-8 bytes, including a BOM.", "PageFurniture");
+        if (extra != 0) throw new ArgumentException("PageFurniture must not exceed 65536 UTF-8 bytes, including a BOM.");
         return PageFurnitureJson.Parse(bytes, cancellation);
     }
 

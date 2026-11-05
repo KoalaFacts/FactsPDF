@@ -167,7 +167,7 @@ public sealed class ListLayoutTests
     public void FontlessUnorderedListUsesTwoVectorDiscs()
     {
         var pdf = Encoding.ASCII.GetString(Pdf("<ul><li>A</li><li>B</li></ul>"));
-        Assert.That(Regex.Matches(pdf, @" c(?:\s|$)").Count, Is.EqualTo(8));
+        Assert.That(Regex.Count(pdf, @" c(?:\s|$)"), Is.EqualTo(8));
         Assert.That(pdf, Does.Contain("/BaseFont /Courier"));
     }
 

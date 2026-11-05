@@ -21,7 +21,7 @@ internal static class TableLayout
 
     internal static MeasuredTable Measure(LayoutTable item, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
-        CancellationToken cancellation, Action<int, int> charge, Action<int, int> ensure, TableFreshSpace? freshSpace = null)
+        Action<int, int> charge, Action<int, int> ensure, CancellationToken cancellation, TableFreshSpace? freshSpace = null)
     {
         var table = item.Node;
         var style = table.BoxStyle;

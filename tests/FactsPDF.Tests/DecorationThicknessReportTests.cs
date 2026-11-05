@@ -147,7 +147,7 @@ public sealed class DecorationThicknessReportTests
         var pages = Layout(styled + rows, options);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(Pdf(styled + rows, options), Is.EqualTo(Pdf(control + oracleRows, options)));
-        Assert.That(Regex.Matches(Encoding.Latin1.GetString(Pdf(styled + rows, options)), @" re W n ").Count,
+        Assert.That(Regex.Count(Encoding.Latin1.GetString(Pdf(styled + rows, options)), @" re W n "),
             Is.GreaterThan(40));
     }
 

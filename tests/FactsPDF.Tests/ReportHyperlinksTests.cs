@@ -83,8 +83,8 @@ public sealed class ReportHyperlinksTests
         Assert.That(pages.Count, Is.GreaterThan(1));
         var bytes = Pdf(source);
         var text = Encoding.Latin1.GetString(bytes);
-        Assert.That(Regex.Matches(text, "/Subtype /Link").Count, Is.EqualTo(40));
-        Assert.That(Regex.Matches(text, "/Annots \\[").Count, Is.EqualTo(pages.Count));
+        Assert.That(Regex.Count(text, "/Subtype /Link"), Is.EqualTo(40));
+        Assert.That(Regex.Count(text, "/Annots \\["), Is.EqualTo(pages.Count));
         Assert.That(text, Does.Contain(Convert.ToHexString(Encoding.ASCII.GetBytes(
             "https://example.com/orders/40"))));
         foreach (Match m in Regex.Matches(text, @"/Rect \[([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)\]"))
@@ -98,7 +98,7 @@ public sealed class ReportHyperlinksTests
             Assert.That(numbers[1], Is.InRange(0, Page.PageHeight));
             Assert.That(numbers[3], Is.InRange(0, Page.PageHeight));
         }
-        Assert.That(Regex.Matches(text, "/Rect \\[").Count, Is.EqualTo(40));
+        Assert.That(Regex.Count(text, "/Rect \\["), Is.EqualTo(40));
         Reject(source, "FPDF1303", Page with { MaxPages = 1 });
     }
 

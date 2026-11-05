@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using NUnit.Framework;
 
@@ -113,7 +114,7 @@ public sealed class ReportPatternedBorderTests
     public void PaginationKeepsTopAndBottomStrokesOnTheirOwnFragments()
     {
         var paragraphs = string.Concat(Enumerable.Range(1, 48).Select(i => "<p>Facility item " +
-            i.ToString("D2") + ": inspected</p>"));
+            i.ToString("D2", CultureInfo.InvariantCulture) + ": inspected</p>"));
         var html = "<section style='border:2pt dashed #23446b;background:#f0f6fa;padding:5pt'>" +
             paragraphs + "</section>";
         var pages = Layout(html);

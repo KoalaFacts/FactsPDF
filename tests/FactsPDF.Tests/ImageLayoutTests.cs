@@ -49,8 +49,8 @@ public sealed class ImageLayoutTests
             Fonts = unicode ? [PdfFont.LoadTrueType(FontFixture.Create())] : [] };
         var pdf = Render((unicode ? "<p>中文</p>" : "<p>BEFORE</p>")
             + "<img src='chart' style='width:80pt'><img src='alias' style='width:80pt'>", o);
-        Assert.That(Regex.Matches(pdf.Text, "/Subtype /Image").Count, Is.EqualTo(1));
-        Assert.That(Regex.Matches(pdf.Text, "/Im1 Do").Count, Is.EqualTo(2));
+        Assert.That(Regex.Count(pdf.Text, "/Subtype /Image"), Is.EqualTo(1));
+        Assert.That(Regex.Count(pdf.Text, "/Im1 Do"), Is.EqualTo(2));
         var data = JpegResourceTests.Bytes("rgb-420"); var at = pdf.Bytes.AsSpan().IndexOf(data);
         Assert.That(at, Is.GreaterThan(0)); Assert.That(pdf.Bytes.AsSpan(at + data.Length).IndexOf(data), Is.EqualTo(-1));
     }
@@ -62,7 +62,7 @@ public sealed class ImageLayoutTests
         Assert.That(Render("<p>ASCII</p>", new()).Bytes, Is.EqualTo(original));
         o = o with { Images = new Dictionary<string, PdfImage> { ["chart"] = o.Images["chart"],
             ["copy"] = PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420")) } };
-        Assert.That(Regex.Matches(Render("<img src='chart'><img src='copy'>", o).Text, "/Subtype /Image").Count, Is.EqualTo(2));
+        Assert.That(Regex.Count(Render("<img src='chart'><img src='copy'>", o).Text, "/Subtype /Image"), Is.EqualTo(2));
     }
 
     [TestCase("<img src='chart' style='width:160pt'>", 100, 1)]

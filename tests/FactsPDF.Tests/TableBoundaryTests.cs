@@ -130,8 +130,8 @@ public sealed class TableBoundaryTests
         var step = (LayoutTable)BlockLayout.Steps(tree, o, default).Single();
         using var cts = new CancellationTokenSource();
         var retained = 0;
-        Assert.Throws<OperationCanceledException>(() => TableLayout.Measure(step, o, new(), cts.Token,
-            (count, _) => { retained += count; cts.Cancel(); }, (_, _) => { }));
+        Assert.Throws<OperationCanceledException>(() => TableLayout.Measure(step, o, new(),
+            (count, _) => { retained += count; cts.Cancel(); }, (_, _) => { }, cts.Token));
         Assert.That(retained, Is.EqualTo(1));
     }
 

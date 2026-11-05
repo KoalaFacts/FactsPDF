@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FactsPDF.CommandLine;
 using NUnit.Framework;
@@ -66,7 +67,7 @@ public sealed class CssNamedColorTests
         Assert.That(Pdf(report, options), Is.EqualTo(Pdf(control, options)));
         var text = string.Join(" ", pages.SelectMany(p => p.Runs).Select(r => r.Text));
         for (var i = 1; i <= 64; i++)
-            Assert.That(text, Does.Contain("NAMED-" + i.ToString("00")));
+            Assert.That(text, Does.Contain("NAMED-" + i.ToString("00", CultureInfo.InvariantCulture)));
     }
 
     [Test]

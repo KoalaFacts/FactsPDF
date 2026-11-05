@@ -55,10 +55,10 @@ internal static class PdfSerializer
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    contents.Append($"BT /F1 {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg ");
-                    contents.Append($"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
+                    contents.Append(CultureInfo.InvariantCulture, $"BT /F1 {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg ");
+                    contents.Append(CultureInfo.InvariantCulture, $"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
                     if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
-                        contents.Append($"<{hex}> Tj ET\n");
+                        contents.Append(CultureInfo.InvariantCulture, $"<{hex}> Tj ET\n");
                     else
                     {
                         // PDF Tw does not reliably position two-byte CID space codes.

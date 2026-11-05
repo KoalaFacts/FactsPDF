@@ -53,7 +53,7 @@ public sealed class TextDecorationTests
         var text = lines.Single().Runs.Single();
         Assert.That(text.Width, Is.EqualTo(12).Within(0.000001));
         var pdf = Encoding.Latin1.GetString(Pdf(html));
-        Assert.That(Regex.Matches(pdf, @" re f Q").Count, Is.EqualTo(count));
+        Assert.That(Regex.Count(pdf, @" re f Q"), Is.EqualTo(count));
         Assert.That(pdf, Does.Contain("12 0.6 re f Q"));
         Assert.That(pdf, Does.Contain("<4142> Tj ET"));
         Assert.That(Pdf(html), Is.Not.EqualTo(Pdf("<p style='font-size:10pt'>AB</p>")));
@@ -77,7 +77,7 @@ public sealed class TextDecorationTests
         }
         var result = Encoding.Latin1.GetString(Pdf(html, options));
         Assert.That(result, Does.Contain("/Subtype /Type0"));
-        Assert.That(Regex.Matches(result, @" re f Q").Count, Is.EqualTo(3));
+        Assert.That(Regex.Count(result, @" re f Q"), Is.EqualTo(3));
         Assert.That(Pdf(html, options), Is.Not.EqualTo(Pdf("<p style='font-size:10pt'>A<b>B</b>A</p>", options)));
     }
     [Test]
@@ -103,7 +103,7 @@ public sealed class TextDecorationTests
             TextDecoration.None, TextDecoration.Underline, TextDecoration.LineThrough, TextDecoration.None }));
         Assert.That(runs[1].X, Is.EqualTo(runs[0].X + runs[0].Width).Within(0.000001));
         Assert.That(runs[2].X, Is.EqualTo(runs[1].X + runs[1].Width).Within(0.000001));
-        Assert.That(Regex.Matches(Encoding.Latin1.GetString(Pdf(html)), @" re f Q").Count, Is.EqualTo(2));
+        Assert.That(Regex.Count(Encoding.Latin1.GetString(Pdf(html)), @" re f Q"), Is.EqualTo(2));
     }
 
     [Test]
@@ -117,7 +117,7 @@ public sealed class TextDecorationTests
         Assert.That(pages.Sum(p => p.Runs.Count), Is.GreaterThan(4));
         Assert.That(pages.SelectMany(p => p.Runs).All(r => r.Style.Decoration == TextDecoration.Underline), Is.True);
         var pdf = Encoding.Latin1.GetString(Pdf(html, options));
-        Assert.That(Regex.Matches(pdf, @" re f Q").Count,
+        Assert.That(Regex.Count(pdf, @" re f Q"),
             Is.EqualTo(pages.Sum(p => p.Runs.Count)), "Every wrapped line has a drawn underline.");
     }
 

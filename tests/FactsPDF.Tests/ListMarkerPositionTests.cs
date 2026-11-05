@@ -104,9 +104,9 @@ public sealed class ListMarkerPositionTests
             "<li style='list-style-position:outside'>Second</li>" +
             "<li>Third</li></ol>";
         var runs = Layout(html).SelectMany(p => p.Runs).ToArray();
-        Assert.That(runs.Where(r => r.Text.EndsWith(".", StringComparison.Ordinal)).Select(r => r.Text),
+        Assert.That(runs.Where(r => r.Text.EndsWith('.')).Select(r => r.Text),
             Is.EqualTo(new[] { "1.", "2.", "3." }));
-        var body = runs.Where(r => !r.Text.EndsWith(".", StringComparison.Ordinal)).ToArray();
+        var body = runs.Where(r => !r.Text.EndsWith('.')).ToArray();
         Assert.That(body.Length, Is.GreaterThanOrEqualTo(3));
         Assert.That(Pdf(html).Length, Is.GreaterThan(300));
     }
@@ -120,7 +120,7 @@ public sealed class ListMarkerPositionTests
         var longhand = "<ol style='list-style-type:decimal;list-style-position:inside'>" + items + "</ol>";
         var pages = Layout(shorthand);
         Assert.That(pages.Count, Is.GreaterThan(2));
-        Assert.That(pages.SelectMany(p => p.Runs).Count(r => r.Text.EndsWith(".", StringComparison.Ordinal)), Is.EqualTo(44));
+        Assert.That(pages.SelectMany(p => p.Runs).Count(r => r.Text.EndsWith('.')), Is.EqualTo(44));
         Assert.That(Pdf(shorthand), Is.EqualTo(Pdf(longhand)));
     }
 
