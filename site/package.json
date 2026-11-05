@@ -16,11 +16,11 @@
     "verify": "npm test && npm run build && npm run test:browser"
   },
   "dependencies": {
-    "@purityjs/core": "0.5.1"
+    "@purityjs/core": "0.5.2"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",
-    "@purityjs/vite-plugin": "0.5.1",
+    "@purityjs/vite-plugin": "0.5.2",
     "jsdom": "27.4.0",
     "vite": "8.3.4"
   }
