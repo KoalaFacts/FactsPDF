@@ -470,8 +470,10 @@ environment before making a production commitment. The source declares
 `0.1.0-preview.1`. Five real source-bound software components are now
 privately retained by the owner after independent verification, but **none
 has been authorised for customer installation or distribution**. No public
-CLI/NuGet release or general evaluation grant exists. The commands below use
-a source checkout and do not themselves grant evaluation or commercial rights.
+CLI/NuGet release exists. Evaluation rights come from the licenses in
+[LICENSE.md](../LICENSE.md), including a free trial of up to 90 consecutive
+days for any company; the commands below use a source checkout and grant no
+rights themselves.
 
 **Working with an existing reporting template?** [Open a template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md). Share a redacted layout description, not customer documents or credentials. A public request starts a scope discussion only; see licensing below before building or running FactsPDF.
 
@@ -668,9 +670,9 @@ review; the example names are not evidence that a particular build was approved.
 ## Generate the first PDF
 
 First check the [licensing guide](../LICENSING.md) for your organization's
-evaluation rights. Organizations outside Community eligibility need an agreed
-written evaluation or commercial authorization before building or running the
-engine.
+rights. Any company may evaluate FactsPDF free for up to 90 consecutive
+calendar days under the Free Trial license; beyond that, organizations that do
+not qualify under Small Business or Noncommercial need a commercial license.
 
 From a source checkout with the repository's .NET 10 SDK:
 
@@ -805,8 +807,9 @@ Those reports use real Chinese regular/bold; a separate C1 style report
 positively exercises **four distinct Chinese faces**. This does not
 constitute user approval of the changed reference pages.
 
-**No public NuGet/CLI/Release, hosted Pages site, customer software delivery,
-general evaluation grant or production-support commitment exists.** Private
+**No public NuGet/CLI/Release, hosted Pages site, customer software delivery
+or production-support commitment exists.** Evaluation is covered by the
+licenses in [LICENSE.md](../LICENSE.md), including the 90-day free trial. Private
 owner retention is not a legal grant. Human page review, legally valid
 distribution/evaluation rights, documented customer/seller terms, fixed-hardware
 performance budget and unclaimed source/toolchain signature checks remain
