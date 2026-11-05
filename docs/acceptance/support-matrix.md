@@ -1,3 +1,18 @@
+## Actual printable underline-offset subset
+
+`text-underline-offset:auto` retains the existing baseline and PDF bytes.
+A finite nonnegative physical length (`pt/px/mm/cm/in/pc/q`) or a computed
+element `em` / root `rem` of **0–24pt** moves real PDF underline paint
+below the baseline. It does not move glyphs, overlines, strike-throughs, or
+add CSS Text Decoration conformance. Stylesheet/inline winners, inheritance,
+`!important`, page-local text fragments, TrueType and failed-output
+protection follow the existing renderer. Negative values, percentages,
+`calc()`, values above 24pt and standalone-image declarations reject.
+
+The [44-row quotation](../../examples/report-underline-offset.html) is compared
+against an [independent absolute-point control](../../examples/report-underline-offset-oracle.html).
+Implementation source: [`b8f9b938`](https://github.com/KoalaFacts/FactsPDF/commit/b8f9b938ec42b108fb6f325715a4dd9b692e027d).
+
 ## Bounded printable text-decoration thickness (source only)
 
 For business quotations and approval corrections, `text-decoration-thickness`
