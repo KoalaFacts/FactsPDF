@@ -886,7 +886,7 @@ test('bounded CSS decoration ink thickness is provenance-linked without new audi
   assert.match(x.scope,/text-decoration-thickness/);
   assert.match(x.scope,/0.2–12pt/);
   assert.match(x.limitations,/from-font/);
-  assert.match(x.test_reference,/DecorationThicknessReportTests\.cs$/);
+  assert.match(x.test_reference,/UnderlineOffsetReportTests\.cs$/);
   assert.match(dataset.css_inventory_note,/由107增至108/);
 });
 
