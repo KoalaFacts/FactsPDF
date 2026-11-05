@@ -5,6 +5,7 @@
     <Description>A browser-free HTML and CSS to PDF engine, designed for cross-language integration.</Description>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RepositoryUrl>https://github.com/KoalaFacts/FactsPDF</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
