@@ -383,6 +383,7 @@ internal static class CssSyntaxAdapter
                 }
                 if (name == "outline")
                 {
+                    if (!Wide(width)) ValidateComponent("outline-width", width, widthOffset);
                     Emit(CssProperty.OutlineWidth, width, widthOffset, "outline-width");
                     Emit(CssProperty.OutlineStyle, style, styleOffset, "outline-style");
                     Emit(CssProperty.OutlineColor, color, colorOffset, "outline-color");
@@ -1005,6 +1006,13 @@ internal static class CssSyntaxAdapter
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
+        else if (name == "outline-width")
+        {
+            var width = CssPaintValues.BorderWidth(token, offset);
+            if (width > 4)
+                throw new FactsPdfException("FPDF1202",
+                    "Report outline width must be from 0pt to 4pt.", offset);
+        }
         else if (name.Contains("border", StringComparison.Ordinal)
             || name.StartsWith("outline-", StringComparison.Ordinal))
         {

@@ -140,6 +140,6 @@ public sealed class PanelOutlineReportTests
         FailsAndRetains("<p style='outline:2pt solid blue'>A</p>", "FPDF1201");
         FailsAndRetains("<section style='outline:2pt solid blue;border-radius:5pt'>A</section>", "FPDF1201");
         FailsAndRetains("<section style='outline:2pt dashed red'>A</section>", "FPDF1401",
-            Page with { MaxDisplayCommands = 0 });
+            Page with { MaxDisplayCommands = 1 });
     }
 }
