@@ -36,7 +36,7 @@ public sealed class AllocationBudgetTests
         var html = File.ReadAllText(Path.Combine(FindRoot(), "examples", "quick-start.html"));
         var allocated = AllocatedPerConversion(html, Pdf.Write());
         TestContext.Out.WriteLine($"quick-start: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(365 * 1024));
+        Assert.That(allocated, Is.LessThan(355 * 1024));
     }
 
     [Test]
@@ -44,7 +44,7 @@ public sealed class AllocationBudgetTests
     {
         var allocated = AllocatedPerConversion(Table(200), Pdf.Write().WithFonts(f => f.Regular(Font).Subset()));
         TestContext.Out.WriteLine($"200-row styled table: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(6_950 * 1024));
+        Assert.That(allocated, Is.LessThan(6_830 * 1024));
     }
 
     private static string FindRoot()

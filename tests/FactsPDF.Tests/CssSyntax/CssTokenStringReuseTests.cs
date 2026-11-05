@@ -86,4 +86,25 @@ public sealed class CssTokenStringReuseTests
         Assert.That(result.Diagnostics, Has.Count.EqualTo(1));
         Assert.That(CssSyntaxTokenizer.TokenizeWithDiagnostics(CssSourceText.Create("a", 0, limits), limits).Diagnostics, Is.Empty);
     }
+
+    [Test]
+    public void SourceWithoutCharactersToNormalizeIsUsedAsIsWithItsOriginalOffsets()
+    {
+        var limits = new CssSyntaxLimits();
+        const string Css = "a:b";
+        var source = CssSourceText.Create(Css, 0, limits, [10, 11, 15, 16]);
+        Assert.That(source.Normalized, Is.SameAs(Css));
+        Assert.That(source.Span(1, 2), Is.EqualTo(new CssSourceSpan(11, 5)));
+        Assert.That(CssSourceText.Create(Css, 40, limits).Span(0, 3), Is.EqualTo(new CssSourceSpan(40, 3)));
+    }
+
+    [Test]
+    public void SourceNeedingNormalizationIsStillNormalized()
+    {
+        var limits = new CssSyntaxLimits();
+        var source = CssSourceText.Create("a\r\nb\fc\0d\uD800e\U0001F600", 5, limits);
+        Assert.That(source.Normalized, Is.EqualTo("a\nb\nc\uFFFDd\uFFFDe\U0001F600"));
+        Assert.That(source.Span(1, 1), Is.EqualTo(new CssSourceSpan(6, 2)), "CRLF is one normalized newline");
+        Assert.That(source.Span(2, 1), Is.EqualTo(new CssSourceSpan(8, 1)));
+    }
 }
