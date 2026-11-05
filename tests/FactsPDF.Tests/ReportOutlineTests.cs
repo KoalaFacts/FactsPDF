@@ -116,6 +116,37 @@ public sealed class ReportOutlineTests
     }
 
     [Test]
+    public void LargeOutlineOverhangCannotEscapeAnyPhysicalPageEdge()
+    {
+        var narrow = Page with { Margin = 10 };
+        const string html = "<div style='padding-top:125pt;outline:6pt solid red;" +
+            "outline-offset:12pt'></div>";
+        using var output = new MemoryStream();
+        output.Write("original-report"u8);
+        output.Position = 4;
+        var error = Assert.Throws<FactsPdfException>(() =>
+            PdfConverter.Convert(html, output, narrow));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        Assert.That(output.ToArray(), Is.EqualTo("original-report"u8.ToArray()));
+        Assert.That(output.Position, Is.EqualTo(4));
+
+        var safe = narrow with { Margin = 20 };
+        const string inside = "<div style='width:190pt;padding-top:70pt;" +
+            "outline:6pt solid red;outline-offset:12pt'></div>";
+        var pages = Layout(inside, safe);
+        var painted = pages.Single().PaintBoxes.Single();
+        var overhang = painted.Style.OutlineOffset + painted.Style.Outline.EffectiveWidth;
+        Assert.Multiple(() =>
+        {
+            Assert.That(painted.X - overhang, Is.GreaterThanOrEqualTo(0));
+            Assert.That(painted.X + painted.Width + overhang, Is.LessThanOrEqualTo(safe.PageWidth));
+            Assert.That(painted.Top - overhang, Is.GreaterThanOrEqualTo(0));
+            Assert.That(painted.Top + painted.Height + overhang, Is.LessThanOrEqualTo(safe.PageHeight));
+        });
+        Assert.That(Pdf(inside, safe).Length, Is.GreaterThan(100));
+    }
+
+    [Test]
     public void SolidOutlineConnectsOuterCornersWithClosedMiterJoinedPdfPath()
     {
         const string single = "<section style='outline:6pt solid red'>AB</section>";

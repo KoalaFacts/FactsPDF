@@ -434,6 +434,22 @@ internal static class TextLayout
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
                             scope.Style, scope.TextColor, scope.Order,
                             IsFirstFragment: isFirst, IsLastFragment: isLast);
+                        // Outlines are ink outside the measured box. Allow an
+                        // outline-only empty panel to extend past the printable
+                        // bottom margin, but never off the physical PDF sheet.
+                        // Check all four stroke edges, including join width:
+                        // the final PDF painter has no clipping compensation.
+                        var outlineWidth = painted.Style.Outline.EffectiveWidth;
+                        if (painted.Width > 0 && painted.Height > 0 && outlineWidth > 0)
+                        {
+                            var overhang = painted.Style.OutlineOffset + outlineWidth;
+                            if (painted.X - overhang < -0.000001 ||
+                                painted.X + painted.Width + overhang > o.PageWidth + 0.000001 ||
+                                painted.Top - overhang < -0.000001 ||
+                                painted.Top + painted.Height + overhang > o.PageHeight + 0.000001)
+                                throw new FactsPdfException("FPDF1302",
+                                    "Report outline extends outside the physical PDF page.", scope.SourceOffset);
+                        }
                         ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
                         pages[pageIndex].PaintBoxes.Add(painted);
                         // Only paint generated on this page can make this page
