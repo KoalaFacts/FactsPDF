@@ -31,6 +31,11 @@ jobs:
           node-version: '24'
       - name: Verify Node subprocess boundary without renderer dependencies
         run: node --test scripts/test_node_cli_process.mjs
+      - name: Check documentation links, index and named paths
+        if: runner.os == 'Linux'
+        run: |
+          node --test scripts/check-docs.test.ts
+          node scripts/check-docs.ts
       - run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
   native-aot:
     runs-on: ubuntu-latest

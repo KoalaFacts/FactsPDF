@@ -136,7 +136,7 @@ Image XObject：实际 Width/Height、BitsPerComponent=8、DeviceGray 或 Device
 
 用户已确认上述显式名称表、有界 limits、CLI `--image 名称=路径`，并指定公共方法使用 **`PdfImage.LoadImage`**。输入按内容识别；首版 baseline JFIF、方向仅 1、块级且列表外的范围保持。其他图片格式明确报 `FPDF1602`，空或截断 JPEG/损坏编码为 `FPDF1601`。此项新图像接口决策已解决，按计划连续实现、测试、审查并通过正常 PR/CI 门槛；不再重复询问。
 
-独立设计审查状态：两轮复核通过，无剩余设计阻塞。首轮三项 P2（重复 src 的既有诊断、Huffman 负例隔离性、入口适用性）及一项 P3（合法 marker fill）均已修订，并完成定向复核；文字投影、Node 实际路径及 WASM 字节入口边界也已补齐。复跑确认 35 个 fixture、10 个正例独立解码通过；这些不是 JPEG 引擎或跨入口通过证据。本节的产品接口包随后已按用户 LoadImage 指示确认。实施计划：[2026-10-18-bounded-jpeg.md](../plans/2026-10-18-bounded-jpeg.md)。
+独立设计审查状态：两轮复核通过，无剩余设计阻塞。首轮三项 P2（重复 src 的既有诊断、Huffman 负例隔离性、入口适用性）及一项 P3（合法 marker fill）均已修订，并完成定向复核；文字投影、Node 实际路径及 WASM 字节入口边界也已补齐。复跑确认 35 个 fixture、10 个正例独立解码通过；这些不是 JPEG 引擎或跨入口通过证据。本节的产品接口包随后已按用户 LoadImage 指示确认。实施记录见 [images](../../images.md)。
 
 ## 来源与标准边界
 
