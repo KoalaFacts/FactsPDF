@@ -126,6 +126,7 @@ public sealed class AttributeSelectorReportTests
     [TestCase("p[data-state=paid i]")]
     [TestCase("p[data-state~=paid]")]
     [TestCase("p[data-state \"=\" paid]")]
+    [TestCase("p[data-state \"]\"\"[\"title]")]
     [TestCase("p[unknown]")]
     public void UnimplementedOperatorsFlagsAndAttributesRejectWithoutReplacingOutput(string selector)
     {

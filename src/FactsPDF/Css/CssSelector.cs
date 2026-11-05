@@ -30,6 +30,9 @@ internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
 
 internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset)
 {
+    private static bool IsSymbol(CssToken token, string value)
+        => token.Kind == CssTokenKind.Symbol && token.Is(value);
+
     internal CssCompound Rightmost => parts[^1];
     internal CssSpecificity Specificity => specificity;
     internal int Offset => offset;
@@ -45,12 +48,12 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             string? type = null; var ids = new List<string>(); var classes = new List<string>();
             var attrs = new List<CssAttributeMatch>(); var simple = 0;
             if (tokens[i].Kind == CssTokenKind.Identifier) { type = tokens[i++].Text.ToLowerInvariant(); simple++; typeCount++; }
-            else if (tokens[i].Is("*")) { i++; simple++; }
+            else if (IsSymbol(tokens[i], "*")) { i++; simple++; }
             while (true)
             {
                 var current = tokens[i];
                 if (simple > 0 && current.LeadingSpace) break;
-                if (current.Is("."))
+                if (IsSymbol(current, "."))
                 {
                     i++;
                     if (tokens[i].Kind != CssTokenKind.Identifier || tokens[i].LeadingSpace) throw CssTokens.Invalid("Expected a class identifier adjacent to '.'.", current.Offset);
@@ -62,7 +65,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                     if (!CssTokens.IdentifierStart(id, 0)) throw CssTokens.Invalid("Escaped/numeric ID selectors are not supported.", current.Offset);
                     ids.Add(id); idCount++; i++;
                 }
-                else if (current.Is("["))
+                else if (IsSymbol(current, "["))
                 {
                     // Match actual HTML attributes, not an inferred CSS class.
                     i++;
@@ -75,14 +78,14 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                     if (!supported)
                         throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);
                     string? expected = null;
-                    if (tokens[i].Kind == CssTokenKind.Symbol && tokens[i].Is("="))
+                    if (IsSymbol(tokens[i], "="))
                     {
                         i++;
                         if (tokens[i].Kind is not (CssTokenKind.Identifier or CssTokenKind.String))
                             throw CssTokens.Invalid("Attribute equality requires an identifier or quoted string.", current.Offset);
                         expected = tokens[i++].Text;
                     }
-                    if (!tokens[i].Is("]"))
+                    if (!IsSymbol(tokens[i], "]"))
                         throw CssTokens.Invalid("Only [attribute] and [attribute=value] are supported.", current.Offset);
                     i++;
                     attrs.Add(new(name, expected)); classCount++;
@@ -92,9 +95,9 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             }
             if (simple == 0) throw CssTokens.Invalid("Expected a supported selector.", tokens[i].Offset);
             parts.Add(new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), child));
-            if (tokens[i].Is(",") || tokens[i].Is("{")) break;
+            if (IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")) break;
             if (tokens[i].Kind == CssTokenKind.End) throw CssTokens.Invalid("Expected a CSS declaration block.", tokens[i].Offset);
-            if (tokens[i].Is(">")) { child = true; i++; }
+            if (IsSymbol(tokens[i], ">")) { child = true; i++; }
             else if (tokens[i].LeadingSpace) child = false;
             else throw CssTokens.Invalid("Unsupported or malformed selector/combinator.", tokens[i].Offset);
         }
