@@ -148,7 +148,7 @@ public sealed class TextDecorationPaintTests
     [TestCase("text-decoration:underline wavy", "FPDF1202")]
     [TestCase("text-decoration:underline dashed dotted", "FPDF1202")]
     [TestCase("text-decoration:underline red blue", "FPDF1202")]
-    [TestCase("text-decoration:underline line-through", "FPDF1202")]
+    [TestCase("text-decoration:underline line-through underline", "FPDF1202")]
     [TestCase("text-decoration:none red", "FPDF1202")]
     [TestCase("text-decoration-color:transparent", "FPDF1202")]
     [TestCase("text-decoration-style:double", "FPDF1202")]

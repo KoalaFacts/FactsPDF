@@ -1,3 +1,27 @@
+## Bounded combined PDF text-decoration lines (source only)
+
+Controlled business report paragraphs, headings, inline text and flat table
+cell text accept `text-decoration-line` with standalone `none` or **1–3
+distinct** `underline`/`line-through`/`overline` values in any order.
+The `text-decoration` shorthand accepts the same line set, optionally one
+opaque colour, one solid/dashed/dotted stroke and one bounded 0.2–12pt
+computed thickness. Omitted shorthand terms reset as before, and
+`inherit`/`initial`/`unset`, specificity and `!important` apply to
+the line set as one CSS property. Underline offset changes only the underline.
+
+Each selected line paints an independent, page-local, measured-width PDF
+path on searchable text and consumes one `MaxDisplayCommands` slot;
+legacy single-line and none PDF bytes remain unchanged. Duplicate lines,
+`none` mixed with a line, extra width/colour/style terms, unknown lines,
+unsupported CSS values and unmatched invalid rules reject `FPDF1202`.
+Standalone images reject `FPDF1201`. Failures preserve existing output.
+
+The [44-entry quote](../examples/report-combined-text-decorations.html) matches the
+[independently written longhand control](../examples/report-combined-text-decorations-oracle.html) byte-for-byte in
+[NUnit PDF/TrueType/CLI/negative tests](../tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs).
+Engine source [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a);
+not full CSS Text Decoration, a new binary or human PDF approval.
+
 ### Bounded PDF underline offset
 
 The independent CSS property `text-underline-offset` moves the **actual
@@ -13,8 +37,7 @@ This bounded, inherited CSS longhand uses ordinary source order,
 specificity, `!important`, `inherit`/`unset` and `initial` reset.
 It applies to already-supported underline-bearing paragraph, heading, inline
 text and flat table-cell text; line wrapping and page-local decoration
-fragments continue through existing layout and paint. It does not add
-multiple decoration lines, CSS underline-position or browser propagation.
+fragments continue through existing layout and paint. It does not add CSS underline-position or browser propagation.
 Negative offsets, percentages, `calc()`, `from-font`, computed values above
 24pt and standalone-image use fail explicitly; conversion errors preserve the
 previous destination PDF.
@@ -45,7 +68,7 @@ The renderer paints the computed width as a PDF solid rectangle or
 page-local clipped dashed/dotted stroke, with searchable real glyphs and
 true line/page wrapping. Default `auto` retains exact legacy PDF bytes.
 No CSS `from-font`, percentages, `calc()`, arbitrary offsets, unbounded
-widths, combined decoration lines or general browser propagation.
+widths or general browser propagation.
 Out-of-range/unsupported declarations, including unmatched selector rules,
 reject explicitly and preserve any pre-existing PDF.
 

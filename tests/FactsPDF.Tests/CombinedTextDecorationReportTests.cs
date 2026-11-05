@@ -133,6 +133,30 @@ public sealed class CombinedTextDecorationReportTests
         Assert.That(output.Position, Is.EqualTo(4));
     }
 
+    private static string Example(string name)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
+            directory = directory.Parent;
+        Assert.That(directory, Is.Not.Null);
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+    }
+
+    [Test]
+    public void RunnableFortyFourRowQuoteMatchesIndependentlyAuthoredLonghandPdf()
+    {
+        var source = Example("report-combined-text-decorations.html");
+        var control = Example("report-combined-text-decorations-oracle.html");
+        var a4 = new PdfOptions();
+        var actual = Pdf(source, a4);
+        Assert.That(actual, Is.EqualTo(Pdf(control, a4)));
+        var pages = Layout(source, a4);
+        Assert.That(pages.Count, Is.GreaterThan(1));
+        Assert.That(pages.SelectMany(p => p.Runs).Count(run =>
+            run.Text.StartsWith("ITEM-", StringComparison.Ordinal)), Is.EqualTo(44));
+        Assert.That(Encoding.Latin1.GetString(actual), Does.Contain(" re W n "));
+    }
+
     [TestCase("text-decoration-line:none underline")]
     [TestCase("text-decoration-line:underline underline")]
     [TestCase("text-decoration-line:underline overline line-through overline")]

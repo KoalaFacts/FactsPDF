@@ -246,6 +246,30 @@ No new installable preview, human reference approval or customer grant is implie
 
 ## Text, fonts and typography
 
+### Combined underline, overline and strike-through in actual PDFs (source-only)
+
+Revision registers and quotes can paint **one, two or three distinct** text
+decoration lines in the same measured, searchable PDF text run:
+
+```css
+.revised { text-decoration: underline overline solid #285d91 1pt; }
+.superseded { text-decoration-line: underline line-through overline; }
+```
+
+The shorthand accepts the existing opaque colour, solid/dashed/dotted
+stroke and 0.2–12pt resolved thickness; `text-underline-offset` moves only
+the underline. Ordinary cascade, `!important`, CSS-wide keywords, TrueType,
+flat table text and page-local fragments apply. Standalone `none` is valid;
+duplicate lines, `none` mixed with visible lines, `blink`, `wavy`, alpha
+and browser descendant-decoration propagation reject explicitly. Each real
+PDF path counts toward `MaxDisplayCommands`; failed conversion preserves
+the prior PDF. The [44-item quote](../examples/report-combined-text-decorations.html) and
+[independently authored longhand control](../examples/report-combined-text-decorations-oracle.html) are byte-compared by
+[PDF/TrueType/CLI/negative NUnit](../tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs).
+Source [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a).
+No full CSS Text Decoration, installable binary or human approval is implied.
+
+
 ### Bounded PDF underline offset
 
 The independent CSS property `text-underline-offset` moves the **actual

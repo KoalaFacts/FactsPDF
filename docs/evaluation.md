@@ -1,3 +1,12 @@
+## Source-only quote revision decoration lines
+
+Reports can simultaneously paint selected underline, overline and
+strike-through PDF lines on searchable text. A [44-item quote](../examples/report-combined-text-decorations.html)
+and [independent longhand oracle](../examples/report-combined-text-decorations-oracle.html) exercise real glyph geometry,
+fonts, CLI and protected failures in source
+[`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a).
+This is not redaction, new installable software or human PDF approval.
+
 ## Actual printable underline-offset subset
 
 `text-underline-offset:auto` retains the existing baseline and PDF bytes.
@@ -31,7 +40,7 @@ The renderer paints the computed width as a PDF solid rectangle or
 page-local clipped dashed/dotted stroke, with searchable real glyphs and
 true line/page wrapping. Default `auto` retains exact legacy PDF bytes.
 No CSS `from-font`, percentages, `calc()`, arbitrary offsets, unbounded
-widths, combined decoration lines or general browser propagation.
+widths or general browser propagation.
 Out-of-range/unsupported declarations, including unmatched selector rules,
 reject explicitly and preserve any pre-existing PDF.
 
