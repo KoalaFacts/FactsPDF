@@ -882,21 +882,24 @@ test('bounded CSS decoration ink thickness is provenance-linked without new audi
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,109);
   const x=dataset.features.find(f=>f.id==='css.text-decoration');
-  assert.equal(x.last_audited_commit,'b8f9b938ec42b108fb6f325715a4dd9b692e027d');
+  assert.equal(x.last_audited_commit,'2d18399e25c65267431f0decc7fe716dde82688a');
   assert.match(x.scope,/text-decoration-thickness/);
   assert.match(x.scope,/0.2–12pt/);
   assert.match(x.limitations,/from-font/);
-  assert.match(x.test_reference,/UnderlineOffsetReportTests\.cs$/);
+  assert.match(x.test_reference,/CombinedTextDecorationReportTests\.cs$/);
+  assert.ok(x.sources.some(url=>url.includes('b8f9b938ec42b108fb6f325715a4dd9b692e027d/src/FactsPDF/Css/CssSyntaxAdapter.cs')));
   assert.match(dataset.css_inventory_note,/由107增至108/);
 });
 
 test('bounded text underline offset changes real geometry without new IDs or release claims', () => {
   const row = dataset.features.find(f => f.id === 'css.text-decoration');
-  assert.equal(row.last_audited_commit,'b8f9b938ec42b108fb6f325715a4dd9b692e027d');
+  assert.equal(row.last_audited_commit,'2d18399e25c65267431f0decc7fe716dde82688a');
   assert.match(row.scope, /text-underline-offset:auto/);
   assert.match(row.scope, /0–24pt/);
   assert.match(row.limitations, /负偏移/);
-  assert.match(row.test_reference, /UnderlineOffsetReportTests.cs/);
+  assert.match(row.test_reference, /CombinedTextDecorationReportTests.cs/);
+  assert.match(row.scope, /1–3 个互不重复线型/);
+  assert.ok(row.sources.some(url=>url.includes('2d18399e25c65267431f0decc7fe716dde82688a/src/FactsPDF/PdfPaintSerializer.cs')));
   assert.equal(row.introduced_release,null);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,109);
