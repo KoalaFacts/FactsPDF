@@ -96,6 +96,38 @@ public sealed class LastLineAlignmentReportTests
         Assert.That(Pdf(table).Length, Is.GreaterThan(100));
     }
 
+    [Test]
+    public void ExplicitBreaksAndLastLinesCanJustifyActualWordSpaceAdvances()
+    {
+        const string original = "<p style='width:90pt;font-size:10pt;margin:0'>Alpha Beta<br>Gamma</p>";
+        var justified = original.Replace("margin:0'", "margin:0;text-align-last:justify'", StringComparison.Ordinal);
+        var baseline = Layout(original).Single().Runs;
+        var aligned = Layout(justified).Single().Runs;
+        Assert.That(baseline.Select(r => r.Text).ToArray(), Is.EqualTo(new[] { "Alpha Beta", "Gamma" }));
+        Assert.That(aligned.SelectMany(r => r.Text).Aggregate("", (a, b) => a + b), Is.EqualTo("Alpha BetaGamma"));
+        Assert.That(aligned[^1].Text, Is.EqualTo("Gamma"));
+        // The explicitly broken first line contains one measurable U+0020
+        // gap; the final line has no space and is never stretched.
+        Assert.That(aligned.First().X, Is.EqualTo(36).Within(0.000001));
+        Assert.That(aligned.Take(aligned.Count - 1).Last() is { } word &&
+            word.X + word.Width, Is.EqualTo(126).Within(0.000001));
+        Assert.That(aligned[^1].X, Is.EqualTo(36).Within(0.000001));
+        Assert.That(Pdf(justified), Is.Not.EqualTo(Pdf(original)));
+    }
+
+    [Test]
+    public void ExplicitTrueTypeRetainsActualFontAndMeasuredLastLineGeometry()
+    {
+        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var options = new PdfOptions { Fonts = [font], PageWidth = 300, Margin = 30 };
+        const string html = "<p style='width:110pt;font-size:10pt;margin:0;text-align-last:center'>AA<br>B</p>";
+        var runs = Layout(html, options).Single().Runs;
+        Assert.That(runs, Has.Count.EqualTo(2));
+        Assert.That(runs.All(r => ReferenceEquals(r.Font, font)), Is.True);
+        Assert.That(runs[1].X, Is.GreaterThan(runs[0].X));
+        Assert.That(Pdf(html, options).Length, Is.GreaterThan(100));
+    }
+
     [TestCase("<p style='text-align-last:stretch'>Text</p>", "FPDF1202")]
     [TestCase("<p style='text-align-last:20%'>Text</p>", "FPDF1202")]
     [TestCase("<style>.unused{text-align-last:stretch}</style><p>Text</p>", "FPDF1202")]
