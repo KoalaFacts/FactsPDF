@@ -19,11 +19,13 @@ public sealed class AttributeOperatorReportTests
     [TestCase("p[lang|=en]", "en-AU", "english")]
     [TestCase("p[lang|=en]", "en", "enAU")]
     [TestCase("p[data-code^=\"inv-\" i]", "INV-007", "XINV-007")]
+    [TestCase("p[data-code^=\"inv-\"i]", "INV-007", "XINV-007")]
     [TestCase("p[data-code$=\"-paid\" I]", "INV-PAID", "PAID-INV")]
     [TestCase("p[data-code*=\"x-4\" i]", "INV-X-42", "INV-42")]
     [TestCase("p[data-code~=priority i]", "normal PRIORITY urgent", "priorities")]
     [TestCase("p[lang|=en i]", "EN-au", "english")]
     [TestCase("p[data-code=paid s]", "paid", "PAID")]
+    [TestCase("p[data-code=\"paid\"s]", "paid", "PAID")]
     [TestCase("p[data-code=paid i]", "PAID", "PENDING")]
     [TestCase("p[data-code^=INV-]", "INV-007", "inv-007")]
     public void AttributeOperatorMatchesRealPdfInkAndRejectsNonmatch(string selector, string match, string miss)
@@ -56,6 +58,27 @@ public sealed class AttributeOperatorReportTests
         const string control = "<p style='color:red;background:#ffeecc;" +
             "border-left:2pt solid red'>CHECK</p><p>OTHER</p>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
+    }
+
+    [Test]
+    public void RepeatedPrefixCaseFoldedSubstringSearchIsBoundedAndBudgeted()
+    {
+        // A naive repeated substring comparison needs billions of character
+        // checks here. The linear search must match and obey the CSS budget.
+        var pattern = new string('a', 15_000) + "b";
+        var data = new string('a', 60_000) + "b";
+        var html = "<style>p[data-code*=\"" + pattern + "\" i]{color:red}</style>" +
+            "<p data-code='" + data + "'>MATCH</p>";
+        Assert.That(Pdf(html), Is.EqualTo(Pdf("<p style='color:red'>MATCH</p>")));
+        using var output = new MemoryStream();
+        output.Write("previous PDF"u8);
+        output.Position = 3;
+        var saved = output.ToArray();
+        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
+            html, output, new PdfOptions { MaxCssMatchOperations = 1_000 }));
+        Assert.That(ex!.Code, Is.EqualTo("FPDF1205"));
+        Assert.That(output.ToArray(), Is.EqualTo(saved));
+        Assert.That(output.Position, Is.EqualTo(3));
     }
 
     [Test]
@@ -150,6 +173,7 @@ public sealed class AttributeOperatorReportTests
     [TestCase("p[data-state^=\"\"]")]
     [TestCase("p[data-state~=\"\"]")]
     [TestCase("p[data-state$=due q]")]
+    [TestCase("p[data-state$=\"due\"q]")]
     [TestCase("p[data-state*=due i s]")]
     [TestCase("p[data-state*=due ii]")]
     [TestCase("p[data-state!=due]")]

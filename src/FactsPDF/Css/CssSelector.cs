@@ -110,7 +110,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                         // Empty non-equality operands are outside this bounded subset.
                         if (op != CssAttributeOperator.Equals && expected.Length == 0)
                             throw CssTokens.Invalid("Empty substring/word/language attribute operands are unsupported.", operatorToken.Offset);
-                        if (tokens[i].Kind == CssTokenKind.Identifier && tokens[i].LeadingSpace)
+                        if (tokens[i].Kind == CssTokenKind.Identifier)
                         {
                             if (tokens[i].Text.Equals("i", StringComparison.OrdinalIgnoreCase))
                                 ignoreCase = true;
@@ -199,27 +199,53 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         };
     }
 
-    // The i flag is ASCII-insensitive (not a culture-sensitive Unicode fold).
+    // The i flag folds ASCII letters only, never locale or Unicode mappings.
+    private static bool EqualChar(char a, char b, bool ignoreCase)
+    {
+        if (!ignoreCase) return a == b;
+        if (a is >= 'A' and <= 'Z') a = (char)(a + 32);
+        if (b is >= 'A' and <= 'Z') b = (char)(b + 32);
+        return a == b;
+    }
+
     private static bool Equal(ReadOnlySpan<char> left, ReadOnlySpan<char> right, bool ignoreCase)
     {
         if (left.Length != right.Length) return false;
         if (!ignoreCase) return left.SequenceEqual(right);
         for (var i = 0; i < left.Length; i++)
-        {
-            var a = left[i]; var b = right[i];
-            if (a is >= 'A' and <= 'Z') a = (char)(a + 32);
-            if (b is >= 'A' and <= 'Z') b = (char)(b + 32);
-            if (a != b) return false;
-        }
+            if (!EqualChar(left[i], right[i], ignoreCase)) return false;
         return true;
     }
 
     private bool Contains(string actual, string expected, bool fold, CssBudget budget)
     {
-        for (var i = 0; i <= actual.Length - expected.Length; i++)
+        // KMP bounds repeated-prefix searches to O(attribute + needle) work
+        // instead of repeated O(needle) comparisons for each candidate offset.
+        // Charge both prefix preparation and every actual comparison to the
+        // same CSS work budget used for the rest of selector matching.
+        var prefix = new int[expected.Length];
+        for (var i = 1, matched = 0; i < expected.Length;)
         {
             budget.Work(offset);
-            if (Equal(actual.AsSpan(i, expected.Length), expected.AsSpan(), fold)) return true;
+            if (EqualChar(expected[i], expected[matched], fold))
+                prefix[i++] = ++matched;
+            else if (matched > 0)
+                matched = prefix[matched - 1];
+            else
+                prefix[i++] = 0;
+        }
+        for (var i = 0, matched = 0; i < actual.Length;)
+        {
+            budget.Work(offset);
+            if (EqualChar(actual[i], expected[matched], fold))
+            {
+                i++; matched++;
+                if (matched == expected.Length) return true;
+            }
+            else if (matched > 0)
+                matched = prefix[matched - 1];
+            else
+                i++;
         }
         return false;
     }
