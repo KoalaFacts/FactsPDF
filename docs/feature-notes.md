@@ -1,3 +1,15 @@
+## Last-line alignment for quotation text (source implementation)
+
+`text-align-last:center` can centre the final line of a wrapped quote,
+without centring its earlier lines; `text-align-last:justify` extends
+retained spaces on final/explicit-break lines. This also paints real flat
+table-cell text at computed PDF X positions. Default `auto` keeps prior
+bytes. The [44-row report](../examples/report-last-line-alignment.html)
+matches an [independent explicit-break control](../examples/report-last-line-alignment-oracle.html)
+in [source PDF/geometry/error tests](../tests/FactsPDF.Tests/LastLineAlignmentReportTests.cs).
+See the [bounded CSS contract](css-stylesheets.md#bounded-pdf-last-line-alignment-source-implementation).
+Source `61da678fbfcada09bf9ae5ee10eee414d1879c27`; independent review and current-head checks are separate.
+
 # FactsPDF feature notes
 
 Detailed notes for each bounded HTML/CSS capability added to the development

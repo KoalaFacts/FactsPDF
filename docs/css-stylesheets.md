@@ -1,3 +1,24 @@
+## Bounded PDF last-line alignment (source implementation)
+ 
+A controlled report paragraph/heading or flat fixed-column table cell may set
+`text-align-last:center`, `right`, `left`, `start`, `end`, or `justify`.
+The winning inherited value applies to the *last and explicit-break lines*
+in the actual PDF: X coordinates use measured glyph widths; `justify` uses
+the same U+0020 word-space glyph advances as the existing auto-wrap path.
+`auto` is the default and preserves the previous final-line positioning and
+PDF bytes. Wrapped interior lines keep ordinary `text-align`. CSS specificity,
+`!important`, and `inherit/initial/unset` remain supported.
+
+This is horizontal LTR only; no CSS Text Level 3/general browser alignment,
+RTL/bidi, CJK inter-character justification, inline-span declarations,
+unsupported values or new table layout. Invalid input fails without
+replacing the existing destination. The
+[44-record multi-page input](../examples/report-last-line-alignment.html),
+[independent manually broken control](../examples/report-last-line-alignment-oracle.html),
+and [NUnit PDF, cascade, table, geometry and recovery checks](../tests/FactsPDF.Tests/LastLineAlignmentReportTests.cs)
+exercise actual content and fail-safe behavior. Initial implementation
+[61da678f](https://github.com/KoalaFacts/FactsPDF/commit/61da678fbfcada09bf9ae5ee10eee414d1879c27).
+ 
 ## Bounded physical outlines for report panels
 
 ### Report-panel outline paint (source-only)
