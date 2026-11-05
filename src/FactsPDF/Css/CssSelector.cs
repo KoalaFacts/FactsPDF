@@ -75,7 +75,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                     if (!supported)
                         throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);
                     string? expected = null;
-                    if (tokens[i].Is("="))
+                    if (tokens[i].Kind == CssTokenKind.Symbol && tokens[i].Is("="))
                     {
                         i++;
                         if (tokens[i].Kind is not (CssTokenKind.Identifier or CssTokenKind.String))

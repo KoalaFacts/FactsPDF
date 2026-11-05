@@ -82,7 +82,15 @@ public sealed class AttributeSelectorReportTests
         var pages = Layout(actual);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(pages.SelectMany(page => page.Runs).Count(run =>
-            run.Text.StartsWith("Invoice ", StringComparison.Ordinal)), Is.EqualTo(44));
+            run.Text.StartsWith("Invoice 0", StringComparison.Ordinal)), Is.EqualTo(44));
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
+    }
+
+    [Test]
+    public void IdEqualitySelectorChangesActualPdfInk()
+    {
+        const string actual = "<style>p[id=paid]{color:red}</style><p id=paid>PAID</p>";
+        const string control = "<p id=paid style='color:red'>PAID</p>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
     }
 
@@ -117,6 +125,7 @@ public sealed class AttributeSelectorReportTests
     [TestCase("p[data-state*=paid]")]
     [TestCase("p[data-state=paid i]")]
     [TestCase("p[data-state~=paid]")]
+    [TestCase("p[data-state \"=\" paid]")]
     [TestCase("p[unknown]")]
     public void UnimplementedOperatorsFlagsAndAttributesRejectWithoutReplacingOutput(string selector)
     {
