@@ -829,6 +829,12 @@ new private software, human reference approval, CI and customer rights are separ
 
 For business tables with multiline descriptions, `td`/`th` now accept `vertical-align:top`, `middle` or `bottom` to position a shorter cell's text or image within the complete painted row. Whole rows and intact repeated headers work across pages. Rows needing independent cell-by-cell continuation reject `middle`/`bottom` instead of pretending to align; inline baseline alignment, `rowspan` and general CSS table layout remain unsupported. See the [40-row report](../examples/report-table-vertical-align.html), [physical-padding oracle](../examples/report-table-vertical-align-oracle.html) and [table contract](tables.md#vertical-alignment-in-whole-table-rows).
 
+### Current-source list marker placement in business registers
+
+The existing ordered/unordered report lists can now place measured numeric, alphabetic, Roman or vector bullet markers `inside` the first line rather than in the default outside gutter. Both `list-style-position` longhand and a restricted one- or two-term `list-style` shorthand participate in real CSS cascade and generate actual searchable PDF text/vector marks. An inside marker reserves its measured first-line advance, while subsequent wrapped lines regain the content edge; pagination retains a single marker per item. The old default outside-list PDF path remains byte-identical.
+
+Examples: `examples/report-list-marker-inside.html`, `examples/report-list-marker-inside-oracle.html` (separately authored longhands) and `examples/report-list-marker-outside-control.html`. Focused managed/layout/failure tests are in `ListMarkerPositionTests.cs`, and Native AOT/qpdf/Poppler evidence is in `verify_native_feature_paths.py`. Only supported `ol/ul/li` contexts, known marker kinds, and `inside/outside` are accepted; no URL images, CSS counters, RTL or generic list formatting.
+
 ### Current-source selectable report-list markers
 
 Business reports may set `list-style-type` on an existing `ol`, `ul`

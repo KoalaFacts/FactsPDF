@@ -3,7 +3,7 @@ using System.Text;
 
 namespace FactsPDF;
 
-internal sealed record ListMarker(string? Text, TextStyle Style, double Width, int SourceOffset, ListMarkerKind Kind);
+internal sealed record ListMarker(string? Text, TextStyle Style, double Width, int SourceOffset, ListMarkerKind Kind, bool Inside = false);
 
 // Explicit bounded CSS marker kinds. No generated content, counter CSS, or
 // network/font inference. The index is local to each list; li may override the
@@ -119,10 +119,23 @@ internal sealed class ListLayout
                 var width = text is null ? 0.3 * item.Style.FontSize : Measure(text, item.Style, item.SourceOffset);
                 maximum = Math.Max(maximum, width);
                 Paragraph? paragraph = null;
-                foreach (var descendant in Descendants(item.Children, cancellation))
+                if (item.BoxStyle.MarkerInside)
                 {
-                    if (descendant is BlockNode { Name: "ol" or "ul" }) break;
-                    if (descendant is ParagraphNode leaf) { paragraph = leaf.Paragraph; break; }
+                    // An inside marker belongs to the item's own first inline
+                    // paragraph, never to a block child's independent box.
+                    // A leading block gets a separate marker-only line.
+                    if (item.Children.Count > 0 &&
+                        item.Children[0] is ParagraphNode { IsAnonymous: true } direct)
+                        paragraph = direct.Paragraph;
+                }
+                else
+                {
+                    // Preserve the legacy outside-marker attachment and bytes.
+                    foreach (var descendant in Descendants(item.Children, cancellation))
+                    {
+                        if (descendant is BlockNode { Name: "ol" or "ul" }) break;
+                        if (descendant is ParagraphNode leaf) { paragraph = leaf.Paragraph; break; }
+                    }
                 }
                 if (paragraph is null)
                 {
@@ -131,7 +144,7 @@ internal sealed class ListLayout
                     view.AddRange(item.Children);
                     result.children.Add(item, view);
                 }
-                result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset, kind));
+                result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset, kind, item.BoxStyle.MarkerInside));
             }
             if (list.Children.Count > 0)
                 result.gutters.Add(list, Math.Max(2 * list.Style.FontSize, maximum + 0.5 * list.Style.FontSize));

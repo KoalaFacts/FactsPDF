@@ -1139,6 +1139,16 @@ This engine's bounded `text-indent` does **not** implement negative/hanging inde
 
 The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
 
+## Current-source inside/outside list marker placement
+
+The supported `ol`, `ul` and `li` report lists accept `list-style-position:outside` (default) and `inside`. For inside, the measured, searchable ordinal or existing vector bullet is placed at the first line's inline start, with the marker width plus half the item's font size reserved before content. The next wrapped line returns to the normal text edge, including when continuation falls on a new PDF page. Outside retains the existing fixed marker gutter and byte-identical output. The list marker's actual font, text transform, inherited text colour and size remain in force.
+
+`list-style` supports one known marker type, one position keyword, or two tokens combining a supported marker type and `inside`/`outside` in either order (for example `list-style:upper-roman inside`). An omitted type resets to `disc`; an omitted position resets to `outside`, even on `ol`. A single `inherit`/`initial`/`unset` resets both longhands. Independent longhand winners participate in ordinary stylesheet/inline cascade and `!important`; both properties inherit through supported list ancestry, while initial/unset for position resolve to outside/parent respectively. Direct `li` overrides are permitted. Numbered lists retain bounded `start`, `value` and `reversed` semantics.
+
+No `list-style-image`, CSS counters, custom marker glyphs, position changes on non-list elements, inline list items, general layout modes, RTL/vertical writing, more than two nested list levels or full CSS Lists conformance. Unsupported combinations and bad values, including in unmatched CSS, reject explicitly with FPDF1201/FPDF1202 rather than silently ignoring terms. The original output file is protected on error.
+
+Evidence: `tests/FactsPDF.Tests/ListMarkerPositionTests.cs`, `examples/report-list-marker-inside.html`, an independently authored explicit-longhand oracle, an outside-control PDF, and `scripts/verify_native_feature_paths.py` (Native AOT/qpdf/Poppler positional witness and negative recovery).
+
 ## Current-source bounded list marker types
 
 An `ol`, `ul`, or direct `li` may specify one CSS
@@ -1171,13 +1181,14 @@ subtractive and deliberately supported only up to 3999 items
 (`FPDF1202` beyond). Missing requested-font marker glyphs fail
 with the existing FPDF1504/1507 paths rather than being substituted.
 
-This is not full CSS Lists: `list-style` shorthand,
-`list-style-position`, images, counters,
-`::marker`, arbitrary nesting, or declarations on non-list elements
-are unsupported and rejected. Invalid values reject FPDF1202,
+This is not full CSS Lists: the shorthand and position are limited
+to the bounded grammar above; images, counters, duplicate position/type
+tokens, `::marker`, arbitrary nesting and non-list targets remain
+unsupported and rejected. Invalid values reject FPDF1202,
 invalid target elements FPDF1201, and failed output leaves an
-existing PDF unchanged. No HTML `ol start`/`li value` or new
-fonts/platforms are implied. Source implementation
+existing PDF unchanged. Bounded HTML `ol start`/`li value` numbering
+is documented in the current [list contract](lists.md). No new
+fonts/platforms are implied. Earlier marker-type source implementation
 `e137e523264d1250702656ee1968c5ff2f61e8fe` (initial list types),
 `7665f2fbafa34e14f9d792e7e7728d67f268e0e3` (circle/square shapes),
 with an [80-item Native AOT report](../examples/report-list-vector-shapes.html);

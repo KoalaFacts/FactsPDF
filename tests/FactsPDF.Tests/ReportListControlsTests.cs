@@ -127,11 +127,11 @@ public sealed class ReportListControlsTests
         Rejects("<ol><li value='0'>A</li></ol>", "FPDF1103");
         Rejects("<ul><li value='2'>A</li></ul>", "FPDF1103");
         Rejects("<ul start='2'><li>A</li></ul>", "FPDF1103");
-        Rejects("<ol style='list-style:circle inside'><li>A</li></ol>", "FPDF1202");
+        Rejects("<ol style='list-style:circle inside outside'><li>A</li></ol>", "FPDF1202");
         Rejects("<ol style='list-style:disc url(icon.png)'><li>A</li></ol>", "FPDF1202");
         Rejects("<ol style='list-style:diamond'><li>A</li></ol>", "FPDF1202");
         Rejects("<p style='list-style:none'>A</p>", "FPDF1201");
-        Rejects("<style>.unused{list-style:outside}</style><ol><li>A</li></ol>", "FPDF1202");
+        Rejects("<style>.unused{list-style:inside outside}</style><ol><li>A</li></ol>", "FPDF1202");
         Assert.That(Pdf("<ol start='11'><li>A</li></ol>").Length, Is.GreaterThan(300));
     }
 

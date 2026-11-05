@@ -71,7 +71,7 @@ internal static class TextLines
 
     internal static IEnumerable<Line> Wrap(Paragraph paragraph, double available, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
-        ListMarker? firstMarker = null)
+        ListMarker? firstMarker = null, double firstLineMarkerInset = 0)
     {
         Glyph Resolve(int scalar, TextStyle style, int sourceOffset)
         {
@@ -223,7 +223,7 @@ internal static class TextLines
         // The opt-in first-line inset is relative to the paragraph's resolved
         // content width, not to the page or its painted border box. It belongs
         // only to the first logical line; continuation pages never re-indent.
-        var firstIndent = paragraph.Style.FirstLineIndent.Resolve(available);
+        var firstIndent = paragraph.Style.FirstLineIndent.Resolve(available) + firstLineMarkerInset;
         // Resolve the complete paragraph before reporting width errors, and
         // validate every word before yielding a line to pagination. Recording
         // a width failure (rather than throwing immediately) keeps the legacy
@@ -418,12 +418,19 @@ internal static class TextLines
                 !paragraph.Style.BreakAll && !CanBreak(previous, cursor.Current.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
             var lineAvailable = firstLine ? available - firstIndent : available;
+            // An inside marker is already first-line content. A word which
+            // fits the normal line but not the remaining marker line may move
+            // intact to the next line. An authored text-indent alone must
+            // still reject a first word that cannot fit after that indent.
+            var markerOnlyWrap = firstLine && firstMarker is { Inside: true } &&
+                firstLineMarkerInset > 0 &&
+                wordWidth <= available - paragraph.Style.FirstLineIndent.Resolve(available) + 0.000001;
             // Break only a token that cannot fit a fresh line, or the
             // indented first line when no earlier text can move. A fitting
             // word moves as a whole at the preceding ordinary space.
             if (paragraph.Style.BreakWords &&
                 (wordWidth > available + 0.000001 ||
-                 current.Count == 0 && wordWidth > lineAvailable + 0.000001))
+                 current.Count == 0 && wordWidth > lineAvailable + 0.000001 && !markerOnlyWrap))
             {
                 if (current.Count > 0)
                 {
@@ -452,6 +459,13 @@ internal static class TextLines
             {
                 if (current.Count > 0)
                 {
+                    yield return CurrentLine(softWrapped: true);
+                    ResetLine();
+                }
+                else if (markerOnlyWrap)
+                {
+                    // Paint the marker on this empty logical line, then wrap
+                    // the whole first word using the full continuation width.
                     yield return CurrentLine(softWrapped: true);
                     ResetLine();
                 }
