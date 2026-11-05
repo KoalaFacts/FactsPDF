@@ -105,6 +105,20 @@ public sealed class AttributeOperatorReportTests
     }
 
     [Test]
+    public void RunnableInvoiceExampleMatchesIndependentInlineOracle()
+    {
+        var root = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
+            "..", "..", "..", "..", ".."));
+        var actual = File.ReadAllText(Path.Combine(root, "examples", "report-attribute-operators.html"));
+        var control = File.ReadAllText(Path.Combine(root, "examples", "report-attribute-operators-oracle.html"));
+        var pages = Layout(actual);
+        Assert.That(pages.Count, Is.GreaterThan(1));
+        Assert.That(pages.SelectMany(page => page.Runs).Count(run =>
+            run.Text.StartsWith("Invoice ", StringComparison.Ordinal)), Is.EqualTo(44));
+        Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
+    }
+
+    [Test]
     public void SubstringAttributeSelectorSizesExplicitImage()
     {
         var options = new PdfOptions
