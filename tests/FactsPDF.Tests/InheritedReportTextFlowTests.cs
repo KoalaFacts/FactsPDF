@@ -40,8 +40,8 @@ public sealed class InheritedReportTextFlowTests
     public void ScopedPanelDeclarationEqualsExplicitChildStylesInRealPdf(string property, string value)
     {
         var rule = property + ":" + value;
-        const string first = "PAID VERYLONGUNBROKENREFERENCECODE";
-        const string second = "NEXT MONTHLYINSPECTIONREFERENCECODE";
+        const string first = "PAID REFERENCE INVOICE";
+        const string second = "NEXT MONTHLY INSPECTION";
         var actual = "<section style='" + rule + "'><p style='width:90pt'>" + first +
             "</p><article><h3 style='width:110pt'>" + second + "</h3></article></section>";
         var oracle = "<section><p style='width:90pt;" + rule + "'>" + first +
