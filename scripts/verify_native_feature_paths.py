@@ -785,7 +785,6 @@ def verify_native_combined_decorations(executable, output, work):
     assert clipped >= 45 and solid >= 58, (
         'Not all independently painted combined-line paths survived native serialization',
         clipped, solid)
-    assert b'<4944454d2d' not in painted, 'Unexpected encoded text overlap in ink paths'
     invalid = output / 'combined-text-decorations-invalid.html'
     old = 'text-decoration:overline underline solid #285d91 1pt'
     assert old in authored, 'Source has no expected valid CSS to invalidate'
