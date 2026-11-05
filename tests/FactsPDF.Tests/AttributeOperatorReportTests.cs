@@ -92,7 +92,7 @@ public sealed class AttributeOperatorReportTests
         var actualValue = op == "~=" ? new string(' ', 4_000) :
             op == "|=" ? new string('a', 2_000) + "-AU" : new string('a', 2_000);
         var expected = op == "~=" ? "priority" : new string('a', 1_999) + "b";
-        var html = "<style>article[data-x" + op + "=\"" + expected +
+        var html = "<style>article[data-x" + op + "\"" + expected +
             "\" i] p{color:red}</style><article data-x='" + actualValue + "'>" +
             string.Concat(Enumerable.Repeat("<p>ROW</p>", 20)) + "</article>";
         using var output = new MemoryStream();
