@@ -486,7 +486,7 @@ def verify_native_inside_markers(executable, output, work):
     positioned = [page_boxes(actual, page) for page in range(1, count + 1)]
     marked = 0
     for page, (width, height, words) in enumerate(positioned, start=1):
-        markers = [w for w in words if re.fullmatch(r'[1-9][0-9]?\\.', w[0])]
+        markers = [w for w in words if re.fullmatch(r'[1-9][0-9]?\.', w[0])]
         entries = [w for w in words if re.fullmatch(r'REF[0-9]{3}', w[0])]
         assert len(markers) == len(entries), ('Marker and entry counts differ', page)
         for marker, entry in zip(markers, entries):
