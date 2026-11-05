@@ -169,8 +169,9 @@ Unsupported input is rejected with a diagnostic, never silently ignored.
 ## When something fails
 
 Every failure has a stable code such as `FPDF1202` (unsupported CSS value) or
-`FPDF1302` (content does not fit). The CLI prints it to stderr with a hint and
-exits nonzero; the API throws `FactsPdfException` with `Code` and
+`FPDF1302` (content does not fit). The CLI prints it to stderr with the line
+and column in your HTML when known (plus a hint for common font and image
+errors) and exits nonzero; the API throws `FactsPdfException` with `Code` and
 `SourceOffset`. **A failed conversion never replaces an existing output file**
 and never produces a partial PDF. Fixes for common first-run problems (missing
 fonts, glyphs, bold faces or images) are in

@@ -56,12 +56,13 @@ public sealed class CliResourceGuidanceTests
             Assert.That(result.Output, Is.Empty);
             using var lines = new StringReader(result.Error);
             Assert.That(lines.ReadLine(), Is.EqualTo(expected.Message));
+            if (expected.SourceOffset >= 0) Assert.That(lines.ReadLine(), Does.Match(@"^Location: line \d+, column \d+\.$"));
             var hint = lines.ReadLine();
             Assert.That(hint, Does.StartWith("Hint: "));
             Assert.That(hint, Does.Contain(remedy));
             Assert.That(hint, Does.Contain("https://github.com/KoalaFacts/FactsPDF/blob/main/docs/first-use-troubleshooting.md"));
             Assert.That(hint!.Length, Is.LessThanOrEqualTo(512));
-            Assert.That(lines.ReadLine(), Is.Null, "Exactly one static hint; no customer input or extra output.");
+            Assert.That(lines.ReadLine(), Is.Null, "At most a location and one static hint; no customer input or extra output.");
             Assert.That(File.ReadAllBytes(existing), Is.EqualTo(sentinel));
             Assert.That(File.Exists(absent), Is.False);
             Assert.That(Directory.GetFiles(directory, ".factspdf-*.tmp"), Is.Empty);
@@ -152,7 +153,8 @@ public sealed class CliResourceGuidanceTests
         var result = Run(["-", "-"], html);
         Assert.That(result.Exit, Is.EqualTo(3));
         Assert.That(result.Output, Is.Empty);
-        Assert.That(result.Error, Is.EqualTo(expected!.Message + Environment.NewLine));
+        Assert.That(result.Error, Is.EqualTo(expected!.Message + Environment.NewLine
+            + "Location: line 1, column 1." + Environment.NewLine), "Location only; no resource hint.");
     }
 
     [Test]

@@ -34,6 +34,7 @@ public static class CliApplication
         ArgumentNullException.ThrowIfNull(args); ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(output); ArgumentNullException.ThrowIfNull(error);
         string? temporary = null;
+        string? html = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -185,7 +186,6 @@ public static class CliApplication
                 images.Add(name, image); totalImageBytes += image.ByteLength;
             }
             if (images.Count > 0) options = options with { Images = images };
-            string html;
             if (source is null) html = ReadInput(input, options.MaxInputCharacters, cancellationToken);
             else { using var file = File.OpenRead(source); html = ReadInput(file, options.MaxInputCharacters, cancellationToken); }
             PdfConversionResult result;
@@ -203,6 +203,8 @@ public static class CliApplication
         catch (FactsPdfException ex)
         {
             error.WriteLine(ex.Message);
+            if (html is not null && ex.SourceOffset >= 0 && ex.SourceOffset <= html.Length)
+                error.WriteLine(DescribeLocation(html, ex.SourceOffset));
             // Static, code-based guidance only: never interpret customer text as a command.
             var hint = ex.Code switch
             {
@@ -229,6 +231,18 @@ public static class CliApplication
                 { error.WriteLine("Could not remove temporary file: " + temporary); }
             }
         }
+    }
+
+    // Line and column (in Unicode scalar values) of a diagnostic offset; never echoes input text.
+    private static string DescribeLocation(string html, int offset)
+    {
+        int line = 1, column = 1;
+        for (var i = 0; i < offset; i++)
+        {
+            if (html[i] == '\n') { line++; column = 1; }
+            else if (!char.IsLowSurrogate(html[i]) || i == 0 || !char.IsHighSurrogate(html[i - 1])) column++;
+        }
+        return $"Location: line {line}, column {column}.";
     }
 
     private static string ReadMetadataArgument(string[] args, ref int index, string option)
