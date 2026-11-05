@@ -758,6 +758,57 @@ def verify_native_underline_offset(executable, output, work):
             'sourceSha256': sha(source)}
 
 
+def verify_native_combined_decorations(executable, output, work):
+    """Verify real Native AOT multi-rule PDF ink, 44-item order and atomic recovery."""
+    source = ROOT / 'examples/report-combined-text-decorations.html'
+    control = ROOT / 'examples/report-combined-text-decorations-oracle.html'
+    assert source.is_file() and control.is_file(), 'Missing combined-decoration fixture pair'
+    authored = source.read_text(encoding='utf-8')
+    assert authored.count('<p class="entry') == 44, 'Expected 44 authored quote entries'
+    actual = output / 'combined-text-decorations.pdf'
+    expected = output / 'combined-text-decorations-oracle.pdf'
+    assert not run(executable, source, actual, cwd=work)
+    assert not run(executable, control, expected, cwd=work)
+    run('qpdf', '--check', actual)
+    run('qpdf', '--check', expected)
+    assert actual.read_bytes() == expected.read_bytes(), (
+        'Native combined decoration PDF does not match independent longhand control')
+    pages = count_pages(actual)
+    assert pages >= 2, 'Combined decorations must span real A4 pages'
+    raw_text = run('pdftotext', '-raw', actual, '-').decode('utf-8')
+    assert re.findall(r'ITEM-\d{2}', raw_text) == [
+        f'ITEM-{n:02d}' for n in range(1, 45)], (
+        'Native PDF lost or reordered invoice items')
+    painted = b'\n'.join(extract_vector_page_streams(actual.read_bytes(), pages))
+    clipped = painted.count(b' re W n ')
+    solid = painted.count(b' re f Q')
+    assert clipped >= 45 and solid >= 58, (
+        'Not all independently painted combined-line paths survived native serialization',
+        clipped, solid)
+    assert b'<4944454d2d' not in painted, 'Unexpected encoded text overlap in ink paths'
+    invalid = output / 'combined-text-decorations-invalid.html'
+    old = 'text-decoration:overline underline solid #285d91 1pt'
+    assert old in authored, 'Source has no expected valid CSS to invalidate'
+    invalid.write_text(authored.replace(
+        old, 'text-decoration:underline underline solid #285d91 1pt', 1),
+        encoding='utf-8')
+    preserved = output / 'combined-text-decorations-retained.pdf'
+    preserved.write_bytes(b'previous valid customer PDF')
+    fail = subprocess.run([str(executable), str(invalid), str(preserved), '--overwrite'],
+                          cwd=work, capture_output=True, timeout=120)
+    assert fail.returncode == 3 and b'FPDF1202' in fail.stderr, (
+        'Invalid duplicate line was accepted by native CLI', fail.returncode, fail.stderr)
+    assert preserved.read_bytes() == b'previous valid customer PDF', (
+        'Invalid native CSS clobbered existing PDF')
+    assert not run(executable, source, preserved, '--overwrite', cwd=work)
+    assert preserved.read_bytes() == actual.read_bytes(), (
+        'Native valid retry produced different report bytes')
+    return {'pages': pages, 'items': 44, 'longhandPdfBytesEqual': True,
+            'clippedDecorationPaths': clipped, 'solidDecorationPaths': solid,
+            'invalidDestinationPreserved': True, 'validRetryBytesEqual': True,
+            'pdfSha256': sha(actual), 'sourceSha256': sha(source)}
+
+
 def verify_native_decoration_paint(executable, output, work):
     """Verify 60 authored report rows and real clipped vector ink in Native AOT PDF."""
     source = ROOT / 'examples/report-text-decoration-paint.html'
@@ -1872,6 +1923,7 @@ def main():
         preformatted_audit = verify_native_preformatted_audit(isolated, output, work)
         table_vertical_align = verify_native_table_vertical_align(isolated, output, work)
         decoration_paint = verify_native_decoration_paint(isolated, output, work)
+        combined_decorations = verify_native_combined_decorations(isolated, output, work)
         underline_offset = verify_native_underline_offset(isolated, output, work)
         rounded_panels = verify_native_rounded_panels(isolated, output, work)
         minimum_height = verify_native_minimum_height(isolated, output, work)
@@ -1911,6 +1963,7 @@ def main():
             'preformattedAudit': preformatted_audit,
             'tableVerticalAlign': table_vertical_align,
             'decorationPaint': decoration_paint,
+            'combinedDecorations': combined_decorations,
             'underlineOffset': underline_offset,
             'roundedPanels': rounded_panels,
             'minimumHeight': minimum_height,
