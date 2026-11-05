@@ -42,7 +42,7 @@ test('five scoped HTML change marks have real source provenance without claiming
     assert.match(row.limitations, /非脱敏/);
     assert.ok(row.test_reference.endsWith('/tests/FactsPDF.Tests/SemanticInlineReportTests.cs'));
   }
-  assert.deepEqual(counts(dataset.features), { full:44, partial:161, none:205, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:162, none:204, unknown:6, na:2 });
 });
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
@@ -105,7 +105,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(dataset.features.find(f=>f.id==='css.background-color').limitations,/currentColor/);
   assert.match(dataset.audit_method,/All other 415 stable records/);
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:161, none:205, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial:162, none:204, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
@@ -264,7 +264,7 @@ test('category / status / known milestone combine; plans never become supported'
   assert(result.length > 0);
   assert(result.every(f=>f.category==='CSS属性'&&f.status==='partial'&&f.introduced_milestone==='M6'));
   assert.equal(filterFeatures(dataset.features,{category:'HTML元素',status:'full'}).length,0);
-  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,362);
+  assert.equal(filterFeatures(dataset.features,{milestone:'unknown'}).length,361);
 });
 test('source links permit HTTPS only without credentials', () => {
   assert.equal(safeUrl('javascript:alert(1)'),null);
@@ -862,7 +862,7 @@ test('six LTR logical border shorthands are source-bound to existing physical PD
   assert.match(row.sources.join(' '), /e237b2737572489d7b69227a7bc3c00c2591b3be\/tests\/FactsPDF.Tests\/LogicalBorderReportTests.cs/);
   assert.match(dataset.audit_method, /44-row real paginated report and independent physical-edge PDF oracle/);
   assert.match(dataset.css_inventory_note, /从83增加至89/);
-  assert.deepEqual(counts(dataset.features), {full:44, partial:161, none:205, unknown:6, na:2});
+  assert.deepEqual(counts(dataset.features), {full:44, partial:162, none:204, unknown:6, na:2});
 });
 
 test('eighteen bounded LTR logical border component names share real per-side PDF geometry',()=>{const r=dataset.features.find(x=>x.id==='css.border');assert.equal(dataset.accepted_css_property_count,110);assert.equal(dataset.features.length,418);assert.equal(r.last_audited_commit,'99328f071395d5d7cc1eedad9138f05ee118fb0f');for(let p of ['border-inline-width/style/color','border-block-width/style/color','border-inline-start/end-{width,style,color}','border-block-start/end-{width,style,color}'])assert.ok(r.scope.includes(p));assert.match(r.test_reference,/LogicalBorderComponentTests\.cs$/);assert.match(r.limitations,/RTL/);assert.ok(r.sources.some(s=>s.includes('99328f071395d5d7cc1eedad9138f05ee118fb0f/tests/FactsPDF.Tests/LogicalBorderComponentTests.cs')));});
