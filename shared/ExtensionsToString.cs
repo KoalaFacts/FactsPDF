@@ -1,4 +1,7 @@
-namespace FactsPDF.Text;
+// Extensions live in the namespace of the type they extend, so callers need no extra using.
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+namespace System;
+#pragma warning restore IDE0130
 
 // Source-linked by the CLI and its tests, not part of the core library API.
 

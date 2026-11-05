@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using FactsPDF.Configuration;
-using FactsPDF.Text;
 
 namespace FactsPDF.CommandLine;
 

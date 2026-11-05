@@ -1,4 +1,3 @@
-using FactsPDF.Text;
 using NUnit.Framework;
 
 namespace FactsPDF.Tests;
