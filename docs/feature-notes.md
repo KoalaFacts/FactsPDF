@@ -22,6 +22,7 @@ authoritative CSS contract, see [CSS stylesheets](css-stylesheets.md).
 - [Tables and lists](#tables-and-lists)
 - [Report elements](#report-elements)
 - [Pages, pagination and document properties](#pages-pagination-and-document-properties)
+- [.NET SDK](#net-sdk)
 - [Diagnostics](#diagnostics)
 
 ## Stylesheets
@@ -1157,6 +1158,38 @@ reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-t
 witness are provided for review. Source first implemented at
 `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
 private software, human PDF approval and customer rights are separate.
+
+## .NET SDK
+
+### Fluent, immutable writer (source-only)
+
+Configure a writer once and reuse it for every document:
+
+```csharp
+var pdf = Pdf.Write()
+    .WithFonts(f => f.Regular(PdfFont.FromFile("Latin.ttf"), PdfFont.FromFile("Chinese.ttf")).Subset())
+    .WithImage("logo", PdfImage.FromFile("logo.png"))
+    .WithPage(p => p.A4().Margin(15, PdfUnit.Millimetre))
+    .WithPageFurniture(f => f.FooterRight("Page {page} of {pages}"));
+
+byte[] bytes = pdf.ToBytes(html);
+await pdf.ToStreamAsync(html, response.Body);
+pdf.ToFile(html, "report.pdf");
+```
+
+Each `With` method returns a new writer, so one configured writer is safe to
+share across threads and requests. Invalid arguments fail immediately with an
+`ArgumentException` naming the parameter. Every output renders the complete PDF
+in memory before writing, so unsupported input writes nothing; `ToFile` and
+`ToFileAsync` also replace the destination only once the new file is complete.
+`ToStreamAsync` works with streams that reject synchronous writes, such as an
+ASP.NET Core response body, and `ToBufferWriter` writes into an
+`IBufferWriter<byte>` such as a `PipeWriter`. Fonts and images load with
+`FromFile`, `FromBytes` or `FromStream`; only the files you name are read.
+See the [API guide](development.md#library-api). Source implemented at
+`b81fdb12c6207a0f815227491876ac8ce2a40407`; it replaces the earlier
+`PdfConverter.Convert`/`PdfOptions` entry point and is not part of the older
+retained private preview.
 
 ## Diagnostics
 
