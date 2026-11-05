@@ -115,7 +115,7 @@ public sealed class InheritedWhiteSpaceReportTests
     [TestCase("pre")]
     [TestCase("pre-wrap")]
     public void AnonymousLeadingTabDoesNotBypassPreservingModeValidation(string mode)
-        => Reject("<section style='white-space:" + mode + "'>\\t<span>A</span></section>", "FPDF1305");
+        => Reject("<section style='white-space:" + mode + "'>" + '\t' + "<span>A</span></section>", "FPDF1305");
 
     [TestCase("<section style='white-space:break-spaces'><p>A</p></section>", "FPDF1202")]
     [TestCase("<span style='white-space:pre-line'>A  B</span>", "FPDF1201")]
