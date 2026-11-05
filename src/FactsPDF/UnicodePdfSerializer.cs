@@ -24,19 +24,7 @@ internal static class UnicodePdfSerializer
             Characters.Add((scalar, glyph, Font.Width1000(glyph)));
         }
     }
-    private sealed class LimitedBuffer(int limit, CancellationToken cancellation) : MemoryStream(Math.Min(4096, limit))
-    {
-        private void Check(int count)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (Position + count > limit) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
-        }
-        public override void Write(byte[] buffer, int offset, int count) { Check(count); base.Write(buffer, offset, count); }
-        public override void Write(ReadOnlySpan<byte> buffer) { Check(buffer.Length); base.Write(buffer); }
-        public override void WriteByte(byte value) { Check(1); base.WriteByte(value); }
-    }
-
-    internal static MemoryStream Build(List<LayoutPage> pages, PdfOptions o, CancellationToken cancellation)
+    internal static PdfBuffer Build(List<LayoutPage> pages, PdfOptions o, CancellationToken cancellation)
     {
         var images = new PdfImageWriter(pages, cancellation);
         var hasCourier = false;
@@ -50,7 +38,7 @@ internal static class UnicodePdfSerializer
                 if (!byFont.TryGetValue(font, out var use)) { use = new FontUse(font, fonts.Count); fonts.Add(use); byFont.Add(font, use); }
                 foreach (var rune in run.Text.EnumerateRunes()) use.Register(rune.Value);
             }
-        var output = new LimitedBuffer(o.MaxOutputBytes, cancellation); var offsets = new List<long> { 0 };
+        var output = new PdfBuffer(o.MaxOutputBytes, cancellation); var offsets = new List<long> { 0 };
         void Write(string value)
         {
             Span<byte> bytes = stackalloc byte[4096];
@@ -97,12 +85,12 @@ internal static class UnicodePdfSerializer
                     StreamObject(id + 3, program, length1);
                 }
                 else
-                    using (var compressed = new LimitedBuffer(o.MaxOutputBytes, cancellation))
+                    using (var compressed = new PdfBuffer(o.MaxOutputBytes, cancellation))
                     {
                         using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
                             for (var at = 0; at < embeddedData.Length; at += Math.Min(16384, embeddedData.Length - at))
                             { cancellation.ThrowIfCancellationRequested(); zlib.Write(embeddedData.Slice(at, Math.Min(16384, embeddedData.Length - at))); }
-                        StreamObject(id + 3, compressed.GetBuffer().AsSpan(0, checked((int)compressed.Length)), length1);
+                        StreamObject(id + 3, compressed.WrittenSpan, length1);
                     }
                 StreamObject(id + 4, Encoding.ASCII.GetBytes(ToUnicode(use)));
                 var map = new byte[(use.Characters.Count + 1) * 2];

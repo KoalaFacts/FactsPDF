@@ -11,17 +11,17 @@ internal static class PdfConverter
         ArgumentNullException.ThrowIfNull(output);
         if (!output.CanWrite) throw new ArgumentException("Output must be writable.", nameof(output));
         using var pdf = Render(html, options, cancellationToken, out var pageCount);
-        var data = pdf.GetBuffer(); var length = checked((int)pdf.Length);
+        var data = pdf.WrittenSpan; var length = data.Length;
         for (var offset = 0; offset < length; offset += Math.Min(16_384, length - offset))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            output.Write(data.AsSpan(offset, Math.Min(16_384, length - offset)));
+            output.Write(data.Slice(offset, Math.Min(16_384, length - offset)));
         }
         return new(pageCount, length);
     }
 
-    // Returns the complete PDF in a MemoryStream whose buffer the caller may read with GetBuffer().
-    internal static MemoryStream Render(string html, PdfOptions? options, CancellationToken cancellationToken, out int pageCount)
+    // Returns the complete PDF in a pooled buffer; read it with WrittenSpan/WrittenMemory, then dispose it.
+    internal static PdfBuffer Render(string html, PdfOptions? options, CancellationToken cancellationToken, out int pageCount)
     {
         ArgumentNullException.ThrowIfNull(html);
         options ??= new PdfOptions();
