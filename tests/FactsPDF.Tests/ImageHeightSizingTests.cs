@@ -10,7 +10,7 @@ public sealed class ImageHeightSizingTests
     {
         Images = new Dictionary<string, PdfImage>
         {
-            ["chart"] = PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420"))
+            ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"))
         }
     };
 
@@ -88,7 +88,7 @@ public sealed class ImageHeightSizingTests
         // Deliberately extreme but valid 1000x1 grayscale PNG: 20pt high
         // suggests 20,000pt before max-width, but the final 100x20 PDF
         // matrix fits. Intermediate guesses must not count as output geometry.
-        var image = PdfImage.LoadImage(PngFixture.Image(new byte[1001],
+        var image = PdfImage.FromBytes(PngFixture.Image(new byte[1001],
             width: 1000, height: 1, type: 0));
         var options = new PdfOptions
         {

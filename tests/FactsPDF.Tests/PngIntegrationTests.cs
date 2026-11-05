@@ -13,12 +13,12 @@ public sealed class PngIntegrationTests
     [TestCase(false)][TestCase(true)]
     public void MixedOpaqueTransparentJpegAndAliasesHaveUniqueCorrectObjectsAndXref(bool unicode)
     {
-        var transparent = PdfImage.LoadImage(Bytes()); var jpeg = PdfImage.LoadImage(JpegResourceTests.Bytes("gray"));
-        var opaque = PdfImage.LoadImage(PngFixture.Image([0, 80, 100], type: 0));
+        var transparent = PdfImage.FromBytes(Bytes()); var jpeg = PdfImage.FromBytes(JpegResourceTests.Bytes("gray"));
+        var opaque = PdfImage.FromBytes(PngFixture.Image([0, 80, 100], type: 0));
         using var output = new MemoryStream();
         PdfConverter.Convert("<p>" + (unicode ? "中文" : "A") + "</p><img src='t'><img src='j'><img src='t2'><img src='o'>", output,
             new() { Images = new Dictionary<string, PdfImage> { ["t"] = transparent, ["t2"] = transparent, ["j"] = jpeg, ["o"] = opaque },
-                Fonts = unicode ? [PdfFont.LoadTrueType(FontFixture.Create())] : [] });
+                Fonts = unicode ? [PdfFont.FromBytes(FontFixture.Create())] : [] });
         var pdf = output.ToArray(); var text = Encoding.Latin1.GetString(pdf); var objects = PngFixture.ImageObjects(pdf);
         Assert.That(objects, Has.Count.EqualTo(4)); Assert.That(objects.Count(o => o.Dictionary.Contains("/SMask", StringComparison.Ordinal)), Is.EqualTo(1));
         var main = objects.Single(o => o.Dictionary.Contains("/SMask", StringComparison.Ordinal));
@@ -43,7 +43,7 @@ public sealed class PngIntegrationTests
     [Test]
     public void ApiCliAndPrivateByteAdapterProduceIdenticalPngPdfAndRecoverAfterFailure()
     {
-        var bytes = Bytes(); var expected = PngFixture.Pdf(PdfImage.LoadImage(bytes), new() { SubsetFonts = true });
+        var bytes = Bytes(); var expected = PngFixture.Pdf(PdfImage.FromBytes(bytes), new() { SubsetFonts = true });
         var directory = Directory.CreateTempSubdirectory("factspdf-png-");
         try
         {

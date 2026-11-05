@@ -4,8 +4,8 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 using FactsPDF;
 
-// Standalone PackageReference consumer. Convert before opening the destination
-// so rendering errors preserve it. Final file I/O is not an atomic-write policy.
+// Standalone PackageReference consumer of the public SDK. ToFile renders completely before
+// replacing the destination atomically, so a rendering error preserves any existing file.
 if (args.Length != 2) { Console.Error.WriteLine("Usage: FirstUse input.html output.pdf"); return 2; }
 try
 {
@@ -17,13 +17,11 @@ try
             assemblyInformationalVersion = cli.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion }));
         return 0;
     }
-    using var buffer = new MemoryStream();
-    var result = PdfConverter.Convert(File.ReadAllText(args[0]), buffer, new PdfOptions());
-    File.WriteAllBytes(args[1], buffer.ToArray());
+    var result = Pdf.Write().ToFile(File.ReadAllText(args[0]), args[1]);
     Console.WriteLine(JsonSerializer.Serialize(new { pages = result.PageCount, bytes = result.BytesWritten,
-        assembly = typeof(PdfConverter).Assembly.Location,
-        assemblyIdentity = typeof(PdfConverter).Assembly.FullName,
-        assemblyInformationalVersion = typeof(PdfConverter).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+        assembly = typeof(Pdf).Assembly.Location,
+        assemblyIdentity = typeof(Pdf).Assembly.FullName,
+        assemblyInformationalVersion = typeof(Pdf).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
         runtime = new {
             version = Environment.Version.ToString(),
             framework = RuntimeInformation.FrameworkDescription,

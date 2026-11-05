@@ -99,7 +99,7 @@ public sealed class WordSpacingTests
     [Test]
     public void TrueTypeCidSpaceUsesTjAndMatchesMeasuredAdvance()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var o = Page with { Fonts = [font] };
         const string html = "<p style='word-spacing:3pt'>AB AB</p>";
         var normal = Layout("<p>AB AB</p>", o).Single().Runs.Single();

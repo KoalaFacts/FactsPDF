@@ -17,16 +17,16 @@ public sealed class JpegResourceBoundaryTests
             "decoded" => new() { MaxDecodedBytes = 153_600 + delta },
             _ => new() { MaxMcuBlocks = 1_200 + delta }
         };
-        Assert.That(PdfImage.LoadImage(bytes, Limits(0)).PixelWidth, Is.EqualTo(320));
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes, Limits(-1)))!.Code, Is.EqualTo("FPDF1603"));
+        Assert.That(PdfImage.FromBytes(bytes, Limits(0)).PixelWidth, Is.EqualTo(320));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(bytes, Limits(-1)))!.Code, Is.EqualTo("FPDF1603"));
     }
 
     [Test]
     public void PartialEdgeMcusCountAllPaddedBlocks()
     {
         var bytes = JpegResourceTests.Bytes("odd-420");
-        Assert.That(PdfImage.LoadImage(bytes, new() { MaxMcuBlocks = 12 }).PixelWidth, Is.EqualTo(17));
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes,
+        Assert.That(PdfImage.FromBytes(bytes, new() { MaxMcuBlocks = 12 }).PixelWidth, Is.EqualTo(17));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(bytes,
             new() { MaxMcuBlocks = 11 }))!.Code, Is.EqualTo("FPDF1603"));
     }
 
@@ -34,7 +34,7 @@ public sealed class JpegResourceBoundaryTests
     public void ShortNonSeekableStreamStopsAtLimitPlusOneAndStaysOpen()
     {
         using var source = new ShortReads(JpegResourceTests.Bytes("rgb-420"));
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(source,
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromStream(source,
             new() { MaxBytes = 40 }))!.Code, Is.EqualTo("FPDF1603"));
         Assert.That(source.BytesRead, Is.EqualTo(41));
         Assert.That(source.CanRead, Is.True);
@@ -44,7 +44,7 @@ public sealed class JpegResourceBoundaryTests
     public void ShortReadsLoadWithoutDependingOnLengthOrSeek()
     {
         var bytes = JpegResourceTests.Bytes("gray"); using var source = new ShortReads(bytes);
-        Assert.That(PdfImage.LoadImage(source, new() { MaxBytes = bytes.Length }).Data.ToArray(), Is.EqualTo(bytes));
+        Assert.That(PdfImage.FromStream(source, new() { MaxBytes = bytes.Length }).Data.ToArray(), Is.EqualTo(bytes));
         Assert.That(source.BytesRead, Is.EqualTo(bytes.Length));
         Assert.That(source.CanRead, Is.True);
     }
@@ -55,28 +55,28 @@ public sealed class JpegResourceBoundaryTests
         var limits = new[] { new PdfImageLimits { MaxBytes = 0 }, new() { MaxDimension = -1 },
             new() { MaxPixels = 0 }, new() { MaxDecodedBytes = -1 }, new() { MaxMcuBlocks = 0 } };
         foreach (var limit in limits)
-            Assert.Throws<ArgumentOutOfRangeException>(() => PdfImage.LoadImage(JpegResourceTests.Bytes("gray"), limit));
-        Assert.Throws<ArgumentNullException>(() => PdfImage.LoadImage((Stream)null!));
+            Assert.Throws<ArgumentOutOfRangeException>(() => PdfImage.FromBytes(JpegResourceTests.Bytes("gray"), limit));
+        Assert.Throws<ArgumentNullException>(() => PdfImage.FromStream((Stream)null!));
         using var closed = new MemoryStream(); closed.Close();
-        Assert.Throws<ArgumentException>(() => PdfImage.LoadImage(closed));
+        Assert.Throws<ArgumentException>(() => PdfImage.FromStream(closed));
     }
 
     [Test]
     public void CancellationBeforeLoadingOrDuringStreamReadDoesNotCloseSource()
     {
         var bytes = JpegResourceTests.Bytes("rgb-420"); using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        Assert.Throws<OperationCanceledException>(() => PdfImage.LoadImage(bytes, cancellationToken: cancelled.Token));
+        Assert.Throws<OperationCanceledException>(() => PdfImage.FromBytes(bytes, cancellationToken: cancelled.Token));
         using var cts = new CancellationTokenSource(); using var source = new ShortReads(bytes, cts);
-        Assert.Throws<OperationCanceledException>(() => PdfImage.LoadImage(source, cancellationToken: cts.Token));
+        Assert.Throws<OperationCanceledException>(() => PdfImage.FromStream(source, cancellationToken: cts.Token));
         Assert.That(source.BytesRead, Is.EqualTo(12)); Assert.That(source.CanRead, Is.True);
     }
 
     [Test]
     public void FailureDoesNotPoisonSubsequentResources()
     {
-        var before = PdfImage.LoadImage(JpegResourceTests.Bytes("gray"));
-        Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(JpegResourceTests.Bytes("truncated-entropy")));
-        var after = PdfImage.LoadImage(JpegResourceTests.Bytes("gray"));
+        var before = PdfImage.FromBytes(JpegResourceTests.Bytes("gray"));
+        Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(JpegResourceTests.Bytes("truncated-entropy")));
+        var after = PdfImage.FromBytes(JpegResourceTests.Bytes("gray"));
         Assert.That(after.Data.ToArray(), Is.EqualTo(before.Data.ToArray()));
     }
 
@@ -85,17 +85,17 @@ public sealed class JpegResourceBoundaryTests
     {
         var bytes = JpegResourceTests.Bytes("rgb-420");
         for (var end = 0; end < bytes.Length; end++)
-            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes.AsSpan(0, end)))!.Code,
+            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(bytes.AsSpan(0, end)))!.Code,
                 Is.EqualTo("FPDF1601"), $"Truncated length {end}");
     }
 
     [Test]
     public void ByteLimitIsCheckedBeforeUnsupportedFormatOrCompressedData()
     {
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(new byte[9],
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(new byte[9],
             new() { MaxBytes = 8 }))!.Code, Is.EqualTo("FPDF1603"));
         var image = JpegFixture.Gray([0x3f], width: 65535, height: 65535);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(image))!.Code, Is.EqualTo("FPDF1603"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(image))!.Code, Is.EqualTo("FPDF1603"));
     }
 
     [Test]
@@ -126,7 +126,7 @@ public sealed class JpegResourceBoundaryTests
         // An uncancelled public load still succeeds, and canceling after return
         // cannot retroactively invalidate an already loaded image.
         using var afterCompletion = new CancellationTokenSource();
-        var image = PdfImage.LoadImage(bytes, limits, afterCompletion.Token);
+        var image = PdfImage.FromBytes(bytes, limits, afterCompletion.Token);
         afterCompletion.Cancel();
         Assert.That(image.PixelWidth, Is.EqualTo(4096));
         Assert.That(image.PixelHeight, Is.EqualTo(32760));

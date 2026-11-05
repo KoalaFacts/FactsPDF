@@ -90,7 +90,7 @@ public sealed class OverflowWrapTests
     [Test]
     public void ExplicitTrueTypeFontIsEmbeddedAndEveryGlyphSurvivesEmergencyWrapping()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font], PageHeight = 100, Margin = 10 };
         const string text = "ABWABWABWABWABW";
         const string html = "<p style='width:40pt;overflow-wrap:break-word'>" + text + "</p>";

@@ -83,25 +83,26 @@ dotnet add ../FactsPdfDemo/FactsPdfDemo.csproj reference src/FactsPDF/FactsPDF.c
 ```csharp
 using FactsPDF;
 
-using var pdf = new MemoryStream();
-PdfConversionResult result = PdfConverter.Convert(
-    "<h1>Service report</h1><p>Prepared for Example Client.</p>",
-    pdf,
-    new PdfOptions
-    {
-        HeaderText = "Service report",
-        FooterText = "Internal",
-        PageNumbers = true
-    });
+// Configure once and reuse: the writer is immutable and thread-safe.
+var pdf = Pdf.Write()
+    .WithPage(p => p.A4().Margin(15, PdfUnit.Millimetre))
+    .WithHeaderText("Service report")
+    .WithFooterText("Internal")
+    .WithPageNumbers();
 
-File.WriteAllBytes("report.pdf", pdf.ToArray());
+PdfWriteResult result = pdf.ToFile(
+    "<h1>Service report</h1><p>Prepared for Example Client.</p>", "report.pdf");
 Console.WriteLine($"{result.PageCount} page(s), {result.BytesWritten} bytes");
 ```
 
-`PdfOptions` also controls page geometry (`PageWidth`, `PageHeight`, `Margin`),
-fonts, images, document properties and resource limits (input size, element
-count, pages, output bytes and so on). `Convert` accepts a `CancellationToken`.
-See the [API guide](docs/development.md#library-api) and the
+Choose the output that fits: `ToBytes(html)`, `ToStream(html, stream)`,
+`ToStreamAsync(html, stream)` (for example an ASP.NET Core response body),
+`ToBufferWriter(html, writer)`, or `ToFile`/`ToFileAsync`, which replace the
+file only after the PDF is complete. Every method renders fully before writing,
+so a failed conversion writes nothing, and each accepts a `CancellationToken`.
+`WithFonts`, `WithImage`, `WithMetadata`, `WithPageFurniture` and `WithLimits`
+set fonts, images, document properties, styled headers and footers, and resource
+limits. See the [API guide](docs/development.md#library-api) and the
 [local-package recipe](docs/development.md#first-use-from-local-artifacts).
 
 ## Fonts and images
@@ -120,12 +121,12 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document
   --font fonts/Latin.ttf --font fonts/Chinese.ttf --font-bold fonts/Latin-Bold.ttf --subset-fonts
 ```
 
-In C#, load fonts with `PdfFont.LoadTrueType(stream)` into `PdfOptions.Fonts`,
-`BoldFonts`, `ItalicFonts` and `BoldItalicFonts`.
+In C#, load fonts with `PdfFont.FromFile(path)` (or `FromBytes`/`FromStream`)
+and set each chain with `WithFonts(f => f.Regular(latin, chinese).Bold(latinBold).Subset())`.
 
 **Images.** `<img src="logo">` names a resource; it is not a path or URL.
 Bind it with `--image logo=path/to/logo.png`, or in C# with
-`PdfOptions.Images` (`PdfImage.LoadImage(stream)`). Baseline JPEG and static,
+`WithImage("logo", PdfImage.FromFile("logo.png"))`. Baseline JPEG and static,
 non-interlaced PNG (including transparency) are supported.
 
 To try the branded example with a generated synthetic logo (needs Python 3):

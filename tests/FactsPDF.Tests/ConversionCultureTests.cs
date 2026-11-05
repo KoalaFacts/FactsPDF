@@ -43,7 +43,7 @@ public sealed class ConversionCultureTests
     [TestCase("ar-SA")]
     public void PdfBytesDoNotDependOnTheCurrentCulture(string culture)
     {
-        var font = PdfFont.LoadTrueType(Font);
+        var font = PdfFont.FromBytes(Font);
         var options = new PdfOptions
         {
             Fonts = [font], BoldFonts = [font], PageNumbers = true,

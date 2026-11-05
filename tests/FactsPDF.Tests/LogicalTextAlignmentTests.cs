@@ -98,7 +98,7 @@ public sealed class LogicalTextAlignmentTests
     [Test]
     public void ExplicitTrueTypeFontAndInlineColoursUseTheSameGlyphMetrics()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var opts = SmallPage with { Fonts = [font] };
         const string source = "<section style='text-align:end'><p>" +
             "<span style='color:blue'>AB BA</span> <span style='color:red'>BA AB</span>" +

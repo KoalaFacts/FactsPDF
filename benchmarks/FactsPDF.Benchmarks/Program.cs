@@ -14,7 +14,7 @@ if (args.Length < 2 || args[0] is not ("full" or "subset"))
 var subset = args[0] == "subset";
 var html = File.ReadAllText(args[1]);
 var bytes = args.Skip(2).Select(File.ReadAllBytes).ToArray();
-PdfFont[] Load() => bytes.Select(data => PdfFont.LoadTrueType(data)).ToArray();
+PdfFont[] Load() => bytes.Select(data => PdfFont.FromBytes(data)).ToArray();
 var fonts = Load(); // Untimed warm-up; filesystem reads above are excluded from font-load measurements.
 var loadSamples = new List<(double Ms, long Bytes)>();
 for (var i = 0; i < 5; i++)
@@ -23,11 +23,15 @@ for (var i = 0; i < 5; i++)
     fonts = Load();
     loadSamples.Add((Stopwatch.GetElapsedTime(start).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));
 }
-var options = new PdfOptions { Fonts = fonts, SubsetFonts = subset };
+var pdf = Pdf.Write().WithFonts(f =>
+{
+    f.Regular(fonts);
+    if (subset) f.Subset();
+});
 long outputBytes = 0; int pages = 0;
 void Render()
 {
-    using var output = new MemoryStream(); var result = PdfConverter.Convert(html, output, options);
+    using var output = new MemoryStream(); var result = pdf.ToStream(html, output);
     outputBytes = result.BytesWritten; pages = result.PageCount;
 }
 for (var i = 0; i < 3; i++) Render();
@@ -42,7 +46,7 @@ for (var i = 0; i < 20; i++)
 string outputHash;
 using (var proof = new MemoryStream())
 {
-    var result = PdfConverter.Convert(html, proof, options);
+    var result = pdf.ToStream(html, proof);
     if (result.BytesWritten != outputBytes || result.PageCount != pages)
         throw new InvalidOperationException("Untimed proof differs from the measured output geometry.");
     outputHash = Convert.ToHexString(SHA256.HashData(

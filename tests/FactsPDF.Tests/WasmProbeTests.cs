@@ -73,7 +73,7 @@ public class WasmProbeTests
         const string html = "<p>A<b>中</b><em>A</em><strong><em>文</em></strong></p>";
         var actual = Styles(html, packed, Enumerable.Repeat(font.Length, 4).ToArray(), [0, 1, 2, 3]);
         using var expected = new MemoryStream();
-        PdfFont Load() => PdfFont.LoadTrueType(font);
+        PdfFont Load() => PdfFont.FromBytes(font);
         PdfConverter.Convert(html, expected, new() { Fonts = [Load()], BoldFonts = [Load()], ItalicFonts = [Load()], BoldItalicFonts = [Load()], SubsetFonts = true });
         Assert.That(actual.ErrorCode, Is.Null);
         Assert.That(Convert.FromBase64String(actual.PdfBase64!), Is.EqualTo(expected.ToArray()));

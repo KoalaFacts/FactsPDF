@@ -36,7 +36,7 @@ class DeclaredPackageContractTests(unittest.TestCase):
                 f'commit="{SOURCE}" /><dependencies><group targetFramework="{target}" />'
                 '</dependencies></metadata></package>')
             archive.writestr(f'lib/{target}/FactsPDF.dll', b'fixture DLL, not executable')
-            archive.writestr(f'lib/{target}/FactsPDF.xml', b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.PdfConverter" /></members></doc>')
+            archive.writestr(f'lib/{target}/FactsPDF.xml', b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.Pdf" /></members></doc>')
             archive.writestr('LICENSE.md', b'license'); archive.writestr('README.md', b'readme')
         return path
 

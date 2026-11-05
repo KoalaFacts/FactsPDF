@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 public sealed class ImageLayoutTests
 {
     private static PdfOptions Options(string file = "rgb-420") => new()
-    { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.LoadImage(JpegResourceTests.Bytes(file)) } };
+    { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes(file)) } };
     private static (byte[] Bytes, string Text, int Pages) Render(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
@@ -45,8 +45,8 @@ public sealed class ImageLayoutTests
     {
         var o = Options(); var shared = o.Images["chart"];
         o = o with { Images = new Dictionary<string, PdfImage> { ["chart"] = shared, ["alias"] = shared,
-            ["unused"] = PdfImage.LoadImage(JpegResourceTests.Bytes("gray")) },
-            Fonts = unicode ? [PdfFont.LoadTrueType(FontFixture.Create())] : [] };
+            ["unused"] = PdfImage.FromBytes(JpegResourceTests.Bytes("gray")) },
+            Fonts = unicode ? [PdfFont.FromBytes(FontFixture.Create())] : [] };
         var pdf = Render((unicode ? "<p>中文</p>" : "<p>BEFORE</p>")
             + "<img src='chart' style='width:80pt'><img src='alias' style='width:80pt'>", o);
         Assert.That(Regex.Count(pdf.Text, "/Subtype /Image"), Is.EqualTo(1));
@@ -61,7 +61,7 @@ public sealed class ImageLayoutTests
         var o = Options(); var original = Render("<p>ASCII</p>").Bytes;
         Assert.That(Render("<p>ASCII</p>", new()).Bytes, Is.EqualTo(original));
         o = o with { Images = new Dictionary<string, PdfImage> { ["chart"] = o.Images["chart"],
-            ["copy"] = PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420")) } };
+            ["copy"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420")) } };
         Assert.That(Regex.Count(Render("<img src='chart'><img src='copy'>", o).Text, "/Subtype /Image"), Is.EqualTo(2));
     }
 
@@ -96,7 +96,7 @@ public sealed class ImageLayoutTests
     [TestCase(true)]
     public void ExactOutputBudgetIncludesBinaryStreamsAndXref(bool unicode)
     {
-        var o = Options() with { Fonts = unicode ? [PdfFont.LoadTrueType(FontFixture.Create())] : [] };
+        var o = Options() with { Fonts = unicode ? [PdfFont.FromBytes(FontFixture.Create())] : [] };
         var html = (unicode ? "<p>中文</p>" : "") + "<img src='chart'>";
         var full = Render(html, o);
         Assert.That(Render(html, o with { MaxOutputBytes = full.Bytes.Length }).Bytes, Is.EqualTo(full.Bytes));
@@ -135,7 +135,7 @@ public sealed class ImageLayoutTests
     public void CurrentColorBorderAndPageLocalResourcesArePreserved()
     {
         var o = Options() with { Images = new Dictionary<string, PdfImage>
-            { ["chart"] = Options().Images["chart"], ["gray"] = PdfImage.LoadImage(JpegResourceTests.Bytes("gray")) } };
+            { ["chart"] = Options().Images["chart"], ["gray"] = PdfImage.FromBytes(JpegResourceTests.Bytes("gray")) } };
         var pdf = Render("<img src='chart' style='color:red;border:1pt solid;width:20pt'>"
             + "<p style='break-before:page'>PAGE2</p><img src='gray'>", o);
         var resources = Regex.Matches(pdf.Text, @"/XObject <<([^>]+)>>");

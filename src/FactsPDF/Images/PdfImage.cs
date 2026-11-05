@@ -22,8 +22,13 @@ public sealed class PdfImage
     internal int Components { get; }
     internal ReadOnlySpan<byte> Data => data;
 
-    /// <summary>Copies explicit image bytes after checking the encoded limit, then validates their supported format.</summary>
-    public static PdfImage LoadImage(ReadOnlySpan<byte> source, PdfImageLimits? limits = null,
+    /// <summary>Copies image bytes after checking the encoded limit, then validates their supported format.</summary>
+    /// <param name="source">Baseline JPEG or static, non-interlaced PNG bytes.</param>
+    /// <param name="limits">Decoding limits; null uses the defaults.</param>
+    /// <param name="cancellationToken">Cancels validation.</param>
+    /// <returns>An immutable image that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The bytes are not a supported image or exceed a limit.</exception>
+    public static PdfImage FromBytes(ReadOnlySpan<byte> source, PdfImageLimits? limits = null,
         CancellationToken cancellationToken = default)
     {
         limits = Validate(limits); cancellationToken.ThrowIfCancellationRequested();
@@ -31,8 +36,13 @@ public sealed class PdfImage
         return LoadOwned(source.ToArray(), limits, cancellationToken);
     }
 
-    /// <summary>Reads at most MaxBytes+1 bytes without seeking; leaves the caller's readable stream open.</summary>
-    public static PdfImage LoadImage(Stream source, PdfImageLimits? limits = null,
+    /// <summary>Reads at most MaxBytes+1 bytes without seeking, then validates them; the stream is not closed.</summary>
+    /// <param name="source">Readable stream positioned at the image data.</param>
+    /// <param name="limits">Decoding limits; null uses the defaults.</param>
+    /// <param name="cancellationToken">Cancels reading and validation.</param>
+    /// <returns>An immutable image that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The data is not a supported image or exceeds a limit.</exception>
+    public static PdfImage FromStream(Stream source, PdfImageLimits? limits = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -49,6 +59,19 @@ public sealed class PdfImage
             buffer.Write(chunk, 0, count);
         }
         return LoadOwned(buffer.ToArray(), limits, cancellationToken);
+    }
+
+    /// <summary>Reads and validates a baseline JPEG or static, non-interlaced PNG file.</summary>
+    /// <param name="path">Path of the image file; only this file is read.</param>
+    /// <param name="limits">Decoding limits; null uses the defaults.</param>
+    /// <param name="cancellationToken">Cancels reading and validation.</param>
+    /// <returns>An immutable image that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The file is not a supported image or exceeds a limit.</exception>
+    public static PdfImage FromFile(string path, PdfImageLimits? limits = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
+        return FromStream(file, limits, cancellationToken);
     }
 
     private static PdfImageLimits Validate(PdfImageLimits? limits)

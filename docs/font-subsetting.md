@@ -8,7 +8,7 @@ FactsPDF can now build its own glyph subsets for the supported static TrueType f
 dotnet run --project src/FactsPDF.Cli -c Release -- examples/subset-document.html subset.pdf --font fonts/Latin.ttf --font fonts/Chinese.ttf --subset-fonts
 ```
 
-Use your own appropriately licensed, trusted static TrueType files. The paths are examples, not bundled assets. The library equivalent is `new PdfOptions { Fonts = [latin, chinese], SubsetFonts = true }`, passed to the existing `PdfConverter.Convert` API. Loaded font objects can be reused across requests. Omitting the option retains full embedding; a font whose embedding flags prohibit subsetting also remains fully embedded even when the option is selected. The engine never clears those flags.
+Use your own appropriately licensed, trusted static TrueType files. The paths are examples, not bundled assets. The library equivalent is `Pdf.Write().WithFonts(f => f.Regular(latin, chinese).Subset())`. Loaded font objects can be reused across requests. Omitting the option retains full embedding; a font whose embedding flags prohibit subsetting also remains fully embedded even when the option is selected. The engine never clears those flags.
 
 ## What is retained
 

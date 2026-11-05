@@ -104,7 +104,7 @@ public sealed class FontRelativeTextSpacingTests
     [Test]
     public void TrueTypeChineseAndContinuedPagesKeepRelativeAdvanceAndAllGlyphs()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font], PageHeight = 84, Margin = 10 };
         var relative = "<html style='font-size:12pt'><body><p style='font-size:12pt;" +
             "letter-spacing:0.1em;word-spacing:0.1rem;text-indent:0.5em'>" +

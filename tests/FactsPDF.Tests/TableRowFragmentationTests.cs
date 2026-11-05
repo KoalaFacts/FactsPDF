@@ -58,7 +58,7 @@ public sealed class TableRowFragmentationTests
     [Test]
     public void S3ImageWaitsAsOneAtomicDecoratedUnit()
     {
-        var image = PdfImage.LoadImage(PngFixture.Image(new byte[32 * 129], 32, 32));
+        var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["sample"] = image } };
         var html = Pair(Lines("A", 4) + "<img src='sample' style='width:24pt;padding:2pt;border:1pt solid red'>TAIL", Lines("B", 7));
         var pages = TableLayoutTests.Layout(html, options);
@@ -201,7 +201,7 @@ public sealed class TableRowFragmentationTests
     [Test]
     public void TerminalRollbackMovesCompleteLastImageAndNeverCreatesEmptyTerminalPage()
     {
-        var image = PdfImage.LoadImage(PngFixture.Image(new byte[32 * 129], 32, 32));
+        var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["sample"] = image } };
         var html = TableLayoutTests.Table(Lines("A", 4) + "<img src='sample' style='width:24pt;padding:2pt;border:1pt solid red'>", "width:100pt;font-size:10pt;line-height:1.2;padding-bottom:10pt");
         var pages = TableLayoutTests.Layout(html, options);
@@ -250,7 +250,7 @@ public sealed class TableRowFragmentationTests
     [Test]
     public void SplitSpansKeepCoveredWidthAndPercentageImageResolution()
     {
-        var image = PdfImage.LoadImage(PngFixture.Image(new byte[32 * 129], 32, 32));
+        var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["sample"] = image } };
         var html = TableRichTests.Rich(Lines("A", 7) + "<img src='sample' style='width:50%'>", "padding:5%;border:1pt solid red;background-color:blue");
         var pages = TableLayoutTests.Layout(html, options);

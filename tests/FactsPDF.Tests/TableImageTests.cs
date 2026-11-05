@@ -13,7 +13,7 @@ public sealed class TableImageTests
         for (var y = 0; y < 16; y++)
             for (var x = 0; x < 32; x++)
             { var i = y * 129 + 1 + x * 4; rows[i] = 255; rows[i + 2] = 100; rows[i + 3] = (byte)(x % 3 == 0 ? 0 : x % 3 == 1 ? 128 : 255); }
-        return PdfImage.LoadImage(PngFixture.Image(rows, 32, 16));
+        return PdfImage.FromBytes(PngFixture.Image(rows, 32, 16));
     }
     internal static PdfOptions Options() => new() { Images = new Dictionary<string, PdfImage> { ["logo"] = Logo() } };
     private static string Cell(string content, string cellStyle = "", string tableStyle = "width:80pt")
@@ -94,7 +94,7 @@ public sealed class TableImageTests
     [Test]
     public void ImageOnlyHeaderRequiresNoBoldFontAndHasNoTextLine()
     {
-        var options = Options() with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Options() with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var html = "<table style='width:160pt'><colgroup><col style='width:80pt'><col style='width:80pt'></colgroup><thead><tr><th>" + Img + "</th><th style='font-weight:normal'>A</th></tr></thead><tbody><tr><td>A</td><td>A</td></tr></tbody></table>";
         var page = TableLayoutTests.Layout(html, options).Single();
         Assert.That(page.Runs.Select(r => r.Text), Is.EqualTo(new[] { "A", "A", "A" }));

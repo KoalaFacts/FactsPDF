@@ -111,7 +111,7 @@ public sealed class LogicalBorderReportTests
     public void SuppliedTrueTypeAndManagedCliPaintSameBorderGeometry()
     {
         var fontBytes = FontFixture.Create();
-        var font = PdfFont.LoadTrueType(fontBytes);
+        var font = PdfFont.FromBytes(fontBytes);
         var options = Page with { Fonts = [font], BoldFonts = [font] };
         const string source = "<div style='border-inline:2pt solid #315f82;" +
             "border-block:1pt dashed #246637;padding:4pt'>" +

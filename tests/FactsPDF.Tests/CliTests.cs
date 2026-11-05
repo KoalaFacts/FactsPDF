@@ -165,7 +165,7 @@ public sealed class CliTests
         var result = Run(args.ToArray(), Encoding.UTF8.GetBytes(html));
         Assert.That(result.Exit, Is.Zero, result.Error);
         // Load distinct objects as the CLI does, even for identical paths across roles.
-        PdfFont[] Chain() => [PdfFont.LoadTrueType(latin), PdfFont.LoadTrueType(cjk)];
+        PdfFont[] Chain() => [PdfFont.FromBytes(latin), PdfFont.FromBytes(cjk)];
         using var expected = new MemoryStream();
         PdfConverter.Convert(html, expected, new() { Fonts = Chain(), BoldFonts = Chain(),
             ItalicFonts = Chain(), BoldItalicFonts = Chain(), SubsetFonts = true });

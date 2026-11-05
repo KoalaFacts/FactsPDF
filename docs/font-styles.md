@@ -3,20 +3,18 @@
 FactsPDF selects normal, bold, italic and bold-italic from four independent, explicitly supplied fallback chains. Static fonts can contain any of these styles. The renderer uses their actual outlines and advances; it does not synthesize weight or slant, search installed fonts, match families or silently downgrade a missing style.
 
 ```csharp
-var options = new PdfOptions {
-    Fonts = [latinRegular, chineseRegular],       // existing normal chain
-    BoldFonts = [latinBold, chineseBold],
-    ItalicFonts = [latinItalic, chineseItalic],
-    BoldItalicFonts = [latinBoldItalic, chineseBoldItalic],
-    SubsetFonts = true
-};
-using var output = new MemoryStream();
-PdfConverter.Convert("<p>Normal <strong>粗体</strong> <em>Italic</em> <b><i>粗斜体</i></b></p>", output, options);
+var pdf = Pdf.Write().WithFonts(f => f
+    .Regular(latinRegular, chineseRegular)
+    .Bold(latinBold, chineseBold)
+    .Italic(latinItalic, chineseItalic)
+    .BoldItalic(latinBoldItalic, chineseBoldItalic)
+    .Subset());
+byte[] bytes = pdf.ToBytes("<p>Normal <strong>粗体</strong> <em>Italic</em> <b><i>粗斜体</i></b></p>");
 ```
 
-Each value above is an immutable `PdfFont` loaded with the existing `PdfFont.LoadTrueType` API. A chain uses its first font containing each scalar. Families, chain lengths and naming need not match across roles. Every chain is optional until its role is used. For example, an italic-only chain can render `<p>Courier ASCII <i>中文</i></p>` with the original fontless normal mode. Normal non-ASCII still needs `Fonts`; it never borrows another role's fonts.
+Each value above is an immutable `PdfFont` loaded with `PdfFont.FromFile`, `FromBytes` or `FromStream`. A chain uses its first font containing each scalar. Families, chain lengths and naming need not match across roles. Every chain is optional until its role is used. For example, an italic-only chain can render `<p>Courier ASCII <i>中文</i></p>` with the original fontless normal mode. Normal non-ASCII still needs `Fonts`; it never borrows another role's fonts.
 
-Explicit role declarations are authoritative. A static italic font passed through the existing `Fonts` property keeps working as before. Putting a regular font in `ItalicFonts` does not create italic outlines or cause metadata-based matching. A supported, licensed system font **file** can be passed explicitly using the same API or CLI; there is no automatic system fallback.
+Explicit role declarations are authoritative. A static italic font passed in the `Regular` chain keeps working as before. Putting a regular font in the `Italic` chain does not create italic outlines or cause metadata-based matching. A supported, licensed system font **file** can be passed explicitly using the same API or CLI; there is no automatic system fallback.
 
 ## CLI
 

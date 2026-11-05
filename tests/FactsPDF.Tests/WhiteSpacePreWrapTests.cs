@@ -115,7 +115,7 @@ public sealed class WhiteSpacePreWrapTests
     [Test]
     public void TrueTypeFontMeasuresAndRendersConsecutiveSpaces()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string html = "<p style='white-space:pre-wrap'>AB   WA\n  BA</p>";
         var bytes = Pdf(html, options);
