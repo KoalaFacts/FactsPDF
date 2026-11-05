@@ -7,7 +7,9 @@ public static class PdfConverter
 {
     /// <summary>Renders an HTML document to PDF and writes it to <paramref name="output"/>.</summary>
     /// <param name="html">The complete HTML document.</param>
-    /// <param name="output">Writable destination. Nothing is written unless the whole conversion succeeds. It is not closed.</param>
+    /// <param name="output">Writable destination, which is not closed. Any failure before the finished PDF is copied leaves it untouched;
+    /// an I/O failure or cancellation during that final copy may leave a partial prefix. Write to a temporary file and move it
+    /// into place, as the CLI does, when the destination must never hold a partial PDF.</param>
     /// <param name="options">Geometry, fonts, images and limits; null uses the defaults.</param>
     /// <param name="cancellationToken">Cancels the conversion.</param>
     /// <returns>The page count and number of bytes written.</returns>
