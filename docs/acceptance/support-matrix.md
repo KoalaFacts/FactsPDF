@@ -1,3 +1,7 @@
+## Real PDF report-panel outlines
+
+Core source `bc30878b275c6dc3f6fdf0fe2b33366277a4c30c` adds bounded CSS outline/outline-width/style/color/offset with real measured non-layout PDF paint. A [44-record example](../../examples/report-outlines.html) is compared byte-for-byte with its [independent longhand control](../../examples/report-outlines-oracle.html), with .NET/CLI/TrueType, Native AOT/qpdf/Poppler and error-recovery checks. This is a scoped source-only report feature, not a full CSS Outline implementation.
+
 ## Source-only combined report text-decoration lines
 
 Engine source [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a)

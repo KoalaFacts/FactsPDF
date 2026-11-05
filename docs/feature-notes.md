@@ -144,6 +144,31 @@ For a fontless case-formatting example with a preserved proper-name span, see th
 
 ## Borders and rounded corners
 
+### Report-panel outline paint (source-only)
+
+Use `outline:2pt dotted #285d91;outline-offset:3pt` on an ordinary
+`div/section/article/blockquote` outside list/table ancestry. The
+`outline-width/style/color` longhands are independent cascade winners;
+shorthand omission resets width/style/ink to medium/none/currentColor.
+`!important` and CSS-wide `inherit/initial/unset` are supported.
+The visible PDF stroke is outside the border box: it does not consume
+layout width, shift searchable text or change page count. Side outlines
+continue on page fragments, with top/bottom strokes only on first/last
+fragments. Default/none preserves existing PDF bytes.
+
+Widths are zero or 0.2–6pt; offsets 0–12pt. Both use physical
+pt/px/mm/cm/in/pc/q only. Solid/dashed/dotted/none and opaque ink are
+accepted; negative, percentage, alpha, gradient, rounded-corner outlines
+and applications outside scoped panels reject, preserving output.
+This is not full CSS Outline.
+
+[44-record report](../examples/report-outlines.html),
+[independent longhand oracle](../examples/report-outlines-oracle.html),
+[NUnit/CLI/TrueType/negative tests](../tests/FactsPDF.Tests/ReportOutlineTests.cs),
+and native AOT/qpdf/Poppler verification exercise the actual PDFs.
+Core source `bc30878b275c6dc3f6fdf0fe2b33366277a4c30c`.
+
+
 ### LTR logical border component styling for business reports (source-only)
 
 Use `border-inline-width:2pt 4pt`, `border-block-style:solid dashed`,
