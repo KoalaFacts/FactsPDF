@@ -417,7 +417,7 @@ def verify_native_list_continuations(executable, output, work):
         ('zero', '<ol start="0"><li>A</li></ol>', 'FPDF1103'),
         ('reverse-underflow', '<ol reversed start="1"><li>A</li><li>B</li></ol>', 'FPDF1103'),
         ('wrong-target', '<ul><li value="4">A</li></ul>', 'FPDF1103'),
-        ('unsupported-position', '<ol style="list-style:circle inside"><li>A</li></ol>', 'FPDF1202'),
+        ('duplicate-position', '<ol style="list-style:circle inside outside"><li>A</li></ol>', 'FPDF1202'),
     ):
         bad = output / f'list-control-{name}.html'
         dest = output / f'list-control-{name}.pdf'

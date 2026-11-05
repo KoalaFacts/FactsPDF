@@ -60,6 +60,8 @@ public sealed class ListMarkerPositionTests
             Is.EqualTo(Pdf("<ol style='list-style-type:disc;list-style-position:inside'>" + items + "</ol>")));
         Assert.That(Pdf("<ol style='list-style:upper-roman inside'>" + items + "</ol>"),
             Is.EqualTo(Pdf("<ol style='list-style-type:upper-roman;list-style-position:inside'>" + items + "</ol>")));
+        Assert.That(Pdf("<ul style='list-style:circle inside'>" + items + "</ul>"),
+            Is.EqualTo(Pdf("<ul style='list-style-type:circle;list-style-position:inside'>" + items + "</ul>")));
     }
 
     [Test]
