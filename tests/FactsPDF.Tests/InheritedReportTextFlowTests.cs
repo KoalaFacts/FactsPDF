@@ -182,6 +182,46 @@ public sealed class InheritedReportTextFlowTests
             "</section>", "FPDF1302");
     }
 
+    [Test]
+    public void RootRemIndentUsesWinningHtmlFontAndMatchesAnExplicitPointOracle()
+    {
+        const string content = "<body><p>Alpha is the first invoice detail.</p></body>";
+        var relative = "<html style='font-size:24pt;text-indent:1rem'>" + content + "</html>";
+        var pointOracle = "<html style='font-size:24pt;text-indent:24pt'>" + content + "</html>";
+        var bodyOracle = "<html style='font-size:24pt'><body style='text-indent:1rem'>" +
+            "<p>Alpha is the first invoice detail.</p></body></html>";
+
+        var runs = Layout(relative).SelectMany(page => page.Runs).ToArray();
+        Assert.That(runs[0].X, Is.EqualTo(Page.Margin + 24).Within(0.001),
+            "Root rem must resolve against the final 24pt html font, not the initial 12pt.");
+        Assert.That(Pdf(relative), Is.EqualTo(Pdf(pointOracle)));
+        Assert.That(Pdf(relative), Is.EqualTo(Pdf(bodyOracle)));
+    }
+
+    [TestCase("outside")]
+    [TestCase("inside")]
+    public void InheritedIndentDoesNotMakeGeneratedOrderedListMarkersUnfit(string position)
+    {
+        var list = "<ol style='list-style-position:" + position +
+            "'><li>Alpha</li><li>Beta</li></ol>";
+        var inherited = "<div style='text-indent:6pt'>" + list + "</div>";
+        var normal = "<div>" + list + "</div>";
+        var runs = Layout(inherited).SelectMany(page => page.Runs).ToArray();
+        var labels = runs.Where(run => run.Text is "1." or "2.").ToArray();
+        var baseline = Layout(normal).SelectMany(page => page.Runs).ToArray();
+
+        Assert.That(labels.Select(run => run.Text), Is.EqualTo(new[] { "1.", "2." }));
+        Assert.That(labels.Select(run => run.Width),
+            Is.EqualTo(baseline.Where(run => run.Text is "1." or "2.")
+                .Select(run => run.Width)).Within(0.001));
+        Assert.That(runs.Select(run => run.Text), Does.Contain("Alpha"));
+        Assert.That(runs.Select(run => run.Text), Does.Contain("Beta"));
+        Assert.That(Pdf(inherited), Is.Not.Empty,
+            "Synthetic list marker glyphs must not inherit the paragraph's first-line indent.");
+        Assert.That(Pdf(normal), Is.Not.Empty,
+            "The original no-indent list layout must remain valid.");
+    }
+
     [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
     [TestCase("<ul style='word-break:break-all'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<table style='text-indent:10pt'><colgroup><col style='width:80pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
