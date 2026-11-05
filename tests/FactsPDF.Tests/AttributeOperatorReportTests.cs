@@ -114,7 +114,7 @@ public sealed class AttributeOperatorReportTests
         var pages = Layout(actual);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(pages.SelectMany(page => page.Runs).Count(run =>
-            run.Text.StartsWith("Invoice ", StringComparison.Ordinal)), Is.EqualTo(44));
+            run.Text.StartsWith("Invoice 0", StringComparison.Ordinal)), Is.EqualTo(44));
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
     }
 
