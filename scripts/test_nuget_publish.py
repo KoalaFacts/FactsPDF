@@ -31,7 +31,8 @@ class PublisherTests(unittest.TestCase):
     def package(self, extra=None):
         package = self.root / f'FactsPDF.{VERSION}.nupkg'
         members = {'FactsPDF.nuspec': b'<package/>', 'LICENSE.md': b'unchanged licence',
-                   'README.md': b'preview docs', 'lib/net10.0/FactsPDF.dll': b'synthetic assembly'}
+                   'README.md': b'preview docs', 'lib/net10.0/FactsPDF.dll': b'synthetic assembly',
+                   'lib/net10.0/FactsPDF.xml': b'<doc />'}
         members.update(extra or {})
         with zipfile.ZipFile(package, 'w') as archive:
             for name, data in members.items():

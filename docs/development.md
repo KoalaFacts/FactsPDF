@@ -95,8 +95,8 @@ The verifier creates and removes its own separate temporary workspace and copies
 Package acceptance requires a clean checkout, including untracked source even
 when Git's user configuration normally hides it. Both package checks bind the
 `FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
-commit to the current source, require the existing sole `lib/net10.0/FactsPDF.dll`
-asset and empty `net10.0` group directly under `dependencies`, reject additional
+commit to the current source, require exactly the `lib/net10.0/FactsPDF.dll` assembly and its
+`lib/net10.0/FactsPDF.xml` API documentation as consumer assets, and an empty `net10.0` group directly under `dependencies`, reject additional
 framework dependencies, and compare the packed license/README
 with source. Additional NuGet build, analyzer, content and tool assets, including
 the root `runtime.json` runtime graph, are rejected.

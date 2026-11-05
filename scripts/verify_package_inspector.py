@@ -30,6 +30,7 @@ def main():
     assert observation['targetFramework'] == '.NETCoreApp,Version=v11.0'
     assert observation['runtimeReferences'] == ['10.0.0.0']
     files['lib/net11.0/FactsPDF.dll'] = retagged
+    files['lib/net11.0/FactsPDF.xml'] = files['lib/net10.0/FactsPDF.xml']
     nuspec = next(name for name in files if name.endswith('.nuspec'))
     document = ET.fromstring(files[nuspec])
     namespace = document.tag.split('}')[0] + '}' if '}' in document.tag else ''

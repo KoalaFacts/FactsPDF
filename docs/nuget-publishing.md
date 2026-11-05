@@ -77,7 +77,8 @@ archive, nor a claim that old binaries were rebuilt from a newer source SHA.
 
 A source/version/SHA256/member manifest binds the package transferred between
 jobs. Only the NuGet package and manifest are uploaded, only for an approved
-publication. Fonts, CLI binaries, symbols and unexpected entries are rejected.
+publication. The package carries the assembly and its XML API documentation;
+fonts, CLI binaries, symbols and unexpected entries are rejected.
 The production job rechecks the exact bytes before requesting an OIDC key,
 attests provenance, and pushes **one** package without masking duplicate-version
 errors. A failed-job-only rerun uses the artifact name emitted by the successful

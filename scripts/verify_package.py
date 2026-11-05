@@ -95,7 +95,10 @@ def validate_package(path, root, version, source, target, *, assembly_reader=Non
                             'buildmultitargeting/', 'analyzers/', 'contentfiles/', 'content/', 'tools/')
         assets = [name for name in names if name.replace('\\', '/').lower().startswith(consumer_folders)
                   or name.replace('\\', '/').lower() == 'runtime.json']
-        assert sorted(assets) == sorted(f'lib/{t}/FactsPDF.dll' for t in targets), 'Package consumer assets'
+        assert sorted(assets) == sorted(f'lib/{t}/FactsPDF.{ext}' for t in targets for ext in ('dll', 'xml')), 'Package consumer assets'
+        for t in targets:
+            api_docs = ET.fromstring(package.read(f'lib/{t}/FactsPDF.xml'))
+            assert api_docs.findtext('assembly/name') == 'FactsPDF' and api_docs.find('members/member') is not None, 'Package API documentation'
         assemblies = {t: package.read(f'lib/{t}/FactsPDF.dll') for t in targets}
         if assembly_reader is not None:
             for t, data in assemblies.items():

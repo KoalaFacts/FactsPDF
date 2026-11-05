@@ -4,6 +4,8 @@
     <AssemblyName>FactsPDF.Cli</AssemblyName>
     <IsAotCompatible>true</IsAotCompatible>
     <IsPackable>false</IsPackable>
+    <!-- API docs ship in the NuGet package only; keep CLI payloads unchanged. -->
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../FactsPDF/FactsPDF.csproj" />
