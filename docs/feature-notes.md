@@ -267,7 +267,7 @@ the prior PDF. The [44-item quote](../examples/report-combined-text-decorations.
 [independently authored longhand control](../examples/report-combined-text-decorations-oracle.html) are byte-compared by
 [PDF/TrueType/CLI/negative NUnit](../tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs).
 Source [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a).
-No full CSS Text Decoration, installable binary or human approval is implied.
+This is a bounded drawing subset, not complete CSS Text Decoration.
 
 
 ### Bounded PDF underline offset

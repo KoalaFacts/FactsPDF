@@ -6,8 +6,7 @@ run; font, table cell, CSS cascade, pagination and display budgets remain
 bounded. The [44-item report](../../examples/report-combined-text-decorations.html) is byte-compared with its
 [independent longhand control](../../examples/report-combined-text-decorations-oracle.html) in
 [actual PDF/CLI/TrueType/negative tests](../../tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs).
-This is source-level evidence, not a released candidate, human reference
-approval or full CSS Text Decoration.
+This is a limited PDF drawing subset, not full CSS Text Decoration.
 
 ## Actual printable underline-offset subset
 

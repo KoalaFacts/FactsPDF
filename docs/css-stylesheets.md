@@ -20,7 +20,7 @@ The [44-entry quote](../examples/report-combined-text-decorations.html) matches 
 [independently written longhand control](../examples/report-combined-text-decorations-oracle.html) byte-for-byte in
 [NUnit PDF/TrueType/CLI/negative tests](../tests/FactsPDF.Tests/CombinedTextDecorationReportTests.cs).
 Engine source [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a);
-not full CSS Text Decoration, a new binary or human PDF approval.
+not full CSS Text Decoration.
 
 ### Bounded PDF underline offset
 

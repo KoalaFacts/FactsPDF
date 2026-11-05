@@ -5,7 +5,7 @@ strike-through PDF lines on searchable text. A [44-item quote](../examples/repor
 and [independent longhand oracle](../examples/report-combined-text-decorations-oracle.html) exercise real glyph geometry,
 fonts, CLI and protected failures in source
 [`2d18399e`](https://github.com/KoalaFacts/FactsPDF/commit/2d18399e25c65267431f0decc7fe716dde82688a).
-This is not redaction, new installable software or human PDF approval.
+Strike-through is a visible decoration, not secure redaction.
 
 ## Actual printable underline-offset subset
 
