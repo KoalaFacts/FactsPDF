@@ -19,7 +19,6 @@ internal static class CssSyntaxTokenizer
         // right-sized copy. A list grown by a very large stylesheet is not kept.
         var result = pooledTokens ?? [];
         pooledTokens = null;
-        result.Clear();
         List<CssSyntaxDiagnostic>? diagnostics = null;
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
@@ -163,6 +162,8 @@ internal static class CssSyntaxTokenizer
             CssSyntaxTokenKind.Eof, "", "",
             source.Span(text.Length, 0)));
         var tokens = result.ToArray();
+        // Cleared before pooling so the list never keeps a finished document's token strings alive.
+        result.Clear();
         if (result.Capacity <= MaxPooledTokens) pooledTokens = result;
         return new CssSyntaxTokenizationResult(tokens, diagnostics?.ToArray() ?? []);
     }

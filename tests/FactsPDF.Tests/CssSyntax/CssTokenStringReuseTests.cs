@@ -107,4 +107,16 @@ public sealed class CssTokenStringReuseTests
         Assert.That(source.Span(1, 1), Is.EqualTo(new CssSourceSpan(6, 2)), "CRLF is one normalized newline");
         Assert.That(source.Span(2, 1), Is.EqualTo(new CssSourceSpan(8, 1)));
     }
+
+    [Test]
+    public void ThePooledTokenListHoldsNoTokensBetweenTokenizations()
+    {
+        // The reused list must not keep a finished document's token strings alive.
+        Tokens("a { color: red } " + new string(' ', 1000) + "b");
+        var field = typeof(CssSyntaxTokenizer).GetField("pooledTokens",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var pooled = (List<CssSyntaxToken>?)field.GetValue(null);
+        Assert.That(pooled, Is.Not.Null);
+        Assert.That(pooled!, Is.Empty);
+    }
 }
