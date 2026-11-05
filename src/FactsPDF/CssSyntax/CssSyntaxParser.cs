@@ -258,10 +258,16 @@ internal static class CssSyntaxParser
             var important = ExtractImportant(values);
             if (!beginning.Value.StartsWith("--", StringComparison.Ordinal))
             {
-                var meaningful = values.Where(v => !IsWhitespace(v)).ToArray();
-                if (meaningful.Any(v => v is CssBlockComponent b &&
-                    b.Opening == CssSyntaxTokenKind.OpenBrace) &&
-                    (meaningful.Length != 1 || meaningful[0] is not CssBlockComponent))
+                var meaningful = 0;
+                CssSyntaxComponent? first = null;
+                var braceBlock = false;
+                foreach (var value in values)
+                {
+                    if (IsWhitespace(value)) continue;
+                    if (meaningful++ == 0) first = value;
+                    if (value is CssBlockComponent { Opening: CssSyntaxTokenKind.OpenBrace }) braceBlock = true;
+                }
+                if (braceBlock && (meaningful != 1 || first is not CssBlockComponent))
                 {
                     Error("A CSS brace block must be the entire non-custom declaration value.",
                         beginning.Span, "semicolon");
