@@ -171,7 +171,9 @@ unassociated: color samples are not premultiplied or flattened onto white.
 Repeated placements share the same image and mask objects.
 
 The loader validates chunk framing/type/CRC, required ordering, palette indices,
-transparency, a completed zlib stream/checksum and the exact decoded row length.
+transparency, a completed zlib stream/checksum without a preset dictionary
+(forbidden by PNG) and the exact decoded row length. Corrupt zlib data always
+fails as `FPDF1601`.
 Unused bytes after the completed zlib stream in final IDAT are ignored as allowed
 by the PNG specification; data after IEND is rejected. Supported sRGB metadata
 is validated. ICC/HDR color-transform chunks are explicitly unsupported. Other

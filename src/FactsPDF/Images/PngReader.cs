@@ -123,6 +123,8 @@ internal static class PngReader
         var previous = new byte[rowLength]; var row = new byte[rowLength];
         var color = new byte[checked((int)(pixels * components))];
         var alpha = hasAlpha ? new byte[(int)pixels] : null;
+        // PNG forbids a zlib preset dictionary (FDICT); the inflater would otherwise fail with an IOException.
+        if (compressed.Length >= 2 && (compressed[1] & 0x20) != 0) throw Invalid("PNG zlib stream must not use a preset dictionary.");
         try
         {
             using var input = new CompleteInput(compressed, cancellation);
@@ -180,7 +182,8 @@ internal static class PngReader
             // catches excess pixels. Unused bytes after the zlib end in IDAT are PNG-permitted.
             if (zlib.ReadByte() != -1) throw Invalid("PNG has excess decompressed scanline data.");
         }
-        catch (InvalidDataException) { throw Invalid("Invalid, corrupt or truncated PNG zlib stream."); }
+        // The input is in memory, so any IOException here comes from the inflater itself.
+        catch (Exception ex) when (ex is InvalidDataException or IOException) { throw Invalid("Invalid, corrupt or truncated PNG zlib stream."); }
         return new(width, height, components, Compress(color, cancellation), alpha is null ? null : Compress(alpha, cancellation));
     }
 

@@ -15,9 +15,10 @@ from zipfile import ZipFile
 
 REPOSITORY = 'KoalaFacts/FactsPDF'
 VERSION_PATTERN = r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-[0-9a-z-]+(?:\.[0-9a-z-]+)*'
-BASE_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md',
-                'lib/net10.0/FactsPDF.dll', '_rels/.rels', '[Content_Types].xml'}
-REQUIRED_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md', 'lib/net10.0/FactsPDF.dll'}
+BASE_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md', 'lib/net10.0/FactsPDF.dll',
+                'lib/net10.0/FactsPDF.xml', '_rels/.rels', '[Content_Types].xml'}
+REQUIRED_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md', 'lib/net10.0/FactsPDF.dll',
+                    'lib/net10.0/FactsPDF.xml'}
 
 
 def validate_request(*, declared: str, requested: str, event: str, ref: str,

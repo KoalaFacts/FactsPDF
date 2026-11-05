@@ -24,7 +24,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document
 
 Stylesheets need no additional flag. Font paths are placeholders, not included assets. `--font` may repeat up to eight times. `--subset-fonts` is opt-in and respects no-subsetting font permissions; omitting it retains full embedding.
 
-The CLI accepts input/output paths or `-` for stdin/binary stdout. Input must be valid UTF-8, with or without a UTF-8 BOM. Diagnostics go to stderr, not into PDF bytes. Existing output files require `--overwrite`; a sibling temporary file is replaced into place only after successful conversion. Input HTML and explicit font/image paths cannot be the output path. Use a trusted working directory; filesystem aliases, symlinks and concurrent hostile modifications are not sandboxed.
+The CLI accepts input/output paths or `-` for stdin/binary stdout. Input must be valid UTF-8, with or without a UTF-8 BOM. Diagnostics go to stderr, not into PDF bytes; when a diagnostic has a source offset, the CLI adds a `Location: line L, column C.` line. Existing output files require `--overwrite`; a sibling temporary file is replaced into place only after successful conversion. Input HTML and explicit font/image paths cannot be the output path. Use a trusted working directory; filesystem aliases, symlinks and concurrent hostile modifications are not sandboxed.
 
 Exit codes: 0 success; 2 usage/argument error; 3 input/rendering limitation; 4 I/O/access error; 130 cancellation. Cancellation is cooperative and cannot interrupt a blocked synchronous caller-stream read/write until it returns.
 
@@ -95,8 +95,8 @@ The verifier creates and removes its own separate temporary workspace and copies
 Package acceptance requires a clean checkout, including untracked source even
 when Git's user configuration normally hides it. Both package checks bind the
 `FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
-commit to the current source, require the existing sole `lib/net10.0/FactsPDF.dll`
-asset and empty `net10.0` group directly under `dependencies`, reject additional
+commit to the current source, require exactly the `lib/net10.0/FactsPDF.dll` assembly and its
+`lib/net10.0/FactsPDF.xml` API documentation as consumer assets, and an empty `net10.0` group directly under `dependencies`, reject additional
 framework dependencies, and compare the packed license/README
 with source. Additional NuGet build, analyzer, content and tool assets, including
 the root `runtime.json` runtime graph, are rejected.

@@ -1,8 +1,23 @@
 namespace FactsPDF;
 
-/// <summary>Experimental, bounded HTML text conversion; see docs/development.md for the supported subset.</summary>
+/// <summary>Converts controlled HTML and CSS to PDF without a browser.</summary>
+/// <remarks>The supported subset is listed at https://koalafacts.github.io/FactsPDF/. Conversion is deterministic,
+/// performs no file or network access, and is safe to call concurrently.</remarks>
 public static class PdfConverter
 {
+    /// <summary>Renders an HTML document to PDF and writes it to <paramref name="output"/>.</summary>
+    /// <param name="html">The complete HTML document.</param>
+    /// <param name="output">Writable destination, which is not closed. Any failure before the finished PDF is copied leaves it untouched;
+    /// an I/O failure or cancellation during that final copy may leave a partial prefix. Write to a temporary file and move it
+    /// into place, as the CLI does, when the destination must never hold a partial PDF.</param>
+    /// <param name="options">Geometry, fonts, images and limits; null uses the defaults.</param>
+    /// <param name="cancellationToken">Cancels the conversion.</param>
+    /// <returns>The page count and number of bytes written.</returns>
+    /// <exception cref="FactsPdfException">The input uses an unsupported feature, is malformed, or exceeds a limit.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">An option is outside its valid range.</exception>
+    /// <exception cref="ArgumentException"><paramref name="output"/> is not writable.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="html"/> or <paramref name="output"/> is null.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
     public static PdfConversionResult Convert(string html, Stream output,
         PdfOptions? options = null, CancellationToken cancellationToken = default)
     {

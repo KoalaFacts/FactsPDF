@@ -10,7 +10,9 @@ public sealed class PdfImage
     { data = owned; byteLength = owned.Length; PixelWidth = info.Width; PixelHeight = info.Height; Components = info.Components; }
     private PdfImage(int encodedLength, PngInfo info)
     { data = info.Color; alpha = info.Alpha; byteLength = encodedLength; IsPng = true; PixelWidth = info.Width; PixelHeight = info.Height; Components = info.Components; }
+    /// <summary>Width in pixels.</summary>
     public int PixelWidth { get; }
+    /// <summary>Height in pixels.</summary>
     public int PixelHeight { get; }
     /// <summary>Original encoded input size, before any PNG expansion or recompression.</summary>
     public int ByteLength => byteLength;

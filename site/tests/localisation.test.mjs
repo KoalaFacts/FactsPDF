@@ -481,3 +481,14 @@ test('bounded underline offset remains exact in verified English and Chinese', a
   assert.equal(data.features.length,418);
   assert.equal(data.accepted_css_property_count,115);
 });
+
+test('English CLI diagnostic location record is source-bound and fully translated',async()=>{
+  const {englishFeature}=await localisation();
+  const cli=data.features.find(f=>f.id==='runtime.cli');
+  assert.equal(cli.last_audited_commit,'306012538553815967d0e364ef95842648c446bb');
+  assert.match(cli.test_reference,/CliErrorLocationTests\.cs$/);
+  const english=englishFeature(cli);
+  assert.match(english.limitations,/line and column/);
+  assert.match(english.limitations,/LF, CRLF and CR/);
+  assert.doesNotMatch(english.limitations+english.evidence_level,han);
+});

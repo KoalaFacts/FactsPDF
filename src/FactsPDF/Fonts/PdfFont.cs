@@ -6,12 +6,15 @@ namespace FactsPDF;
 /// <summary>Immutable explicitly supplied static TrueType font. No filesystem or network discovery.</summary>
 public sealed class PdfFont
 {
+    /// <summary>Default maximum font file size accepted by <see cref="LoadTrueType(ReadOnlySpan{byte}, int, CancellationToken)"/> (32 MiB).</summary>
     public const int DefaultMaxBytes = 33_554_432;
     private readonly byte[] data;
     private readonly UnicodeCmap cmap;
     private readonly ushort[] advances;
     private readonly double scale;
+    /// <summary>PostScript name from the font's name table.</summary>
     public string PostScriptName { get; }
+    /// <summary>Size of the font file in bytes.</summary>
     public int ByteLength => data.Length;
     internal ReadOnlySpan<byte> Data => data;
     internal SfntDirectory Directory { get; }
@@ -68,6 +71,13 @@ public sealed class PdfFont
         PostScriptName = ReadName(sfnt.Table("name", 6));
     }
 
+    /// <summary>Copies and validates a static TrueType (glyf) font.</summary>
+    /// <param name="source">Font file bytes. TTC, CFF/OpenType and variable fonts are rejected.</param>
+    /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
+    /// <param name="cancellationToken">Cancels validation.</param>
+    /// <returns>An immutable font that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
     public static PdfFont LoadTrueType(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {
@@ -76,6 +86,13 @@ public sealed class PdfFont
         if (source.Length > maxBytes) throw new FactsPdfException("FPDF1503", "Font exceeds its byte limit.");
         return new PdfFont(source.ToArray(), cancellationToken);
     }
+    /// <summary>Reads at most <paramref name="maxBytes"/> + 1 bytes from a stream, then validates them as a static TrueType (glyf) font.</summary>
+    /// <param name="source">Readable stream positioned at the font data. It is not closed.</param>
+    /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
+    /// <param name="cancellationToken">Cancels reading and validation.</param>
+    /// <returns>An immutable font that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
     public static PdfFont LoadTrueType(Stream source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {

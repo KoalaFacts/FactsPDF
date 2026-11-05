@@ -5,8 +5,12 @@ resources. This guide explains five common resource failures. It does not grant
 evaluation rights or announce a package release; see [evaluation](evaluation.md)
 and [licensing](../LICENSING.md) before building or running the engine.
 
-The first stderr line retains the original `FPDF` diagnostic. These five codes
-also receive one static `Hint:` line naming the existing resource options.
+The first stderr line retains the original `FPDF` diagnostic. When the engine
+knows where in the HTML the problem is, the next line gives its position, for
+example `Location: line 12, column 19.`; LF, CRLF and CR line endings each count
+as one line, columns count characters, and no input
+text is echoed. These five codes also receive one static `Hint:` line naming the
+existing resource options.
 Conversion still exits with code **3**; scripts should use the exit status and
 error code rather than depend on the human-readable hint wording. Hints are not
 written to stdout, where `-` may carry binary PDF output.
