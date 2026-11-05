@@ -1,3 +1,36 @@
+## Attribute selectors on actual invoice/report fields
+
+The renderer matches accepted HTML attributes with `[name]`,
+`[name=value]`, `[name^=value]` (prefix), `[name$=value]` (suffix),
+`[name*=value]` (substring), `[name~=value]` (complete whitespace-separated
+word), and `[name|=value]` (exact or followed by a hyphen). Values may be CSS
+identifiers or quoted strings, with optional `i` (ASCII-case-insensitive) or
+`s` (case-sensitive) flags on comparisons. The default is case-sensitive.
+HTML attributes are decoded before matching. `~=` uses ASCII whitespace only;
+`|=` is useful for `lang` such as `en` or `en-AU`. Empty non-equality
+operands deliberately reject. Empty equality strings are valid.
+
+Supported attribute names are `id`, `class`, `title`, `lang`, `href`,
+`src`, `alt` and nonempty `data-*` names. Attribute names are
+ASCII-insensitive; attribute values with the `i` flag fold **ASCII letters
+only**, not arbitrary Unicode. All operators compose with supported type,
+class, ID, comma, descendant and direct-child selectors and contribute
+class-level specificity. Existing `!important`, cascade, inheritance and
+match-operation budgets remain effective. Real PDF text, borders, padding,
+images, and continued report boxes consume the winning styles.
+
+Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
+malformed/whitespace-split operators, empty non-equality operands, pseudos,
+sibling combinators and nested selectors fail explicitly with FPDF1203;
+no network access or full CSS Selectors claim. This remains a **partial**
+selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
+and [independent inline control](../examples/report-attribute-operators-oracle.html)
+are compared in [real PDF, cascade, image, TrueType and fail-safe tests](../tests/FactsPDF.Tests/AttributeOperatorReportTests.cs).
+Initial presence/equality implementation: `d7fee5d311f9abebccf37a58c3c9198de78750e8`;
+operator-family engine source: `845ab1799149e8b833306f2e49b3f8b240d699c8`. CI, independent review
+and the actual merged main are separate evidence.
+
+
 ## Last-line alignment for quotation text (source implementation)
 
 `text-align-last:center` can centre the final line of a wrapped quote,
