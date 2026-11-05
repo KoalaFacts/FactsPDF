@@ -10,7 +10,7 @@ test('loads the audited snapshot using local npm-built assets without console fa
   // The banner displays the current audited engine-source commit. Earlier
   // preformatted and spacing features keep their original historical commits
   // in the model tests; no prior binary is relabelled.
-  await expect(page.getByText('d7fee5d3',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('845ab179',{exact:true}).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 test('numeric font-weight describes real normal/bold role selection and limits',async({page})=>{
@@ -429,7 +429,9 @@ test('partial attribute selectors are discoverable with explicit value and failu
   await expect(details).toBeVisible();
   await expect(details).toContainText('[attr]');
   await expect(details).toContainText('data-*');
-  await expect(details).toContainText('class-level specificity');
+  await expect(details).toContainText('specificity');
+  await expect(details).toContainText('ASCII');
+  await expect(details).toContainText('[attr^=value]');
   await expect(details).toContainText('substring');
   await page.keyboard.press('Escape');
   await expect(details).not.toBeVisible();
