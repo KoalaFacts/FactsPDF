@@ -45,7 +45,7 @@ public sealed class PageMarginTextTests
         }
         FontFixture.U16(bytes,FontFixture.Table(bytes,"head")+38,ymin);
         FontFixture.U16(bytes,FontFixture.Table(bytes,"head")+42,ymax);
-        return PdfFont.LoadTrueType(bytes);
+        return PdfFont.FromBytes(bytes);
     }
 
     [Test]

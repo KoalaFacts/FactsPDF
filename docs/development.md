@@ -254,18 +254,45 @@ consumer execution. A missing SDK/runtime fails without a successful report.
 
 ## Library API
 
-After restoring the local package as above, the existing API is:
+After restoring the local package as above, start from `Pdf.Write()`:
 
 ```csharp
 using FactsPDF;
-using var output = new MemoryStream();
-var result = PdfConverter.Convert(
-    "<style>p{color:#008000}</style><h1>Example</h1><p>Hello PDF</p>",
-    output, new PdfOptions { Margin = 36 });
-File.WriteAllBytes("example.pdf", output.ToArray());
+
+var pdf = Pdf.Write()                                   // immutable, thread-safe, reusable
+    .WithFonts(f => f.Regular(PdfFont.FromFile("fonts/Latin.ttf")).Size(11).Subset())
+    .WithImage("logo", PdfImage.FromFile("logo.png"))
+    .WithPage(p => p.Letter().Landscape().Margin(0.5, PdfUnit.Inch))
+    .WithMetadata(m => m.Title("Inspection report").Author("Koala Facts Trading Pty Ltd"))
+    .WithPageFurniture(f => f
+        .HeaderLeft("Inspection report", t => t.Bold())
+        .FooterRight("Page {page} of {pages}", t => t.Size(9).Color(80, 80, 80))
+        .FirstPage(p => p.FooterRight("Page {page} of {pages}")))
+    .WithLimits(l => l.MaxPages(200));
+
+byte[] bytes = pdf.ToBytes("<h1>Example</h1><p>Hello PDF</p><img src=\"logo\">");
 ```
 
-This example uses fontless ASCII mode. Explicit font API examples are in the Unicode guide. `Convert` leaves the caller's stream open and does not require a seekable output. It returns page/byte counts. Unsupported input causes no output writes because conversion buffers a bounded PDF before final copying; final-copy I/O failures or cancellation may leave arbitrary output streams partly written. The example opens the destination only after conversion succeeds; use your own temporary-file policy or the CLI if final file replacement must also be protected.
+| Writer method | Sets |
+| --- | --- |
+| `WithFonts(f => …)` | `Regular`/`Bold`/`Italic`/`BoldItalic` ordered fallback chains, base `Size` (default 12pt), `Subset()` |
+| `WithImage(name, image)` | An image bound to `<img src="name">`; the same name replaces the earlier image |
+| `WithPage(p => …)` | `A4()` (default), `Letter()`, `Size(w, h, unit)`, `Landscape()`/`Portrait()`, `Margin(value, unit)` (default 36pt) |
+| `WithMetadata(m => …)` | PDF Info `Title`, `Author`, `Subject`, `Keywords` |
+| `WithHeaderText`, `WithFooterText`, `WithPageNumbers` | Simple centred margin text; page numbers follow the footer as `text \| N` |
+| `WithPageFurniture(f => …)` | Six styled regions (`HeaderLeft` … `FooterRight`) with `{page}`/`{pages}`, plus `FirstPage(…)`; exclusive with the simple margin text |
+| `WithLimits(l => …)` | Every resource limit, such as `MaxPages`, `MaxElements`, `MaxOutputBytes` |
+
+Each `With` method returns a new writer and leaves the original unchanged; invalid
+arguments fail immediately with `ArgumentException` naming the parameter. Outputs:
+`ToBytes`, `ToStream`, `ToStreamAsync` (for streams that reject synchronous
+writes, such as an ASP.NET Core response body), `ToBufferWriter` (for example a
+`PipeWriter`), and `ToFile`/`ToFileAsync`. All render the complete PDF in memory
+first, so unsupported input writes nothing; `ToFile` also writes to a temporary
+file in the destination directory and replaces the target only when the file is
+complete. Streams are left open and need not be seekable. Load fonts and images
+with `PdfFont.FromFile/FromBytes/FromStream` and `PdfImage.FromFile/FromBytes/FromStream`;
+they are immutable and can be shared across writers and threads.
 
 ## Current content and layout scope
 

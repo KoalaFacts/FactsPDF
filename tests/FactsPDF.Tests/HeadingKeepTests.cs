@@ -204,7 +204,7 @@ public sealed class HeadingKeepTests
     [Test]
     public void ExplicitFontRolesAndInlineRunsRemainByteIdenticalWhenGroupFits()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font], BoldFonts = [font], ItalicFonts = [font], BoldItalicFonts = [font] };
         var html = Css + Heading("A<span>A</span><b>A</b><i>A</i><b><i>A</i></b>") + "<p>A</p>";
         Assert.That(TableLayoutTests.Pdf(html, options), Is.EqualTo(TableLayoutTests.Pdf(html.Replace("break-after:avoid;", ""), options)));

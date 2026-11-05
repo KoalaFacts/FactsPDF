@@ -13,7 +13,7 @@ public sealed class FontStyleRoleTests
         FontFixture.U16(bytes, FontFixture.Table(bytes, "OS/2") + 62, 0);
         FontFixture.U16(bytes, FontFixture.Table(bytes, "hhea") + 4, ascent);
         FontFixture.U16(bytes, FontFixture.Table(bytes, "hhea") + 6, descent);
-        return PdfFont.LoadTrueType(bytes);
+        return PdfFont.FromBytes(bytes);
     }
 
     private static PdfOptions AllRoles() => new()
@@ -262,7 +262,7 @@ public sealed class FontStyleRoleTests
         Assert.That(Pdf("<p>ASCII</p>", new() { BoldFonts = [Font()] }), Is.EqualTo(Pdf("<p>ASCII</p>", new())));
         var italicBytes = FontFixture.Create();
         FontFixture.U32(italicBytes, FontFixture.Table(italicBytes, "post") + 4, unchecked((uint)(-12 * 65536)));
-        var explicitNormal = PdfFont.LoadTrueType(italicBytes);
+        var explicitNormal = PdfFont.FromBytes(italicBytes);
         Assert.That(Layout("<p>A</p>", new() { Fonts = [explicitNormal] })[0].Runs[0].Font, Is.SameAs(explicitNormal));
     }
 

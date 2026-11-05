@@ -127,7 +127,7 @@ public sealed class LogicalBorderComponentTests
     public void TrueTypeApiAndManagedCliMatchPhysicalEdgeOracle()
     {
         var fontBytes = FontFixture.Create();
-        var font = PdfFont.LoadTrueType(fontBytes);
+        var font = PdfFont.FromBytes(fontBytes);
         var options = Page with { Fonts = [font], BoldFonts = [font] };
         const string logical = "<section style='border-inline-width:2pt;" +
             "border-inline-style:solid;border-inline-color:#315f82;" +

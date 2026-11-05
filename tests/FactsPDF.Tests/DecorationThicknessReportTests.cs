@@ -130,7 +130,7 @@ public sealed class DecorationThicknessReportTests
     [Test]
     public void TrueTypeTableTextAndPagedReportHaveActualWidthAndStableOracle()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { PageWidth = 138, PageHeight = 145, Margin = 8, Fonts = [font] };
         var before = "<table style='width:112pt'><colgroup><col style='width:112pt'></colgroup><tbody><tr><td>";
         var content = "<p style='font-size:10pt;text-decoration:line-through solid blue;text-decoration-thickness:1.1pt'>AB</p>";

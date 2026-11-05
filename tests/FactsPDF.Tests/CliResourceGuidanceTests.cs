@@ -37,7 +37,7 @@ public sealed class CliResourceGuidanceTests
         var bytes = FontFixture.Create(latinOnly: true);
         var path = Path.Combine(directory, "latin.ttf");
         File.WriteAllBytes(path, bytes);
-        var options = supplyLatin ? new PdfOptions { Fonts = [PdfFont.LoadTrueType(bytes)] } : new PdfOptions();
+        var options = supplyLatin ? new PdfOptions { Fonts = [PdfFont.FromBytes(bytes)] } : new PdfOptions();
         using var expectedOutput = new MemoryStream();
         var expected = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, expectedOutput, options));
         Assert.That(expected!.Code, Is.EqualTo(code));
@@ -82,7 +82,7 @@ public sealed class CliResourceGuidanceTests
         var bytes = FontFixture.Create();
         var path = Path.Combine(directory, "explicit.ttf");
         File.WriteAllBytes(path, bytes);
-        var font = PdfFont.LoadTrueType(bytes);
+        var font = PdfFont.FromBytes(bytes);
         var options = flag switch
         {
             "--font-bold" => new PdfOptions { BoldFonts = [font] },
@@ -104,7 +104,7 @@ public sealed class CliResourceGuidanceTests
         var restricted = FontFixture.Create(fsType: (ushort)fsType);
         var rejected = Path.Combine(directory, "restricted.ttf");
         File.WriteAllBytes(rejected, restricted);
-        var coreError = Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(restricted));
+        var coreError = Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(restricted));
         Assert.That(coreError!.Code, Is.EqualTo("FPDF1505"));
 
         const string html = "<p>中文</p>";
@@ -140,7 +140,7 @@ public sealed class CliResourceGuidanceTests
         Assert.That(recovered.Exit, Is.Zero, recovered.Error);
         Assert.That(recovered.Error, Does.Not.Contain("Hint:"));
         using var expected = new MemoryStream();
-        PdfConverter.Convert(html, expected, new PdfOptions { Fonts = [PdfFont.LoadTrueType(allowed)] });
+        PdfConverter.Convert(html, expected, new PdfOptions { Fonts = [PdfFont.FromBytes(allowed)] });
         Assert.That(recovered.Output, Is.EqualTo(expected.ToArray()));
     }
 

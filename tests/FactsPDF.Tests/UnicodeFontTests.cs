@@ -10,8 +10,8 @@ namespace FactsPDF.Tests;
 public sealed class UnicodeFontTests
 {
     private static PdfFont Font(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false)
-        => PdfFont.LoadTrueType(FontFixture.Create(format12, latinOnly, fsType, ranged4));
-    private static (PdfConversionResult Result, byte[] Bytes, string Pdf) Render(string html, PdfOptions? options = null)
+        => PdfFont.FromBytes(FontFixture.Create(format12, latinOnly, fsType, ranged4));
+    private static (PdfWriteResult Result, byte[] Bytes, string Pdf) Render(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
         var result = PdfConverter.Convert(html, stream, options ?? new PdfOptions { Fonts = [Font()] });
@@ -49,25 +49,25 @@ public sealed class UnicodeFontTests
     [Test]
     public void SnapshotsTheCallerFontBytes()
     {
-        var bytes = FontFixture.Create(); var f = PdfFont.LoadTrueType(bytes); Array.Clear(bytes);
+        var bytes = FontFixture.Create(); var f = PdfFont.FromBytes(bytes); Array.Clear(bytes);
         Assert.That(f.GlyphFor(0x4e2d), Is.EqualTo(6));
         Assert.That(Render("<p>中文</p>", new PdfOptions { Fonts = [f] }).Pdf, Does.Contain("/FontFile2"));
     }
     [Test]
     public void StreamLoadingLeavesCallerStreamOpenAndHonorsCancellation()
     {
-        using var stream = new MemoryStream(FontFixture.Create()); var f = PdfFont.LoadTrueType(stream);
+        using var stream = new MemoryStream(FontFixture.Create()); var f = PdfFont.FromStream(stream);
         Assert.That(stream.CanRead, Is.True); Assert.That(f.GlyphFor(65), Is.EqualTo(2)); stream.Position = 0;
-        Assert.Throws<OperationCanceledException>(() => PdfFont.LoadTrueType(stream, cancellationToken: new CancellationToken(true)));
+        Assert.Throws<OperationCanceledException>(() => PdfFont.FromStream(stream, cancellationToken: new CancellationToken(true)));
         Assert.That(stream.Position, Is.Zero);
     }
     [Test]
     public void FontByteLimitsApplyToBytesAndStreams()
     {
         var data = FontFixture.Create();
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data, 16))!.Code, Is.EqualTo("FPDF1503"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(data, 16))!.Code, Is.EqualTo("FPDF1503"));
         using var stream = new MemoryStream(data);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(stream, 16))!.Code, Is.EqualTo("FPDF1503"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromStream(stream, 16))!.Code, Is.EqualTo("FPDF1503"));
     }
     // Preview-only (4) needs read-only document handling, which this increment deliberately does not promise.
     [TestCase(2)] [TestCase(4)] [TestCase(512)]
@@ -80,34 +80,34 @@ public sealed class UnicodeFontTests
     public void RejectsUnsupportedFontContainers(string header)
     {
         var data = FontFixture.Create(); Encoding.ASCII.GetBytes(header).CopyTo(data, 0);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data))!.Code, Is.EqualTo("FPDF1502"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(data))!.Code, Is.EqualTo("FPDF1502"));
     }
     [Test]
     public void RejectsTruncatedFont()
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(new byte[5]))!.Code, Is.EqualTo("FPDF1501"));
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(new byte[5]))!.Code, Is.EqualTo("FPDF1501"));
     [TestCase("head", 18, 0)] [TestCase("hhea", 34, 0)] [TestCase("maxp", 4, 0)]
     public void RejectsInvalidMetrics(string table, int offset, int value)
     {
         var data = FontFixture.Create(); FontFixture.U16(data, FontFixture.Table(data, table) + offset, value);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data))!.Code, Is.EqualTo("FPDF1501"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(data))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
     public void RejectsOutOfRangeTablePointerWithoutOverflow()
     {
         var data = FontFixture.Create(); FontFixture.U32(data, 20, uint.MaxValue);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data))!.Code, Is.EqualTo("FPDF1501"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(data))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
     public void RejectsUnorderedOrOutOfRangeCmap12Groups()
     {
         var data = FontFixture.Create(); var map = FontFixture.Table(data, "cmap") + 12; FontFixture.U32(data, map + 16, 0x110000);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data))!.Code, Is.EqualTo("FPDF1501"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(data))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
     public void RejectsBadLocaRange()
     {
         var data = FontFixture.Create(); FontFixture.U32(data, FontFixture.Table(data, "loca") + 48, uint.MaxValue);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(data))!.Code, Is.EqualTo("FPDF1501"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(data))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
     public void ChineseAndSupplementaryScalarsRoundTripThroughToUnicode()

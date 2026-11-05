@@ -96,7 +96,7 @@ public sealed class CombinedTextDecorationReportTests
     [Test]
     public void ExplicitTrueTypeTableCellDrawsAllSelectedLines()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string html = "<table style='width:170pt'><colgroup><col style='width:170pt'></colgroup>" +
             "<tbody><tr><td><p style='margin:0;font-size:10pt;" +

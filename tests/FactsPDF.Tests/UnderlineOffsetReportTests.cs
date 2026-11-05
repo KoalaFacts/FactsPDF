@@ -119,7 +119,7 @@ public sealed class UnderlineOffsetReportTests
         Assert.That(Layout(html, settings).Count, Is.GreaterThan(1));
         Assert.That(Pdf(html, settings), Is.EqualTo(Pdf(oracle, settings)));
 
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = SmallPage with { Fonts = [font] };
         var small = "<p style='font-size:10pt;text-decoration:underline;text-underline-offset:1pt'>AB</p>";
         var run = Layout(small, options).Single().Runs.Single();

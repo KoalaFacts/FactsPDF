@@ -168,7 +168,7 @@ remain unchanged: **44 full, 115 partial, 251 none, 6 unknown and 2 not
 applicable**. The tag/property counts remain 34 and 37.
 
 `pdf.headers` remains partial and now describes the implemented .NET API and
-CLI structured mode: `PdfOptions.PageFurniture`, six left/center/right regions,
+CLI structured mode: `WithPageFurniture`, six left/center/right regions,
 physical `{page}` / `{pages}`, whole-set `FirstPage` replacement, per-region
 1–144pt text, opaque RGB and explicit bold/italic font roles. An empty first-page
 set clears that page's furniture without removing its body or restarting page

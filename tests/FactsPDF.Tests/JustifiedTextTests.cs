@@ -107,7 +107,7 @@ public sealed class JustifiedTextTests
     [Test]
     public void InlineColoursAndCidTrueTypeRetainTextAndRealPdfSpacing()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string plain = "<p style='text-align:justify'><span style='color:red'>AB AB </span>" +
             "<span style='color:blue'>AB AB AB AB AB AB AB AB AB AB AB AB</span></p>";

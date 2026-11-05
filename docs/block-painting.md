@@ -19,7 +19,7 @@ M7 implements painted **single-page** nested blocks on the retained M5 tree and 
 
 Backgrounds are painted before four separately colored solid edges. Ancestors paint before children; paint commands as a whole precede text for deterministic backgrounds behind searchable words. Unpainted documents are serialized through the same original path with no graphics commands, preserving representative legacy PDF bytes.
 
-`PdfOptions.MaxDisplayCommands` (default 200,000) bounds **actually emitted** text and primitive rectangle operations across all pages; zero-height/zero-width rectangles are not charged. Overflow fails `FPDF1401` before caller-stream writes.
+The `MaxDisplayCommands` limit (default 200,000; `WithLimits(l => l.MaxDisplayCommands(…))`) bounds **actually emitted** text and primitive rectangle operations across all pages; zero-height/zero-width rectangles are not charged. Overflow fails `FPDF1401` before caller-stream writes.
 
 ## Explicit M8 boundary
 This increment does **not** claim CSS Fragmentation Level 3. A decorated box that occupies more than one page, or extends beyond the printable vertical area, throws `FPDF1302` **before any output bytes**. Existing unpainted multi-page text remains supported. A single-page painted box close to the page bottom is not automatically moved intact to the next page in this increment; avoid designs that require break-inside avoidance until M8.

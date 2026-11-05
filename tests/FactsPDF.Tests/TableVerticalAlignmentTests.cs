@@ -81,7 +81,7 @@ public sealed class TableVerticalAlignmentTests
     [Test]
     public void ShorterBrandedImageAndItsDecorationMoveWithinWholeRow()
     {
-        var image = PdfImage.LoadImage(PngFixture.Image(new byte[32 * 129], 32, 32));
+        var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["mark"] = image } };
         const string child = "<img src='mark' style='width:12pt;padding:1pt;border:1pt solid red'>";
         var top = Layout(TwoCells("vertical-align:top", child), options).Single();

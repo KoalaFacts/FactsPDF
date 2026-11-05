@@ -160,41 +160,55 @@ public static class CliApplication
             var margin = requestedMargin ?? 36d;
             if (2 * margin >= Math.Min(pageWidth, pageHeight))
                 throw new ArgumentException("--margin must be less than half the shorter physical page dimension.");
-            var options = new PdfOptions { PageWidth = pageWidth, PageHeight = pageHeight, Margin = margin,
-                SubsetFonts = subsetFonts, PageNumbers = pageNumbers, HeaderText = headerText,
-                FooterText = footerText, PageFurniture = furniture,
-                Title = title, Author = author, Subject = subject, Keywords = keywords }; var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
+            // Converts through the public SDK; engine defaults bound how much font/image data is read.
+            var defaults = Pdf.Write().Options;
+            var writer = Pdf.Write()
+                .WithPage(p => p.Size(pageWidth, pageHeight).Margin(margin))
+                .WithMetadata(m =>
+                {
+                    if (title is not null) m.Title(title);
+                    if (author is not null) m.Author(author);
+                    if (subject is not null) m.Subject(subject);
+                    if (keywords is not null) m.Keywords(keywords);
+                });
+            if (headerText is not null) writer = writer.WithHeaderText(headerText);
+            if (footerText is not null) writer = writer.WithFooterText(footerText);
+            if (pageNumbers) writer = writer.WithPageNumbers();
+            if (furniture is not null) writer = writer.WithPageFurniture(furniture);
+            var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using var fontStream = File.OpenRead(path);
-                var remaining = options.MaxTotalFontBytes - totalFontBytes;
+                var remaining = defaults.MaxTotalFontBytes - totalFontBytes;
                 if (remaining <= 0) throw new FactsPdfException("FPDF1503", "Fonts exceed MaxTotalFontBytes.");
-                var font = PdfFont.LoadTrueType(fontStream, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), cancellationToken);
+                var font = PdfFont.FromStream(fontStream, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), cancellationToken);
                 fonts[role].Add(font); totalFontBytes += font.ByteLength;
             }
-            options = options with { Fonts = fonts[0].ToArray(), BoldFonts = fonts[1].ToArray(),
-                ItalicFonts = fonts[2].ToArray(), BoldItalicFonts = fonts[3].ToArray() };
-            var images = new Dictionary<string, PdfImage>(StringComparer.Ordinal); var totalImageBytes = 0;
+            writer = writer.WithFonts(f =>
+            {
+                f.Regular([.. fonts[0]]).Bold([.. fonts[1]]).Italic([.. fonts[2]]).BoldItalic([.. fonts[3]]);
+                if (subsetFonts) f.Subset();
+            });
+            var totalImageBytes = 0;
             foreach (var (name, path) in imagePaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var remaining = options.MaxTotalImageBytes - totalImageBytes;
+                var remaining = defaults.MaxTotalImageBytes - totalImageBytes;
                 if (remaining <= 0) throw new FactsPdfException("FPDF1603", "Images exceed MaxTotalImageBytes.");
                 using var imageStream = File.OpenRead(path);
-                var image = PdfImage.LoadImage(imageStream, new PdfImageLimits { MaxBytes = Math.Min(8_388_608, remaining) }, cancellationToken);
-                images.Add(name, image); totalImageBytes += image.ByteLength;
+                var image = PdfImage.FromStream(imageStream, new PdfImageLimits { MaxBytes = Math.Min(8_388_608, remaining) }, cancellationToken);
+                writer = writer.WithImage(name, image); totalImageBytes += image.ByteLength;
             }
-            if (images.Count > 0) options = options with { Images = images };
-            if (source is null) html = ReadInput(input, options.MaxInputCharacters, cancellationToken);
-            else { using var file = File.OpenRead(source); html = ReadInput(file, options.MaxInputCharacters, cancellationToken); }
-            PdfConversionResult result;
-            if (destination is null) result = PdfConverter.Convert(html, output, options, cancellationToken);
+            if (source is null) html = ReadInput(input, defaults.MaxInputCharacters, cancellationToken);
+            else { using var file = File.OpenRead(source); html = ReadInput(file, defaults.MaxInputCharacters, cancellationToken); }
+            PdfWriteResult result;
+            if (destination is null) result = writer.ToStream(html, output, cancellationToken);
             else
             {
                 temporary = Path.Combine(Path.GetDirectoryName(destination)!, $".factspdf-{Guid.NewGuid():N}.tmp");
                 using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                { result = PdfConverter.Convert(html, file, options, cancellationToken); file.Flush(flushToDisk: true); }
+                { result = writer.ToStream(html, file, cancellationToken); file.Flush(flushToDisk: true); }
                 cancellationToken.ThrowIfCancellationRequested(); File.Move(temporary, destination, overwrite); temporary = null;
             }
             error.WriteLine($"Wrote {result.PageCount} page(s), {result.BytesWritten} bytes."); return 0;

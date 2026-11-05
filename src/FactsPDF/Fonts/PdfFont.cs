@@ -6,7 +6,7 @@ namespace FactsPDF;
 /// <summary>Immutable explicitly supplied static TrueType font. No filesystem or network discovery.</summary>
 public sealed class PdfFont
 {
-    /// <summary>Default maximum font file size accepted by <see cref="LoadTrueType(ReadOnlySpan{byte}, int, CancellationToken)"/> (32 MiB).</summary>
+    /// <summary>Default maximum font file size accepted by <see cref="FromBytes(ReadOnlySpan{byte}, int, CancellationToken)"/> and the other loaders (32 MiB).</summary>
     public const int DefaultMaxBytes = 33_554_432;
     private readonly byte[] data;
     private readonly UnicodeCmap cmap;
@@ -78,7 +78,7 @@ public sealed class PdfFont
     /// <returns>An immutable font that can be shared across conversions and threads.</returns>
     /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
-    public static PdfFont LoadTrueType(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
+    public static PdfFont FromBytes(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
@@ -93,7 +93,7 @@ public sealed class PdfFont
     /// <returns>An immutable font that can be shared across conversions and threads.</returns>
     /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
-    public static PdfFont LoadTrueType(Stream source, int maxBytes = DefaultMaxBytes,
+    public static PdfFont FromStream(Stream source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -112,6 +112,19 @@ public sealed class PdfFont
         }
         return new PdfFont(buffer.ToArray(), cancellationToken);
     }
+    /// <summary>Reads and validates a static TrueType (glyf) font file.</summary>
+    /// <param name="path">Path of the font file; only this file is read.</param>
+    /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
+    /// <param name="cancellationToken">Cancels reading and validation.</param>
+    /// <returns>An immutable font that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The file is not a supported font or exceeds <paramref name="maxBytes"/>.</exception>
+    public static PdfFont FromFile(string path, int maxBytes = DefaultMaxBytes, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
+        return FromStream(file, maxBytes, cancellationToken);
+    }
+
     internal ushort GlyphFor(int scalar) => cmap.GlyphFor(scalar);
     internal double Width1000(ushort glyph) => glyph < advances.Length ? advances[glyph] * scale : throw new FactsPdfException("FPDF1501", "Invalid glyph index.");
 

@@ -124,7 +124,7 @@ public sealed class TextDecorationPaintTests
     [Test]
     public void TrueTypeInlineSpansAndLongReportKeepRealGlyphAdvanceAndPagedStroke()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { PageWidth = 96, PageHeight = 128, Margin = 8, Fonts = [font] };
         var sample = "<p style='font-size:10pt;text-decoration:underline dashed red'>" +
             "A<span style='text-decoration-color:blue'>B</span>A</p>";

@@ -112,7 +112,7 @@ public sealed class TableRichTests
     [Test]
     public void EmptyBoldHeaderParagraphsAndImageOnlyCellsHaveNoFontDemand()
     {
-        var options = TableImageTests.Options() with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = TableImageTests.Options() with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var html = "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<thead><tr><th colspan='2' style='" + Edges + "'><p> </p><p></p><img src='logo'></th><th></th></tr></thead><tbody><tr><td colspan='3'>A</td></tr></tbody></table>";
         Assert.That(TableLayoutTests.Layout(html, options).Single().PaintBoxes.Single().Height, Is.EqualTo(30));
         Assert.That(TableLayoutTests.Pdf(html, options), Is.Not.Empty);
@@ -178,7 +178,7 @@ public sealed class TableRichTests
     [Test]
     public void NonBreakingSpaceIsContentAndBreakOnlyPreservesExistingFontBehavior()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = new PdfOptions { Fonts = [font] };
         var nbsp = HtmlDocumentReader.Read(TableLayoutTests.Table("<p>&nbsp;</p>"), options, default).Single();
         Assert.That(nbsp.Runs.Single().Text, Is.EqualTo("\u00a0"));

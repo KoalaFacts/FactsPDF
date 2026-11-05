@@ -76,7 +76,7 @@ public sealed class CliPageGeometryTests
             using var expected = new MemoryStream();
             PdfConverter.Convert(html, expected, new PdfOptions
             {
-                PageWidth = 792, PageHeight = 612, Fonts = [PdfFont.LoadTrueType(font)]
+                PageWidth = 792, PageHeight = 612, Fonts = [PdfFont.FromBytes(font)]
             });
             Assert.That(actual.Pdf, Is.EqualTo(expected.ToArray()));
             Assert.That(Encoding.ASCII.GetString(actual.Pdf), Does.Contain("/MediaBox [0 0 792 612]"));

@@ -23,7 +23,7 @@ public sealed class JpegExifTests
         return data;
     }
     private static byte[] Jpeg(byte[] tiff) => JpegFixture.Gray([0x3f], metadata: JpegFixture.Segment(0xe1, [69, 120, 105, 102, 0, 0, .. tiff]));
-    private static void Error(byte[] tiff, string code) => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(Jpeg(tiff)))!.Code, Is.EqualTo(code));
+    private static void Error(byte[] tiff, string code) => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(Jpeg(tiff)))!.Code, Is.EqualTo(code));
 
     [TestCase(false, 0)][TestCase(false, 13)][TestCase(false, 65535)]
     [TestCase(true, 0)][TestCase(true, 13)][TestCase(true, 65535)]
@@ -33,8 +33,8 @@ public sealed class JpegExifTests
     [TestCase(false)][TestCase(true)]
     public void BothByteOrdersEnforceOrientationCountValueAndUniqueness(bool little)
     {
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(Jpeg(Tiff(little, (274, 3, 1, 1)))));
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(Jpeg(Tiff(little))));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(Jpeg(Tiff(little, (274, 3, 1, 1)))));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(Jpeg(Tiff(little))));
         Error(Tiff(little, (274, 3, 1, 1), (274, 3, 1, 1)), "FPDF1601");
         Error(Tiff(little, (274, 4, 1, 1)), "FPDF1601");
         Error(Tiff(little, (274, 3, 0, 1)), "FPDF1601");
@@ -49,7 +49,7 @@ public sealed class JpegExifTests
     public void IfdEntryCapAcceptsExactly256AndRejects257(bool little)
     {
         var entries = Enumerable.Range(0, 257).Select(i => ((ushort)(1000 + i), (ushort)1, (uint)1, (uint)0)).ToArray();
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(Jpeg(Tiff(little, entries[..256]))));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(Jpeg(Tiff(little, entries[..256]))));
         Error(Tiff(little, entries), "FPDF1603");
     }
 
@@ -57,7 +57,7 @@ public sealed class JpegExifTests
     public void OutOfLineFieldsUseWideCountsAndExactSegmentBounds(bool little)
     {
         var valid = Tiff(little, (100, 7, 8, 26)).Concat(new byte[8]).ToArray();
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(Jpeg(valid)));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(Jpeg(valid)));
         Error(valid[..^1], "FPDF1601");
         Error(Tiff(little, (100, 7, 8, uint.MaxValue)), "FPDF1601");
         Error(Tiff(little, (100, 12, uint.MaxValue, 26)), "FPDF1601");

@@ -20,7 +20,7 @@ public sealed class BoxFragmentationTests
         return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
     }
 
-    private static (PdfConversionResult Result, byte[] Pdf) Render(string html, PdfOptions? options = null)
+    private static (PdfWriteResult Result, byte[] Pdf) Render(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
         var result = PdfConverter.Convert(html, output, options ?? Small);
@@ -266,7 +266,7 @@ public sealed class BoxFragmentationTests
     {
         var options = Small with
         {
-            Fonts = [PdfFont.LoadTrueType(FontFixture.Create())]
+            Fonts = [PdfFont.FromBytes(FontFixture.Create())]
         };
         const string html = "<section style='background-color:#cee8fb;border:2pt solid blue'>" +
             "<p>A中文B</p><p style='break-before:page'>中文B</p></section>";

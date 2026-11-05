@@ -5,7 +5,7 @@ using FactsPDF;
 if (args.Length is < 3 or > 4 || args.Length == 4 && args[3] != "courier") return 2;
 using var manifest = JsonDocument.Parse(File.ReadAllText(args[2]));
 PdfFont[] Fonts(string role) => args.Length == 4 ? [] : manifest.RootElement.GetProperty("roles").GetProperty(role)
-    .EnumerateArray().Select(path => PdfFont.LoadTrueType(File.ReadAllBytes(path.GetString()!))).ToArray();
+    .EnumerateArray().Select(path => PdfFont.FromBytes(File.ReadAllBytes(path.GetString()!))).ToArray();
 var options = new PdfOptions { Fonts = Fonts("normal"), BoldFonts = Fonts("bold"),
     ItalicFonts = Fonts("italic"), BoldItalicFonts = Fonts("boldItalic"), SubsetFonts = true };
 var html = File.ReadAllText(args[0]);

@@ -74,8 +74,8 @@ public sealed class CliPdfMetadataTests
             using var expected = new MemoryStream();
             var report = PdfConverter.Convert(html, expected, new PdfOptions
             {
-                Fonts = [PdfFont.LoadTrueType(font)],
-                Images = new Dictionary<string, PdfImage> { ["logo"] = PdfImage.LoadImage(png) },
+                Fonts = [PdfFont.FromBytes(font)],
+                Images = new Dictionary<string, PdfImage> { ["logo"] = PdfImage.FromBytes(png) },
                 Title = "中文检查", Author = "Koala Facts"
             });
             Assert.That(report.PageCount, Is.EqualTo(2));

@@ -46,7 +46,7 @@ public sealed class CssNamedColorTests
         const string hex = "<style>section{color:#191970}p{color:#ff7f50!important}" +
             ".note{text-decoration:underline dotted #663399}</style>" +
             "<section><p style='color:#000080'>AB <span class=note>WA</span></p></section>";
-        var fonts = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var fonts = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         Assert.That(Pdf(names, fonts), Is.EqualTo(Pdf(hex, fonts)));
         Assert.That(Pdf("<p style='color:grey'>A</p>"), Is.EqualTo(Pdf("<p style='color:gray'>A</p>")));
         Assert.That(Pdf("<p style='color:cyan'>A</p>"), Is.EqualTo(Pdf("<p style='color:aqua'>A</p>")));

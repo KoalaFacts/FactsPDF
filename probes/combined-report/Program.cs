@@ -6,10 +6,10 @@ using FactsPDF;
 if (args.Length is < 5 or > 6 || args[4] is not ("on" or "off")) return 2;
 using var manifest = JsonDocument.Parse(File.ReadAllText(args[2]));
 PdfFont[] Load(string role) => manifest.RootElement.GetProperty("roles").GetProperty(role)
-    .EnumerateArray().Select(path => PdfFont.LoadTrueType(File.ReadAllBytes(path.GetString()!))).ToArray();
+    .EnumerateArray().Select(path => PdfFont.FromBytes(File.ReadAllBytes(path.GetString()!))).ToArray();
 var options = new PdfOptions { Fonts = Load("normal"), BoldFonts = Load("bold"), ItalicFonts = Load("italic"),
     BoldItalicFonts = Load("boldItalic"), SubsetFonts = true,
-    Images = new Dictionary<string, PdfImage> { ["quality-chart"] = PdfImage.LoadImage(File.ReadAllBytes(args[3])) },
+    Images = new Dictionary<string, PdfImage> { ["quality-chart"] = PdfImage.FromBytes(File.ReadAllBytes(args[3])) },
     PageNumbers = args[4] == "on", HeaderText = args[4] == "on" ? "FactsPDF | Quality review" : null,
     FooterText = args[4] == "on" ? "Internal copy" : null };
 var html = File.ReadAllText(args[0]);

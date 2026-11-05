@@ -118,7 +118,7 @@ public sealed class ElementRelativeBoxLengthTests
     {
         // A generated test-only font resource exercises the real TrueType path.
         // Neither an external font nor browser rendering is needed.
-        var options = Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var body = string.Concat(Enumerable.Repeat("<p>AB WA BA</p>", 18));
         const string before = "<html style='font-size:15pt'><body>";
         const string relative = "<section style='font-size:12pt;width:12em;padding:0.5em;" +

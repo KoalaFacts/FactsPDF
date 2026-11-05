@@ -25,10 +25,10 @@ public sealed class JpegResourceTests
         var bytes = Bytes(name);
         if (expected != "accept")
         {
-            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(bytes))!.Code, Is.EqualTo(expected));
+            Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(bytes))!.Code, Is.EqualTo(expected));
             return;
         }
-        var image = PdfImage.LoadImage(bytes);
+        var image = PdfImage.FromBytes(bytes);
         Assert.Multiple(() =>
         {
             Assert.That(image.PixelWidth, Is.EqualTo(width));
@@ -44,32 +44,32 @@ public sealed class JpegResourceTests
     [TestCase("ff4fff51")]
     [TestCase("6e6f7420616e20696d616765")]
     public void UnsupportedContentHasExplicitDiagnostic(string hex)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(Convert.FromHexString(hex)))!.Code,
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(Convert.FromHexString(hex)))!.Code,
             Is.EqualTo("FPDF1602"));
 
     [TestCase("")] [TestCase("ff")] [TestCase("ffd8")]
     public void EmptyOrTruncatedJpegIsInvalid(string hex)
-        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(Convert.FromHexString(hex)))!.Code,
+        => Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(Convert.FromHexString(hex)))!.Code,
             Is.EqualTo("FPDF1601"));
 
     [Test]
     public void LoadedResourceOwnsItsBytes()
     {
         var input = Bytes("rgb-420"); var expected = input.ToArray();
-        var image = PdfImage.LoadImage(input); Array.Fill(input, (byte)0);
+        var image = PdfImage.FromBytes(input); Array.Fill(input, (byte)0);
         Assert.That(image.Data.ToArray(), Is.EqualTo(expected));
     }
 
     [Test]
-    public void PublicImageResourceLoadsContentThroughLoadImage()
+    public void PublicImageResourceLoadsContentThroughFromStream()
     {
         // This first red test exercises the requested public entry without a
         // compile failure when the new resource class has not been introduced.
         var type = typeof(PdfConverter).Assembly.GetType("FactsPDF.PdfImage");
         Assert.That(type, Is.Not.Null, "The explicit immutable image resource is missing.");
-        var loader = type!.GetMethods().SingleOrDefault(m => m.Name == "LoadImage"
+        var loader = type!.GetMethods().SingleOrDefault(m => m.Name == "FromStream"
             && m.GetParameters()[0].ParameterType == typeof(Stream));
-        Assert.That(loader, Is.Not.Null, "LoadImage must accept explicit stream bytes.");
+        Assert.That(loader, Is.Not.Null, "FromStream must accept explicit stream bytes.");
         using var input = File.OpenRead(Path.Combine(TestContext.CurrentContext.TestDirectory,
             "jpeg", "rgb-420.jpg"));
         var image = loader!.Invoke(null, [input, null, CancellationToken.None]);

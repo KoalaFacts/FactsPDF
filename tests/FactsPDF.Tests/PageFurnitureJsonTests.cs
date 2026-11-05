@@ -68,7 +68,7 @@ public sealed class PageFurnitureJsonTests
         const string html = "<p>A</p><p style=\"break-before:page\">A</p>";
         var result = Run(args.ToArray(), html);
         Assert.That(result.Exit, Is.Zero, result.Error);
-        PdfFont[] Chain() => [PdfFont.LoadTrueType(bytes)];
+        PdfFont[] Chain() => [PdfFont.FromBytes(bytes)];
         Assert.That(result.Pdf, Is.EqualTo(Expected(new()
         {
             Fonts = Chain(),

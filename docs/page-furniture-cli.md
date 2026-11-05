@@ -1,6 +1,6 @@
 # Structured page furniture: CLI configuration
 
-This is the development-source CLI contract for structured page furniture, not a published package or a completed cross-platform acceptance claim. Core .NET callers use `PdfOptions.PageFurniture` directly. The legacy flags and their default output remain separate.
+This is the development-source CLI contract for structured page furniture, not a published package or a completed cross-platform acceptance claim. .NET callers use `WithPageFurniture(f => …)` on the writer. The legacy flags and their default output remain separate.
 
 ## Run the repository example
 

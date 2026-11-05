@@ -15,7 +15,7 @@ public sealed class CssLineBoxMetricsTests
         var hhea = FontFixture.Table(bytes, "hhea");
         FontFixture.U16(bytes, hhea + 4, ascender);
         FontFixture.U16(bytes, hhea + 6, descender);
-        return PdfFont.LoadTrueType(bytes);
+        return PdfFont.FromBytes(bytes);
     }
 
     private static LayoutPage Page(string markup, IReadOnlyList<PdfFont> fonts)
@@ -30,7 +30,7 @@ public sealed class CssLineBoxMetricsTests
     [Test]
     public void FallbackTypefaceCannotShiftThePrimaryFontLineBaseline()
     {
-        var latin = PdfFont.LoadTrueType(FontFixture.Create(latinOnly: true));
+        var latin = PdfFont.FromBytes(FontFixture.Create(latinOnly: true));
         var fallback = UnusualFallback();
         var plain = Page("<p>A</p>", [latin, fallback]);
         var mixed = Page("<p>A中</p>", [latin, fallback]);
@@ -43,7 +43,7 @@ public sealed class CssLineBoxMetricsTests
     [Test]
     public void FallbackTypefaceCannotChangeFollowingParagraphLineSpacing()
     {
-        var latin = PdfFont.LoadTrueType(FontFixture.Create(latinOnly: true));
+        var latin = PdfFont.FromBytes(FontFixture.Create(latinOnly: true));
         var fallback = UnusualFallback();
         var plain = Page("<p>A</p><p>A</p>", [latin, fallback]);
         var mixed = Page("<p>A中</p><p>A</p>", [latin, fallback]);
@@ -70,7 +70,7 @@ public sealed class CssLineBoxMetricsTests
     [Test]
     public void LargerInlineFontStillContributesToLineBoxHeight()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = new PdfOptions { Fonts = [font] };
         var paragraphs = HtmlDocumentReader.Read(
             "<style>p{font-size:12pt;line-height:1.3;margin-top:0pt;margin-bottom:0pt}</style>" +

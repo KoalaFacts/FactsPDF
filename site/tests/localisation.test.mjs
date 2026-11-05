@@ -492,3 +492,14 @@ test('English CLI diagnostic location record is source-bound and fully translate
   assert.match(english.limitations,/LF, CRLF and CR/);
   assert.doesNotMatch(english.limitations+english.evidence_level,han);
 });
+
+test('English .NET SDK records name the fluent Pdf.Write() writer, not the retired API',async()=>{
+  const {englishFeature}=await localisation();
+  for(const id of ['runtime.dotnet','pdf.headers','pdf.page-options','rule.page']){
+    const english=englishFeature(data.features.find(f=>f.id===id));
+    const text=Object.values(english).filter(v=>typeof v==='string').join(' ');
+    assert.doesNotMatch(text,/PdfOptions|PdfConverter|LoadTrueType|LoadImage/);
+    assert.doesNotMatch(english.scope+english.limitations+english.feature,han);
+  }
+  assert.match(englishFeature(data.features.find(f=>f.id==='runtime.dotnet')).scope,/Pdf\.Write\(\)/);
+});

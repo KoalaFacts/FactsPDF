@@ -16,7 +16,7 @@ class CandidateAssetsTests(unittest.TestCase):
         for n in ('LICENSE.md','README.md'):(self.root/n).write_bytes(n.encode())
     def package(self, targets=TARGETS, mutate=None, extra=None):
         assets={f'lib/{t}/FactsPDF.dll':json.dumps(dict(name='FactsPDF',assemblyVersion='0.1.0.0',culture='',publicKey='',runtimeReferences=[t[3:]+'.0.0'],targetFramework='.NETCoreApp,Version=v'+t[3:],informationalVersion=VERSION+'+'+SHA)).encode() for t in targets}
-        assets.update({f'lib/{t}/FactsPDF.xml':b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.PdfConverter" /></members></doc>' for t in targets})
+        assets.update({f'lib/{t}/FactsPDF.xml':b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.Pdf" /></members></doc>' for t in targets})
         if mutate:mutate(assets)
         if extra:assets.update(extra)
         xml=f'<package><metadata><id>FactsPDF</id><version>{VERSION}</version><license type="file">LICENSE.md</license><readme>README.md</readme><repository type="git" url="https://github.com/KoalaFacts/FactsPDF" commit="{SHA}"/><dependencies>'+''.join(f'<group targetFramework="{t}"/>' for t in targets)+'</dependencies></metadata></package>'

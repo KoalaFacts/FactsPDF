@@ -90,7 +90,7 @@ public sealed class PrintMediaReportTests
     public void TrueTypeApiAndCliExecuteSameScopedPrintStyles()
     {
         var fontBytes = FontFixture.Create();
-        var font = PdfFont.LoadTrueType(fontBytes);
+        var font = PdfFont.FromBytes(fontBytes);
         var options = SmallPage with { Fonts = [font], BoldFonts = [font] };
         const string html = "<style>@media print { .status{font-weight:bold;color:blue;font-size:15pt} }</style>" +
             "<p class=status>AB</p>";

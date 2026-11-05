@@ -22,6 +22,7 @@ authoritative CSS contract, see [CSS stylesheets](css-stylesheets.md).
 - [Tables and lists](#tables-and-lists)
 - [Report elements](#report-elements)
 - [Pages, pagination and document properties](#pages-pagination-and-document-properties)
+- [.NET SDK](#net-sdk)
 - [Diagnostics](#diagnostics)
 
 ## Stylesheets
@@ -427,7 +428,7 @@ Controlled report typography can use `line-height:150%`, `line-height:1.5em`, `l
 
 ### Root-relative `rem` typography (source-only)
 
-On current source, business report templates can opt into `font-size:1.2rem` and `line-height:1.5rem`. `rem` uses the `<html>` element's computed font size, or `PdfOptions.FontSize` when no `html` element exists. On `html` itself, `font-size:rem` resolves against the initial configured font size to avoid a self-reference; `line-height:rem` uses its newly computed root size. Font sizes resolve to 1–144pt; fixed line heights resolve to 0.1–1440pt and inherit as points. This feeds actual glyph layout, wrapping and pagination (not merely syntax acceptance). This typography feature is separate from the newer scoped `rem` lengths for ordinary report box width/min-max/padding; `rem` margins are now limited to paragraphs/headings outside table cells; borders and image/table/column sizing still reject `rem`; only bounded text-indent/letter-spacing/word-spacing now accept it. See the [root-relative contract](css-stylesheets.md#current-source-root-relative-report-typography) and [runnable multi-page example](../examples/report-root-relative-typography.html); these source changes are not the previously retained installable candidate.
+On current source, business report templates can opt into `font-size:1.2rem` and `line-height:1.5rem`. `rem` uses the `<html>` element's computed font size, or the writer's base font size (`WithFonts(f => f.Size(…))`, default 12pt) when no `html` element exists. On `html` itself, `font-size:rem` resolves against the initial configured font size to avoid a self-reference; `line-height:rem` uses its newly computed root size. Font sizes resolve to 1–144pt; fixed line heights resolve to 0.1–1440pt and inherit as points. This feeds actual glyph layout, wrapping and pagination (not merely syntax acceptance). This typography feature is separate from the newer scoped `rem` lengths for ordinary report box width/min-max/padding; `rem` margins are now limited to paragraphs/headings outside table cells; borders and image/table/column sizing still reject `rem`; only bounded text-indent/letter-spacing/word-spacing now accept it. See the [root-relative contract](css-stylesheets.md#current-source-root-relative-report-typography) and [runnable multi-page example](../examples/report-root-relative-typography.html); these source changes are not the previously retained installable candidate.
 
 ### Font-relative text spacing (source-only)
 
@@ -631,7 +632,7 @@ Source commit `ca3aef91e20792782edb49004369dfbf1e9712b3`; the retained candidate
 
 For source-built business report boxes, `width:13rem`, `max-width:14rem`,
 `min-width:10rem`, and `padding:0.5rem` now resolve against the
-computed `html` root font size, or `PdfOptions.FontSize` if there is no
+computed `html` root font size, or the writer's base font size if there is no
 `html` element. The resulting point lengths drive actual box/content widths,
 text wrap, centring, borders/backgrounds and page continuation. `rem`
 is limited to ordinary blocks, paragraphs and headings for these properties;
@@ -657,7 +658,7 @@ This feature is source-only and not part of the retained installable preview.
 
 Scoped report paragraphs/headings also accept `margin:0.25rem 0.5rem`,
 `margin-top:0.5rem` and 1–4 side shorthand values. The computed `html`
-root (or `PdfOptions.FontSize` fallback) drives real PDF vertical gaps,
+root (or the writer's base font size as fallback) drives real PDF vertical gaps,
 horizontal text/paint position, wrapping and pagination. Horizontal `auto`
 still combines with supported lengths. Negative margins, vertical `%`/`auto`,
 `calc()`, body/list/table/image/inline margins and table-cell `rem`/`em` margins
@@ -1042,8 +1043,8 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/quick-start.html us
 swaps the physical width and height for either size. It updates the actual
 PDF MediaBox, text wrapping, page breaks and page furniture coordinates; it
 does **not** scale an already-rendered page or implement CSS `@page`.
-The `.NET` API continues to use `PdfOptions.PageWidth/PageHeight` for
-explicit geometry. Source implementation began at `bb34436538b8a02f1ace0878be1f97eb5bbff77d`;
+The .NET API sets the same geometry with
+`WithPage(p => p.Letter().Landscape())` or `p.Size(width, height, unit)`. Source implementation began at `bb34436538b8a02f1ace0878be1f97eb5bbff77d`;
 this is not part of the older retained private preview or a public binary.
 
 ### Print on custom physical paper (source-only)
@@ -1093,7 +1094,7 @@ printer bleed, an automatic paper fit or a released CLI. See
 
 For invoices and inspection reports, set real PDF document information using
 `--title`, `--author`, `--subject` and `--keywords`, or the matching
-public `PdfOptions` properties. This is **PDF Info metadata**, not text
+`WithMetadata(m => …)` writer settings. This is **PDF Info metadata**, not text
 printed on the page, extracted from HTML or a CSS feature:
 
 ```sh
@@ -1157,6 +1158,38 @@ reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-t
 witness are provided for review. Source first implemented at
 `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
 private software, human PDF approval and customer rights are separate.
+
+## .NET SDK
+
+### Fluent, immutable writer (source-only)
+
+Configure a writer once and reuse it for every document:
+
+```csharp
+var pdf = Pdf.Write()
+    .WithFonts(f => f.Regular(PdfFont.FromFile("Latin.ttf"), PdfFont.FromFile("Chinese.ttf")).Subset())
+    .WithImage("logo", PdfImage.FromFile("logo.png"))
+    .WithPage(p => p.A4().Margin(15, PdfUnit.Millimetre))
+    .WithPageFurniture(f => f.FooterRight("Page {page} of {pages}"));
+
+byte[] bytes = pdf.ToBytes(html);
+await pdf.ToStreamAsync(html, response.Body);
+pdf.ToFile(html, "report.pdf");
+```
+
+Each `With` method returns a new writer, so one configured writer is safe to
+share across threads and requests. Invalid arguments fail immediately with an
+`ArgumentException` naming the parameter. Every output renders the complete PDF
+in memory before writing, so unsupported input writes nothing; `ToFile` and
+`ToFileAsync` also replace the destination only once the new file is complete.
+`ToStreamAsync` works with streams that reject synchronous writes, such as an
+ASP.NET Core response body, and `ToBufferWriter` writes into an
+`IBufferWriter<byte>` such as a `PipeWriter`. Fonts and images load with
+`FromFile`, `FromBytes` or `FromStream`; only the files you name are read.
+See the [API guide](development.md#library-api). Source implemented at
+`b81fdb12c6207a0f815227491876ac8ce2a40407`; it replaces the earlier
+`PdfConverter.Convert`/`PdfOptions` entry point and is not part of the older
+retained private preview.
 
 ## Diagnostics
 

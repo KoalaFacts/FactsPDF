@@ -279,7 +279,7 @@ public sealed class ReportOutlineTests
     [Test]
     public void TrueTypeAndManagedCliUseSamePaintWithSearchableText()
     {
-        var fonts = new PdfOptions { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var fonts = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         const string html = "<section style='outline:2pt dashed #285d91;outline-offset:1pt'>" +
             "<p>AB</p></section>";
         var ttf = Encoding.Latin1.GetString(Pdf(html, fonts));

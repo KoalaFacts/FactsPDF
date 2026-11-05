@@ -9,8 +9,8 @@ public sealed class PageFurnitureReviewRegressionTests
 {
     private static PdfOptions Options() => new()
     {
-        Fonts = [PdfFont.LoadTrueType(FontFixture.Create(latinOnly: true)),
-            PdfFont.LoadTrueType(FontFixture.Create())]
+        Fonts = [PdfFont.FromBytes(FontFixture.Create(latinOnly: true)),
+            PdfFont.FromBytes(FontFixture.Create())]
     };
 
     private static byte[] Pdf(PdfOptions options)

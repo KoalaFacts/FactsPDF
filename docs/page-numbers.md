@@ -3,7 +3,7 @@
 Page numbers are opt-in. The default output is unchanged.
 
 ```csharp
-PdfConverter.Convert(html, output, new PdfOptions { PageNumbers = true });
+byte[] pdf = Pdf.Write().WithPageNumbers().ToBytes(html);
 ```
 
 ```sh
@@ -14,7 +14,7 @@ The CLI flag can appear once and works with files or stdin/stdout. It uses the s
 
 Every actual output page receives a searchable decimal number beginning at 1, including the existing single page for empty content. Trailing breaks do not create footer-only pages. Numbers are centered horizontally by advance width and vertically by their occupied extent within the existing bottom margin. Adding numbers does not change body geometry, page count, table header repetition or heading keeps.
 
-Numbers use fixed normal black 10pt text with line-height 1.2, independent of body CSS and `PdfOptions.FontSize`. The existing normal `Fonts` fallback chain supplies the digits; an empty chain retains Courier. Bold/italic chains do not substitute for missing normal glyphs. Missing digits fail `FPDF1504`; for example, a font lacking `0` can number nine pages but fails on page ten. Existing full embedding/subsetting behavior applies, including digits introduced by the footer.
+Numbers use fixed normal black 10pt text with line-height 1.2, independent of body CSS and the writer's base font size. The normal (`Regular`) font chain supplies the digits; an empty chain retains Courier. Bold/italic chains do not substitute for missing normal glyphs. Missing digits fail `FPDF1504`; for example, a font lacking `0` can number nine pages but fails on page ten. Existing full embedding/subsetting behavior applies, including digits introduced by the footer.
 
 The compositor conservatively measures the line box and declared global bounding boxes of the fonts actually drawing each digit, at each digit's advance origin. It requires 2pt clearance from the body content area and physical page edges. It also checks existing body text bounds, discs, images and painted boxes, since small body line heights may allow ink to extend beyond line boxes. Potential overlap or insufficient margin fails `FPDF1302`; the compositor does not shrink fonts, move body content or add a page. Large declared font bounds may conservatively reject a document even when individual glyphs would fit. Fonts remain trusted resources, not fully sanitized outlines.
 

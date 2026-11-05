@@ -78,7 +78,7 @@ public sealed class ListMarkerStyleTests
         // fit into the marker's reserved width: FPDF1302 on a valid report.
         var fonts = Page with
         {
-            Fonts = [PdfFont.LoadTrueType(FontFixture.Create(listCaseMarkers: true))]
+            Fonts = [PdfFont.FromBytes(FontFixture.Create(listCaseMarkers: true))]
         };
         const string transform = "<ol style='list-style-type:lower-alpha;text-transform:uppercase'><li>A</li></ol>";
         const string literal = "<ol style='list-style-type:upper-alpha'><li>A</li></ol>";
@@ -95,7 +95,7 @@ public sealed class ListMarkerStyleTests
     {
         var fonts = Page with
         {
-            Fonts = [PdfFont.LoadTrueType(FontFixture.Create(listCaseMarkers: true))]
+            Fonts = [PdfFont.FromBytes(FontFixture.Create(listCaseMarkers: true))]
         };
         const string transform = "<ol style='list-style-type:upper-roman;text-transform:lowercase'><li>i</li></ol>";
         const string literal = "<ol style='list-style-type:lower-roman'><li>i</li></ol>";
@@ -109,7 +109,7 @@ public sealed class ListMarkerStyleTests
     {
         var fonts = Page with
         {
-            Fonts = [PdfFont.LoadTrueType(FontFixture.Create(listCaseMarkers: true))]
+            Fonts = [PdfFont.FromBytes(FontFixture.Create(listCaseMarkers: true))]
         };
         // A proportional uppercase I is 900 units, lowercase i 200 units.
         // The second marker must be Ii. and its final width must determine

@@ -26,7 +26,7 @@ The CSS fragmentation default is **slice**, not clone. A spanning block is a con
 - `[page usable top, page usable bottom]` on intermediate pages;
 - `[page usable top, block end]` on the final page.
 
-Coordinates use PDF points and the configured `PdfOptions` geometry. If a box's computed start/end lies outside a supported printable area, the engine continues to return a meaningful `FPDF1302`, rather than clipping or generating a phantom page. Explicit `break-before/after:page` remains supported for paragraphs/headings; both within-box and repeated explicit page transitions are covered.
+Coordinates use PDF points and the configured page geometry (`WithPage`). If a box's computed start/end lies outside a supported printable area, the engine continues to return a meaningful `FPDF1302`, rather than clipping or generating a phantom page. Explicit `break-before/after:page` remains supported for paragraphs/headings; both within-box and repeated explicit page transitions are covered.
 
 The unchanged `BlockLayout` traversal remains lazy and iterative. CSS syntax/cascade, fonts, text encoding, license files, public converter contract and Native AOT dependency policy are unchanged.
 

@@ -21,8 +21,8 @@ public sealed class RobustnessFuzzTests
         var corpus = Directory.EnumerateFiles(Path.Combine(FindRoot(), "examples"), "*.html", SearchOption.AllDirectories)
             .Order(StringComparer.Ordinal).Select(File.ReadAllText).ToArray();
         Assert.That(corpus, Is.Not.Empty);
-        var font = PdfFont.LoadTrueType(Font);
-        var image = PdfImage.LoadImage(PngFixture.Image([0, 10, 20, 30, 128], 1));
+        var font = PdfFont.FromBytes(Font);
+        var image = PdfImage.FromBytes(PngFixture.Image([0, 10, 20, 30, 128], 1));
         var options = new PdfOptions
         {
             Fonts = [font], BoldFonts = [font], ItalicFonts = [font], BoldItalicFonts = [font],
@@ -46,7 +46,7 @@ public sealed class RobustnessFuzzTests
             var subset = random.Next(2) == 0;
             return () => Render("<p>AB Wi 中文</p><p><b>AB</b></p>", new PdfOptions
             {
-                Fonts = [PdfFont.LoadTrueType(bytes)], BoldFonts = [PdfFont.LoadTrueType(Font)], SubsetFonts = subset
+                Fonts = [PdfFont.FromBytes(bytes)], BoldFonts = [PdfFont.FromBytes(Font)], SubsetFonts = subset
             });
         });
         Assert.That(rendered, Is.GreaterThan(0));
@@ -70,7 +70,7 @@ public sealed class RobustnessFuzzTests
             return () => Render(
                 "<p>x</p><img src=\"a\"><table style=\"width:100pt\"><colgroup><col style=\"width:100pt\"></colgroup>"
                 + "<tbody><tr><td><img src=\"a\"></td></tr></tbody></table>",
-                new PdfOptions { Images = new Dictionary<string, PdfImage> { ["a"] = PdfImage.LoadImage(bytes) } });
+                new PdfOptions { Images = new Dictionary<string, PdfImage> { ["a"] = PdfImage.FromBytes(bytes) } });
         });
         Assert.That(rendered, Is.GreaterThan(0));
     }
@@ -79,7 +79,7 @@ public sealed class RobustnessFuzzTests
     public void ConcurrentConversionsWithSharedResourcesAreByteIdentical()
     {
         var root = FindRoot();
-        var font = PdfFont.LoadTrueType(Font);
+        var font = PdfFont.FromBytes(Font);
         var options = new PdfOptions { Fonts = [font], BoldFonts = [font], SubsetFonts = true, PageNumbers = true };
         var html = string.Concat(Enumerable.Repeat("<p>AB <b>Wi</b> 中文</p>", 120));
         var quickStart = File.ReadAllText(Path.Combine(root, "examples", "quick-start.html"));

@@ -149,11 +149,11 @@ public sealed class TableLayoutTests
     [Test]
     public void HeaderAndInlineRolesUseExplicitChainsAndRoleLocalFallback()
     {
-        var normal = PdfFont.LoadTrueType(FontFixture.Create());
-        var bold = PdfFont.LoadTrueType(FontFixture.Create(latinOnly: true));
-        var fallback = PdfFont.LoadTrueType(FontFixture.Create());
-        var italic = PdfFont.LoadTrueType(FontFixture.Create());
-        var boldItalic = PdfFont.LoadTrueType(FontFixture.Create());
+        var normal = PdfFont.FromBytes(FontFixture.Create());
+        var bold = PdfFont.FromBytes(FontFixture.Create(latinOnly: true));
+        var fallback = PdfFont.FromBytes(FontFixture.Create());
+        var italic = PdfFont.FromBytes(FontFixture.Create());
+        var boldItalic = PdfFont.FromBytes(FontFixture.Create());
         var o = new PdfOptions { Fonts = [normal], BoldFonts = [bold, fallback], ItalicFonts = [italic], BoldItalicFonts = [boldItalic] };
         var html = "<table style='width:100pt'><colgroup><col style='width:100%'></colgroup><thead><tr><th>A中</th></tr></thead><tbody><tr><td>A<i>A</i><b><i>A</i></b></td></tr></tbody></table>";
         Assert.That(Layout(html, o).Single().Runs.Select(r => r.Font), Is.EqualTo(new[] { bold, fallback, normal, italic, boldItalic }));
@@ -165,7 +165,7 @@ public sealed class TableLayoutTests
     [Test]
     public void CjkWrapAndMixedInlineHeightShareParagraphMetrics()
     {
-        var o = new PdfOptions { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] };
+        var o = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var content = "中文中文<br>A<span style='font-size:20pt;line-height:1.5'>A</span>";
         const string style = "width:30pt;font-size:10pt;line-height:2";
         var cell = Layout(Table(content, style, "background-color:red"), o).Single();

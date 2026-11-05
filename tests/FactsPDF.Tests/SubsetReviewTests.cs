@@ -16,7 +16,7 @@ public sealed class SubsetReviewTests
         Array.Clear(data, offset, 34); FontFixture.U16(data, offset, 65535);
         FontFixture.U16(data, offset + 10, 1); // Word arguments, but not XY: no prior parent points exist.
         FontFixture.U16(data, offset + 12, 5);
-        var font = PdfFont.LoadTrueType(data);
+        var font = PdfFont.FromBytes(data);
         Assert.That(Assert.Throws<FactsPdfException>(() => TrueTypeSubsetter.Create(font, [0x6587]))!.Code, Is.EqualTo("FPDF1506"));
     }
 
@@ -39,7 +39,7 @@ public sealed class SubsetReviewTests
             FontFixture.U16(tables["glyf"], i * 20, 65535); FontFixture.U16(tables["glyf"], i * 20 + 10, 3);
             FontFixture.U16(tables["glyf"], i * 20 + 12, i + 1);
         }
-        var font = PdfFont.LoadTrueType(SubsetSfnt.Build(tables, CancellationToken.None));
+        var font = PdfFont.FromBytes(SubsetSfnt.Build(tables, CancellationToken.None));
         Assert.That(Assert.Throws<FactsPdfException>(() => TrueTypeSubsetter.Create(font, [65]))!.Code, Is.EqualTo("FPDF1506"));
     }
 
@@ -54,21 +54,21 @@ public sealed class SubsetReviewTests
     [Test]
     public void ReusingFontForParallelSubsetsDoesNotLeakGlyphsBetweenDocuments()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var expected = TrueTypeSubsetter.Create(font, [65, 0x4e2d]).Bytes;
         Parallel.For(0, 12, i =>
         {
             var chars = i % 2 == 0 ? new[] { 65, 0x4e2d } : new[] { 87 };
             var result = TrueTypeSubsetter.Create(font, chars);
             if (i % 2 == 0) Assert.That(result.Bytes, Is.EqualTo(expected));
-            else Assert.That(PdfFont.LoadTrueType(result.Bytes).GlyphFor(0x4e2d), Is.Zero);
+            else Assert.That(PdfFont.FromBytes(result.Bytes).GlyphFor(0x4e2d), Is.Zero);
         });
     }
 
     [Test]
     public void OutputLimitDoesNotTouchAnExistingCallerStream()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create()); using var output = new MemoryStream(); output.Write("keep"u8);
+        var font = PdfFont.FromBytes(FontFixture.Create()); using var output = new MemoryStream(); output.Write("keep"u8);
         var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert("<p>中文</p>", output,
             new PdfOptions { Fonts = [font], SubsetFonts = true, MaxOutputBytes = 64 }));
         Assert.That(error!.Code, Is.EqualTo("FPDF1401")); Assert.That(Encoding.ASCII.GetString(output.ToArray()), Is.EqualTo("keep"));

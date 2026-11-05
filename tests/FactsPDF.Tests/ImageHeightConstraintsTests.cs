@@ -10,7 +10,7 @@ public sealed class ImageHeightConstraintsTests
     {
         Images = new Dictionary<string, PdfImage>
         {
-            ["chart"] = PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420"))
+            ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"))
         }
     };
 

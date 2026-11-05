@@ -182,7 +182,7 @@ public sealed class ListLayoutTests
 
     [Test]
     public void ListMarkerMissingDigitUsesItemSourceAndProtectsOutput()
-        => Fails("<ol><li>A</li></ol>", "FPDF1504", Page with { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] }, source: true);
+        => Fails("<ol><li>A</li></ol>", "FPDF1504", Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] }, source: true);
 
     [Test]
     public void ListMarkerMissingStyleDoesNotBorrowNormalChain()
@@ -191,8 +191,8 @@ public sealed class ListLayoutTests
     [Test]
     public void ExplicitFontsMeasureDigitsAndFallbackSeparatelyFromBody()
     {
-        var body = PdfFont.LoadTrueType(FontFixture.Create());
-        var digits = PdfFont.LoadTrueType(FontFixture.Create(listDigits: true));
+        var body = PdfFont.FromBytes(FontFixture.Create());
+        var digits = PdfFont.FromBytes(FontFixture.Create(listDigits: true));
         var html = "<ol>" + string.Concat(Enumerable.Repeat("<li>A</li>", 100)) + "</ol>";
         var runs = Layout(html, Page with { Fonts = [body, digits], PageHeight = 3000 }).SelectMany(p => p.Runs).ToArray();
         Assert.That(runs.Where(Marker).All(r => ReferenceEquals(r.Font, digits)), Is.True);
@@ -205,8 +205,8 @@ public sealed class ListLayoutTests
     [Test]
     public void DecimalMarkerKeepsItemRoleWhenFirstParagraphOverridesIt()
     {
-        var normal = PdfFont.LoadTrueType(FontFixture.Create(listDigits: true));
-        var bold = PdfFont.LoadTrueType(FontFixture.Create(listDigits: true));
+        var normal = PdfFont.FromBytes(FontFixture.Create(listDigits: true));
+        var bold = PdfFont.FromBytes(FontFixture.Create(listDigits: true));
         var runs = Layout("<ol><li style='font-weight:bold'><p style='font-weight:normal'>A</p></li></ol>",
             Page with { Fonts = [normal], BoldFonts = [bold] })[0].Runs;
         Assert.That(runs.Single(Marker).Font, Is.SameAs(bold));
@@ -221,7 +221,7 @@ public sealed class ListLayoutTests
         FontFixture.U16(bytes, FontFixture.Table(bytes, "hhea") + 6, 0);
         FontFixture.U16(bytes, FontFixture.Table(bytes, "OS/2") + 68, 2000);
         FontFixture.U16(bytes, FontFixture.Table(bytes, "OS/2") + 70, 0);
-        var font = PdfFont.LoadTrueType(bytes);
+        var font = PdfFont.FromBytes(bytes);
         Assert.That(font.Ascent1000, Is.EqualTo(2000));
         Assert.That(font.Descent1000, Is.EqualTo(0));
         var page = Layout("<ul style='line-height:1'><li></li><li></li></ul>", Page with { Fonts = [font] })[0];

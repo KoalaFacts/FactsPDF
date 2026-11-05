@@ -9,7 +9,7 @@ Directory.CreateDirectory(outputDirectory);
 using var contract = JsonDocument.Parse(File.ReadAllText(Path.Combine(fixtures, "acceptance-cases.json")));
 using var manifest = JsonDocument.Parse(File.ReadAllText(args[2]));
 var fonts = manifest.RootElement.GetProperty("roles").GetProperty("normal").EnumerateArray()
-    .Select(path => PdfFont.LoadTrueType(File.ReadAllBytes(path.GetString()!))).ToArray();
+    .Select(path => PdfFont.FromBytes(File.ReadAllBytes(path.GetString()!))).ToArray();
 var evidence = new List<object>();
 foreach (var item in contract.RootElement.GetProperty("cases").EnumerateArray())
 {
@@ -17,7 +17,7 @@ foreach (var item in contract.RootElement.GetProperty("cases").EnumerateArray())
     var html = item.TryGetProperty("html", out var inline) ? inline.GetString()!
         : File.ReadAllText(Path.Combine(fixtures, item.GetProperty("html_file").GetString()!));
     var images = item.GetProperty("resources").EnumerateObject().ToDictionary(p => p.Name,
-        p => PdfImage.LoadImage(File.ReadAllBytes(Path.Combine(fixtures, p.Value.GetString()!))), StringComparer.Ordinal);
+        p => PdfImage.FromBytes(File.ReadAllBytes(Path.Combine(fixtures, p.Value.GetString()!))), StringComparer.Ordinal);
     var o = new PdfOptions { Images = images, Fonts = item.TryGetProperty("fonts", out _) ? fonts : [], SubsetFonts = true };
     if (item.TryGetProperty("options", out var settings))
         foreach (var setting in settings.EnumerateObject())
@@ -53,7 +53,7 @@ foreach (var item in contract.RootElement.GetProperty("cases").EnumerateArray())
         evidence.Add(new { id, pages = result.PageCount, bytes = bytes.Length, sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)) });
     }
 }
-var image = PdfImage.LoadImage(File.ReadAllBytes(Path.Combine(fixtures, "rgb-420.jpg")));
+var image = PdfImage.FromBytes(File.ReadAllBytes(Path.Combine(fixtures, "rgb-420.jpg")));
 using (var output = new MemoryStream())
 {
     output.Write("sentinel"u8); output.Position = 2;
@@ -67,7 +67,7 @@ using (var output = new MemoryStream())
 }
 var huge = new byte[8_388_609];
 File.ReadAllBytes(Path.Combine(fixtures, "rgb-420.jpg")).CopyTo(huge, 0);
-try { PdfImage.LoadImage(huge); throw new InvalidOperationException("Expected byte limit failure"); }
+try { PdfImage.FromBytes(huge); throw new InvalidOperationException("Expected byte limit failure"); }
 catch (FactsPdfException error) when (error.Code == "FPDF1603")
 { evidence.Add(new { id = "D1-default-byte-cap", code = error.Code }); }
 File.WriteAllText(Path.Combine(outputDirectory, "api-results.json"), JsonSerializer.Serialize(evidence, new JsonSerializerOptions { WriteIndented = true }));

@@ -63,7 +63,7 @@ public sealed class TextDecorationTests
     [TestCase(true)]
     public void ExplicitTrueTypePaintUsesActualResolvedAdvanceAndBothPdfSerializers(bool subset)
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font], BoldFonts = [font], SubsetFonts = subset };
         const string html = "<p style='font-size:10pt;text-decoration:underline'>A<b>B</b>A</p>";
         var runs = Layout(html, options).Single().Runs;

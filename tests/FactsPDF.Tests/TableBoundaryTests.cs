@@ -10,7 +10,7 @@ public sealed class TableBoundaryTests
         var html = TableLayoutTests.Table();
         Fails(html, new() { MaxInputCharacters = html.Length - 1 }, "FPDF1001");
         Fails(html, new() { MaxCssDeclarations = 1 }, "FPDF1205");
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         Fails(html, new() { Fonts = [font], MaxTotalFontBytes = font.ByteLength - 1 }, "FPDF1503");
     }
 
@@ -38,7 +38,7 @@ public sealed class TableBoundaryTests
     [TestCase(false)] [TestCase(true)]
     public void ExactSerializedByteBoundaryIncludesFontsAndTablePaint(bool embedded)
     {
-        var o = new PdfOptions { Fonts = embedded ? [PdfFont.LoadTrueType(FontFixture.Create())] : [], SubsetFonts = embedded };
+        var o = new PdfOptions { Fonts = embedded ? [PdfFont.FromBytes(FontFixture.Create())] : [], SubsetFonts = embedded };
         var html = TableLayoutTests.Table(embedded ? "中文" : "A", cellStyle: "border:1pt solid blue");
         var pdf = TableLayoutTests.Pdf(html, o);
         Assert.That(TableLayoutTests.Pdf(html, o with { MaxOutputBytes = pdf.Length }), Is.EqualTo(pdf));
@@ -91,7 +91,7 @@ public sealed class TableBoundaryTests
     public void TableMovesAfterListAndImageWithinContinuedAncestorWithoutRepeatingPadding()
     {
         var o = new PdfOptions { PageWidth = 220, PageHeight = 130, Margin = 10,
-            Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420")) } };
+            Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420")) } };
         var html = "<body style='font-size:10pt;line-height:2'><section style='padding:4pt;border:1pt solid red'>"
             + "<ol><li>BEFORE</li></ol><img src='chart' style='width:120pt'>"
             + TableLayoutTests.Table("A<br>B<br>C", cellStyle: "border:1pt solid blue")

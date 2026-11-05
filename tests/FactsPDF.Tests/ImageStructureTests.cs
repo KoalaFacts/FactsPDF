@@ -4,7 +4,7 @@ namespace FactsPDF.Tests;
 
 public sealed class ImageStructureTests
 {
-    private static PdfImage Image() => PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420"));
+    private static PdfImage Image() => PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"));
     private static PdfOptions Options() => new() { Images = new Dictionary<string, PdfImage> { ["chart"] = Image() } };
     private static DocumentRoot Tree(string html, PdfOptions? options = null)
         => HtmlDocumentReader.ReadTree(html, ImageResources.Snapshot(options ?? Options(), default), default);

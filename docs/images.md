@@ -1,21 +1,19 @@
 # Explicit image resources
 
-`PdfImage.LoadImage` recognizes the supplied bytes. It supports bounded baseline
+`PdfImage.FromFile`, `FromBytes` and `FromStream` recognize the supplied bytes. It supports bounded baseline
 JPEG and static non-interlaced PNG, including PNG transparency. The same API,
 CLI resource binding and shared layout apply to both formats. The engine never
 interprets `src` as a file path, URL or data URI.
 
 ```csharp
 using FactsPDF;
-using var input = File.OpenRead("chart.jpg");
-var chart = PdfImage.LoadImage(input);
-using var output = new MemoryStream();
-PdfConverter.Convert("<p>Before</p><img src='chart' style='width:200pt'><p>After</p>", output,
-    new PdfOptions { Images = new Dictionary<string, PdfImage> { ["chart"] = chart } });
-// Persist output only after successful conversion, under the caller's file policy.
+var chart = PdfImage.FromFile("chart.jpg");
+Pdf.Write()
+    .WithImage("chart", chart)
+    .ToFile("<p>Before</p><img src='chart' style='width:200pt'><p>After</p>", "chart-report.pdf");
 ```
 
-The span overload owns an immutable copy; the stream overload reads at most `MaxBytes+1`, supports short/nonseekable reads and leaves the input open. Resources expose `PixelWidth`, `PixelHeight` and `ByteLength`. The conversion snapshots the resource map with ordinal, case-sensitive names: 1–128 ASCII characters, first alphanumeric, followed by alphanumeric, dot, underscore or hyphen. Every binding, including aliases and unused entries, counts toward limits. The same `PdfImage` instance is embedded once when used repeatedly; unused images are not written.
+`FromBytes` owns an immutable copy; `FromStream` reads at most `MaxBytes+1`, supports short/nonseekable reads and leaves the input open. Resources expose `PixelWidth`, `PixelHeight` and `ByteLength`. `WithImage` binds ordinal, case-sensitive names: 1–128 ASCII characters, first alphanumeric, followed by alphanumeric, dot, underscore or hyphen. Every binding, including aliases and unused entries, counts toward limits. The same `PdfImage` instance is embedded once when used repeatedly; unused images are not written.
 
 ```sh
 dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --image chart=chart.jpg
@@ -152,7 +150,7 @@ and border behavior.
 
 ## Static PNG and transparency
 
-PNG uses the same `LoadImage` overloads, `Images` map and `--image name=path`
+PNG uses the same `PdfImage` loaders, `WithImage` binding and `--image name=path`
 binding. Supply original PNG bytes; no conversion to JPEG is needed.
 
 | PNG color type | Accepted bit depth | Transparency |
@@ -225,7 +223,7 @@ and Exif IFD0 entries to 256. PNG checks expanded color/alpha size before alloca
 decodes with two bounded row buffers and compresses the separate PDF planes.
 `ByteLength` always reports original encoded bytes. Conversion defaults remain
 16 image bindings and 33,554,432 original encoded bytes
-(`PdfOptions.MaxImageResources/MaxTotalImageBytes`), including unused aliases.
+(`WithLimits(l => l.MaxImageResources(…).MaxTotalImageBytes(…))`), including unused aliases.
 Existing input, page, display-command and output-byte bounds also apply, with
 PNG soft-mask bytes included in output accounting. These are work/data bounds,
 not a total process-memory guarantee; caller buffers, encoded images, expanded

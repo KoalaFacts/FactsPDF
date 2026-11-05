@@ -105,7 +105,7 @@ public sealed class ReportHyperlinksTests
     [Test]
     public void TableCellsAndTrueTypePdfUseSameRealUriAnnotations()
     {
-        var font = PdfFont.LoadTrueType(FontFixture.Create());
+        var font = PdfFont.FromBytes(FontFixture.Create());
         var options = Page with { Fonts = [font] };
         const string source = "<table style='width:240pt'><colgroup><col style='width:240pt'></colgroup>" +
             "<tbody><tr><td><p>AB <a href='mailto:sales@example.com'>AB</a></p></td></tr>" +
@@ -136,7 +136,7 @@ public sealed class ReportHyperlinksTests
         var head = FontFixture.Table(sourceFont, "head");
         FontFixture.U16(sourceFont, head + 38, unchecked((ushort)-350));
         FontFixture.U16(sourceFont, head + 42, 1200);
-        var font = PdfFont.LoadTrueType(sourceFont);
+        var font = PdfFont.FromBytes(sourceFont);
         var options = Page with { Fonts = [font] };
         const string html = "<p><a href='https://example.com/ink'>A</a></p>";
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);

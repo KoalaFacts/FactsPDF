@@ -10,14 +10,14 @@ public sealed class ImageCompositionTests
     private const string Image = "<img src='chart' style='width:120pt'>";
     private static PdfOptions Options(bool embedded = false)
     {
-        var normal = embedded ? PdfFont.LoadTrueType(FontFixture.Create(listDigits: true)) : null;
+        var normal = embedded ? PdfFont.FromBytes(FontFixture.Create(listDigits: true)) : null;
         return new()
         {
             PageWidth = 220, PageHeight = 100, Margin = 10, SubsetFonts = true,
-            Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.LoadImage(JpegResourceTests.Bytes("rgb-420")) },
+            Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420")) },
             Fonts = normal is null ? [] : [normal],
-            BoldFonts = embedded ? [PdfFont.LoadTrueType(FontFixture.Create(listDigits: true))] : [],
-            ItalicFonts = embedded ? [PdfFont.LoadTrueType(FontFixture.Create(listDigits: true))] : []
+            BoldFonts = embedded ? [PdfFont.FromBytes(FontFixture.Create(listDigits: true))] : [],
+            ItalicFonts = embedded ? [PdfFont.FromBytes(FontFixture.Create(listDigits: true))] : []
         };
     }
     private static List<LayoutPage> Layout(string content, PdfOptions options)

@@ -33,7 +33,7 @@ class PackageContractTests(unittest.TestCase):
         if change: xml = change(xml)
         path = self.root / 'FactsPDF.0.1.0-dev.nupkg'
         files = {'FactsPDF.nuspec': xml.encode(), 'lib/net10.0/FactsPDF.dll': b'test assembly bytes',
-                 'lib/net10.0/FactsPDF.xml': b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.PdfConverter" /></members></doc>',
+                 'lib/net10.0/FactsPDF.xml': b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.Pdf" /></members></doc>',
                  'LICENSE.md': b'expected license', 'README.md': b'expected readme'}
         files.update(extra or {})
         with ZipFile(path, 'w') as archive:

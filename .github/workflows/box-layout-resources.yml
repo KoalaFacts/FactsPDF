@@ -38,9 +38,12 @@ jobs:
           test "$(git -C baseline rev-parse HEAD)" = "$BASELINE_SHA"
           echo "SOURCE_SHA=$(git -C current rev-parse HEAD)" >> "$GITHUB_ENV"
           cp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
+          # The baseline predates the Pdf.Write() SDK: it gets the pre-SDK engine adapter.
+          cp current/benchmarks/baseline-engine/BenchmarkEngine.cs baseline/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs
           cmp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
           cmp current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj baseline/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj
-          HARNESS_SHA=$(cat current/benchmarks/FactsPDF.Benchmarks/Program.cs current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj | sha256sum | cut -d' ' -f1)
+          HARNESS_SHA=$(cat current/benchmarks/FactsPDF.Benchmarks/Program.cs current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj \
+            current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs current/benchmarks/baseline-engine/BenchmarkEngine.cs | sha256sum | cut -d' ' -f1)
           echo "HARNESS_SHA=$HARNESS_SHA" >> "$GITHUB_ENV"
       - name: Compile same Native AOT harness against both engines
         run: |

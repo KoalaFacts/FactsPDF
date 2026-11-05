@@ -257,7 +257,7 @@ or customer distribution grant.
 ## Source-only report PDF document properties
 
 Use `--title`, `--author`, `--subject`, `--keywords`
-(or `PdfOptions.Title`, `Author`, `Subject`, `Keywords`)
+(or `WithMetadata(m => m.Title(…).Author(…).Subject(…).Keywords(…))`)
 for optional Unicode PDF Info metadata. These are UTF-16BE with BOM,
 independent of HTML and fonts, and visible to all PDF recipients.
 Each field is limited to 1024 UTF-16 units, must be nonblank, single-line
@@ -637,8 +637,8 @@ The source report-print example now exercises measured soft-wrapped word-space `
 For print templates with a root type scale, the source report can use
 `html{font-size:15pt}` together with `font-size:1.2rem` and
 `line-height:1.5rem`. The computed `html` root is the base for
-`rem`; in documents with no explicit `html`, `PdfOptions.FontSize`
-is the fallback. Both properties alter actual PDF glyph and page geometry
+`rem`; in documents with no explicit `html`, the writer's base font size
+(`WithFonts(f => f.Size(…))`, default 12pt) is the fallback. Both properties alter actual PDF glyph and page geometry
 with strict invalid-input recovery. A separate scoped source feature permits
 `rem` for ordinary report `width`/`min-width`/`max-width` and padding,
 including real centring, wrapping and page fragments; a separate bounded

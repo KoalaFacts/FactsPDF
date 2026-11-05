@@ -43,11 +43,11 @@ internal static class JpegFixture
 public sealed class JpegEntropyTests
 {
     private static void Invalid(byte[] bytes) => Assert.That(Assert.Throws<FactsPdfException>(
-        () => PdfImage.LoadImage(bytes))!.Code, Is.EqualTo("FPDF1601"));
+        () => PdfImage.FromBytes(bytes))!.Code, Is.EqualTo("FPDF1601"));
 
     [Test]
     public void OneDcZeroAndEobConsumesExactlyOneBlock()
-        => Assert.That(PdfImage.LoadImage(JpegFixture.Gray([0x3f])).PixelWidth, Is.EqualTo(8));
+        => Assert.That(PdfImage.FromBytes(JpegFixture.Gray([0x3f])).PixelWidth, Is.EqualTo(8));
 
     [TestCase(0x3e)] [TestCase(0x7f)] [TestCase(0xff)]
     public void InvalidPaddingCodeOrUnstuffedByteIsRejected(int encoded)
@@ -56,15 +56,15 @@ public sealed class JpegEntropyTests
     [Test]
     public void DcAmplitudeAndAcMagnitudeUpperCategoriesAreSupported()
     {
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray(JpegFixture.Bits("0" + new string('1', 11) + "0"), dcValues: [11])));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray(JpegFixture.Bits("0" + new string('1', 11) + "0"), dcValues: [11])));
         // DC0 (0), AC category10 (0 + 10 amplitude bits), EOB (10).
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray(JpegFixture.Bits("00" + new string('1', 10) + "10"),
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray(JpegFixture.Bits("00" + new string('1', 10) + "10"),
             acCounts: JpegFixture.Counts((1, 1), (2, 1)), acValues: [0x0a, 0])));
     }
 
     [Test]
     public void StuffedFfIsEntropyAndNeverAMarker()
-        => Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray([0, 255, 0, 0xef],
+        => Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray([0, 255, 0, 0xef],
             dcCounts: JpegFixture.Counts((8, 1)), dcValues: [11])));
 
     [Test]
@@ -79,7 +79,7 @@ public sealed class JpegEntropyTests
     public void ThreeZeroRunsMayEndButAFourthCannotOverflowTheBlock()
     {
         var counts = JpegFixture.Counts((1, 1), (2, 1)); byte[] values = [0xf0, 0];
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray(JpegFixture.Bits("000010"), acCounts: counts, acValues: values)));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray(JpegFixture.Bits("000010"), acCounts: counts, acValues: values)));
         Invalid(JpegFixture.Gray(JpegFixture.Bits("0000010"), acCounts: counts, acValues: values));
     }
 
@@ -87,7 +87,7 @@ public sealed class JpegEntropyTests
     public void LastCoefficientMayBePresentWithoutEobButCannotRunPastIt()
     {
         var counts = JpegFixture.Counts((1, 1), (2, 1));
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray(JpegFixture.Bits("0000101"), acCounts: counts, acValues: [0xf0, 0xe1])));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray(JpegFixture.Bits("0000101"), acCounts: counts, acValues: [0xf0, 0xe1])));
         Invalid(JpegFixture.Gray(JpegFixture.Bits("0000101"), acCounts: counts, acValues: [0xf0, 0xf1]));
     }
 
@@ -104,8 +104,8 @@ public sealed class JpegEntropyTests
     [Test]
     public void RestartAtTheExactMcuIntervalResetsTheBitBoundary()
     {
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f, 255, 208, 0x3f], width: 16, restart: 1)));
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f, 255, 255, 255, 208, 0x3f], width: 16, restart: 1)));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f, 255, 208, 0x3f], width: 16, restart: 1)));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f, 255, 255, 255, 208, 0x3f], width: 16, restart: 1)));
         Invalid(JpegFixture.Gray([0x3f, 255, 209, 0x3f], width: 16, restart: 1));
         Invalid(JpegFixture.Gray([0x0f], width: 16, restart: 1));
         Invalid(JpegFixture.Gray([0x3f, 255, 208], restart: 1));
@@ -117,8 +117,8 @@ public sealed class JpegEntropyTests
     {
         var plain = JpegFixture.Gray([0x3f]);
         var longFill = plain[..2].Concat(Enumerable.Repeat((byte)255, 100_000)).Concat(plain[2..]).ToArray();
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(longFill));
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f, 255, 255])));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(longFill));
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f, 255, 255])));
         Invalid(JpegFixture.Gray([0x3f, 255, 255, 0]));
         Invalid(plain[..^1]); // Only FF before EOF, no marker code.
         Invalid(JpegFixture.Gray([0x3f, 0])); // Extra entropy after expected blocks.
@@ -127,13 +127,13 @@ public sealed class JpegEntropyTests
     [Test]
     public void MetadataAndSegmentCapsHaveIndependentExactBoundaries()
     {
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f],
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f],
             metadata: JpegFixture.Segment(0xfe, new byte[65_536 - 14]))));
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f],
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f],
             metadata: JpegFixture.Segment(0xfe, new byte[65_536 - 13]))))!.Code, Is.EqualTo("FPDF1603"));
         byte[] Comments(int count) => Enumerable.Range(0, count).SelectMany(_ => JpegFixture.Segment(0xfe, [])).ToArray();
-        Assert.DoesNotThrow(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f], metadata: Comments(250))));
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.LoadImage(JpegFixture.Gray([0x3f], metadata: Comments(251))))!.Code,
+        Assert.DoesNotThrow(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f], metadata: Comments(250))));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfImage.FromBytes(JpegFixture.Gray([0x3f], metadata: Comments(251))))!.Code,
             Is.EqualTo("FPDF1603"));
     }
 }

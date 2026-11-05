@@ -16,26 +16,26 @@ public sealed class FontBoundaryTests
         var bytes = FontFixture.Create(); FontFixture.U16(bytes, FontFixture.Table(bytes, "OS/2"), version);
         // OS/2 is the first directory record in this independently generated fixture.
         FontFixture.U32(bytes, 24, (uint)length);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(bytes))!.Code, Is.EqualTo("FPDF1501"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(bytes))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
     public void RejectsUnsupportedHeadVersion()
     {
         var bytes = FontFixture.Create(); FontFixture.U32(bytes, FontFixture.Table(bytes, "head"), 0);
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(bytes))!.Code, Is.EqualTo("FPDF1501"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromBytes(bytes))!.Code, Is.EqualTo("FPDF1501"));
     }
     [Test]
     public void BinaryPdfHasABinaryHeaderComment()
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert("<p>中文</p>", output, new PdfOptions { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] });
+        PdfConverter.Convert("<p>中文</p>", output, new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] });
         Assert.That(output.ToArray().AsSpan(0, 32).ToArray().Count(b => b >= 128), Is.GreaterThanOrEqualTo(4));
     }
     [Test]
     public void FullEmbeddedFontDecompressesToTheSuppliedBytes()
     {
         var bytes = FontFixture.Create(); using var output = new MemoryStream();
-        PdfConverter.Convert("<p>中文</p>", output, new PdfOptions { Fonts = [PdfFont.LoadTrueType(bytes)] });
+        PdfConverter.Convert("<p>中文</p>", output, new PdfOptions { Fonts = [PdfFont.FromBytes(bytes)] });
         var pdf = output.ToArray(); var text = Encoding.Latin1.GetString(pdf);
         var reference = Regex.Match(text, @"/FontFile2 (\d+) 0 R"); Assert.That(reference.Success, Is.True);
         var obj = Regex.Match(text, @"\n" + reference.Groups[1].Value + @" 0 obj\n<< /Length (\d+) /Filter /FlateDecode /Length1 (\d+) >>\nstream\n");
@@ -48,7 +48,7 @@ public sealed class FontBoundaryTests
     public void Cmap4ZeroGlyphDoesNotAcquireAnIdDelta()
     {
         // This fixture deliberately encodes A as a zero raw glyph with nonzero delta.
-        var font = PdfFont.LoadTrueType(FontFixture.Create(format12: false, ranged4: true));
+        var font = PdfFont.FromBytes(FontFixture.Create(format12: false, ranged4: true));
         Assert.That(font.GlyphFor('A'), Is.Zero); Assert.That(font.GlyphFor('W'), Is.EqualTo(5));
     }
     [Test]
@@ -58,19 +58,19 @@ public sealed class FontBoundaryTests
         for (var i = 0; i < 13; i++) offsets[i] = BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(at + i * 4));
         for (var i = 0; i < 13; i++) FontFixture.U16(bytes, at + i * 2, (int)(offsets[i] / 2));
         FontFixture.U16(bytes, FontFixture.Table(bytes, "head") + 50, 0);
-        Assert.That(PdfFont.LoadTrueType(bytes).GlyphFor(0x4e2d), Is.EqualTo(6));
+        Assert.That(PdfFont.FromBytes(bytes).GlyphFor(0x4e2d), Is.EqualTo(6));
     }
     [Test]
     public void NonSeekableShortReadsHonorByteLimitAndLeaveStreamOpen()
     {
         using var input = new ShortReads(FontFixture.Create());
-        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.LoadTrueType(input, 16))!.Code, Is.EqualTo("FPDF1503"));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfFont.FromStream(input, 16))!.Code, Is.EqualTo("FPDF1503"));
         Assert.That(input.BytesRead, Is.EqualTo(17)); Assert.That(input.CanRead, Is.True);
     }
     [Test]
     public void RejectsNullAndOversizedFontChainsBeforeWriting()
     {
-        using var output = new MemoryStream(); var font = PdfFont.LoadTrueType(FontFixture.Create());
+        using var output = new MemoryStream(); var font = PdfFont.FromBytes(FontFixture.Create());
         Assert.Throws<ArgumentException>(() => PdfConverter.Convert("A", output, new PdfOptions { Fonts = null! }));
         Assert.Throws<ArgumentException>(() => PdfConverter.Convert("A", output, new PdfOptions { Fonts = [null!] }));
         Assert.Throws<ArgumentException>(() => PdfConverter.Convert("A", output, new PdfOptions { Fonts = Enumerable.Repeat(font, 9).ToArray() }));
@@ -80,7 +80,7 @@ public sealed class FontBoundaryTests
     public void EmptyDocumentDoesNotEmbedUnusedFonts()
     {
         using var output = new MemoryStream();
-        var result = PdfConverter.Convert("", output, new PdfOptions { Fonts = [PdfFont.LoadTrueType(FontFixture.Create())] });
+        var result = PdfConverter.Convert("", output, new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] });
         Assert.That(result.PageCount, Is.EqualTo(1)); Assert.That(Encoding.Latin1.GetString(output.ToArray()), Does.Not.Contain("/FontFile2"));
     }
     private sealed class ShortReads(byte[] bytes) : MemoryStream(bytes)

@@ -17,7 +17,7 @@ dotnet src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll \
   --page-numbers --header-text 'FactsPDF | Quality review' --footer-text 'Internal copy'
 ```
 
-The [direct public API example](../probes/combined-report/Program.cs) loads the same explicit resources into `PdfOptions` and calls `PdfConverter.Convert`; it does not invoke the CLI. Its extra negative modes are verification-host inputs, not public CLI flags. A successful conversion writes a PDF only after conversion completes in memory. Negative probes additionally seed a caller stream and verify its original bytes and position.
+The [direct engine example](../probes/combined-report/Program.cs) loads the same explicit resources and converts in-process with exact engine options; it does not invoke the CLI. Its extra negative modes are verification-host inputs, not public CLI flags. A successful conversion writes a PDF only after conversion completes in memory. Negative probes additionally seed a caller stream and verify its original bytes and position.
 
 ## Independently authored expectations
 
