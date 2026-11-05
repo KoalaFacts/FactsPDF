@@ -2,7 +2,10 @@
   <PropertyGroup>
     <IsAotCompatible>true</IsAotCompatible>
     <PackageId>FactsPDF</PackageId>
-    <Description>A browser-free HTML and CSS to PDF engine, designed for cross-language integration.</Description>
+    <Description>Generate searchable business-report PDFs (invoices, inspection reports, quotes) from a controlled HTML and CSS subset, without a browser. Embedded TrueType fonts, tables, images, pagination and page numbers; no dependencies and Native AOT compatible.</Description>
+    <PackageTags>pdf;html-to-pdf;css;report;invoice;pdf-generation;no-browser;native-aot</PackageTags>
+    <PackageProjectUrl>https://github.com/KoalaFacts/FactsPDF</PackageProjectUrl>
+    <PackageReleaseNotes>See https://github.com/KoalaFacts/FactsPDF/blob/main/docs/releases/0.1.0-preview.1.md and check supported features at https://koalafacts.github.io/FactsPDF/</PackageReleaseNotes>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/KoalaFacts/FactsPDF</RepositoryUrl>
