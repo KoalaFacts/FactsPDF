@@ -24,7 +24,9 @@ internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) 
     public int CompareTo(CssSpecificity other)
     { var c = Ids.CompareTo(other.Ids); if (c != 0) return c; c = Classes.CompareTo(other.Classes); return c != 0 ? c : Types.CompareTo(other.Types); }
 }
-internal readonly record struct CssAttributeMatch(string Name, string? Value);
+internal enum CssAttributeOperator { Presence, Equals, StartsWith, EndsWith, Contains, Includes, Dash }
+internal readonly record struct CssAttributeMatch(
+    string Name, CssAttributeOperator Operator, string? Value, bool IgnoreCase);
 internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
     CssAttributeMatch[] Attributes, bool ChildOfPrevious);
 
@@ -77,18 +79,50 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                         || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5;
                     if (!supported)
                         throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);
+                    var op = CssAttributeOperator.Presence;
                     string? expected = null;
-                    if (IsSymbol(tokens[i], "="))
+                    var ignoreCase = false;
+                    if (tokens[i].Kind == CssTokenKind.Symbol && tokens[i].Text is
+                        ("=" or "^" or "$" or "*" or "~" or "|"))
                     {
-                        i++;
+                        var operatorToken = tokens[i++];
+                        op = operatorToken.Text switch
+                        {
+                            "=" => CssAttributeOperator.Equals,
+                            "^" => CssAttributeOperator.StartsWith,
+                            "$" => CssAttributeOperator.EndsWith,
+                            "*" => CssAttributeOperator.Contains,
+                            "~" => CssAttributeOperator.Includes,
+                            "|" => CssAttributeOperator.Dash,
+                            _ => throw new InvalidOperationException()
+                        };
+                        // CSS Syntax supplies separate delim tokens for ^=, $=,
+                        // *=, ~= and |=. Whitespace inside the operator is invalid.
+                        if (op != CssAttributeOperator.Equals)
+                        {
+                            if (!IsSymbol(tokens[i], "=") || tokens[i].LeadingSpace)
+                                throw CssTokens.Invalid("Expected an adjacent '=' in attribute operator.", operatorToken.Offset);
+                            i++;
+                        }
                         if (tokens[i].Kind is not (CssTokenKind.Identifier or CssTokenKind.String))
-                            throw CssTokens.Invalid("Attribute equality requires an identifier or quoted string.", current.Offset);
+                            throw CssTokens.Invalid("Attribute comparison requires an identifier or quoted string.", operatorToken.Offset);
                         expected = tokens[i++].Text;
+                        // Empty non-equality operands are outside this bounded subset.
+                        if (op != CssAttributeOperator.Equals && expected.Length == 0)
+                            throw CssTokens.Invalid("Empty substring/word/language attribute operands are unsupported.", operatorToken.Offset);
+                        if (tokens[i].Kind == CssTokenKind.Identifier && tokens[i].LeadingSpace)
+                        {
+                            if (tokens[i].Text.Equals("i", StringComparison.OrdinalIgnoreCase))
+                                ignoreCase = true;
+                            else if (!tokens[i].Text.Equals("s", StringComparison.OrdinalIgnoreCase))
+                                throw CssTokens.Invalid("Only the CSS attribute-value i/s flags are supported.", tokens[i].Offset);
+                            i++;
+                        }
                     }
                     if (!IsSymbol(tokens[i], "]"))
-                        throw CssTokens.Invalid("Only [attribute] and [attribute=value] are supported.", current.Offset);
+                        throw CssTokens.Invalid("Malformed or unsupported attribute selector.", current.Offset);
                     i++;
-                    attrs.Add(new(name, expected)); classCount++;
+                    attrs.Add(new(name, op, expected, ignoreCase)); classCount++;
                 }
                 else break;
                 CssBudget.Check(++simple <= 32, "A compound selector may contain at most 32 simple terms.", offset);
@@ -138,9 +172,74 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         {
             budget.Work(offset);
             if (!element.Attributes.TryGetValue(attribute.Name, out var actual) ||
-                attribute.Value is not null && !attribute.Value.Equals(actual, StringComparison.Ordinal))
+                !MatchesAttribute(attribute, actual, budget))
                 return false;
         }
         return true;
+    }
+
+    private bool MatchesAttribute(CssAttributeMatch attribute, string actual, CssBudget budget)
+    {
+        if (attribute.Operator == CssAttributeOperator.Presence) return true;
+        var expected = attribute.Value!;
+        var fold = attribute.IgnoreCase;
+        return attribute.Operator switch
+        {
+            CssAttributeOperator.Equals => Equal(actual.AsSpan(), expected.AsSpan(), fold),
+            CssAttributeOperator.StartsWith => actual.Length >= expected.Length &&
+                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold),
+            CssAttributeOperator.EndsWith => actual.Length >= expected.Length &&
+                Equal(actual.AsSpan(actual.Length - expected.Length), expected.AsSpan(), fold),
+            CssAttributeOperator.Contains => Contains(actual, expected, fold, budget),
+            CssAttributeOperator.Includes => Includes(actual, expected, fold, budget),
+            CssAttributeOperator.Dash => Equal(actual.AsSpan(), expected.AsSpan(), fold) ||
+                actual.Length > expected.Length && actual[expected.Length] == '-' &&
+                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold),
+            _ => throw new InvalidOperationException("Unsupported attribute operator.")
+        };
+    }
+
+    // The i flag is ASCII-insensitive (not a culture-sensitive Unicode fold).
+    private static bool Equal(ReadOnlySpan<char> left, ReadOnlySpan<char> right, bool ignoreCase)
+    {
+        if (left.Length != right.Length) return false;
+        if (!ignoreCase) return left.SequenceEqual(right);
+        for (var i = 0; i < left.Length; i++)
+        {
+            var a = left[i]; var b = right[i];
+            if (a is >= 'A' and <= 'Z') a = (char)(a + 32);
+            if (b is >= 'A' and <= 'Z') b = (char)(b + 32);
+            if (a != b) return false;
+        }
+        return true;
+    }
+
+    private bool Contains(string actual, string expected, bool fold, CssBudget budget)
+    {
+        for (var i = 0; i <= actual.Length - expected.Length; i++)
+        {
+            budget.Work(offset);
+            if (Equal(actual.AsSpan(i, expected.Length), expected.AsSpan(), fold)) return true;
+        }
+        return false;
+    }
+
+    private bool Includes(string actual, string expected, bool fold, CssBudget budget)
+    {
+        // ~= matches complete ASCII-whitespace-separated words, not substrings.
+        if (expected.AsSpan().IndexOfAny(" \t\r\n\f") >= 0) return false;
+        var i = 0;
+        while (i < actual.Length)
+        {
+            while (i < actual.Length && HtmlTokens.Space(actual[i])) i++;
+            var start = i;
+            while (i < actual.Length && !HtmlTokens.Space(actual[i])) i++;
+            if (start < i)
+            {
+                budget.Work(offset);
+                if (Equal(actual.AsSpan(start, i - start), expected.AsSpan(), fold)) return true;
+            }
+        }
+        return false;
     }
 }
