@@ -24,6 +24,8 @@ public sealed class CliErrorLocationTests
     [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p style=\"display:flex\">x</p>", 3, 21)]
     [TestCase("<h1>Title</h1>\r\n<p>ok</p>\r\n<p style=\"display:flex\">x</p>", 3, 19)]
     [TestCase("<p>a</p>\n<!-- 😀😀 --><p style=\"display:flex\">x</p>", 2, 30)]
+    [TestCase("<h1>Title</h1>\r<p>ok</p>\r<p style=\"display:flex\">x</p>", 3, 19)]
+    [TestCase("<h1>Title</h1>\r\n\n\r<p style=\"display:flex\">x</p>", 4, 19)]
     public void SourceDiagnosticsReportLineAndColumnOfTheCoreOffset(string html, int line, int column)
     {
         var core = CoreError(html);
