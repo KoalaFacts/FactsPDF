@@ -19,13 +19,13 @@ const string simple = "<table style='width:100pt;font-size:10pt;line-height:2'><
 const string empty = "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
 const string breakAfter = "<p style='break-after:page'>A</p>";
 if (!Convert(breakAfter + empty, options with { MaxPages = 1 }).AsSpan().SequenceEqual(Convert(breakAfter, options)))
-    throw new Exception("Invisible table consumed a deferred break");
+    throw new InvalidOperationException("Invisible table consumed a deferred break");
 var errors = new List<object>();
 // The former four-line height refusal is now a valid two-page body continuation.
 using (var continued = new MemoryStream())
 {
     var split = PdfConverter.Convert(simple, continued, options with { PageHeight = 99, Margin = 10 });
-    if (split.PageCount != 2) throw new Exception("Former height refusal did not continue on two pages");
+    if (split.PageCount != 2) throw new InvalidOperationException("Former height refusal did not continue on two pages");
 }
 foreach (var (name, input, settings, expected) in new[]
 {
@@ -42,25 +42,25 @@ foreach (var (name, input, settings, expected) in new[]
 })
 {
     using var output = new MemoryStream(); output.Write("sentinel"u8); output.Position = 2;
-    try { PdfConverter.Convert(input, output, settings); throw new Exception("Expected failure: " + name); }
+    try { PdfConverter.Convert(input, output, settings); throw new InvalidOperationException("Expected failure: " + name); }
     catch (FactsPdfException error)
     {
         if (error.Code != expected || output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8))
-            throw new Exception("Wrong diagnostic or changed output: " + name, error);
+            throw new InvalidOperationException("Wrong diagnostic or changed output: " + name, error);
         errors.Add(new { name, code = error.Code, sourceOffset = error.SourceOffset, outputUnchanged = true });
     }
 }
 using (var output = new MemoryStream())
 {
     output.Write("sentinel"u8); output.Position = 2;
-    try { PdfConverter.Convert(html, output, options, new CancellationToken(true)); throw new Exception("Expected cancellation"); }
+    try { PdfConverter.Convert(html, output, options, new CancellationToken(true)); throw new InvalidOperationException("Expected cancellation"); }
     catch (OperationCanceledException)
     {
-        if (output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)) throw new Exception("Cancellation changed output");
+        if (output.Position != 2 || !output.ToArray().AsSpan().SequenceEqual("sentinel"u8)) throw new InvalidOperationException("Cancellation changed output");
         errors.Add(new { name = "cancelled", code = "cancelled", sourceOffset = -1, outputUnchanged = true });
     }
 }
-if (!Convert(html, options with { MaxOutputBytes = pdf.Length }).AsSpan().SequenceEqual(pdf)) throw new Exception("Exact output boundary differs");
-if (!Convert(html, options).AsSpan().SequenceEqual(pdf)) throw new Exception("Success/failure/success differs");
+if (!Convert(html, options with { MaxOutputBytes = pdf.Length }).AsSpan().SequenceEqual(pdf)) throw new InvalidOperationException("Exact output boundary differs");
+if (!Convert(html, options).AsSpan().SequenceEqual(pdf)) throw new InvalidOperationException("Success/failure/success differs");
 Console.WriteLine(JsonSerializer.Serialize(new { bytes = pdf.Length, errors, exactOutputBoundary = true, recoveryByteEquality = true, emptyTablePreservesPagination = true }));
 return 0;
