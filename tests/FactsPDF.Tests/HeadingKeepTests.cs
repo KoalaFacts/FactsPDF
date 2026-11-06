@@ -47,6 +47,22 @@ public sealed class HeadingKeepTests
             Is.EqualTo(new[] { "BEFORE,BEFORE", "ONE,TWO,A" }));
 
     [Test]
+    public void EmptyPercentageSpacerMovesKeptHeadingWithFirstTextParagraph()
+    {
+        // A 220pt containing width makes 10% exactly 22pt. The 20pt lead,
+        // 20pt heading, 22pt empty spacer and 20pt follower exceed an 80pt
+        // usable page, but the complete heading group fits a fresh page.
+        var percentage = Before(1) + Heading()
+            + "<p style='margin-top:10%;margin-bottom:0'></p><p>A</p>";
+        var fixedPoint = percentage.Replace("margin-top:10%", "margin-top:22pt");
+        Assert.That(Pages(percentage), Is.EqualTo(new[] { "BEFORE", "TITLE,A" }),
+            "An empty spacer must not strand the keep-marked heading.");
+        Assert.That(TableLayoutTests.Pdf(Css + percentage, Page),
+            Is.EqualTo(TableLayoutTests.Pdf(Css + fixedPoint, Page)),
+            "Percent and fixed-length spacers must have identical real PDF geometry.");
+    }
+
+    [Test]
     public void BreakOnlyParagraphContributesLineGeometry()
         => Assert.That(Pages(Before(2) + Heading() + "<p><br></p><p>A</p>"),
             Is.EqualTo(new[] { "BEFORE,BEFORE", "TITLE,A" }));

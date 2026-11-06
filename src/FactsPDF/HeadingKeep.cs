@@ -43,7 +43,10 @@ internal static class HeadingKeep
             else
             {
                 if (paint || box.Top > 0) { Closed += Math.Max(After, before); After = marginAfter; }
-                else After = Math.Max(After, marginAfter);
+                // Match TextLayout's deferred blank-paragraph geometry: an empty,
+                // unpainted spacer retains its top margin for the next text block.
+                // Otherwise lookahead may strand a kept heading before a page break.
+                else After = Math.Max(Math.Max(After, before), marginAfter);
                 Closed += box.Top;
             }
             Closed += box.Bottom;
