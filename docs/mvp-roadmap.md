@@ -21,7 +21,7 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | Z2 | Page content streams written as ASCII bytes into pooled buffers | `StringBuilder` → `string` → `byte[]` copies per page | todo | |
 | Z3 | `TextStyle`: one private copy per element, as in Z0c | 202 KiB of `TextStyle` in the 200-row table | todo | |
 | Z4 | CSS syntax allocations (`CssSyntaxToken[]`, strings, LINQ iterators) | Largest remaining parse-phase types | todo | |
-| Z5 | Layout-phase allocations | About 2.4 MB in the 200-row table | todo | |
+| Z5 | Layout-phase allocations | About 2.4 MB in the 200-row table | in progress (Z5a reusable wrap glyph lists: perf/layout-allocations; Z5b the per-paragraph glyph iterators next) | Z5a: layout of the 200-row table 1,523 → 948 KiB; table 6,562 → 6,015 KiB; quick-start 345 → 302 KiB; 402/402 runs identical |
 | R1 | Soak and limits: memory and time bounds for every `Max*` limit; cancellation on every output path | Bounded resources are an MVP promise | todo | |
 | R2 | SDK usability: complete XML docs, README/examples compile, every FPDF code has a clear message with location | Ease of use | todo | |
 | R3 | Fixed-seed fuzzing extended to stylesheets and page furniture | Untrusted input must never crash | todo | |
