@@ -36,6 +36,11 @@ jobs:
         run: |
           node --test scripts/check-docs.test.ts
           node scripts/check-docs.ts
+      - name: Check that pull request workflows cancel superseded runs
+        if: runner.os == 'Linux'
+        run: |
+          node --test scripts/check-workflows.test.ts
+          node scripts/check-workflows.ts
       - run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
   native-aot:
     runs-on: ubuntu-latest

@@ -10,6 +10,9 @@ on:
       - 'scripts/css_syntax_browser_differential.py'
       - '.github/workflows/css-browser-differential.yml'
   workflow_dispatch:
+concurrency:
+  group: factspdf-css-browser-differential-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

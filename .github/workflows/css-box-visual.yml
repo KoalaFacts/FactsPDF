@@ -2,6 +2,9 @@ name: FactsPDF box model Chrome visual oracles
 on:
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: factspdf-css-box-visual-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

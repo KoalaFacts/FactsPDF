@@ -2,6 +2,9 @@ name: FactsPDF Chrome-PDF visual differential
 on:
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: factspdf-css-visual-differential-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

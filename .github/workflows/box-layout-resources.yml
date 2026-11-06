@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+concurrency:
+  group: factspdf-box-layout-resources-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

@@ -374,6 +374,11 @@ record evidence for one finished milestone; only broken links in them are fixed.
 anchor, a doc under `docs/` that README does not reach, or a named repository
 path that does not exist; CI runs it with its tests.
 
+`node scripts/check-workflows.ts` fails when a workflow that runs on
+`pull_request` has no top-level `concurrency` group keyed on `github.ref` with
+an explicit `cancel-in-progress`, so a new push to a pull request cancels the
+runs it supersedes instead of queueing behind them. CI runs it with its tests.
+
 Current guides:
 
 - [CSS Syntax Core](css-syntax-core.md), its [compatibility scope](css-syntax-compatibility.md) and [quality gates](css-syntax-quality-gates.md): the CSS tokenizer and parser contract, for contributors.
