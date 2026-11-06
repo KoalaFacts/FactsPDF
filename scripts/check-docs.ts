@@ -48,6 +48,9 @@ export function slugify(heading: string): string {
 }
 
 /** The lines of a Markdown file that are prose, with fenced code blanked out. */
+/** A line git writes for an unresolved merge conflict. */
+const conflictMarkerPattern = /^(?:<{7}(?: |$)|={7}$|>{7}(?: |$))/;
+
 function proseLines(text: string): string[] {
   const lines = text.split(/\r?\n/);
   let inFence = false;
@@ -178,6 +181,9 @@ export function checkDocs(root: string, files: readonly string[]): DocsProblem[]
 
     const lines = proseLines(text);
     for (let i = 0; i < lines.length; i++) {
+      if (conflictMarkerPattern.test(lines[i])) {
+        problems.push({ file, line: i + 1, message: 'merge-conflict marker' });
+      }
       for (const span of lines[i].matchAll(codeSpanPattern)) {
         const path = namedPath(span[1]);
         if (path !== null && !existsSync(join(root, path)) && !isIgnored(root, path)) {
