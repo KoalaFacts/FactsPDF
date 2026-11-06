@@ -56,7 +56,7 @@ No new project/package or assembly in this increment. Add to existing `src/Facts
 | `src/FactsPDF/Api.cs` | Add the two exact syntax-limit options |
 | `tests/FactsPDF.Tests/CssSyntax/*Tests.cs` | Independent core tests |
 | `tests/FactsPDF.Tests/CssSyntaxIntegrationTests.cs` | Renderer regression/strict contract |
-| `tests/FactsPDF.Tests/CssSyntaxWptCases.cs` | Pinned WPT-derived case IDs and attribution |
+| `tests/FactsPDF.Tests/CssSyntax/CssSyntaxWptCases.cs` | Pinned WPT-derived case IDs and attribution |
 | `docs/css-syntax-core.md` | Supported syntax vs accepted semantics vs rendered CSS matrix |
 | `.github/workflows/css-syntax.yml` | Independent corpus, AOT/CI budget tests, resource measurements without publishing |
 
