@@ -37,6 +37,38 @@ jobs:
           node --test scripts/check-docs.test.ts
           node scripts/check-docs.ts
       - run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
+  byte-parity:
+    # Renders every example with the CLI from the PR's base and from the PR,
+    # with three option sets, and fails on any exit-code, stderr or byte change.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          # The PR merge commit and its first parent, the base it is compared with.
+          fetch-depth: 2
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Install the DejaVu Sans test font
+        run: python3 scripts/ubuntu_packages.py packages fonts-dejavu-core
+      - name: Test the parity script
+        run: node --test scripts/parity.test.ts
+      - name: Compare example output with the base commit
+        run: node scripts/parity.ts --base HEAD^1 --work "$RUNNER_TEMP/parity"
+      - name: Retain the parity report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: byte-parity-report
+          path: ${{ runner.temp }}/parity/parity.json
+          if-no-files-found: warn
+          retention-days: 7
   native-aot:
     runs-on: ubuntu-latest
     timeout-minutes: 15

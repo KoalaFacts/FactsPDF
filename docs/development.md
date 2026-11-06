@@ -365,6 +365,32 @@ Explicit font-weight/font-style selection and independent four-role chains are d
 
 Decimal/disc lists, two-level nesting, marker gutters and list pagination limits are documented in the [list guide](lists.md).
 
+### Byte parity with main
+
+`node scripts/parity.ts` (Node 24, the .NET SDK and Python 3) builds the CLI
+from `origin/main` in a temporary git worktree and from your working tree, then
+renders every `examples/*.html` with both, in three option sets:
+
+- default options;
+- DejaVu Sans with `--subset-fonts --page-numbers --header-text H --title T`
+  and `--page-size letter --landscape --margin 20mm`;
+- `--page-furniture examples/business-page-furniture.json --page-width 148mm
+  --page-height 210mm` with the fully embedded font.
+
+The last two also supply the `scripts/png_fixtures.py` images. The check fails
+when any exit code, stderr text or PDF byte differs, when a CLI run crashes, or
+when an option set renders no example at all; it writes `parity.json` to its
+work folder. Options: `--base <ref>` (default `origin/main`), `--font <path.ttf>` (default
+`/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`), `--work <dir>` (a folder
+outside the repository, default the system temp folder; each run uses a new
+subfolder of it), `--jobs` (default the CPU count, at most 8), `--dotnet` and
+`--python`.
+
+CI runs it on every pull request against the PR's base (the merge commit's
+first parent). A PR that changes output on purpose fails this job by design:
+its body lists each difference from `parity.json` and why, and the owner
+decides whether to merge it.
+
 ## Document map
 
 Guides that README and the pages above do not already link. Historical pages
