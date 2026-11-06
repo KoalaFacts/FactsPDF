@@ -23,9 +23,9 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | Z4 | CSS syntax allocations (`CssSyntaxToken[]`, strings, LINQ iterators) | Largest remaining parse-phase types | todo | |
 | Z5 | Layout-phase allocations | About 2.4 MB in the 200-row table | todo | |
 | R1 | Soak and limits: memory and time bounds for every `Max*` limit; cancellation on every output path | Bounded resources are an MVP promise | in progress: R1a cancellation (#190); R1b `Max*` soak todo | R1a: `OutputCancellationTests`, 16 tests over all six output paths |
-| R2 | SDK usability: complete XML docs, README/examples compile, every FPDF code has a clear message with location | Ease of use | todo | |
+| R2 | SDK usability: complete XML docs, README/examples compile, every FPDF code has a clear message with location | Ease of use | in progress: R2c1 done (#194) | |
 | R3 | Fixed-seed fuzzing extended to stylesheets and page furniture | Untrusted input must never crash | todo | |
 | R4 | Packaging: `dotnet pack` output checked; first-use example built from the packed package | What users install must work | todo | |
-| R2c1 | Error code table covers every `FPDF` code the source uses | `FactsPdfException.Code` sends users to that table; FPDF1306 (page furniture template) was missing | in progress (test/error-code-catalog) | `ErrorCodeCatalogTests` (5); failed first on FPDF1306 |
+| R2c1 | Error code table covers every `FPDF` code the source uses | `FactsPdfException.Code` sends users to that table; FPDF1306 (page furniture template) was missing | done (#194) | `ErrorCodeCatalogTests` (5); failed first on FPDF1306 |
 
 Each PR body carries its dated run log.
