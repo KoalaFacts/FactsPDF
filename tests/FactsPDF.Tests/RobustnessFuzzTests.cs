@@ -168,8 +168,8 @@ public sealed class RobustnessFuzzTests
             catch (AssertionException) { throw; }
             catch (Exception ex) { Assert.Fail($"case seed {caseSeed}: unexpected {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}"); }
         }
-        Assert.That(parsed, Is.GreaterThan(0));
-        Assert.That(rendered, Is.GreaterThan(0));
+        Assert.That(parsed, Is.GreaterThan(40), "Mutated JSON must still get past the reader (measured: 63).");
+        Assert.That(rendered, Is.GreaterThan(15), "Parsed furniture must still render (measured: 21).");
     }
 
     [Test]
