@@ -1,6 +1,7 @@
 namespace FactsPDF;
 
-internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes)
+internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes,
+    IReadOnlyDictionary<string, string> Attributes)
 {
     internal static CssElement From(HtmlToken token)
     {
@@ -15,7 +16,7 @@ internal sealed record CssElement(string Name, string? Id, HashSet<string> Class
                 if (i > start) classes.Add(text[start..i]);
             }
         }
-        return new(token.Value, id, classes);
+        return new(token.Value, id, classes, token.Attributes);
     }
 }
 internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) : IComparable<CssSpecificity>
@@ -23,10 +24,17 @@ internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) 
     public int CompareTo(CssSpecificity other)
     { var c = Ids.CompareTo(other.Ids); if (c != 0) return c; c = Classes.CompareTo(other.Classes); return c != 0 ? c : Types.CompareTo(other.Types); }
 }
-internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes, bool ChildOfPrevious);
+internal enum CssAttributeOperator { Presence, Equals, StartsWith, EndsWith, Contains, Includes, Dash }
+internal readonly record struct CssAttributeMatch(
+    string Name, CssAttributeOperator Operator, string? Value, bool IgnoreCase);
+internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
+    CssAttributeMatch[] Attributes, bool ChildOfPrevious);
 
 internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset)
 {
+    private static bool IsSymbol(CssToken token, string value)
+        => token.Kind == CssTokenKind.Symbol && token.Is(value);
+
     internal CssCompound Rightmost => parts[^1];
     internal CssSpecificity Specificity => specificity;
     internal int Offset => offset;
@@ -39,14 +47,15 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         {
             budget.Token.ThrowIfCancellationRequested();
             CssBudget.Check(parts.Count < 32, "A selector may contain at most 32 compounds.", offset);
-            string? type = null; var ids = new List<string>(); var classes = new List<string>(); var simple = 0;
+            string? type = null; var ids = new List<string>(); var classes = new List<string>();
+            var attrs = new List<CssAttributeMatch>(); var simple = 0;
             if (tokens[i].Kind == CssTokenKind.Identifier) { type = tokens[i++].Text.ToLowerInvariant(); simple++; typeCount++; }
-            else if (tokens[i].Is("*")) { i++; simple++; }
+            else if (IsSymbol(tokens[i], "*")) { i++; simple++; }
             while (true)
             {
                 var current = tokens[i];
                 if (simple > 0 && current.LeadingSpace) break;
-                if (current.Is("."))
+                if (IsSymbol(current, "."))
                 {
                     i++;
                     if (tokens[i].Kind != CssTokenKind.Identifier || tokens[i].LeadingSpace) throw CssTokens.Invalid("Expected a class identifier adjacent to '.'.", current.Offset);
@@ -58,14 +67,71 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                     if (!CssTokens.IdentifierStart(id, 0)) throw CssTokens.Invalid("Escaped/numeric ID selectors are not supported.", current.Offset);
                     ids.Add(id); idCount++; i++;
                 }
+                else if (IsSymbol(current, "["))
+                {
+                    // Match actual HTML attributes, not an inferred CSS class.
+                    i++;
+                    if (tokens[i].Kind != CssTokenKind.Identifier)
+                        throw CssTokens.Invalid("Expected an attribute name.", current.Offset);
+                    var name = tokens[i++].Text.ToLowerInvariant();
+                    var supported = name is "id" or "class" or "title" or "lang"
+                        or "href" or "src" or "alt"
+                        || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5;
+                    if (!supported)
+                        throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);
+                    var op = CssAttributeOperator.Presence;
+                    string? expected = null;
+                    var ignoreCase = false;
+                    if (tokens[i].Kind == CssTokenKind.Symbol && tokens[i].Text is
+                        ("=" or "^" or "$" or "*" or "~" or "|"))
+                    {
+                        var operatorToken = tokens[i++];
+                        op = operatorToken.Text switch
+                        {
+                            "=" => CssAttributeOperator.Equals,
+                            "^" => CssAttributeOperator.StartsWith,
+                            "$" => CssAttributeOperator.EndsWith,
+                            "*" => CssAttributeOperator.Contains,
+                            "~" => CssAttributeOperator.Includes,
+                            "|" => CssAttributeOperator.Dash,
+                            _ => throw new InvalidOperationException()
+                        };
+                        // CSS Syntax supplies separate delim tokens for ^=, $=,
+                        // *=, ~= and |=. Whitespace inside the operator is invalid.
+                        if (op != CssAttributeOperator.Equals)
+                        {
+                            if (!IsSymbol(tokens[i], "=") || tokens[i].LeadingSpace)
+                                throw CssTokens.Invalid("Expected an adjacent '=' in attribute operator.", operatorToken.Offset);
+                            i++;
+                        }
+                        if (tokens[i].Kind is not (CssTokenKind.Identifier or CssTokenKind.String))
+                            throw CssTokens.Invalid("Attribute comparison requires an identifier or quoted string.", operatorToken.Offset);
+                        expected = tokens[i++].Text;
+                        // Empty non-equality operands are outside this bounded subset.
+                        if (op != CssAttributeOperator.Equals && expected.Length == 0)
+                            throw CssTokens.Invalid("Empty substring/word/language attribute operands are unsupported.", operatorToken.Offset);
+                        if (tokens[i].Kind == CssTokenKind.Identifier)
+                        {
+                            if (tokens[i].Text.Equals("i", StringComparison.OrdinalIgnoreCase))
+                                ignoreCase = true;
+                            else if (!tokens[i].Text.Equals("s", StringComparison.OrdinalIgnoreCase))
+                                throw CssTokens.Invalid("Only the CSS attribute-value i/s flags are supported.", tokens[i].Offset);
+                            i++;
+                        }
+                    }
+                    if (!IsSymbol(tokens[i], "]"))
+                        throw CssTokens.Invalid("Malformed or unsupported attribute selector.", current.Offset);
+                    i++;
+                    attrs.Add(new(name, op, expected, ignoreCase)); classCount++;
+                }
                 else break;
                 CssBudget.Check(++simple <= 32, "A compound selector may contain at most 32 simple terms.", offset);
             }
             if (simple == 0) throw CssTokens.Invalid("Expected a supported selector.", tokens[i].Offset);
-            parts.Add(new(type, ids.ToArray(), classes.ToArray(), child));
-            if (tokens[i].Is(",") || tokens[i].Is("{")) break;
+            parts.Add(new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), child));
+            if (IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")) break;
             if (tokens[i].Kind == CssTokenKind.End) throw CssTokens.Invalid("Expected a CSS declaration block.", tokens[i].Offset);
-            if (tokens[i].Is(">")) { child = true; i++; }
+            if (IsSymbol(tokens[i], ">")) { child = true; i++; }
             else if (tokens[i].LeadingSpace) child = false;
             else throw CssTokens.Invalid("Unsupported or malformed selector/combinator.", tokens[i].Offset);
         }
@@ -102,6 +168,121 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         if (part.Type is not null && !part.Type.Equals(element.Name, StringComparison.OrdinalIgnoreCase)) return false;
         foreach (var id in part.Ids) { budget.Work(offset); if (!id.Equals(element.Id, StringComparison.Ordinal)) return false; }
         foreach (var name in part.Classes) { budget.Work(offset); if (!element.Classes.Contains(name)) return false; }
+        foreach (var attribute in part.Attributes)
+        {
+            budget.Work(offset);
+            if (!element.Attributes.TryGetValue(attribute.Name, out var actual) ||
+                !MatchesAttribute(attribute, actual, budget))
+                return false;
+        }
         return true;
+    }
+
+    private bool MatchesAttribute(CssAttributeMatch attribute, string actual, CssBudget budget)
+    {
+        if (attribute.Operator == CssAttributeOperator.Presence) return true;
+        var expected = attribute.Value!;
+        var fold = attribute.IgnoreCase;
+        return attribute.Operator switch
+        {
+            CssAttributeOperator.Equals => Equal(actual.AsSpan(), expected.AsSpan(), fold, budget),
+            CssAttributeOperator.StartsWith => actual.Length >= expected.Length &&
+                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold, budget),
+            CssAttributeOperator.EndsWith => actual.Length >= expected.Length &&
+                Equal(actual.AsSpan(actual.Length - expected.Length), expected.AsSpan(), fold, budget),
+            CssAttributeOperator.Contains => Contains(actual, expected, fold, budget),
+            CssAttributeOperator.Includes => Includes(actual, expected, fold, budget),
+            CssAttributeOperator.Dash => Equal(actual.AsSpan(), expected.AsSpan(), fold, budget) ||
+                actual.Length > expected.Length && actual[expected.Length] == '-' &&
+                Equal(actual.AsSpan(0, expected.Length), expected.AsSpan(), fold, budget),
+            _ => throw new InvalidOperationException("Unsupported attribute operator.")
+        };
+    }
+
+    // The i flag folds ASCII letters only, never locale or Unicode mappings.
+    private static bool EqualChar(char a, char b, bool ignoreCase)
+    {
+        if (!ignoreCase) return a == b;
+        if (a is >= 'A' and <= 'Z') a = (char)(a + 32);
+        if (b is >= 'A' and <= 'Z') b = (char)(b + 32);
+        return a == b;
+    }
+
+    // Charge every compared character, including long ancestor attributes
+    // repeatedly checked for descendant selectors.
+    private bool Equal(ReadOnlySpan<char> left, ReadOnlySpan<char> right,
+        bool ignoreCase, CssBudget budget)
+    {
+        if (left.Length != right.Length) return false;
+        for (var i = 0; i < left.Length; i++)
+        {
+            budget.Work(offset);
+            if (!EqualChar(left[i], right[i], ignoreCase)) return false;
+        }
+        return true;
+    }
+
+    private bool Contains(string actual, string expected, bool fold, CssBudget budget)
+    {
+        // KMP bounds repeated-prefix searches to O(attribute + needle) work
+        // instead of repeated O(needle) comparisons for each candidate offset.
+        // Charge both prefix preparation and every actual comparison to the
+        // same CSS work budget used for the rest of selector matching.
+        var prefix = new int[expected.Length];
+        for (int i = 1, matched = 0; i < expected.Length;)
+        {
+            budget.Work(offset);
+            if (EqualChar(expected[i], expected[matched], fold))
+                prefix[i++] = ++matched;
+            else if (matched > 0)
+                matched = prefix[matched - 1];
+            else
+                prefix[i++] = 0;
+        }
+        for (int i = 0, matched = 0; i < actual.Length;)
+        {
+            budget.Work(offset);
+            if (EqualChar(actual[i], expected[matched], fold))
+            {
+                i++; matched++;
+                if (matched == expected.Length) return true;
+            }
+            else if (matched > 0)
+                matched = prefix[matched - 1];
+            else
+                i++;
+        }
+        return false;
+    }
+
+    private bool Includes(string actual, string expected, bool fold, CssBudget budget)
+    {
+        // ~= matches complete ASCII-whitespace-separated words, not substrings.
+        foreach (var ch in expected)
+        {
+            budget.Work(offset);
+            if (HtmlTokens.Space(ch)) return false;
+        }
+        var i = 0;
+        while (i < actual.Length)
+        {
+            while (i < actual.Length && HtmlTokens.Space(actual[i]))
+            {
+                budget.Work(offset);
+                i++;
+            }
+            var start = i;
+            while (i < actual.Length && !HtmlTokens.Space(actual[i]))
+            {
+                budget.Work(offset);
+                i++;
+            }
+            if (start < i)
+            {
+                budget.Work(offset);
+                if (Equal(actual.AsSpan(start, i - start), expected.AsSpan(), fold, budget)) return true;
+            }
+        }
+        return false;
     }
 }
