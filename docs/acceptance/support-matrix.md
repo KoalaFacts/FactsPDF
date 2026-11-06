@@ -252,8 +252,8 @@ relative results outside 1–144pt reject with `FPDF1202`, preserving
 existing PDF bytes and output position. This is neither font family
 matching, an arbitrary `font` shorthand nor general CSS Fonts support.
 
-The [40-entry report](../examples/report-font-size-keywords.html) and
-[independently authored absolute-point oracle](../examples/report-font-size-keywords-oracle.html)
+The [40-entry report](../../examples/report-font-size-keywords.html) and
+[independently authored absolute-point oracle](../../examples/report-font-size-keywords-oracle.html)
 feed NUnit, fontless/TrueType PDF-byte comparisons and a Linux Native AOT
 qpdf/Poppler PDF and protected-recovery gate.
 Implemented in source [`b95f1bd3`](https://github.com/KoalaFacts/FactsPDF/commit/b95f1bd3c5d8275bff21f399c9cf59a2d413c024).
@@ -284,8 +284,8 @@ preserving any existing PDF output.
 This does **not** support unknown CSS properties/elements, `calc()`,
 negative box distances, general Paged Media or CLI page-geometry flags
 such as `--margin 1pc`. The 40-row
-[pc/q source report](../examples/report-print-pica-q.html) and
-[independently authored point/mm oracle](../examples/report-print-pica-q-oracle.html)
+[pc/q source report](../../examples/report-print-pica-q.html) and
+[independently authored point/mm oracle](../../examples/report-print-pica-q-oracle.html)
 are verified by `ReportPrintSpacingTests.cs` and the real Linux/Windows
 Native AOT stylesheet validator with qpdf/Poppler, text, page and
 PDF-byte equality plus failure/recovery.
@@ -312,8 +312,8 @@ customer distribution permission.
 
 ## Source-only PDF Info metadata for first use
 
-Optional `--title/--author/--subject/--keywords` (and the public
-`PdfOptions` fields) write real UTF-16BE PDF Info strings, without
+Optional `--title/--author/--subject/--keywords` (and the matching
+`Pdf.Write()` metadata settings) write real UTF-16BE PDF Info strings, without
 altering the searchable page body, adding timestamps, parsing HTML
 titles or requiring fonts. `CliPdfMetadataTests.cs` tests actual
 Info/trailer links in classic and Unicode/PNG PDFs, size limits,
