@@ -22,9 +22,11 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | Z3 | `TextStyle`: one private copy per element, as in Z0c | 202 KiB of `TextStyle` in the 200-row table | todo | |
 | Z4 | CSS syntax allocations (`CssSyntaxToken[]`, strings, LINQ iterators) | Largest remaining parse-phase types | todo | |
 | Z5 | Layout-phase allocations | About 2.4 MB in the 200-row table | todo | |
-| R1 | Soak and limits: memory and time bounds for every `Max*` limit; cancellation on every output path | Bounded resources are an MVP promise | in progress: R1a cancellation (#190); R1b `Max*` soak todo | R1a: `OutputCancellationTests`, 16 tests over all six output paths |
+| R1 | Soak and limits: memory and time bounds for every `Max*` limit; cancellation on every output path | Bounded resources are an MVP promise | in progress: R1a done (#190); R1b done (#191); R1c blocked | R1a: `OutputCancellationTests`, 16 tests over all six output paths |
 | R2 | SDK usability: complete XML docs, README/examples compile, every FPDF code has a clear message with location | Ease of use | todo | |
 | R3 | Fixed-seed fuzzing extended to stylesheets and page furniture | Untrusted input must never crash | todo | |
 | R4 | Packaging: `dotnet pack` output checked; first-use example built from the packed package | What users install must work | todo | |
+| R1b | Every public `Max*` limit is exact at its boundary through `Pdf.Write()`, fails with its documented code and message and writes nothing; a flood far beyond each limit fails with cost bounded per input character that at most doubles when the flood doubles | Limits are the safety contract for untrusted input | done (#191) | `LimitBoundaryTests` (45): 15 boundary, 15 setter, 15 flood cases |
+| R1c | Enforce the CSS selector, declaration, syntax-node and syntax-depth budgets and the HTML depth limit while the input is read, not after a whole phase | A 1.2M-character stylesheet over a 100-selector limit allocates about 240 MiB before failing (rendering it: about 405 MiB); 100,000 nested `div`s over a depth of 16 allocate about 16 MiB. `MaxOutputBytes` is checked while serializing, after layout, and stays bounded by the other limits | blocked (touches the tokenizer, adapter and stylesheet files changed by #186 and #184; owner decision: merge #186 and #184) | R1b flood measurements |
 
 Each PR body carries its dated run log.
