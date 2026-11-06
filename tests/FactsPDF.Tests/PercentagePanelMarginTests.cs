@@ -135,10 +135,10 @@ public sealed class PercentagePanelMarginTests
         Assert.That(painted.Skip(1).All(p => Math.Abs(p.Top - 20) < 0.000001), Is.True);
     }
 
-    [TestCase("<p style='margin-top:10%'>PARAGRAPH</p>", "FPDF1202")]
-    [TestCase("<h2 style='margin-bottom:5%'>HEADING</h2>", "FPDF1202")]
-    [TestCase("<div style='margin-top:10%'><p style='margin-top:inherit'>WRONG UNIT</p></div>", "FPDF1201")]
-    [TestCase("<section style='margin-bottom:10%'><h2 style='margin-bottom:inherit'>WRONG UNIT</h2></section>", "FPDF1201")]
+    [TestCase("<p style='margin-top:-10%'>PARAGRAPH</p>", "FPDF1202")]
+    [TestCase("<h2 style='margin-bottom:-5%'>HEADING</h2>", "FPDF1202")]
+    [TestCase("<div style='margin-top:10%'><ul><li><p style='margin-top:10%'>WRONG CONTEXT</p></li></ul></div>", "FPDF1201")]
+    [TestCase("<section style='margin-bottom:10%'><ol><li><p style='margin-bottom:5%'>WRONG CONTEXT</p></li></ol></section>", "FPDF1201")]
     [TestCase("<ul><li><section style='margin-top:5%'><p>LIST</p></section></li></ul>", "FPDF1201")]
     [TestCase("<ol><li><article style='margin-block-end:8%'><p>LIST</p></article></li></ol>", "FPDF1201")]
     [TestCase("<section style='margin-top:auto'>INVALID</section>", "FPDF1202")]
@@ -150,10 +150,10 @@ public sealed class PercentagePanelMarginTests
     public void UnsupportedMarginsFailExplicitlyWithoutChangingTheExistingPdf(string html, string code)
         => RejectPreservingOutput(html, code);
 
-    [TestCase("<style>p{margin-top:5%}p{margin-top:0!important}</style><p>BAD</p>")]
-    [TestCase("<style>h2{margin-bottom:8%}h2{margin-bottom:0!important}</style><h2>BAD</h2>")]
-    [TestCase("<p style='margin-top:5%;margin-top:0'>BAD</p>")]
-    public void UnsupportedTextPercentMarginsRejectEvenWhenAnotherRuleWins(string html)
+    [TestCase("<style>p{margin-top:-5%}p{margin-top:0!important}</style><p>BAD</p>")]
+    [TestCase("<style>h2{margin-bottom:-8%}h2{margin-bottom:0!important}</style><h2>BAD</h2>")]
+    [TestCase("<p style='margin-top:-5%;margin-top:0'>BAD</p>")]
+    public void InvalidNegativeTextPercentMarginsRejectEvenWhenAnotherRuleWins(string html)
         => RejectPreservingOutput(html, "FPDF1202");
 
     [TestCase("20%")]
