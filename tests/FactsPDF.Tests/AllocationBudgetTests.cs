@@ -36,7 +36,7 @@ public sealed class AllocationBudgetTests
         var html = File.ReadAllText(Path.Combine(FindRoot(), "examples", "quick-start.html"));
         var allocated = AllocatedPerConversion(html, Pdf.Write());
         TestContext.Out.WriteLine($"quick-start: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(400 * 1024));
+        Assert.That(allocated, Is.LessThan(350 * 1024));
     }
 
     [Test]
@@ -44,7 +44,28 @@ public sealed class AllocationBudgetTests
     {
         var allocated = AllocatedPerConversion(Table(200), Pdf.Write().WithFonts(f => f.Regular(Font).Subset()));
         TestContext.Out.WriteLine($"200-row styled table: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(7_550 * 1024));
+        Assert.That(allocated, Is.LessThan(7_000 * 1024));
+    }
+
+    // Serialization alone: page content streams are written straight from one reused builder.
+    [TestCase(false, 340)]
+    [TestCase(true, 510)]
+    public void SerializingTheStyledTableStaysWithinItsAllocationBudget(bool embedFont, int budgetKiB)
+    {
+        var options = embedFont ? new PdfOptions { Fonts = [Font], SubsetFonts = true } : new PdfOptions();
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(Table(200), options, default), options, default);
+        long Serialize()
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            using (embedFont ? UnicodePdfSerializer.Build(pages, options, default) : PdfSerializer.Build(pages, options, default)) { }
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        for (var i = 0; i < 10; i++) Serialize(); // warm up JIT tiers and the output buffer pool
+        long allocated = 0;
+        for (var i = 0; i < 5; i++) allocated += Serialize();
+        allocated /= 5;
+        TestContext.Out.WriteLine($"200-row table serialize ({(embedFont ? "subset font" : "Courier")}): {allocated / 1024} KiB");
+        Assert.That(allocated, Is.LessThan(budgetKiB * 1024L));
     }
 
     private static string FindRoot()
