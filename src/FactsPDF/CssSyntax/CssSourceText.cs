@@ -42,6 +42,18 @@ internal sealed class CssSourceText
             throw new CssSyntaxLimitException("CSS source exceeds MaxCharacters.", new CssSourceSpan(absoluteStart, source.Length));
 
         int Origin(int index) => originalOffsets is null ? absoluteStart + index : originalOffsets[index];
+        if (source.AsSpan().IndexOfAny(NeedsNormalizing) < 0)
+        {
+            // Nothing to normalize: the text is the source itself and every code unit maps to its own origin.
+            var identity = new int[source.Length + 1];
+            for (var i = 0; i < source.Length; i++)
+            {
+                if ((i & 1023) == 0) limits.Cancellation.ThrowIfCancellationRequested();
+                identity[i] = Origin(i);
+            }
+            identity[source.Length] = Origin(source.Length);
+            return new CssSourceText(source, identity);
+        }
         var text = new StringBuilder(source.Length);
         var mapped = new int[source.Length + 1];
         var count = 0;
@@ -84,8 +96,12 @@ internal sealed class CssSourceText
             }
         }
         mapped[count] = Origin(source.Length);
-        return new CssSourceText(text.ToString(), mapped[..(count + 1)]);
+        return new CssSourceText(text.ToString(), count == source.Length ? mapped : mapped[..(count + 1)]);
     }
+
+    // Code units that normalization replaces or that start a surrogate pair check.
+    private static readonly System.Buffers.SearchValues<char> NeedsNormalizing =
+        System.Buffers.SearchValues.Create(['\r', '\f', '\0', .. Enumerable.Range(0xD800, 0x800).Select(c => (char)c)]);
 
     internal CssSourceSpan Span(int normalizedStart, int normalizedLength)
     {
