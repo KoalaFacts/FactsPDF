@@ -365,6 +365,7 @@ Explicit font-weight/font-style selection and independent four-role chains are d
 
 Decimal/disc lists, two-level nesting, marker gutters and list pagination limits are documented in the [list guide](lists.md).
 
+<<<<<<< HEAD
 ### Byte parity with main
 
 `node scripts/parity.ts` (Node 24, the .NET SDK and Python 3) builds the CLI
@@ -389,6 +390,8 @@ first parent). A PR that changes output on purpose fails this job by design:
 its body lists each difference from `parity.json` and why, and the owner
 decides whether to merge it.
 
+=======
+>>>>>>> origin/main
 ## Document map
 
 Guides that README and the pages above do not already link. Historical pages
