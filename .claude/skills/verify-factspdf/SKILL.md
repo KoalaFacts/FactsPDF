@@ -55,7 +55,7 @@ The areas follow the categories in `site/data/compatibility.json`.
 1. Build every csproj except `examples/first-use` (it needs a local feed):
    `for p in $(git ls-files '*.csproj' | grep -v examples/first-use); do dotnet build "$p" -c Release -warnaserror || exit 1; done`
 2. `dotnet test tests/FactsPDF.Tests -c Release` (the CLI tests are in this project).
-3. Byte parity against `main`: build the CLI from a `git worktree` of `origin/main` and from the branch. Render every `examples/*.html` with three option sets and compare exit codes and bytes:
+3. Byte parity against `main`: run `node scripts/parity.ts --base origin/main --work /tmp/parity`, which takes about 90 s and should report `402/402 runs identical`. CI runs the same script in its `byte-parity` job. The script builds the CLI from a worktree of the base and from the branch, renders every `examples/*.html` with three option sets, and compares exit codes, stderr and bytes:
    - defaults;
    - DejaVu with `--subset-fonts --page-numbers --header-text H --title T`, PNG images from `scripts/png_fixtures.py`, and `--page-size letter --landscape --margin 20mm`;
    - `--page-furniture examples/business-page-furniture.json --page-width 148mm --page-height 210mm` with a fully embedded font.
