@@ -124,7 +124,8 @@ public sealed partial class ErrorCodeCatalogTests
         throw new InvalidOperationException("Repository root not found.");
     }
 
-    [GeneratedRegex(@"\bFPDF(\d{4})\b")]
+    // Only string literals count: a code that survives only in a comment is not a code the source uses.
+    [GeneratedRegex(@"""FPDF(\d{4})""")]
     private static partial Regex SourceCode();
 
     [GeneratedRegex(@"^\| FPDF(\d{4})(?:-(\d{4}))? \|", RegexOptions.Multiline)]
