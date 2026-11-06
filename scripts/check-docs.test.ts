@@ -149,3 +149,16 @@ test('the repository docs pass', () => {
   const root = join(import.meta.dirname, '..');
   assert.deepEqual(checkDocs(root, trackedDocs(root)), []);
 });
+
+test('merge-conflict markers are reported, but not inside fenced code', () => {
+  assert.deepEqual(
+    messages({
+      'README.md': '# Readme\n<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> origin/main\n```\n<<<<<<< HEAD\n```\n',
+    }),
+    [
+      'README.md:2: merge-conflict marker',
+      'README.md:4: merge-conflict marker',
+      'README.md:6: merge-conflict marker',
+    ],
+  );
+});
