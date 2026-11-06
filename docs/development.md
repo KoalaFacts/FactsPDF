@@ -294,6 +294,11 @@ complete. Streams are left open and need not be seekable. Load fonts and images
 with `PdfFont.FromFile/FromBytes/FromStream` and `PdfImage.FromFile/FromBytes/FromStream`;
 they are immutable and can be shared across writers and threads.
 
+Every `csharp` block in `README.md` and in the guides under `docs/` is
+compiled against the current library by `DocumentationSnippetTests` (the dated
+design records under `docs/superpowers/` excepted), so a renamed or removed SDK
+member fails the tests until the example is updated.
+
 ## Current content and layout scope
 
 | Area | Supported | Not yet supported |

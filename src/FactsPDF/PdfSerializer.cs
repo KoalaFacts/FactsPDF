@@ -37,10 +37,11 @@ internal static class PdfSerializer
             var kids = string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => $"{4 + 2 * i} 0 R"));
             Object(2, $"<< /Type /Pages /Count {pages.Count} /Kids [{kids}] >>");
             Object(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
+            var contents = new StringBuilder();
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var contents = new StringBuilder();
+                contents.Clear();
                 PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
                 PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation);
                 images.Append(contents, pages[i], o, cancellation);
@@ -51,14 +52,17 @@ internal static class PdfSerializer
                 foreach (var run in pages[i].Runs)
                 {
                     var color = run.Style.Color;
-                    var hex = System.Convert.ToHexString(Encoding.ASCII.GetBytes(run.Text));
                     var tracking = previousTracking == run.Style.LetterSpacing
                         ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
                     previousTracking = run.Style.LetterSpacing;
-                    contents.Append(CultureInfo.InvariantCulture, $"BT /F1 {N(run.Style.FontSize)} Tf {tracking}{N(color.R)} {N(color.G)} {N(color.B)} rg ");
-                    contents.Append(CultureInfo.InvariantCulture, $"1 0 0 1 {N(run.X)} {N(run.Baseline)} Tm ");
+                    contents.Append(CultureInfo.InvariantCulture, $"BT /F1 {(run.Style.FontSize):0.###} Tf {tracking}{(color.R):0.###} {(color.G):0.###} {(color.B):0.###} rg ");
+                    contents.Append(CultureInfo.InvariantCulture, $"1 0 0 1 {(run.X):0.###} {(run.Baseline):0.###} Tm ");
                     if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
-                        contents.Append(CultureInfo.InvariantCulture, $"<{hex}> Tj ET\n");
+                    {
+                        contents.Append('<');
+                        PdfAscii.AppendHex(contents, run.Text);
+                        contents.Append("> Tj ET\n");
+                    }
                     else
                     {
                         // PDF Tw does not reliably position two-byte CID space codes.
@@ -68,22 +72,31 @@ internal static class PdfSerializer
                         for (var j = 0; j < run.Text.Length; j++)
                         {
                             if (run.Text[j] != ' ') continue;
-                            contents.Append('<').Append(System.Convert.ToHexString(
-                                Encoding.ASCII.GetBytes(run.Text[start..(j + 1)]))).Append("> ");
-                            contents.Append(N(-run.Style.WordSpacing * 1000 / run.Style.FontSize)).Append(' ');
+                            contents.Append('<');
+                            PdfAscii.AppendHex(contents, run.Text.AsSpan(start, j + 1 - start));
+                            contents.Append("> ");
+                            contents.Append(CultureInfo.InvariantCulture, $"{(-run.Style.WordSpacing * 1000 / run.Style.FontSize):0.###}").Append(' ');
                             start = j + 1;
                         }
                         if (start < run.Text.Length)
-                            contents.Append('<').Append(System.Convert.ToHexString(
-                                Encoding.ASCII.GetBytes(run.Text[start..]))).Append('>');
+                        {
+                            contents.Append('<');
+                            PdfAscii.AppendHex(contents, run.Text.AsSpan(start));
+                            contents.Append('>');
+                        }
                         contents.Append("] TJ ET\n");
                     }
                     PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
-                var content = contents.ToString();
                 Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {5 + 2 * i} 0 R{links.PageEntry(i)} >>");
-                Object(5 + 2 * i, $"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
+                if (5 + 2 * i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                var length = PdfAscii.ByteCount(contents);
+                if (output.Length + length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
+                Write($"{5 + 2 * i} 0 obj\n<< /Length {length} >>\nstream\n");
+                PdfAscii.Write(output, contents, cancellation);
+                Write("\nendstream\nendobj\n");
             }
             for (var i = 0; i < images.ObjectCount; i++)
             {

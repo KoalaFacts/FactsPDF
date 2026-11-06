@@ -27,7 +27,7 @@ internal static class PdfPaintSerializer
             var color = disc.Color;
             if (disc.Kind == ListMarkerKind.Square)
             {
-                output.Append(CultureInfo.InvariantCulture, $"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x - r)} {N(y - r)} {N(2 * r)} {N(2 * r)} re f Q\n");
+                output.Append(CultureInfo.InvariantCulture, $"q {(color.R):0.###} {(color.G):0.###} {(color.B):0.###} rg {(x - r):0.###} {(y - r):0.###} {(2 * r):0.###} {(2 * r):0.###} re f Q\n");
             }
             else
             {
@@ -40,13 +40,13 @@ internal static class PdfPaintSerializer
                 var radius = hollow ? r * 0.8 : r;
                 var k = radius * 0.5522847498307936;
                 if (hollow)
-                    output.Append(CultureInfo.InvariantCulture, $"q {N(color.R)} {N(color.G)} {N(color.B)} RG {N(r * 0.25)} w {N(x + radius)} {N(y)} m ");
+                    output.Append(CultureInfo.InvariantCulture, $"q {(color.R):0.###} {(color.G):0.###} {(color.B):0.###} RG {(r * 0.25):0.###} w {(x + radius):0.###} {(y):0.###} m ");
                 else
-                    output.Append(CultureInfo.InvariantCulture, $"q {N(color.R)} {N(color.G)} {N(color.B)} rg {N(x + r)} {N(y)} m ");
-                output.Append(CultureInfo.InvariantCulture, $"{N(x + radius)} {N(y + k)} {N(x + k)} {N(y + radius)} {N(x)} {N(y + radius)} c ");
-                output.Append(CultureInfo.InvariantCulture, $"{N(x - k)} {N(y + radius)} {N(x - radius)} {N(y + k)} {N(x - radius)} {N(y)} c ");
-                output.Append(CultureInfo.InvariantCulture, $"{N(x - radius)} {N(y - k)} {N(x - k)} {N(y - radius)} {N(x)} {N(y - radius)} c ");
-                output.Append(CultureInfo.InvariantCulture, $"{N(x + k)} {N(y - radius)} {N(x + radius)} {N(y - k)} {N(x + radius)} {N(y)} c");
+                    output.Append(CultureInfo.InvariantCulture, $"q {(color.R):0.###} {(color.G):0.###} {(color.B):0.###} rg {(x + r):0.###} {(y):0.###} m ");
+                output.Append(CultureInfo.InvariantCulture, $"{(x + radius):0.###} {(y + k):0.###} {(x + k):0.###} {(y + radius):0.###} {(x):0.###} {(y + radius):0.###} c ");
+                output.Append(CultureInfo.InvariantCulture, $"{(x - k):0.###} {(y + radius):0.###} {(x - radius):0.###} {(y + k):0.###} {(x - radius):0.###} {(y):0.###} c ");
+                output.Append(CultureInfo.InvariantCulture, $"{(x - radius):0.###} {(y - k):0.###} {(x - k):0.###} {(y - radius):0.###} {(x):0.###} {(y - radius):0.###} c ");
+                output.Append(CultureInfo.InvariantCulture, $"{(x + k):0.###} {(y - radius):0.###} {(x + radius):0.###} {(y - k):0.###} {(x + radius):0.###} {(y):0.###} c");
                 output.Append(hollow ? " S Q\n" : " f Q\n");
             }
             if (output.Length > maxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
@@ -80,9 +80,9 @@ internal static class PdfPaintSerializer
             {
                 // Keep the legacy opaque rectangle path byte-for-byte identical
                 // when neither new paint longhand is supplied.
-                output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
-                    .Append(N(c.B)).Append(" rg ").Append(N(run.X)).Append(' ').Append(N(y))
-                    .Append(' ').Append(N(run.Width)).Append(' ').Append(N(thickness))
+                output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(c.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(c.G):0.###}").Append(' ')
+                    .Append(CultureInfo.InvariantCulture, $"{(c.B):0.###}").Append(" rg ").Append(CultureInfo.InvariantCulture, $"{(run.X):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}")
+                    .Append(' ').Append(CultureInfo.InvariantCulture, $"{(run.Width):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(thickness):0.###}")
                     .Append(" re f Q\n");
             }
             else
@@ -92,19 +92,19 @@ internal static class PdfPaintSerializer
                 // no extension into neighbouring cells or outside the PDF panel.
                 if (run.Width < 0.001)
                     throw new FactsPdfException("FPDF1302", "Text decoration is too short to paint.");
-                output.Append("q ").Append(N(c.R)).Append(' ').Append(N(c.G)).Append(' ')
-                    .Append(N(c.B)).Append(" RG ").Append(N(thickness)).Append(" w ");
+                output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(c.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(c.G):0.###}").Append(' ')
+                    .Append(CultureInfo.InvariantCulture, $"{(c.B):0.###}").Append(" RG ").Append(CultureInfo.InvariantCulture, $"{(thickness):0.###}").Append(" w ");
                 if (run.Style.DecorationPattern == TextDecorationPattern.Dashed)
-                    output.Append('[').Append(N(3 * thickness)).Append(' ')
-                        .Append(N(3 * thickness)).Append("] 0 d ");
+                    output.Append('[').Append(CultureInfo.InvariantCulture, $"{(3 * thickness):0.###}").Append(' ')
+                        .Append(CultureInfo.InvariantCulture, $"{(3 * thickness):0.###}").Append("] 0 d ");
                 else if (run.Style.DecorationPattern == TextDecorationPattern.Dotted)
-                    output.Append("1 J [0.001 ").Append(N(2 * thickness)).Append("] 0 d ");
+                    output.Append("1 J [0.001 ").Append(CultureInfo.InvariantCulture, $"{(2 * thickness):0.###}").Append("] 0 d ");
                 else
                     throw new InvalidOperationException("Unsupported text decoration stroke.");
-                output.Append(N(run.X)).Append(' ').Append(N(y)).Append(' ')
-                    .Append(N(run.Width)).Append(' ').Append(N(thickness))
-                    .Append(" re W n ").Append(N(run.X)).Append(' ').Append(N(centre))
-                    .Append(" m ").Append(N(run.X + run.Width)).Append(' ').Append(N(centre))
+                output.Append(CultureInfo.InvariantCulture, $"{(run.X):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(' ')
+                    .Append(CultureInfo.InvariantCulture, $"{(run.Width):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(thickness):0.###}")
+                    .Append(" re W n ").Append(CultureInfo.InvariantCulture, $"{(run.X):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(centre):0.###}")
+                    .Append(" m ").Append(CultureInfo.InvariantCulture, $"{(run.X + run.Width):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(centre):0.###}")
                     .Append(" l S Q\n");
             }
             if (output.Length > maxOutputBytes)
@@ -177,13 +177,13 @@ internal static class PdfPaintSerializer
         if (!double.IsFinite(xLeft + xRight + yTop + yBottom))
             throw new FactsPdfException("FPDF1302", "Invalid report outline geometry.");
         var ink = edge.Color ?? box.TextColor;
-        output.Append("q ").Append(N(ink.R)).Append(' ').Append(N(ink.G)).Append(' ')
-            .Append(N(ink.B)).Append(" RG ").Append(N(thickness)).Append(" w ");
+        output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(ink.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(ink.G):0.###}").Append(' ')
+            .Append(CultureInfo.InvariantCulture, $"{(ink.B):0.###}").Append(" RG ").Append(CultureInfo.InvariantCulture, $"{(thickness):0.###}").Append(" w ");
         if (edge.Pattern == BorderPattern.Dashed)
-            output.Append('[').Append(N(3 * thickness)).Append(' ')
-                .Append(N(3 * thickness)).Append("] 0 d ");
+            output.Append('[').Append(CultureInfo.InvariantCulture, $"{(3 * thickness):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(3 * thickness):0.###}").Append("] 0 d ");
         else if (edge.Pattern == BorderPattern.Dotted)
-            output.Append("1 J [0.001 ").Append(N(2 * thickness)).Append("] 0 d ");
+            output.Append("1 J [0.001 ").Append(CultureInfo.InvariantCulture, $"{(2 * thickness):0.###}").Append("] 0 d ");
         else if (edge.Pattern != BorderPattern.Solid)
             throw new InvalidOperationException("Invalid outline pattern.");
         if (edge.Pattern == BorderPattern.Solid)
@@ -194,40 +194,40 @@ internal static class PdfPaintSerializer
             // Continuations have no imaginary top/bottom cap across pages.
             output.Append("0 j ");
             if (box.IsFirstFragment && box.IsLastFragment)
-                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
-                    .Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l h ");
+                output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l h ");
             else if (box.IsFirstFragment)
-                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
-                    .Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+                output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ");
             else if (box.IsLastFragment)
-                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
-                    .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
+                output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" l ");
             else
-                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
-                    .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
-                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
-                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+                output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ");
         }
         else
         {
             // Dashed/dotted paths intentionally remain separate: their dash
             // phase and rounded caps restart at each scoped report-panel edge.
-            output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
-                .Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" l ")
-                .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" m ")
-                .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+            output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" m ")
+                .Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ")
+                .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" m ")
+                .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ");
             if (box.IsFirstFragment)
-                output.Append(N(xLeft)).Append(' ').Append(N(yTop)).Append(" m ")
-                    .Append(N(xRight)).Append(' ').Append(N(yTop)).Append(" l ");
+                output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yTop):0.###}").Append(" l ");
             if (box.IsLastFragment)
-                output.Append(N(xLeft)).Append(' ').Append(N(yBottom)).Append(" m ")
-                    .Append(N(xRight)).Append(' ').Append(N(yBottom)).Append(" l ");
+                output.Append(CultureInfo.InvariantCulture, $"{(xLeft):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" m ")
+                    .Append(CultureInfo.InvariantCulture, $"{(xRight):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(yBottom):0.###}").Append(" l ");
         }
         output.Append("S Q\n");
         if (output.Length > maxOutputBytes)
@@ -271,8 +271,8 @@ internal static class PdfPaintSerializer
 
         if (style.BackgroundColor is Rgb bg)
         {
-            output.Append("q ").Append(N(bg.R)).Append(' ').Append(N(bg.G)).Append(' ')
-                .Append(N(bg.B)).Append(" rg ");
+            output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(bg.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(bg.G):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(bg.B):0.###}").Append(" rg ");
             RoundedPath(output, x, y, w, h, tl, tr, br, bl);
             output.Append("f Q\n");
             if (output.Length > maxOutputBytes)
@@ -282,8 +282,8 @@ internal static class PdfPaintSerializer
         var border = style.BorderLeft.EffectiveWidth;
         if (border <= 0) return;
         var color = style.BorderLeft.Color ?? box.TextColor;
-        output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
-            .Append(N(color.B)).Append(" rg ");
+        output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(color.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(color.G):0.###}").Append(' ')
+            .Append(CultureInfo.InvariantCulture, $"{(color.B):0.###}").Append(" rg ");
         RoundedPath(output, x, y, w, h, tl, tr, br, bl);
         var topInset = top ? Math.Min(border, h) : 0;
         var bottomInset = bottom ? Math.Min(border, h - topInset) : 0;
@@ -339,31 +339,31 @@ internal static class PdfPaintSerializer
         const double k = 0.5522847498307936;
         var right = x + width;
         var upper = y + height;
-        output.Append(N(x + bl)).Append(' ').Append(N(y)).Append(" m ");
-        output.Append(N(right - br)).Append(' ').Append(N(y)).Append(" l ");
+        output.Append(CultureInfo.InvariantCulture, $"{(x + bl):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(" m ");
+        output.Append(CultureInfo.InvariantCulture, $"{(right - br):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(" l ");
         if (br > 0)
-            output.Append(N(right - br + k * br)).Append(' ').Append(N(y)).Append(' ')
-                .Append(N(right)).Append(' ').Append(N(y + br - k * br)).Append(' ')
-                .Append(N(right)).Append(' ').Append(N(y + br)).Append(" c ");
-        else output.Append(N(right)).Append(' ').Append(N(y)).Append(" l ");
-        output.Append(N(right)).Append(' ').Append(N(upper - tr)).Append(" l ");
+            output.Append(CultureInfo.InvariantCulture, $"{(right - br + k * br):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(right):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y + br - k * br):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(right):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y + br):0.###}").Append(" c ");
+        else output.Append(CultureInfo.InvariantCulture, $"{(right):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(" l ");
+        output.Append(CultureInfo.InvariantCulture, $"{(right):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper - tr):0.###}").Append(" l ");
         if (tr > 0)
-            output.Append(N(right)).Append(' ').Append(N(upper - tr + k * tr)).Append(' ')
-                .Append(N(right - tr + k * tr)).Append(' ').Append(N(upper)).Append(' ')
-                .Append(N(right - tr)).Append(' ').Append(N(upper)).Append(" c ");
-        else output.Append(N(right)).Append(' ').Append(N(upper)).Append(" l ");
-        output.Append(N(x + tl)).Append(' ').Append(N(upper)).Append(" l ");
+            output.Append(CultureInfo.InvariantCulture, $"{(right):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper - tr + k * tr):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(right - tr + k * tr):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(right - tr):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper):0.###}").Append(" c ");
+        else output.Append(CultureInfo.InvariantCulture, $"{(right):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper):0.###}").Append(" l ");
+        output.Append(CultureInfo.InvariantCulture, $"{(x + tl):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper):0.###}").Append(" l ");
         if (tl > 0)
-            output.Append(N(x + tl - k * tl)).Append(' ').Append(N(upper)).Append(' ')
-                .Append(N(x)).Append(' ').Append(N(upper - tl + k * tl)).Append(' ')
-                .Append(N(x)).Append(' ').Append(N(upper - tl)).Append(" c ");
-        else output.Append(N(x)).Append(' ').Append(N(upper)).Append(" l ");
-        output.Append(N(x)).Append(' ').Append(N(y + bl)).Append(" l ");
+            output.Append(CultureInfo.InvariantCulture, $"{(x + tl - k * tl):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper - tl + k * tl):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper - tl):0.###}").Append(" c ");
+        else output.Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(upper):0.###}").Append(" l ");
+        output.Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y + bl):0.###}").Append(" l ");
         if (bl > 0)
-            output.Append(N(x)).Append(' ').Append(N(y + bl - k * bl)).Append(' ')
-                .Append(N(x + bl - k * bl)).Append(' ').Append(N(y)).Append(' ')
-                .Append(N(x + bl)).Append(' ').Append(N(y)).Append(" c ");
-        else output.Append(N(x)).Append(' ').Append(N(y)).Append(" l ");
+            output.Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y + bl - k * bl):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(x + bl - k * bl):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(' ')
+                .Append(CultureInfo.InvariantCulture, $"{(x + bl):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(" c ");
+        else output.Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}").Append(" l ");
         output.Append("h ");
     }
 
@@ -404,21 +404,21 @@ internal static class PdfPaintSerializer
             throw new InvalidOperationException("Invalid patterned border geometry.");
         if (N(x1) == N(x2) && N(y1) == N(y2))
             throw new FactsPdfException("FPDF1302", "Patterned border edge is too short to paint.");
-        output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
-            .Append(N(color.B)).Append(" RG ").Append(N(stroke)).Append(" w ");
+        output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(color.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(color.G):0.###}").Append(' ')
+            .Append(CultureInfo.InvariantCulture, $"{(color.B):0.###}").Append(" RG ").Append(CultureInfo.InvariantCulture, $"{(stroke):0.###}").Append(" w ");
         if (edge.Pattern == BorderPattern.Dashed)
-            output.Append('[').Append(N(3 * stroke)).Append(' ').Append(N(3 * stroke)).Append("] 0 d ");
+            output.Append('[').Append(CultureInfo.InvariantCulture, $"{(3 * stroke):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(3 * stroke):0.###}").Append("] 0 d ");
         else if (edge.Pattern == BorderPattern.Dotted)
-            output.Append("1 J [0.001 ").Append(N(2 * stroke)).Append("] 0 d ");
+            output.Append("1 J [0.001 ").Append(CultureInfo.InvariantCulture, $"{(2 * stroke):0.###}").Append("] 0 d ");
         else
             throw new InvalidOperationException("Invalid patterned border kind.");
         // One clip per stroke, inside the q/Q state pair. This prevents both
         // dash fragments and round caps from painting outside the measured box.
-        output.Append(N(x)).Append(' ').Append(N(pageHeight - top - height))
-            .Append(' ').Append(N(width)).Append(' ').Append(N(height))
+        output.Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(pageHeight - top - height):0.###}")
+            .Append(' ').Append(CultureInfo.InvariantCulture, $"{(width):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(height):0.###}")
             .Append(" re W n ");
-        output.Append(N(x1)).Append(' ').Append(N(y1)).Append(" m ")
-            .Append(N(x2)).Append(' ').Append(N(y2)).Append(" l S Q\n");
+        output.Append(CultureInfo.InvariantCulture, $"{(x1):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y1):0.###}").Append(" m ")
+            .Append(CultureInfo.InvariantCulture, $"{(x2):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y2):0.###}").Append(" l S Q\n");
         if (output.Length > maxOutputBytes)
             throw new FactsPdfException("FPDF1401", "PDF patterned border exceeds MaxOutputBytes.");
     }
@@ -428,9 +428,9 @@ internal static class PdfPaintSerializer
     {
         if (width <= 0 || height <= 0) return;
         var y = pageHeight - top - height;
-        output.Append("q ").Append(N(color.R)).Append(' ').Append(N(color.G)).Append(' ')
-            .Append(N(color.B)).Append(" rg ").Append(N(x)).Append(' ').Append(N(y))
-            .Append(' ').Append(N(width)).Append(' ').Append(N(height))
+        output.Append("q ").Append(CultureInfo.InvariantCulture, $"{(color.R):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(color.G):0.###}").Append(' ')
+            .Append(CultureInfo.InvariantCulture, $"{(color.B):0.###}").Append(" rg ").Append(CultureInfo.InvariantCulture, $"{(x):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(y):0.###}")
+            .Append(' ').Append(CultureInfo.InvariantCulture, $"{(width):0.###}").Append(' ').Append(CultureInfo.InvariantCulture, $"{(height):0.###}")
             .Append(" re f Q\n");
         // Bound the temporary PDF content stream as rectangles are appended.
         // A command can exceed the limit by at most its own small encoding;
