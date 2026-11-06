@@ -25,12 +25,12 @@ public sealed class OutputCancellationTests
     private static string BuildLargeHtml()
     {
         var html = new StringBuilder("<h1>Report</h1>");
-        for (var i = 0; i < 6_000; i++)
+        for (var i = 0; i < 18_000; i++)
             html.Append("<p>Row ").Append(i).Append(" of a long report with enough words to wrap across the page width.</p>");
         return html.ToString();
     }
 
-    private static PdfWriter LargeWriter() => Pdf.Write().WithLimits(l => l.MaxElements(20_000).MaxPages(2_000));
+    private static PdfWriter LargeWriter() => Pdf.Write().WithLimits(l => l.MaxInputCharacters(4_000_000).MaxElements(40_000).MaxPages(2_000));
 
     public enum OutputPath { Bytes, Stream, StreamAsync, BufferWriter, File, FileAsync }
 
@@ -86,11 +86,17 @@ public sealed class OutputCancellationTests
     public void CancellationDuringRenderingStopsPromptlyAndWritesNothing(OutputPath path)
     {
         var writer = LargeWriter();
-        var full = Stopwatch.StartNew();
-        writer.ToBytes(LargeHtml);
-        full.Stop();
-        Assert.That(full.Elapsed, Is.GreaterThan(TimeSpan.FromMilliseconds(20)),
-            "the document must take long enough for a 5ms cancellation to land inside rendering");
+        writer.ToBytes(LargeHtml); // warm up JIT tiers
+        var full = TimeSpan.MaxValue;
+        for (var i = 0; i < 2; i++)
+        {
+            var run = Stopwatch.StartNew();
+            writer.ToBytes(LargeHtml);
+            if (run.Elapsed < full) full = run.Elapsed;
+        }
+        // On a machine fast enough to finish in under 100ms, "well below a full render" cannot be told
+        // apart from scheduling noise, so the timing half of the test is inconclusive there.
+        Assume.That(full, Is.GreaterThan(TimeSpan.FromMilliseconds(100)), $"a full render took only {full.TotalMilliseconds:F0}ms");
 
         var outputs = NewOutputs();
         using var cancellation = new CancellationTokenSource();
@@ -103,9 +109,23 @@ public sealed class OutputCancellationTests
         elapsed.Stop();
         canceller.Join();
 
-        Assert.That(elapsed.Elapsed, Is.LessThan(full.Elapsed + TimeSpan.FromSeconds(1)),
-            $"cancelled after {elapsed.Elapsed.TotalMilliseconds:F0}ms; a full render takes {full.Elapsed.TotalMilliseconds:F0}ms");
+        // A path that dropped the token would still throw at a later check, but only after a full render.
+        Assert.That(elapsed.Elapsed, Is.LessThan(full / 2),
+            $"cancelled after {elapsed.Elapsed.TotalMilliseconds:F0}ms; a full render takes {full.TotalMilliseconds:F0}ms");
         AssertNothingWritten(outputs);
+    }
+
+    [TestCase(OutputPath.File)]
+    [TestCase(OutputPath.FileAsync)]
+    public void FailedMoveIntoPlaceLeavesNoTemporaryFile(OutputPath path)
+    {
+        // The destination is a directory, so the final move fails after the temporary file is complete.
+        var destination = Directory.CreateDirectory(Path.Combine(directory, "report.pdf")).FullName;
+        var outputs = new Outputs(directory);
+        Assert.That(async () => await Run(Pdf.Write(), path, "<p>A</p>", outputs, CancellationToken.None),
+            Throws.InstanceOf<IOException>().Or.InstanceOf<UnauthorizedAccessException>());
+        Assert.That(Directory.GetFiles(directory), Is.Empty, "temporary files");
+        Assert.That(Directory.GetFileSystemEntries(destination), Is.Empty);
     }
 
     [Test]
