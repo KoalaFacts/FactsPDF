@@ -141,7 +141,7 @@ public sealed class OverflowWrapTests
     }
 
     [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
-    [TestCase("<div style='overflow-wrap:break-word'><p>A</p></div>", "FPDF1201")]
+    [TestCase("<ul style='overflow-wrap:break-word'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<p style='overflow-wrap:anywhere'>A</p>", "FPDF1202")]
     [TestCase("<p style='overflow-wrap:break-all'>A</p>", "FPDF1202")]
     [TestCase("<style>#absent{overflow-wrap:anywhere}</style><p>A</p>", "FPDF1202")]

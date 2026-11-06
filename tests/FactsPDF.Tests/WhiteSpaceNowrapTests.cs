@@ -99,7 +99,7 @@ public sealed class WhiteSpaceNowrapTests
     }
 
     [TestCase("<span style='white-space:nowrap'>A</span>", "FPDF1201")]
-    [TestCase("<div style='white-space:nowrap'><p>A</p></div>", "FPDF1201")]
+    [TestCase("<ol style='white-space:nowrap'><li>A</li></ol>", "FPDF1201")]
     [TestCase("<style>span{white-space:nowrap}</style><p><span>A</span></p>", "FPDF1201")]
     [TestCase("<p style='white-space:pre nowrap'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:pre-wrap nowrap'>A</p>", "FPDF1202")]
