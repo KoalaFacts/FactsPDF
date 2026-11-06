@@ -378,8 +378,9 @@ path that does not exist; CI runs it with its tests.
 `pull_request` has no top-level `concurrency` group keyed on `github.ref` with
 an explicit `cancel-in-progress`. Every such workflow except `publish-nuget.yml`
 sets it to `true`, so a new push to a pull request cancels the runs it
-supersedes instead of queueing behind them; the five evidence workflows key
-pushes to `main` on the run id, so every `main` commit still gets its own run.
+supersedes instead of queueing behind them. The five evidence workflows key
+every other run (pushes to `main`, manual dispatches) on the run id, so none of
+those is cancelled.
 CI runs the check with its tests.
 
 Current guides:
