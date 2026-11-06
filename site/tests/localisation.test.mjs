@@ -243,7 +243,8 @@ test('LTR logical spacing has complete English audit text', async () => {
     assert.match(row.scope,/PDF/);
     assert.match(row.scope,new RegExp(name+'-start'));
     assert.match(row.scope,new RegExp(name+'-end'));
-    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.limitations, name==='margin-block'
+      ? /FPDF1201\/1202\/1302/ : /FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
