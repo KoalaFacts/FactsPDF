@@ -85,6 +85,24 @@ public sealed class ParagraphPercentageVerticalMarginTests
     }
 
     [Test]
+    public void EmptyUnpaintedParagraphRetainsItsPercentageTopSpacingInActualPdf()
+    {
+        const string percent = "<p style='margin-top:10%;margin-bottom:5%'></p>" +
+            "<p style='margin:0'>AFTER SPACER</p>";
+        const string points = "<p style='margin-top:26pt;margin-bottom:13pt'></p>" +
+            "<p style='margin:0'>AFTER SPACER</p>";
+        const string noSpacer = "<p style='margin:0'>AFTER SPACER</p>";
+
+        var plainBaseline = Layout(noSpacer).Single().Runs.Single().Baseline;
+        var spacedBaseline = Layout(percent).Single().Runs.Single().Baseline;
+        Assert.That(plainBaseline - spacedBaseline, Is.EqualTo(26).Within(0.000001),
+            "A blank percentage spacer must not discard the larger top margin.");
+        Assert.That(Render(percent), Is.EqualTo(Render(points)),
+            "Percentage margin geometry must match the independently specified point oracle.");
+        Assert.That(Render(percent), Is.Not.EqualTo(Render(noSpacer)));
+    }
+
+    [Test]
     public void UnsupportedAndOverPagePercentagesKeepOriginalPdfBytes()
     {
         RejectPreservingOutput("<ul><li><p style='margin-top:10%'>NO</p></li></ul>", "FPDF1201");

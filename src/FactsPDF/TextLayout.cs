@@ -783,7 +783,13 @@ internal static class TextLayout
                     pendingClosedPadding += before;
                     after = paragraph.Style.MarginAfter;
                 }
-                else after = Math.Max(after, paragraph.Style.MarginAfter);
+                else
+                {
+                    // A blank, unpainted paragraph still contributes its outside top margin.
+                    // Keep the largest deferred gap: otherwise a percentage spacer loses
+                    // margin-top while a following text paragraph consumes only margin-bottom.
+                    after = Math.Max(Math.Max(after, marginBefore), paragraph.Style.MarginAfter);
+                }
                 breakNext |= paragraph.Style.BreakAfter;
                 continue;
             }
