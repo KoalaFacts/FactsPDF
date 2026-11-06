@@ -1008,7 +1008,7 @@ inside/position/images/counters, HTML `type`, negative ordinals or
 list-item `value` on `ul`; invalid inputs fail without overwriting
 a destination. See the
 [77-entry pagination example](../examples/report-list-continuations.html)
-and [exact list contract](lists.md#current-source-ordered-list-sequencing-and-one-token-shorthand).
+and [exact list contract](lists.md#current-source-ordered-list-sequencing-and-bounded-shorthand).
 This is current source, **not** a new retained binary, public NuGet or
 customer distribution grant.
 

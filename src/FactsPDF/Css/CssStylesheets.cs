@@ -326,10 +326,8 @@ internal sealed class CssStylesheets
                 _ = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     allowRem: true, allowEm: true);
             }
-            // Paragraph/heading percentage margins are resolved in BlockLayout
-            // against the element's containing block content width. Table
-            // cells and list marker flow still have separate geometry, so
-            // reject unsupported percentages even on losing declarations.
+            // Vertical percentages on ordinary paragraphs use containing-block content width.
+            // List and table flows have distinct geometry; reject even losing candidates.
             if (paragraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith('%') &&
                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
@@ -370,7 +368,11 @@ internal sealed class CssStylesheets
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
+        // defaults is either the shared parent style or a private copy the reader already made for
+        // this element's tag defaults. Text declarations are applied to one private copy, made on
+        // the first one if the reader did not make it; shared styles are never assigned (see TextStyle).
         var style = defaults;
+        var styleOwned = !ReferenceEquals(defaults, parent);
         // Bounded report defaults. A quote is a real inset block rather
         // than an ignored tag; author CSS overrides each side normally.
         // CSS-wide initial resets to the zero-margin ordinary box initial.
@@ -500,7 +502,8 @@ internal sealed class CssStylesheets
                         ? parent with { BreakBefore = parentBox.BreakBefore,
                             BreakAfter = parentBox.BreakAfter }
                         : parent;
-                style = CssDeclarations.Apply(style, inheritedParent, initial, declaration,
+                if (!styleOwned) { style = style with { }; styleOwned = true; }
+                CssDeclarations.Apply(style, inheritedParent, initial, declaration,
                     paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
                         or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
