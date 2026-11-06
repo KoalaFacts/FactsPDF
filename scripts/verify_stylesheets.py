@@ -934,7 +934,7 @@ def main():
         run(exe, fixed_paragraph, fixed_pdf)
         if percent_pdf.read_bytes() != fixed_pdf.read_bytes():
             raise AssertionError('Native percentage paragraph margin differs from the point oracle')
-        if 'MEASURED PARAGRAPH' not in run('pdftotext', '-layout', percent_pdf, '-'):
+        if 'MEASURED PARAGRAPH' not in run('pdftotext', '-layout', percent_pdf, '-').decode('utf-8'):
             raise AssertionError('Native percentage paragraph margin lost searchable text')
         bad, destination = temp / 'bad.html', temp / 'previous.pdf'
         for html, code in (
