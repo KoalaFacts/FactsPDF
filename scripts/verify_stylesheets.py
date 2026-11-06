@@ -919,10 +919,27 @@ def main():
                     right, bottom = float(word.attrib['xMax']), float(word.attrib['yMax'])
                     if not (0 <= left < right <= width and 0 <= top < bottom <= height):
                         raise AssertionError(('Percentage-margin PDF word outside page', page, word.text))
+        # Native AOT positive witness: the same HTML must paint and paginate
+        # identically to an independently specified point-length oracle.
+        percent_paragraph = temp / 'percent-paragraph.html'
+        fixed_paragraph = temp / 'point-paragraph.html'
+        percent_paragraph.write_text(
+            "<section style='width:180pt'><p style='margin:10% 0 5%;background:#ddeeff'>"
+            "MEASURED PARAGRAPH</p></section>", encoding='utf-8')
+        fixed_paragraph.write_text(
+            "<section style='width:180pt'><p style='margin:18pt 0 9pt;background:#ddeeff'>"
+            "MEASURED PARAGRAPH</p></section>", encoding='utf-8')
+        percent_pdf, fixed_pdf = temp / 'percent-paragraph.pdf', temp / 'point-paragraph.pdf'
+        run(exe, percent_paragraph, percent_pdf)
+        run(exe, fixed_paragraph, fixed_pdf)
+        if percent_pdf.read_bytes() != fixed_pdf.read_bytes():
+            raise AssertionError('Native percentage paragraph margin differs from the point oracle')
+        if 'MEASURED PARAGRAPH' not in run('pdftotext', '-layout', percent_pdf, '-'):
+            raise AssertionError('Native percentage paragraph margin lost searchable text')
         bad, destination = temp / 'bad.html', temp / 'previous.pdf'
         for html, code in (
-            ("<p style='margin-top:10%'>Not a panel</p>", b'FPDF1202'),
-            ("<section style='margin-top:10%'><p style='margin-top:inherit'>A</p></section>", b'FPDF1201'),
+            ("<p style='margin-top:-10%'>Negative percentage</p>", b'FPDF1202'),
+            ("<ul><li><p style='margin-top:10%'>List context</p></li></ul>", b'FPDF1201'),
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
             ("<article style='margin-bottom:-1%'>A</article>", b'FPDF1202'),
             ("<section style='margin-top:10001%'>A</section>", b'FPDF1202'),
