@@ -49,6 +49,16 @@ public sealed partial class DocumentationSnippetTests
         Assert.That(errors, Is.Empty, $"```csharp block at {source}:{line} no longer compiles");
     }
 
+    [TestCase("```csharp", true)]
+    [TestCase("  ```cs", true)]
+    [TestCase("```C#", true)]
+    [TestCase("~~~csharp", true)]
+    [TestCase("~~~ cs", true)]
+    [TestCase("```c", false)]
+    [TestCase("```css", false)]
+    public void CSharpFenceSpellingsAreRecognised(string line, bool isCSharp) =>
+        Assert.That(CSharpFence().IsMatch(line), Is.EqualTo(isCSharp));
+
     [Test]
     public void SnippetUsingARemovedMemberFailsToCompile()
     {
@@ -180,7 +190,7 @@ public sealed partial class DocumentationSnippetTests
             .ToList();
     }
 
-    [GeneratedRegex(@"^\s*```\s*(csharp|cs|c#)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*(```|~~~)\s*(csharp|c#|cs)(?!\w)", RegexOptions.IgnoreCase)]
     private static partial Regex CSharpFence();
 
     [GeneratedRegex(@"^using\s+(static\s+)?[\w.]+(\s*=\s*[\w.<>]+)?;\s*$")]
