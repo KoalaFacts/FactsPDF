@@ -221,6 +221,7 @@ internal static class HtmlDocumentReader
             var parentBox = stack[^1].BoxStyle;
             var boxStyle = BoxStyle.Initial;
             var style = parent with { MarginBefore = 0, MarginAfter = ParagraphTag(name) ? 8 : 0,
+                PercentMarginBefore = null, PercentMarginAfter = null,
                 BreakBefore = false, BreakAfter = false, KeepWithNext = false };
             if (name is "b" or "strong" or "th") style = style with { Bold = true };
             if (name is "i" or "em") style = style with { Italic = true };

@@ -23,7 +23,9 @@ internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, 
     bool BreakWords = false, bool PreserveLineBreaks = false, bool PreserveSpaces = false,
     Rgb? DecorationColor = null, TextDecorationPattern DecorationPattern = TextDecorationPattern.Solid,
     bool BreakAll = false, string? LinkUri = null, double? DecorationThickness = null,
-    double? UnderlineOffset = null, TextAlignment? LastLineAlignment = null);
+    double? UnderlineOffset = null, TextAlignment? LastLineAlignment = null,
+    // Percentage outside margins retain their CSS unit until the containing width is known.
+    CssLength? PercentMarginBefore = null, CssLength? PercentMarginAfter = null);
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);

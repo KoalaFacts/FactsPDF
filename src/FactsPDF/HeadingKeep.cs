@@ -65,7 +65,8 @@ internal static class HeadingKeep
             {
                 cancellation.ThrowIfCancellationRequested();
                 var node = (BlockNode)group.Children[i];
-                var paragraph = ((ParagraphNode)node.Children[0]).Paragraph;
+                var paragraph = BlockLayout.ResolveParagraphMargins(
+                    ((ParagraphNode)node.Children[0]).Paragraph, group.ContentWidth, options);
                 var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle, group.ContentWidth, node.SourceOffset);
                 var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset, group.ContentWidth);
                 var before = paragraph.Style.MarginBefore;

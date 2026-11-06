@@ -93,8 +93,18 @@ internal static class CssDeclarations
                 var margin = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true).Value;
                 return property == CssProperty.MarginTop
-                    ? style with { MarginBefore = margin }
-                    : style with { MarginAfter = margin };
+                    ? style with { MarginBefore = margin, PercentMarginBefore = null }
+                    : style with { MarginAfter = margin, PercentMarginAfter = null };
+            }
+            if (property is CssProperty.MarginTop or CssProperty.MarginBottom
+                && declaration.Value.EndsWith('%'))
+            {
+                // Vertical percentages, including shorthand/logical lowering,
+                // resolve against the containing block width, not its height.
+                var length = CssBoxValues.Length(declaration.Value, declaration.Offset);
+                return property == CssProperty.MarginTop
+                    ? style with { MarginBefore = 0, PercentMarginBefore = length }
+                    : style with { MarginAfter = 0, PercentMarginAfter = length };
             }
             if (property == CssProperty.TextDecorationThickness)
             {
@@ -150,8 +160,8 @@ internal static class CssDeclarations
             CssProperty.LetterSpacing => style with { LetterSpacing = source.LetterSpacing },
             CssProperty.WordSpacing => style with { WordSpacing = source.WordSpacing },
             CssProperty.TextTransform => style with { Transform = source.Transform },
-            CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore },
-            CssProperty.MarginBottom => style with { MarginAfter = source.MarginAfter },
+            CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore, PercentMarginBefore = source.PercentMarginBefore },
+            CssProperty.MarginBottom => style with { MarginAfter = source.MarginAfter, PercentMarginAfter = source.PercentMarginAfter },
             CssProperty.BreakBefore => style with { BreakBefore = source.BreakBefore },
             CssProperty.BreakAfter => style with { BreakAfter = source.BreakAfter, KeepWithNext = source.KeepWithNext },
             _ => throw new InvalidOperationException("Unrecognized CSS property.")

@@ -27,7 +27,8 @@ internal static class BlockLayout
 {
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
         double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
-        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false);
+        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false,
+        double? ParagraphMarginBasis = null);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
         CancellationToken cancellation, ListLayout? lists = null)
@@ -65,7 +66,9 @@ internal static class BlockLayout
                     break;
                 }
                 case ParagraphNode paragraph:
-                    yield return new LayoutParagraph(paragraph.Paragraph, frame.X, frame.ContentWidth,
+                    yield return new LayoutParagraph(
+                        ResolveParagraphMargins(paragraph.Paragraph, frame.ParagraphMarginBasis ?? frame.ContentWidth, options),
+                        frame.X, frame.ContentWidth,
                         lists?.Marker(paragraph.Paragraph), frame.MarkerRightX);
                     break;
                 case BlockNode node:
@@ -112,6 +115,8 @@ internal static class BlockLayout
                             paragraph.Children[0] is ParagraphNode content &&
                             content.Paragraph.Runs.Count == 0 &&
                             paragraph.Style.MarginBefore == 0 && paragraph.Style.MarginAfter == 0 &&
+                            paragraph.Style.PercentMarginBefore is null &&
+                            paragraph.Style.PercentMarginAfter is null &&
                             !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
                             !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
                             !paragraph.BoxStyle.HasLayoutPaint &&
@@ -198,13 +203,41 @@ internal static class BlockLayout
                         indivisibleClosingMargin);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
-                         MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot));
+                         MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
+                        ParagraphMarginBasis: node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                            ? containing : null));
                     break;
                 }
                 default:
                     throw new InvalidOperationException("Unexpected block layout child.");
             }
         }
+    }
+
+    // Resolve only when the actual containing width is known; never turn 10% into 10pt.
+    // Keep/heading preflight uses the same conversion as ordinary paragraph placement.
+    internal static Paragraph ResolveParagraphMargins(Paragraph paragraph, double containingWidth, PdfOptions options)
+    {
+        var style = paragraph.Style;
+        if (style.PercentMarginBefore is null && style.PercentMarginAfter is null)
+            return paragraph;
+        var before = Checked(style.PercentMarginBefore?.Resolve(containingWidth) ?? style.MarginBefore,
+            paragraph.SourceOffset);
+        var after = Checked(style.PercentMarginAfter?.Resolve(containingWidth) ?? style.MarginAfter,
+            paragraph.SourceOffset);
+        var usableHeight = options.PageHeight - 2 * options.Margin;
+        if (before > usableHeight + 0.000001 || after > usableHeight + 0.000001)
+            throw new FactsPdfException("FPDF1302",
+                "Percentage paragraph outside margin cannot fit on a usable PDF page.",
+                paragraph.SourceOffset);
+        return paragraph with
+        {
+            Style = style with
+            {
+                MarginBefore = before, MarginAfter = after,
+                PercentMarginBefore = null, PercentMarginAfter = null
+            }
+        };
     }
 
     // Iterative, bounded, and using the same containing widths as Steps.
@@ -235,7 +268,8 @@ internal static class BlockLayout
                     child.Children.Count != 1 ||
                     child.Children[0] is not ParagraphNode content ||
                     content.Paragraph.Runs.Count != 0 ||
-                    child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0)
+                    child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0 ||
+                    child.Style.PercentMarginBefore is not null || child.Style.PercentMarginAfter is not null)
                     return false;
             }
             else if (child.Name is "div" or "section" or "article" or "blockquote")
