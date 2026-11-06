@@ -26,6 +26,6 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | R2 | SDK usability: complete XML docs, README/examples compile, every FPDF code has a clear message with location | Ease of use | todo | |
 | R3 | Fixed-seed fuzzing extended to stylesheets and page furniture | Untrusted input must never crash | todo | |
 | R4 | Packaging: `dotnet pack` output checked; first-use example built from the packed package | What users install must work | todo | |
-| C1 | Every pull-request workflow cancels runs superseded by a newer push; `scripts/check-workflows.ts` keeps it so | Five workflows queued stale runs behind the current head; CI capacity is the merge bottleneck | in progress (ci/workflow-concurrency) | 5 `check-workflows.test.ts` cases; before: 5 workflows reported, after: 12 workflows pass |
+| C1 | Pull-request workflows cancel runs superseded by a newer push (`publish-nuget.yml` excepted); `scripts/check-workflows.ts` requires an explicit decision | Five workflows queued stale runs behind the current head; CI capacity is the merge bottleneck | in progress (ci/workflow-concurrency) | 5 `check-workflows.test.ts` cases; before: 5 workflows reported, after: 12 workflows pass |
 
 Each PR body carries its dated run log.

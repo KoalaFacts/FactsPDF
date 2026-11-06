@@ -3,8 +3,8 @@ on:
   pull_request:
   workflow_dispatch:
 concurrency:
-  group: factspdf-css-visual-differential-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: factspdf-css-visual-differential-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

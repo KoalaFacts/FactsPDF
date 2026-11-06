@@ -5,8 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 concurrency:
-  group: factspdf-box-layout-resources-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: factspdf-box-layout-resources-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

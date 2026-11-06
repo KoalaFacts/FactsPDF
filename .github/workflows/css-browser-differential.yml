@@ -11,8 +11,8 @@ on:
       - '.github/workflows/css-browser-differential.yml'
   workflow_dispatch:
 concurrency:
-  group: factspdf-css-browser-differential-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: factspdf-css-browser-differential-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
