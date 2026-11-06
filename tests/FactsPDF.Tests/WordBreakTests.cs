@@ -103,7 +103,7 @@ public sealed class WordBreakTests
     }
 
     [TestCase("<span style='word-break:break-all'>A</span>", "FPDF1201")]
-    [TestCase("<div style='word-break:break-all'><p>A</p></div>", "FPDF1201")]
+    [TestCase("<ul style='word-break:break-all'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<p style='word-break:keep-all'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-break:break-word'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-break:normal break-all'>A</p>", "FPDF1202")]

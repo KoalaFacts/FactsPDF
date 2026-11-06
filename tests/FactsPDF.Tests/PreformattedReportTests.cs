@@ -141,7 +141,7 @@ public sealed class PreformattedReportTests
     [TestCase("<pre style='white-space:pre-wrap nowrap'>AB</pre>", "FPDF1202")]
     [TestCase("<pre style='white-space:break-spaces'>AB</pre>", "FPDF1202")]
     [TestCase("<pre><span style='white-space:pre'>AB</span></pre>", "FPDF1201")]
-    [TestCase("<div style='white-space:pre'><pre>AB</pre></div>", "FPDF1201")]
+    [TestCase("<ul style='white-space:pre'><li>AB</li></ul>", "FPDF1201")]
     [TestCase("<ul><li><pre>AB</pre></li></ul>", "FPDF1101")]
     [TestCase("<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><pre>AB</pre></td></tr></tbody></table>", "FPDF1101")]
     [TestCase("<pre><p>AB</p></pre>", "FPDF1101")]

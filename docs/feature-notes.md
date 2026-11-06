@@ -490,7 +490,7 @@ This source feature does not update retained private installable software.
 
 ### First-line `text-indent` (source-only)
 
-For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans, containers and table-cell paragraphs cannot set it; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
+For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans and table-cell paragraphs cannot declare it directly. Document roots and ordinary report containers may now declare it for inheritance, including into flat fixed-column cell paragraphs; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
 
 ### Bounded `letter-spacing` (source-only)
 
@@ -547,6 +547,37 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ## White space and line wrapping
 
+### Inherited report text flow (source-only)
+
+The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all`
+and nonnegative `text-indent` values can now be declared on `html`, `body`
+or ordinary report `div`/`section`/`article`/`blockquote` containers.
+Their computed values inherit into descendant paragraphs and headings and
+control actual PDF word wrapping, first-line X coordinates and pagination.
+An inherited `text-indent` also positions a flat paragraph inside a fixed-column
+table cell, including left/centre/right alignment; it does not permit a
+direct `text-indent` declaration on the table or its cell paragraph.
+Inline elements, list/table structural declarations, unsupported values and
+complex text shaping remain outside scope. See the
+[bounded inherited CSS contract](css-stylesheets.md#current-source-inherited-report-text-flow).
+
+### Inherited report white-space from document and panels (source-only)
+
+A supported `white-space:normal|nowrap|pre-line|pre-wrap|pre` declaration on
+`html`, `body`, `div`, `section`, `article` or `blockquote` now passes its
+computed text-whitespace mode to nested report paragraphs and headings.
+For example, `section.invoice-notes { white-space:pre-line }` preserves authored
+newlines in descendant `p` text without restyling each paragraph. The
+renderer uses the same measured line breaking, glyph placement, page
+fragmentation and failure modes as an explicit declaration on each child.
+A child's winning declaration or `initial` overrides the inherited mode;
+`inherit` and `unset` on the container follow CSS text inheritance.
+The [PDF equivalence and multi-page NUnit checks](../tests/FactsPDF.Tests/InheritedWhiteSpaceReportTests.cs)
+compare inherited and explicitly styled reports and protect prior output
+on invalid CSS. Inline `span`, table structural elements, list containers
+and unsupported text modes still cannot declare this property. This is a
+bounded inheritance extension, not arbitrary CSS Text support.
+
 ### Current-source multiline report notes
 
 For controlled invoices, inspections and customer notes, explicit paragraphs and
@@ -555,7 +586,7 @@ LF, CRLF, CR and form-feed while continuing to collapse ordinary spaces/tabs.
 Lines still soft-wrap to the measured PDF content width and continue across pages;
 the final source segment break is discarded. An explicit `<br>` remains a break.
 Scoped stylesheet/inline CSS, cascade and explicit p-in-table-cell width work,
-but container/span declarations, `break-spaces`, RTL/shaping and
+but inline/span and table-structural declarations, `break-spaces`, RTL/shaping and
 unrestricted CSS Text do not. For unwrapped source lines, use the separate
 bounded `<pre>` or `white-space:pre` report mode. Use the separate bounded `pre-wrap` mode when
 an authored report must retain visible U+0020 space advances.
