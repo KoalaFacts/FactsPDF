@@ -453,23 +453,23 @@ public sealed class PdfLimitsSetup
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxTotalFontBytes(int value) => Set(value, o => o with { MaxTotalFontBytes = value });
 
-    /// <summary>Maximum number of bound images. Default 16.</summary>
+    /// <summary>Maximum number of bound images (FPDF1603). Default 16.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxImageResources(int value) => Set(value, o => o with { MaxImageResources = value });
 
-    /// <summary>Maximum combined encoded size of all bound images in bytes. Default 32 MiB.</summary>
+    /// <summary>Maximum combined encoded size of all bound images in bytes (FPDF1603). Default 32 MiB.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxTotalImageBytes(int value) => Set(value, o => o with { MaxTotalImageBytes = value });
 
-    /// <summary>Maximum UTF-16 units of CSS in style elements and attributes. Default 262,144.</summary>
+    /// <summary>Maximum UTF-16 units of CSS in style elements and attributes (FPDF1205). Default 262,144.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssCharacters(int value) => Set(value, o => o with { MaxCssCharacters = value });
 
-    /// <summary>Maximum number of CSS selectors. Default 4,096.</summary>
+    /// <summary>Maximum number of CSS selectors (FPDF1205). Default 4,096.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSelectors(int value) => Set(value, o => o with { MaxCssSelectors = value });
 
-    /// <summary>Maximum number of CSS declarations. Default 32,768.</summary>
+    /// <summary>Maximum number of CSS declarations (FPDF1205). Default 32,768.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssDeclarations(int value) => Set(value, o => o with { MaxCssDeclarations = value });
 
@@ -477,11 +477,11 @@ public sealed class PdfLimitsSetup
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssMatchOperations(int value) => Set(value, o => o with { MaxCssMatchOperations = value });
 
-    /// <summary>Maximum number of CSS syntax nodes. Default 131,072.</summary>
+    /// <summary>Maximum number of CSS syntax nodes (FPDF1205). Default 131,072.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSyntaxNodes(int value) => Set(value, o => o with { MaxCssSyntaxNodes = value });
 
-    /// <summary>Maximum nesting depth of CSS blocks and functions. Default 64.</summary>
+    /// <summary>Maximum nesting depth of CSS blocks and functions (FPDF1205). Default 64.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSyntaxDepth(int value) => Set(value, o => o with { MaxCssSyntaxDepth = value });
 
