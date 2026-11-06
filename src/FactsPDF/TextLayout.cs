@@ -853,8 +853,13 @@ internal static class TextLayout
                         ? x - 0.5 * marker.Style.FontSize : item.MarkerRightX;
                     if (marker.Text is not null)
                     {
-                        var markerParagraph = new Paragraph(marker.Style, marker.SourceOffset);
-                        markerParagraph.Runs.Add(new(marker.Text, marker.Style, SourceOffset: marker.SourceOffset));
+                        // Generated ordinal labels have their own measured marker-width
+                        // box. An inherited paragraph indent belongs to item text, not
+                        // to the synthetic "1." glyphs: otherwise the label can fail to
+                        // fit its exactly measured width and reject a valid report.
+                        var markerStyle = marker.Style with { FirstLineIndent = default };
+                        var markerParagraph = new Paragraph(markerStyle, marker.SourceOffset);
+                        markerParagraph.Runs.Add(new(marker.Text, markerStyle, SourceOffset: marker.SourceOffset));
                         using var markerLines = Wrap(markerParagraph, marker.Width, o, resolved, cancellation).GetEnumerator();
                         if (!markerLines.MoveNext()) throw new InvalidOperationException("Missing decimal marker line.");
                         PlaceLine(markerLines.Current, markerRightX - marker.Width, baseline, marker.SourceOffset);

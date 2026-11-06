@@ -173,3 +173,14 @@ test('bounded report word-break appears in English with real PDF limits',async({
   await expect(detail).toContainText('FPDF1301/1302');
   expect(await detail.innerText()).not.toMatch(han);
 });
+
+test('new attribute-selector operators are discoverable in English with explicit limits', async ({page}) => {
+  await page.goto(base+'#feature=selector.attribute');
+  const dialog=page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('[attr^=value]');
+  await expect(dialog).toContainText('ASCII');
+  await expect(dialog).toContainText('FPDF1203');
+  for (const selector of ['.detail-scope','.limitation','.evidence'])
+    expect(await dialog.locator(selector).innerText()).not.toMatch(han);
+});

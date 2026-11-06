@@ -199,12 +199,17 @@ internal static class TableLayout
                         {
                             cancellation.ThrowIfCancellationRequested();
                             CheckHeight(height + line.Height + cellEdges.Bottom, offset);
-                            var alignedX = x + cellEdges.Left + ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
-                            {
-                                TextAlignment.Center => (contentWidth - line.Width) / 2,
-                                TextAlignment.Right => contentWidth - line.Width,
-                                _ => 0
-                            });
+                            // Match ordinary paragraph placement: the first logical line
+                            // consumes the inset before alignment, including inherited
+                            // text-indent from a report container outside the table.
+                            var lineWidth = contentWidth - line.FirstLineIndent;
+                            var alignedX = x + cellEdges.Left + line.FirstLineIndent +
+                                ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
+                                {
+                                    TextAlignment.Center => (lineWidth - line.Width) / 2,
+                                    TextAlignment.Right => lineWidth - line.Width,
+                                    _ => 0
+                                });
                             var lineStart = runs.Count;
                             AppendLine(line, alignedX, -top - height - line.Ascent,
                                 runs, charge, cancellation, offset);

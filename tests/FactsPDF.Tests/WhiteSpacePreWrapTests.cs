@@ -131,7 +131,7 @@ public sealed class WhiteSpacePreWrapTests
     [TestCase("<p style='white-space:pre pre-wrap'>AB</p>", "FPDF1202")]
     [TestCase("<p style='white-space:break-spaces'>AB</p>", "FPDF1202")]
     [TestCase("<span style='white-space:pre-wrap'>AB</span>", "FPDF1201")]
-    [TestCase("<div style='white-space:pre-wrap'><p>AB</p></div>", "FPDF1201")]
+    [TestCase("<ol style='white-space:pre-wrap'><li>AB</li></ol>", "FPDF1201")]
     [TestCase("<style>.unused{white-space:pre-wrap anywhere}</style><p>AB</p>", "FPDF1202")]
     public void UnsupportedInputsRejectAndPreservePreviousPdf(string html, string code)
         => Reject(html, code);
