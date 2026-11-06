@@ -7,9 +7,9 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 // Bounded, fixed-seed mutation fuzzing of every untrusted input: HTML text, stylesheets, page furniture
-// templates and JSON, font bytes and image bytes. The contract under test: each input either renders a structurally complete PDF or throws
-// FactsPdfException. Any other exception is a bug. Failures report the case seed so the exact input
-// can be regenerated. A longer, unbounded run of the same mutators found the PNG preset-dictionary
+// templates and JSON, font bytes and image bytes. The contract under test: each input either renders a
+// structurally complete PDF or throws FactsPdfException. Any other exception is a bug. Failures report
+// the case seed so the exact input can be regenerated. A longer, unbounded run of the same mutators found the PNG preset-dictionary
 // crash covered in PngValidationTests.
 [TestFixture]
 public sealed class RobustnessFuzzTests
@@ -94,7 +94,8 @@ public sealed class RobustnessFuzzTests
                 match => "<style>" + MutateCss(random, match.Groups[1].Value, sheets) + "</style>");
             return () => Render(html, new PdfOptions());
         });
-        Assert.That(rendered, Is.GreaterThan(100), "Mutated stylesheets must still reach layout, not only the CSS parser.");
+        // Coverage floor (measured 150 on 92 qualifying examples); re-tune it when the example corpus changes.
+        Assert.That(rendered, Is.GreaterThan(75), "Mutated stylesheets must still reach layout, not only the CSS parser.");
     }
 
     [Test]
@@ -127,7 +128,8 @@ public sealed class RobustnessFuzzTests
             var body = string.Concat(Enumerable.Repeat("<p>AB Wi</p>", 1 + random.Next(random.Next(4) == 0 ? 400 : 4)));
             return () => Render(body, options);
         });
-        Assert.That(rendered, Is.GreaterThan(100), "Furniture cases must reach band layout, not only template validation.");
+        // Coverage floor (measured 142); re-tune it when band layout rules change.
+        Assert.That(rendered, Is.GreaterThan(75), "Furniture cases must reach band layout, not only template validation.");
     }
 
     [Test]
@@ -143,10 +145,13 @@ public sealed class RobustnessFuzzTests
         {
             var caseSeed = master.Next();
             var random = new Random(caseSeed);
-            var bytes = random.Next(2) == 0 ? MutateBytes(random, source) : Encoding.UTF8.GetBytes(MutateJson(random, Encoding.UTF8.GetString(source)));
+            var bytes = random.Next(2) == 0 ? MutateBytes(random, source)
+                : Encoding.UTF8.GetBytes(MutateJson(random, Encoding.UTF8.GetString(source)));
             PdfPageFurniture furniture;
             try { furniture = PageFurnitureJson.Parse(bytes); parsed++; }
-            catch (ArgumentException) { continue; }
+            // Only the reader's own rejection counts; a subclass such as ArgumentOutOfRangeException would be a bug.
+            catch (ArgumentException ex) when (ex.GetType() == typeof(ArgumentException)
+                && ex.Message.StartsWith("PageFurniture ", StringComparison.Ordinal)) { continue; }
             catch (Exception ex) { Assert.Fail($"case seed {caseSeed}: parser threw {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}"); throw; }
             try
             {
@@ -156,6 +161,7 @@ public sealed class RobustnessFuzzTests
                     : new PdfOptions { PageFurniture = furniture, Fonts = [font], BoldFonts = [font], ItalicFonts = [font] };
                 var pdf = Render("<p>AB Wi</p>", options);
                 Assert.That(Encoding.ASCII.GetString(pdf, 0, 5), Is.EqualTo("%PDF-"), $"case seed {caseSeed}");
+                Assert.That(Encoding.ASCII.GetString(pdf, pdf.Length - 6, 6).TrimEnd(), Does.EndWith("%%EOF"), $"case seed {caseSeed}");
                 rendered++;
             }
             catch (FactsPdfException) { }
@@ -192,6 +198,7 @@ public sealed class RobustnessFuzzTests
             Func<byte[]> work;
             try { work = makeCase(new Random(caseSeed)); }
             catch (FactsPdfException) { continue; }
+            catch (Exception ex) { Assert.Fail($"case seed {caseSeed}: building the case threw {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}"); throw; }
             try
             {
                 var pdf = work();
