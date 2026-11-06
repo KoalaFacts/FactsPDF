@@ -40,6 +40,8 @@ working in this repository.
 
 ## Other rules
 
+- Before claiming a change works, follow `.claude/skills/verification-first/SKILL.md`
+  and exercise the real behaviour with `.claude/skills/verify-factspdf/SKILL.md`.
 - Never put a person's name in any file, commit, PR or copy; refer to the
   company or "the owner".
 - Commit messages, code comments and test names are written in English.
