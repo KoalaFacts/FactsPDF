@@ -618,7 +618,7 @@ numbered work-order steps. A single marker-kind `list-style` shorthand
 uses the implemented list-style-type layout; it is not support for list
 images, CSS counters or inside/outside. The new
 [77-entry pagination report](../examples/report-list-continuations.html)
-and [contract](lists.md#current-source-ordered-list-sequencing-and-one-token-shorthand)
+and [contract](lists.md#current-source-ordered-list-sequencing-and-bounded-shorthand)
 cover actual PDF numbering, strict failure and old-output preservation.
 There is no new binary, customer evaluation grant, human PDF approval or
 package publication from this source addition.
