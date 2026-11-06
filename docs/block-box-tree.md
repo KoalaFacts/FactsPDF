@@ -54,4 +54,4 @@ The five existing Chrome box reference fixtures must continue to report **expect
 - Existing `MaxInputCharacters`, `MaxElements`, `MaxDepth`, `MaxPages` and cancellation safeguards remain. A late CSS style tag can still style an earlier paragraph.
 - New `BlockBoxTreeTests` cover structure, source order, anonymous vs explicit paragraphs, empty text, inline styles/forced breaks, optional end tags, styles, errors, limits, cancellation, existing-vs-tree layout parity and byte-for-byte ASCII PDF serialization.
 
-See [the exact-head implementation/verification ledger](block-box-tree-ledger.md), [the narrow implementation plan](superpowers/plans/2026-10-10-block-box-tree-structural.md), and [PR #11](https://github.com/KoalaFacts/FactsPDF/pull/11).
+See [the exact-head implementation/verification ledger](block-box-tree-ledger.md), and [PR #11](https://github.com/KoalaFacts/FactsPDF/pull/11).
