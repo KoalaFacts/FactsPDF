@@ -166,7 +166,7 @@ public sealed class WhiteSpacePreLineTests
     [TestCase("<p style='white-space:break-spaces'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:pre-line nowrap'>A</p>", "FPDF1202")]
     [TestCase("<style>.unused{white-space:pre space}</style><p>A</p>", "FPDF1202")]
-    [TestCase("<div style='white-space:pre-line'><p>A</p></div>", "FPDF1201")]
+    [TestCase("<ul style='white-space:pre-line'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<span style='white-space:pre-line'>A</span>", "FPDF1201")]
     [TestCase("<p style='width:15pt;white-space:pre-line'>ABCDEFGHIJKLMNOPQRSTUVWXYZ</p>", "FPDF1302")]
     [TestCase("<p style='white-space:pre-line'>AB\n中文</p>", "FPDF1301")]
