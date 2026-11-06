@@ -1,11 +1,13 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Text.RegularExpressions;
+using FactsPDF.Configuration;
 using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-// Bounded, fixed-seed mutation fuzzing of every untrusted input: HTML/CSS text, font bytes and image
-// bytes. The contract under test: each input either renders a structurally complete PDF or throws
+// Bounded, fixed-seed mutation fuzzing of every untrusted input: HTML text, stylesheets, page furniture
+// templates and JSON, font bytes and image bytes. The contract under test: each input either renders a structurally complete PDF or throws
 // FactsPdfException. Any other exception is a bug. Failures report the case seed so the exact input
 // can be regenerated. A longer, unbounded run of the same mutators found the PNG preset-dictionary
 // crash covered in PngValidationTests.
@@ -72,6 +74,95 @@ public sealed class RobustnessFuzzTests
                 + "<tbody><tr><td><img src=\"a\"></td></tr></tbody></table>",
                 new PdfOptions { Images = new Dictionary<string, PdfImage> { ["a"] = PdfImage.FromBytes(bytes) } });
         });
+        Assert.That(rendered, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void MutatedExampleStylesheetsRenderOrFailWithFactsPdfException()
+    {
+        // Each case takes an example that renders unchanged with default options, mutates the text of its style
+        // elements and leaves the markup alone, so the CSS tokenizer, parser, selector matcher and cascade see
+        // hostile CSS on real HTML. Most edits are small so that a useful share of cases still reaches layout.
+        var documents = Directory.EnumerateFiles(Path.Combine(FindRoot(), "examples"), "*.html", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal).Select(File.ReadAllText)
+            .Where(html => StyleElement.IsMatch(html) && RendersUnchanged(html)).ToArray();
+        var sheets = documents.SelectMany(html => StyleElement.Matches(html).Select(match => match.Groups[1].Value)).ToArray();
+        Assert.That(documents, Has.Length.GreaterThan(20));
+        var rendered = Run(1_500, Seed + 3, random =>
+        {
+            var html = StyleElement.Replace(documents[random.Next(documents.Length)],
+                match => "<style>" + MutateCss(random, match.Groups[1].Value, sheets) + "</style>");
+            return () => Render(html, new PdfOptions());
+        });
+        Assert.That(rendered, Is.GreaterThan(100), "Mutated stylesheets must still reach layout, not only the CSS parser.");
+    }
+
+    [Test]
+    public void FuzzedPageFurnitureTextRendersOrFailsWithFactsPdfException()
+    {
+        // Templates are untrusted text; font sizes stay inside their documented 1–144pt configuration range,
+        // where an out-of-range value is an ArgumentException by contract rather than an input failure.
+        var font = PdfFont.FromBytes(Font);
+        var rendered = Run(1_000, Seed + 4, random =>
+        {
+            var styled = random.Next(4) != 0;
+            // A quarter of the cases carry hostile template fragments; the rest are well formed so they reach band layout.
+            var hostile = random.Next(4) == 0;
+            var furniture = new PdfPageFurniture
+            {
+                Default = FuzzRegions(random, hostile),
+                FirstPage = random.Next(3) == 0 ? FuzzRegions(random, hostile) : null,
+            };
+            var options = new PdfOptions
+            {
+                PageFurniture = furniture,
+                // Small pages leave little room for the bands; 73pt keeps the default 36pt margin valid.
+                PageWidth = random.Next(4) == 0 ? 73 + random.Next(200) : 595.28,
+                PageHeight = random.Next(4) == 0 ? 73 + random.Next(200) : 841.89,
+                Margin = random.Next(4) == 0 ? random.Next(36) : 36,
+                // Without fonts the built-in ASCII fallback has no bold or italic chain, a documented failure.
+                Fonts = styled ? [font] : [], BoldFonts = styled ? [font] : [],
+                ItalicFonts = styled ? [font] : [], BoldItalicFonts = styled ? [font] : [],
+            };
+            var body = string.Concat(Enumerable.Repeat("<p>AB Wi</p>", 1 + random.Next(random.Next(4) == 0 ? 400 : 4)));
+            return () => Render(body, options);
+        });
+        Assert.That(rendered, Is.GreaterThan(100), "Furniture cases must reach band layout, not only template validation.");
+    }
+
+    [Test]
+    public void MutatedPageFurnitureJsonParsesAndRendersOrFailsByContract()
+    {
+        // The CLI's configuration reader rejects malformed JSON with ArgumentException; whatever it accepts must
+        // then render or fail with FactsPdfException.
+        var source = File.ReadAllBytes(Path.Combine(FindRoot(), "examples", "business-page-furniture.json"));
+        var font = PdfFont.FromBytes(Font);
+        int parsed = 0, rendered = 0;
+        var master = new Random(Seed + 5);
+        for (var i = 0; i < 2_000; i++)
+        {
+            var caseSeed = master.Next();
+            var random = new Random(caseSeed);
+            var bytes = random.Next(2) == 0 ? MutateBytes(random, source) : Encoding.UTF8.GetBytes(MutateJson(random, Encoding.UTF8.GetString(source)));
+            PdfPageFurniture furniture;
+            try { furniture = PageFurnitureJson.Parse(bytes); parsed++; }
+            catch (ArgumentException) { continue; }
+            catch (Exception ex) { Assert.Fail($"case seed {caseSeed}: parser threw {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}"); throw; }
+            try
+            {
+                // Half the cases use the built-in ASCII fallback, which covers the example's text; the fixture font
+                // covers only a few glyphs, so those cases mostly exercise the missing-glyph failure.
+                var options = random.Next(2) == 0 ? new PdfOptions { PageFurniture = furniture }
+                    : new PdfOptions { PageFurniture = furniture, Fonts = [font], BoldFonts = [font], ItalicFonts = [font] };
+                var pdf = Render("<p>AB Wi</p>", options);
+                Assert.That(Encoding.ASCII.GetString(pdf, 0, 5), Is.EqualTo("%PDF-"), $"case seed {caseSeed}");
+                rendered++;
+            }
+            catch (FactsPdfException) { }
+            catch (AssertionException) { throw; }
+            catch (Exception ex) { Assert.Fail($"case seed {caseSeed}: unexpected {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}"); }
+        }
+        Assert.That(parsed, Is.GreaterThan(0));
         Assert.That(rendered, Is.GreaterThan(0));
     }
 
@@ -221,6 +312,117 @@ public sealed class RobustnessFuzzTests
             html.Insert(Math.Min(at, html.Length), insert);
         }
         return html.ToString();
+    }
+
+    private static readonly Regex StyleElement =
+        new("<style[^>]*>(.*?)</style>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+    private static readonly Regex CssDeclaration = new("([a-z-]+)\\s*:\\s*([^;{}]+)");
+    private static readonly string[] CssFragments =
+        ["{", "}", ";", ":", ",", "(", ")", "[", "]", "\"", "'", "\\", "/*", "*/", "<!--", "-->", "@media print{", "@page{", "@import url(x);",
+         "@font-face{", "@supports (x){", "!important", "*", ">", "+", "~", "||", "#", ".", "::before", ":not(", ":nth-child(2n+1)",
+         ":is(", ":where(", ":hover", "[a]", "[a=b]", "[a^=\"x\"]", "[a$=x i]", "[a*=\"\"]", "[a~=b]", "[a|=en]", "[lang|=en s]",
+         "\\0", "\\110000", "\\d800 ", "\\\n", "--x:{a}", "var(--x)", "calc(1px+2%)", "1e999px", "-0", "+.5e-3em", "U+0-10FFFF",
+         "\u0000", "\uFFFD", "\uD800", "\r\n", "\f", "url(", "\"unterminated", "p", "div", "td", "table", "h1", "li", "body", "html"];
+
+    private static string MutateCss(Random random, string source, string[] corpus)
+    {
+        string Pick(string[] items) => items[random.Next(items.Length)];
+        // Half the cases keep the sheet well formed and swap one declaration's property or value, so the cascade
+        // and layout see unusual but parseable CSS; the rest edit the raw text.
+        if (random.Next(2) == 0)
+        {
+            var declarations = CssDeclaration.Matches(source);
+            if (declarations.Count == 0) return source;
+            var target = declarations[random.Next(declarations.Count)];
+            var group = target.Groups[random.Next(3) == 0 ? 1 : 2];
+            var replacement = group.Index == target.Groups[1].Index ? Pick(Properties)
+                : random.Next(3) == 0 ? $"{Pick(Values)} {Pick(Values)}" : Pick(Values);
+            return string.Concat(source.AsSpan(0, group.Index), replacement, source.AsSpan(group.Index + group.Length));
+        }
+        var css = new StringBuilder(source);
+        var edits = random.Next(8) == 0 ? 1 + random.Next(40) : 1;
+        for (var k = 0; k < edits; k++)
+        {
+            var at = random.Next(css.Length + 1);
+            switch (random.Next(8))
+            {
+                case 0: css.Insert(at, Pick(CssFragments)); break;
+                case 1: css.Insert(at, $"{Pick(Tags)}{Pick(CssFragments)}{{{Pick(Properties)}:{Pick(Values)}}}"); break;
+                case 2: css.Insert(at, $"{Pick(Properties)}:{Pick(Values)} {Pick(Values)};"); break;
+                case 3: css.Remove(Math.Min(at, css.Length), Math.Min(css.Length - Math.Min(at, css.Length), random.Next(200))); break;
+                case 4: css.Insert(at, string.Concat(Enumerable.Repeat(Pick(["{", "(", "[", ":not(", "/*", "\"", "@media x{"]), 1 + random.Next(300)))); break;
+                case 5:
+                {
+                    var other = corpus[random.Next(corpus.Length)];
+                    var from = random.Next(other.Length);
+                    css.Insert(at, other.AsSpan(from, Math.Min(other.Length - from, random.Next(600))));
+                    break;
+                }
+                case 6: css.Insert(at, (char)random.Next(0, 0x10000)); break;
+                default:
+                    if (css.Length > 0) css[Math.Min(at, css.Length - 1)] = Pick(["{", "}", ";", ":", "\"", "\\", "/", "*", " ", "-", "0", "a"])[0];
+                    break;
+            }
+        }
+        return css.ToString();
+    }
+
+    private static readonly string[] TemplateFragments =
+        ["{page}", "{pages}", "{{", "}}", "{", "}", "{x}", "{page", "pages}", "{PAGE}", "{ page }", "\uD800", "\uDC00", "\uD83D\uDE00",
+         "\u0000", "\t", "\n", "\r", "\u200B", "\u00AD", "\uFFFE", "中文", "AB Wi", " ", "%", "(", ")", "\\", "<p>", "&amp;"];
+
+    private static readonly string[] SafeTemplateFragments = ["{page}", "{pages}", "AB", "Wi", " ", "B"];
+
+    private static PdfPageFurnitureRegions FuzzRegions(Random random, bool hostile)
+    {
+        PdfPageText? Text()
+        {
+            if (random.Next(3) == 0) return null;
+            var template = new StringBuilder();
+            var parts = random.Next(8) == 0 ? random.Next(400) : random.Next(6);
+            for (var k = 0; k < parts; k++)
+                template.Append(!hostile ? SafeTemplateFragments[random.Next(SafeTemplateFragments.Length)]
+                    : random.Next(5) == 0 ? ((char)random.Next(0, 0x10000)).ToString() : TemplateFragments[random.Next(TemplateFragments.Length)]);
+            return new PdfPageText
+            {
+                Template = template.ToString(),
+                // Mostly sizes that fit the default 36pt margin; the rest probe both ends of the range.
+                FontSize = random.Next(10) switch { 0 => 1, 1 => 144, 2 => 1 + random.NextDouble() * 143, _ => 6 + random.Next(19) },
+                Color = new PdfRgbColor((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256)),
+                Bold = random.Next(4) == 0, Italic = random.Next(4) == 0,
+            };
+        }
+        return new PdfPageFurnitureRegions
+        {
+            HeaderLeft = Text(), HeaderCenter = Text(), HeaderRight = Text(),
+            FooterLeft = Text(), FooterCenter = Text(), FooterRight = Text(),
+        };
+    }
+
+    private static readonly string[] JsonFragments =
+        ["{", "}", "[", "]", ",", ":", "\"", "null", "true", "false", "0", "-0", "1e999", "144.0000001", "0.99", "NaN", "\"#GGGGGG\"",
+         "\"#fff\"", "\"\\ud800\"", "\"\\udc00\"", "\"\\u0000\"", "\"{page}\"", "\"default\"", "\"firstPage\"",
+         "\"headerLeft\"", "\"template\"", "\"fontSize\"", "\"color\"", "\"bold\"", "\"italic\"", "\"unknown\"", "/*x*/", "\uFEFF"];
+
+    private static string MutateJson(Random random, string source)
+    {
+        var json = new StringBuilder(source);
+        var edits = 1 + random.Next(6);
+        for (var k = 0; k < edits; k++)
+        {
+            var at = random.Next(json.Length + 1);
+            if (random.Next(3) == 0) json.Remove(Math.Min(at, json.Length), Math.Min(json.Length - Math.Min(at, json.Length), random.Next(40)));
+            else json.Insert(at, random.Next(10) == 0
+                ? string.Concat(Enumerable.Repeat(JsonFragments[random.Next(2) * 2], 1 + random.Next(20)))
+                : JsonFragments[random.Next(JsonFragments.Length)]);
+        }
+        return json.ToString();
+    }
+
+    private static bool RendersUnchanged(string html)
+    {
+        try { Render(html, new PdfOptions()); return true; }
+        catch (FactsPdfException) { return false; }
     }
 
     private static string FindRoot()
