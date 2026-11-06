@@ -4,6 +4,7 @@ namespace FactsPDF;
 
 internal static class InlineCss
 {
+    // Assigns into style, which must be the caller's private copy (see TextStyle), and returns it.
     public static TextStyle Apply(TextStyle style, string css, bool paragraph, bool inline, int offset)
     {
         foreach (var declaration in css.Split(';'))
@@ -23,7 +24,7 @@ internal static class InlineCss
                     // This is deliberately not intermediate CSS 100–900 matching.
                     if (value is "bolder" or "lighter")
                     {
-                        style = style with { Bold = value == "bolder" };
+                        style.Bold = value == "bolder";
                         break;
                     }
                     var weight = value switch { "normal" => 400, "bold" => 700, _ => Number(value, offset) };
@@ -33,42 +34,42 @@ internal static class InlineCss
                     // Do not synthesize intermediate font weights or infer faces.
                     if (weight is < 100 or > 900 || weight % 100 != 0)
                         throw Invalid("font-weight accepts normal/bold or numeric hundreds from 100 through 900.", offset);
-                    style = style with { Bold = weight >= 600 };
+                    style.Bold = weight >= 600;
                     break;
                 case "font-style":
-                    style = style with { Italic = value switch
+                    style.Italic = value switch
                     {
                         "normal" => false, "italic" => true,
                         _ => throw Invalid("font-style supports only normal and italic.", offset)
-                    } };
+                    };
                     break;
                 case "font-size":
                     var size = KeywordFontSize(value, style.FontSize) ?? Length(value, offset);
                     if (size is < 1 or > 144) throw Invalid("font-size must be between 1pt and 144pt.", offset);
-                    style = style with { FontSize = size };
+                    style.FontSize = size;
                     break;
                 case "color":
                     // The computed colour of currentColor is the inherited text
                     // colour, not a previous losing declaration or a PDF alpha.
                     // CSS winner selection leaves style.Color at the parent ink.
-                    style = style with { Color = value == "currentcolor" ? style.Color : Color(value, offset) };
+                    style.Color = value == "currentcolor" ? style.Color : Color(value, offset);
                     break;
                 case "text-decoration" or "text-decoration-line":
-                    style = style with { Decoration = ParseDecorationLines(value, offset) };
+                    style.Decoration = ParseDecorationLines(value, offset);
                     break;
                 case "text-decoration-color":
                     // Nullable means CSS currentColor, resolved at paint time
                     // so an inline colour can still affect the line naturally.
-                    style = style with { DecorationColor = value == "currentcolor" ? null : Color(value, offset) };
+                    style.DecorationColor = value == "currentcolor" ? null : Color(value, offset);
                     break;
                 case "text-decoration-style":
-                    style = style with { DecorationPattern = value switch
+                    style.DecorationPattern = value switch
                     {
                         "solid" => TextDecorationPattern.Solid,
                         "dashed" => TextDecorationPattern.Dashed,
                         "dotted" => TextDecorationPattern.Dotted,
                         _ => throw Invalid("Only solid, dashed and dotted decoration strokes are supported.", offset)
-                    } };
+                    };
                     break;
                 case "line-height":
                     // Unitless leading remains inherited as a multiplier. A
@@ -76,7 +77,8 @@ internal static class InlineCss
                     // on this element and inherits that absolute value.
                     if (value == "normal")
                     {
-                        style = style with { LineHeight = 1.2, AbsoluteLineHeight = null };
+                        style.LineHeight = 1.2;
+                        style.AbsoluteLineHeight = null;
                         break;
                     }
                     var relativeScale = RelativeLineHeightScale(value, offset);
@@ -94,12 +96,13 @@ internal static class InlineCss
                         // zero/tiny or unbounded line boxes.
                         if (!double.IsFinite(computed) || computed is < 0.1 or > 1440)
                             throw Invalid("Computed line-height must be between 0.1pt and 1440pt.", offset);
-                        style = style with { AbsoluteLineHeight = computed };
+                        style.AbsoluteLineHeight = computed;
                         break;
                     }
                     var factor = Number(value, offset);
                     if (factor is < 1 or > 10) throw Invalid("Unitless line-height must be from 1 to 10.", offset);
-                    style = style with { LineHeight = factor, AbsoluteLineHeight = null };
+                    style.LineHeight = factor;
+                    style.AbsoluteLineHeight = null;
                     break;
                 case "letter-spacing":
                     // A deliberately bounded fixed advance; no font metrics,
@@ -107,60 +110,57 @@ internal static class InlineCss
                     var tracking = value == "normal" ? 0 : Length(value, offset);
                     if (!double.IsFinite(tracking) || tracking is < 0 or > 24)
                         throw Invalid("letter-spacing must be from 0pt to 24pt.", offset);
-                    style = style with { LetterSpacing = tracking };
+                    style.LetterSpacing = tracking;
                     break;
                 case "word-spacing":
                     // Only collapsed U+0020 space glyphs receive a fixed extra advance.
                     var wordGap = value == "normal" ? 0 : Length(value, offset);
                     if (!double.IsFinite(wordGap) || wordGap is < 0 or > 24)
                         throw Invalid("word-spacing must be from 0pt to 24pt.", offset);
-                    style = style with { WordSpacing = wordGap };
+                    style.WordSpacing = wordGap;
                     break;
                 case "text-transform":
-                    style = style with { Transform = value switch
+                    style.Transform = value switch
                     {
                         "none" => TextTransform.None,
                         "uppercase" => TextTransform.Uppercase,
                         "lowercase" => TextTransform.Lowercase,
                         "capitalize" => TextTransform.Capitalize,
                         _ => throw Invalid("text-transform supports only none, uppercase, lowercase and capitalize for ASCII letters.", offset)
-                    } };
+                    };
                     break;
                 case "white-space" when paragraph && !inline:
                     if (value is not ("normal" or "nowrap" or "pre-line" or "pre-wrap" or "pre"))
                         throw Invalid("Only normal, nowrap, pre-line, bounded pre-wrap and no-soft-wrap pre are supported.", offset);
-                    style = style with
-                    {
-                        NoWrap = value is "nowrap" or "pre",
-                        PreserveLineBreaks = value is "pre-line" or "pre-wrap" or "pre",
-                        PreserveSpaces = value is "pre-wrap" or "pre"
-                    };
+                    style.NoWrap = value is "nowrap" or "pre";
+                    style.PreserveLineBreaks = value is "pre-line" or "pre-wrap" or "pre";
+                    style.PreserveSpaces = value is "pre-wrap" or "pre";
                     break;
                 case "overflow-wrap" when paragraph && !inline:
                     // Emergency breaking applies only to the whole report
                     // paragraph/heading, never a silently ignored inline span.
-                    style = style with { BreakWords = value switch
+                    style.BreakWords = value switch
                     {
                         "normal" => false, "break-word" => true,
                         _ => throw Invalid("overflow-wrap supports only normal and break-word.", offset)
-                    } };
+                    };
                     break;
                 case "word-break" when paragraph && !inline:
                     // Every already-supported simple glyph can end a line;
                     // unlike emergency wrapping, this consumes remaining width.
-                    style = style with { BreakAll = value switch
+                    style.BreakAll = value switch
                     {
                         "normal" => false, "break-all" => true,
                         _ => throw Invalid("word-break supports only normal and break-all.", offset)
-                    } };
+                    };
                     break;
                 case "text-indent" when paragraph && !inline:
                     // Resolve percentages against this paragraph's actual text
                     // content width at layout time, after margins/padding.
-                    style = style with { FirstLineIndent = CssBoxValues.Length(value, offset) };
+                    style.FirstLineIndent = CssBoxValues.Length(value, offset);
                     break;
                 case "text-align-last" when !inline:
-                    style = style with { LastLineAlignment = value switch
+                    style.LastLineAlignment = value switch
                     {
                         "auto" => null,
                         "left" or "start" => TextAlignment.Left,
@@ -168,20 +168,20 @@ internal static class InlineCss
                         "right" or "end" => TextAlignment.Right,
                         "justify" => TextAlignment.Justify,
                         _ => throw Invalid("text-align-last supports auto, left, center, right, LTR start/end and justify.", offset)
-                    } };
+                    };
                     break;
                 case "text-align" when !inline:
-                    style = style with { Alignment = value switch
+                    style.Alignment = value switch
                     {
                         "left" or "start" => TextAlignment.Left, "center" => TextAlignment.Center, "right" or "end" => TextAlignment.Right,
                         "justify" => TextAlignment.Justify,
                         _ => throw Invalid("Only left, center, right, LTR start/end and word-space justify alignment are supported.", offset)
-                    } };
+                    };
                     break;
-                case "margin-top" when paragraph: style = style with { MarginBefore = Margin(value, offset) }; break;
-                case "margin-bottom" when paragraph: style = style with { MarginAfter = Margin(value, offset) }; break;
-                case "break-before" when paragraph: style = style with { BreakBefore = PageBreak(value, offset) }; break;
-                case "break-after" when paragraph: style = style with { BreakAfter = value != "avoid" && PageBreak(value, offset), KeepWithNext = value == "avoid" }; break;
+                case "margin-top" when paragraph: style.MarginBefore = Margin(value, offset); break;
+                case "margin-bottom" when paragraph: style.MarginAfter = Margin(value, offset); break;
+                case "break-before" when paragraph: style.BreakBefore = PageBreak(value, offset); break;
+                case "break-after" when paragraph: style.BreakAfter = value != "avoid" && PageBreak(value, offset); style.KeepWithNext = value == "avoid"; break;
                 default: throw new FactsPdfException("FPDF1201", $"CSS property '{name}' is not supported on this element.", offset);
             }
         }
