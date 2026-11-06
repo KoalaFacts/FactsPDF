@@ -736,12 +736,29 @@ Scoped report paragraphs/headings also accept `margin:0.25rem 0.5rem`,
 `margin-top:0.5rem` and 1–4 side shorthand values. The computed `html`
 root (or the writer's base font size as fallback) drives real PDF vertical gaps,
 horizontal text/paint position, wrapping and pagination. Horizontal `auto`
-still combines with supported lengths. Negative margins, vertical `%`/`auto`,
+still combines with supported lengths. Negative margins, vertical `auto`,
 `calc()`, body/list/table/image/inline margins and table-cell `rem`/`em` margins
-remain rejected; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](css-stylesheets.md#current-source-root-relative-paragraph-margins),
+remain rejected; bounded paragraph/heading vertical `%` is described below; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](css-stylesheets.md#current-source-root-relative-paragraph-margins),
 the [32-entry report](../examples/report-rem-margins.html) and its separately
 authored [fixed-point oracle](../examples/report-rem-margins-oracle.html).
 Unfit output preserves the prior destination. This is source-only.
+
+### Paragraph and heading percentage outside margins (source candidate)
+
+Ordinary `p`, `pre` and `h1`–`h6` outside lists and tables accept
+nonnegative vertical `margin-top`/`margin-bottom` percentages via physical,
+four-side `margin` and LTR `margin-block` syntax. Values resolve from the
+**containing block's content width**, not page height, and alter real PDF
+vertical placement, painted backgrounds and borders, heading keep and
+multi-page text. `!important`, per-side cascade, CSS-wide reset and explicit
+`inherit` from a percentage-margined report panel share the same computation.
+Negative/vertical `auto`, `calc()`, list/table percentages and unplaceable
+margin geometry still reject, preserving the previous output bytes; there is
+no margin collapsing or RTL/Paged Media support. Source implementation
+`0f6c58655d651ee934cfb2c95272dde54f4c477e`; [exact contract](css-stylesheets.md#current-source-paragraph-percentage-vertical-margins)
+and `ParagraphPercentageVerticalMarginTests.cs` provide HTML-to-PDF evidence.
+Exact-head CI, genuinely independent review, main merge and any public package
+remain separate.
 
 ### Current-source logical report spacing (LTR only)
 
@@ -782,11 +799,10 @@ Controlled `div`, `section` and `article` report panels can now be
 centred using bounded horizontal `margin:0 auto`, including constrained
 `max-width`, nested decorated boxes and page fragments. Report panels also accept bounded nonnegative vertical percentage margins
 relative to their containing content width; ordinary paragraphs/headings
-retain their separate nonpercentage vertical-margin contract. The [50-entry percentage-margin report](../examples/report-percentage-panel-margins.html)
+also accept bounded vertical percentages against their containing content width outside lists/tables. The [50-entry percentage-margin report](../examples/report-percentage-panel-margins.html)
 and [independent point-length oracle](../examples/report-percentage-panel-margins-oracle.html)
 verify actual nested PDF panel spacing, text, paint and continuation pages.
-Paragraph/heading percentages and direct inheritance of a percentage panel
-margin into these text elements fail explicitly. This source change
+Paragraph/heading percentages and explicit inheritance of a percentage panel margin are now supported in a separate bounded paragraph feature. This earlier panel source change
 (`0518b51d7a34457798c748db6753c4270ce20996`) does not relabel previously retained software or authorise
 customer release. See the
 [panel-margin CSS scope](css-stylesheets.md#current-source-centred-report-panels),

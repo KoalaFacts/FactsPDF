@@ -1257,9 +1257,9 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells, or inherited from `html`/`body` and ordinary report containers (including flat fixed-column cell paragraphs): nonnegative `pt/px/mm/cm/in/%`, scoped `em` / `rem`, or zero; percentages use the final paragraph content width; only the first logical line indents (with cell alignment handled in glyph placement), later wrap/`br`/page fragments retain normal x; direct table-cell declarations still reject; unfit words fail `FPDF1302` without replacing the output |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
-| margin-top, margin-bottom | Paragraphs/headings plus ordinary div/section/article report panels; nonnegative pt/px/mm/cm/in/rem/em or zero (up to 14400pt); panels create real outside-border vertical spacing, without margin collapse; table-cell p rem/em still reject |
+| margin-top, margin-bottom | Ordinary p/pre/headings, div/section/article/blockquote report panels and standalone hr support nonnegative print/rem/em/% lengths or zero. Vertical percentage bases are containing content widths, affecting real PDF outside margins and pagination. Direct percentage margins in lists/tables, table-cell p rem/em and margin collapse remain unsupported. |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
-| margin (bounded shorthand) | Paragraphs/headings and scoped div/section/article panels; 1–4 TRBL values, vertical pt/px/mm/cm/in/rem/em/zero and horizontal pt/px/mm/cm/in/%/rem/em/zero/`auto`, including `margin:0.25rem 0.5em`; `margin:0 auto` centres an explicit-width outer box; a single CSS-wide keyword accepted |
+| margin (bounded shorthand) | Ordinary p/pre/headings and scoped div/section/article/blockquote panels; 1–4 TRBL values with nonnegative vertical print/rem/em/%/zero, horizontal print/rem/em/%/zero/`auto`. Vertical percentages use containing content width, not height. `margin:0 auto` centres explicit-width boxes; CSS-wide keywords and per-side cascade work. List/table paragraphs retain their restrictions. |
 | break-before, break-after; page-break-before/after aliases | Explicit p/pre/headings and ordinary div/section/article/blockquote report panels outside lists/tables; auto/page. Legacy aliases accept auto/always; heading-only break-after:avoid remains a bounded keep hint. Real page boundaries, not general CSS Fragmentation. [Precise print-section scope](#current-source-print-section-page-boundaries) and [heading pagination](heading-pagination.md) |
 | break-inside; page-break-inside alias | Only top-level div/section/article/blockquote cards with 1–8 direct nonempty p/pre/h1–h6 children. `auto` / `avoid`, CSS-wide keywords and `!important` share the actual PDF whole-card preflight and page move. Cannot exceed one page; nested/complex/fixed/minimum-height/inner forced-break inputs fail. [Exact scope](#current-source-keep-together-business-report-cards) |
 
@@ -1789,6 +1789,29 @@ the Linux Native AOT stylesheet verifier check PDF-byte/geometry equivalence,
 text and error recovery at the specific source commit; they are not a
 customer-authorised binary release or human PDF approval.
 
+## Current-source paragraph percentage vertical margins
+
+Ordinary `p`, `pre` and `h1`–`h6` outside lists and tables accept
+nonnegative vertical `margin-top`/`margin-bottom` percentages directly,
+through a 1–4 side `margin` shorthand or LTR `margin-block`
+(start/end). The percentage basis is the **containing block content
+width**: a 180pt-wide report panel resolves `margin-top:10%` to 18pt,
+not to a percentage of page height or the paragraph's own width.
+Explicit `inherit` from a percent-margined report panel uses the child's
+containing width; `!important`, `initial`, `unset` and per-side
+cascade retain their normal behavior. The resolved values affect actual PDF
+placement, backgrounds/borders, multi-page text, heading keep and
+bounded kept cards.
+
+Direct percentages in list/table paragraphs fail `FPDF1201`;
+negative lengths, vertical `auto` and `calc()` fail `FPDF1202`;
+unplaceable percentage outside margins fail `FPDF1302`. Previous
+PDF bytes and stream position are protected. No margin collapsing,
+RTL or general Paged Media support. Actual HTML-to-PDF and recovery
+tests: `tests/FactsPDF.Tests/ParagraphPercentageVerticalMarginTests.cs`,
+source implementation `0f6c58655d651ee934cfb2c95272dde54f4c477e`. This is candidate source,
+not proof of exact-head CI/review/main merge or a published binary.
+
 ## Current-source root-relative paragraph margins
 
 Controlled report paragraphs and headings (`p`, `h1`–`h6`) outside tables now
@@ -1812,7 +1835,8 @@ boxes and text, reduce wrap width, combine with `auto` centring and remain
 stable on continued pages. The normal cascade, `!important`, CSS-wide
 keywords, and non-inheritance apply per side. Computed margins are bounded
 to nonnegative 0–14400pt. Invalid/negative values, vertical
-`%`/`auto` and `calc()` reject with `FPDF1202`; oversized geometry
+`auto` and `calc()` reject with `FPDF1202`; scoped paragraph percentages
+are resolved by the source contract below. Oversized geometry
 rejects with `FPDF1302`. General container/inline margins and any `rem`/`em`
 margin inside table-cell paragraphs reject with `FPDF1201` even when
 another declaration could win. Existing vertical-spacing/collapse rules
