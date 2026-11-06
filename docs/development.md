@@ -364,3 +364,55 @@ Historical execution evidence is retained in the first-renderer, Unicode, subset
 Explicit font-weight/font-style selection and independent four-role chains are documented in the [font style guide](font-styles.md).
 
 Decimal/disc lists, two-level nesting, marker gutters and list pagination limits are documented in the [list guide](lists.md).
+
+### Byte parity with main
+
+`node scripts/parity.ts` (Node 24, the .NET SDK and Python 3) builds the CLI
+from `origin/main` in a temporary git worktree and from your working tree, then
+renders every `examples/*.html` with both, in three option sets:
+
+- default options;
+- DejaVu Sans with `--subset-fonts --page-numbers --header-text H --title T`
+  and `--page-size letter --landscape --margin 20mm`;
+- `--page-furniture examples/business-page-furniture.json --page-width 148mm
+  --page-height 210mm` with the fully embedded font.
+
+The last two also supply the `scripts/png_fixtures.py` images. The check fails
+when any exit code, stderr text or PDF byte differs, when a CLI run crashes, or
+when an option set renders no example at all; it writes `parity.json` to its
+work folder. Options: `--base <ref>` (default `origin/main`), `--font <path.ttf>` (default
+`/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`), `--work <dir>` (a folder
+outside the repository, default the system temp folder; each run uses a new
+subfolder of it), `--jobs` (default the CPU count, at most 8), `--dotnet` and
+`--python`.
+
+CI runs it on every pull request against the PR's base (the merge commit's
+first parent). A PR that changes output on purpose fails this job by design:
+its body lists each difference from `parity.json` and why, and the owner
+decides whether to merge it.
+
+## Document map
+
+Guides that README and the pages above do not already link. Historical pages
+record evidence for one finished milestone; only broken links in them are fixed.
+
+`node scripts/check-docs.ts` (Node 24) fails on a broken relative link or
+anchor, a doc under `docs/` that README does not reach, or a named repository
+path that does not exist; CI runs it with its tests.
+
+Current guides:
+
+- [CSS Syntax Core](css-syntax-core.md), its [compatibility scope](css-syntax-compatibility.md) and [quality gates](css-syntax-quality-gates.md): the CSS tokenizer and parser contract, for contributors.
+- [CSS visual differential](css-visual-differential.md) and [box-model visual oracles](css-box-model-visual-oracles.md): browser comparison checks run in CI.
+- [Document acceptance](acceptance/README.md), its [performance protocol](acceptance/performance-baseline.md) and [review notes](acceptance/review-notes.md): the acceptance corpus tools.
+- [Operations report sample](operations-report-sample.md): the synthetic reading sample.
+- [NuGet publishing](nuget-publishing.md): how the owner-run publish workflow works.
+- Packaged readmes, copied into private archives: [examples](private-examples-readme.md), [managed CLI](private-managed-cli-readme.md), [Native AOT CLI](private-native-cli-readme.md).
+
+Historical milestone records:
+
+- Box model: [block box tree](block-box-tree.md) ([ledger](block-box-tree-ledger.md)), [layout geometry](block-layout-geometry.md) ([ledger](block-layout-geometry-ledger.md)), [painting](block-painting.md) ([ledger](block-painting-ledger.md)), [fragmentation ledger](box-fragmentation-ledger.md), [line-box fix](css-inline-linebox-fix.md).
+- Performance milestones: [M9 guards](m9-layout-resource-guards.md) ([ledger](m9-layout-resource-ledger.md)), [M10](m10-glyph-wrapping.md), [M11](m11-line-at-a-time-wrapping.md), [M12](m12-direct-placed-text.md).
+- Self-reviews: [first renderer](review-first-renderer.md), [font subsetting](review-font-subsetting.md); [CSS Syntax ledger](css-syntax-development-ledger.md).
+- Implementation plans: [CSS stylesheets](superpowers/plans/2026-10-10-css-stylesheets.md), [CSS Syntax Core](superpowers/plans/2026-10-10-css-syntax-core.md), [font subsetting](superpowers/plans/2026-10-10-font-subsetting.md), [Unicode fonts](superpowers/plans/2026-10-10-unicode-fonts.md), [M9 layout resources](superpowers/plans/2026-10-11-m9-layout-resources.md).
+- Design records, by date: [first renderer](superpowers/specs/2026-10-10-first-renderer-design.md), [Unicode fonts](superpowers/specs/2026-10-10-unicode-fonts.md), [font subsetting](superpowers/specs/2026-10-10-font-subsetting.md), [CSS stylesheets](superpowers/specs/2026-10-10-css-stylesheets.md), [CSS Syntax Core](superpowers/specs/2026-10-10-css-syntax-core-design.md), [block box model](superpowers/specs/2026-10-10-block-box-model-design.md), [font roles](superpowers/specs/2026-10-17-explicit-bold-font-roles-design.md), [JPEG](superpowers/specs/2026-10-18-bounded-jpeg-design.md), [heading keep](superpowers/specs/2026-10-20-heading-first-paragraph-f1-design.md), [page numbers](superpowers/specs/2026-10-20-page-numbers-f2-design.md), [page headers and footers](superpowers/specs/2026-10-20-static-page-margins-f3-design.md), [combined report](superpowers/specs/2026-10-20-combined-bilingual-report-f4-design.md), [PNG](superpowers/specs/2026-10-24-png-transparency-design.md), [table image cells](superpowers/specs/2026-10-24-table-image-cells-design.md), [spanning cells](superpowers/specs/2026-10-24-rich-spanning-table-cells-design.md), [row fragmentation](superpowers/specs/2026-10-24-table-row-fragmentation-design.md), [site theme](superpowers/specs/2026-10-27-caniuse-theme-design.md).

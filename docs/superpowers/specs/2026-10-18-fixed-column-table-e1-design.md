@@ -1,7 +1,7 @@
 # E1 proposal: explicit fixed columns in a single-page table
 
 Date: 2026-10-18. Status: **approved and implemented; final verification state is recorded in [PR #33](https://github.com/KoalaFacts/FactsPDF/pull/33)**.
-Approval: user reply “先接受” at 2026-10-18 05:02:34 UTC to the explicit E1 scope and this linked proposal (message `Sentinel_ee33008619008191b911a380e3431361`, replying to `Sentinel_3e9cdec088888191be74122848231791`). See the [implementation plan](../plans/2026-10-18-fixed-column-table-e1.md).
+Approval: user reply “先接受” at 2026-10-18 05:02:34 UTC to the explicit E1 scope and this linked proposal (message `Sentinel_ee33008619008191b911a380e3431361`, replying to `Sentinel_3e9cdec088888191be74122848231791`). The implemented contract is in [tables](../../tables.md).
 Implementation baseline: merged D1 `a1a334937869c764b5248fdf729b4596676e88e1`.
 
 The [accepted release scope](2026-10-11-first-usable-release-scope-design.md) places fixed-width tables after images and before page furniture. C1/C2/D1 are merged. New targeted composition tests and two real 2/3-page documents did not reproduce an image/list/font defect. This proposal originally prepared the next existing milestone without adding table support or widening image formats. The approved E1 implementation and functional verification are now described in the [table guide](../../tables.md); the preparation discussion below is retained as the original contract.
