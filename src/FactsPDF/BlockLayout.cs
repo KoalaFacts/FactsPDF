@@ -271,7 +271,7 @@ internal static class BlockLayout
                 return false;
             var box = child.BoxStyle;
             if (box.HasLayoutPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
-                box.AvoidBreakInside || box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
+                box.AvoidBreakInside ||
                 ((box.MinHeight.HasValue || box.Height.HasValue) && child.Children.Count != 0) ||
                 child.Style.BreakBefore || child.Style.BreakAfter)
                 return false;
@@ -307,7 +307,13 @@ internal static class BlockLayout
                 if (box.Height is { } fixedHeight)
                     reserved = Math.Max(reserved, fixedHeight.Value +
                         (box.BorderBoxSizing ? 0 : decoration));
-                mandatoryHeight += reserved;
+                // Empty nested report wrappers still reserve their own outside
+                // margins. Omitting them can make an enclosing percentage-margin
+                // panel appear to fit even though its indivisible empty footprint
+                // exceeds the entire usable page.
+                var outsideTop = Checked(box.MarginTop.Resolve(width), child.SourceOffset);
+                var outsideBottom = Checked(box.MarginBottom.Resolve(width), child.SourceOffset);
+                mandatoryHeight += reserved + outsideTop + outsideBottom;
                 if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
                     throw new FactsPdfException("FPDF1302",
                         "Nested blank report geometry exceeds supported bounds.", child.SourceOffset);
