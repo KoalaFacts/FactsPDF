@@ -73,153 +73,6 @@ internal static class TextLines
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
         ListMarker? firstMarker = null, double firstLineMarkerInset = 0)
     {
-        Glyph Resolve(int scalar, TextStyle style, int sourceOffset)
-        {
-            var role = FontRoles.Role(style);
-            if (!resolved.TryGetValue((role, scalar), out var value))
-            {
-                var fonts = FontRoles.Chain(options, role, sourceOffset);
-                if (fonts.Count == 0)
-                {
-                    if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.");
-                    value = (null, 600);
-                }
-                else
-                {
-                    CheckSimpleScalar(scalar);
-                    PdfFont? chosen = null; ushort glyph = 0;
-                    foreach (var font in fonts) { glyph = font.GlyphFor(scalar); if (glyph != 0) { chosen = font; break; } }
-                    if (chosen is null) throw role == FontRole.Normal
-                        ? new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.")
-                        : new FactsPdfException("FPDF1504", $"No supplied {FontRoles.Name(role)} font contains U+{scalar:X4}.", sourceOffset);
-                    value = (chosen, chosen.Width1000(glyph));
-                }
-                resolved.Add((role, scalar), value);
-            }
-            return new(scalar, style, value.Font, value.Width, sourceOffset);
-        }
-        IEnumerable<Glyph> ReadGlyphs()
-        {
-            Glyph? pendingSpace = null;
-            // Wrap naturally suppresses a nonexistent empty final line;
-            // every real segment break must still be emitted, including the
-            // last of consecutive trailing newlines.
-            var previousCarriageReturn = false;
-            var afterText = false;
-            // An ASCII word can cross differently styled inline spans, even
-            // when one span explicitly resets text-transform to none.
-            var insideAsciiWord = false;
-            foreach (var run in paragraph.Runs)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                if (run.IsBreak)
-                {
-                    // HTML <br> starts a line even after an authored newline.
-                    previousCarriageReturn = false;
-                    pendingSpace = null;
-                    afterText = false;
-                    insideAsciiWord = false;
-                    yield return new Glyph(10, run.Style, null, 0, run.SourceOffset);
-                    continue;
-                }
-                for (var i = 0; i < run.Text.Length;)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    if (Rune.DecodeFromUtf16(run.Text.AsSpan(i), out var rune, out var consumed) != OperationStatus.Done)
-                        throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
-                    i += consumed;
-                    var scalar = rune.Value;
-                    if (paragraph.Style.PreserveLineBreaks)
-                    {
-                        // HTML's CRLF segment break is one break even across
-                        // differently styled spans; CR and FF also separate lines.
-                        if (scalar == 10 && previousCarriageReturn)
-                        {
-                            previousCarriageReturn = false;
-                            continue;
-                        }
-                        previousCarriageReturn = scalar == 13;
-                        if (scalar is 10 or 13 or 12)
-                        {
-                            yield return new Glyph(10, run.Style, null, 0, run.SourceOffset);
-                            pendingSpace = null;
-                            afterText = false;
-                            insideAsciiWord = false;
-                            continue;
-                        }
-                    }
-                    // Preserving modes retain ordinary U+0020 only. Never
-                    // attempt to resolve unsupported control whitespace as
-                    // a font glyph or accidentally output it; report a stable
-                    // error before any PDF bytes replace the destination.
-                    if (paragraph.Style.PreserveSpaces && (scalar is < 32 or 127))
-                        throw new FactsPdfException("FPDF1305",
-                            "Preformatted report text does not support tab stops or control whitespace.",
-                            run.SourceOffset);
-                    // Scoped word definition: ASCII letters/digits form tokens;
-                    // punctuation, spaces and non-ASCII scalars delimit them.
-                    var wordCharacter = scalar is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
-                    if (run.Style.Transform != TextTransform.None)
-                    {
-                        // ASCII-only case conversion is deterministic and cannot
-                        // expand a character or change the font's glyph count.
-                        // Do not silently misrender cased Unicode letters:
-                        // full casing/locale rules and shaping are out of scope.
-                        if (scalar > 127 &&
-                            (Rune.GetUnicodeCategory(rune) is
-                                (UnicodeCategory.LowercaseLetter or UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter)
-                             // Unicode also maps some LetterNumber and OtherSymbol
-                             // scalars, e.g. Roman numerals and circled letters.
-                             // ASCII-only output must never leave those silently
-                             // unchanged when case conversion is requested.
-                             || Rune.ToUpperInvariant(rune) != rune
-                             || Rune.ToLowerInvariant(rune) != rune))
-                            throw new FactsPdfException("FPDF1305",
-                                "Non-ASCII cased text requires Unicode case conversion beyond the supported ASCII report subset.",
-                                run.SourceOffset);
-                        if (run.Style.Transform == TextTransform.Uppercase && scalar is >= 'a' and <= 'z')
-                            scalar -= 'a' - 'A';
-                        else if (run.Style.Transform == TextTransform.Lowercase && scalar is >= 'A' and <= 'Z')
-                            scalar += 'a' - 'A';
-                        else if (run.Style.Transform == TextTransform.Capitalize && !insideAsciiWord && scalar is >= 'a' and <= 'z')
-                            scalar -= 'a' - 'A';
-                    }
-                    insideAsciiWord = wordCharacter;
-                    if (scalar <= 127 && HtmlTokens.Space((char)scalar))
-                    {
-                        if (paragraph.Style.PreserveSpaces)
-                        {
-                            // Pre-wrap retains each literal U+0020 glyph and its
-                            // authored style, even before/after a line break.
-                            // Tabs need tab-stop layout; never collapse them
-                            // silently or pretend they are literal spaces.
-                            if (scalar != 32)
-                                throw new FactsPdfException("FPDF1305",
-                                    "Bounded pre-wrap supports literal spaces, not tabs or other control whitespace.",
-                                    run.SourceOffset);
-                            yield return Resolve(32, run.Style, run.SourceOffset);
-                            afterText = true;
-                            continue;
-                        }
-                        // Resolve at the original point even when a later
-                        // break/end removes this space. Its font diagnostic
-                        // and the first whitespace run's style are preserved.
-                        if (afterText && !pendingSpace.HasValue)
-                            pendingSpace = Resolve(32, run.Style, run.SourceOffset);
-                    }
-                    else
-                    {
-                        if (pendingSpace.HasValue)
-                        {
-                            yield return pendingSpace.Value;
-                            pendingSpace = null;
-                        }
-                        yield return Resolve(scalar, run.Style, run.SourceOffset);
-                        afterText = true;
-                    }
-                }
-            }
-        }
         // The opt-in first-line inset is relative to the paragraph's resolved
         // content width, not to the page or its painted border box. It belongs
         // only to the first logical line; continuation pages never re-indent.
@@ -232,7 +85,8 @@ internal static class TextLines
         var previousScalar = -1;
         var tooWide = false;
         var firstSegment = true;
-        foreach (var glyph in ReadGlyphs())
+        using var reader = GlyphReader.Rent(paragraph, options, resolved, cancellation);
+        while (reader.TryRead(out var glyph))
         {
             cancellation.ThrowIfCancellationRequested();
             if (paragraph.Style.NoWrap)
@@ -352,8 +206,8 @@ internal static class TextLines
         // Retained page strings/paint and the PDF buffer are unchanged: this
         // is line-at-a-time wrapping, not a streaming document serializer.
         var word = buffers.Word;
-        using var cursor = ReadGlyphs().GetEnumerator();
-        var hasGlyph = cursor.MoveNext();
+        reader.Restart();
+        var hasGlyph = reader.TryRead(out var next);
         while (hasGlyph)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -361,31 +215,31 @@ internal static class TextLines
             {
                 // The paragraph deliberately has no automatic break
                 // opportunities; HTML <br> remains an explicit break.
-                if (cursor.Current.Scalar == 10)
+                if (next.Scalar == 10)
                 {
                     yield return CurrentLine();
                     ResetLine();
                 }
                 else
                 {
-                    current.Add(cursor.Current);
-                    width += cursor.Current.Width;
+                    current.Add(next);
+                    width += next.Width;
                 }
-                hasGlyph = cursor.MoveNext();
+                hasGlyph = reader.TryRead(out next);
                 continue;
             }
-            if (cursor.Current.Scalar == 10)
+            if (next.Scalar == 10)
             {
                 yield return CurrentLine();
                 ResetLine();
-                hasGlyph = cursor.MoveNext();
+                hasGlyph = reader.TryRead(out next);
                 continue;
             }
-            if (cursor.Current.Scalar == 32)
+            if (next.Scalar == 32)
             {
                 if (paragraph.Style.PreserveSpaces)
                 {
-                    var glyph = cursor.Current;
+                    var glyph = next;
                     var capacity = firstLine ? available - firstIndent : available;
                     if (width + glyph.Width > capacity + 0.000001)
                     {
@@ -400,8 +254,8 @@ internal static class TextLines
                     current.Add(glyph);
                     width += glyph.Width;
                 }
-                else space = cursor.Current;
-                hasGlyph = cursor.MoveNext();
+                else space = next;
+                hasGlyph = reader.TryRead(out next);
                 continue;
             }
             word.Clear();
@@ -410,16 +264,16 @@ internal static class TextLines
             do
             {
                 cancellation.ThrowIfCancellationRequested();
-                var glyph = cursor.Current;
+                var glyph = next;
                 word.Add(glyph);
                 wordWidth += glyph.Width;
                 if (!paragraph.Style.BreakWords && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
                     throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
                 previous = glyph.Scalar;
-                hasGlyph = cursor.MoveNext();
+                hasGlyph = reader.TryRead(out next);
             }
-            while (hasGlyph && cursor.Current.Scalar is not (32 or 10) &&
-                !paragraph.Style.BreakAll && !CanBreak(previous, cursor.Current.Scalar));
+            while (hasGlyph && next.Scalar is not (32 or 10) &&
+                !paragraph.Style.BreakAll && !CanBreak(previous, next.Scalar));
             var gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
             var lineAvailable = firstLine ? available - firstIndent : available;
             // An inside marker is already first-line content. A word which
@@ -488,6 +342,231 @@ internal static class TextLines
     // Wrap's line and word glyph lists, reused across paragraphs on one thread. A Wrap that starts
     // while another is still open (a list marker's line inside its paragraph) finds the slot empty
     // and allocates its own. Returned lists are cleared, and lists grown past MaxPooledGlyphs are dropped.
+    // Reads a paragraph's resolved glyphs one at a time, in the order and with
+    // the diagnostics of the original glyph iterator. Wrap reads the paragraph
+    // twice (validation, then line breaking), so one reader is rented per Wrap
+    // from a per-thread slot and restarted; a nested Wrap rents its own.
+    private sealed class GlyphReader : IDisposable
+    {
+        [ThreadStatic] private static GlyphReader? pooled;
+
+        private Paragraph paragraph = null!;
+        private PdfOptions options = null!;
+        private Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved = null!;
+        private CancellationToken cancellation;
+        private int runIndex, charIndex;
+        private bool runStarted;
+        private Glyph? pendingSpace;
+        private bool previousCarriageReturn, afterText, insideAsciiWord;
+        // A non-space glyph that follows a collapsed space is resolved only
+        // after the space has been read, exactly as the iterator did.
+        private bool deferred;
+        private int deferredScalar;
+        private TextRun deferredRun = null!;
+
+        internal static GlyphReader Rent(Paragraph paragraph, PdfOptions options,
+            Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+        {
+            var reader = pooled ?? new GlyphReader();
+            pooled = null;
+            reader.paragraph = paragraph;
+            reader.options = options;
+            reader.resolved = resolved;
+            reader.cancellation = cancellation;
+            reader.Restart();
+            return reader;
+        }
+
+        internal void Restart()
+        {
+            runIndex = 0; charIndex = 0; runStarted = false;
+            pendingSpace = null;
+            // Wrap naturally suppresses a nonexistent empty final line;
+            // every real segment break must still be emitted, including the
+            // last of consecutive trailing newlines.
+            previousCarriageReturn = false;
+            afterText = false;
+            // An ASCII word can cross differently styled inline spans, even
+            // when one span explicitly resets text-transform to none.
+            insideAsciiWord = false;
+            deferred = false;
+        }
+
+        public void Dispose()
+        {
+            paragraph = null!; options = null!; resolved = null!; deferredRun = null!;
+            cancellation = default;
+            pooled = this;
+        }
+
+        internal bool TryRead(out Glyph glyph)
+        {
+            if (deferred)
+            {
+                deferred = false;
+                glyph = Resolve(deferredScalar, deferredRun.Style, deferredRun.SourceOffset);
+                afterText = true;
+                return true;
+            }
+            var runs = paragraph.Runs;
+            while (runIndex < runs.Count)
+            {
+                var run = runs[runIndex];
+                if (!runStarted)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    runStarted = true;
+                    if (run.IsBreak)
+                    {
+                        // HTML <br> starts a line even after an authored newline.
+                        previousCarriageReturn = false;
+                        pendingSpace = null;
+                        afterText = false;
+                        insideAsciiWord = false;
+                        NextRun();
+                        glyph = new Glyph(10, run.Style, null, 0, run.SourceOffset);
+                        return true;
+                    }
+                }
+                while (charIndex < run.Text.Length)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (Rune.DecodeFromUtf16(run.Text.AsSpan(charIndex), out var rune, out var consumed) != OperationStatus.Done)
+                        throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
+                    charIndex += consumed;
+                    var scalar = rune.Value;
+                    if (paragraph.Style.PreserveLineBreaks)
+                    {
+                        // HTML's CRLF segment break is one break even across
+                        // differently styled spans; CR and FF also separate lines.
+                        if (scalar == 10 && previousCarriageReturn)
+                        {
+                            previousCarriageReturn = false;
+                            continue;
+                        }
+                        previousCarriageReturn = scalar == 13;
+                        if (scalar is 10 or 13 or 12)
+                        {
+                            pendingSpace = null;
+                            afterText = false;
+                            insideAsciiWord = false;
+                            glyph = new Glyph(10, run.Style, null, 0, run.SourceOffset);
+                            return true;
+                        }
+                    }
+                    // Preserving modes retain ordinary U+0020 only. Never
+                    // attempt to resolve unsupported control whitespace as
+                    // a font glyph or accidentally output it; report a stable
+                    // error before any PDF bytes replace the destination.
+                    if (paragraph.Style.PreserveSpaces && (scalar is < 32 or 127))
+                        throw new FactsPdfException("FPDF1305",
+                            "Preformatted report text does not support tab stops or control whitespace.",
+                            run.SourceOffset);
+                    // Scoped word definition: ASCII letters/digits form tokens;
+                    // punctuation, spaces and non-ASCII scalars delimit them.
+                    var wordCharacter = scalar is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
+                    if (run.Style.Transform != TextTransform.None)
+                    {
+                        // ASCII-only case conversion is deterministic and cannot
+                        // expand a character or change the font's glyph count.
+                        // Do not silently misrender cased Unicode letters:
+                        // full casing/locale rules and shaping are out of scope.
+                        if (scalar > 127 &&
+                            (Rune.GetUnicodeCategory(rune) is
+                                (UnicodeCategory.LowercaseLetter or UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter)
+                             // Unicode also maps some LetterNumber and OtherSymbol
+                             // scalars, e.g. Roman numerals and circled letters.
+                             // ASCII-only output must never leave those silently
+                             // unchanged when case conversion is requested.
+                             || Rune.ToUpperInvariant(rune) != rune
+                             || Rune.ToLowerInvariant(rune) != rune))
+                            throw new FactsPdfException("FPDF1305",
+                                "Non-ASCII cased text requires Unicode case conversion beyond the supported ASCII report subset.",
+                                run.SourceOffset);
+                        if (run.Style.Transform == TextTransform.Uppercase && scalar is >= 'a' and <= 'z')
+                            scalar -= 'a' - 'A';
+                        else if (run.Style.Transform == TextTransform.Lowercase && scalar is >= 'A' and <= 'Z')
+                            scalar += 'a' - 'A';
+                        else if (run.Style.Transform == TextTransform.Capitalize && !insideAsciiWord && scalar is >= 'a' and <= 'z')
+                            scalar -= 'a' - 'A';
+                    }
+                    insideAsciiWord = wordCharacter;
+                    if (scalar <= 127 && HtmlTokens.Space((char)scalar))
+                    {
+                        if (paragraph.Style.PreserveSpaces)
+                        {
+                            // Pre-wrap retains each literal U+0020 glyph and its
+                            // authored style, even before/after a line break.
+                            // Tabs need tab-stop layout; never collapse them
+                            // silently or pretend they are literal spaces.
+                            if (scalar != 32)
+                                throw new FactsPdfException("FPDF1305",
+                                    "Bounded pre-wrap supports literal spaces, not tabs or other control whitespace.",
+                                    run.SourceOffset);
+                            glyph = Resolve(32, run.Style, run.SourceOffset);
+                            afterText = true;
+                            return true;
+                        }
+                        // Resolve at the original point even when a later
+                        // break/end removes this space. Its font diagnostic
+                        // and the first whitespace run's style are preserved.
+                        if (afterText && !pendingSpace.HasValue)
+                            pendingSpace = Resolve(32, run.Style, run.SourceOffset);
+                    }
+                    else
+                    {
+                        if (pendingSpace.HasValue)
+                        {
+                            glyph = pendingSpace.Value;
+                            pendingSpace = null;
+                            deferred = true;
+                            deferredScalar = scalar;
+                            deferredRun = run;
+                            return true;
+                        }
+                        glyph = Resolve(scalar, run.Style, run.SourceOffset);
+                        afterText = true;
+                        return true;
+                    }
+                }
+                NextRun();
+            }
+            glyph = default;
+            return false;
+        }
+
+        private void NextRun()
+        {
+            runIndex++; charIndex = 0; runStarted = false;
+        }
+
+        private Glyph Resolve(int scalar, TextStyle style, int sourceOffset)
+        {
+            var role = FontRoles.Role(style);
+            if (!resolved.TryGetValue((role, scalar), out var value))
+            {
+                var fonts = FontRoles.Chain(options, role, sourceOffset);
+                if (fonts.Count == 0)
+                {
+                    if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.");
+                    value = (null, 600);
+                }
+                else
+                {
+                    CheckSimpleScalar(scalar);
+                    PdfFont? chosen = null; ushort glyph = 0;
+                    foreach (var font in fonts) { glyph = font.GlyphFor(scalar); if (glyph != 0) { chosen = font; break; } }
+                    if (chosen is null) throw role == FontRole.Normal
+                        ? new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.")
+                        : new FactsPdfException("FPDF1504", $"No supplied {FontRoles.Name(role)} font contains U+{scalar:X4}.", sourceOffset);
+                    value = (chosen, chosen.Width1000(glyph));
+                }
+                resolved.Add((role, scalar), value);
+            }
+            return new(scalar, style, value.Font, value.Width, sourceOffset);
+        }
+    }
+
     private sealed class GlyphBuffers : IDisposable
     {
         private const int MaxPooledGlyphs = 4096;
