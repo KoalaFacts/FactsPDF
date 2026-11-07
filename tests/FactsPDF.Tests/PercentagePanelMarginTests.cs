@@ -520,4 +520,56 @@ public sealed class PercentagePanelMarginTests
     public void PercentMarginFromUnmatchedSelectorStillRejectsInvalidSyntax()
         => RejectPreservingOutput("<style>.unmatched{margin-top:-1%}</style>" +
             "<section style='margin-top:5%'>SAFE</section>", "FPDF1202");
+
+    [TestCase("pre")]
+    [TestCase("h1")]
+    [TestCase("h2")]
+    [TestCase("h3")]
+    [TestCase("h4")]
+    [TestCase("h5")]
+    [TestCase("h6")]
+    public void BlankHeadingAndPreMarginsDoNotEvadeEmptyPanelPreflight(string tag)
+        => VerifyBlankTextTagPanel(tag, nested: false);
+
+    [TestCase("pre")]
+    [TestCase("h1")]
+    [TestCase("h2")]
+    [TestCase("h3")]
+    [TestCase("h4")]
+    [TestCase("h5")]
+    [TestCase("h6")]
+    public void NestedBlankHeadingAndPreMarginsDoNotEvadeEmptyPanelPreflight(string tag)
+        => VerifyBlankTextTagPanel(tag, nested: true);
+
+    private static void VerifyBlankTextTagPanel(string tag, bool nested)
+    {
+        // Paragraph-like tags share the same zero-height empty-slot semantics.
+        // Their nonzero top percentage must be counted with both outside margins;
+        // even zero percentages must not evade the enclosing panel's page guard.
+        foreach (var childMargin in new[] { "0%", "10%" })
+        {
+            var child = "<" + tag + " style='margin:0;margin-top:" + childMargin +
+                "'></" + tag + ">";
+            var contents = nested ? "<article><div>" + child + "</div></article>" : child;
+            var html = "<section style='margin-top:10%;margin-bottom:30%'>" +
+                contents + "</section><p style='margin:0'>AFTER</p>";
+            var fixedChildMargin = childMargin == "0%" ? "0pt" : "26pt";
+            var oracle = html.Replace("margin-top:" + childMargin + "'",
+                "margin-top:" + fixedChildMargin + "'", StringComparison.Ordinal);
+
+            // The 260pt containing width gives 26pt + 78pt outside margins;
+            // a nonzero blank-text margin adds 26pt. Neither can occupy the
+            // short page's 100pt usable height, regardless of tag or nesting.
+            RejectPreservingOutput(html, "FPDF1302", Page with { PageHeight = 140 });
+            RejectPreservingOutput(oracle, "FPDF1302", Page with { PageHeight = 140 });
+
+            // On a usable 160pt page both inputs must yield identical actual
+            // PDF bytes without an invented blank leading page.
+            var fitting = Page with { PageHeight = 200 };
+            var pages = Layout(html, fitting);
+            Assert.That(pages, Has.Count.EqualTo(1));
+            Assert.That(pages[0].Runs.Any(run => run.Text == "AFTER"), Is.True);
+            Assert.That(Render(html, fitting), Is.EqualTo(Render(oracle, fitting)));
+        }
+    }
 }

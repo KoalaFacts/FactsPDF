@@ -275,7 +275,7 @@ internal static class BlockLayout
                 ((box.MinHeight.HasValue || box.Height.HasValue) && child.Children.Count != 0) ||
                 child.Style.BreakBefore || child.Style.BreakAfter)
                 return false;
-            if (child.Name == "p")
+            if (child.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6")
             {
                 if (box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
                     child.Children.Count != 1 ||
