@@ -1,6 +1,6 @@
 namespace FactsPDF;
 
-internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes,
+internal sealed record CssElement(string Name, string? Id, IReadOnlySet<string> Classes,
     IReadOnlyDictionary<string, string> Attributes)
 {
     // Shared by every element without a class. Element classes are read-only once built.

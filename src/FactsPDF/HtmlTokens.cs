@@ -4,7 +4,7 @@ using System.Text;
 namespace FactsPDF;
 
 internal enum HtmlTokenKind { Text, Start, End, StyleText }
-internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
+internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, IReadOnlyDictionary<string, string>? Attributes,
     bool SelfClosing, int Offset, Dictionary<string, int[]>? AttributeSourceOffsets = null);
 
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
