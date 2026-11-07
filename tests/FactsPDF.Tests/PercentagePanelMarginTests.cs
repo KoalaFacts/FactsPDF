@@ -219,6 +219,28 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Layout(percent, fittingPage), Has.Count.EqualTo(1));
     }
 
+    [TestCase("<p style='margin:0;margin-top:10%'></p>")]
+    [TestCase("<p style='margin:0;margin-bottom:10%'></p>")]
+    [TestCase("<div><p style='margin:0;margin-top:10%'></p></div>")]
+    public void BlankPercentageSpacersCannotHideAnImpossiblePanelFootprint(string child)
+    {
+        const string prefix = "<section style='margin-top:10%;margin-bottom:30%'>";
+        const string suffix = "</section><p style='margin:0'>AFTER</p>";
+        var percent = prefix + child + suffix;
+        var pointOracle = prefix + child.Replace("10%", "26pt", StringComparison.Ordinal) + suffix;
+        // On a 260pt containing width, opening + blank child + closing
+        // requires 26 + 26 + 78 = 130pt; a 100pt usable page cannot hold it.
+        var shortPage = Page with { PageHeight = 140 };
+        RejectPreservingOutput(percent, "FPDF1302", shortPage);
+        RejectPreservingOutput(pointOracle, "FPDF1302", shortPage);
+
+        // In a usable 160pt page, the original template and the resolved
+        // point-value oracle must produce identical actual PDF bytes.
+        var fittingPage = Page with { PageHeight = 200 };
+        Assert.That(Render(percent, fittingPage), Is.EqualTo(Render(pointOracle, fittingPage)));
+        Assert.That(Layout(percent, fittingPage), Has.Count.EqualTo(1));
+    }
+
     [TestCase("hr")]
     [TestCase("section")]
     public void EmptyPercentageOutsideMarginsMoveTogetherWhenOnlyClosingGapWouldOverflow(string tag)

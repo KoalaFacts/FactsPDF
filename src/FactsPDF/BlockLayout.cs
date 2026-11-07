@@ -253,6 +253,7 @@ internal static class BlockLayout
         double containingWidth, CancellationToken cancellation, out double mandatoryHeight)
     {
         mandatoryHeight = 0;
+        var largestBlankParagraphMargin = 0d;
         var pending = new Stack<(BlockChild Child, double Width)>();
         foreach (var child in node.Children)
             pending.Push((child, containingWidth));
@@ -273,9 +274,20 @@ internal static class BlockLayout
                 if (box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
                     child.Children.Count != 1 ||
                     child.Children[0] is not ParagraphNode content ||
-                    content.Paragraph.Runs.Count != 0 ||
-                    !HasNoParagraphOutsideMargin(child.Style))
+                    content.Paragraph.Runs.Count != 0)
                     return false;
+                // A blank, unpainted paragraph can still have a nonzero outside
+                // margin. TextLayout defers the largest such margin, including
+                // percentages based on this paragraph's containing content width.
+                // Count it when deciding whether the blank parent's two outside
+                // margins can fit on one physical page.
+                var paragraph = content.Paragraph;
+                var before = Checked(paragraph.Style.PercentMarginBefore?.Resolve(width) ??
+                    paragraph.Style.MarginBefore, paragraph.SourceOffset);
+                var after = Checked(paragraph.Style.PercentMarginAfter?.Resolve(width) ??
+                    paragraph.Style.MarginAfter, paragraph.SourceOffset);
+                largestBlankParagraphMargin = Math.Max(largestBlankParagraphMargin,
+                    Math.Max(before, after));
             }
             else if (child.Name is "div" or "section" or "article" or "blockquote")
             {
@@ -298,6 +310,10 @@ internal static class BlockLayout
             }
             else return false;
         }
+        mandatoryHeight += largestBlankParagraphMargin;
+        if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
+            throw new FactsPdfException("FPDF1302",
+                "Blank report content with paragraph spacing exceeds supported bounds.", node.SourceOffset);
         return true;
     }
 
