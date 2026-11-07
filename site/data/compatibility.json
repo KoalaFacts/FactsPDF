@@ -1393,10 +1393,10 @@
       "introduced_milestone": "D1",
       "introduced_pr": "https://github.com/KoalaFacts/FactsPDF/pull/30",
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "真实PDF字节、PNG/JPEG矩阵、固定列单元格、Native AOT 36条原生报表与独立物理宽度对照及错误恢复路径均有源码和测试；精确head CI、真正独立审查、人工PDF批准、私有候选与发布须分别核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/tests/FactsPDF.Tests/ImageHeightConstraintsTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/a085085ef161d51a241046839e59a1fd2dab7eea/docs/images.md",
         "https://github.com/KoalaFacts/FactsPDF/blob/a085085ef161d51a241046839e59a1fd2dab7eea/docs/tables.md",
@@ -1416,7 +1416,9 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
       ],
       "planning_bucket": "有界 JPEG/PNG、直接单元格图片与超高正文行续页（已实现子集）",
-      "parent_id": null
+      "parent_id": null,
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "html.input",
@@ -3949,10 +3951,10 @@
       "introduced_milestone": "M6",
       "introduced_pr": 12,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b0e6b53dcd003d74998a5a8d955c2071c0faa1c0",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "实际布局和字形测量代码、独立手写点值报告、NUnit与Linux Native AOT验证代码已提交；准确head CI、独立审查、人工批准及发布另行核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -3964,7 +3966,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.padding",
@@ -3981,10 +3985,10 @@
       "introduced_milestone": "M6",
       "introduced_pr": 12,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b0e6b53dcd003d74998a5a8d955c2071c0faa1c0",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "实际布局和字形测量代码、独立手写点值报告、NUnit与Linux Native AOT验证代码已提交；准确head CI、独立审查、人工批准及发布另行核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -3996,7 +4000,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.padding-top",
@@ -4013,10 +4019,10 @@
       "introduced_milestone": "M6",
       "introduced_pr": 12,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b0e6b53dcd003d74998a5a8d955c2071c0faa1c0",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "实际布局和字形测量代码、独立手写点值报告、NUnit与Linux Native AOT验证代码已提交；准确head CI、独立审查、人工批准及发布另行核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -4028,7 +4034,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.padding-right",
@@ -4045,10 +4053,10 @@
       "introduced_milestone": "M6",
       "introduced_pr": 12,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b0e6b53dcd003d74998a5a8d955c2071c0faa1c0",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "实际布局和字形测量代码、独立手写点值报告、NUnit与Linux Native AOT验证代码已提交；准确head CI、独立审查、人工批准及发布另行核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -4060,7 +4068,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.padding-bottom",
@@ -4077,10 +4087,10 @@
       "introduced_milestone": "M6",
       "introduced_pr": 12,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b0e6b53dcd003d74998a5a8d955c2071c0faa1c0",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "实际布局和字形测量代码、独立手写点值报告、NUnit与Linux Native AOT验证代码已提交；准确head CI、独立审查、人工批准及发布另行核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -4092,7 +4102,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.padding-left",
@@ -4109,10 +4121,10 @@
       "introduced_milestone": "M6",
       "introduced_pr": 12,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b0e6b53dcd003d74998a5a8d955c2071c0faa1c0",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "实际布局和字形测量代码、独立手写点值报告、NUnit与Linux Native AOT验证代码已提交；准确head CI、独立审查、人工批准及发布另行核实",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -4124,7 +4136,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.background-color",
@@ -5162,10 +5176,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "真实PDF字节、PNG/JPEG矩阵、固定列单元格、Native AOT 36条原生报表与独立物理宽度对照及错误恢复路径均有源码和测试；精确head CI、真正独立审查、人工PDF批准、私有候选与发布须分别核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/tests/FactsPDF.Tests/ImageHeightConstraintsTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/bc704aed90b1e5dbdc1deec65a7fd314b626467e/src/FactsPDF/BlockLayout.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/bc704aed90b1e5dbdc1deec65a7fd314b626467e/src/FactsPDF/Css/CssDeclarations.cs",
@@ -5182,7 +5196,9 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
       ],
       "planning_bucket": "未指定",
-      "parent_id": null
+      "parent_id": null,
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.height",
@@ -5199,10 +5215,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "源码与NUnit真实PDF字节、字体测量位置、分页、原输出保护和CLI/API测试；40卡片Native AOT/qpdf/Poppler源级门禁已加入，最终精确head CI与独立审查须另行核验。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/tests/FactsPDF.Tests/ImageHeightSizingTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc/src/FactsPDF/Css/CssDeclarations.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/9f141fbc33bb2c4a3764b12c6c8c52b8c2bd00bc/src/FactsPDF/BlockLayout.cs",
@@ -5220,7 +5236,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.min-width",
@@ -5228,7 +5246,7 @@
       "feature": "min-width",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "min-width:auto（无额外约束）或非负 pt/px/mm/cm/in/%/零，普通块另接受根 rem；min超过max 时 min 胜出；使用 html 的计算根字号，真实约束 content-box/border-box、margin:auto、换行、背景与分页；百分比仍以父内容宽度为基准；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；显式绑定img及td/th直接图片也支持非负物理/%/零，真实约束PDF图像内容宽度和等比高度；图片仍拒绝em/rem；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加",
+      "scope": "min-width:auto（无额外约束）或非负 pt/px/mm/cm/in/%/零，普通块另接受根 rem；min超过max 时 min 胜出；使用 html 的计算根字号，真实约束 content-box/border-box、margin:auto、换行、背景与分页；百分比仍以父内容宽度为基准；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；显式绑定img及td/th直接图片也支持非负物理/%/零，真实约束PDF图像内容宽度和等比高度；图片新增有界em/rem支持；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加",
       "limitations": "普通报告块/段落/标题及显式img直接项；无 min-content/max-content/fit-content、calc/负长度、表格/inline的rem/em，图片支持；非法值 FPDF1202、不适用元素 FPDF1201、超限几何 FPDF1302，原目标 PDF 保留；不代表完整 CSS Sizing；table/col及inline上的em仍拒绝；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF",
       "stage": "源码范围内支持；尚未公开发布",
       "applicability": "普通block/paragraph/heading及显式绑定img或td/th直接图片项；table/col/tr/td/th盒、单元格p及inline不适用",
@@ -5237,10 +5255,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b6bebe8e3b97f13190148c6f53bed49ec2678ede",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "真实PDF图像矩阵、等比缩放、固定列单元格、原生Native AOT源模板与独立物理宽度对照及异常恢复路径均有源码和测试；精确head CI、真正独立审查、人工PDF批准与发布另行核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -5255,7 +5273,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.max-width",
@@ -5263,7 +5283,7 @@
       "feature": "max-width",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "max-width:none（无额外约束）或非负 pt/px/mm/cm/in/%/零，普通块另接受根 rem；max 可限制 width:auto 的报告面板；使用 html 的计算根字号，真实约束 content-box/border-box、margin:0 auto、换行、背景与分页；百分比仍以父内容宽度为基准；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；显式绑定img及td/th直接图片也支持非负物理/%/零，真实约束PDF图像内容宽度和等比高度；图片仍拒绝em/rem；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加",
+      "scope": "max-width:none（无额外约束）或非负 pt/px/mm/cm/in/%/零，普通块另接受根 rem；max 可限制 width:auto 的报告面板；使用 html 的计算根字号，真实约束 content-box/border-box、margin:0 auto、换行、背景与分页；百分比仍以父内容宽度为基准；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；显式绑定img及td/th直接图片也支持非负物理/%/零，真实约束PDF图像内容宽度和等比高度；图片新增有界em/rem支持；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加",
       "limitations": "普通报告块/段落/标题及显式img直接项；无 min-content/max-content/fit-content、calc/负长度、表格/inline的rem/em，图片支持；非法值 FPDF1202、不适用元素 FPDF1201、超限几何 FPDF1302，原目标 PDF 保留；不代表完整 CSS Sizing；table/col及inline上的em仍拒绝；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF",
       "stage": "源码范围内支持；尚未公开发布",
       "applicability": "普通block/paragraph/heading及显式绑定img或td/th直接图片项；table/col/tr/td/th盒、单元格p及inline不适用",
@@ -5272,10 +5292,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "b6bebe8e3b97f13190148c6f53bed49ec2678ede",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "真实PDF图像矩阵、等比缩放、固定列单元格、原生Native AOT源模板与独立物理宽度对照及异常恢复路径均有源码和测试；精确head CI、真正独立审查、人工PDF批准与发布另行核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssBoxValues.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/b0e6b53dcd003d74998a5a8d955c2071c0faa1c0/src/FactsPDF/Css/CssDeclarations.cs",
@@ -5290,7 +5310,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.min-height",
@@ -5307,10 +5329,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "源码实现、NUnit真实PDF几何/恢复测试、Native AOT四十卡片独立PDF位置/字节对照门禁；最终CI及独立审查单独确认。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/tests/FactsPDF.Tests/ImageHeightConstraintsTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/d18510766af1a2dd3f35435c51c7517cf8f71bdb/src/FactsPDF/Css/CssDeclarations.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/d18510766af1a2dd3f35435c51c7517cf8f71bdb/src/FactsPDF/BlockLayout.cs",
@@ -5326,7 +5348,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.max-height",
@@ -5343,10 +5367,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "真实PDF字节、PNG/JPEG矩阵、固定列单元格、Native AOT 36条原生报表与独立物理宽度对照及错误恢复路径均有源码和测试；精确head CI、真正独立审查、人工PDF批准、私有候选与发布须分别核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/tests/FactsPDF.Tests/ImageHeightConstraintsTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/e35722bf299adae3a994593f1375ee43ec53ad12/src/FactsPDF/Css/CssSyntaxAdapter.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/src/FactsPDF/Images/ImageLayout.cs",
@@ -5359,7 +5383,9 @@
       "planning_bucket": "未指定",
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
-      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs"
+      "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "css.margin",
@@ -7963,10 +7989,10 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "92e2b02c12740cd85f244bf04e57c70e89e5c353",
+      "last_audited_date": "2026-10-29",
       "evidence_level": "Bounded C# text layout plus real NUnit/Native AOT PDF parity and negative recovery test sources pushed; exact head CI and independent code review remain separately pending.",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/92e2b02c12740cd85f244bf04e57c70e89e5c353/src/FactsPDF/Css/CssDeclarations.cs",
         "https://github.com/KoalaFacts/FactsPDF/blob/92e2b02c12740cd85f244bf04e57c70e89e5c353/src/FactsPDF/Css/CssSyntaxAdapter.cs",
@@ -7975,7 +8001,9 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
       ],
       "planning_bucket": "未指定",
-      "parent_id": null
+      "parent_id": null,
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "value.length.viewport",
@@ -10987,10 +11015,10 @@
       "introduced_milestone": "D1",
       "introduced_pr": "https://github.com/KoalaFacts/FactsPDF/pull/30",
       "introduced_release": null,
-      "last_audited_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "last_audited_date": "2026-11-08",
+      "last_audited_commit": "6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae",
+      "last_audited_date": "2026-11-02",
       "evidence_level": "真实PDF字节、PNG/JPEG矩阵、固定列单元格、Native AOT 36条原生报表与独立物理宽度对照及错误恢复路径均有源码和测试；精确head CI、真正独立审查、人工PDF批准、私有候选与发布须分别核实。",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/6ff2f6fd1cc21b2a0657f333d3bb9e6a73fed1ae/tests/FactsPDF.Tests/ImageHeightConstraintsTests.cs",
       "sources": [
         "https://github.com/KoalaFacts/FactsPDF/blob/a085085ef161d51a241046839e59a1fd2dab7eea/docs/images.md",
         "https://github.com/KoalaFacts/FactsPDF/blob/a085085ef161d51a241046839e59a1fd2dab7eea/src/FactsPDF/Images/PngReader.cs",
@@ -11010,7 +11038,9 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
       ],
       "planning_bucket": "有界 JPEG/PNG 与透明度（已实现子集）",
-      "parent_id": null
+      "parent_id": null,
+      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
     },
     {
       "id": "pdf.searchable",

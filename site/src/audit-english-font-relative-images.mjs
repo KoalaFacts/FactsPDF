@@ -2,7 +2,7 @@ import { englishAudit as baseline } from './audit-english-paragraph-percentage-m
 
 // Existing source-bound 774-entry translation catalogue: only these changed CSS image records differ.
 if (baseline.length !== 774) throw new Error('Previous English audit catalogue changed.');
-export const sourceDigest = 'aceb76feacf3863df1046e82fa4308162b5f1c5a11f8a2645c656aebfd785667';
+export const sourceDigest = 'fc6a2f5f8e18a5af17d4e6fc8884addc84d119ef0030938c5b5e8a138f87eb4b';
 const updates = new Map([
   [56, "Explicit resource-bound baseline JPEG/non-interlaced PNG (including transparency) at root/body/report panels or direct fixed-track table cells, interleaved with flat paragraphs. Existing physical/percentage width, physical height, min/max and border-box constraints preserve actual image geometry and resource reuse. New in the PR #196 candidate: explicitly bound standalone and direct fixed-track td/th JPEG/PNG images resolve bounded em against the image's final computed font-size and rem against html root font-size, changing actual PDF matrices, paint, geometry and page movement. Not merged or released."],
   [57, "No inline/paragraph/list-ancestor images, SVG, 16-bit/Adam7/APNG, external fetch, unsupported colors or unlimited auto-shrink. Images and decorations remain atomic; inconsistent size/row/page conditions fail. Image height percentages, calc, negatives, object-fit, implicit resource loading and image splitting remain unsupported. Structural table/col/cell em/rem sizing remains rejected; invalid value or unplaceable geometry fails while preserving prior PDF. Candidate only."],
@@ -32,4 +32,4 @@ const updates = new Map([
 ]);
 export const englishAudit = Object.freeze(baseline.map((value,index) => updates.get(index) ?? value));
 if (englishAudit.length !== 774 || englishAudit.some(value => typeof value !== 'string' ||
-    !value.trim() || /[\\u3400-\\u9fff]/u.test(value))) throw new Error('Incomplete image-relative translation.');
+    !value.trim() || /[\u3400-\u9fff]/u.test(value))) throw new Error('Incomplete image-relative translation.');
