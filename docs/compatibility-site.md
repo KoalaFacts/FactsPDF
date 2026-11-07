@@ -31,18 +31,21 @@ translation never removes a limitation or turns unverified support into
 support.
 
 Translations are chained layers under `site/src/audit-english-*.mjs`. The
-current layer is the one `site/src/localisation.mjs` imports; each layer
-imports the previous one, checks its length, replaces only the changed strings
-by source-text index and declares a new `sourceDigest`. `localisation.mjs`
-refuses to display English unless the SHA-256 of the JSON array of ordered strings returned
+current layer is the one `site/src/localisation.mjs` imports. Above the base
+`audit-english.mjs`, each layer builds on earlier ones (usually one: it checks
+its length and replaces, remaps or inserts strings by source-text index) and
+declares a new `sourceDigest`. The page refuses to load, with no Chinese
+fallback, unless the SHA-256 of the JSON array of ordered strings returned
 by `collectAuditStrings()` matches that digest and the counts agree. When audit
 text changes, add a new layer and update its digest together with the
 translations; never change the digest alone to silence a failure.
-`site/tests/localisation.test.mjs` checks coverage, source preservation and
-stale-text rejection; `site/tests/english.spec.js` proves the first-visit
-default with empty storage and a Chinese browser locale, bilingual search,
-preference persistence, blocked storage, failure recovery and unchanged raw
-downloads. No translation service, tracking, dependency or runtime network
+`site/tests/localisation.test.mjs` checks coverage, source preservation,
+diagnostic anchors and stale-text rejection. The ordinary browser suites run
+with Chinese stored as the locale (`site/playwright.config.js`), so Chinese
+interaction stays covered; `site/tests/english.spec.js` proves the first-visit
+default with empty storage and a Chinese browser locale, all list pages,
+details, bilingual search, preference persistence, blocked storage, failure
+recovery and unchanged raw downloads. No translation service, tracking, dependency or runtime network
 call is used.
 
 ## Pages publisher
@@ -50,10 +53,11 @@ call is used.
 Public site: <https://koalafacts.github.io/FactsPDF/>.
 `.github/workflows/compatibility-pages.yml` is the only workflow that may
 publish Pages (`site/tests/pages-publishing.test.mjs` fails on a second
-publisher). It publishes only the built `site/dist` after the Chromium checks
-pass, then checks the public HTML and support-data SHA-256 against the tested
-build. That deployment identity is separate from each feature's engine audit
-commit; rebuilding the site changes no audited record.
+publisher), and changes to any workflow re-run these checks. It publishes
+only the built `site/dist` after the Chromium checks pass, then checks the
+public HTML and support-data SHA-256 against the tested build and that the
+compiled JavaScript and CSS are reachable. That deployment identity is
+separate from each feature's engine audit commit; rebuilding the site changes no audited record.
 
 ## Scope
 
