@@ -98,8 +98,17 @@ internal static class CssDeclarations
                 // em from this element's final font-size, both as points.
                 var margin = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true).Value;
-                if (property == CssProperty.MarginTop) style.MarginBefore = margin;
-                else style.MarginAfter = margin;
+                if (property == CssProperty.MarginTop) { style.MarginBefore = margin; style.PercentMarginBefore = null; }
+                else { style.MarginAfter = margin; style.PercentMarginAfter = null; }
+                return style;
+            }
+            if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith('%'))
+            {
+                // CSS vertical percentage margins resolve against containing content width.
+                var length = CssBoxValues.Length(declaration.Value, declaration.Offset);
+                if (property == CssProperty.MarginTop) { style.MarginBefore = 0; style.PercentMarginBefore = length; }
+                else { style.MarginAfter = 0; style.PercentMarginAfter = length; }
                 return style;
             }
             if (property == CssProperty.TextDecorationThickness)
@@ -164,8 +173,8 @@ internal static class CssDeclarations
             case CssProperty.LetterSpacing: style.LetterSpacing = source.LetterSpacing; break;
             case CssProperty.WordSpacing: style.WordSpacing = source.WordSpacing; break;
             case CssProperty.TextTransform: style.Transform = source.Transform; break;
-            case CssProperty.MarginTop: style.MarginBefore = source.MarginBefore; break;
-            case CssProperty.MarginBottom: style.MarginAfter = source.MarginAfter; break;
+            case CssProperty.MarginTop: style.MarginBefore = source.MarginBefore; style.PercentMarginBefore = source.PercentMarginBefore; break;
+            case CssProperty.MarginBottom: style.MarginAfter = source.MarginAfter; style.PercentMarginAfter = source.PercentMarginAfter; break;
             case CssProperty.BreakBefore: style.BreakBefore = source.BreakBefore; break;
             case CssProperty.BreakAfter: style.BreakAfter = source.BreakAfter; style.KeepWithNext = source.KeepWithNext; break;
             default: throw new InvalidOperationException("Unrecognized CSS property.");

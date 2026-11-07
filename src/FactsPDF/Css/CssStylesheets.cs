@@ -326,24 +326,13 @@ internal sealed class CssStylesheets
                 _ = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     allowRem: true, allowEm: true);
             }
-            // Paragraphs/headings still store absolute vertical margins. An
-            // overridden positive percentage is syntactically valid CSS, but
-            // unsupported here: reject every matching declaration, including
-            // losing cascade candidates, rather than silently discarding it.
+            // Vertical percentages on ordinary paragraphs use containing-block content width.
+            // List and table flows have distinct geometry; reject even losing candidates.
             if (paragraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
-                && declaration.Value.EndsWith('%'))
-                throw new FactsPdfException("FPDF1202",
-                    "Paragraph and heading vertical margins do not support percentages.", declaration.Offset);
-            // A paragraph's TextStyle stores absolute vertical margins.
-            // Inheriting a percentage from a panel would otherwise mistake
-            // e.g. 10% for 10pt. Reject instead of silently changing layout.
-            // Validate losing declarations too.
-            if (paragraph && declaration.Value == "inherit" && path.Count > 1 &&
-                path[^2].Name is ("div" or "section" or "article" or "blockquote") &&
-                ((declaration.Property == CssProperty.MarginTop && parentBox.MarginTop.IsPercent)
-                 || (declaration.Property == CssProperty.MarginBottom && parentBox.MarginBottom.IsPercent)))
+                && declaration.Value.EndsWith('%') &&
+                path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
                 throw new FactsPdfException("FPDF1201",
-                    "Paragraphs cannot inherit percentage panel margins.", declaration.Offset);
+                    "Percentage paragraph margins are not supported inside lists or tables.", declaration.Offset);
             // Forced page breaks on a whole report section must open/close
             // at its box boundary, not be delayed until its first text leaf.
             // No break-inside, avoid for whole panels or list/table breaks.
@@ -504,8 +493,10 @@ internal sealed class CssStylesheets
                     path[^2].Name is ("div" or "section" or "article" or "blockquote");
                 var inheritedParent = hasReportPanelParent &&
                     declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
-                    ? parent with { MarginBefore = parentBox.MarginTop.Value,
-                        MarginAfter = parentBox.MarginBottom.Value }
+                    ? parent with { MarginBefore = parentBox.MarginTop.IsPercent ? 0 : parentBox.MarginTop.Value,
+                        MarginAfter = parentBox.MarginBottom.IsPercent ? 0 : parentBox.MarginBottom.Value,
+                        PercentMarginBefore = parentBox.MarginTop.IsPercent ? parentBox.MarginTop : null,
+                        PercentMarginAfter = parentBox.MarginBottom.IsPercent ? parentBox.MarginBottom : null }
                     : hasReportPanelParent &&
                         declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
                         ? parent with { BreakBefore = parentBox.BreakBefore,

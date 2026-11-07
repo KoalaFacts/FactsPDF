@@ -158,7 +158,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
     const row=englishFeature(source);
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit,
-      id==='css.margin' ? '0518b51d7a34457798c748db6753c4270ce20996' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+      id==='css.margin' ? '0f6c58655d651ee934cfb2c95272dde54f4c477e' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/auto/);
@@ -183,7 +183,7 @@ test('real vertical panel margins retain exact English scope and source identity
   for(const id of ['css.margin-top','css.margin-bottom']){
     const row=englishFeature(data.features.find(f=>f.id===id));
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
+    assert.equal(row.last_audited_commit,'0f6c58655d651ee934cfb2c95272dde54f4c477e');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/outside the box/);
@@ -193,7 +193,7 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   const margin=englishFeature(data.features.find(f=>f.id==='css.margin'));
-  assert.equal(margin.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
+  assert.equal(margin.last_audited_commit,'0f6c58655d651ee934cfb2c95272dde54f4c477e');
   assert.match(margin.scope,/margin:0 auto/);
   assert.match(margin.scope,/margin:12pt auto 7pt/);
   assert.match(margin.limitations,/table-cell p/);
@@ -238,12 +238,13 @@ test('LTR logical spacing has complete English audit text', async () => {
     const row=englishFeature(data.features.find(f=>f.id==='css.'+name));
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit, name==='margin-block'
-      ? '0518b51d7a34457798c748db6753c4270ce20996' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
+      ? '0f6c58655d651ee934cfb2c95272dde54f4c477e' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
     assert.match(row.scope,new RegExp(name+'-start'));
     assert.match(row.scope,new RegExp(name+'-end'));
-    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.limitations, name==='margin-block'
+      ? /FPDF1201\/1202\/1302/ : /FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
@@ -530,3 +531,16 @@ test('bounded English last-line alignment audit retains source and error boundar
   assert.match(translate(data.css_inventory_note),/115 to 116/);
   assert.doesNotMatch(row.scope+row.limitations,/\p{Script=Han}/u);
 });
+
+for(const id of ['css.margin-top','css.margin-bottom','css.margin','css.margin-block']) {
+  test('English margin scope stays source-bound to corrected Chinese text: '+id, async()=>{
+    const {englishFeature}=await localisation();
+    const row=data.features.find(x=>x.id===id),english=englishFeature(row);
+    assert.equal(english.status,'partial');
+    assert.match(row.scope,/百分比/);
+    assert.match(english.scope,/percentag/i);
+    assert.doesNotMatch(english.scope,han);
+    assert.equal(english.last_audited_commit,row.last_audited_commit);
+    assert.equal(english.introduced_release,row.introduced_release);
+  });
+}

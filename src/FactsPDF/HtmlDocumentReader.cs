@@ -26,13 +26,16 @@ internal static class HtmlDocumentReader
         var bold = parent.Bold || name is "b" or "strong" or "th";
         var italic = parent.Italic || name is "i" or "em";
         var heading = name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6';
-        if (parent.MarginBefore == 0 && parent.MarginAfter == marginAfter && !parent.BreakBefore && !parent.BreakAfter
+        if (parent.MarginBefore == 0 && parent.MarginAfter == marginAfter &&
+            parent.PercentMarginBefore is null && parent.PercentMarginAfter is null && !parent.BreakBefore && !parent.BreakAfter
             && !parent.KeepWithNext && bold == parent.Bold && italic == parent.Italic && !heading
             && name is not ("small" or "a" or "u" or "ins" or "s" or "del" or "pre"))
             return parent;
         var style = parent with { };
         style.MarginBefore = 0;
         style.MarginAfter = marginAfter;
+        style.PercentMarginBefore = null;
+        style.PercentMarginAfter = null;
         style.BreakBefore = false;
         style.BreakAfter = false;
         style.KeepWithNext = false;
