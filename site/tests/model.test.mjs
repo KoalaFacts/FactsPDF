@@ -55,7 +55,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
   assert.equal(dataset.commit, '145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430');
-  assert.match(dataset.commit_url, /0f6c58655d651ee934cfb2c95272dde54f4c477e/);
+  assert.match(dataset.commit_url, /145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -487,7 +487,8 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     assert.match(row.limitations,/FPDF1302/);
   }
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
-  assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img\/table/);
+  assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/table\/col/);
+  assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/img现有受限em\/rem/);
   for(const id of ['css.margin-top','css.margin-bottom'])
     assert.match(dataset.features.find(f=>f.id===id).limitations,/auto/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'margin rem',status:'partial'})
@@ -781,7 +782,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
   assert.equal(dataset.dataset_version, 'audit-2026-11-08.font-relative-images-candidate');
-  assert.equal(dataset.commit, '0f6c58655d651ee934cfb2c95272dde54f4c477e');
+  assert.equal(dataset.commit, '145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
