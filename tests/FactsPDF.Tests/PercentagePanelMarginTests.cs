@@ -196,7 +196,7 @@ public sealed class PercentagePanelMarginTests
     }
 
     [TestCase("<p style='margin:0%'></p>")]
-    [TestCase("<p style='margin-top:0%'></p>")]
+    [TestCase("<p style='margin:0;margin-top:0%'></p>")]
     [TestCase("<p style='margin-bottom:0%'></p>")]
     [TestCase("<p style='margin-block:0%'></p>")]
     [TestCase("<p style='margin:-0%'></p>")]
