@@ -3,9 +3,12 @@ namespace FactsPDF;
 internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes,
     IReadOnlyDictionary<string, string> Attributes)
 {
+    // Shared by every element without a class. Element classes are read-only once built.
+    private static readonly HashSet<string> NoClasses = new(StringComparer.Ordinal);
+
     internal static CssElement From(HtmlToken token)
     {
-        token.Attributes!.TryGetValue("id", out var id); var classes = new HashSet<string>(StringComparer.Ordinal);
+        token.Attributes!.TryGetValue("id", out var id); HashSet<string>? classes = null;
         if (token.Attributes.TryGetValue("class", out var text))
         {
             var i = 0;
@@ -13,10 +16,10 @@ internal sealed record CssElement(string Name, string? Id, HashSet<string> Class
             {
                 while (i < text.Length && HtmlTokens.Space(text[i])) i++;
                 var start = i; while (i < text.Length && !HtmlTokens.Space(text[i])) i++;
-                if (i > start) classes.Add(text[start..i]);
+                if (i > start) (classes ??= new(StringComparer.Ordinal)).Add(text[start..i]);
             }
         }
-        return new(token.Value, id, classes, token.Attributes);
+        return new(token.Value, id, classes ?? NoClasses, token.Attributes);
     }
 }
 internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) : IComparable<CssSpecificity>

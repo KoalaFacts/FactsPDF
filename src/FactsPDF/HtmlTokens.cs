@@ -10,6 +10,10 @@ internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<st
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
 internal static class HtmlTokens
 {
+    // Shared by every start tag without attributes. Token attributes are read-only
+    // after tokenizing: readers only look values up or enumerate them.
+    private static readonly Dictionary<string, string> NoAttributes = new(StringComparer.OrdinalIgnoreCase);
+
     public static IEnumerable<HtmlToken> Read(string html, CancellationToken cancellation)
     {
         var i = 0;
@@ -54,7 +58,7 @@ internal static class HtmlTokens
                 yield return new(HtmlTokenKind.End, name, null, false, start);
                 continue;
             }
-            var attrs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string>? attrs = null;
             Dictionary<string, int[]>? attributeOffsets = null;
             var selfClosing = false;
             while (i < html.Length && html[i] != '>')
@@ -99,16 +103,16 @@ internal static class HtmlTokens
                 if (attribute == "style")
                 {
                     var (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
-                    if (!attrs.TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
+                    if (!(attrs ??= new(StringComparer.OrdinalIgnoreCase)).TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
                     (attributeOffsets ??= new(StringComparer.OrdinalIgnoreCase))[attribute] = offsets;
                 }
-                else if (!attrs.TryAdd(attribute, Decode(value, attrStart)))
+                else if (!(attrs ??= new(StringComparer.OrdinalIgnoreCase)).TryAdd(attribute, Decode(value, attrStart)))
                     throw Invalid("Duplicate attribute.", attrStart);
                 SkipSpace(html, ref i);
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
-            yield return new(HtmlTokenKind.Start, name, attrs, selfClosing, start, attributeOffsets);
+            yield return new(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start, attributeOffsets);
             if (name == "style" && !selfClosing)
             {
                 // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
