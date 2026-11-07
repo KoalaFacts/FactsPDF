@@ -58,6 +58,9 @@ internal sealed record TextStyle
     public double? DecorationThickness { get; set; }
     public double? UnderlineOffset { get; set; }
     public TextAlignment? LastLineAlignment { get; set; }
+    // Retain relative outside margins until containing-block content width is known.
+    public CssLength? PercentMarginBefore { get; set; }
+    public CssLength? PercentMarginAfter { get; set; }
 }
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
