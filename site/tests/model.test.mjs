@@ -81,7 +81,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(relative.scope,/rem/);
   assert.match(dataset.features.find(f=>f.id==='css.line-height').scope,/rem/);
   assert.match(dataset.features.find(f=>f.id==='value.lineheight.other').scope,/rem/);
-  assert.match(relative.limitations,/img\/table/);
+  assert.match(relative.limitations,/table\/col/);
+  assert.match(relative.limitations,/img现有受限em\/rem/);
   const rgb=dataset.features.find(f=>f.id==='value.color.rgbfunc');
   assert.equal(rgb.status,'partial');
   assert.equal(rgb.last_audited_commit,'6a79f3f69f381f39a2cfb83bc2aa505e34c0af0d');
