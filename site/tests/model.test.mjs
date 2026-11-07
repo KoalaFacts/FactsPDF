@@ -6,7 +6,7 @@ import { validateDataset, filterFeatures, counts, safeUrl, parseRoute, routeHash
 const dataset = JSON.parse(readFileSync(new URL('../data/compatibility.json', import.meta.url), 'utf8'));
 function marginEvidence(id) {
   if(['css.margin','css.margin-top','css.margin-bottom'].includes(id))
-    return {sha:'0518b51d7a34457798c748db6753c4270ce20996',path:'0518b51d7a34457798c748db6753c4270ce20996/tests/FactsPDF.Tests/PercentagePanelMarginTests.cs'};
+    return {sha:'0f6c58655d651ee934cfb2c95272dde54f4c477e',path:'0f6c58655d651ee934cfb2c95272dde54f4c477e/tests/FactsPDF.Tests/ParagraphPercentageVerticalMarginTests.cs'};
   if(['css.margin-left','css.margin-right'].includes(id))
     return {sha:'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2',path:'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2/tests/FactsPDF.Tests/ReportPanelMarginTests.cs'};
   return {sha:'b0e6b53dcd003d74998a5a8d955c2071c0faa1c0',
@@ -54,8 +54,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
-  assert.match(dataset.commit_url, /845ab1799149e8b833306f2e49b3f8b240d699c8/);
+  assert.equal(dataset.commit, '0f6c58655d651ee934cfb2c95272dde54f4c477e');
+  assert.match(dataset.commit_url, /0f6c58655d651ee934cfb2c95272dde54f4c477e/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -125,13 +125,14 @@ test('standalone horizontal rules are real scoped PDF separators, not full HTML/
 test('bounded report overflow-wrap audit has real scope and exact source evidence', () => {
   const f=dataset.features.find(x=>x.id==='css.overflow-wrap');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'052f7a8d3da5f87d9dfb6c7b687dd35b1eb97097');
+  assert.equal(f.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/break-word/);
   assert.match(f.scope,/PDF/);
   assert.match(f.limitations,/nowrap/);
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/anywhere/);
+  assert.match(f.scope,/html\/body.*div\/section\/article\/blockquote/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.overflow-wrap']);
   assert.equal(dataset.accepted_css_property_count,116);
 });
@@ -139,7 +140,7 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
+  assert.equal(feature.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/nowrap/);
   assert.match(feature.scope,/br/);
@@ -147,14 +148,14 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.limitations,/FPDF1302/);
   assert.equal(feature.example,'white-space:pre-wrap');
   assert.match(feature.scope,/normal.*nowrap.*pre-line.*pre-wrap/);
-  assert.match(feature.scope,/CRLF\/CR\/LF\/FF/);
+  assert.match(feature.scope,/html\/body.*div\/section\/article\/blockquote/);
   assert.match(feature.limitations,/制表符/);
   assert.match(feature.limitations,/FPDF1305/);
   assert.match(feature.limitations,/FPDF1201/);
   assert.match(feature.limitations,/FPDF1202/);
-  assert.match(feature.test_reference,/PreformattedReportTests\.cs/);
-  assert.match(feature.evidence_level,/原有 pre-wrap 测试/,
-    'The new preformatted audit must retain explicit evidence of the prior pre-wrap regressions.');
+  assert.match(feature.test_reference,/InheritedWhiteSpaceReportTests\.cs/);
+  assert.match(feature.evidence_level,/五个模式继承和显式子节点逐字节对照/,
+    'The inherited report white-space audit must retain explicit positive actual PDF equivalence evidence.');
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
     ['css.white-space','css.word-break','css.word-spacing','html.pre']);
 });
@@ -182,7 +183,7 @@ test('print units and bounded four-sided report margins remain scoped', () => {
   assert.match(absolute.scope,/mm\/cm\/in/);
   assert.match(absolute.limitations,/pc\/q 已在上述受限CSS物理长度中支持，但CLI页边距等其他入口仍不扩展/);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(margin.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
+  assert.equal(margin.last_audited_commit,'0f6c58655d651ee934cfb2c95272dde54f4c477e');
   for(const id of ['css.margin-left','css.margin-right']){
     const side=dataset.features.find(f=>f.id===id);
     assert.equal(side.status,'partial');
@@ -312,7 +313,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.paragraph-percent-vertical-margin');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -342,12 +343,13 @@ test('bounded LTR alignment provenance and historical justification remain preci
 test('text-indent remains a limited renderable CSS feature after relative audit', () => {
   const f=dataset.features.find(f=>f.id==='css.text-indent');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353');
+  assert.equal(f.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/实际内容宽度/);
   assert.match(f.scope,/PDF/);
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/表格单元格/);
+  assert.match(f.scope,/html\/body.*div\/section\/article\/blockquote/);
   assert.equal(f.example,'text-indent:0.25in');
   assert.deepEqual(filterFeatures(dataset.features,{q:'text-indent',status:'partial'})
     .map(f=>f.id).sort(), ['css.text-indent','value.length.relative']);
@@ -388,12 +390,13 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   for(const id of ['css.text-indent','css.letter-spacing','css.word-spacing','value.length.relative']){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,'92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
+    assert.equal(feature.last_audited_commit,id==='css.text-indent' ? 'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba' : '92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
     assert.match(feature.scope,/em/,id);
     assert.match(feature.scope,/rem/,id);
     assert.equal(feature.introduced_release,null,id);
-    assert.equal(feature.test_reference,
-      'https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs');
+    assert.equal(feature.test_reference,id==='css.text-indent'
+      ? 'https://github.com/KoalaFacts/FactsPDF/blob/c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba/tests/FactsPDF.Tests/InheritedReportTextFlowTests.cs'
+      : 'https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs');
   }
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
@@ -536,7 +539,7 @@ test('four grouped LTR logical spacing records include eight side longhands', ()
     const row=dataset.features.find(f=>f.id==='css.'+name);
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit, name==='margin-block'
-      ? '0518b51d7a34457798c748db6753c4270ce20996' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
+      ? '0f6c58655d651ee934cfb2c95272dde54f4c477e' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
@@ -545,7 +548,7 @@ test('four grouped LTR logical spacing records include eight side longhands', ()
     assert.match(row.limitations, name==='margin-block'
       ? /FPDF1201\/1202\/1302/ : /FPDF1302/);
     assert.match(row.test_reference, name==='margin-block'
-      ? /PercentagePanelMarginTests.cs/ : /LogicalReportLonghandTests.cs/);
+      ? /ParagraphPercentageVerticalMarginTests.cs/ : /LogicalReportLonghandTests.cs/);
     for (const side of [name+'-start', name+'-end']) assert.match(row.scope, new RegExp(side));
     assert.ok(row.sources.some(source => source.includes('/src/FactsPDF/Css/CssSyntaxAdapter.cs')));
   }
@@ -657,7 +660,7 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
   const css=dataset.features.find(feature => feature.id==='css.white-space');
   assert.equal(pre.status,'partial');
   assert.equal(pre.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
-  assert.equal(css.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
+  assert.equal(css.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
   assert.match(pre.scope,/U\+0020/);
   assert.match(pre.limitations,/FPDF1305/);
   assert.match(css.scope,/pre-wrap.*pre/);
@@ -745,12 +748,13 @@ test('bounded report height is a real PDF layout feature with a precise source i
 test('scoped word-break actually places glyphs and preserves all 418 feature identities', () => {
   const row=dataset.features.find(item=>item.id==='css.word-break');
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'ac6cec7000b308b403dd95abcd14441240b1f791');
+  assert.equal(row.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/word-break:normal\/break-all/);
   assert.match(row.scope,/PDF/);
   assert.match(row.limitations,/FPDF1301\/1302/);
-  assert.match(row.test_reference,/WordBreakTests.cs/);
+  assert.match(row.scope,/html\/body.*div\/section\/article\/blockquote/);
+  assert.match(row.test_reference,/InheritedReportTextFlowTests.cs/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
 });
@@ -776,8 +780,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
-  assert.equal(dataset.commit, '845ab1799149e8b833306f2e49b3f8b240d699c8');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.paragraph-percent-vertical-margin');
+  assert.equal(dataset.commit, '0f6c58655d651ee934cfb2c95272dde54f4c477e');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -841,14 +845,14 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
   assert.equal(dataset.accepted_css_property_count,116);
   assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
   assert.equal(dataset.features.find(f=>f.id==='css.margin').last_audited_commit,
-    '0518b51d7a34457798c748db6753c4270ce20996');
+    '0f6c58655d651ee934cfb2c95272dde54f4c477e');
 });
 
 
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-06.attribute-operators');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-06.paragraph-percent-vertical-margin');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
@@ -940,4 +944,19 @@ test('bounded attribute selectors move a real syntax feature to partial without 
   assert.match(row.test_reference, /AttributeOperatorReportTests\.cs$/);
   assert.equal(row.introduced_release, null);
   assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
+});
+
+// The four bounded-margin scope descriptions must never regress to the old nonpercentage contract.
+test('CSS margin catalogue retains bounded vertical percentage support and stable IDs', () => {
+  assert.equal(dataset.features.length,418);
+  assert.equal(new Set(dataset.features.map(x=>x.id)).size,418);
+  assert.equal(dataset.accepted_css_property_count,116);
+  for(const id of ['css.margin-top','css.margin-bottom','css.margin','css.margin-block']) {
+    const row=dataset.features.find(x=>x.id===id);
+    assert.equal(row.status,'partial',id);
+    assert.match(row.scope,/p\/pre\/h1–h6/,id);
+    assert.match(row.scope,/百分比/,id);
+    assert.match(row.scope,/包含块内容宽度/,id);
+    assert.doesNotMatch(row.scope,/仍限非负pt|仍限上下pt|段落\/标题只允许非百分比长度/,id);
+  }
 });

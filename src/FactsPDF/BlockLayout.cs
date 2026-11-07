@@ -6,7 +6,8 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double MarginTop = 0, double RequiredRuleHeight = 0,
     double MinimumOuterHeight = 0, double TrailingSpace = 0,
     double? FixedOuterHeight = null,
-    double? IndivisibleEmptyClosingMargin = null) : BlockLayoutStep;
+    double? IndivisibleEmptyClosingMargin = null,
+    double DeferredBlankParagraphMargin = 0) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
@@ -27,7 +28,8 @@ internal static class BlockLayout
 {
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
         double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
-        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false);
+        double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false,
+        double? ParagraphMarginBasis = null);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
         CancellationToken cancellation, ListLayout? lists = null)
@@ -65,7 +67,9 @@ internal static class BlockLayout
                     break;
                 }
                 case ParagraphNode paragraph:
-                    yield return new LayoutParagraph(paragraph.Paragraph, frame.X, frame.ContentWidth,
+                    yield return new LayoutParagraph(
+                        ResolveParagraphMargins(paragraph.Paragraph, frame.ParagraphMarginBasis ?? frame.ContentWidth, options),
+                        frame.X, frame.ContentWidth,
                         lists?.Marker(paragraph.Paragraph), frame.MarkerRightX);
                     break;
                 case BlockNode node:
@@ -104,14 +108,16 @@ internal static class BlockLayout
                     // percentage-margin panel chooses its page, rather than
                     // dropping its closing gap when a following line paginates.
                     var blankNestedHeight = 0d;
+                    var blankParagraphMargin = 0d;
                     var blankNested = (style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
-                        TryMeasureUnpaintedBlankContents(node, box.Inner, cancellation, out blankNestedHeight);
+                        TryMeasureUnpaintedBlankContents(node, box.Inner, cancellation,
+                            out blankNestedHeight, out blankParagraphMargin);
                     var noOccupiedChildren = node.Children.Count == 0 ||
                         node.Children.All(child => child is BlockNode paragraph &&
                             paragraph.Name == "p" && paragraph.Children.Count == 1 &&
                             paragraph.Children[0] is ParagraphNode content &&
                             content.Paragraph.Runs.Count == 0 &&
-                            paragraph.Style.MarginBefore == 0 && paragraph.Style.MarginAfter == 0 &&
+                            HasNoParagraphOutsideMargin(paragraph.Style) &&
                             !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
                             !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
                             !paragraph.BoxStyle.HasLayoutPaint &&
@@ -195,10 +201,13 @@ internal static class BlockLayout
                         // with the parent's opening and closing outside margins.
                         indivisibleClosingMargin.HasValue ? emptyOuterHeight : requiredEmptyPaintHeight,
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
-                        indivisibleClosingMargin);
+                        indivisibleClosingMargin,
+                        DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
-                         MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot));
+                         MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
+                        ParagraphMarginBasis: node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                            ? containing : null));
                     break;
                 }
                 default:
@@ -207,13 +216,50 @@ internal static class BlockLayout
         }
     }
 
+    // An exact zero percent is zero at every containing width. Treat it like
+    // 0pt for empty-slot preflight; nonzero percentages must keep their
+    // deferred layout geometry and cannot be mistaken for an empty slot.
+    private static bool HasNoParagraphOutsideMargin(TextStyle style) =>
+        style.MarginBefore == 0 && style.MarginAfter == 0 &&
+        style.PercentMarginBefore.GetValueOrDefault().Value == 0 &&
+        style.PercentMarginAfter.GetValueOrDefault().Value == 0;
+
+    // Resolve only when the actual containing width is known; never turn 10% into 10pt.
+    // Keep/heading preflight uses the same conversion as ordinary paragraph placement.
+    internal static Paragraph ResolveParagraphMargins(Paragraph paragraph, double containingWidth, PdfOptions options)
+    {
+        var style = paragraph.Style;
+        if (style.PercentMarginBefore is null && style.PercentMarginAfter is null)
+            return paragraph;
+        var before = Checked(style.PercentMarginBefore?.Resolve(containingWidth) ?? style.MarginBefore,
+            paragraph.SourceOffset);
+        var after = Checked(style.PercentMarginAfter?.Resolve(containingWidth) ?? style.MarginAfter,
+            paragraph.SourceOffset);
+        var usableHeight = options.PageHeight - 2 * options.Margin;
+        if (before > usableHeight + 0.000001 || after > usableHeight + 0.000001)
+            throw new FactsPdfException("FPDF1302",
+                "Percentage paragraph outside margin cannot fit on a usable PDF page.",
+                paragraph.SourceOffset);
+        return paragraph with
+        {
+            Style = style with
+            {
+                MarginBefore = before, MarginAfter = after,
+                PercentMarginBefore = null, PercentMarginAfter = null
+            }
+        };
+    }
+
     // Iterative, bounded, and using the same containing widths as Steps.
     // Painted, breaking or text-bearing descendants are not blank. Sized
     // leaves with no children reserve their bounded fixed/minimum height.
     private static bool TryMeasureUnpaintedBlankContents(BlockNode node,
-        double containingWidth, CancellationToken cancellation, out double mandatoryHeight)
+        double containingWidth, CancellationToken cancellation, out double mandatoryHeight,
+        out double paragraphMargin)
     {
         mandatoryHeight = 0;
+        paragraphMargin = 0;
+        var largestBlankParagraphMargin = 0d;
         var pending = new Stack<(BlockChild Child, double Width)>();
         foreach (var child in node.Children)
             pending.Push((child, containingWidth));
@@ -225,18 +271,29 @@ internal static class BlockLayout
                 return false;
             var box = child.BoxStyle;
             if (box.HasLayoutPaint || box.DisplayNone || box.BreakBefore || box.BreakAfter ||
-                box.AvoidBreakInside || box.MarginTop.Value != 0 || box.MarginBottom.Value != 0 ||
+                box.AvoidBreakInside ||
                 ((box.MinHeight.HasValue || box.Height.HasValue) && child.Children.Count != 0) ||
                 child.Style.BreakBefore || child.Style.BreakAfter)
                 return false;
-            if (child.Name == "p")
+            if (child.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6")
             {
                 if (box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
                     child.Children.Count != 1 ||
                     child.Children[0] is not ParagraphNode content ||
-                    content.Paragraph.Runs.Count != 0 ||
-                    child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0)
+                    content.Paragraph.Runs.Count != 0)
                     return false;
+                // A blank, unpainted paragraph can still have a nonzero outside
+                // margin. TextLayout defers the largest such margin, including
+                // percentages based on this paragraph's containing content width.
+                // Count it when deciding whether the blank parent's two outside
+                // margins can fit on one physical page.
+                var paragraph = content.Paragraph;
+                var before = Checked(paragraph.Style.PercentMarginBefore?.Resolve(width) ??
+                    paragraph.Style.MarginBefore, paragraph.SourceOffset);
+                var after = Checked(paragraph.Style.PercentMarginAfter?.Resolve(width) ??
+                    paragraph.Style.MarginAfter, paragraph.SourceOffset);
+                largestBlankParagraphMargin = Math.Max(largestBlankParagraphMargin,
+                    Math.Max(before, after));
             }
             else if (child.Name is "div" or "section" or "article" or "blockquote")
             {
@@ -250,7 +307,13 @@ internal static class BlockLayout
                 if (box.Height is { } fixedHeight)
                     reserved = Math.Max(reserved, fixedHeight.Value +
                         (box.BorderBoxSizing ? 0 : decoration));
-                mandatoryHeight += reserved;
+                // Empty nested report wrappers still reserve their own outside
+                // margins. Omitting them can make an enclosing percentage-margin
+                // panel appear to fit even though its indivisible empty footprint
+                // exceeds the entire usable page.
+                var outsideTop = Checked(box.MarginTop.Resolve(width), child.SourceOffset);
+                var outsideBottom = Checked(box.MarginBottom.Resolve(width), child.SourceOffset);
+                mandatoryHeight += reserved + outsideTop + outsideBottom;
                 if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
                     throw new FactsPdfException("FPDF1302",
                         "Nested blank report geometry exceeds supported bounds.", child.SourceOffset);
@@ -259,6 +322,11 @@ internal static class BlockLayout
             }
             else return false;
         }
+        paragraphMargin = largestBlankParagraphMargin;
+        mandatoryHeight += largestBlankParagraphMargin;
+        if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
+            throw new FactsPdfException("FPDF1302",
+                "Blank report content with paragraph spacing exceeds supported bounds.", node.SourceOffset);
         return true;
     }
 

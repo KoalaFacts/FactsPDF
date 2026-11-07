@@ -135,10 +135,10 @@ public sealed class PercentagePanelMarginTests
         Assert.That(painted.Skip(1).All(p => Math.Abs(p.Top - 20) < 0.000001), Is.True);
     }
 
-    [TestCase("<p style='margin-top:10%'>PARAGRAPH</p>", "FPDF1202")]
-    [TestCase("<h2 style='margin-bottom:5%'>HEADING</h2>", "FPDF1202")]
-    [TestCase("<div style='margin-top:10%'><p style='margin-top:inherit'>WRONG UNIT</p></div>", "FPDF1201")]
-    [TestCase("<section style='margin-bottom:10%'><h2 style='margin-bottom:inherit'>WRONG UNIT</h2></section>", "FPDF1201")]
+    [TestCase("<p style='margin-top:-10%'>PARAGRAPH</p>", "FPDF1202")]
+    [TestCase("<h2 style='margin-bottom:-5%'>HEADING</h2>", "FPDF1202")]
+    [TestCase("<div style='margin-top:10%'><ul><li><p style='margin-top:10%'>WRONG CONTEXT</p></li></ul></div>", "FPDF1201")]
+    [TestCase("<section style='margin-bottom:10%'><ol><li><p style='margin-bottom:5%'>WRONG CONTEXT</p></li></ol></section>", "FPDF1201")]
     [TestCase("<ul><li><section style='margin-top:5%'><p>LIST</p></section></li></ul>", "FPDF1201")]
     [TestCase("<ol><li><article style='margin-block-end:8%'><p>LIST</p></article></li></ol>", "FPDF1201")]
     [TestCase("<section style='margin-top:auto'>INVALID</section>", "FPDF1202")]
@@ -150,10 +150,10 @@ public sealed class PercentagePanelMarginTests
     public void UnsupportedMarginsFailExplicitlyWithoutChangingTheExistingPdf(string html, string code)
         => RejectPreservingOutput(html, code);
 
-    [TestCase("<style>p{margin-top:5%}p{margin-top:0!important}</style><p>BAD</p>")]
-    [TestCase("<style>h2{margin-bottom:8%}h2{margin-bottom:0!important}</style><h2>BAD</h2>")]
-    [TestCase("<p style='margin-top:5%;margin-top:0'>BAD</p>")]
-    public void UnsupportedTextPercentMarginsRejectEvenWhenAnotherRuleWins(string html)
+    [TestCase("<style>p{margin-top:-5%}p{margin-top:0!important}</style><p>BAD</p>")]
+    [TestCase("<style>h2{margin-bottom:-8%}h2{margin-bottom:0!important}</style><h2>BAD</h2>")]
+    [TestCase("<p style='margin-top:-5%;margin-top:0'>BAD</p>")]
+    public void InvalidNegativeTextPercentMarginsRejectEvenWhenAnotherRuleWins(string html)
         => RejectPreservingOutput(html, "FPDF1202");
 
     [TestCase("20%")]
@@ -193,6 +193,139 @@ public sealed class PercentagePanelMarginTests
         const string html = "<section style='margin-top:80%;margin-bottom:80%'></section>" +
             "<p style='margin:0'>AFTER EMPTY PANEL</p>";
         Assert.That(Render(html), Is.EqualTo(Render(html.Replace("80%", "208pt"))));
+    }
+
+    [TestCase("<p style='margin:0%'></p>")]
+    [TestCase("<p style='margin:0;margin-top:0%'></p>")]
+    [TestCase("<p style='margin-bottom:0%'></p>")]
+    [TestCase("<p style='margin-block:0%'></p>")]
+    [TestCase("<p style='margin:-0%'></p>")]
+    [TestCase("<div><p style='margin:0%'></p></div>")]
+    public void EmptyPanelZeroPercentParagraphCannotBypassCombinedPageFootprint(string child)
+    {
+        const string prefix = "<section style='margin-top:10%;margin-bottom:30%'>";
+        const string suffix = "</section><p style='margin:0'>AFTER</p>";
+        var percent = prefix + child + suffix;
+        var points = prefix + child.Replace("0%", "0pt", StringComparison.Ordinal) + suffix;
+        // 26pt + 78pt of parent margins cannot fit on a 100pt usable sheet.
+        // A zero-percent empty child must not hide the parent from preflight.
+        var shortPage = Page with { PageHeight = 140 };
+        RejectPreservingOutput(percent, "FPDF1302", shortPage);
+        RejectPreservingOutput(points, "FPDF1302", shortPage);
+
+        // When the entire panel fits, 0% and 0pt must create identical PDF bytes.
+        var fittingPage = Page with { PageHeight = 200 };
+        Assert.That(Render(percent, fittingPage), Is.EqualTo(Render(points, fittingPage)));
+        Assert.That(Layout(percent, fittingPage), Has.Count.EqualTo(1));
+    }
+
+    [TestCase("<p style='margin:0;margin-top:10%'></p>")]
+    [TestCase("<p style='margin:0;margin-bottom:10%'></p>")]
+    [TestCase("<div><p style='margin:0;margin-top:10%'></p></div>")]
+    public void BlankPercentageSpacersCannotHideAnImpossiblePanelFootprint(string child)
+    {
+        const string prefix = "<section style='margin-top:10%;margin-bottom:30%'>";
+        const string suffix = "</section><p style='margin:0'>AFTER</p>";
+        var percent = prefix + child + suffix;
+        var pointOracle = prefix + child.Replace("10%", "26pt", StringComparison.Ordinal) + suffix;
+        // On a 260pt containing width, opening + blank child + closing
+        // requires 26 + 26 + 78 = 130pt; a 100pt usable page cannot hold it.
+        var shortPage = Page with { PageHeight = 140 };
+        RejectPreservingOutput(percent, "FPDF1302", shortPage);
+        RejectPreservingOutput(pointOracle, "FPDF1302", shortPage);
+
+        // In a usable 160pt page, the original template and the resolved
+        // point-value oracle must produce identical actual PDF bytes.
+        var fittingPage = Page with { PageHeight = 200 };
+        Assert.That(Render(percent, fittingPage), Is.EqualTo(Render(pointOracle, fittingPage)));
+        Assert.That(Layout(percent, fittingPage), Has.Count.EqualTo(1));
+    }
+
+    [TestCase("<p style='margin:0;margin-bottom:24pt'>BEFORE</p>", "BEFOREAFTER")]
+    [TestCase("<p style='margin:0;margin-bottom:40pt'></p>", "AFTER")]
+    public void BlankPanelPreflightSharesThePrecedingParagraphGap(string leading, string expectedText)
+    {
+        var percent = leading + "<section style='margin-top:10%;margin-bottom:30%'>" +
+            "<p style='margin:0;margin-top:10%'></p></section><p style='margin:0'>AFTER</p>";
+        var pointOracle = percent.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+            StringComparison.Ordinal);
+        var page = Page with { PageHeight = 200 };
+        // Two 14.4pt lines plus 26 + max(24,26) + 78 = 158.8pt.
+        // An empty 40pt predecessor instead needs 26 + max(40,26) + 78 + 14.4 = 158.4pt.
+        // Both fit the 160pt usable page without moving or adding a blank page.
+        var pages = Layout(percent, page);
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(string.Concat(pages[0].Runs.Select(run => run.Text)), Is.EqualTo(expectedText));
+        Assert.That(Render(percent, page), Is.EqualTo(Render(pointOracle, page)));
+    }
+
+    [TestCase("min-height")]
+    [TestCase("height")]
+    public void SharedBlankParagraphGapNeverDiscountsReservedPanelHeight(string property)
+    {
+        var html = "<p style='margin:0;margin-bottom:24pt'>BEFORE</p>" +
+            "<section style='margin-top:10%;margin-bottom:30%;" + property + ":100pt'>" +
+            "<p style='margin:0;margin-top:10%'></p></section><p style='margin:0'>AFTER</p>";
+        var page = Page with { PageHeight = 270 };
+        var pages = Layout(html, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("BEFORE"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("AFTER"));
+        // Fresh baseline 239.2 minus 26pt opening, 100pt reserved box,
+        // and 78pt closing margin must remain 35.2pt, not the page top.
+        Assert.That(pages[1].Runs.Single().Baseline, Is.EqualTo(35.2).Within(0.000001));
+        Assert.That(Render(html, page), Is.EqualTo(Render(
+            html.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+                StringComparison.Ordinal), page)));
+    }
+
+    [TestCase(false, "FPDF1302")]
+    [TestCase(true, "FPDF1401")]
+    public void BlankPanelRechecksFreshPageFootprintAndPaintBudget(bool consumePaintBudget, string code)
+    {
+        var html = (consumePaintBudget ? "<p style='margin:0'>BUDGET</p>" : "") +
+            "<div style='padding-top:20pt'><p style='margin:0;margin-bottom:40pt'></p>" +
+            "<section style='margin-top:10%;margin-bottom:30%;background:#ddeeff'>" +
+            "<p style='margin:0;margin-top:10%'></p></section></div>";
+        // The fresh page has no preceding 40pt gap to share: its retained
+        // 20pt ancestor padding plus 130pt panel exceeds 140pt usable height.
+        // An exhausted display budget keeps precedence when paint reappears.
+        RejectPreservingOutput(html, code, Page with
+        {
+            PageHeight = 180, MaxDisplayCommands = consumePaintBudget ? 1 : 10_000
+        });
+    }
+
+    [Test]
+    public void SharedGapDoesNotInventPaintForAZeroHeightBlankPanel()
+    {
+        const string html = "<p style='margin:0;margin-bottom:40pt'>BUDGET</p>" +
+            "<section style='margin-top:10%;margin-bottom:30%;background:#ddeeff'>" +
+            "<p style='margin:0;margin-top:10%'></p></section>";
+        var page = Page with { PageHeight = 200, MaxDisplayCommands = 1 };
+        Assert.That(Layout(html, page), Has.Count.EqualTo(1));
+        Assert.That(Render(html, page), Is.EqualTo(Render(
+            html.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+                StringComparison.Ordinal), page)));
+    }
+
+    [Test]
+    public void SharedBlankParagraphGapStillMovesARealOverflowTogether()
+    {
+        const string panel = "<section style='margin-top:10%;margin-bottom:30%'>" +
+            "<p style='margin:0;margin-top:10%'></p></section><p style='margin:0'>AFTER</p>";
+        const string leading = "<p style='margin:0;margin-bottom:24pt'>ONE<br>TWO<br>THREE<br>FOUR</p>";
+        var page = Page with { PageHeight = 200 };
+        var fresh = Layout(panel, page);
+        var moved = Layout(leading + panel, page);
+        Assert.That(fresh, Has.Count.EqualTo(1));
+        Assert.That(moved, Has.Count.EqualTo(2));
+        Assert.That(moved[0].Runs.Any(run => run.Text == "AFTER"), Is.False);
+        Assert.That(moved[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.000001));
+        Assert.That(Render(leading + panel, page), Is.EqualTo(Render(
+            (leading + panel).Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+                StringComparison.Ordinal), page)));
     }
 
     [TestCase("hr")]
@@ -357,6 +490,34 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
     }
 
+    [TestCase("margin-top:10pt")]
+    [TestCase("margin-bottom:10pt")]
+    [TestCase("margin-top:3%;margin-bottom:1%")]
+    public void NestedBlankWrapperOutsideMarginsCannotHideImpossiblePercentagePanel(string innerMargin)
+    {
+        // 260pt containing width: parent 15% + 20% = 39pt + 52pt,
+        // then at least 10pt of nested outside spacing. The 100pt usable
+        // short page cannot hold the entire blank footprint.
+        var html = "<section style='margin-top:15%;margin-bottom:20%'>" +
+            "<article style='" + innerMargin + "'><p style='margin:0'></p></article>" +
+            "</section><p style='margin:0'>AFTER</p>";
+        RejectPreservingOutput(html, "FPDF1302", Page with { PageHeight = 140 });
+    }
+
+    [Test]
+    public void NestedBlankOutsidePercentMarginsUseTheActualContainingWidths()
+    {
+        const string percentages = "<section style='margin-top:10%;margin-bottom:5%'>" +
+            "<article style='width:180pt;margin-top:3%;margin-bottom:1%'>" +
+            "<div style='margin-top:5%;margin-bottom:2%'></div></article></section>" +
+            "<p style='margin:0'>AFTER</p>";
+        const string points = "<section style='margin-top:26pt;margin-bottom:13pt'>" +
+            "<article style='width:180pt;margin-top:7.8pt;margin-bottom:2.6pt'>" +
+            "<div style='margin-top:9pt;margin-bottom:3.6pt'></div></article></section>" +
+            "<p style='margin:0'>AFTER</p>";
+        Assert.That(Render(percentages), Is.EqualTo(Render(points)));
+    }
+
     [Test]
     public void BlankNestedPercentPaddingUsesEachWrappersContainingWidth()
     {
@@ -387,4 +548,56 @@ public sealed class PercentagePanelMarginTests
     public void PercentMarginFromUnmatchedSelectorStillRejectsInvalidSyntax()
         => RejectPreservingOutput("<style>.unmatched{margin-top:-1%}</style>" +
             "<section style='margin-top:5%'>SAFE</section>", "FPDF1202");
+
+    [TestCase("pre")]
+    [TestCase("h1")]
+    [TestCase("h2")]
+    [TestCase("h3")]
+    [TestCase("h4")]
+    [TestCase("h5")]
+    [TestCase("h6")]
+    public void BlankHeadingAndPreMarginsDoNotEvadeEmptyPanelPreflight(string tag)
+        => VerifyBlankTextTagPanel(tag, nested: false);
+
+    [TestCase("pre")]
+    [TestCase("h1")]
+    [TestCase("h2")]
+    [TestCase("h3")]
+    [TestCase("h4")]
+    [TestCase("h5")]
+    [TestCase("h6")]
+    public void NestedBlankHeadingAndPreMarginsDoNotEvadeEmptyPanelPreflight(string tag)
+        => VerifyBlankTextTagPanel(tag, nested: true);
+
+    private static void VerifyBlankTextTagPanel(string tag, bool nested)
+    {
+        // Paragraph-like tags share the same zero-height empty-slot semantics.
+        // Their nonzero top percentage must be counted with both outside margins;
+        // even zero percentages must not evade the enclosing panel's page guard.
+        foreach (var childMargin in new[] { "0%", "10%" })
+        {
+            var child = "<" + tag + " style='margin:0;margin-top:" + childMargin +
+                "'></" + tag + ">";
+            var contents = nested ? "<article><div>" + child + "</div></article>" : child;
+            var html = "<section style='margin-top:10%;margin-bottom:30%'>" +
+                contents + "</section><p style='margin:0'>AFTER</p>";
+            var fixedChildMargin = childMargin == "0%" ? "0pt" : "26pt";
+            var oracle = html.Replace("margin-top:" + childMargin + "'",
+                "margin-top:" + fixedChildMargin + "'", StringComparison.Ordinal);
+
+            // The 260pt containing width gives 26pt + 78pt outside margins;
+            // a nonzero blank-text margin adds 26pt. Neither can occupy the
+            // short page's 100pt usable height, regardless of tag or nesting.
+            RejectPreservingOutput(html, "FPDF1302", Page with { PageHeight = 140 });
+            RejectPreservingOutput(oracle, "FPDF1302", Page with { PageHeight = 140 });
+
+            // On a usable 160pt page both inputs must yield identical actual
+            // PDF bytes without an invented blank leading page.
+            var fitting = Page with { PageHeight = 200 };
+            var pages = Layout(html, fitting);
+            Assert.That(pages, Has.Count.EqualTo(1));
+            Assert.That(pages[0].Runs.Any(run => run.Text == "AFTER"), Is.True);
+            Assert.That(Render(html, fitting), Is.EqualTo(Render(oracle, fitting)));
+        }
+    }
 }

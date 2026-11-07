@@ -22,4 +22,4 @@ Nine new `ImageCompositionTests` cover exact page-edge fit, automatic image move
 
 First local outputs contain 2 and 3 pages respectively. All five complete page rasters were opened and inspected: records and markers are intact, the chart is upright, surrounding text does not overlap it, and the section has the expected sliced side/bottom borders. User approval as a page reference remains pending. These checks do not complete the full-report target, tables, page furniture, Windows AOT or release gates.
 
-The next approved roadmap work package is E (tables). Its concrete [E1 design and fixture proposal](superpowers/specs/2026-10-18-fixed-column-table-e1-design.md) remains a proposal, with a single public syntax decision to review before engine implementation.
+Tables have since shipped; see [tables](tables.md) and the [E1 design](superpowers/specs/2026-10-18-fixed-column-table-e1-design.md).

@@ -213,7 +213,7 @@ public sealed class ReportPrintSpacingTests
 
     [TestCase("margin:0 0 auto")]
     [TestCase("margin:0 0 -1mm")]
-    [TestCase("margin:0%")]
+    [TestCase("margin:-1%")]
     [TestCase("margin:inherit 0")]
     [TestCase("margin:0 0 0 0 0")]
     [TestCase("margin:calc(1mm + 2mm) 0")]

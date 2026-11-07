@@ -153,6 +153,13 @@ internal sealed class CssStylesheets
     {
         Array.Clear(winners); var element = path[^1];
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
+        // These inherited text-flow controls can be authored on document or
+        // ordinary report containers. Their computed state reaches the same
+        // measured paragraph/heading renderer, not a separate box approximation.
+        // Direct inline, list and table declarations remain unsupported.
+        var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "blockquote")
+            && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                or "td" or "th" or "thead" or "tbody" or "tfoot");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
             budget.Work(declaration.Offset);
@@ -319,24 +326,13 @@ internal sealed class CssStylesheets
                 _ = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     allowRem: true, allowEm: true);
             }
-            // Paragraphs/headings still store absolute vertical margins. An
-            // overridden positive percentage is syntactically valid CSS, but
-            // unsupported here: reject every matching declaration, including
-            // losing cascade candidates, rather than silently discarding it.
+            // Vertical percentages on ordinary paragraphs use containing-block content width.
+            // List and table flows have distinct geometry; reject even losing candidates.
             if (paragraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
-                && declaration.Value.EndsWith('%'))
-                throw new FactsPdfException("FPDF1202",
-                    "Paragraph and heading vertical margins do not support percentages.", declaration.Offset);
-            // A paragraph's TextStyle stores absolute vertical margins.
-            // Inheriting a percentage from a panel would otherwise mistake
-            // e.g. 10% for 10pt. Reject instead of silently changing layout.
-            // Validate losing declarations too.
-            if (paragraph && declaration.Value == "inherit" && path.Count > 1 &&
-                path[^2].Name is ("div" or "section" or "article" or "blockquote") &&
-                ((declaration.Property == CssProperty.MarginTop && parentBox.MarginTop.IsPercent)
-                 || (declaration.Property == CssProperty.MarginBottom && parentBox.MarginBottom.IsPercent)))
+                && declaration.Value.EndsWith('%') &&
+                path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
                 throw new FactsPdfException("FPDF1201",
-                    "Paragraphs cannot inherit percentage panel margins.", declaration.Offset);
+                    "Percentage paragraph margins are not supported inside lists or tables.", declaration.Offset);
             // Forced page breaks on a whole report section must open/close
             // at its box boundary, not be delayed until its first text leaf.
             // No break-inside, avoid for whole panels or list/table breaks.
@@ -349,7 +345,9 @@ internal sealed class CssStylesheets
                     "Report-panel page breaks support auto/page, not avoid.", declaration.Offset);
             if (!paragraph && !panelMargin && !panelPageBreak && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
-                or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent))
+                or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
+                && !(reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
+                    or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
@@ -370,7 +368,11 @@ internal sealed class CssStylesheets
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
+        // defaults is either the shared parent style or a private copy the reader already made for
+        // this element's tag defaults. Text declarations are applied to one private copy, made on
+        // the first one if the reader did not make it; shared styles are never assigned (see TextStyle).
         var style = defaults;
+        var styleOwned = !ReferenceEquals(defaults, parent);
         // Bounded report defaults. A quote is a real inset block rather
         // than an ignored tag; author CSS overrides each side normally.
         // CSS-wide initial resets to the zero-margin ordinary box initial.
@@ -479,8 +481,9 @@ internal sealed class CssStylesheets
                 // FontSize precedes these properties in the fixed enum.
                 var computedRoot = element.Name == "html"
                     && declaration.Property is (CssProperty.LineHeight
-                        or CssProperty.LetterSpacing or CssProperty.WordSpacing
-                        or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset)
+                        or CssProperty.TextIndent or CssProperty.LetterSpacing
+                        or CssProperty.WordSpacing or CssProperty.TextDecorationThickness
+                        or CssProperty.TextUnderlineOffset)
                     ? style.FontSize : rootFontSize;
                 // Explicit paragraph/heading margin/break:inherit must read
                 // the direct panel's computed BoxStyle. Neither property is
@@ -490,15 +493,19 @@ internal sealed class CssStylesheets
                     path[^2].Name is ("div" or "section" or "article" or "blockquote");
                 var inheritedParent = hasReportPanelParent &&
                     declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
-                    ? parent with { MarginBefore = parentBox.MarginTop.Value,
-                        MarginAfter = parentBox.MarginBottom.Value }
+                    ? parent with { MarginBefore = parentBox.MarginTop.IsPercent ? 0 : parentBox.MarginTop.Value,
+                        MarginAfter = parentBox.MarginBottom.IsPercent ? 0 : parentBox.MarginBottom.Value,
+                        PercentMarginBefore = parentBox.MarginTop.IsPercent ? parentBox.MarginTop : null,
+                        PercentMarginAfter = parentBox.MarginBottom.IsPercent ? parentBox.MarginBottom : null }
                     : hasReportPanelParent &&
                         declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
                         ? parent with { BreakBefore = parentBox.BreakBefore,
                             BreakAfter = parentBox.BreakAfter }
                         : parent;
-                style = CssDeclarations.Apply(style, inheritedParent, initial, declaration,
-                    paragraph, computedRoot);
+                if (!styleOwned) { style = style with { }; styleOwned = true; }
+                CssDeclarations.Apply(style, inheritedParent, initial, declaration,
+                    paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
+                        or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
         }
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)

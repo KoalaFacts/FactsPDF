@@ -993,7 +993,7 @@ internal static class CssSyntaxAdapter
             if (!InlineCss.KeywordFontSize(token, ValidationStyle.FontSize).HasValue
                 && !InlineCss.RootRelativeScale(token, offset, 144).HasValue
                 && !InlineCss.RelativeFontSizeScale(token, offset).HasValue)
-                _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
+                _ = InlineCss.Apply(ValidationStyle with { }, name + ":" + token,
                     paragraph: true, inline: false, offset);
         }
         else if (name == "line-height")
@@ -1003,7 +1003,7 @@ internal static class CssSyntaxAdapter
             // to the winning declaration, as for relative font-size.
             if (!InlineCss.RootRelativeScale(token, offset, 1440).HasValue
                 && !InlineCss.RelativeLineHeightScale(token, offset).HasValue)
-                _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
+                _ = InlineCss.Apply(ValidationStyle with { }, name + ":" + token,
                     paragraph: true, inline: false, offset);
         }
         else if (name is ("text-indent" or "letter-spacing" or "word-spacing")
@@ -1126,7 +1126,7 @@ internal static class CssSyntaxAdapter
             else throw new InvalidOperationException("Shorthand validation should be handled separately.");
         }
         else
-            _ = InlineCss.Apply(ValidationStyle, name + ":" + token,
+            _ = InlineCss.Apply(ValidationStyle with { }, name + ":" + token,
                 paragraph: true, inline: false, offset);
     }
 

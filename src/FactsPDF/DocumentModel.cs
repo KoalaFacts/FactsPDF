@@ -15,15 +15,53 @@ internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
 internal readonly record struct Rgb(double R, double G, double B);
-internal sealed record TextStyle(double FontSize, double LineHeight, Rgb Color, TextAlignment Alignment,
-    double MarginBefore = 0, double MarginAfter = 0, bool BreakBefore = false, bool BreakAfter = false,
-    bool Bold = false, bool Italic = false, bool KeepWithNext = false,
-    TextDecoration Decoration = TextDecoration.None, double? AbsoluteLineHeight = null,
-    bool NoWrap = false, CssLength FirstLineIndent = default, double LetterSpacing = 0, double WordSpacing = 0, TextTransform Transform = TextTransform.None,
-    bool BreakWords = false, bool PreserveLineBreaks = false, bool PreserveSpaces = false,
-    Rgb? DecorationColor = null, TextDecorationPattern DecorationPattern = TextDecorationPattern.Solid,
-    bool BreakAll = false, string? LinkUri = null, double? DecorationThickness = null,
-    double? UnderlineOffset = null, TextAlignment? LastLineAlignment = null);
+// Computed text style. Treat every published instance as immutable: the root style, a parent's
+// style and any style stored in the document model or a run are shared, and adjacent runs with
+// equal styles coalesce by value. The setters exist only so CSS computing can apply all of one
+// element's text declarations to a single private copy (HtmlDocumentReader, CssStylesheets.Compute),
+// instead of allocating a full copy per declaration. Nothing else may assign these properties.
+internal sealed record TextStyle
+{
+    internal TextStyle(double fontSize, double lineHeight, Rgb color, TextAlignment alignment)
+    {
+        FontSize = fontSize;
+        LineHeight = lineHeight;
+        Color = color;
+        Alignment = alignment;
+    }
+
+    public double FontSize { get; set; }
+    public double LineHeight { get; set; }
+    public Rgb Color { get; set; }
+    public TextAlignment Alignment { get; set; }
+    public double MarginBefore { get; set; }
+    public double MarginAfter { get; set; }
+    public bool BreakBefore { get; set; }
+    public bool BreakAfter { get; set; }
+    public bool Bold { get; set; }
+    public bool Italic { get; set; }
+    public bool KeepWithNext { get; set; }
+    public TextDecoration Decoration { get; set; }
+    public double? AbsoluteLineHeight { get; set; }
+    public bool NoWrap { get; set; }
+    public CssLength FirstLineIndent { get; set; }
+    public double LetterSpacing { get; set; }
+    public double WordSpacing { get; set; }
+    public TextTransform Transform { get; set; }
+    public bool BreakWords { get; set; }
+    public bool PreserveLineBreaks { get; set; }
+    public bool PreserveSpaces { get; set; }
+    public Rgb? DecorationColor { get; set; }
+    public TextDecorationPattern DecorationPattern { get; set; }
+    public bool BreakAll { get; set; }
+    public string? LinkUri { get; set; }
+    public double? DecorationThickness { get; set; }
+    public double? UnderlineOffset { get; set; }
+    public TextAlignment? LastLineAlignment { get; set; }
+    // Retain relative outside margins until containing-block content width is known.
+    public CssLength? PercentMarginBefore { get; set; }
+    public CssLength? PercentMarginAfter { get; set; }
+}
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
