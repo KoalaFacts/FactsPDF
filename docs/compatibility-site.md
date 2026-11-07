@@ -16,6 +16,45 @@ Set repository **Settings > Pages > Build and deployment > Source: GitHub Action
 
 To update a feature, edit its stable-ID row in the JSON, including scope, limitations, source/test evidence and actual audit commit/date. Update category totals when adding or removing rows. For an intentional snapshot change, record and review its SHA-256 in `site/scripts/validate.mjs` and this provenance document; validation rejects any other byte changes, including notes-only edits. Run tests/build, review the PR, then merge. The site reads that data; there is no separate support table to hand-edit in the UI. Keep plans, milestones and release versions distinct. Missing history remains unknown. Counts describe this inventory, not whole-standard conformance or product completion.
 
+## Languages and English translation
+
+New visits open in English (interface, loading and error messages, feature
+scopes, limitations, evidence and methodology); Chinese stays an explicit
+option, remembered when browser storage is available, and blocked storage does
+not stop the lookup or language switching. Search accepts both the English and
+the original Chinese wording.
+
+English is a display translation, not a new engine audit. The source-language
+JSON, IDs, support states, dates, source links, code examples and JSON/CSV
+exports are unchanged, examples are labelled as verbatim source, and a
+translation never removes a limitation or turns unverified support into
+support.
+
+Translations are chained layers under `site/src/audit-english-*.mjs`. The
+current layer is the one `site/src/localisation.mjs` imports; each layer
+imports the previous one, checks its length, replaces only the changed strings
+by source-text index and declares a new `sourceDigest`. `localisation.mjs`
+refuses to display English unless the SHA-256 of the JSON array of ordered strings returned
+by `collectAuditStrings()` matches that digest and the counts agree. When audit
+text changes, add a new layer and update its digest together with the
+translations; never change the digest alone to silence a failure.
+`site/tests/localisation.test.mjs` checks coverage, source preservation and
+stale-text rejection; `site/tests/english.spec.js` proves the first-visit
+default with empty storage and a Chinese browser locale, bilingual search,
+preference persistence, blocked storage, failure recovery and unchanged raw
+downloads. No translation service, tracking, dependency or runtime network
+call is used.
+
+## Pages publisher
+
+Public site: <https://koalafacts.github.io/FactsPDF/>.
+`.github/workflows/compatibility-pages.yml` is the only workflow that may
+publish Pages (`site/tests/pages-publishing.test.mjs` fails on a second
+publisher). It publishes only the built `site/dist` after the Chromium checks
+pass, then checks the public HTML and support-data SHA-256 against the tested
+build. That deployment identity is separate from each feature's engine audit
+commit; rebuilding the site changes no audited record.
+
 ## Scope
 
 This first page supports search, category/status/introduction filters, pagination, feature details/evidence, shareable hash links, Chinese/English interface labels, and JSON/CSV download. Audit notes remain in their original language. External links are HTTPS; examples are text, never executed. A subfeature marked full does not make its parent fully supported. No database, account system, server renderer, or complete historical-version matrix is introduced.
@@ -373,7 +412,7 @@ Actual CI, independent review, human page approval and commercial
 distribution remain separate and must not be inferred from the audit.
 
 
-## 29 October 2026: scoped vertical report-panel margins (current source)
+## 29 October 2026: scoped vertical report-panel margins
 
 The newer `f5aba206ca30c86dca8bd4b465182d5cea436dcc` source extends the
 previous horizontal-panel support to nonnegative `margin-top` and
