@@ -36,7 +36,7 @@ public sealed class AllocationBudgetTests
         var html = File.ReadAllText(Path.Combine(FindRoot(), "examples", "quick-start.html"));
         var allocated = AllocatedPerConversion(html, Pdf.Write());
         TestContext.Out.WriteLine($"quick-start: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(225 * 1024));
+        Assert.That(allocated, Is.LessThan(217 * 1024));
     }
 
     [Test]
