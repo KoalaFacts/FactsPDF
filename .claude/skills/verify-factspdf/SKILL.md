@@ -52,6 +52,7 @@ Areas follow `site/data/compatibility.json` `categories`. "Run" is the command u
   expected and compared; a change that turns exit 3 into 0 or the reverse is a behaviour change.
 - Parity compares bytes; a comments-only `src/` change is identical by construction, but run it anyway.
 - Allocation tests (`AllocationBudgetTests`) only go down; a green run after raising a budget proves nothing.
+- Measure allocation per phase and by sampled type with the explicit `AllocationProfileTests` (`dotnet test tests/FactsPDF.Tests -c Release --filter "FullyQualifiedName~AllocationProfileTests" --logger "console;verbosity=detailed"`) before and after a Z item; it guards nothing, so its output is evidence, not a pass.
 - `dotnet test --no-build` after editing code runs the old build.
 - The `.ttc` fonts on the system are rejected; only a static `.ttf` counts as a supplied font.
 - Hosted CI may stay queued for long periods; the local gate is the evidence until it runs.
