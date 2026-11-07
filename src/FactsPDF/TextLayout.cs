@@ -262,8 +262,12 @@ internal static class TextLayout
                 // A void rule or other empty decorated box must fit in one
                 // page fragment. Move it with its outside top margin before
                 // opening it, rather than discovering an overflow at closure.
-                var requiredHeight = Math.Max(Math.Max(begin.RequiredRuleHeight, begin.MinimumOuterHeight),
-                    begin.FixedOuterHeight ?? 0);
+                // Blank paragraph spacing shares the deferred preceding gap.
+                // Discount only that overlap, never a fixed/minimum box height.
+                double ResolveRequiredHeight() => Math.Max(Math.Max(
+                    begin.RequiredRuleHeight - Math.Min(after, begin.DeferredBlankParagraphMargin),
+                    begin.MinimumOuterHeight), begin.FixedOuterHeight ?? 0);
+                var requiredHeight = ResolveRequiredHeight();
                 // An empty percentage-margin panel must keep its closing
                 // outside margin with the same page-local box, even when
                 // the box has no paint or minimum height. Otherwise it can
@@ -289,6 +293,17 @@ internal static class TextLayout
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
                         ruleGap = pendingTopPadding + begin.MarginTop;
+                        // NewPage clears the preceding gap, so its overlap no
+                        // longer reduces the blank panel's fresh-page footprint.
+                        requiredHeight = ResolveRequiredHeight();
+                        completeEmptyFootprint = requiredHeight +
+                            (begin.IndivisibleEmptyClosingMargin ?? 0);
+                        if (displayCommands == o.MaxDisplayCommands)
+                        {
+                            var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
+                                requiredHeight, begin.Style, begin.TextColor, paintOrder);
+                            EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
+                        }
                     }
                     if (y + ruleGap + completeEmptyFootprint > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",

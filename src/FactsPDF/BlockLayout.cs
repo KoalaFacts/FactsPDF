@@ -6,7 +6,8 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double MarginTop = 0, double RequiredRuleHeight = 0,
     double MinimumOuterHeight = 0, double TrailingSpace = 0,
     double? FixedOuterHeight = null,
-    double? IndivisibleEmptyClosingMargin = null) : BlockLayoutStep;
+    double? IndivisibleEmptyClosingMargin = null,
+    double DeferredBlankParagraphMargin = 0) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
     ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
@@ -107,8 +108,10 @@ internal static class BlockLayout
                     // percentage-margin panel chooses its page, rather than
                     // dropping its closing gap when a following line paginates.
                     var blankNestedHeight = 0d;
+                    var blankParagraphMargin = 0d;
                     var blankNested = (style.MarginTop.IsPercent || style.MarginBottom.IsPercent) &&
-                        TryMeasureUnpaintedBlankContents(node, box.Inner, cancellation, out blankNestedHeight);
+                        TryMeasureUnpaintedBlankContents(node, box.Inner, cancellation,
+                            out blankNestedHeight, out blankParagraphMargin);
                     var noOccupiedChildren = node.Children.Count == 0 ||
                         node.Children.All(child => child is BlockNode paragraph &&
                             paragraph.Name == "p" && paragraph.Children.Count == 1 &&
@@ -198,7 +201,8 @@ internal static class BlockLayout
                         // with the parent's opening and closing outside margins.
                         indivisibleClosingMargin.HasValue ? emptyOuterHeight : requiredEmptyPaintHeight,
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
-                        indivisibleClosingMargin);
+                        indivisibleClosingMargin,
+                        DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
@@ -250,9 +254,11 @@ internal static class BlockLayout
     // Painted, breaking or text-bearing descendants are not blank. Sized
     // leaves with no children reserve their bounded fixed/minimum height.
     private static bool TryMeasureUnpaintedBlankContents(BlockNode node,
-        double containingWidth, CancellationToken cancellation, out double mandatoryHeight)
+        double containingWidth, CancellationToken cancellation, out double mandatoryHeight,
+        out double paragraphMargin)
     {
         mandatoryHeight = 0;
+        paragraphMargin = 0;
         var largestBlankParagraphMargin = 0d;
         var pending = new Stack<(BlockChild Child, double Width)>();
         foreach (var child in node.Children)
@@ -310,6 +316,7 @@ internal static class BlockLayout
             }
             else return false;
         }
+        paragraphMargin = largestBlankParagraphMargin;
         mandatoryHeight += largestBlankParagraphMargin;
         if (!double.IsFinite(mandatoryHeight) || mandatoryHeight > 14_400)
             throw new FactsPdfException("FPDF1302",

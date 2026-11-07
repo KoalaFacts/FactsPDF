@@ -241,6 +241,93 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Layout(percent, fittingPage), Has.Count.EqualTo(1));
     }
 
+    [TestCase("<p style='margin:0;margin-bottom:24pt'>BEFORE</p>", "BEFOREAFTER")]
+    [TestCase("<p style='margin:0;margin-bottom:40pt'></p>", "AFTER")]
+    public void BlankPanelPreflightSharesThePrecedingParagraphGap(string leading, string expectedText)
+    {
+        var percent = leading + "<section style='margin-top:10%;margin-bottom:30%'>" +
+            "<p style='margin:0;margin-top:10%'></p></section><p style='margin:0'>AFTER</p>";
+        var pointOracle = percent.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+            StringComparison.Ordinal);
+        var page = Page with { PageHeight = 200 };
+        // Two 14.4pt lines plus 26 + max(24,26) + 78 = 158.8pt.
+        // An empty 40pt predecessor instead needs 26 + max(40,26) + 78 + 14.4 = 158.4pt.
+        // Both fit the 160pt usable page without moving or adding a blank page.
+        var pages = Layout(percent, page);
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(string.Concat(pages[0].Runs.Select(run => run.Text)), Is.EqualTo(expectedText));
+        Assert.That(Render(percent, page), Is.EqualTo(Render(pointOracle, page)));
+    }
+
+    [TestCase("min-height")]
+    [TestCase("height")]
+    public void SharedBlankParagraphGapNeverDiscountsReservedPanelHeight(string property)
+    {
+        var html = "<p style='margin:0;margin-bottom:24pt'>BEFORE</p>" +
+            "<section style='margin-top:10%;margin-bottom:30%;" + property + ":100pt'>" +
+            "<p style='margin:0;margin-top:10%'></p></section><p style='margin:0'>AFTER</p>";
+        var page = Page with { PageHeight = 270 };
+        var pages = Layout(html, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("BEFORE"));
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("AFTER"));
+        // Fresh baseline 239.2 minus 26pt opening, 100pt reserved box,
+        // and 78pt closing margin must remain 35.2pt, not the page top.
+        Assert.That(pages[1].Runs.Single().Baseline, Is.EqualTo(35.2).Within(0.000001));
+        Assert.That(Render(html, page), Is.EqualTo(Render(
+            html.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+                StringComparison.Ordinal), page)));
+    }
+
+    [TestCase(false, "FPDF1302")]
+    [TestCase(true, "FPDF1401")]
+    public void BlankPanelRechecksFreshPageFootprintAndPaintBudget(bool consumePaintBudget, string code)
+    {
+        var html = (consumePaintBudget ? "<p style='margin:0'>BUDGET</p>" : "") +
+            "<div style='padding-top:20pt'><p style='margin:0;margin-bottom:40pt'></p>" +
+            "<section style='margin-top:10%;margin-bottom:30%;background:#ddeeff'>" +
+            "<p style='margin:0;margin-top:10%'></p></section></div>";
+        // The fresh page has no preceding 40pt gap to share: its retained
+        // 20pt ancestor padding plus 130pt panel exceeds 140pt usable height.
+        // An exhausted display budget keeps precedence when paint reappears.
+        RejectPreservingOutput(html, code, Page with
+        {
+            PageHeight = 180, MaxDisplayCommands = consumePaintBudget ? 1 : 10_000
+        });
+    }
+
+    [Test]
+    public void SharedGapDoesNotInventPaintForAZeroHeightBlankPanel()
+    {
+        const string html = "<p style='margin:0;margin-bottom:40pt'>BUDGET</p>" +
+            "<section style='margin-top:10%;margin-bottom:30%;background:#ddeeff'>" +
+            "<p style='margin:0;margin-top:10%'></p></section>";
+        var page = Page with { PageHeight = 200, MaxDisplayCommands = 1 };
+        Assert.That(Layout(html, page), Has.Count.EqualTo(1));
+        Assert.That(Render(html, page), Is.EqualTo(Render(
+            html.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+                StringComparison.Ordinal), page)));
+    }
+
+    [Test]
+    public void SharedBlankParagraphGapStillMovesARealOverflowTogether()
+    {
+        const string panel = "<section style='margin-top:10%;margin-bottom:30%'>" +
+            "<p style='margin:0;margin-top:10%'></p></section><p style='margin:0'>AFTER</p>";
+        const string leading = "<p style='margin:0;margin-bottom:24pt'>ONE<br>TWO<br>THREE<br>FOUR</p>";
+        var page = Page with { PageHeight = 200 };
+        var fresh = Layout(panel, page);
+        var moved = Layout(leading + panel, page);
+        Assert.That(fresh, Has.Count.EqualTo(1));
+        Assert.That(moved, Has.Count.EqualTo(2));
+        Assert.That(moved[0].Runs.Any(run => run.Text == "AFTER"), Is.False);
+        Assert.That(moved[1].Runs.Single().Baseline,
+            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.000001));
+        Assert.That(Render(leading + panel, page), Is.EqualTo(Render(
+            (leading + panel).Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
+                StringComparison.Ordinal), page)));
+    }
+
     [TestCase("hr")]
     [TestCase("section")]
     public void EmptyPercentageOutsideMarginsMoveTogetherWhenOnlyClosingGapWouldOverflow(string tag)
