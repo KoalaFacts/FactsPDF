@@ -490,7 +490,7 @@ This source feature does not update retained private installable software.
 
 ### First-line `text-indent` (source-only)
 
-For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans, containers and table-cell paragraphs cannot set it; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
+For report explanatory paragraphs and headings, opt-in `text-indent:18pt`, `text-indent:0.25in` or `text-indent:15%` insets **only the first logical line** within the actual content width; later wrapped lines, explicit `<br>` lines and subsequent pages are not re-indented. The paragraph box/background keeps its original position. Percentages resolve against its actual content width. Nonnegative `pt/px/mm/cm/in/%` or zero are supported; overlarge insets or first words that cannot fit reject with `FPDF1302` without overwriting the destination. Inline spans and table-cell paragraphs cannot declare it directly. Document roots and ordinary report containers may now declare it for inheritance, including into flat fixed-column cell paragraphs; negative/hanging indents and `calc()` are unsupported. This is a scoped PDF text layout capability, not full CSS Text conformance.
 
 ### Bounded `letter-spacing` (source-only)
 
@@ -547,6 +547,37 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ## White space and line wrapping
 
+### Inherited report text flow (source-only)
+
+The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all`
+and nonnegative `text-indent` values can now be declared on `html`, `body`
+or ordinary report `div`/`section`/`article`/`blockquote` containers.
+Their computed values inherit into descendant paragraphs and headings and
+control actual PDF word wrapping, first-line X coordinates and pagination.
+An inherited `text-indent` also positions a flat paragraph inside a fixed-column
+table cell, including left/centre/right alignment; it does not permit a
+direct `text-indent` declaration on the table or its cell paragraph.
+Inline elements, list/table structural declarations, unsupported values and
+complex text shaping remain outside scope. See the
+[bounded inherited CSS contract](css-stylesheets.md#current-source-inherited-report-text-flow).
+
+### Inherited report white-space from document and panels (source-only)
+
+A supported `white-space:normal|nowrap|pre-line|pre-wrap|pre` declaration on
+`html`, `body`, `div`, `section`, `article` or `blockquote` now passes its
+computed text-whitespace mode to nested report paragraphs and headings.
+For example, `section.invoice-notes { white-space:pre-line }` preserves authored
+newlines in descendant `p` text without restyling each paragraph. The
+renderer uses the same measured line breaking, glyph placement, page
+fragmentation and failure modes as an explicit declaration on each child.
+A child's winning declaration or `initial` overrides the inherited mode;
+`inherit` and `unset` on the container follow CSS text inheritance.
+The [PDF equivalence and multi-page NUnit checks](../tests/FactsPDF.Tests/InheritedWhiteSpaceReportTests.cs)
+compare inherited and explicitly styled reports and protect prior output
+on invalid CSS. Inline `span`, table structural elements, list containers
+and unsupported text modes still cannot declare this property. This is a
+bounded inheritance extension, not arbitrary CSS Text support.
+
 ### Current-source multiline report notes
 
 For controlled invoices, inspections and customer notes, explicit paragraphs and
@@ -555,7 +586,7 @@ LF, CRLF, CR and form-feed while continuing to collapse ordinary spaces/tabs.
 Lines still soft-wrap to the measured PDF content width and continue across pages;
 the final source segment break is discarded. An explicit `<br>` remains a break.
 Scoped stylesheet/inline CSS, cascade and explicit p-in-table-cell width work,
-but container/span declarations, `break-spaces`, RTL/shaping and
+but inline/span and table-structural declarations, `break-spaces`, RTL/shaping and
 unrestricted CSS Text do not. For unwrapped source lines, use the separate
 bounded `<pre>` or `white-space:pre` report mode. Use the separate bounded `pre-wrap` mode when
 an authored report must retain visible U+0020 space advances.
@@ -705,12 +736,29 @@ Scoped report paragraphs/headings also accept `margin:0.25rem 0.5rem`,
 `margin-top:0.5rem` and 1–4 side shorthand values. The computed `html`
 root (or the writer's base font size as fallback) drives real PDF vertical gaps,
 horizontal text/paint position, wrapping and pagination. Horizontal `auto`
-still combines with supported lengths. Negative margins, vertical `%`/`auto`,
+still combines with supported lengths. Negative margins, vertical `auto`,
 `calc()`, body/list/table/image/inline margins and table-cell `rem`/`em` margins
-remain rejected; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](css-stylesheets.md#current-source-root-relative-paragraph-margins),
+remain rejected; bounded paragraph/heading vertical `%` is described below; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](css-stylesheets.md#current-source-root-relative-paragraph-margins),
 the [32-entry report](../examples/report-rem-margins.html) and its separately
 authored [fixed-point oracle](../examples/report-rem-margins-oracle.html).
 Unfit output preserves the prior destination. This is source-only.
+
+### Paragraph and heading percentage outside margins (source candidate)
+
+Ordinary `p`, `pre` and `h1`–`h6` outside lists and tables accept
+nonnegative vertical `margin-top`/`margin-bottom` percentages via physical,
+four-side `margin` and LTR `margin-block` syntax. Values resolve from the
+**containing block's content width**, not page height, and alter real PDF
+vertical placement, painted backgrounds and borders, heading keep and
+multi-page text. `!important`, per-side cascade, CSS-wide reset and explicit
+`inherit` from a percentage-margined report panel share the same computation.
+Negative/vertical `auto`, `calc()`, list/table percentages and unplaceable
+margin geometry still reject, preserving the previous output bytes; there is
+no margin collapsing or RTL/Paged Media support. Source implementation
+`0f6c58655d651ee934cfb2c95272dde54f4c477e`; [exact contract](css-stylesheets.md#current-source-paragraph-percentage-vertical-margins)
+and `ParagraphPercentageVerticalMarginTests.cs` provide HTML-to-PDF evidence.
+Exact-head CI, genuinely independent review, main merge and any public package
+remain separate.
 
 ### Current-source logical report spacing (LTR only)
 
@@ -751,11 +799,10 @@ Controlled `div`, `section` and `article` report panels can now be
 centred using bounded horizontal `margin:0 auto`, including constrained
 `max-width`, nested decorated boxes and page fragments. Report panels also accept bounded nonnegative vertical percentage margins
 relative to their containing content width; ordinary paragraphs/headings
-retain their separate nonpercentage vertical-margin contract. The [50-entry percentage-margin report](../examples/report-percentage-panel-margins.html)
+also accept bounded vertical percentages against their containing content width outside lists/tables. The [50-entry percentage-margin report](../examples/report-percentage-panel-margins.html)
 and [independent point-length oracle](../examples/report-percentage-panel-margins-oracle.html)
 verify actual nested PDF panel spacing, text, paint and continuation pages.
-Paragraph/heading percentages and direct inheritance of a percentage panel
-margin into these text elements fail explicitly. This source change
+Paragraph/heading percentages and explicit inheritance of a percentage panel margin are now supported in a separate bounded paragraph feature. This earlier panel source change
 (`0518b51d7a34457798c748db6753c4270ce20996`) does not relabel previously retained software or authorise
 customer release. See the
 [panel-margin CSS scope](css-stylesheets.md#current-source-centred-report-panels),
@@ -961,7 +1008,7 @@ inside/position/images/counters, HTML `type`, negative ordinals or
 list-item `value` on `ul`; invalid inputs fail without overwriting
 a destination. See the
 [77-entry pagination example](../examples/report-list-continuations.html)
-and [exact list contract](lists.md#current-source-ordered-list-sequencing-and-one-token-shorthand).
+and [exact list contract](lists.md#current-source-ordered-list-sequencing-and-bounded-shorthand).
 This is current source, **not** a new retained binary, public NuGet or
 customer distribution grant.
 

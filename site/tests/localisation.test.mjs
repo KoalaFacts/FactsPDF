@@ -78,6 +78,21 @@ test('missing translations fail explicitly instead of displaying stale or invent
   const changed=structuredClone(data); changed.features[0].scope='未翻译的新范围';
   assert.throws(() => validateTranslations(changed), /Missing English audit translation/);
 });
+test('English inherited white-space audit stays partial and documents real PDF and unsupported elements', async () => {
+  const {englishFeature}=await localisation();
+  const raw=data.features.find(row=>row.id==='css.white-space');
+  const row=englishFeature(raw);
+  assert.equal(row.status,'partial');
+  assert.equal(row.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.match(row.scope,/html\/body/);
+  assert.match(row.scope,/div\/section\/article\/blockquote/);
+  assert.match(row.scope,/real PDF/);
+  assert.match(row.limitations,/list\/table structural/);
+  assert.match(row.limitations,/FPDF1201/);
+  assert.match(row.limitations,/FPDF1305/);
+  assert.doesNotMatch([row.scope,row.limitations,row.evidence_level].join(' '),han);
+});
+
 test('translated text keeps important scope restrictions and failure codes', async () => {
   const { englishFeature } = await localisation();
   const byId = id => englishFeature(data.features.find(row=>row.id===id));
@@ -126,9 +141,10 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'052f7a8d3da5f87d9dfb6c7b687dd35b1eb97097');
-  assert.match(display.scope,/fixed-column table cells/);
-  assert.match(display.limitations,/nowrap prohibits automatic breaks/);
+  assert.equal(display.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.match(display.scope,/flat cell paragraphs/);
+  assert.match(display.scope,/outside lists\/tables/);
+  assert.match(display.limitations,/nowrap\/pre forbids soft wraps/);
   assert.match(display.limitations,/FPDF1302/);
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
   assert.match(translate(data.css_inventory_note),/overflow-wrap:break-word/);
@@ -142,7 +158,7 @@ test('centred report-panel translations retain the bounded PDF margin contract',
     const row=englishFeature(source);
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit,
-      id==='css.margin' ? '0518b51d7a34457798c748db6753c4270ce20996' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
+      id==='css.margin' ? '0f6c58655d651ee934cfb2c95272dde54f4c477e' : 'a1182e81c8bf7c5737c4d8bcf2877af3f8e5fbe2');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/auto/);
@@ -167,7 +183,7 @@ test('real vertical panel margins retain exact English scope and source identity
   for(const id of ['css.margin-top','css.margin-bottom']){
     const row=englishFeature(data.features.find(f=>f.id===id));
     assert.equal(row.status,'partial');
-    assert.equal(row.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
+    assert.equal(row.last_audited_commit,'0f6c58655d651ee934cfb2c95272dde54f4c477e');
     assert.equal(row.introduced_release,null);
     assert.match(row.scope,/div\/section\/article/);
     assert.match(row.scope,/outside the box/);
@@ -177,7 +193,7 @@ test('real vertical panel margins retain exact English scope and source identity
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   const margin=englishFeature(data.features.find(f=>f.id==='css.margin'));
-  assert.equal(margin.last_audited_commit,'0518b51d7a34457798c748db6753c4270ce20996');
+  assert.equal(margin.last_audited_commit,'0f6c58655d651ee934cfb2c95272dde54f4c477e');
   assert.match(margin.scope,/margin:0 auto/);
   assert.match(margin.scope,/margin:12pt auto 7pt/);
   assert.match(margin.limitations,/table-cell p/);
@@ -222,12 +238,13 @@ test('LTR logical spacing has complete English audit text', async () => {
     const row=englishFeature(data.features.find(f=>f.id==='css.'+name));
     assert.equal(row.status,'partial');
     assert.equal(row.last_audited_commit, name==='margin-block'
-      ? '0518b51d7a34457798c748db6753c4270ce20996' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
+      ? '0f6c58655d651ee934cfb2c95272dde54f4c477e' : '03c17c1f4f4b3eff556cb7353f356ca70439f59a');
     assert.match(row.scope+' '+row.limitations,/LTR|RTL/);
     assert.match(row.scope,/PDF/);
     assert.match(row.scope,new RegExp(name+'-start'));
     assert.match(row.scope,new RegExp(name+'-end'));
-    assert.match(row.limitations,/FPDF1302/);
+    assert.match(row.limitations, name==='margin-block'
+      ? /FPDF1201\/1202\/1302/ : /FPDF1302/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
@@ -353,7 +370,7 @@ test('scoped word-break English audit distinguishes normal emergency wrap from b
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(item=>item.id==='css.word-break'));
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'ac6cec7000b308b403dd95abcd14441240b1f791');
+  assert.equal(row.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
   assert.match(row.scope,/current PDF line/);
   assert.match(row.scope,/glyph/);
   assert.match(row.limitations,/keep-all/);
@@ -514,3 +531,16 @@ test('bounded English last-line alignment audit retains source and error boundar
   assert.match(translate(data.css_inventory_note),/115 to 116/);
   assert.doesNotMatch(row.scope+row.limitations,/\p{Script=Han}/u);
 });
+
+for(const id of ['css.margin-top','css.margin-bottom','css.margin','css.margin-block']) {
+  test('English margin scope stays source-bound to corrected Chinese text: '+id, async()=>{
+    const {englishFeature}=await localisation();
+    const row=data.features.find(x=>x.id===id),english=englishFeature(row);
+    assert.equal(english.status,'partial');
+    assert.match(row.scope,/百分比/);
+    assert.match(english.scope,/percentag/i);
+    assert.doesNotMatch(english.scope,han);
+    assert.equal(english.last_audited_commit,row.last_audited_commit);
+    assert.equal(english.introduced_release,row.introduced_release);
+  });
+}

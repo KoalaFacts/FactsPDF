@@ -17,6 +17,7 @@ internal sealed record CssDeclaration(CssProperty Property, string Name, string 
 
 internal static class CssDeclarations
 {
+    // Assigns into style, which must be the caller's private copy (see TextStyle), and returns it.
     internal static TextStyle Apply(TextStyle style, TextStyle parent, TextStyle initial, CssDeclaration declaration, bool paragraph, double rootFontSize)
     {
         var property = declaration.Property;
@@ -33,7 +34,8 @@ internal static class CssDeclarations
                     if (!double.IsFinite(computed) || computed is < 1 or > 144)
                         throw new FactsPdfException("FPDF1202",
                             "Computed keyword font-size must be between 1pt and 144pt.", declaration.Offset);
-                    return style with { FontSize = computed };
+                    style.FontSize = computed;
+                    return style;
                 }
                 var rem = InlineCss.RootRelativeScale(declaration.Value, declaration.Offset, 144);
                 if (rem.HasValue)
@@ -42,7 +44,8 @@ internal static class CssDeclarations
                     if (!double.IsFinite(computed) || computed is < 1 or > 144)
                         throw new FactsPdfException("FPDF1202",
                             "Computed root-relative font-size must be between 1pt and 144pt.", declaration.Offset);
-                    return style with { FontSize = computed };
+                    style.FontSize = computed;
+                    return style;
                 }
                 var relative = InlineCss.RelativeFontSizeScale(declaration.Value, declaration.Offset);
                 if (relative.HasValue)
@@ -53,7 +56,8 @@ internal static class CssDeclarations
                     if (!double.IsFinite(computed) || computed is < 1 or > 144)
                         throw new FactsPdfException("FPDF1202",
                             "Computed relative font-size must be between 1pt and 144pt.", declaration.Offset);
-                    return style with { FontSize = computed };
+                    style.FontSize = computed;
+                    return style;
                 }
             }
             if (property == CssProperty.LineHeight)
@@ -65,7 +69,8 @@ internal static class CssDeclarations
                     if (!double.IsFinite(computed) || computed is < 0.1 or > 1440)
                         throw new FactsPdfException("FPDF1202",
                             "Computed root-relative line-height must be between 0.1pt and 1440pt.", declaration.Offset);
-                    return style with { AbsoluteLineHeight = computed };
+                    style.AbsoluteLineHeight = computed;
+                    return style;
                 }
             }
             if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextIndent
@@ -77,13 +82,14 @@ internal static class CssDeclarations
                 if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing && value > 24)
                     throw new FactsPdfException("FPDF1202",
                         "Computed letter/word spacing must be from 0pt to 24pt.", declaration.Offset);
-                return property switch
+                switch (property)
                 {
-                    CssProperty.LetterSpacing => style with { LetterSpacing = value },
-                    CssProperty.WordSpacing => style with { WordSpacing = value },
-                    CssProperty.TextIndent => style with { FirstLineIndent = new CssLength(value) },
-                    _ => throw new InvalidOperationException()
-                };
+                    case CssProperty.LetterSpacing: style.LetterSpacing = value; break;
+                    case CssProperty.WordSpacing: style.WordSpacing = value; break;
+                    case CssProperty.TextIndent: style.FirstLineIndent = new CssLength(value); break;
+                    default: throw new InvalidOperationException();
+                }
+                return style;
             }
             if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith("em", StringComparison.Ordinal))
@@ -92,23 +98,36 @@ internal static class CssDeclarations
                 // em from this element's final font-size, both as points.
                 var margin = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true).Value;
-                return property == CssProperty.MarginTop
-                    ? style with { MarginBefore = margin }
-                    : style with { MarginAfter = margin };
+                if (property == CssProperty.MarginTop) { style.MarginBefore = margin; style.PercentMarginBefore = null; }
+                else { style.MarginAfter = margin; style.PercentMarginAfter = null; }
+                return style;
+            }
+            if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
+                && declaration.Value.EndsWith('%'))
+            {
+                // CSS vertical percentage margins resolve against containing content width.
+                var length = CssBoxValues.Length(declaration.Value, declaration.Offset);
+                if (property == CssProperty.MarginTop) { style.MarginBefore = 0; style.PercentMarginBefore = length; }
+                else { style.MarginAfter = 0; style.PercentMarginAfter = length; }
+                return style;
             }
             if (property == CssProperty.TextDecorationThickness)
             {
                 // Compute the winning length after font-size, just as for other
                 // relative text metrics; 1em uses this element, 1rem the root.
                 if (declaration.Value == "auto")
-                    return style with { DecorationThickness = null };
+                {
+                    style.DecorationThickness = null;
+                    return style;
+                }
                 var width = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true);
                 if (width.IsPercent || width.Value is < 0.2 or > 12)
                     throw new FactsPdfException("FPDF1202",
                         "Computed text-decoration-thickness must be 0.2pt to 12pt; percentages are unsupported.",
                         declaration.Offset);
-                return style with { DecorationThickness = width.Value };
+                style.DecorationThickness = width.Value;
+                return style;
             }
             if (property == CssProperty.TextUnderlineOffset)
             {
@@ -116,46 +135,51 @@ internal static class CssDeclarations
                 // Compute after the final font-size winner, never from a UA/default
                 // size or from an overridden declaration.
                 if (declaration.Value == "auto")
-                    return style with { UnderlineOffset = null };
+                {
+                    style.UnderlineOffset = null;
+                    return style;
+                }
                 var offset = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true);
                 if (offset.IsPercent || offset.Value > 24)
                     throw new FactsPdfException("FPDF1202",
                         "Computed text-underline-offset must be from 0pt to 24pt; percentages are unsupported.",
                         declaration.Offset);
-                return style with { UnderlineOffset = offset.Value };
+                style.UnderlineOffset = offset.Value;
+                return style;
             }
             return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
         }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
-        return property switch
+        switch (property)
         {
-            CssProperty.FontSize => style with { FontSize = source.FontSize },
-            CssProperty.FontWeight => style with { Bold = source.Bold },
-            CssProperty.FontStyle => style with { Italic = source.Italic },
-            CssProperty.Color => style with { Color = source.Color },
-            CssProperty.LineHeight => style with { LineHeight = source.LineHeight, AbsoluteLineHeight = source.AbsoluteLineHeight },
-            CssProperty.TextAlign => style with { Alignment = source.Alignment },
-            CssProperty.TextAlignLast => style with { LastLineAlignment = source.LastLineAlignment },
-            CssProperty.TextDecoration => style with { Decoration = source.Decoration },
-            CssProperty.TextDecorationColor => style with { DecorationColor = source.DecorationColor },
-            CssProperty.TextDecorationStyle => style with { DecorationPattern = source.DecorationPattern },
-            CssProperty.TextDecorationThickness => style with { DecorationThickness = source.DecorationThickness },
-            CssProperty.TextUnderlineOffset => style with { UnderlineOffset = source.UnderlineOffset },
-            CssProperty.WhiteSpace => style with { NoWrap = source.NoWrap, PreserveLineBreaks = source.PreserveLineBreaks, PreserveSpaces = source.PreserveSpaces },
-            CssProperty.OverflowWrap => style with { BreakWords = source.BreakWords },
-            CssProperty.WordBreak => style with { BreakAll = source.BreakAll },
-            CssProperty.TextIndent => style with { FirstLineIndent = source.FirstLineIndent },
-            CssProperty.LetterSpacing => style with { LetterSpacing = source.LetterSpacing },
-            CssProperty.WordSpacing => style with { WordSpacing = source.WordSpacing },
-            CssProperty.TextTransform => style with { Transform = source.Transform },
-            CssProperty.MarginTop => style with { MarginBefore = source.MarginBefore },
-            CssProperty.MarginBottom => style with { MarginAfter = source.MarginAfter },
-            CssProperty.BreakBefore => style with { BreakBefore = source.BreakBefore },
-            CssProperty.BreakAfter => style with { BreakAfter = source.BreakAfter, KeepWithNext = source.KeepWithNext },
-            _ => throw new InvalidOperationException("Unrecognized CSS property.")
-        };
+            case CssProperty.FontSize: style.FontSize = source.FontSize; break;
+            case CssProperty.FontWeight: style.Bold = source.Bold; break;
+            case CssProperty.FontStyle: style.Italic = source.Italic; break;
+            case CssProperty.Color: style.Color = source.Color; break;
+            case CssProperty.LineHeight: style.LineHeight = source.LineHeight; style.AbsoluteLineHeight = source.AbsoluteLineHeight; break;
+            case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
+            case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
+            case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
+            case CssProperty.TextDecorationColor: style.DecorationColor = source.DecorationColor; break;
+            case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;
+            case CssProperty.TextDecorationThickness: style.DecorationThickness = source.DecorationThickness; break;
+            case CssProperty.TextUnderlineOffset: style.UnderlineOffset = source.UnderlineOffset; break;
+            case CssProperty.WhiteSpace: style.NoWrap = source.NoWrap; style.PreserveLineBreaks = source.PreserveLineBreaks; style.PreserveSpaces = source.PreserveSpaces; break;
+            case CssProperty.OverflowWrap: style.BreakWords = source.BreakWords; break;
+            case CssProperty.WordBreak: style.BreakAll = source.BreakAll; break;
+            case CssProperty.TextIndent: style.FirstLineIndent = source.FirstLineIndent; break;
+            case CssProperty.LetterSpacing: style.LetterSpacing = source.LetterSpacing; break;
+            case CssProperty.WordSpacing: style.WordSpacing = source.WordSpacing; break;
+            case CssProperty.TextTransform: style.Transform = source.Transform; break;
+            case CssProperty.MarginTop: style.MarginBefore = source.MarginBefore; style.PercentMarginBefore = source.PercentMarginBefore; break;
+            case CssProperty.MarginBottom: style.MarginAfter = source.MarginAfter; style.PercentMarginAfter = source.PercentMarginAfter; break;
+            case CssProperty.BreakBefore: style.BreakBefore = source.BreakBefore; break;
+            case CssProperty.BreakAfter: style.BreakAfter = source.BreakAfter; style.KeepWithNext = source.KeepWithNext; break;
+            default: throw new InvalidOperationException("Unrecognized CSS property.");
+        }
+        return style;
     }
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
