@@ -17,10 +17,20 @@ internal static class HtmlDocumentReader
     public static List<Paragraph> Read(string html, PdfOptions options, CancellationToken cancellation)
         => BlockTreeTraversal.Paragraphs(ReadTree(html, options, cancellation), cancellation).ToList();
 
+    // The last copy made for a tag whose only defaults are the resets, bold, italic and the
+    // paragraph margin. The next element with the same parent and the same values shares it.
+    private sealed class SharedDefaults
+    {
+        public TextStyle? Parent;
+        public TextStyle? Style;
+    }
+
     // The element's style before author CSS: the parent's computed style with non-inherited text
     // properties reset and the tag's own defaults. Returns the shared parent itself when nothing
-    // differs, otherwise one private copy holding every change (see TextStyle).
-    private static TextStyle ElementDefaults(TextStyle parent, string name)
+    // differs, a copy shared with earlier siblings when only the resets, bold, italic or the
+    // paragraph margin differ, and otherwise one private copy holding every change (see TextStyle).
+    // Owned is true only for a private copy; a shared style is copied before any declaration.
+    private static (TextStyle Style, bool Owned) ElementDefaults(TextStyle parent, string name, SharedDefaults shared)
     {
         var marginAfter = ParagraphTag(name) ? 8 : 0;
         var bold = parent.Bold || name is "b" or "strong" or "th";
@@ -30,7 +40,11 @@ internal static class HtmlDocumentReader
             parent.PercentMarginBefore is null && parent.PercentMarginAfter is null && !parent.BreakBefore && !parent.BreakAfter
             && !parent.KeepWithNext && bold == parent.Bold && italic == parent.Italic && !heading
             && name is not ("small" or "a" or "u" or "ins" or "s" or "del" or "pre"))
-            return parent;
+            return (parent, false);
+        var plain = !heading && name is not ("small" or "a" or "u" or "ins" or "s" or "del" or "pre");
+        if (plain && ReferenceEquals(shared.Parent, parent) && shared.Style!.MarginAfter == marginAfter
+            && shared.Style.Bold == bold && shared.Style.Italic == italic)
+            return (shared.Style, false);
         var style = parent with { };
         style.MarginBefore = 0;
         style.MarginAfter = marginAfter;
@@ -56,7 +70,10 @@ internal static class HtmlDocumentReader
         }
         if (heading)
             style.FontSize *= name[1] switch { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 };
-        return style;
+        if (!plain) return (style, true);
+        shared.Parent = parent;
+        shared.Style = style;
+        return (style, false);
     }
 
     internal static DocumentRoot ReadTree(string html, PdfOptions options, CancellationToken cancellation)
@@ -64,6 +81,7 @@ internal static class HtmlDocumentReader
         // Compile every source before computing styles: a later style block can affect earlier content.
         var sheets = CssStylesheets.Collect(html, options, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var sharedDefaults = new SharedDefaults();
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
@@ -262,7 +280,7 @@ internal static class HtmlDocumentReader
             var parent = stack[^1].Style;
             var parentBox = stack[^1].BoxStyle;
             var boxStyle = BoxStyle.Initial;
-            var style = ElementDefaults(parent, name);
+            var (style, styleOwned) = ElementDefaults(parent, name, sharedDefaults);
             var columnSpan = 1;
             string? href = null;
             int? listStart = null, listValue = null;
@@ -305,7 +323,7 @@ internal static class HtmlDocumentReader
             if (name == "meta") continue;
             path.Add(CssElement.From(token));
             if (name is not ("head" or "title"))
-                (style, boxStyle) = sheets.Compute(style, parent, root, rootFontSize, parentBox, path,
+                (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
                     token.Offset, allowStyling: name != "br");
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
