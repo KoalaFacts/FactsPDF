@@ -945,3 +945,18 @@ test('bounded attribute selectors move a real syntax feature to partial without 
   assert.equal(row.introduced_release, null);
   assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
 });
+
+// The four bounded-margin scope descriptions must never regress to the old nonpercentage contract.
+test('CSS margin catalogue retains bounded vertical percentage support and stable IDs', () => {
+  assert.equal(dataset.features.length,418);
+  assert.equal(new Set(dataset.features.map(x=>x.id)).size,418);
+  assert.equal(dataset.accepted_css_property_count,116);
+  for(const id of ['css.margin-top','css.margin-bottom','css.margin','css.margin-block']) {
+    const row=dataset.features.find(x=>x.id===id);
+    assert.equal(row.status,'partial',id);
+    assert.match(row.scope,/p\/pre\/h1–h6/,id);
+    assert.match(row.scope,/百分比/,id);
+    assert.match(row.scope,/包含块内容宽度/,id);
+    assert.doesNotMatch(row.scope,/仍限非负pt|仍限上下pt|段落\/标题只允许非百分比长度/,id);
+  }
+});

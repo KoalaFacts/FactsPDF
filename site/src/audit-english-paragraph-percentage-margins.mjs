@@ -1,7 +1,7 @@
 import { englishAudit as previous } from './audit-english-inherited-text-flow.mjs';
 // Source-bound delta for four existing partial CSS margin records.
 if (previous.length !== 774) throw new Error('Previous English audit catalogue changed.');
-export const sourceDigest = 'c23e0fe4ecc20069d79159bfe9749e04e2f0fef5579f8dbbde50cdd8b988ed92';
+export const sourceDigest = '79a0725e738d593ad381d587ec0e7f8c999c00c133700a51c7a8cdb79ee3de95';
 const updates = new Map([
   [178, "Ordinary p/pre/headings outside lists/tables now accept nonnegative percentage top/bottom margins resolved from containing content width, with margin shorthand, LTR margin-block, important cascade and explicit panel inheritance. Ordinary div/section/article/blockquote report panels and standalone hr preserve actual outside the box PDF paint and pagination, with physical/rem/em lengths."],
   [179, "Direct paragraph percentages in lists/tables reject FPDF1201; negative values, vertical auto, calc and margin collapse remain unsupported. Body, image, inline and table box margins remain excluded; unfit PDF geometry FPDF1302 preserves previous output."],

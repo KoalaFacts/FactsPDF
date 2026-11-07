@@ -531,3 +531,16 @@ test('bounded English last-line alignment audit retains source and error boundar
   assert.match(translate(data.css_inventory_note),/115 to 116/);
   assert.doesNotMatch(row.scope+row.limitations,/\p{Script=Han}/u);
 });
+
+for(const id of ['css.margin-top','css.margin-bottom','css.margin','css.margin-block']) {
+  test('English margin scope stays source-bound to corrected Chinese text: '+id, async()=>{
+    const {englishFeature}=await localisation();
+    const row=data.features.find(x=>x.id===id),english=englishFeature(row);
+    assert.equal(english.status,'partial');
+    assert.match(row.scope,/百分比/);
+    assert.match(english.scope,/percentag/i);
+    assert.doesNotMatch(english.scope,han);
+    assert.equal(english.last_audited_commit,row.last_audited_commit);
+    assert.equal(english.introduced_release,row.introduced_release);
+  });
+}
