@@ -114,9 +114,7 @@ internal static class BlockLayout
                             paragraph.Name == "p" && paragraph.Children.Count == 1 &&
                             paragraph.Children[0] is ParagraphNode content &&
                             content.Paragraph.Runs.Count == 0 &&
-                            paragraph.Style.MarginBefore == 0 && paragraph.Style.MarginAfter == 0 &&
-                            paragraph.Style.PercentMarginBefore is null &&
-                            paragraph.Style.PercentMarginAfter is null &&
+                            HasNoParagraphOutsideMargin(paragraph.Style) &&
                             !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
                             !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
                             !paragraph.BoxStyle.HasLayoutPaint &&
@@ -214,6 +212,14 @@ internal static class BlockLayout
         }
     }
 
+    // An exact zero percent is zero at every containing width. Treat it like
+    // 0pt for empty-slot preflight; nonzero percentages must keep their
+    // deferred layout geometry and cannot be mistaken for an empty slot.
+    private static bool HasNoParagraphOutsideMargin(TextStyle style) =>
+        style.MarginBefore == 0 && style.MarginAfter == 0 &&
+        style.PercentMarginBefore.GetValueOrDefault().Value == 0 &&
+        style.PercentMarginAfter.GetValueOrDefault().Value == 0;
+
     // Resolve only when the actual containing width is known; never turn 10% into 10pt.
     // Keep/heading preflight uses the same conversion as ordinary paragraph placement.
     internal static Paragraph ResolveParagraphMargins(Paragraph paragraph, double containingWidth, PdfOptions options)
@@ -268,8 +274,7 @@ internal static class BlockLayout
                     child.Children.Count != 1 ||
                     child.Children[0] is not ParagraphNode content ||
                     content.Paragraph.Runs.Count != 0 ||
-                    child.Style.MarginBefore != 0 || child.Style.MarginAfter != 0 ||
-                    child.Style.PercentMarginBefore is not null || child.Style.PercentMarginAfter is not null)
+                    !HasNoParagraphOutsideMargin(child.Style))
                     return false;
             }
             else if (child.Name is "div" or "section" or "article" or "blockquote")

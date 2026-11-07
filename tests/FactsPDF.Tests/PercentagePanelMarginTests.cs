@@ -195,6 +195,30 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(html), Is.EqualTo(Render(html.Replace("80%", "208pt"))));
     }
 
+    [TestCase("<p style='margin:0%'></p>")]
+    [TestCase("<p style='margin-top:0%'></p>")]
+    [TestCase("<p style='margin-bottom:0%'></p>")]
+    [TestCase("<p style='margin-block:0%'></p>")]
+    [TestCase("<p style='margin:-0%'></p>")]
+    [TestCase("<div><p style='margin:0%'></p></div>")]
+    public void EmptyPanelZeroPercentParagraphCannotBypassCombinedPageFootprint(string child)
+    {
+        const string prefix = "<section style='margin-top:10%;margin-bottom:30%'>";
+        const string suffix = "</section><p style='margin:0'>AFTER</p>";
+        var percent = prefix + child + suffix;
+        var points = prefix + child.Replace("0%", "0pt", StringComparison.Ordinal) + suffix;
+        // 26pt + 78pt of parent margins cannot fit on a 100pt usable sheet.
+        // A zero-percent empty child must not hide the parent from preflight.
+        var shortPage = Page with { PageHeight = 140 };
+        RejectPreservingOutput(percent, "FPDF1302", shortPage);
+        RejectPreservingOutput(points, "FPDF1302", shortPage);
+
+        // When the entire panel fits, 0% and 0pt must create identical PDF bytes.
+        var fittingPage = Page with { PageHeight = 200 };
+        Assert.That(Render(percent, fittingPage), Is.EqualTo(Render(points, fittingPage)));
+        Assert.That(Layout(percent, fittingPage), Has.Count.EqualTo(1));
+    }
+
     [TestCase("hr")]
     [TestCase("section")]
     public void EmptyPercentageOutsideMarginsMoveTogetherWhenOnlyClosingGapWouldOverflow(string tag)
