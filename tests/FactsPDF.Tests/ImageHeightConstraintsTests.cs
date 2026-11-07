@@ -105,8 +105,6 @@ public sealed class ImageHeightConstraintsTests
 
     [TestCase("<img src=chart style='max-height:30%'>", "FPDF1202")]
     [TestCase("<img src=chart style='min-height:20%'>", "FPDF1202")]
-    [TestCase("<img src=chart style='max-height:2rem'>", "FPDF1201")]
-    [TestCase("<img src=chart style='min-height:2em'>", "FPDF1201")]
     [TestCase("<img src=chart style='max-height:calc(20pt - 4pt)'>", "FPDF1202")]
     [TestCase("<img src=chart style='max-height:-5pt'>", "FPDF1202")]
     [TestCase("<img src=chart style='max-height:0'>", "FPDF1302")]

@@ -274,7 +274,8 @@ internal static class CssDeclarations
         if (property == CssProperty.MaxHeight)
         {
             CssLength? length = wide || value == "none" ? null
-                : CssBoxValues.Length(value, declaration.Offset);
+                : CssBoxValues.Length(value, declaration.Offset, rootFontSize,
+                    allowRem: true, elementFontSize: elementFontSize, allowEm: true);
             if (length?.IsPercent == true)
                 throw new FactsPdfException("FPDF1202",
                     "Image max-height does not support percentages.", declaration.Offset);

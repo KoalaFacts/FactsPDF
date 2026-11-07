@@ -209,9 +209,6 @@ internal sealed class CssStylesheets
                 if (!imageHeight && !panelHeight)
                     throw new FactsPdfException("FPDF1201",
                         "Height limits apply only to scoped report panels or direct images (max-height: images only).", declaration.Offset);
-                if (imageHeight && declaration.Value.EndsWith("em", StringComparison.Ordinal))
-                    throw new FactsPdfException("FPDF1201",
-                        "CSS image height limits do not support em or rem.", declaration.Offset);
             }
             // A keep-together card must be an ordinary top-level report panel.
             // Validate losing declarations too; nested/table/list/inline usage
@@ -260,15 +257,15 @@ internal sealed class CssStylesheets
                         && CssBoxValues.Length(declaration.Value, declaration.Offset).Value == 0);
             // Images and tables use separate width contracts and cannot honour
             // block border-box sizing. Never silently discard a declaration.
-            // Table/standalone-image lengths have separate sizing and resource
-            // contracts. Do not silently introduce rem/em into those paths.
+            // Font-relative lengths now reach direct JPEG/PNG image matrices through
+            // their computed font size; table tracks/cells keep their separate contract.
             if (declaration.Value.EndsWith("em", StringComparison.Ordinal)
                 && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth
                     or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft)
-                && element.Name is ("img" or "table" or "col" or "td" or "th"
+                && element.Name is ("table" or "col" or "td" or "th"
                     or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201",
-                    "Relative em/rem report box lengths are supported only on ordinary block boxes.", declaration.Offset);
+                    "Relative em/rem report box lengths are unsupported on table tracks and cells.", declaration.Offset);
             if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")

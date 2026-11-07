@@ -124,8 +124,6 @@ public sealed class ResponsiveImageSizingTests
     [TestCase("<img src=chart style='max-width:calc(100% - 4pt)'>", "FPDF1202")]
     [TestCase("<img src=chart style='max-width:auto'>", "FPDF1202")]
     [TestCase("<img src=chart style='min-width:none'>", "FPDF1202")]
-    [TestCase("<img src=chart style='min-width:2rem'>", "FPDF1201")]
-    [TestCase("<img src=chart style='max-width:3em'>", "FPDF1201")]
     [TestCase("<img src=chart style='box-sizing:border-box;max-width:5pt;padding:5pt'>", "FPDF1302")]
     [TestCase("<img src=chart style='min-width:700pt'>", "FPDF1302")]
     [TestCase("<img src=chart style='width:0;max-width:100%'>", "FPDF1302")]
