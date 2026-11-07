@@ -21,6 +21,42 @@ dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --imag
 
 Repeat `--image name=path` for up to 16 resources. The first `=` separates the name; quote arguments with spaces. Relative paths use the process working directory. Extensions are not format evidence. Each file is read through the bounded loader; no network download is provided. Output paths cannot equal the supplied HTML, font or image path. Existing CLI temporary-file, stdout and exit-code rules still apply, including the documented trusted-directory limitation for filesystem aliases.
 
+## Font-relative image boxes for reports (candidate source, PR #196)
+
+Explicitly bound JPEG/PNG images now consume scoped `em` and `rem` in
+`width`, `min-width`, `max-width`, `height`, `min-height`,
+`max-height` and the four `padding` sides (including shorthand).
+`em` resolves against **the final computed font size of the img** after
+the stylesheet/inline cascade, and `rem` against the computed HTML root
+font size (or the configured initial font size if no `html` element exists).
+Computed lengths feed real PDF image matrices and borders/padding, including
+`box-sizing:border-box`, intrinsic aspect-ratio scaling, explicit independent
+width/height, fixed-track cell image placement and page movement. For example:
+
+```html
+<html style="font-size:16pt"><body>
+  <section style="font-size:10pt;width:260pt">
+    <img src="brand" style="width:8em;max-width:6rem;padding:0.25em">
+  </section>
+</body></html>
+```
+
+This is scoped **image geometry**, not browser image loading. Image
+percentages still apply only to supported widths/padding, **not** height or
+min/max-height. Negative values, `calc()`, CSS viewport units, arbitrary
+`object-fit`, image fragments, implicit resource fetching, and font-relative
+table/col/td/th **structural** dimensions remain unsupported. Images must
+remain positive, fit the enclosing width/page, and satisfy conflicting
+min/max constraints without silently changing author intent; invalid values
+or geometry fail before replacing a caller's PDF.
+
+This extends the earlier physical-only image-height/width paragraphs below
+without changing their historical test evidence. New source
+[`145b1bd5`](https://github.com/KoalaFacts/FactsPDF/commit/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430)
+and [actual PDF geometry tests](../tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs)
+remain **unmerged candidates** until the exact-head CI, review and merge
+gates are met; this does not update the retained private preview artifact.
+
 ## Bounded image height limits
 
 For a previously bound standalone JPEG/PNG `img` or direct fixed-column

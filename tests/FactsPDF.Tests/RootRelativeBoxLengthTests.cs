@@ -149,8 +149,8 @@ public sealed class RootRelativeBoxLengthTests
     [TestCase("<p style='box-sizing:border-box;width:1rem;padding:1rem'>AB</p>", "FPDF1302")]
     [TestCase("<style>.never{width:-2rem}</style><p>AB</p>", "FPDF1202")]
     [TestCase("<style>.never{padding:20000rem}</style><p>AB</p>", "FPDF1202")]
-    [TestCase("<img src='logo' style='width:1rem'>", "FPDF1201")]
-    [TestCase("<img src='logo' style='padding:1rem'>", "FPDF1201")]
+    [TestCase("<img src='logo' style='width:-1rem'>", "FPDF1202")]
+    [TestCase("<img src='logo' style='padding:-1rem'>", "FPDF1202")]
     [TestCase("<table style='padding:1rem'>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:1rem'></colgroup><tbody><tr><td>AB</td></tr></tbody></table>", "FPDF1201")]
     public void InvalidOrOutOfScopeRemBoxesPreserveExistingTarget(string html, string error)

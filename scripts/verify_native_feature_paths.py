@@ -1394,7 +1394,7 @@ def verify_native_responsive_images(executable, output, work, logo):
     for markup, code in (
         ('<img src=logo style="width:200pt;min-width:900pt">', b'FPDF1302'),
         ('<img src=logo style="max-width:calc(100% - 1pt)">', b'FPDF1202'),
-        ('<img src=logo style="max-width:1rem">', b'FPDF1201'),
+        ('<img src=logo style="max-width:-1rem">', b'FPDF1202'),
         ('<img src=logo style="box-sizing:border-box;max-width:4pt;padding:4pt">', b'FPDF1302'),
     ):
         invalid.write_text(markup, encoding='utf-8')
