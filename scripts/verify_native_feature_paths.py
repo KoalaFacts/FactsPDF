@@ -1291,7 +1291,7 @@ def verify_native_image_height_limits(executable, output, work, logo):
     retained = output / 'image-height-limit-preserved.pdf'
     for markup, code in (
         ('<img src=logo style="max-height:50%">', b'FPDF1202'),
-        ('<img src=logo style="min-height:2rem">', b'FPDF1201'),
+        ('<img src=logo style="min-height:-2rem">', b'FPDF1202'),
         ('<img src=logo style="max-height:0">', b'FPDF1302'),
         ('<img src=logo style="min-height:999pt">', b'FPDF1302'),
         ('<section style="max-height:40pt">Invalid</section>', b'FPDF1201'),
@@ -1342,7 +1342,7 @@ def verify_native_image_heights(executable, output, work, logo):
     retained = output / 'image-height-retained.pdf'
     for markup, code in (
         ('<img src=logo style="height:50%">', b'FPDF1202'),
-        ('<img src=logo style="height:1rem">', b'FPDF1201'),
+        ('<img src=logo style="height:-1rem">', b'FPDF1202'),
         ('<img src=logo style="height:0">', b'FPDF1302'),
         ('<img src=logo style="height:999pt">', b'FPDF1302'),
     ):
@@ -1408,6 +1408,26 @@ def verify_native_responsive_images(executable, output, work, logo):
             'Invalid native image constraint replaced retained output')
     assert not run(executable, source, retained, '--overwrite', '--image', f'logo={logo}', cwd=work)
     assert retained.read_bytes() == actual.read_bytes(), 'Valid native retry changed PDF bytes'
+    # New source-only font-relative image geometry is tested against an
+    # independently authored physical control using the actual Native AOT CLI.
+    relative_html = work / 'image-relative-native.html'
+    physical_html = work / 'image-relative-physical-control.html'
+    relative_pdf = output / 'image-relative-native.pdf'
+    physical_pdf = output / 'image-relative-physical-control.pdf'
+    prefix = '<html style="font-size:16pt"><body><section style="font-size:10pt;width:220pt">'
+    suffix = '<p style="margin:0">BRAND RECORD</p></section></body></html>'
+    relative_html.write_text(prefix +
+        '<img src=logo style="width:8em;max-width:3rem;padding:0.25em">' + suffix,
+        encoding='utf-8')
+    physical_html.write_text(prefix +
+        '<img src=logo style="width:48pt;padding:2.5pt">' + suffix,
+        encoding='utf-8')
+    for html, pdf in ((relative_html, relative_pdf), (physical_html, physical_pdf)):
+        assert not run(executable, html, pdf, '--image', f'logo={logo}', cwd=work)
+        run('qpdf', '--check', pdf)
+    assert relative_pdf.read_bytes() == physical_pdf.read_bytes(), (
+        'Bound image em/rem Native AOT geometry differs from fixed physical-length oracle')
+
     return {'records': 36, 'pages': pages, 'sourceSha256': sha(source),
             'oracleSha256': sha(oracle), 'pdfSha256': sha(actual),
             'realImagePlacementAndByteParity': True, 'popplerSearchableText': True,
