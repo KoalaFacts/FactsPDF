@@ -490,6 +490,34 @@ public sealed class PercentagePanelMarginTests
         Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
     }
 
+    [TestCase("margin-top:10pt")]
+    [TestCase("margin-bottom:10pt")]
+    [TestCase("margin-top:3%;margin-bottom:1%")]
+    public void NestedBlankWrapperOutsideMarginsCannotHideImpossiblePercentagePanel(string innerMargin)
+    {
+        // 260pt containing width: parent 15% + 20% = 39pt + 52pt,
+        // then at least 10pt of nested outside spacing. The 100pt usable
+        // short page cannot hold the entire blank footprint.
+        var html = "<section style='margin-top:15%;margin-bottom:20%'>" +
+            "<article style='" + innerMargin + "'><p style='margin:0'></p></article>" +
+            "</section><p style='margin:0'>AFTER</p>";
+        RejectPreservingOutput(html, "FPDF1302", Page with { PageHeight = 140 });
+    }
+
+    [Test]
+    public void NestedBlankOutsidePercentMarginsUseTheActualContainingWidths()
+    {
+        const string percentages = "<section style='margin-top:10%;margin-bottom:5%'>" +
+            "<article style='width:180pt;margin-top:3%;margin-bottom:1%'>" +
+            "<div style='margin-top:5%;margin-bottom:2%'></div></article></section>" +
+            "<p style='margin:0'>AFTER</p>";
+        const string points = "<section style='margin-top:26pt;margin-bottom:13pt'>" +
+            "<article style='width:180pt;margin-top:7.8pt;margin-bottom:2.6pt'>" +
+            "<div style='margin-top:9pt;margin-bottom:3.6pt'></div></article></section>" +
+            "<p style='margin:0'>AFTER</p>";
+        Assert.That(Render(percentages), Is.EqualTo(Render(points)));
+    }
+
     [Test]
     public void BlankNestedPercentPaddingUsesEachWrappersContainingWidth()
     {
