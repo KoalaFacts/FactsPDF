@@ -107,4 +107,33 @@ public sealed class TextStyleSharingTests
         Assert.That(style.Color, Is.EqualTo(new Rgb(0, 0, 0)));
         Assert.That(style.Alignment, Is.EqualTo(TextAlignment.Left));
     }
+
+    [Test]
+    public void SiblingsWithTheSameTagDefaultsShareOneStyle()
+    {
+        // Each p differs from body only by its tag defaults (an 8pt bottom margin), so plain sibling
+        // paragraphs share one defaults copy instead of making one each.
+        var paragraphs = Paragraphs("<p>A</p><p>B</p><div><p>C</p></div><p>D</p>");
+        Assert.That(paragraphs[1].Style, Is.SameAs(paragraphs[0].Style));
+        Assert.That(paragraphs[3].Style, Is.SameAs(paragraphs[0].Style));
+        Assert.That(paragraphs[0].Style.MarginAfter, Is.EqualTo(8));
+    }
+
+    [Test]
+    public void AStyledSiblingGetsItsOwnCopyAndLeavesTheSharedDefaultsUnchanged()
+    {
+        var paragraphs = Paragraphs("<style>.r{font-weight:bold}</style><p>A</p><p style=\"color:red;margin-bottom:2pt\">B</p>"
+            + "<p class=\"r\">C</p><p>D</p><div style=\"color:blue\"><p>E</p></div>");
+        var shared = paragraphs[0].Style;
+        Assert.That(paragraphs[3].Style, Is.SameAs(shared));
+        Assert.That(paragraphs[1].Style, Is.Not.SameAs(shared));
+        Assert.That(paragraphs[1].Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
+        Assert.That(paragraphs[2].Style, Is.Not.SameAs(shared));
+        Assert.That(paragraphs[2].Style.Bold, Is.True);
+        Assert.That(paragraphs[4].Style, Is.Not.SameAs(shared));
+        Assert.That(paragraphs[4].Style.Color, Is.EqualTo(new Rgb(0, 0, 1)));
+        Assert.That(shared.Color, Is.EqualTo(new Rgb(0, 0, 0)));
+        Assert.That(shared.Bold, Is.False);
+        Assert.That(shared.MarginAfter, Is.EqualTo(8));
+    }
 }
