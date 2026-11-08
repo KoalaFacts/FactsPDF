@@ -31,11 +31,18 @@ def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 class _SafeGitHubRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, new_url):
         # GitHub asset API redirects to signed CDN URLs. Never forward its token.
-        if urllib.parse.urlsplit(new_url).scheme != 'https':
-            raise ValueError('Pinned archive redirect must use HTTPS')
+        def origin(url):
+            parts = urllib.parse.urlsplit(url)
+            if parts.scheme.lower() != 'https' or not parts.hostname or parts.username is not None:
+                raise ValueError('Pinned archive redirect must use HTTPS without URL credentials')
+            # An explicit :0 is not an omitted port; the effective default is 443.
+            return (parts.scheme.lower(), parts.hostname.lower(),
+                    parts.port if parts.port is not None else 443)
+
+        destination_origin = origin(new_url)
+        source_origin = origin(request.full_url)
         redirected = super().redirect_request(request, fp, code, message, headers, new_url)
-        if redirected is not None and (
-                urllib.parse.urlsplit(new_url).hostname != urllib.parse.urlsplit(request.full_url).hostname):
+        if redirected is not None and destination_origin != source_origin:
             redirected.remove_header('Authorization')
         return redirected
 

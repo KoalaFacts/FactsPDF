@@ -7983,7 +7983,7 @@
       "scope": "font-size继续支持父级em/%及根rem，line-height支持%/em/rem；普通报表width/min/max-width/padding及p/h四侧margin支持自身最终字号em和html根字号rem；新增加受限text-indent、letter-spacing/word-spacing em/rem，实际影响PDF首行缩进、字形推进、折行与分页；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加",
       "limitations": "一般容器margin、border、table/col相对尺寸仍不支持；img现有受限em/rem；text-indent/letter-spacing/word-spacing之外其他文字布局相对值、ex/ch/lh/rlh、calc和全CSS Values仍不支持；不支持的表格单元格em/rem margin报FPDF1201；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF",
       "stage": "受限相对字体长度/盒子几何/真实PDF文字输出",
-      "applicability": "受支持的文字 font-size/line-height；普通 block/paragraph/heading 的 width/min-max/padding，不含表格/图片",
+      "applicability": "受支持的文字 font-size/line-height；普通 block/paragraph/heading 的 width/min-max/padding；显式绑定的独立 img 或固定列 td/th 直接 JPEG/PNG 图片的有界 em/rem 宽高、min/max 约束及 padding；表格结构与 col 相对尺寸仍不支持",
       "example": "p{font-size:10pt;width:8em;margin:0.25em 0.5em}",
       "failure_code": "FPDF1202",
       "introduced_milestone": null,

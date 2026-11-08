@@ -91,5 +91,48 @@ class PinnedFontArchiveTests(unittest.TestCase):
                                      'http://release-assets.githubusercontent.com/content')
 
 
+    def test_same_host_different_effective_port_strips_token(self):
+        handler = fonts._SafeGitHubRedirect()
+        original = urllib.request.Request(
+            'https://api.github.com/repos/x/y/releases/assets/1',
+            headers={'Authorization': 'Bearer secret'})
+        for destination in (
+                'https://api.github.com:8443/fixture',
+                'https://api.github.com:0/fixture'):
+            with self.subTest(destination=destination):
+                redirected = handler.redirect_request(original, None, 302, 'moved', {}, destination)
+                self.assertIsNone(redirected.get_header('Authorization'))
+        self.assertEqual(original.get_header('Authorization'), 'Bearer secret')
+
+    def test_equivalent_https_origin_keeps_token_and_url_credentials_are_rejected(self):
+        handler = fonts._SafeGitHubRedirect()
+        original = urllib.request.Request(
+            'https://api.github.com:443/repos/x/y/releases/assets/1',
+            headers={'Authorization': 'Bearer secret'})
+        for destination in ('https://api.github.com/fixture',
+                            'https://api.github.com:443/fixture'):
+            with self.subTest(destination=destination):
+                redirected = handler.redirect_request(original, None, 302, 'moved', {}, destination)
+                self.assertEqual(redirected.get_header('Authorization'), 'Bearer secret')
+        for destination in ('http://api.github.com/fixture',
+                            'https://username@api.github.com/fixture',
+                            'https://api.github.com:notaport/fixture'):
+            with self.subTest(rejected=destination):
+                with self.assertRaises(ValueError):
+                    handler.redirect_request(original, None, 302, 'moved', {}, destination)
+
+    def test_cross_origin_return_redirect_does_not_reintroduce_token(self):
+        handler = fonts._SafeGitHubRedirect()
+        original = urllib.request.Request(
+            'https://api.github.com/repos/x/y/releases/assets/1',
+            headers={'Authorization': 'Bearer secret'})
+        external = handler.redirect_request(
+            original, None, 302, 'moved', {}, 'https://release-assets.githubusercontent.com/content')
+        returned = handler.redirect_request(
+            external, None, 302, 'moved', {}, 'https://api.github.com/fixture')
+        self.assertIsNone(external.get_header('Authorization'))
+        self.assertIsNone(returned.get_header('Authorization'))
+        self.assertEqual(original.get_header('Authorization'), 'Bearer secret')
+
 if __name__ == '__main__':
     unittest.main()
