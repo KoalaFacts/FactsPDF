@@ -528,11 +528,18 @@ internal sealed class CssStylesheets
             var edges = new[] { box.BorderTop, box.BorderRight, box.BorderBottom, box.BorderLeft };
             // currentcolor is stored as null, but paints with the final
             // computed text colour. Compare real ink, not raw nullable tokens.
-            var firstInk = edges[0].Color ?? style.Color;
-            if (edges.Any(e => e.EffectiveWidth > 0) &&
-                (edges.Any(e => e.EffectiveWidth <= 0 || e.Pattern != BorderPattern.Solid) ||
-                 edges.Any(e => e.EffectiveWidth != edges[0].EffectiveWidth ||
-                     (e.Color ?? style.Color) != firstInk)))
+            // A loop, not lambdas: a lambda capturing style would move style and every local the
+            // local functions above capture into one closure object allocated for every element.
+            var ink = style.Color;
+            var firstInk = edges[0].Color ?? ink;
+            var painted = false; var uneven = false;
+            foreach (var edge in edges)
+            {
+                if (edge.EffectiveWidth > 0) painted = true;
+                if (edge.EffectiveWidth <= 0 || edge.Pattern != BorderPattern.Solid
+                    || edge.EffectiveWidth != edges[0].EffectiveWidth || (edge.Color ?? ink) != firstInk) uneven = true;
+            }
+            if (painted && uneven)
                 throw new FactsPdfException("FPDF1201",
                     "Rounded report boxes require an equally thick, single-colour solid border on all four sides.",
                     winners[(int)CssProperty.BorderTopLeftRadius]?.Declaration.Offset
