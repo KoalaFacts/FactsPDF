@@ -4,6 +4,15 @@
 //
 //   node scripts/parity.ts [--base <ref>] [--work <dir>] [--font <path.ttf>]
 //                          [--dotnet <path>] [--python <path>] [--jobs <n>]
+//                          [--expect <kind>]... [--expect-from <commit>]
+//
+// An intended change of a known kind is declared with --expect <kind>, or with
+// a "Parity-Expect: <kind>" trailer in the message of the commit named by
+// --expect-from (CI passes the PR head). A declared kind accepts only
+// differences of exactly that kind, and the run still fails when a declared
+// kind is never observed. Kinds: location-added — a failing run's stderr gains
+// "Location: line L, column C." lines and is otherwise identical, with the
+// same exit code and no PDF on either side.
 //
 // --work is a parent folder outside the repository (default: the system temp
 // folder); each run builds in a new subfolder of it and nothing else there is
@@ -31,6 +40,19 @@ export interface Difference {
   example: string;
   set: string;
   reason: string;
+  /** The known kind of an intended change this difference is, or null. */
+  kind: ExpectedKind | null;
+}
+
+export const expectedKinds = ['location-added'] as const;
+export type ExpectedKind = (typeof expectedKinds)[number];
+
+function expectedKind(value: string): ExpectedKind {
+  const kind = expectedKinds.find((known) => known === value);
+  if (kind === undefined) {
+    throw new Error(`unknown expected difference kind ${JSON.stringify(value)} (known: ${expectedKinds.join(', ')})`);
+  }
+  return kind;
 }
 
 export interface ParityOptions {
@@ -40,6 +62,8 @@ export interface ParityOptions {
   dotnet: string;
   python: string;
   jobs: number;
+  expect: ExpectedKind[];
+  expectFrom: string | null;
 }
 
 const defaults: ParityOptions = {
@@ -49,10 +73,12 @@ const defaults: ParityOptions = {
   dotnet: 'dotnet',
   python: 'python3',
   jobs: Math.max(1, Math.min(8, availableParallelism())),
+  expect: [],
+  expectFrom: null,
 };
 
 export function parseArguments(argv: readonly string[]): ParityOptions {
-  const options = { ...defaults };
+  const options = { ...defaults, expect: [...defaults.expect] };
   for (let i = 0; i < argv.length; i++) {
     const name = argv[i];
     const value = argv[i + 1];
@@ -76,6 +102,16 @@ export function parseArguments(argv: readonly string[]): ParityOptions {
         options.jobs = jobs;
         break;
       }
+      case '--expect': {
+        const kind = expectedKind(value);
+        if (!options.expect.includes(kind)) {
+          options.expect.push(kind);
+        }
+        break;
+      }
+      case '--expect-from':
+        options.expectFrom = value;
+        break;
       default:
         throw new Error(`unknown option ${name}`);
     }
@@ -128,6 +164,48 @@ export function compareRuns(base: RunResult, head: RunResult): string | null {
     return `PDF bytes differ at offset ${offset} (${base.pdf.length} -> ${head.pdf.length} bytes)`;
   }
   return null;
+}
+
+const locationLine = /^Location: line \d+, column \d+\.$/;
+
+/** The known kind of an intended change two differing runs show, or null when it is no known kind. */
+export function classifyDifference(base: RunResult, head: RunResult): ExpectedKind | null {
+  if (base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
+    return null;
+  }
+  const baseLines = base.stderr.split('\n');
+  const headLines = head.stderr.split('\n');
+  if (baseLines.some((line) => locationLine.test(line))) {
+    return null;
+  }
+  const remaining = headLines.filter((line) => !locationLine.test(line));
+  if (remaining.length === headLines.length || remaining.length !== baseLines.length) {
+    return null;
+  }
+  return remaining.every((line, i) => line === baseLines[i]) ? 'location-added' : null;
+}
+
+/** The expected kinds declared by "Parity-Expect: <kind>" trailers in a commit message. */
+export function trailerKinds(message: string): ExpectedKind[] {
+  const kinds: ExpectedKind[] = [];
+  for (const line of message.split('\n')) {
+    const match = /^Parity-Expect:\s*(\S+)\s*$/.exec(line);
+    if (match !== null) {
+      const kind = expectedKind(match[1]);
+      if (!kinds.includes(kind)) {
+        kinds.push(kind);
+      }
+    }
+  }
+  return kinds;
+}
+
+/** What fails the run: differences of no declared kind, and declared kinds never observed. */
+export function failures(differences: readonly Difference[], expect: readonly ExpectedKind[]): { unexpected: Difference[]; unobserved: ExpectedKind[] } {
+  return {
+    unexpected: differences.filter((difference) => difference.kind === null || !expect.includes(difference.kind)),
+    unobserved: expect.filter((kind) => !differences.some((difference) => difference.kind === kind)),
+  };
 }
 
 /** The exit code of a finished process; a launch failure or a signal is an error, never a result. */
@@ -228,7 +306,7 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       tally[head.exitCode] = (tally[head.exitCode] ?? 0) + 1;
       const reason = compareRuns(base, head);
       if (reason !== null) {
-        differences.push({ example, set: set.name, reason });
+        differences.push({ example, set: set.name, reason, kind: classifyDifference(base, head) });
       }
     });
     for (const set of sets) {
@@ -259,15 +337,30 @@ if (import.meta.main) {
   const repo = resolve(import.meta.dirname, '..');
   try {
     const options = parseArguments(process.argv.slice(2));
+    const expect = [...options.expect];
+    if (options.expectFrom !== null) {
+      const message = execFileSync('git', ['log', '-1', '--format=%B', options.expectFrom], { cwd: repo, encoding: 'utf8' });
+      for (const kind of trailerKinds(message)) {
+        if (!expect.includes(kind)) {
+          expect.push(kind);
+        }
+      }
+    }
     const { runs, report, exitCodes, differences } = await checkParity(repo, options);
     for (const [set, tally] of Object.entries(exitCodes)) {
       console.log(`parity: ${set} exit codes ${JSON.stringify(tally)}`);
     }
     for (const difference of differences) {
-      console.error(`${difference.example} [${difference.set}]: ${difference.reason}`);
+      const accepted = difference.kind !== null && expect.includes(difference.kind);
+      console.error(`${difference.example} [${difference.set}]: ${accepted ? `expected ${difference.kind}: ` : ''}${difference.reason}`);
     }
-    console.log(`parity: ${runs - differences.length}/${runs} runs identical (report: ${report})`);
-    process.exit(differences.length === 0 ? 0 : 1);
+    const { unexpected, unobserved } = failures(differences, expect);
+    for (const kind of unobserved) {
+      console.error(`parity: expected difference ${kind} was declared but never observed`);
+    }
+    const expected = differences.length - unexpected.length;
+    console.log(`parity: ${runs - differences.length}/${runs} runs identical, ${expected} expected (${expect.join(', ') || 'none declared'}), ${unexpected.length} unexpected (report: ${report})`);
+    process.exit(unexpected.length === 0 && unobserved.length === 0 ? 0 : 1);
   } catch (error) {
     console.error(`parity: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(2);

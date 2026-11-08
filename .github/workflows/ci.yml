@@ -60,7 +60,8 @@ jobs:
       - name: Test the parity script
         run: node --test scripts/parity.test.ts
       - name: Compare example output with the base commit
-        run: node scripts/parity.ts --base HEAD^1 --work "$RUNNER_TEMP/parity"
+        # HEAD^2 is the PR head; its "Parity-Expect: <kind>" trailers declare intended changes.
+        run: node scripts/parity.ts --base HEAD^1 --work "$RUNNER_TEMP/parity" --expect-from HEAD^2
       - name: Retain the parity report
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

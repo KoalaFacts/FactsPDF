@@ -43,7 +43,9 @@ Areas follow `site/data/compatibility.json` `categories`. "Run" is the command u
    `for p in $(git ls-files '*.csproj' | grep -v examples/first-use); do dotnet build "$p" -c Release -warnaserror; done`.
 2. `dotnet test tests/FactsPDF.Tests -c Release` (includes the CLI tests).
 3. Byte parity against `main`: `node scripts/parity.ts` (Node 22.18+ strips types; defaults `--base origin/main`).
-   Expect `402/402 runs identical` unless the PR explains an intended difference.
+   Expect `402/402 runs identical` unless the PR explains an intended difference; a known kind
+   (`location-added`) is declared with `--expect <kind>` locally and a `Parity-Expect: <kind>`
+   trailer on the PR head commit for CI.
 4. Docs: `node --test scripts/check-docs.test.ts && node scripts/check-docs.ts`.
 5. `site/` data changes: `cd site && npm test && npm run validate`.
 
