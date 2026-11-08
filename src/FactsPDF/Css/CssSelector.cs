@@ -1,6 +1,6 @@
 namespace FactsPDF;
 
-internal sealed record CssElement(string Name, string? Id, CssClassList Classes,
+internal readonly record struct CssElement(string Name, string? Id, CssClassList Classes,
     IReadOnlyDictionary<string, string> Attributes)
 {
     internal static CssElement From(HtmlToken token)

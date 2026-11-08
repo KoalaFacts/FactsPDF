@@ -3,8 +3,9 @@ using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-// The document reader keeps one frame per open element on its stack. Frames are values in
-// that list, so opening an element costs no frame object of its own.
+// The document reader keeps one frame per open element on its stack and one selector element
+// per open element on its selector path. Both are values in those lists, so opening an element
+// costs neither a frame object nor a selector-element object of its own.
 [TestFixture]
 [NonParallelizable]
 public sealed class ReaderFrameAllocationTests
@@ -39,6 +40,32 @@ public sealed class ReaderFrameAllocationTests
         var perElement = (large - small) / 800.0;
         TestContext.Out.WriteLine($"per element: {perElement:F1} bytes");
         Assert.That(perElement, Is.LessThan(470));
+    }
+
+    // Measured 442 bytes per nested div when each selector element was its own object, 418 as a value.
+    [Test]
+    public void OpeningAnElementAllocatesNoSelectorElementObject()
+    {
+        var options = new PdfOptions { MaxDepth = 64 };
+        var small = Allocated(Nested(8, 100), options);
+        var large = Allocated(Nested(8, 200), options);
+        Assert.That((large - small) / 800.0, Is.LessThan(430));
+    }
+
+    [Test]
+    public void DescendantAndClassSelectorsStillMatchThroughValueElements()
+    {
+        const string html = "<style>section .a p{color:#c00}div#k>p{color:#00c}</style>"
+            + "<section><div class='a b'><p>R</p></div></section><div id='k'><p>B</p></div><p>N</p>";
+        var tree = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
+        var colours = new List<Rgb>();
+        void Walk(BlockChild child)
+        {
+            if (child is BlockNode box) foreach (var c in box.Children) Walk(c);
+            else if (child is ParagraphNode paragraph) colours.Add(paragraph.Paragraph.Runs[0].Style.Color);
+        }
+        foreach (var child in tree.Children) Walk(child);
+        Assert.That(colours, Is.EqualTo(new[] { new Rgb(0xcc / 255d, 0, 0), new Rgb(0, 0, 0xcc / 255d), new Rgb(0, 0, 0) }));
     }
 
     [Test]
