@@ -475,7 +475,7 @@ internal static class TextLayout
                                 "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
                             scope.Style, scope.TextColor, scope.Order,
-                            IsFirstFragment: isFirst, IsLastFragment: isLast);
+                            IsFirstFragment: isFirst, IsLastFragment: isLast, SourceOffset: scope.SourceOffset);
                         // Outlines are ink outside the measured box. Allow an
                         // outline-only empty panel to extend past the printable
                         // bottom margin, but never off the physical PDF sheet.
@@ -569,7 +569,7 @@ internal static class TextLayout
                     throw new FactsPdfException("FPDF1302", "Image and required leading decoration cannot fit on a page.", image.Node.SourceOffset);
                 y += imageGap;
                 var painted = new PaintedBox(image.X, y, image.OuterWidth, image.OuterHeight,
-                    image.Node.BoxStyle, image.Node.Style.Color, paintOrder++);
+                    image.Node.BoxStyle, image.Node.Style.Color, paintOrder++, SourceOffset: image.Node.SourceOffset);
                 ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
                 if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
                 pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height));
@@ -635,7 +635,8 @@ internal static class TextLayout
                         var last = fragment.EndRow == measured.Rows.Count;
                         var tableBox = new PaintedBox(table.X, y, measured.Width,
                             last ? fragment.Height : bottom - y, table.Node.BoxStyle, table.Node.Style.Color,
-                            paintOrder++, IsFirstFragment: first, IsLastFragment: last);
+                            paintOrder++, IsFirstFragment: first, IsLastFragment: last,
+                            SourceOffset: table.Node.SourceOffset);
                         ChargeDisplayCommands(tableBox.CommandCount, table.Node.SourceOffset);
                         if (tableBox.CommandCount > 0) pages[^1].PaintBoxes.Add(tableBox);
                         var rowTop = y + (first ? measured.Top : 0);
