@@ -1,5 +1,5 @@
 import test from 'node:test';
-import { englishAudit } from '../src/audit-english-table-relative-tracks.mjs';
+import { englishAudit } from '../src/audit-english-cell-text-indent.mjs';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -345,7 +345,7 @@ test('bounded LTR alignment provenance and historical justification remain preci
 test('text-indent remains a limited renderable CSS feature after relative audit', () => {
   const f=dataset.features.find(f=>f.id==='css.text-indent');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.equal(f.last_audited_commit,'7282c0839235443ab49935cb0f2e8092117786a1');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/实际内容宽度/);
   assert.match(f.scope,/PDF/);
@@ -392,12 +392,12 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   for(const id of ['css.text-indent','css.letter-spacing','css.word-spacing','value.length.relative']){
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
-    assert.equal(feature.last_audited_commit,id==='css.text-indent' ? 'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba' : '92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
+    assert.equal(feature.last_audited_commit,id==='css.text-indent' ? '7282c0839235443ab49935cb0f2e8092117786a1' : '92e2b02c12740cd85f244bf04e57c70e89e5c353',id);
     assert.match(feature.scope,/em/,id);
     assert.match(feature.scope,/rem/,id);
     assert.equal(feature.introduced_release,null,id);
     assert.equal(feature.test_reference,id==='css.text-indent'
-      ? 'https://github.com/KoalaFacts/FactsPDF/blob/c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba/tests/FactsPDF.Tests/InheritedReportTextFlowTests.cs'
+      ? 'https://github.com/KoalaFacts/FactsPDF/blob/7282c0839235443ab49935cb0f2e8092117786a1/tests/FactsPDF.Tests/TableCellTextIndentTests.cs'
       : 'https://github.com/KoalaFacts/FactsPDF/blob/702b907c382b101bdfdc35c8383185ad9d30283f/tests/FactsPDF.Tests/FontRelativeTextSpacingTests.cs');
   }
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);

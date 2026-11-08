@@ -1,3 +1,11 @@
+## First-line indentation in fixed-column table cells (source candidate)
+
+`text-indent` can now be declared on explicit fixed-track `td`/`th` cells and their flat `p` descendants. The cell's value is inherited by anonymous text and nested paragraphs. The winning nonnegative physical, `%`, `em` or `rem` length changes the measured first PDF line, wrapping, alignment and page continuations; later broken/wrapped lines do not re-indent and the cell background stays in place. Percentages use the **actual measured cell/paragraph content width**, not page width. Existing cascade, `!important` and `inherit/initial/unset` apply. This extends the existing partial `text-indent` behavior rather than creating a full CSS Text implementation.
+
+Only explicit-column table cells and their flat paragraphs are in scope; `table/col/colgroup/tr/thead/tbody`, lists and inline `span` do not gain text-indent. Negative/hanging, `calc()`, each-line/hanging flags, nested tables and impossible first-line geometry still fail with preserved previous PDF bytes and stream position.
+
+The [multi-page service register](../examples/report-cell-text-indent.html) has an [independent computed-point control](../examples/report-cell-text-indent-oracle.html). Real PDF byte parity, glyph X positions, inherited/important styles, repeated headers and protected failures are exercised in [TableCellTextIndentTests](../tests/FactsPDF.Tests/TableCellTextIndentTests.cs). Source [7282c0839235443ab49935cb0f2e8092117786a1](https://github.com/KoalaFacts/FactsPDF/commit/7282c0839235443ab49935cb0f2e8092117786a1); exact-head CI, independent review and main merge remain separate gates.
+
 ## Fixed-table computed em/rem widths and padding (source implementation)
 
 Within the existing explicit-track table renderer, a `table` may use computed `em`/`rem` for `width` and padding; a `col` may use those units for `width` only. The table's `em` is its own final computed font size, the column's `em` is its inherited `colgroup` font size, and `rem` uses the computed `html` root. Cascade and `!important` choose the winning declarations before converting these units to points. The strict table content-width sum, cell geometry, painting, repeated headers and pagination operate on the resolved lengths.

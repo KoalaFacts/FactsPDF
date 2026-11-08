@@ -1,3 +1,7 @@
+### Fixed-track cell first-line indents (source candidate)
+
+The business-register row notes can now use `td.memo { text-indent:0.25em }` (with a computed cell font size) and a nested `p { text-indent:inherit }` or an overridden `0.5rem`. Instead of merely parsing the declarations, the computed first-line offset enters actual PDF text measurement and pagination. A 24-row multi-page synthetic source and independently written point-value oracle, real byte and coordinate comparisons and prior-output-protecting errors document the bounded feature: [example](../examples/report-cell-text-indent.html), [oracle](../examples/report-cell-text-indent-oracle.html), [tests](../tests/FactsPDF.Tests/TableCellTextIndentTests.cs). Code source [7282c0839235443ab49935cb0f2e8092117786a1](https://github.com/KoalaFacts/FactsPDF/commit/7282c0839235443ab49935cb0f2e8092117786a1), still an unmerged candidate pending exact-head CI and independent review. Existing `text-indent` compatibility entry remains **partial**; structural table elements, inline spans, negative/calc and unlimited indent are not supported.
+
 ## Attribute selectors on actual invoice/report fields
 
 The renderer matches accepted HTML attributes with `[name]`,
