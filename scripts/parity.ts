@@ -315,7 +315,7 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       }
     }
     differences.sort((a, b) => `${a.example}.${a.set}`.localeCompare(`${b.example}.${b.set}`));
-    const report = JSON.stringify({ base: baseCommit, runs: cases.length, exitCodes, differences }, null, 2) + '\n';
+    const report = JSON.stringify({ base: baseCommit, runs: cases.length, declared: options.expect, exitCodes, differences }, null, 2) + '\n';
     writeFileSync(join(work, 'parity.json'), report);
     writeFileSync(join(parent, 'parity.json'), report);
     identical = differences.length === 0;
@@ -339,14 +339,15 @@ if (import.meta.main) {
     const options = parseArguments(process.argv.slice(2));
     const expect = [...options.expect];
     if (options.expectFrom !== null) {
-      const message = execFileSync('git', ['log', '-1', '--format=%B', options.expectFrom], { cwd: repo, encoding: 'utf8' });
+      // Only the commit's trailer block counts, as git parses it; --end-of-options keeps the ref a ref.
+      const message = execFileSync('git', ['log', '-1', '--format=%(trailers:key=Parity-Expect)', '--end-of-options', options.expectFrom], { cwd: repo, encoding: 'utf8' });
       for (const kind of trailerKinds(message)) {
         if (!expect.includes(kind)) {
           expect.push(kind);
         }
       }
     }
-    const { runs, report, exitCodes, differences } = await checkParity(repo, options);
+    const { runs, report, exitCodes, differences } = await checkParity(repo, { ...options, expect });
     for (const [set, tally] of Object.entries(exitCodes)) {
       console.log(`parity: ${set} exit codes ${JSON.stringify(tally)}`);
     }
