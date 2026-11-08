@@ -1,24 +1,82 @@
 namespace FactsPDF;
 
-internal sealed record CssElement(string Name, string? Id, HashSet<string> Classes,
+internal sealed record CssElement(string Name, string? Id, CssClassList Classes,
     IReadOnlyDictionary<string, string> Attributes)
 {
     internal static CssElement From(HtmlToken token)
     {
-        token.Attributes!.TryGetValue("id", out var id); var classes = new HashSet<string>(StringComparer.Ordinal);
-        if (token.Attributes.TryGetValue("class", out var text))
-        {
-            var i = 0;
-            while (i < text.Length)
-            {
-                while (i < text.Length && HtmlTokens.Space(text[i])) i++;
-                var start = i; while (i < text.Length && !HtmlTokens.Space(text[i])) i++;
-                if (i > start) classes.Add(text[start..i]);
-            }
-        }
+        token.Attributes!.TryGetValue("id", out var id);
+        var classes = token.Attributes.TryGetValue("class", out var text) ? CssClassList.Read(text) : default;
         return new(token.Value, id, classes, token.Attributes);
     }
 }
+
+/// <summary>An element's distinct class names in first-occurrence order. Elements without
+/// classes share one empty array and a lone class reuses the attribute text; a long list also
+/// keeps a set so selector matching stays linear in the selector's class count. Equality is
+/// by storage (the record's generated equality would otherwise compare fields by reflection).</summary>
+internal readonly struct CssClassList : IEquatable<CssClassList>
+{
+    private const int LinearLimit = 16;
+    private static readonly string[] None = [];
+    private readonly string[]? names;
+    private readonly HashSet<string>? lookup;
+
+    private CssClassList(string[] names, HashSet<string>? lookup) { this.names = names; this.lookup = lookup; }
+
+    internal ReadOnlySpan<string> Names => names ?? None;
+
+    internal bool SharesStorageWith(CssClassList other) => ReferenceEquals(names ?? None, other.names ?? None);
+
+    public bool Equals(CssClassList other) => SharesStorageWith(other);
+    public override bool Equals(object? obj) => obj is CssClassList other && Equals(other);
+    public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(names ?? None);
+
+    internal bool Contains(string name)
+    {
+        if (lookup is not null) return lookup.Contains(name);
+        var list = names;
+        if (list is null) return false;
+        for (var i = 0; i < list.Length; i++)
+            if (string.Equals(list[i], name, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    internal static CssClassList Read(string text)
+    {
+        var count = 0; var first = 0; var firstEnd = 0;
+        for (var i = 0; i < text.Length;)
+        {
+            while (i < text.Length && HtmlTokens.Space(text[i])) i++;
+            var start = i; while (i < text.Length && !HtmlTokens.Space(text[i])) i++;
+            if (i > start && count++ == 0) { first = start; firstEnd = i; }
+        }
+        if (count == 0) return default;
+        if (count == 1) return new([first == 0 && firstEnd == text.Length ? text : text[first..firstEnd]], null);
+        var found = new string[count];
+        var lookup = count > LinearLimit ? new HashSet<string>(count, StringComparer.Ordinal) : null;
+        var distinct = 0;
+        for (var i = 0; i < text.Length;)
+        {
+            while (i < text.Length && HtmlTokens.Space(text[i])) i++;
+            var start = i; while (i < text.Length && !HtmlTokens.Space(text[i])) i++;
+            if (i == start) continue;
+            var span = text.AsSpan(start, i - start);
+            if (lookup is not null)
+            {
+                var name = span.ToString();
+                if (lookup.Add(name)) found[distinct++] = name;
+                continue;
+            }
+            var seen = false;
+            for (var j = 0; j < distinct && !seen; j++) seen = span.SequenceEqual(found[j]);
+            if (!seen) found[distinct++] = span.ToString();
+        }
+        if (distinct < count) Array.Resize(ref found, distinct);
+        return new(found, lookup);
+    }
+}
+
 internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) : IComparable<CssSpecificity>
 {
     public int CompareTo(CssSpecificity other)
