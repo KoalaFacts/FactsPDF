@@ -11,5 +11,5 @@ const changes = new Map([
 ]);
 export const englishAudit = Object.freeze(previous.map((text, index) => changes.get(index) ?? text));
 if (englishAudit.length !== 774 || englishAudit.some(text =>
-  typeof text !== 'string' || !text.trim() || /[\\u3400-\\u9fff]/u.test(text)))
+  typeof text !== 'string' || !text.trim() || /[\u3400-\u9fff]/u.test(text)))
   throw new Error('Incomplete table-cell text-indent English audit.');
