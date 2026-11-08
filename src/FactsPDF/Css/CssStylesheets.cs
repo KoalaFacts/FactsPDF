@@ -33,12 +33,18 @@ internal sealed class CssStylesheets
         budget = new(options, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, token);
     }
-    internal static CssStylesheets Collect(string html, PdfOptions options, CancellationToken token)
+    /// <summary>
+    /// Compiles every style element and style attribute, and appends each HTML token it reads to
+    /// <paramref name="tokens"/> so the document reader walks the same tokens instead of tokenizing
+    /// the page again. The list is complete only when this method returns.
+    /// </summary>
+    internal static CssStylesheets Collect(string html, PdfOptions options, List<HtmlToken> tokens, CancellationToken token)
     {
         var sheet = new CssStylesheets(options, token); var elements = 0;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
+            tokens.Add(item);
             if (item.Kind == HtmlTokenKind.StyleText)
             {
                 sheet.budget.Characters(item.Value.Length, item.Offset);

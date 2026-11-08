@@ -79,7 +79,9 @@ internal static class HtmlDocumentReader
     internal static DocumentRoot ReadTree(string html, PdfOptions options, CancellationToken cancellation)
     {
         // Compile every source before computing styles: a later style block can affect earlier content.
-        var sheets = CssStylesheets.Collect(html, options, cancellation);
+        // The tokens are read once, here, and walked again below.
+        var tokens = new List<HtmlToken>();
+        var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
@@ -174,8 +176,9 @@ internal static class HtmlDocumentReader
             current.Runs.Add(new(text, style.KeepWithNext ? style with { KeepWithNext = false } : style, lineBreak, stack[^1].SourceOffset));
         }
 
-        foreach (var token in HtmlTokens.Read(html, cancellation))
+        for (var t = 0; t < tokens.Count; t++)
         {
+            var token = tokens[t];
             cancellation.ThrowIfCancellationRequested();
             if (token.Kind == HtmlTokenKind.StyleText) continue;
             if (token.Kind == HtmlTokenKind.Text)
