@@ -21,5 +21,5 @@ const limitations = new Map([
 export const englishAudit = Object.freeze(baseline.map((original, i) =>
   scopes.get(i) ?? limitations.get(i) ?? original));
 if (englishAudit.length !== 774 || englishAudit.some(value =>
-    typeof value !== 'string' || !value.trim() || /[\\u3400-\\u9fff]/u.test(value)))
+    typeof value !== 'string' || !value.trim() || /[\u3400-\u9fff]/u.test(value)))
   throw new Error('Incomplete table-cell relative-padding English catalogue.');
