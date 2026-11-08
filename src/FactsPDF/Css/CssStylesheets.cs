@@ -57,9 +57,8 @@ internal sealed class CssStylesheets
                 else if (item.Attributes!.TryGetValue("style", out var css))
                 {
                     sheet.budget.Characters(css.Length, item.Offset);
-                    var origins = item.AttributeSourceOffsets is not null &&
-                        item.AttributeSourceOffsets.TryGetValue("style", out var found) ? found : null;
-                    var declarations = sheet.ParseSource(css, item.Offset, declarationsOnly: true, origins).Declarations;
+                    var declarations = sheet.ParseSource(css, item.StyleValueOffset, declarationsOnly: true,
+                        item.StyleOriginOffsets).Declarations;
                     sheet.inline.Add(item.Offset, CssSyntaxAdapter.CompileKnownDeclarations(declarations, sheet.budget));
                 }
             }

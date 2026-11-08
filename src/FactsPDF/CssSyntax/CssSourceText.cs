@@ -5,15 +5,22 @@ namespace FactsPDF.CssSyntax;
 /// <summary>Normalized Unicode code units with exact original UTF-16 boundary positions.</summary>
 internal sealed class CssSourceText
 {
-    private readonly int[] boundaries;
+    // Null when every code unit maps to its own origin: code unit i then starts at start + i.
+    private readonly int[]? boundaries;
+    private readonly int start;
 
-    private CssSourceText(string normalized, int[] boundaries)
+    private CssSourceText(string normalized, int[]? boundaries, int start)
     {
         Normalized = normalized;
         this.boundaries = boundaries;
+        this.start = start;
     }
 
     internal string Normalized { get; }
+
+    /// <summary>Whether this text keeps one original boundary per code unit (normalized text or
+    /// caller-supplied origins) rather than deriving them from its start offset.</summary>
+    internal bool HasBoundaryMap => boundaries is not null;
 
     internal static CssSourceText Create(
         string source, int absoluteStart, CssSyntaxLimits limits,
@@ -44,7 +51,9 @@ internal sealed class CssSourceText
         int Origin(int index) => originalOffsets is null ? absoluteStart + index : originalOffsets[index];
         if (source.AsSpan().IndexOfAny(NeedsNormalizing) < 0)
         {
-            // Nothing to normalize: the text is the source itself and every code unit maps to its own origin.
+            // Nothing to normalize: the text is the source itself. Without caller origins every code
+            // unit maps to its own position, so no boundary array is needed.
+            if (originalOffsets is null) return new CssSourceText(source, null, absoluteStart);
             var identity = new int[source.Length + 1];
             for (var i = 0; i < source.Length; i++)
             {
@@ -52,7 +61,7 @@ internal sealed class CssSourceText
                 identity[i] = Origin(i);
             }
             identity[source.Length] = Origin(source.Length);
-            return new CssSourceText(source, identity);
+            return new CssSourceText(source, identity, absoluteStart);
         }
         var text = new StringBuilder(source.Length);
         var mapped = new int[source.Length + 1];
@@ -96,7 +105,7 @@ internal sealed class CssSourceText
             }
         }
         mapped[count] = Origin(source.Length);
-        return new CssSourceText(text.ToString(), count == source.Length ? mapped : mapped[..(count + 1)]);
+        return new CssSourceText(text.ToString(), count == source.Length ? mapped : mapped[..(count + 1)], absoluteStart);
     }
 
     // Code units that normalization replaces or that start a surrogate pair check.
@@ -108,7 +117,8 @@ internal sealed class CssSourceText
         if (normalizedStart < 0 || normalizedLength < 0 ||
             (long)normalizedStart + normalizedLength > Normalized.Length)
             throw new ArgumentOutOfRangeException(nameof(normalizedStart), "CSS source span is outside normalized input.");
-        var start = boundaries[normalizedStart];
-        return new CssSourceSpan(start, boundaries[normalizedStart + normalizedLength] - start);
+        if (boundaries is null) return new CssSourceSpan(start + normalizedStart, normalizedLength);
+        var first = boundaries[normalizedStart];
+        return new CssSourceSpan(first, boundaries[normalizedStart + normalizedLength] - first);
     }
 }
