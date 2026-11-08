@@ -676,7 +676,8 @@ internal static class TextLayout
                             {
                                 cancellation.ThrowIfCancellationRequested();
                                 var box = new PaintedBox(table.X + cell.X, rowTop, cell.Width, slice.Height,
-                                    cell.BoxStyle, cell.TextColor, paintOrder++, slice.IsFirst, slice.IsLast);
+                                    cell.BoxStyle, cell.TextColor, paintOrder++, slice.IsFirst, slice.IsLast,
+                                    SourceOffset: cell.SourceOffset);
                                 ChargeDisplayCommands(box.CommandCount, cell.SourceOffset);
                                 if (box.CommandCount > 0) pages[^1].PaintBoxes.Add(box);
                             }

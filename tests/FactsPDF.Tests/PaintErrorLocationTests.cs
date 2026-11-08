@@ -54,6 +54,16 @@ public sealed class PaintErrorLocationTests
     }
 
     [Test]
+    public void TooThinBorderOnACellWhoseRowSplitsAcrossPagesPointsAtTheCell()
+    {
+        var paragraphs = string.Concat(Enumerable.Repeat("<p>Row text.</p>", 120));
+        var html = Prefix + "<table style='width:160pt'><colgroup><col style='width:160pt'></colgroup><tbody><tr><td id='tall' style='border:0.0005pt dashed black'>"
+            + paragraphs + "</td></tr></tbody></table>";
+        var error = Fails(Pdf.Write(), html, Thin);
+        Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<td id='tall'")));
+    }
+
+    [Test]
     public void TooThinTableBorderPointsAtTheTable()
     {
         const string html = Prefix + "<table id='grid' style='width:80pt;border:0.0005pt dashed black'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>a</td></tr></tbody></table>";
