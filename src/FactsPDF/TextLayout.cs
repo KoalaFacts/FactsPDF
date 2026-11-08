@@ -168,7 +168,7 @@ internal static class TextLayout
                 if (!breakNext && !first.Style.BreakBefore && CurrentPageOccupied() &&
                     HeadingKeep.ShouldMove(group, o, bottom - y, after, pendingTopPadding, pendingClosedPadding,
                         MoveUnconsumedBlocksToNewPage(apply: false), retainFirstHeadingMargin,
-                        resolved, EnsureDisplayCommands, cancellation))
+                        resolved, ensureDisplayCommands, cancellation))
                 {
                     NewPage();
                     MoveUnconsumedBlocksToNewPage();
