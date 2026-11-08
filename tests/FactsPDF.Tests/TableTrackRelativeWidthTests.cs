@@ -63,6 +63,26 @@ public sealed class TableTrackRelativeWidthTests
     }
 
     [Test]
+    public void TableLogicalFontRelativePaddingMatchesPhysicalPointsAcrossRepeatedHeaders()
+    {
+        const string extraRow = "<tr><td>A</td><td>B C</td></tr>";
+        var additionalRows = string.Concat(Enumerable.Repeat(extraRow, 24));
+        var relative = Invoice("12em", "2em", "5rem",
+            "padding-inline:0.25rem;padding-block:0.2em")
+            .Replace("</tbody>", additionalRows + "</tbody>", StringComparison.Ordinal);
+        var physical = Invoice("120pt", "40pt", "80pt", "padding:2pt 4pt")
+            .Replace("</tbody>", additionalRows + "</tbody>", StringComparison.Ordinal);
+        var options = Page with { PageHeight = 125 };
+        Assert.That(Pdf(relative, options), Is.EqualTo(Pdf(physical, options)));
+        var actualPages = Layout(relative, options);
+        var expectedPages = Layout(physical, options);
+        Assert.That(actualPages.Count, Is.GreaterThan(1));
+        Assert.That(actualPages.All(page => page.Runs.Any(run => run.Text == "CODE")), Is.True);
+        Assert.That(actualPages.SelectMany(page => page.Runs).Select(run => (run.Text, run.X, run.Baseline)),
+            Is.EqualTo(expectedPages.SelectMany(page => page.Runs).Select(run => (run.Text, run.X, run.Baseline))));
+    }
+
+    [Test]
     public void ImportantFontAndWidthWinnersDetermineTracksBeforeMeasurement()
     {
         const string start = "<html style='font-size:16pt'><body>";
