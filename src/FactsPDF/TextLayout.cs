@@ -70,8 +70,11 @@ internal static class TextLayout
             EnsureDisplayCommands(count, sourceOffset);
             displayCommands += count;
         }
+        // One delegate per layout, not one per placed line or block.
+        Action<int, int> chargeDisplayCommands = ChargeDisplayCommands;
+        Action<int, int> ensureDisplayCommands = EnsureDisplayCommands;
         void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1)
-            => AppendLine(line, x, baseline, pages[^1].Runs, ChargeDisplayCommands, cancellation, sourceOffset);
+            => AppendLine(line, x, baseline, pages[^1].Runs, chargeDisplayCommands, cancellation, sourceOffset);
         var bottom = o.PageHeight - o.Margin;
         void NewPage()
         {
@@ -165,7 +168,7 @@ internal static class TextLayout
                 if (!breakNext && !first.Style.BreakBefore && CurrentPageOccupied() &&
                     HeadingKeep.ShouldMove(group, o, bottom - y, after, pendingTopPadding, pendingClosedPadding,
                         MoveUnconsumedBlocksToNewPage(apply: false), retainFirstHeadingMargin,
-                        resolved, EnsureDisplayCommands, cancellation))
+                        resolved, ensureDisplayCommands, cancellation))
                 {
                     NewPage();
                     MoveUnconsumedBlocksToNewPage();
@@ -584,7 +587,7 @@ internal static class TextLayout
             {
                 var freshSpace = new TableFreshSpace(bottom - o.Margin, MoveUnconsumedBlocksToNewPage(apply: false));
                 var measured = TableLayout.Measure(table, o, resolved,
-                    ChargeDisplayCommands, EnsureDisplayCommands, cancellation, freshSpace);
+                    chargeDisplayCommands, ensureDisplayCommands, cancellation, freshSpace);
                 // A validated but invisible table does not occupy page space.
                 // Leave deferred breaks and ancestor decoration for the next
                 // visible content, just as an empty undecorated block does.
