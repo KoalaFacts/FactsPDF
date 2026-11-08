@@ -961,6 +961,21 @@ new private software, human reference approval, CI and customer rights are separ
 
 ## Tables and lists
 
+### Font-relative padding for fixed-column invoice cells (candidate)
+
+Fixed-track `td`/`th` can now resolve bounded `em` padding from
+their own final font size and `rem` from the HTML root font size. These
+values reach measured cell content widths, real PDF text placement, painted
+cell boxes, repeated headers and multi-page reports. Physical/logical
+padding shorthand and side longhands share the existing cascade and
+`!important` rules. See the [24-line invoice](../examples/report-cell-relative-padding.html),
+[physical-point control](../examples/report-cell-relative-padding-oracle.html)
+and [PDF equality, font, pagination, and output-protection tests](../tests/FactsPDF.Tests/TableCellRelativePaddingTests.cs).
+Table/col/row box lengths, independent paragraph insets, negative lengths,
+`calc()` and impossible track geometry remain unsupported. Not a shipped
+package or full CSS table layout.
+
+
 ### Table cell `vertical-align` (source-only)
 
 For business tables with multiline descriptions, `td`/`th` now accept `vertical-align:top`, `middle` or `bottom` to position a shorter cell's text or image within the complete painted row. Whole rows and intact repeated headers work across pages. Rows needing independent cell-by-cell continuation reject `middle`/`bottom` instead of pretending to align; inline baseline alignment, `rowspan` and general CSS table layout remain unsupported. See the [40-row report](../examples/report-table-vertical-align.html), [physical-padding oracle](../examples/report-table-vertical-align-oracle.html) and [table contract](tables.md#vertical-alignment-in-whole-table-rows).
