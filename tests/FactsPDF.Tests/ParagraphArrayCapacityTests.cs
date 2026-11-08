@@ -63,6 +63,18 @@ public sealed class ParagraphArrayCapacityTests
         Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "a ", "b", " c" }));
     }
 
+    // Inside a table cell a paragraph element has no block of its own; only its run list is sized.
+    [Test]
+    public void AParagraphInATableCellIsSizedToItsRuns()
+    {
+        var tree = HtmlDocumentReader.ReadTree(
+            "<table><colgroup><col style=\"width:100pt\"></colgroup><tbody><tr><td><p>a <span>b</span></p></td></tr></tbody></table>", new PdfOptions(), default);
+        var cell = ((TableNode)tree.Children[0]).Rows[0].Cells[0];
+        var runs = ((TableCellText)cell.Contents[0]).Paragraph.Runs;
+        Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "a ", "b" }));
+        Assert.That(runs.Capacity, Is.EqualTo(2));
+    }
+
     [Test]
     public void ParagraphsWithManyRunsRenderTheSameText()
     {
