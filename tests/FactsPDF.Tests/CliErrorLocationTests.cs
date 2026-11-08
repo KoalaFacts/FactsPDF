@@ -37,6 +37,8 @@ public sealed class CliErrorLocationTests
 
     [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p>中</p>", 3, 3)]
     [TestCase("<p>ok</p>\n<p>Short <span>WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW</span></p>", 2, 10)]
+    [TestCase("<p>ok</p>\n<p>i<br>\n  <span style='line-height:1000pt'>y</span></p>", 3, 3)]
+    [TestCase("<p>ok</p>\n\n <p style='line-height:1000pt'>i</p>", 3, 2)]
     public void TextPhaseDiagnosticsReportTheLineAndColumnOfTheirElement(string html, int line, int column)
     {
         var core = CoreError(html);
