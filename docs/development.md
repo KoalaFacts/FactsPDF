@@ -391,6 +391,15 @@ outside the repository, default the system temp folder; each run uses a new
 subfolder of it), `--jobs` (default the CPU count, at most 8), `--dotnet` and
 `--python`.
 
+An intended change of a known kind is declared with `--expect <kind>`, or in CI
+with a `Parity-Expect: <kind>` trailer in the PR's head commit message (the
+`byte-parity` job passes `--expect-from HEAD^2`). A declared kind accepts only
+differences of exactly that kind, every other difference still fails, and a
+declared kind that is never observed fails the run. The one kind so far is
+`location-added`: a failing run's stderr gains `Location: line L, column C.`
+lines and is otherwise identical, with the same exit code and no PDF on either
+side. A PDF byte or exit-code change has no kind and always fails.
+
 CI runs it on every pull request against the PR's base (the merge commit's
 first parent). A PR that changes output on purpose fails this job by design:
 its body lists each difference from `parity.json` and why, and the owner
