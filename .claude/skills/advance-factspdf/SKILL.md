@@ -27,6 +27,9 @@ scheduled task's prompt.
   scripts for a gate item), passing the gate below.
 
 ## Setup
+- Read first: `AGENTS.md` (binding), `CLAUDE.md`, `docs/feature-notes.md`,
+  `docs/development.md`, `docs/compatibility-site.md`, `docs/mvp-roadmap.md`.
+- Schedule: every 4 hours (6 runs a day), 50 minutes per run.
 - .NET 10 SDK: `curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir ~/.dotnet`,
   then `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`.
 - Node 24 for `site/` and the TypeScript scripts; the existing Python `scripts/`
@@ -39,11 +42,19 @@ scheduled task's prompt.
    projects outside the solution).
 2. `dotnet test tests/FactsPDF.Tests -c Release` (includes the CLI tests).
 3. Byte parity against `main`: `node scripts/parity.ts` (CLI from main in a git
-   worktree vs the branch, every `examples/*.html`, three option sets). Compare
+   worktree vs the branch, every `examples/*.html`, three option sets:
+   defaults; DejaVu TrueType with `--subset-fonts --page-numbers --header-text H
+   --title T`, images from `python3 scripts/png_fixtures.py`, `--page-size letter
+   --landscape --margin 20mm`; `--page-furniture examples/business-page-furniture.json
+   --page-width 148mm --page-height 210mm` with a fully embedded font). Compare
    exit codes and bytes; any difference must be intended and explained in the
    PR (`--expect <kind>` locally, `Parity-Expect: <kind>` trailer for CI).
 4. Docs: `node --test scripts/check-docs.test.ts && node scripts/check-docs.ts`.
-5. When `site/` data changes: `cd site && npm test && npm run validate`; Can I
+5. Verification boundary: the CLI and `Pdf.Write()` rendering `examples/*.html`;
+   rendered pages are rasterised and looked at for visible changes, and the
+   feature map in `verify-factspdf` follows the areas of
+   `site/data/compatibility.json`.
+6. When `site/` data changes: `cd site && npm test && npm run validate`; Can I
    Render data changes need a new chained English translation layer
    (`docs/compatibility-site.md`) plus updated snapshot pins.
 
@@ -51,14 +62,15 @@ scheduled task's prompt.
 `docs/mvp-roadmap.md` (work-item table). Update it in every PR.
 
 ## Work order
-After Z1 (#177): P0 parity script; Z2 content streams as ASCII bytes into pooled
-buffers; Z3 `TextStyle` single private copy; Z4 CSS tokenizer/parser/adapter
+After Z1 (#177): P0 TypeScript parity script (plus a CI job against the merge
+base only if it fits an existing workflow without new permissions); Z2 content streams as ASCII bytes into pooled
+buffers; Z3 `TextStyle` single private copy like `BoxStyle` (#176); Z4 CSS tokenizer/parser/adapter
 allocations; Z5 layout-phase allocations; Z6 read-phase allocations; R1 soak and
 limits (every `Max*` limit, cancellation on ToBytes, ToStream, ToStreamAsync,
 ToBufferWriter, ToFile, ToFileAsync); R2 SDK usability (complete XML docs,
 README quick start and examples compile, clear `FactsPdfException` messages with
 source location for every FPDF code); R3 fixed-seed fuzzing of stylesheets and
-page furniture; R4 packaging (`dotnet pack` metadata, README, no stray files,
+page furniture (`RobustnessFuzzTests`), fixing every non-`FactsPdfException` crash; R4 packaging (`dotnet pack` metadata, README, no stray files,
 documentation XML; `examples/first-use` against the packed package from a local
 feed); R5 the most valuable gap found. The ledger's table is the current state.
 
