@@ -158,6 +158,8 @@ internal sealed class CssStylesheets
     {
         Array.Clear(winners); var element = path[^1];
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
+        // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
+        var cellTextIndentHost = element.Name is "td" or "th";
         // These inherited text-flow controls can be authored on document or
         // ordinary report containers. Their computed state reaches the same
         // measured paragraph/heading renderer, not a separate box approximation.
@@ -289,8 +291,6 @@ internal sealed class CssStylesheets
             if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
                 (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
-            if (cellParagraph && declaration.Property == CssProperty.TextIndent)
-                throw new FactsPdfException("FPDF1201", "text-indent is not supported inside table cells.", declaration.Offset);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
@@ -356,7 +356,8 @@ internal sealed class CssStylesheets
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
                 or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
                 && !(reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
-                    or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)))
+                    or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent))
+                && !(cellTextIndentHost && declaration.Property == CssProperty.TextIndent))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
@@ -515,7 +516,8 @@ internal sealed class CssStylesheets
                 if (!styleOwned) { style = style with { }; styleOwned = true; }
                 CssDeclarations.Apply(style, inheritedParent, initial, declaration,
                     paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
-                        or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
+                        or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
+                        || cellTextIndentHost && declaration.Property == CssProperty.TextIndent, computedRoot);
             }
         }
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)

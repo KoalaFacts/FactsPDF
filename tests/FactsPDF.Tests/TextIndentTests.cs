@@ -119,7 +119,7 @@ public sealed class TextIndentTests
 
     [TestCase("<ul style='text-indent:10pt'><li>A</li></ul>")]
     [TestCase("<p><span style='text-indent:10pt'>A</span></p>")]
-    [TestCase("<table><colgroup><col style='width:80pt'></colgroup><tbody><tr><td><p style='text-indent:5pt'>A</p></td></tr></tbody></table>")]
+    [TestCase("<table><colgroup><col style='width:80pt'></colgroup><tbody><tr style='text-indent:5pt'><td>A</td></tr></tbody></table>")]
     public void UnsupportedElementScopesFailRatherThanSilentlyDiscard(string html)
         => Rejected(html, "FPDF1201");
 
