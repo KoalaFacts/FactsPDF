@@ -129,7 +129,7 @@ public sealed class TableCellRelativePaddingTests
     {
         Reject(Cell("padding:2pt").Replace("<table style='width:100pt",
             "<table style='padding:1em;width:100pt", StringComparison.Ordinal), "FPDF1201");
-        Reject(Cell("padding:2pt").Replace("<td style=", "<td style='width:1em;", StringComparison.Ordinal),
+        Reject(Cell("padding:2pt").Replace("<td style='font-size:10pt;", "<td style='width:1em;font-size:10pt;", StringComparison.Ordinal),
             "FPDF1201");
         // In the strict table markup reader, a cell's independently styled paragraph
         // is rejected at the structure boundary before it can become a painted box.

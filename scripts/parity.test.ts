@@ -107,11 +107,27 @@ test('declared kinds accept only their own differences and must be observed', ()
   assert.deepEqual(failures([located, other], ['location-added']), { unexpected: [other], unobserved: [] });
   assert.deepEqual(failures([], ['location-added']), { unexpected: [], unobserved: ['location-added'] });
   assert.deepEqual(failures([], []), { unexpected: [], unobserved: [] });
+  const added: Difference = { example: 'new.html', set: 'defaults', reason: 'exit code 3 -> 0', kind: 'new-example-rendered' };
+  assert.deepEqual(failures([added], ['new-example-rendered']), { unexpected: [], unobserved: [] });
+  assert.deepEqual(failures([added], []), { unexpected: [added], unobserved: [] });
+});
+
+test('new example can be declared only for genuine newly rendered PDF', () => {
+  const old = { exitCode: 3, stderr: 'FPDF1201: unsupported\\n', pdf: null };
+  const fresh = ok('%PDF-1.7 new');
+  assert.equal(classifyDifference(old, fresh, true), 'new-example-rendered');
+  assert.equal(classifyDifference(old, fresh), null, 'existing examples must still be identical');
+  assert.equal(classifyDifference(old, { ...fresh, stderr: 'warning' }, true), null);
+  assert.equal(classifyDifference(old, { ...fresh, pdf: pdf('not a PDF') }, true), null);
+  assert.equal(classifyDifference(old, { ...fresh, pdf: null }, true), null);
+  assert.equal(classifyDifference({ ...old, exitCode: 0 }, fresh, true), null);
+  assert.equal(classifyDifference({ ...old, pdf: pdf('previous PDF') }, fresh, true), null);
 });
 
 test('reads Parity-Expect trailers and rejects unknown kinds', () => {
   assert.deepEqual(trailerKinds('Subject\n\nBody.\n\nParity-Expect: location-added\nCo-Authored-By: x\n'), ['location-added']);
   assert.deepEqual(trailerKinds('Subject\n\nParity-Expect: location-added\nParity-Expect: location-added\n'), ['location-added']);
+  assert.deepEqual(trailerKinds('Subject\n\nParity-Expect: new-example-rendered\n'), ['new-example-rendered']);
   assert.deepEqual(trailerKinds('Subject mentions Parity-Expect: location-added inline\n'), []);
   assert.throws(() => trailerKinds('Parity-Expect: anything\n'), /unknown expected difference kind "anything"/);
 });

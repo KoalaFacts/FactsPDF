@@ -12,7 +12,10 @@
 // differences of exactly that kind, and the run still fails when a declared
 // kind is never observed. Kinds: location-added — a failing run's stderr gains
 // "Location: line L, column C." lines and is otherwise identical, with the
-// same exit code and no PDF on either side.
+// same exit code and no PDF on either side. A new-example-rendered change
+// is limited to a newly added HTML example absent from the base tree, where
+// the old CLI rejects the template and the new CLI emits a real PDF.
+// Existing examples retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
 // folder); each run builds in a new subfolder of it and nothing else there is
@@ -44,7 +47,7 @@ export interface Difference {
   kind: ExpectedKind | null;
 }
 
-export const expectedKinds = ['location-added'] as const;
+export const expectedKinds = ['location-added', 'new-example-rendered'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -169,7 +172,12 @@ export function compareRuns(base: RunResult, head: RunResult): string | null {
 const locationLine = /^Location: line \d+, column \d+\.$/;
 
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
-export function classifyDifference(base: RunResult, head: RunResult): ExpectedKind | null {
+export function classifyDifference(base: RunResult, head: RunResult, newExample = false): ExpectedKind | null {
+  if (newExample && base.exitCode === 3 && base.pdf === null &&
+      head.exitCode === 0 && head.stderr === '' && head.pdf !== null &&
+      head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
+    return 'new-example-rendered';
+  }
   if (base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return null;
   }
@@ -294,6 +302,12 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       .filter((name) => name.endsWith('.html'))
       .sort();
     const sets = optionSets(repo, resolve(options.font), images);
+    const baseExamples = new Set(readdirSync(join(tree, 'examples'))
+      .filter((name) => name.endsWith('.html')));
+    const removedExamples = [...baseExamples].filter((name) => !examples.includes(name));
+    if (removedExamples.length !== 0) {
+      throw new Error(`parity would lose existing examples: ${removedExamples.join(', ')}`);
+    }
     const cases = examples.flatMap((example) => sets.map((set) => ({ example, set })));
     const differences: Difference[] = [];
     const exitCodes: Record<string, Record<string, number>> = {};
@@ -306,7 +320,8 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       tally[head.exitCode] = (tally[head.exitCode] ?? 0) + 1;
       const reason = compareRuns(base, head);
       if (reason !== null) {
-        differences.push({ example, set: set.name, reason, kind: classifyDifference(base, head) });
+        differences.push({ example, set: set.name, reason,
+          kind: classifyDifference(base, head, !baseExamples.has(example)) });
       }
     });
     for (const set of sets) {
