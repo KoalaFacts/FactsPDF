@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "title": "FactsPDF Compatibility Tracker",
-  "dataset_version": "audit-2026-11-09.table-cell-relative-padding-candidate",
-  "audited_at": "2026-11-08",
+  "dataset_version": "audit-2026-11-09.fixed-track-relative-widths-candidate",
+  "audited_at": "2026-11-09",
   "repository": "KoalaFacts/FactsPDF",
-  "commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
+  "commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+  "commit_url": "https://github.com/KoalaFacts/FactsPDF/commit/5c45a68546d0d903eccd2579782e55f2fedff5e4",
   "engine_baseline": "M12 / 1e3f24f21b2e9bbdc5db6e05066998c07a6f9af6",
   "support_scope": "Partial engineering audit of implemented preview capabilities, not release readiness or whole-standard conformance",
   "full_definition": "完整支持仅针对每一行明确定义的能力和适用范围；父级元素/属性的未知部分不自动变绿。",
@@ -548,8 +548,8 @@
       "feature": "<col>",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "void col 显式定义固定列轨道；正 pt/px/% 宽度，列宽总和与表内容宽度误差至多 0.001pt",
-      "limitations": "仅 width CSS；不能省略或使用 auto/零宽；不支持 HTML width/span 属性或列装饰",
+      "scope": "void col 显式定义固定列轨道；正 pt/px/% 宽度，列宽总和与表内容宽度误差至多 0.001pt；当前未合并CSS候选：显式col宽度可用有界em/rem，em按继承的colgroup字号、rem按html根字号计算，影响真实PDF轨道、单元格文字换行与分页",
+      "limitations": "仅 width CSS；不能省略或使用 auto/零宽；不支持 HTML width/span 属性或列装饰；仍拒绝col自己的font-size、padding、背景及自动列宽",
       "stage": "受限表格结构/布局/分页",
       "applicability": "共享核心（.NET / CLI；对应 Native AOT/WASM 探针范围单独记录）",
       "example": "<col style=\"width:100%\">",
@@ -568,7 +568,10 @@
         "https://github.com/KoalaFacts/FactsPDF/actions/runs/39876677455"
       ],
       "planning_bucket": "E1/E2 固定列表格与整行分页（已实现子集）",
-      "parent_id": null
+      "parent_id": null,
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "html.colgroup",
@@ -2546,8 +2549,8 @@
       "feature": "<table>",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "独立固定列表格；显式 colgroup 后接可选单行 thead 和一个非空 tbody；支持 colspan 及单元格内平铺段落/直接图片；短表整体移动，超页长表保留普通整行并允许超高正文行续页",
-      "limitations": "1–16 列且列宽显式；不支持自动列宽、rowspan、嵌套表、caption/tfoot 或列表内表格；表头及图片保持完整，原子内容无法放入带必要表头/边框的新片段时拒绝",
+      "scope": "独立固定列表格；显式 colgroup 后接可选单行 thead 和一个非空 tbody；支持 colspan 及单元格内平铺段落/直接图片；短表整体移动，超页长表保留普通整行并允许超高正文行续页；当前未合并CSS候选：table自身width和padding的有界em/rem参与计算宽度、盒绘制及分页",
+      "limitations": "1–16 列且列宽显式；不支持自动列宽、rowspan、嵌套表、caption/tfoot 或列表内表格；表头及图片保持完整，原子内容无法放入带必要表头/边框的新片段时拒绝；table宽度与列轨道仍需精确合计，calc、自动布局与负长度不支持",
       "stage": "受限表格结构/布局/正文行续页",
       "applicability": "共享核心（.NET / CLI；对应 Native AOT/WASM 探针范围单独记录）",
       "example": "<table><colgroup><col style=\"width:100%\"></colgroup><tbody><tr><td>记录</td></tr></tbody></table>",
@@ -2569,7 +2572,10 @@
         "https://github.com/KoalaFacts/FactsPDF/blob/a085085ef161d51a241046839e59a1fd2dab7eea/tests/FactsPDF.Tests/TableRowFragmentationTests.cs"
       ],
       "planning_bucket": "固定列、colspan、平铺段落/图片与超高正文行续页（已实现子集）",
-      "parent_id": null
+      "parent_id": null,
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "html.tbody",
@@ -3942,8 +3948,8 @@
       "feature": "width",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "auto / pt / px / mm / cm / in / % / 数字零；普通报告块/段落/标题另接受正、零 rem，按 html 计算根字号（无 html 则用 writer 基准字号）生成实际 PDF 宽度、文字换行及背景位置；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加",
-      "limitations": "普通报告块及显式绑定图片的rem；表格/col仍拒绝rem，图片已支持有界rem；无 intrinsic/min-content/calc；宽度过大 FPDF1302，超界根 rem FPDF1202；单元格内 p 宽度不适用；非完整 CSS width；table/col及inline上的em仍拒绝；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF",
+      "scope": "auto / pt / px / mm / cm / in / % / 数字零；普通报告块/段落/标题另接受正、零 rem，按 html 计算根字号（无 html 则用 writer 基准字号）生成实际 PDF 宽度、文字换行及背景位置；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；已合并PR #196的受限图片相对尺寸；当前未合并CSS候选：固定列表格table/col显式width新增em/rem计算值，按最终字号及根字号决定实际轨道、换行和分页",
+      "limitations": "普通报告块、明确绑定图片和固定列表格table/col可用有界rem；无 intrinsic/min-content/calc；宽度过大 FPDF1302，超界根 rem FPDF1202；单元格内 p 宽度不适用；非完整 CSS width；inline上的em仍拒绝；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格行/行组和td/th自身width相对单位仍拒绝，冲突尺寸保持原PDF",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/col；不适用于 html/行内元素/td/th；其中 p 仅指单元格外段落",
       "example": "width:12em;box-sizing:border-box;padding:0.5em",
@@ -3967,8 +3973,9 @@
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
       "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
-      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "css.padding",
@@ -3976,8 +3983,8 @@
       "feature": "padding",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。1–4 值 TRBL 展开，分别层叠。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "上下百分比仍以父内容盒宽度为基准；td/th 原有按跨列轨道总宽计算百分比，表格结构盒 padding 不接受 rem/em，td/th单元格及图片在限定范围内支持；不支持 auto/calc、负长度；不适用元素 FPDF1201、非法长度 FPDF1202、几何溢出 FPDF1302；不放宽单元格段落限制；仅普通报告块的em有真实PDF几何，table/col不接受新em；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。1–4 值 TRBL 展开，分别层叠。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；已合并PR #196的受限图片相对尺寸/内距 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；已合并PR #215的固定列td/th相对内距。；当前未合并CSS候选：table自身padding新增有界em/rem，直接进入外盒绘制、内部轨道和分页。",
+      "limitations": "上下百分比基于父内容盒宽度；td/th包括colspan时按覆盖轨道总宽计算百分比。普通块、绑定图片、table自身及固定列td/th在各自适用范围内支持有界em/rem padding；col、colgroup、tr、thead、tbody、tfoot不接受独立盒padding，单元格内p也无独立盒padding。负值、auto、calc及不能容纳的布局仍严格拒绝FPDF1201/1202/1302，先前PDF输出不变；不代表完整CSS盒模型。",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/td/th；不适用于 html/行内元素/col/表格分组或行；其中 p 仅指单元格外段落",
       "example": "padding:0.5em 2mm",
@@ -4001,8 +4008,9 @@
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
       "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
-      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "css.padding-top",
@@ -4010,8 +4018,8 @@
       "feature": "padding-top",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-top:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "上下百分比仍以父内容盒宽度为基准；td/th 原有按跨列轨道总宽计算百分比，表格结构盒 padding 不接受 rem/em，td/th单元格及图片在限定范围内支持；不支持 auto/calc、负长度；不适用元素 FPDF1201、非法长度 FPDF1202、几何溢出 FPDF1302；不放宽单元格段落限制；仅普通报告块的em有真实PDF几何，table/col不接受新em；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-top:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；已合并PR #196的受限图片相对尺寸/内距 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；已合并PR #215的固定列td/th相对内距。；当前未合并CSS候选：table自身padding新增有界em/rem，直接进入外盒绘制、内部轨道和分页。",
+      "limitations": "上下百分比基于父内容盒宽度；td/th包括colspan时按覆盖轨道总宽计算百分比。普通块、绑定图片、table自身及固定列td/th在各自适用范围内支持有界em/rem padding；col、colgroup、tr、thead、tbody、tfoot不接受独立盒padding，单元格内p也无独立盒padding。负值、auto、calc及不能容纳的布局仍严格拒绝FPDF1201/1202/1302，先前PDF输出不变；不代表完整CSS盒模型。",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/td/th；不适用于 html/行内元素/col/表格分组或行；其中 p 仅指单元格外段落",
       "example": "padding-top:0.5em",
@@ -4035,8 +4043,9 @@
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
       "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
-      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "css.padding-right",
@@ -4044,8 +4053,8 @@
       "feature": "padding-right",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-right:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "上下百分比仍以父内容盒宽度为基准；td/th 原有按跨列轨道总宽计算百分比，表格结构盒 padding 不接受 rem/em，td/th单元格及图片在限定范围内支持；不支持 auto/calc、负长度；不适用元素 FPDF1201、非法长度 FPDF1202、几何溢出 FPDF1302；不放宽单元格段落限制；仅普通报告块的em有真实PDF几何，table/col不接受新em；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-right:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；已合并PR #196的受限图片相对尺寸/内距 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；已合并PR #215的固定列td/th相对内距。；当前未合并CSS候选：table自身padding新增有界em/rem，直接进入外盒绘制、内部轨道和分页。",
+      "limitations": "上下百分比基于父内容盒宽度；td/th包括colspan时按覆盖轨道总宽计算百分比。普通块、绑定图片、table自身及固定列td/th在各自适用范围内支持有界em/rem padding；col、colgroup、tr、thead、tbody、tfoot不接受独立盒padding，单元格内p也无独立盒padding。负值、auto、calc及不能容纳的布局仍严格拒绝FPDF1201/1202/1302，先前PDF输出不变；不代表完整CSS盒模型。",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/td/th；不适用于 html/行内元素/col/表格分组或行；其中 p 仅指单元格外段落",
       "example": "padding-right:0.5em",
@@ -4069,8 +4078,9 @@
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
       "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
-      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "css.padding-bottom",
@@ -4078,8 +4088,8 @@
       "feature": "padding-bottom",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-bottom:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "上下百分比仍以父内容盒宽度为基准；td/th 原有按跨列轨道总宽计算百分比，表格结构盒 padding 不接受 rem/em，td/th单元格及图片在限定范围内支持；不支持 auto/calc、负长度；不适用元素 FPDF1201、非法长度 FPDF1202、几何溢出 FPDF1302；不放宽单元格段落限制；仅普通报告块的em有真实PDF几何，table/col不接受新em；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-bottom:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；已合并PR #196的受限图片相对尺寸/内距 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；已合并PR #215的固定列td/th相对内距。；当前未合并CSS候选：table自身padding新增有界em/rem，直接进入外盒绘制、内部轨道和分页。",
+      "limitations": "上下百分比基于父内容盒宽度；td/th包括colspan时按覆盖轨道总宽计算百分比。普通块、绑定图片、table自身及固定列td/th在各自适用范围内支持有界em/rem padding；col、colgroup、tr、thead、tbody、tfoot不接受独立盒padding，单元格内p也无独立盒padding。负值、auto、calc及不能容纳的布局仍严格拒绝FPDF1201/1202/1302，先前PDF输出不变；不代表完整CSS盒模型。",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/td/th；不适用于 html/行内元素/col/表格分组或行；其中 p 仅指单元格外段落",
       "example": "padding-bottom:0.5em",
@@ -4103,8 +4113,9 @@
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
       "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
-      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "css.padding-left",
@@ -4112,8 +4123,8 @@
       "feature": "padding-left",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-left:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；候选PR #196，主线支持率暂不增加 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "上下百分比仍以父内容盒宽度为基准；td/th 原有按跨列轨道总宽计算百分比，表格结构盒 padding 不接受 rem/em，td/th单元格及图片在限定范围内支持；不支持 auto/calc、负长度；不适用元素 FPDF1201、非法长度 FPDF1202、几何溢出 FPDF1302；不放宽单元格段落限制；仅普通报告块的em有真实PDF几何，table/col不接受新em；图片现支持有界em/rem宽高和padding，但仍拒绝高度百分比、calc、负数、object-fit及自动URL读取；表格结构盒/col相对单位仍拒绝，冲突尺寸保持原PDF table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "非负 pt/px/mm/cm/in/%/数字零；普通报告块/段落/标题另支持计算根 rem（例如 padding-left:0.5rem），真正影响 PDF 内容宽度、边框/背景及跨页。；普通报告块新增em，按该元素最终computed font-size计算（非html根rem），真实影响PDF盒几何、换行和分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。；新增：已绑定独立img与固定列td/th直接图片的有界em/rem宽、高、min/max约束及padding按最终元素字号及html根字号计算并真实绘制PDF矩阵；已合并PR #196的受限图片相对尺寸/内距 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；已合并PR #215的固定列td/th相对内距。；当前未合并CSS候选：table自身padding新增有界em/rem，直接进入外盒绘制、内部轨道和分页。",
+      "limitations": "上下百分比基于父内容盒宽度；td/th包括colspan时按覆盖轨道总宽计算百分比。普通块、绑定图片、table自身及固定列td/th在各自适用范围内支持有界em/rem padding；col、colgroup、tr、thead、tbody、tfoot不接受独立盒padding，单元格内p也无独立盒padding。负值、auto、calc及不能容纳的布局仍严格拒绝FPDF1201/1202/1302，先前PDF输出不变；不代表完整CSS盒模型。",
       "stage": "语义/渲染",
       "applicability": "body/div/section/article/ol/ul/li/p/h1–h6/img/table/td/th；不适用于 html/行内元素/col/表格分组或行；其中 p 仅指单元格外段落",
       "example": "padding-left:0.5em",
@@ -4137,8 +4148,9 @@
       "parent_id": null,
       "physical_unit_extension_commit": "ca3aef91e20792782edb49004369dfbf1e9712b3",
       "physical_unit_extension_test": "https://github.com/KoalaFacts/FactsPDF/blob/ca3aef91e20792782edb49004369dfbf1e9712b3/tests/FactsPDF.Tests/ReportPrintSpacingTests.cs",
-      "candidate_source_commit": "145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430",
-      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs"
+      "candidate_source_commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
+      "candidate_test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/5c45a68546d0d903eccd2579782e55f2fedff5e4/tests/FactsPDF.Tests/TableTrackRelativeWidthTests.cs",
+      "candidate_review_note": "候选源码，尚需精确提交CI、独立审查、合并及独立主线验证；不计main正式支持指标"
     },
     {
       "id": "css.background-color",
@@ -5565,8 +5577,8 @@
       "feature": "padding-inline",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "普通受支持报表盒、段落与标题可用1–2值padding-inline：LTR start映射左、end映射右；非负pt/px/mm/cm/in/%/rem/em或零随最终字体及根字号解析，实际改变PDF内容宽度、文字X、边框背景及跨页盒片；新增padding-inline-start与padding-inline-end单侧longhand：LTR下按左/右内边距单侧计算，改变实际PDF内容宽度、文字X、边框背景与分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "仅LTR横排普通盒模型；未实现RTL或垂直writing-mode；不允许负值、auto、calc、混用CSS-wide关键字；仍受原表格、图像和inline padding限制，无法放入盒子报FPDF1302并保护原PDF；不扩展table/col/行组或inline的padding支持，td/th单元格受限支持em/rem，不支持负值、auto、calc、RTL或竖排，非法或超限仍保留旧PDF table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "普通受支持报表盒、段落与标题可用1–2值padding-inline：LTR start映射左、end映射右；非负pt/px/mm/cm/in/%/rem/em或零随最终字体及根字号解析，实际改变PDF内容宽度、文字X、边框背景及跨页盒片；新增padding-inline-start与padding-inline-end单侧longhand：LTR下按左/右内边距单侧计算，改变实际PDF内容宽度、文字X、边框背景与分页；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。 固定列td/th单元格的有界em/rem padding已由PR #215合并并完成主线验证，em按单元格最终字号、rem按html根字号计算，影响实际PDF内容宽度、文字位置、重复表头与分页；PR #216候选另将固定列table自身的padding-inline扩展至有界em/rem，em按table最终字号、rem按html根字号计算，影响真实PDF外盒尺寸、文字位置与分页；该table扩展尚未合并。",
+      "limitations": "仅LTR横排，不支持RTL或垂直writing-mode；负值、auto、calc及混用CSS-wide关键字仍拒绝。table自身的有界em/rem逻辑padding仅属PR #216未合并候选；col/colgroup/tr/thead/tbody/tfoot结构项与普通inline没有独立padding盒，单元格内p的独立padding仍拒绝。td/th仅在现有固定列范围内支持，超宽或不能放入页面时返回FPDF1302且保护原PDF；不支持的元素与取值仍按FPDF1201/FPDF1202/FPDF1205拒绝。",
       "stage": "当前源码：限于LTR的逻辑间距真实盒模型与分页",
       "applicability": "共享核心（CLI / .NET）",
       "example": "padding-inline:8pt 12pt",
@@ -5597,8 +5609,8 @@
       "feature": "padding-block",
       "status": "partial",
       "status_zh": "部分支持",
-      "scope": "普通受支持报表盒、段落与标题可用1–2值padding-block：block-start/end映射上/下内边距；非负pt/px/mm/cm/in/%/rem/em或零参与PDF背景边框、竖向排版和跨页续片；百分比按包含块宽度计算；新增padding-block-start与padding-block-end单侧longhand：LTR横排按上/下内边距单侧计算，真实参与PDF竖向内容位置、边框背景与跨页续片；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。 固定列td/th单元格新增有界em/rem padding，em以单元格最终字号、rem以html根字号计算，作用于实际PDF内容宽度、字体位置、重复表头与分页；仅当前候选，主线指标须待合并验收。",
-      "limitations": "不实现RTL或垂直writing-mode；不是height或通用块布局；负值、auto、calc、混用CSS-wide关键字拒绝，table/col/行组与inline仍按原padding限制，td/th单元格及图片受限支持，超高盒子FPDF1302保护原输出；不支持负值、auto、calc、RTL或竖排，百分比仍按包含块宽度解析，原有限制元素及超高盒子继续明确拒绝 table/col/tr/thead/tbody/tfoot结构盒的em/rem仍拒绝，单元格内p独立padding仍拒绝；计算后过宽FPDF1302保护现有PDF。",
+      "scope": "普通受支持报表盒、段落与标题可用1–2值padding-block：block-start/end映射上/下内边距；非负pt/px/mm/cm/in/%/rem/em或零参与PDF背景边框、竖向排版和跨页续片；百分比按包含块宽度计算；新增padding-block-start与padding-block-end单侧longhand：LTR横排按上/下内边距单侧计算，真实参与PDF竖向内容位置、边框背景与跨页续片；上述已受限支持的物理CSS长度另接受pc（1pc=12pt）和q（4q=1mm），真正参与PDF文字、绘制和分页；原有适用元素与限额不变。 固定列td/th单元格的有界em/rem padding已由PR #215合并并完成主线验证，em按单元格最终字号、rem按html根字号计算，影响实际PDF内容宽度、文字位置、重复表头与分页；PR #216候选另将固定列table自身的padding-block扩展至有界em/rem，em按table最终字号、rem按html根字号计算，影响真实PDF外盒尺寸、文字位置与分页；该table扩展尚未合并。",
+      "limitations": "仅LTR横排、百分比按包含块内容宽度计算，不支持RTL或垂直writing-mode，也不是通用高度布局；负值、auto、calc及混用CSS-wide关键字仍拒绝。table自身的有界em/rem逻辑padding仅属PR #216未合并候选；col/colgroup/tr/thead/tbody/tfoot结构项、普通inline与单元格内p的独立padding仍拒绝。固定列td/th受原有大小与分页限制；超宽或无法布局时FPDF1302且保护原PDF，其余不支持输入仍明确失败。",
       "stage": "当前源码：限于LTR的逻辑间距真实盒模型与分页",
       "applicability": "共享核心（CLI / .NET）",
       "example": "padding-block:4pt 6pt",

@@ -30,9 +30,9 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 
 ## Widths, rows and paint
 
-Every column needs a positive CSS `width` in pt, px or percent. Percentages use the resolved table content width. Resolved columns must sum to that width within **0.001pt**; accepted differences are not redistributed. Missing/auto/zero widths, incompatible sums and insufficient content width are errors.
+Every column needs a positive CSS `width` in an accepted print length, percentage, or bounded `em`/`rem`. Percentages use the resolved table **content** width; `em` uses the column's inherited computed font size (from `colgroup`/table), and `rem` uses the computed HTML root font size. A column's own `font-size` declaration remains unsupported. Resolved columns must sum to the table content width within **0.001pt**; accepted differences are not redistributed. Missing/auto/zero widths, incompatible sums and insufficient content width are errors.
 
-An explicit table width describes its content box. Its own padding/borders sit outside that width and the outer box must fit its parent. As for existing blocks, omitted/auto table width fills the parent with the outer box, subtracting the table's own padding/borders to find its content width.
+An explicit table width describes its content box. Table `width` and padding accept bounded `em` (the table's final computed font size) and `rem` (the computed HTML root font size), alongside existing print lengths and percentages. Its own padding/borders sit **outside** that content width and the outer box must fit its parent. As for existing blocks, omitted/auto table width fills the parent with the outer box, subtracting the table's own padding/borders to find its content width. Neither font-relative values nor percentages trigger automatic track redistribution; overwide outer boxes fail rather than paint approximately.
 
 A cell's covered column tracks include its horizontal padding and borders. Cell content width is their sum minus those decorations and must stay positive. Cell padding percentages, including vertical padding, resolve against that summed width. Table padding percentages use the parent content width.
 
@@ -240,10 +240,10 @@ PDFs must fail the corresponding content or geometry assertions.
 
 | Element | Supported CSS |
 | --- | --- |
-| `table` | Existing container width, padding, solid borders, background-color and inherited text properties |
+| `table` | Existing container width and padding (including computed em/rem), solid borders, background-color and inherited text properties |
 | `td`, `th` | Padding, solid borders, background-color and text properties; no width, margin or break declarations |
 | `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
-| `col` | Width only |
+| `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root) |
 | `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only |
 
 Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. `table-layout`, `border-collapse`, `border-spacing`, vertical alignment and cell height controls are not implemented.

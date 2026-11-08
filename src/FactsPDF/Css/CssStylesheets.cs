@@ -265,16 +265,19 @@ internal sealed class CssStylesheets
             // Fixed-column td/th cells resolve font-relative padding to a computed
             // length before TableLayout measures the track insets. Their own final
             // computed font size applies to em; html's root size applies to rem.
-            // Table tracks, rows and groups do not consume relative box lengths;
-            // cell width constraints still belong to the fixed-column contract.
+            // Tables use computed em/rem content widths and outside padding;
+            // explicit col tracks use the inherited colgroup font size for em.
+            // Both already reach TableLayout's strict track sums and geometry.
+            // Row/group boxes and cell width constraints remain unsupported,
+            // including losing declarations that would otherwise be ignored.
             if (declaration.Value.EndsWith("em", StringComparison.Ordinal)
                 && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth
                     or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft)
-                && (element.Name is ("table" or "col" or "tr" or "thead" or "tbody" or "tfoot")
+                && (element.Name is ("tr" or "thead" or "tbody" or "tfoot")
                     || element.Name is ("td" or "th")
                         && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth)))
                 throw new FactsPdfException("FPDF1201",
-                    "Relative em/rem box lengths are unsupported on table tracks, groups and cell widths.", declaration.Offset);
+                    "Relative em/rem box lengths are unsupported on table rows/groups and cell widths.", declaration.Offset);
             if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
             if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
