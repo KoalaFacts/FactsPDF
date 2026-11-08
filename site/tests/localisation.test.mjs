@@ -362,7 +362,7 @@ test('fixed-height card translation does not misrepresent general CSS Sizing', a
   assert.match(height.scope, /actual|really change/);
   assert.match(height.scope, /content-box\/border-box/);
   assert.match(height.limitations, /FPDF1302/);
-  assert.match(height.limitations, /Not general CSS Sizing/);
+  assert.match(height.limitations, /Not generic CSS Sizing/);
   assert.doesNotMatch(height.scope + height.limitations, han);
 });
 
