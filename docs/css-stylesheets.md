@@ -1,3 +1,9 @@
+## Fixed-table computed em/rem widths and padding (source implementation)
+
+Within the existing explicit-track table renderer, a `table` may use computed `em`/`rem` for `width` and padding; a `col` may use those units for `width` only. The table's `em` is its own final computed font size, the column's `em` is its inherited `colgroup` font size, and `rem` uses the computed `html` root. Cascade and `!important` choose the winning declarations before converting these units to points. The strict table content-width sum, cell geometry, painting, repeated headers and pagination operate on the resolved lengths.
+
+This does not allow `font-size` on a void `col`, missing/auto columns, cell `width`, relative row/group box properties, `calc()`, negative values, or automatic track sizing. Unsupported inputs remain explicit errors with protected prior PDF output. The same-source [multi-page invoice](../examples/report-table-relative-tracks.html) and its independent [point-based oracle](../examples/report-table-relative-tracks-oracle.html) exercise actual HTML-to-PDF layout.
+
 ## Bounded attribute selectors for report templates (source implementation)
 
 The renderer matches accepted HTML attributes with `[name]`,

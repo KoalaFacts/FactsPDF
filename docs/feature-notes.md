@@ -31,6 +31,12 @@ operator-family engine source: `845ab1799149e8b833306f2e49b3f8b240d699c8`. CI, i
 and the actual merged main are separate evidence.
 
 
+### Computed table-track widths for invoice templates (source implementation)
+
+Fixed-track `table` and `col` `width` values accept bounded `em`/`rem` without changing the explicit-column contract. Table `em` resolves against the table's final computed `font-size`; column `em` resolves against the inherited `colgroup` font size; `rem` uses `html`. Table padding accepts the same units. Real column widths, cell wrapping, backgrounds, borders, repeated headers and page breaks follow the measured values. [The multi-page invoice](../examples/report-table-relative-tracks.html) and its [point-based oracle](../examples/report-table-relative-tracks-oracle.html) must generate identical PDF bytes.
+
+Only explicitly enumerated fixed columns (1–16) are supported. Column widths must still sum to the measured table content width within 0.001pt. No auto-width, rowspan, relative row/group box lengths, independent cell widths, `calc()`, negative lengths or unsupported column decorations are added. Invalid geometry fails before altering the destination stream. This expands existing partial `width` and table box behaviour, not full CSS Tables.
+
 ## Last-line alignment for quotation text (source implementation)
 
 `text-align-last:center` can centre the final line of a wrapped quote,

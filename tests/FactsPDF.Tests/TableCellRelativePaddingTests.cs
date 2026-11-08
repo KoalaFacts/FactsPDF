@@ -127,8 +127,8 @@ public sealed class TableCellRelativePaddingTests
     [Test]
     public void TableTracksAndParagraphBoxGeometryStillRejectRelativeInsets()
     {
-        Reject(Cell("padding:2pt").Replace("<table style='width:100pt",
-            "<table style='padding:1em;width:100pt", StringComparison.Ordinal), "FPDF1201");
+        Reject(Cell("padding:2pt").Replace("<tbody><tr>",
+            "<tbody><tr style='padding:1em'>", StringComparison.Ordinal), "FPDF1201");
         Reject(Cell("padding:2pt").Replace("<td style='font-size:10pt;", "<td style='width:1em;font-size:10pt;", StringComparison.Ordinal),
             "FPDF1201");
         // The flat paragraph is structurally valid within the cell, but its
