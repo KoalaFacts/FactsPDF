@@ -54,8 +54,8 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(decor.scope,/underline.*line-through/);
   assert.match(decor.scope,/overline.*text-decoration-color/);
   assert.match(decor.limitations,/double\/wavy/);
-  assert.equal(dataset.commit, '145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430');
-  assert.match(dataset.commit_url, /145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/);
+  assert.equal(dataset.commit, '5c45a68546d0d903eccd2579782e55f2fedff5e4');
+  assert.match(dataset.commit_url, /5c45a68546d0d903eccd2579782e55f2fedff5e4/);
   for (const id of ['css.line-height','value.lineheight.other']) {
     const line=dataset.features.find(f=>f.id===id);
     assert.equal(line.status,'partial');
@@ -314,7 +314,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-09.table-cell-relative-padding-candidate');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-09.fixed-track-relative-widths-candidate');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -456,7 +456,9 @@ test('root-rem and own-font em box lengths are bounded, evidence-backed partial 
     assert.equal(feature.test_reference,'https://github.com/KoalaFacts/FactsPDF/blob/76d31cc3c7694a966a68dfc3b848e7e75681fc66/tests/FactsPDF.Tests/ElementRelativeBoxLengthTests.cs');
   }
   assert.match(dataset.features.find(f=>f.id==='css.width').limitations,/col/);
-  assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/FPDF1202/);
+  const padding=dataset.features.find(f=>f.id==='css.padding');
+  assert.match(padding.failure_code,/FPDF1202/);
+  assert.match(padding.limitations,/FPDF1201\/1202\/1302/);
   assert.match(dataset.features.find(f=>f.id==='css.font-size').limitations,/margin/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
@@ -510,7 +512,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   }
   assert.equal(dataset.features.find(f=>f.id==='css.font-size').last_audited_commit,
     'b95f1bd3c5d8275bff21f399c9cf59a2d413c024');
-  assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/表格/);
+  assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/td\/th包括colspan.*table自身/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
   assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
@@ -782,8 +784,8 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-09.table-cell-relative-padding-candidate');
-  assert.equal(dataset.commit, '145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-09.fixed-track-relative-widths-candidate');
+  assert.equal(dataset.commit, '5c45a68546d0d903eccd2579782e55f2fedff5e4');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
     assert.equal(f.status,'partial',id);
@@ -854,7 +856,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-09.table-cell-relative-padding-candidate');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-09.fixed-track-relative-widths-candidate');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, '99328f071395d5d7cc1eedad9138f05ee118fb0f');
@@ -963,19 +965,30 @@ test('CSS margin catalogue retains bounded vertical percentage support and stabl
   }
 });
 
-test('font-relative bound image candidate preserves historical evidence and stable CSS statuses',()=>{
+test('bound image history survives the table-track candidate without inflating CSS statuses',()=>{
   const ids=["html.img","pdf.images","css.width","css.min-width","css.max-width","css.height","css.min-height","css.max-height","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left","value.length.relative","css.box-sizing"];
+  const trackIds=new Set(["css.width","css.padding","css.padding-top","css.padding-right","css.padding-bottom","css.padding-left"]);
+  const imageEvidence='https://github.com/KoalaFacts/FactsPDF/blob/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430/tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs';
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
   for(const id of ids){
     const f=dataset.features.find(entry=>entry.id===id);
+    const hasCurrentTrackCandidate=trackIds.has(id);
     assert.equal(f.status,'partial',id);
-    assert.equal(f.candidate_source_commit,'145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430',id);
-    assert.match(f.candidate_test_reference,/FontRelativeImageSizingTests\.cs$/,id);
-    assert.ok(f.sources.includes(f.candidate_test_reference),id);
+    assert.equal(f.candidate_source_commit,hasCurrentTrackCandidate?'5c45a68546d0d903eccd2579782e55f2fedff5e4':'145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430',id);
+    assert.match(f.candidate_test_reference,hasCurrentTrackCandidate
+      ? /TableTrackRelativeWidthTests\.cs$/ : /FontRelativeImageSizingTests\.cs$/,id);
+    assert.ok(f.sources.includes(imageEvidence),id);
     assert.match(f.scope,/em\/rem/,id);
     assert.match(f.scope,/PR #196/,id);
     assert.match(f.limitations,/百分比/,id);
+  }
+  for(const id of ['html.table','html.col']){
+    const f=dataset.features.find(entry=>entry.id===id);
+    assert.equal(f.status,'partial',id);
+    assert.equal(f.candidate_source_commit,'5c45a68546d0d903eccd2579782e55f2fedff5e4',id);
+    assert.match(f.candidate_test_reference,/TableTrackRelativeWidthTests\.cs$/,id);
+    assert.match(f.scope,/未合并CSS候选/,id);
   }
   for(const id of ['css.min-width','css.max-width']){
     const f=dataset.features.find(entry=>entry.id===id);
