@@ -158,7 +158,7 @@ test('fixed-height PDF business cards show complete en-AU limits, not Chinese fa
   const dialog=page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('FPDF1302');
-  await expect(dialog).toContainText('one-page');
+  await expect(dialog).toContainText('single page');
   for(const selector of ['.detail-scope','.limitation','.evidence']) {
     expect(await dialog.locator(selector).innerText()).not.toMatch(han);
   }
