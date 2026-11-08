@@ -121,9 +121,9 @@ public sealed class FontRelativeImageSizingTests
     [TestCase("<img src=chart style='height:100rem'>", "FPDF1302")]
     [TestCase("<img src=chart style='width:100rem'>", "FPDF1302")]
     [TestCase("<img src=chart style='width:4em;min-height:4em;max-width:3em'>", "FPDF1302")]
-    [TestCase("<table style='width:4em'>", "FPDF1201")]
-    [TestCase("<table><colgroup><col style='width:4rem'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
-    [TestCase("<table style='width:100pt;padding:1em'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
+    [TestCase("<table style='width:4em;min-width:1em'><colgroup><col style='width:40pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
+    [TestCase("<table><colgroup><col style='width:4rem;padding:1rem'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
+    [TestCase("<table style='width:100pt;padding:1em;min-width:1em'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
     public void UnsupportedOrUnplaceableLengthsPreserveExistingPdf(string html, string code)
         => Reject(html, code);
 
