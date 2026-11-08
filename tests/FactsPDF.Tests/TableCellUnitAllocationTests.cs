@@ -33,7 +33,7 @@ public sealed class TableCellUnitAllocationTests
 
     // Measured on main 53e7385: 4,873 bytes of layout per three-cell row with a unit object and a
     // list per cell; 4,633 with units as values in exact-size arrays; 3,961 on eb531d2 and 3,817
-    // once the line iterator holds no List enumerator.
+    // once the line iterator holds no List enumerator; 2,353 once the line wrapper is reused.
     [Test]
     public void OneLineCellsAllocateNoUnitObjectOrListOfTheirOwn()
     {
@@ -45,7 +45,7 @@ public sealed class TableCellUnitAllocationTests
         Assert.That(perRow, Is.LessThan(PerRowLimit));
     }
 
-    private const double PerRowLimit = 3_900;
+    private const double PerRowLimit = 2_710;
 
     [Test]
     public void ARowTallerThanAPageStillSplitsAcrossPages()
