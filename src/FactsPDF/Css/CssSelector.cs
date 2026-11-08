@@ -13,8 +13,9 @@ internal sealed record CssElement(string Name, string? Id, CssClassList Classes,
 
 /// <summary>An element's distinct class names in first-occurrence order. Elements without
 /// classes share one empty array and a lone class reuses the attribute text; a long list also
-/// keeps a set so selector matching stays linear in the selector's class count.</summary>
-internal readonly struct CssClassList
+/// keeps a set so selector matching stays linear in the selector's class count. Equality is
+/// by storage (the record's generated equality would otherwise compare fields by reflection).</summary>
+internal readonly struct CssClassList : IEquatable<CssClassList>
 {
     private const int LinearLimit = 16;
     private static readonly string[] None = [];
@@ -26,6 +27,10 @@ internal readonly struct CssClassList
     internal ReadOnlySpan<string> Names => names ?? None;
 
     internal bool SharesStorageWith(CssClassList other) => ReferenceEquals(names ?? None, other.names ?? None);
+
+    public bool Equals(CssClassList other) => SharesStorageWith(other);
+    public override bool Equals(object? obj) => obj is CssClassList other && Equals(other);
+    public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(names ?? None);
 
     internal bool Contains(string name)
     {
