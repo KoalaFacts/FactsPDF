@@ -1,12 +1,14 @@
 namespace FactsPDF;
 
 internal enum TableCellUnitKind { TextLine, Image }
-internal sealed record MeasuredCellUnit(TableCellUnitKind Kind, int SourceOffset, double Top,
+// A value, kept inline in its cell's exact-size array: one cell line is one unit,
+// so a per-unit object and a growable list per cell dominated table measurement.
+internal readonly record struct MeasuredCellUnit(TableCellUnitKind Kind, int SourceOffset, double Top,
     double Height, double LeadingGap, bool IsInitialGap, int RunStart, int RunCount,
     int ImageIndex, int ImageBoxStart, int ImageBoxCount);
 internal sealed record MeasuredTableCell(double X, double Width, double ContentX, double ContentWidth,
     double TopEdge, double BottomEdge, double InitialGap, double TerminalGap,
-    BoxStyle BoxStyle, Rgb TextColor, int SourceOffset, List<MeasuredCellUnit> Units);
+    BoxStyle BoxStyle, Rgb TextColor, int SourceOffset, MeasuredCellUnit[] Units);
 internal readonly record struct TableFreshSpace(double UsableHeight, double FirstLeading);
 internal sealed record RowContinuation(int[] NextUnits, bool IsFirstFragment);
 internal readonly record struct CellUnitSlice(int CellIndex, int StartUnit, int EndUnit,
@@ -32,9 +34,9 @@ internal static class TableRowFragmentation
         foreach (var cell in row.Cells)
         {
             cancellation.ThrowIfCancellationRequested();
-            var first = cell.TopEdge + cell.InitialGap + (cell.Units.Count == 0 ? 0 : cell.Units[0].Height);
+            var first = cell.TopEdge + cell.InitialGap + (cell.Units.Length == 0 ? 0 : cell.Units[0].Height);
             if (first > firstCapacity + Epsilon)
-                throw Geometry(cell.Units.Count == 0 ? cell.SourceOffset : cell.Units[0].SourceOffset);
+                throw Geometry(cell.Units.Length == 0 ? cell.SourceOffset : cell.Units[0].SourceOffset);
             if (cell.TerminalGap + cell.BottomEdge + terminalTableBottom > terminalCapacity + Epsilon)
                 throw Geometry(cell.SourceOffset);
             foreach (var unit in cell.Units)
@@ -43,7 +45,7 @@ internal static class TableRowFragmentation
                 if (unit.Height > terminalCapacity + Epsilon) throw Geometry(unit.SourceOffset);
             }
         }
-        if (!row.Cells.Any(cell => cell.Units.Count > 0)) throw Geometry(row.SourceOffset);
+        if (!row.Cells.Any(cell => cell.Units.Length > 0)) throw Geometry(row.SourceOffset);
     }
 
     internal static RowFitResult Fit(MeasuredTableRow row, RowContinuation cursor,
@@ -64,7 +66,7 @@ internal static class TableRowFragmentation
             var occupied = cursor.IsFirstFragment ? cell.TopEdge : 0;
             if (occupied > availableBodyHeight + Epsilon) return NoProgress();
             var contentTop = occupied;
-            while (end < cell.Units.Count)
+            while (end < cell.Units.Length)
             {
                 cancellation.ThrowIfCancellationRequested();
                 var unit = cell.Units[end];
@@ -78,7 +80,7 @@ internal static class TableRowFragmentation
                 end++;
             }
             advanced += end - start;
-            complete &= end == cell.Units.Count;
+            complete &= end == cell.Units.Length;
             height = Math.Max(height, occupied);
             slices[i] = new(i, start, end, contentTop, occupied);
         }
@@ -140,7 +142,7 @@ internal static class TableRowFragmentation
         {
             if (freshPage)
             {
-                var blocked = row.Cells.Select((cell, i) => cursor.NextUnits[i] < cell.Units.Count
+                var blocked = row.Cells.Select((cell, i) => cursor.NextUnits[i] < cell.Units.Length
                     ? cell.Units[cursor.NextUnits[i]].SourceOffset : -1).FirstOrDefault(offset => offset >= 0, row.SourceOffset);
                 throw Geometry(blocked);
             }

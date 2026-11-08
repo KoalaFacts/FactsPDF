@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal static class HtmlDocumentReader
 {
-    private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
+    private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
@@ -78,9 +78,33 @@ internal static class HtmlDocumentReader
 
     internal static DocumentRoot ReadTree(string html, PdfOptions options, CancellationToken cancellation)
     {
+        // One token list per thread is reused across documents. It is taken out of its slot while
+        // in use, so a read that starts during another on the same thread gets a list of its own.
+        var tokens = pooledTokens ?? new List<HtmlToken>();
+        pooledTokens = null;
+        try { return ReadTree(html, options, tokens, cancellation); }
+        finally
+        {
+            // Cleared before pooling so the list never keeps a finished document's tokens alive.
+            tokens.Clear();
+            if (tokens.Capacity <= MaxPooledTokens) pooledTokens = tokens;
+        }
+    }
+
+    // Keeps the pooled array under the large-object threshold (one 8-byte reference per token).
+    internal const int MaxPooledTokens = 8192;
+    [ThreadStatic] private static List<HtmlToken>? pooledTokens;
+
+    /// <summary>The calling thread's pooled token list, for tests: its count is always zero
+    /// between reads.</summary>
+    internal static (int Count, int Capacity)? PooledTokens =>
+        pooledTokens is { } list ? (list.Count, list.Capacity) : null;
+
+    private static DocumentRoot ReadTree(string html, PdfOptions options, List<HtmlToken> tokens,
+        CancellationToken cancellation)
+    {
         // Compile every source before computing styles: a later style block can affect earlier content.
         // The tokens are read once, here, and walked again below.
-        var tokens = new List<HtmlToken>();
         var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
