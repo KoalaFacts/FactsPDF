@@ -35,6 +35,18 @@ public sealed class CliErrorLocationTests
         Assert.That(lines, Is.EqualTo(new[] { core.Message, $"Location: line {line}, column {column}." }));
     }
 
+    [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p>中</p>", 3, 3)]
+    [TestCase("<p>ok</p>\n<p>Short <span>WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW</span></p>", 2, 10)]
+    public void TextPhaseDiagnosticsReportTheLineAndColumnOfTheirElement(string html, int line, int column)
+    {
+        var core = CoreError(html);
+        Assert.That(core.Code, Is.AnyOf("FPDF1301", "FPDF1302"));
+        var (exit, lines) = Run(html);
+        Assert.That(exit, Is.EqualTo(3));
+        Assert.That(lines[..2], Is.EqualTo(new[] { core.Message, $"Location: line {line}, column {column}." }));
+        Assert.That(lines[2..], Has.All.StartsWith("Hint:"), "Only resource guidance may follow the location.");
+    }
+
     [Test]
     public void LocationNeverEchoesInputText()
     {

@@ -81,16 +81,16 @@ internal static class TextLines
                 var fonts = FontRoles.Chain(options, role, sourceOffset);
                 if (fonts.Count == 0)
                 {
-                    if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.");
+                    if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.", sourceOffset);
                     value = (null, 600);
                 }
                 else
                 {
-                    CheckSimpleScalar(scalar);
+                    CheckSimpleScalar(scalar, sourceOffset);
                     PdfFont? chosen = null; ushort glyph = 0;
                     foreach (var font in fonts) { glyph = font.GlyphFor(scalar); if (glyph != 0) { chosen = font; break; } }
                     if (chosen is null) throw role == FontRole.Normal
-                        ? new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.")
+                        ? new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.", sourceOffset)
                         : new FactsPdfException("FPDF1504", $"No supplied {FontRoles.Name(role)} font contains U+{scalar:X4}.", sourceOffset);
                     value = (chosen, chosen.Width1000(glyph));
                 }
@@ -126,7 +126,7 @@ internal static class TextLines
                 {
                     cancellation.ThrowIfCancellationRequested();
                     if (Rune.DecodeFromUtf16(run.Text.AsSpan(i), out var rune, out var consumed) != OperationStatus.Done)
-                        throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.");
+                        throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.", run.SourceOffset);
                     i += consumed;
                     var scalar = rune.Value;
                     if (paragraph.Style.PreserveLineBreaks)
@@ -231,6 +231,7 @@ internal static class TextLines
         var segmentWidth = 0d;
         var previousScalar = -1;
         var tooWide = false;
+        var tooWideOffset = -1;
         var firstSegment = true;
         foreach (var glyph in ReadGlyphs())
         {
@@ -242,13 +243,15 @@ internal static class TextLines
                 // segment before painting any page.
                 if (glyph.Scalar == 10) { segmentWidth = 0; firstSegment = false; continue; }
                 segmentWidth += glyph.Width;
-                tooWide |= segmentWidth > (firstSegment ? available - firstIndent : available) + 0.000001;
+                if (!tooWide && segmentWidth > (firstSegment ? available - firstIndent : available) + 0.000001) { tooWide = true; tooWideOffset = glyph.SourceOffset; }
                 continue;
             }
             if (glyph.Scalar is 32 or 10)
             {
-                if (paragraph.Style.PreserveSpaces && glyph.Scalar == 32)
-                    tooWide |= glyph.Width > available + 0.000001;
+                if (paragraph.Style.PreserveSpaces && glyph.Scalar == 32 && !tooWide && glyph.Width > available + 0.000001)
+                {
+                    tooWide = true; tooWideOffset = glyph.SourceOffset;
+                }
                 segmentWidth = 0;
                 previousScalar = -1;
                 continue;
@@ -257,13 +260,13 @@ internal static class TextLines
             {
                 // Both breaking modes use only supported resolved glyphs.
                 // A glyph wider than the fresh content line still fails.
-                tooWide |= glyph.Width > available + 0.000001;
+                if (!tooWide && glyph.Width > available + 0.000001) { tooWide = true; tooWideOffset = glyph.SourceOffset; }
                 previousScalar = glyph.Scalar;
                 continue;
             }
             segmentWidth = previousScalar < 0 || CanBreak(previousScalar, glyph.Scalar)
                 ? glyph.Width : segmentWidth + glyph.Width;
-            tooWide |= segmentWidth > available + 0.000001;
+            if (!tooWide && segmentWidth > available + 0.000001) { tooWide = true; tooWideOffset = glyph.SourceOffset; }
             previousScalar = glyph.Scalar;
         }
         // Keep the legacy resource/diagnostic priority: resolve every glyph
@@ -272,7 +275,7 @@ internal static class TextLines
             firstIndent > 0 && firstIndent >= available - 0.000001)
             throw new FactsPdfException("FPDF1302", "First-line indentation leaves no usable text width.", paragraph.SourceOffset);
         if (tooWide)
-            throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
+            throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.", tooWideOffset);
 
         using var buffers = GlyphBuffers.Rent();
         var current = buffers.Line; var width = 0d; Glyph? space = null;
@@ -414,7 +417,7 @@ internal static class TextLines
                 word.Add(glyph);
                 wordWidth += glyph.Width;
                 if (!paragraph.Style.BreakWords && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
-                    throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.");
+                    throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.", glyph.SourceOffset);
                 previous = glyph.Scalar;
                 hasGlyph = cursor.MoveNext();
             }
@@ -511,7 +514,7 @@ internal static class TextLines
         }
     }
 
-    private static void CheckSimpleScalar(int scalar)
+    private static void CheckSimpleScalar(int scalar, int sourceOffset)
     {
         var category = Rune.GetUnicodeCategory(new Rune(scalar));
         var simpleRange = scalar is >= 32 and <= 0x052f or >= 0x1e00 and <= 0x1fff or >= 0x2000 and <= 0x2bff
@@ -520,7 +523,7 @@ internal static class TextLines
         if (!simpleRange || category is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark
             or UnicodeCategory.EnclosingMark or UnicodeCategory.Format or UnicodeCategory.Control
             or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator or UnicodeCategory.OtherNotAssigned)
-            throw new FactsPdfException("FPDF1305", $"U+{scalar:X4} needs text processing outside this simple horizontal Unicode subset (shaping/bidi/sequence support is not implemented).");
+            throw new FactsPdfException("FPDF1305", $"U+{scalar:X4} needs text processing outside this simple horizontal Unicode subset (shaping/bidi/sequence support is not implemented).", sourceOffset);
     }
     private static bool Cjk(int scalar) => scalar is >= 0x3000 and <= 0x30ff or >= 0x3400 and <= 0x9fff
         or >= 0xac00 and <= 0xd7a3 or >= 0xf900 and <= 0xfaff or >= 0xff01 and <= 0xff65 or >= 0x20000 and <= 0x323af;
