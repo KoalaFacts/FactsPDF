@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 internal static class HtmlDocumentReader
 {
-    private sealed record Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
+    private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
