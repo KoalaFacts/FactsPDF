@@ -174,7 +174,7 @@ const locationLine = /^Location: line \d+, column \d+\.$/;
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
 export function classifyDifference(base: RunResult, head: RunResult, newExample = false): ExpectedKind | null {
   if (newExample && base.exitCode === 3 && base.pdf === null &&
-      head.exitCode === 0 && head.stderr === '' && head.pdf !== null &&
+      head.exitCode === 0 && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     return 'new-example-rendered';
   }
@@ -320,8 +320,17 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       tally[head.exitCode] = (tally[head.exitCode] ?? 0) + 1;
       const reason = compareRuns(base, head);
       if (reason !== null) {
-        differences.push({ example, set: set.name, reason,
-          kind: classifyDifference(base, head, !baseExamples.has(example)) });
+        const isNewExample = !baseExamples.has(example);
+        const kind = classifyDifference(base, head, isNewExample);
+        if (isNewExample && kind === null) {
+          // A new fixture is not silently exempt from parity: report why
+          // its expected old-error to real-PDF conversion was not classified.
+          console.error(`unclassified new example ${example} [${set.name}]: ` +
+            `base exit=${base.exitCode}, base PDF bytes=${base.pdf?.length ?? 'none'}, ` +
+            `head exit=${head.exitCode}, head PDF prefix=${head.pdf?.subarray(0, 5).toString('latin1') ?? 'none'}, ` +
+            `head stderr bytes=${head.stderr.length}`);
+        }
+        differences.push({ example, set: set.name, reason, kind });
       }
     });
     for (const set of sets) {

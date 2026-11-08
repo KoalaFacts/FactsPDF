@@ -117,7 +117,8 @@ test('new example can be declared only for genuine newly rendered PDF', () => {
   const fresh = ok('%PDF-1.7 new');
   assert.equal(classifyDifference(old, fresh, true), 'new-example-rendered');
   assert.equal(classifyDifference(old, fresh), null, 'existing examples must still be identical');
-  assert.equal(classifyDifference(old, { ...fresh, stderr: 'warning' }, true), null);
+  assert.equal(classifyDifference(old, { ...fresh, stderr: 'warning' }, true), 'new-example-rendered',
+    'a successful converter may issue diagnostics alongside valid output');
   assert.equal(classifyDifference(old, { ...fresh, pdf: pdf('not a PDF') }, true), null);
   assert.equal(classifyDifference(old, { ...fresh, pdf: null }, true), null);
   assert.equal(classifyDifference({ ...old, exitCode: 0 }, fresh, true), null);

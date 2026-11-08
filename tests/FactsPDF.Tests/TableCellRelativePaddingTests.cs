@@ -131,9 +131,9 @@ public sealed class TableCellRelativePaddingTests
             "<table style='padding:1em;width:100pt", StringComparison.Ordinal), "FPDF1201");
         Reject(Cell("padding:2pt").Replace("<td style='font-size:10pt;", "<td style='width:1em;font-size:10pt;", StringComparison.Ordinal),
             "FPDF1201");
-        // In the strict table markup reader, a cell's independently styled paragraph
-        // is rejected at the structure boundary before it can become a painted box.
-        Reject(Cell("padding:2pt", content: "<p style='padding:1em'>AB</p>"), "FPDF1101");
+        // The flat paragraph is structurally valid within the cell, but its
+        // independent padding box must be rejected by CSS applicability.
+        Reject(Cell("padding:2pt", content: "<p style='padding:1em'>AB</p>"), "FPDF1201");
     }
 
     [Test]
