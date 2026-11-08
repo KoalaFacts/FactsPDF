@@ -84,7 +84,7 @@ internal static class TableLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 var box = new PaintedBox(cell.X, measuredRow.Top, cell.Width, measuredRow.Height,
-                    cell.BoxStyle, cell.TextColor, 0);
+                    cell.BoxStyle, cell.TextColor, 0, SourceOffset: cell.SourceOffset);
                 charge(box.CommandCount, cell.SourceOffset);
                 if (box.CommandCount > 0) rowBoxes[index].Add(box);
             }
@@ -147,7 +147,7 @@ internal static class TableLayout
                         var imageIndex = images.Count - 1;
                         var decorationStart = imageBoxes.Count;
                         var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
-                            geometry.OuterHeight, image.BoxStyle, image.Style.Color, 0);
+                            geometry.OuterHeight, image.BoxStyle, image.Style.Color, 0, SourceOffset: image.SourceOffset);
                         charge(imageBox.CommandCount, image.SourceOffset);
                         if (imageBox.CommandCount > 0) imageBoxes.Add(imageBox);
                         units.Add(new(TableCellUnitKind.Image, image.SourceOffset, top + height,
@@ -314,7 +314,8 @@ internal static class TableLayout
         }
         var outerHeight = top + edges.Bottom;
         CheckHeight(outerHeight, table.SourceOffset);
-        var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0);
+        var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0,
+            SourceOffset: table.SourceOffset);
         // Preserve the E1 command order and bytes for every short table.
         // Long tables charge their actual sliced decorations during placement.
         if (outerHeight <= usableHeight + 0.000001)

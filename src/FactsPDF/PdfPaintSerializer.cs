@@ -143,18 +143,18 @@ internal static class PdfPaintSerializer
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
                 Border(output, s.BorderTop, box.TextColor, x, y, width, top,
-                    horizontal: true, pageHeight, maxOutputBytes);
+                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset);
             if (bottom > 0)
                 Border(output, s.BorderBottom, box.TextColor, x, y + height - bottom, width, bottom,
-                    horizontal: true, pageHeight, maxOutputBytes);
+                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset);
             var middleTop = y + top;
             var middleHeight = Math.Max(0, height - top - bottom);
             if (left > 0)
                 Border(output, s.BorderLeft, box.TextColor, x, middleTop, left, middleHeight,
-                    horizontal: false, pageHeight, maxOutputBytes);
+                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset);
             if (right > 0)
                 Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
-                    horizontal: false, pageHeight, maxOutputBytes);
+                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset);
             AppendOutline(output, box, pageHeight, maxOutputBytes);
         }
     }
@@ -175,7 +175,7 @@ internal static class PdfPaintSerializer
         var yTop = pageHeight - box.Top + gap;
         var yBottom = pageHeight - box.Top - box.Height - gap;
         if (!double.IsFinite(xLeft + xRight + yTop + yBottom))
-            throw new FactsPdfException("FPDF1302", "Invalid report outline geometry.");
+            throw new FactsPdfException("FPDF1302", "Invalid report outline geometry.", box.SourceOffset);
         var ink = edge.Color ?? box.TextColor;
         output.Append("q ").AppendInvariant(ink.R, Number).Append(' ').AppendInvariant(ink.G, Number).Append(' ')
             .AppendInvariant(ink.B, Number).Append(" RG ").AppendInvariant(thickness, Number).Append(" w ");
@@ -375,7 +375,7 @@ internal static class PdfPaintSerializer
     // side patterns restart on each retained page fragment (no CSS slice clone).
     private static void Border(StringBuilder output, BorderEdge edge, Rgb textColor,
         double x, double top, double width, double height, bool horizontal,
-        double pageHeight, int maxOutputBytes)
+        double pageHeight, int maxOutputBytes, int sourceOffset)
     {
         if (width <= 0 || height <= 0 || edge.EffectiveWidth <= 0) return;
         var color = edge.Color ?? textColor;
@@ -389,7 +389,7 @@ internal static class PdfPaintSerializer
         // introduced when page coordinates are subtracted for a 0.001pt edge.
         // Both values serialize to the same visible 0.001pt PDF linewidth.
         if (stroke < 0.001 - 1e-10)
-            throw new FactsPdfException("FPDF1302", "Patterned border is too thin to paint.");
+            throw new FactsPdfException("FPDF1302", "Patterned border is too thin to paint.", sourceOffset);
         // Border strokes span the *full* measured edge and are clipped to the
         // edge rectangle. An inset centreline can disappear after N() rounds
         // two nearby endpoints to the same PDF coordinate (even when the
@@ -403,7 +403,7 @@ internal static class PdfPaintSerializer
         if (!double.IsFinite(x1 + x2 + y1 + y2 + stroke))
             throw new InvalidOperationException("Invalid patterned border geometry.");
         if (N(x1) == N(x2) && N(y1) == N(y2))
-            throw new FactsPdfException("FPDF1302", "Patterned border edge is too short to paint.");
+            throw new FactsPdfException("FPDF1302", "Patterned border edge is too short to paint.", sourceOffset);
         output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
             .AppendInvariant(color.B, Number).Append(" RG ").AppendInvariant(stroke, Number).Append(" w ");
         if (edge.Pattern == BorderPattern.Dashed)

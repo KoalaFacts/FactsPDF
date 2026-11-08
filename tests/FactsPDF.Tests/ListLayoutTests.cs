@@ -144,7 +144,7 @@ public sealed class ListLayoutTests
         Assert.That(output.ToArray(), Is.EqualTo("sentinel"u8.ToArray()));
         Assert.That(output.Position, Is.EqualTo(2));
         var ordinary = Assert.Throws<FactsPdfException>(() => Pdf("<p style='font-size:72pt'>A</p>", options));
-        Assert.That(ordinary!.SourceOffset, Is.EqualTo(-1), "No-list diagnostics retain their existing behavior");
+        Assert.That(ordinary!.SourceOffset, Is.EqualTo(0), "A paragraph outside a list points at its own element");
     }
 
     [Test]

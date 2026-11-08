@@ -82,7 +82,7 @@ internal sealed class LayoutPage
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
     BoxStyle Style, Rgb TextColor, int Order,
-    bool IsFirstFragment = true, bool IsLastFragment = true)
+    bool IsFirstFragment = true, bool IsLastFragment = true, int SourceOffset = -1)
 {
     // A page fragment can be shorter than its specified border. Use the same
     // clipped geometry for serialization and display-command accounting.

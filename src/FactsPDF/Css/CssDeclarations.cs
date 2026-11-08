@@ -148,7 +148,7 @@ internal static class CssDeclarations
                 style.UnderlineOffset = offset.Value;
                 return style;
             }
-            return InlineCss.Apply(style, declaration.Name + ":" + declaration.Value, paragraph, inline: false, declaration.Offset);
+            return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;

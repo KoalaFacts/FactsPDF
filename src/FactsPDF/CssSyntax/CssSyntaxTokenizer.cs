@@ -15,14 +15,17 @@ internal static class CssSyntaxTokenizer
         ArgumentNullException.ThrowIfNull(limits);
         limits.Cancellation.ThrowIfCancellationRequested();
         var text = source.Normalized;
-        var result = new List<CssSyntaxToken>();
-        var diagnostics = new List<CssSyntaxDiagnostic>();
+        // One reusable token list per thread (tokenizing never re-enters itself); the result is a
+        // right-sized copy. A list grown past MaxPooledTokens is not kept.
+        var result = pooledTokens ?? [];
+        pooledTokens = null;
+        List<CssSyntaxDiagnostic>? diagnostics = null;
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
             bool integer = false, string? unit = null, bool terminated = true)
         {
             limits.Cancellation.ThrowIfCancellationRequested();
-            var raw = text[start..end];
+            var raw = Raw(text, start, end, value);
             result.Add(new CssSyntaxToken(
                 kind, value ?? raw, raw, source.Span(start, end - start),
                 integer, false, unit, terminated));
@@ -36,7 +39,7 @@ internal static class CssSyntaxTokenizer
                 var close = text.IndexOf("*/", i + 2, StringComparison.Ordinal);
                 if (close < 0)
                 {
-                    diagnostics.Add(new("CSS_SYNTAX", "Unterminated CSS comment.",
+                    (diagnostics ??= []).Add(new("CSS_SYNTAX", "Unterminated CSS comment.",
                         source.Span(i, text.Length - i), "eof"));
                     i = text.Length;
                 }
@@ -105,7 +108,7 @@ internal static class CssSyntaxTokenizer
                     }
                 }
                 var numericEnd = i;
-                var numeric = text[start..numericEnd];
+                var numeric = numericEnd - start == 1 ? AsciiCharacters[text[start]] : text[start..numericEnd];
                 if (i < text.Length && text[i] == '%')
                 {
                     i++; Add(CssSyntaxTokenKind.Percentage, start, i, numeric, integer);
@@ -158,7 +161,35 @@ internal static class CssSyntaxTokenizer
         result.Add(new CssSyntaxToken(
             CssSyntaxTokenKind.Eof, "", "",
             source.Span(text.Length, 0)));
-        return new CssSyntaxTokenizationResult(result.ToArray(), diagnostics.ToArray());
+        var tokens = result.ToArray();
+        // Cleared before pooling so the list never keeps a finished document's token strings alive.
+        result.Clear();
+        if (result.Capacity <= MaxPooledTokens) pooledTokens = result;
+        return new CssSyntaxTokenizationResult(tokens, diagnostics?.ToArray() ?? []);
+    }
+
+    // Keeps the pooled array under the large-object threshold (about 48 bytes per token).
+    private const int MaxPooledTokens = 1024;
+    [ThreadStatic] private static List<CssSyntaxToken>? pooledTokens;
+    // Shared one-character strings for the ASCII punctuation, whitespace and digits that make up
+    // most short tokens.
+    private static readonly string[] AsciiCharacters = CreateAsciiCharacters();
+
+    private static string[] CreateAsciiCharacters()
+    {
+        var strings = new string[128];
+        for (var c = 0; c < strings.Length; c++) strings[c] = ((char)c).ToString();
+        return strings;
+    }
+
+    // The token's source text. Reuses the decoded value when it is the same text (an identifier or
+    // number without escapes), and a shared string for one ASCII character.
+    private static string Raw(string text, int start, int end, string? value)
+    {
+        var length = end - start;
+        if (value is not null && value.Length == length && text.AsSpan(start, length).SequenceEqual(value)) return value;
+        if (length == 1 && text[start] < 128) return AsciiCharacters[text[start]];
+        return text[start..end];
     }
 
     private static bool IsWhitespace(char ch) => ch is ' ' or '\t' or '\n';
@@ -281,7 +312,18 @@ internal static class CssSyntaxTokenizer
 
     private static string ConsumeName(string text, ref int at, CancellationToken cancellation)
     {
-        var builder = new StringBuilder();
+        // Without escapes the name is exactly its source text: return that slice and only build
+        // a decoded copy from the first escape on.
+        var start = at;
+        while (at < text.Length)
+        {
+            if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();
+            if (!IsNameCharAt(text, at)) break;
+            at += char.IsHighSurrogate(text[at]) && at + 1 < text.Length && char.IsLowSurrogate(text[at + 1]) ? 2 : 1;
+        }
+        if (at >= text.Length || !IsValidEscape(text, at))
+            return at - start == 1 && text[start] < 128 ? AsciiCharacters[text[start]] : text[start..at];
+        var builder = new StringBuilder(text, start, at - start, 16);
         while (at < text.Length)
         {
             if ((at & 1023) == 0) cancellation.ThrowIfCancellationRequested();

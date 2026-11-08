@@ -46,7 +46,7 @@ internal static class HtmlTokens
             var nameStart = i;
             while (i < html.Length && NameCharacter(html[i])) i++;
             if (i == nameStart || !char.IsAsciiLetter(html[nameStart])) throw Invalid("Expected an HTML tag name.", start);
-            var name = html[nameStart..i].ToLowerInvariant();
+            var name = LowerName(html, nameStart, i);
             SkipSpace(html, ref i);
             if (closing)
             {
@@ -54,7 +54,7 @@ internal static class HtmlTokens
                 yield return new(HtmlTokenKind.End, name, null, false, start);
                 continue;
             }
-            var attrs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string>? attrs = null;
             Dictionary<string, int[]>? attributeOffsets = null;
             var selfClosing = false;
             while (i < html.Length && html[i] != '>')
@@ -65,7 +65,7 @@ internal static class HtmlTokens
                 var attrStart = i;
                 while (i < html.Length && NameCharacter(html[i])) i++;
                 if (i == attrStart) throw Invalid("Malformed attribute.", i);
-                var attribute = html[attrStart..i].ToLowerInvariant();
+                var attribute = LowerName(html, attrStart, i);
                 SkipSpace(html, ref i);
                 var value = "";
                 var rawValueStart = attrStart;
@@ -99,16 +99,16 @@ internal static class HtmlTokens
                 if (attribute == "style")
                 {
                     var (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
-                    if (!attrs.TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
+                    if (!(attrs ??= NewAttributes()).TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
                     (attributeOffsets ??= new(StringComparer.OrdinalIgnoreCase))[attribute] = offsets;
                 }
-                else if (!attrs.TryAdd(attribute, Decode(value, attrStart)))
+                else if (!(attrs ??= NewAttributes()).TryAdd(attribute, Decode(value, attrStart)))
                     throw Invalid("Duplicate attribute.", attrStart);
                 SkipSpace(html, ref i);
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
-            yield return new(HtmlTokenKind.Start, name, attrs, selfClosing, start, attributeOffsets);
+            yield return new(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start, attributeOffsets);
             if (name == "style" && !selfClosing)
             {
                 // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
@@ -188,6 +188,26 @@ internal static class HtmlTokens
         }
         return result.ToString();
     }
+
+    // Start tags without attributes share this instance; token consumers only read attributes.
+    private static readonly Dictionary<string, string> NoAttributes = NewAttributes();
+
+    private static Dictionary<string, string> NewAttributes() => new(StringComparer.OrdinalIgnoreCase);
+
+    // Lower-case spellings of the tag and attribute names the reader and the CSS layer use. A name
+    // found here is returned without a substring or lower-casing copy; any other name falls back to
+    // the copy. Names are ASCII (NameCharacter), so the ignore-case match equals ToLowerInvariant.
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> KnownNames = new HashSet<string>([
+        "a", "article", "b", "blockquote", "body", "br", "caption", "code", "col", "colgroup", "dd", "del", "div",
+        "dl", "dt", "em", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hr", "html", "i", "img",
+        "ins", "li", "link", "main", "meta", "nav", "ol", "p", "pre", "s", "section", "small", "span", "strong",
+        "style", "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "title", "tr", "u", "ul",
+        "alt", "charset", "class", "colspan", "content", "dir", "height", "href", "id", "lang", "name", "reversed",
+        "rowspan", "src", "start", "type", "value", "width",
+    ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+
+    private static string LowerName(string html, int start, int end) =>
+        KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known) ? known : html[start..end].ToLowerInvariant();
 
     public static bool Space(char ch) => ch is ' ' or '\t' or '\r' or '\n' or '\f';
     private static bool NameCharacter(char ch) => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_' or ':';

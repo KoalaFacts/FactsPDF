@@ -24,6 +24,21 @@ internal static class TextLayout
         => LayoutCore(paragraphs.Select(p => (BlockLayoutStep)new LayoutParagraph(p, o.Margin,
             o.PageWidth - 2 * o.Margin)), o, cancellation);
 
+    // The element whose line height is largest on the line is the one to change.
+    private static int TallestGlyphOffset(TextLines.Line line, int fallback)
+    {
+        var offset = fallback;
+        var tallest = double.NegativeInfinity;
+        var glyphs = line.Glyphs;
+        for (var i = 0; i < glyphs.Count; i++)
+        {
+            var style = glyphs[i].Style;
+            var height = style.AbsoluteLineHeight ?? style.FontSize * style.LineHeight;
+            if (height > tallest && glyphs[i].SourceOffset >= 0) { tallest = height; offset = glyphs[i].SourceOffset; }
+        }
+        return offset;
+    }
+
     private static List<LayoutPage> LayoutCore(IEnumerable<BlockLayoutStep> steps, PdfOptions o, CancellationToken cancellation)
     {
         var pages = new List<LayoutPage> { new() };
@@ -460,7 +475,7 @@ internal static class TextLayout
                                 "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
                         var painted = new PaintedBox(scope.X, fragmentTop, scope.Width, height,
                             scope.Style, scope.TextColor, scope.Order,
-                            IsFirstFragment: isFirst, IsLastFragment: isLast);
+                            IsFirstFragment: isFirst, IsLastFragment: isLast, SourceOffset: scope.SourceOffset);
                         // Outlines are ink outside the measured box. Allow an
                         // outline-only empty panel to extend past the printable
                         // bottom margin, but never off the physical PDF sheet.
@@ -554,7 +569,7 @@ internal static class TextLayout
                     throw new FactsPdfException("FPDF1302", "Image and required leading decoration cannot fit on a page.", image.Node.SourceOffset);
                 y += imageGap;
                 var painted = new PaintedBox(image.X, y, image.OuterWidth, image.OuterHeight,
-                    image.Node.BoxStyle, image.Node.Style.Color, paintOrder++);
+                    image.Node.BoxStyle, image.Node.Style.Color, paintOrder++, SourceOffset: image.Node.SourceOffset);
                 ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
                 if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
                 pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height));
@@ -620,7 +635,8 @@ internal static class TextLayout
                         var last = fragment.EndRow == measured.Rows.Count;
                         var tableBox = new PaintedBox(table.X, y, measured.Width,
                             last ? fragment.Height : bottom - y, table.Node.BoxStyle, table.Node.Style.Color,
-                            paintOrder++, IsFirstFragment: first, IsLastFragment: last);
+                            paintOrder++, IsFirstFragment: first, IsLastFragment: last,
+                            SourceOffset: table.Node.SourceOffset);
                         ChargeDisplayCommands(tableBox.CommandCount, table.Node.SourceOffset);
                         if (tableBox.CommandCount > 0) pages[^1].PaintBoxes.Add(tableBox);
                         var rowTop = y + (first ? measured.Top : 0);
@@ -660,7 +676,8 @@ internal static class TextLayout
                             {
                                 cancellation.ThrowIfCancellationRequested();
                                 var box = new PaintedBox(table.X + cell.X, rowTop, cell.Width, slice.Height,
-                                    cell.BoxStyle, cell.TextColor, paintOrder++, slice.IsFirst, slice.IsLast);
+                                    cell.BoxStyle, cell.TextColor, paintOrder++, slice.IsFirst, slice.IsLast,
+                                    SourceOffset: cell.SourceOffset);
                                 ChargeDisplayCommands(box.CommandCount, cell.SourceOffset);
                                 if (box.CommandCount > 0) pages[^1].PaintBoxes.Add(box);
                             }
@@ -760,12 +777,14 @@ internal static class TextLayout
             var paragraph = item.Paragraph;
             var marginBefore = trimNextMargin ? 0 : paragraph.Style.MarginBefore;
             trimNextMargin = false;
+            // Fit failures name the list item or the paragraph's element.
+            var paragraphOffset = item.Marker?.SourceOffset ?? paragraph.SourceOffset;
             // Do not allocate the next paragraph's glyph/line lists after an
             // earlier paragraph or box has used the exact command allowance.
             // Blank/whitespace/break-only paragraphs can still affect geometry
             // without emitting text commands and must retain that behavior.
             if (displayCommands == o.MaxDisplayCommands && (item.Marker is not null || HasTextContent(paragraph, cancellation)))
-                ChargeDisplayCommands(1, item.Marker?.SourceOffset ?? -1);
+                ChargeDisplayCommands(1, paragraphOffset);
             var insideMarkerInset = item.Marker is { Inside: true } inside
                 ? inside.Width + 0.5 * inside.Style.FontSize : 0d;
             using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation,
@@ -838,7 +857,7 @@ internal static class TextLayout
                     MoveUnconsumedBlocksToNewPage(apply: false) + firstChildMargin +
                         lines.Current.Height > bottom - o.Margin + 0.000001)
                     throw new FactsPdfException("FPDF1302",
-                        "Report panel top margin and first line cannot fit on a fresh page.");
+                        "Report panel top margin and first line cannot fit on a fresh page.", paragraphOffset);
                 NewPage();
                 MoveUnconsumedBlocksToNewPage();
                 // The previous paragraph's trailing gap remains behind;
@@ -847,7 +866,7 @@ internal static class TextLayout
             }
             if (gap + lines.Current.Height > bottom - o.Margin)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
-                    item.Marker?.SourceOffset ?? -1);
+                    paragraphOffset);
             if (opened.Count > 0 && opened[^1].IsParagraph &&
                 opened[^1].ContentEpoch == contentEpoch)
                 opened[^1] = opened[^1] with { StartY = y + gap - opened[^1].Top };
@@ -860,7 +879,9 @@ internal static class TextLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 var line = lines.Current;
-                if (line.Height > bottom - o.Margin) throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.");
+                if (line.Height > bottom - o.Margin)
+                    throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.",
+                        TallestGlyphOffset(line, paragraphOffset));
                 if (y + line.Height > bottom + 0.000001) NewPage();
                 var lineWidth = item.ContentWidth - line.FirstLineIndent;
                 var x = item.ContentX + line.FirstLineIndent + ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch

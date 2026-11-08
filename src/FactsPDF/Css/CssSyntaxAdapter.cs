@@ -67,10 +67,9 @@ internal static class CssSyntaxAdapter
             // Only opaque RGB functions are lowered to their equivalent hex
             // colour. All downstream cascade, box paint and PDF serializers
             // therefore use exactly the already audited solid-colour path.
-            var values = node.Values.Select(CanonicalOpaqueColor).ToArray();
-            var terms = Terms(node with { Values = values });
-            var valueTokens = values.OfType<CssTokenComponent>()
-                .Where(x => x.Token.Kind != CssSyntaxTokenKind.Whitespace).ToArray();
+            var canonical = CanonicalValues(node);
+            var terms = Terms(canonical);
+            var valueTokens = NonWhitespaceTokens(canonical.Values);
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
 
@@ -919,6 +918,36 @@ internal static class CssSyntaxAdapter
         return oneIndex >= 0 && exponent == oneIndex + 1 - integerDigits;
     }
 
+    // The declaration with opaque colour functions lowered (see CanonicalOpaqueColor); the node
+    // itself when it has no function value.
+    private static CssDeclarationNode CanonicalValues(CssDeclarationNode node)
+    {
+        var values = node.Values;
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (values[i] is not CssFunctionComponent) continue;
+            var lowered = new CssSyntaxComponent[values.Count];
+            for (var j = 0; j < lowered.Length; j++) lowered[j] = CanonicalOpaqueColor(values[j]);
+            return node with { Values = lowered };
+        }
+        return node;
+    }
+
+    private static CssTokenComponent[] NonWhitespaceTokens(IReadOnlyList<CssSyntaxComponent> values)
+    {
+        var count = 0;
+        for (var i = 0; i < values.Count; i++)
+            if (values[i] is CssTokenComponent { Token.Kind: not CssSyntaxTokenKind.Whitespace }) count++;
+        if (count == 0) return [];
+        var tokens = new CssTokenComponent[count];
+        count = 0;
+        for (var i = 0; i < values.Count; i++)
+            if (values[i] is CssTokenComponent { Token.Kind: not CssSyntaxTokenKind.Whitespace } token) tokens[count++] = token;
+        return tokens;
+    }
+
+    private static bool NoEscapes(CssSyntaxToken token) => !token.Raw.Contains('\\');
+
     private static List<string> Terms(CssDeclarationNode node)
     {
         var terms = new List<string>();
@@ -934,9 +963,10 @@ internal static class CssSyntaxAdapter
             var value = token.Kind switch
             {
                 CssSyntaxTokenKind.Ident or CssSyntaxTokenKind.Number => token.Value,
-                CssSyntaxTokenKind.Dimension => token.Value + token.Unit,
-                CssSyntaxTokenKind.Percentage => token.Value + "%",
-                CssSyntaxTokenKind.Hash => "#" + token.Value,
+                // Without escapes the source text is exactly the joined value, so reuse it.
+                CssSyntaxTokenKind.Dimension => NoEscapes(token) ? token.Raw : token.Value + token.Unit,
+                CssSyntaxTokenKind.Percentage => NoEscapes(token) ? token.Raw : token.Value + "%",
+                CssSyntaxTokenKind.Hash => NoEscapes(token) ? token.Raw : "#" + token.Value,
                 _ => throw new FactsPdfException("FPDF1202", "Unsupported CSS value token.", token.Span.Start)
             };
             terms.Add(value.ToLowerInvariant());
@@ -963,7 +993,7 @@ internal static class CssSyntaxAdapter
             if (!InlineCss.KeywordFontSize(token, ValidationStyle.FontSize).HasValue
                 && !InlineCss.RootRelativeScale(token, offset, 144).HasValue
                 && !InlineCss.RelativeFontSizeScale(token, offset).HasValue)
-                _ = InlineCss.Apply(ValidationStyle with { }, name + ":" + token,
+                _ = InlineCss.Apply(ValidationStyle with { }, name, token,
                     paragraph: true, inline: false, offset);
         }
         else if (name == "line-height")
@@ -973,7 +1003,7 @@ internal static class CssSyntaxAdapter
             // to the winning declaration, as for relative font-size.
             if (!InlineCss.RootRelativeScale(token, offset, 1440).HasValue
                 && !InlineCss.RelativeLineHeightScale(token, offset).HasValue)
-                _ = InlineCss.Apply(ValidationStyle with { }, name + ":" + token,
+                _ = InlineCss.Apply(ValidationStyle with { }, name, token,
                     paragraph: true, inline: false, offset);
         }
         else if (name is ("text-indent" or "letter-spacing" or "word-spacing")
@@ -1096,7 +1126,7 @@ internal static class CssSyntaxAdapter
             else throw new InvalidOperationException("Shorthand validation should be handled separately.");
         }
         else
-            _ = InlineCss.Apply(ValidationStyle with { }, name + ":" + token,
+            _ = InlineCss.Apply(ValidationStyle with { }, name, token,
                 paragraph: true, inline: false, offset);
     }
 

@@ -33,12 +33,18 @@ internal sealed class CssStylesheets
         budget = new(options, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, token);
     }
-    internal static CssStylesheets Collect(string html, PdfOptions options, CancellationToken token)
+    /// <summary>
+    /// Compiles every style element and style attribute, and appends each HTML token it reads to
+    /// <paramref name="tokens"/> so the document reader walks the same tokens instead of tokenizing
+    /// the page again. The list is complete only when this method returns.
+    /// </summary>
+    internal static CssStylesheets Collect(string html, PdfOptions options, List<HtmlToken> tokens, CancellationToken token)
     {
         var sheet = new CssStylesheets(options, token); var elements = 0;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
+            tokens.Add(item);
             if (item.Kind == HtmlTokenKind.StyleText)
             {
                 sheet.budget.Characters(item.Value.Length, item.Offset);
@@ -147,7 +153,7 @@ internal sealed class CssStylesheets
     private static void Add(Dictionary<string, List<Rule>> index, string key, Rule rule)
     { if (!index.TryGetValue(key, out var list)) index.Add(key, list = []); list.Add(rule); }
 
-    internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, TextStyle parent, TextStyle initial,
+    internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, bool allowStyling = true)
     {
@@ -365,11 +371,12 @@ internal sealed class CssStylesheets
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
-        // defaults is either the shared parent style or a private copy the reader already made for
-        // this element's tag defaults. Text declarations are applied to one private copy, made on
-        // the first one if the reader did not make it; shared styles are never assigned (see TextStyle).
+        // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
+        // (defaultsOwned) a private copy the reader made for this element. Text declarations are
+        // applied to one private copy, made on the first one if the reader did not make it; shared
+        // styles are never assigned (see TextStyle).
         var style = defaults;
-        var styleOwned = !ReferenceEquals(defaults, parent);
+        var styleOwned = defaultsOwned;
         // Bounded report defaults. A quote is a real inset block rather
         // than an ignored tag; author CSS overrides each side normally.
         // CSS-wide initial resets to the zero-margin ordinary box initial.

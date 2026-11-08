@@ -87,12 +87,17 @@ public sealed class OutputCancellationTests
     {
         var writer = LargeWriter();
         writer.ToBytes(LargeHtml); // warm up JIT tiers
+        // Both timings leave out garbage-collection pauses: one gen1/gen2 pause on this input can take
+        // about half a full render on a busy two-core runner (on main as well), and no cancellation
+        // check can run during it. What is measured is the engine's own work before it notices.
         var full = TimeSpan.MaxValue;
         for (var i = 0; i < 2; i++)
         {
+            var pauses = GC.GetTotalPauseDuration();
             var run = Stopwatch.StartNew();
             writer.ToBytes(LargeHtml);
-            if (run.Elapsed < full) full = run.Elapsed;
+            var work = run.Elapsed - (GC.GetTotalPauseDuration() - pauses);
+            if (work < full) full = work;
         }
         // On a machine fast enough to finish in under 100ms, "well below a full render" cannot be told
         // apart from scheduling noise, so the timing half of the test is inconclusive there.
@@ -102,16 +107,18 @@ public sealed class OutputCancellationTests
         using var cancellation = new CancellationTokenSource();
         // A dedicated thread, not a timer: a thread-pool timer can fire late on a busy two-core runner.
         var canceller = new Thread(() => { Thread.Sleep(5); cancellation.Cancel(); }) { IsBackground = true };
+        var cancelPauses = GC.GetTotalPauseDuration();
         var elapsed = Stopwatch.StartNew();
         canceller.Start();
         Assert.That(async () => await Run(writer, path, LargeHtml, outputs, cancellation.Token),
             Throws.InstanceOf<OperationCanceledException>());
         elapsed.Stop();
+        var gcPauses = GC.GetTotalPauseDuration() - cancelPauses;
         canceller.Join();
 
         // A path that dropped the token would still throw at a later check, but only after a full render.
-        Assert.That(elapsed.Elapsed, Is.LessThan(full / 2),
-            $"cancelled after {elapsed.Elapsed.TotalMilliseconds:F0}ms; a full render takes {full.TotalMilliseconds:F0}ms");
+        Assert.That(elapsed.Elapsed - gcPauses, Is.LessThan(full / 2),
+            $"cancelled after {elapsed.Elapsed.TotalMilliseconds:F0}ms ({gcPauses.TotalMilliseconds:F0}ms of it in GC pauses); a full render takes {full.TotalMilliseconds:F0}ms of work");
         AssertNothingWritten(outputs);
     }
 

@@ -34,7 +34,7 @@ Areas follow `site/data/compatibility.json` `categories`. "Run" is the command u
 | CSS properties | `InlineCss.cs`, `Css/`, `BlockLayout.cs` | `examples/stylesheet-document.html` with DejaVu + zh.ttf `--subset-fonts` | `Wrote 2 page(s)`; page image | every report-* example (parity) |
 | CSS values | `Css/` (colours, lengths, keywords) | `examples/report-hsl-colours.html` | `Wrote 2 page(s)`; colours visible in raster | named/rgb colours, em/rem lengths |
 | Selectors and syntax | `CssSyntax/`, `Css/` stylesheets, CSS budgets (FPDF1205) | `examples/report-attribute-operators.html` | `Wrote 2 page(s)`; FPDF12xx on bad CSS | cascade order, `!important` |
-| Text, language and fonts | `TextLayout.cs`, `TextLines.cs`, `Fonts/`, `FontRoles.cs`, `UnicodePdfSerializer.cs` | `examples/unicode-document.html` and `examples/tables-report.html` with the four font chains | `Wrote 2 page(s)` / `Wrote 1 page(s)`; CJK and bold/italic visible in raster; FPDF1301/1504/1507 without fonts | subsetting, wrapping, decorations |
+| Text, language and fonts | `TextLayout.cs`, `TextLines.cs`, `Fonts/`, `FontRoles.cs`, `UnicodePdfSerializer.cs` | `examples/unicode-document.html` and `examples/tables-report.html` with the four font chains | `Wrote 2 page(s)` / `Wrote 1 page(s)`; CJK and bold/italic visible in raster; FPDF1301/1504/1507 without fonts, and the CLI's `Location: line L, column C.` names the element whose text failed (`TextErrorLocationTests`, `LayoutErrorLocationTests`, `CliErrorLocationTests`); a dashed border of 0.0005pt fails `FPDF1302` with the location of its box (`PaintErrorLocationTests`) | subsetting, wrapping, decorations |
 | Integration and platform | `Pdf.cs` (`Pdf.Write()`), `Api.cs`, CLI `CliApplication.cs`, `probes/browser-wasm`, Native AOT in CI | `dotnet test tests/FactsPDF.Tests -c Release --filter "FullyQualifiedName~OutputCancellationTests\|FullyQualifiedName~ConversionTests"` (all six SDK output paths); `examples/png-brand-report.html` with `--image` | `Passed: 56`; `Wrote 1 page(s)`; FPDF1604 when an image is not supplied | AOT/wasm trimming (CI jobs `native-aot`, `browser-wasm`) |
 | Pagination and PDF | `PdfSerializer.cs`, `PdfBuffer.cs`, `PageFurniture*.cs`, `PageMarginLayout.cs`, `HeadingKeep.cs` | `examples/report-section-page-breaks.html`; `examples/quick-start.html --page-furniture examples/business-page-furniture.json --font DejaVuSans.ttf` | `Wrote 3 page(s)`; `Wrote 1 page(s)`; furniture text in raster | page numbers, header/footer text, margins |
 
@@ -43,7 +43,9 @@ Areas follow `site/data/compatibility.json` `categories`. "Run" is the command u
    `for p in $(git ls-files '*.csproj' | grep -v examples/first-use); do dotnet build "$p" -c Release -warnaserror; done`.
 2. `dotnet test tests/FactsPDF.Tests -c Release` (includes the CLI tests).
 3. Byte parity against `main`: `node scripts/parity.ts` (Node 22.18+ strips types; defaults `--base origin/main`).
-   Expect `402/402 runs identical` unless the PR explains an intended difference.
+   Expect `402/402 runs identical` unless the PR explains an intended difference; a known kind
+   (`location-added`) is declared with `--expect <kind>` locally and a `Parity-Expect: <kind>`
+   trailer on the PR head commit for CI.
 4. Docs: `node --test scripts/check-docs.test.ts && node scripts/check-docs.ts`.
 5. `site/` data changes: `cd site && npm test && npm run validate`.
 

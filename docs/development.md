@@ -331,7 +331,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | FPDF1501-1507 | Font format, resource, mapping, embedding-permission, subsetting or missing explicit style chain |
 | FPDF1601-1604 | Image format/support, resource limits or missing explicit binding |
 
-Not every integer in a displayed range needs a distinct public API guarantee. Refer to exact guide tables and exception messages. Offsets are supplied where available, with inline CSS anchored to its HTML element; these are development contracts, not complete browser error classification. `ErrorCodeCatalogTests` fails when the source uses a code this table does not cover, or a row names a code the source no longer uses.
+Not every integer in a displayed range needs a distinct public API guarantee. Refer to exact guide tables and exception messages. Offsets are supplied where available, with inline CSS anchored to its HTML element; glyph and wrapping failures in body text (`FPDF1301`, `FPDF1302` unbreakable segments, `FPDF1304`, `FPDF1305`, `FPDF1504`) point at the element whose text caused them, and so do the layout fit failures `FPDF1302` "Paragraph margin, box padding and first line cannot fit on a page", "Report panel top margin and first line cannot fit on a fresh page" (the paragraph or list item) and "Line height exceeds the usable page height" (the element with the tallest line height on that line), as does `FPDF1401` when the display command limit is reached before a paragraph. The paint-stage `FPDF1302` failures "Patterned border is too thin to paint" and "Patterned border edge is too short to paint" (and "Invalid report outline geometry") point at the box, table, table cell or image whose border or outline it is. Text outside any element, and page text such as header, footer, page numbers and furniture, has no HTML offset: -1. `TextErrorLocationTests`, `LayoutErrorLocationTests` and `PaintErrorLocationTests` pin this. These are development contracts, not complete browser error classification. `ErrorCodeCatalogTests` fails when the source uses a code this table does not cover, or a row names a code the source no longer uses.
 
 ## Native AOT and verification
 
@@ -390,6 +390,15 @@ work folder. Options: `--base <ref>` (default `origin/main`), `--font <path.ttf>
 outside the repository, default the system temp folder; each run uses a new
 subfolder of it), `--jobs` (default the CPU count, at most 8), `--dotnet` and
 `--python`.
+
+An intended change of a known kind is declared with `--expect <kind>`, or in CI
+with a `Parity-Expect: <kind>` trailer in the PR's head commit message (the
+`byte-parity` job passes `--expect-from HEAD^2`). A declared kind accepts only
+differences of exactly that kind, every other difference still fails, and a
+declared kind that is never observed fails the run. The one kind so far is
+`location-added`: a failing run's stderr gains `Location: line L, column C.`
+lines and is otherwise identical, with the same exit code and no PDF on either
+side. A PDF byte or exit-code change has no kind and always fails.
 
 CI runs it on every pull request against the PR's base (the merge commit's
 first parent). A PR that changes output on purpose fails this job by design:
