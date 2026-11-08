@@ -5,7 +5,10 @@ namespace FactsPDF;
 
 internal enum HtmlTokenKind { Text, Start, End, StyleText }
 internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
-    bool SelfClosing, int Offset, Dictionary<string, int[]>? AttributeSourceOffsets = null);
+    bool SelfClosing, int Offset, int StyleValueOffset = -1, int[]? StyleOriginOffsets = null);
+// StyleValueOffset: where the style attribute's raw value starts in the page (-1 without one).
+// StyleOriginOffsets: the page offset of every decoded code unit plus its end, kept only when the
+// value contains '&'; otherwise code unit i comes from StyleValueOffset + i.
 
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
 internal static class HtmlTokens
@@ -55,7 +58,8 @@ internal static class HtmlTokens
                 continue;
             }
             Dictionary<string, string>? attrs = null;
-            Dictionary<string, int[]>? attributeOffsets = null;
+            var styleValueOffset = -1;
+            int[]? styleOriginOffsets = null;
             var selfClosing = false;
             while (i < html.Length && html[i] != '>')
             {
@@ -98,9 +102,14 @@ internal static class HtmlTokens
                 }
                 if (attribute == "style")
                 {
-                    var (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
+                    // Without '&' the value is its own decoding, so its origins are its own positions.
+                    var hasReferences = value.Contains('&');
+                    var decoded = value;
+                    int[]? offsets = null;
+                    if (hasReferences) (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
                     if (!(attrs ??= NewAttributes()).TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
-                    (attributeOffsets ??= new(StringComparer.OrdinalIgnoreCase))[attribute] = offsets;
+                    styleValueOffset = rawValueStart;
+                    styleOriginOffsets = offsets;
                 }
                 else if (!(attrs ??= NewAttributes()).TryAdd(attribute, Decode(value, attrStart)))
                     throw Invalid("Duplicate attribute.", attrStart);
@@ -108,7 +117,7 @@ internal static class HtmlTokens
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
-            yield return new(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start, attributeOffsets);
+            yield return new(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start, styleValueOffset, styleOriginOffsets);
             if (name == "style" && !selfClosing)
             {
                 // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
