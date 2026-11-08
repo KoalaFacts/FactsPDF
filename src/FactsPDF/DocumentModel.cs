@@ -67,6 +67,11 @@ internal sealed record TextStyle
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
 internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
 {
+    // Sized exactly when the reader knows how many runs the paragraph element holds, so a
+    // one-run paragraph keeps a one-slot array instead of List's default four.
+    public Paragraph(TextStyle style, int sourceOffset, int runCapacity) : this(style, sourceOffset)
+        => Runs.Capacity = runCapacity;
+
     public List<TextRun> Runs { get; } = [];
 }
 internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0);
