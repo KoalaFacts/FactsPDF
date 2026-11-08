@@ -299,9 +299,11 @@ internal static class TextLines
                     yield return CurrentLine(softWrapped: true);
                     ResetLine();
                 }
-                foreach (var glyph in word)
+                // An index loop: a List enumerator would be one more iterator field.
+                for (var i = 0; i < word.Count; i++)
                 {
                     cancellation.ThrowIfCancellationRequested();
+                    var glyph = word[i];
                     var capacity = firstLine ? available - firstIndent : available;
                     if (width + glyph.Width > capacity + 0.000001)
                     {
