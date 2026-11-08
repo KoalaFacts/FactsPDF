@@ -29,6 +29,8 @@ jobs:
         run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_acceptance_*.py' -v
       - name: Test reading-sample text integrity
         run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_operations_report.py' -v
+      - name: Test pinned font acquisition and failure recovery without network
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_font_style_fonts.py' -v
       - name: Generate deterministic candidate corpus (not approved references)
         run: |
           /usr/bin/python3 scripts/acceptance_corpus.py generate artifacts/acceptance-inputs
@@ -68,6 +70,8 @@ jobs:
             --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
             --output artifacts/operations-report
       - name: Verify actual styled-CJK business reports via .NET, managed CLI and Linux Native AOT
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # The existing pinned font helper verifies the original 1.0.42 archive and
           # eight independent regular/bold/italic/bold-italic file hashes and outlines.

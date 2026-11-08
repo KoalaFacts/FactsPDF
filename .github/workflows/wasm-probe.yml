@@ -33,7 +33,11 @@ jobs:
           /usr/bin/python3 ../verify_playwright_apt_scope.py node_modules/playwright/cli.js
           /usr/bin/python3 ../ubuntu_packages.py playwright node_modules/playwright/cli.js
           npx playwright install chromium
+      - name: Test pinned font acquisition and failure recovery without network
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_font_style_fonts.py' -v
       - name: Prepare pinned explicit four-style verification fonts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           /usr/bin/python3 scripts/font_style_fonts.py --sarasa-root artifacts/private-fonts --download --output artifacts/wasm-evidence/font-manifest.json
       - name: Test adapter and explicit resource loading
