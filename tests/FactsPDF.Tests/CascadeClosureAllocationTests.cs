@@ -25,15 +25,17 @@ public sealed class CascadeClosureAllocationTests
         return GC.GetAllocatedBytesForCurrentThread() - before;
     }
 
-    // Measured on main 27cae7d: 860 bytes read per paragraph (2,000 to 4,000 paragraphs) with a closure per
-    // element; 788 without it.
+    // Measured on main 27cae7d: 728 bytes read per paragraph with a closure per element;
+    // 656 without it.
     [Test]
     public void ReadingAParagraphAllocatesNoCascadeClosure()
     {
+        // 1,000 and 2,000 paragraphs (3 tokens each) keep both reads under the reader's 8,192-token
+        // pooled list, so list growth does not count as per-paragraph cost.
         var options = new PdfOptions { MaxElements = 100_000 };
-        var small = ReadAllocated(Paragraphs(2_000), options);
-        var large = ReadAllocated(Paragraphs(4_000), options);
-        var perParagraph = (large - small) / 2_000.0;
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
         TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
         Assert.That(perParagraph, Is.LessThan(PerParagraphLimit));
     }
@@ -43,6 +45,7 @@ public sealed class CascadeClosureAllocationTests
     [TestCase("border: 1pt solid; border-left-width: 2pt")]
     [TestCase("border: 1pt dashed")]
     [TestCase("border: 1pt solid; border-left-width: 0")]
+    [TestCase("color: blue; border: 1pt solid red; border-left-color: currentcolor")]
     public void RoundedBoxesStillRequireAnEvenSolidBorder(string border)
     {
         var html = $"<div style=\"border-radius: 4pt; {border}\">x</div>";
@@ -51,7 +54,7 @@ public sealed class CascadeClosureAllocationTests
         Assert.That(error.Message, Does.Contain("Rounded report boxes"));
     }
 
-    // currentcolor on one side and the same explicit text colour on the others is one ink.
+    // currentcolor on three sides and the text colour given explicitly on the fourth is one ink.
     [TestCase("border: 1pt solid red")]
     [TestCase("color: red; border: 1pt solid; border-left-color: red")]
     [TestCase("border-radius: 4pt")]
@@ -61,5 +64,5 @@ public sealed class CascadeClosureAllocationTests
         Assert.That(Pdf.Write().ToBytes(html), Is.Not.Empty);
     }
 
-    private const double PerParagraphLimit = 825;
+    private const double PerParagraphLimit = 690;
 }
