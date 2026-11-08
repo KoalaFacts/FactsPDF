@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { englishAudit } from '../src/audit-english-table-relative-tracks.mjs';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -534,6 +535,32 @@ test('numeric hundred-step report font weights use the explicit source-audited r
   assert.match(dataset.audit_method,/417 full feature records preserve/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
+});
+
+test('logical padding catalogue distinguishes merged cells from candidate table in both locales', () => {
+  assert.equal(dataset.features.length, 418);
+  assert.equal(new Set(dataset.features.map(row => row.id)).size, 418);
+  assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
+  for (const [id, name, scopeIndex, limitsIndex] of [
+    ['css.padding-inline','padding-inline',257,258],
+    ['css.padding-block','padding-block',259,260]
+  ]) {
+    const row=dataset.features.find(entry=>entry.id===id);
+    assert.equal(row.status,'partial',id);
+    assert.match(row.scope,/PR #215合并并完成主线验证/,id);
+    assert.match(row.scope,new RegExp('table自身的'+name),id);
+    assert.match(row.scope,/PR #216候选/,id);
+    assert.match(row.scope,/尚未合并/,id);
+    assert.match(row.limitations,/col\/colgroup\/tr\/thead\/tbody\/tfoot/,id);
+    assert.match(row.limitations,/单元格内p的独立padding/,id);
+    assert.match(row.limitations,/FPDF1302/,id);
+    assert.match(englishAudit[scopeIndex],/main-verified \(#215\)/,id);
+    assert.match(englishAudit[scopeIndex],new RegExp('table.{0,20}'+name),id);
+    assert.match(englishAudit[scopeIndex],/not merged/,id);
+    assert.match(englishAudit[limitsIndex],/col, colgroup, tr, thead, tbody, tfoot/,id);
+    assert.match(englishAudit[limitsIndex],/cell-paragraph|paragraphs inside table cells/,id);
+    assert.match(englishAudit[limitsIndex],/FPDF1302/,id);
+  }
 });
 
 test('four grouped LTR logical spacing records include eight side longhands', () => {

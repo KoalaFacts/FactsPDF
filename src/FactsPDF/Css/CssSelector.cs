@@ -1,6 +1,8 @@
 namespace FactsPDF;
 
-internal sealed record CssElement(string Name, string? Id, CssClassList Classes,
+// A value in the reader's ancestor path: an element costs no object of its own, only its slot in
+// the path list, which is as deep as the document.
+internal readonly record struct CssElement(string Name, string? Id, CssClassList Classes,
     IReadOnlyDictionary<string, string> Attributes)
 {
     internal static CssElement From(HtmlToken token)
@@ -220,7 +222,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         }
         return true;
     }
-    private bool MatchesCompound(CssCompound part, CssElement element, CssBudget budget)
+    private bool MatchesCompound(CssCompound part, in CssElement element, CssBudget budget)
     {
         budget.Work(offset);
         if (part.Type is not null && !part.Type.Equals(element.Name, StringComparison.OrdinalIgnoreCase)) return false;
