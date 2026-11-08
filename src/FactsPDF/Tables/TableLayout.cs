@@ -66,6 +66,9 @@ internal static class TableLayout
         // Defer aligned-cell failure until we know whether a later occupied
         // row makes that predecessor a complete nonterminal row.
         var ambiguousVerticalOffsets = new List<int>();
+        // One scratch list for every cell of this table; each cell keeps an
+        // exact-size copy of its units.
+        var units = new List<MeasuredCellUnit>();
         var firstBodyGroup = true;
         var headerHeight = 0d;
         var top = edges.Top;
@@ -120,7 +123,7 @@ internal static class TableLayout
                 var contentWidth = cellWidth - cellEdges.Left - cellEdges.Right;
                 if (contentWidth <= 0)
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
-                var units = new List<MeasuredCellUnit>();
+                units.Clear();
                 var height = cellEdges.Top;
                 var pending = 0d;
                 CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
@@ -234,7 +237,7 @@ internal static class TableLayout
                     cellImageBoxStart, imageBoxes.Count));
                 cells.Add(new(x, cellWidth, x + cellEdges.Left, contentWidth, cellEdges.Top,
                     cellEdges.Bottom, units.Count == 0 ? pending : units[0].LeadingGap, pending,
-                    cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units));
+                    cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units.ToArray()));
                 x += cellWidth;
                 if (!double.IsFinite(x)) throw Geometry("Cell coordinate must remain finite.", cell.SourceOffset);
             }
@@ -303,7 +306,7 @@ internal static class TableLayout
             var imageStart = boxes.Count;
             boxes.AddRange(rowImageBoxes[i]);
             foreach (var cell in rows[i].Cells)
-                for (var j = 0; j < cell.Units.Count; j++)
+                for (var j = 0; j < cell.Units.Length; j++)
                 {
                     cancellation.ThrowIfCancellationRequested();
                     var unit = cell.Units[j];
