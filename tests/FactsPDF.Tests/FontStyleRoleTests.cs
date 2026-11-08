@@ -146,7 +146,8 @@ public sealed class FontStyleRoleTests
         Assert.That(styled.SourceOffset, Is.EqualTo(3));
         var normal = Fails("<p>中</p>", options with { Fonts = options.ItalicFonts }, "FPDF1504");
         Assert.That(normal.Message, Is.EqualTo("FPDF1504: No supplied font contains U+4E2D."));
-        Assert.That(normal.SourceOffset, Is.EqualTo(-1));
+        // R2c2: the normal-role message is unchanged, and it now points at its element too.
+        Assert.That(normal.SourceOffset, Is.EqualTo(0));
     }
 
     [Test]

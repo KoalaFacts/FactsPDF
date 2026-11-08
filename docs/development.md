@@ -331,7 +331,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | FPDF1501-1507 | Font format, resource, mapping, embedding-permission, subsetting or missing explicit style chain |
 | FPDF1601-1604 | Image format/support, resource limits or missing explicit binding |
 
-Not every integer in a displayed range needs a distinct public API guarantee. Refer to exact guide tables and exception messages. Offsets are supplied where available, with inline CSS anchored to its HTML element; these are development contracts, not complete browser error classification. `ErrorCodeCatalogTests` fails when the source uses a code this table does not cover, or a row names a code the source no longer uses.
+Not every integer in a displayed range needs a distinct public API guarantee. Refer to exact guide tables and exception messages. Offsets are supplied where available, with inline CSS anchored to its HTML element; glyph and wrapping failures in body text (`FPDF1301`, `FPDF1302` unbreakable segments, `FPDF1304`, `FPDF1305`, `FPDF1504`) point at the element whose text caused them (text outside any element, and page text such as header, footer, page numbers and furniture, has no HTML offset: -1). `TextErrorLocationTests` pins this. These are development contracts, not complete browser error classification. `ErrorCodeCatalogTests` fails when the source uses a code this table does not cover, or a row names a code the source no longer uses.
 
 ## Native AOT and verification
 
