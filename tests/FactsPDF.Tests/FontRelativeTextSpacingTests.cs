@@ -150,7 +150,7 @@ public sealed class FontRelativeTextSpacingTests
         Rejected("<style>.missing{word-spacing:-1em}</style><p>Unchanged</p>", "FPDF1202");
         Rejected("<ul style='text-indent:0.1rem'><li>Unchanged</li></ul>", "FPDF1201");
         Rejected("<p><span style='text-indent:0.1em'>Unchanged</span></p>", "FPDF1201");
-        Rejected("<table><colgroup><col style='width:90pt'></colgroup><tbody><tr><td>" +
-            "<p style='text-indent:0.2em'>Unchanged</p></td></tr></tbody></table>", "FPDF1201");
+        Rejected("<table><colgroup style='text-indent:0.2em'><col style='width:90pt'>" +
+            "</colgroup><tbody><tr><td><p>Unchanged</p></td></tr></tbody></table>", "FPDF1201");
     }
 }
