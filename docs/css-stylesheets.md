@@ -458,6 +458,25 @@ Implementation commit: `ca3aef91e20792782edb49004369dfbf1e9712b3`. This source-o
 relabelled retained private candidate, public package, human PDF approval
 or customer distribution grant.
 
+## Current-source font-relative report image sizing (candidate, PR #196)
+
+Bound JPEG/PNG `img` elements can use computed `em/rem` image dimensions
+(`width`, `min/max-width`, `height`, `min/max-height`) and
+`padding`. These values affect the real PDF image matrix, including
+direct fixed-track table-cell image items. `em` uses the final computed
+element font and `rem` the root font. Existing `!important`, CSS-wide
+winners, box-sizing, aspect ratio, page geometry and protected output remain
+enforced. Height percentages, `calc`, image URL loading, table structural
+`em/rem` and general CSS Sizing remain explicitly unsupported.
+
+The physical-only image notes below record earlier milestones; their
+historical prohibition on image `em/rem` does not apply to this newer,
+still unmerged source candidate. Refer to
+[the bounded image contract](images.md#font-relative-image-boxes-for-reports-candidate-source-pr-196)
+and [real PDF oracle tests](../tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs).
+Source `145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430`; CI and independent
+review are distinct from implementation.
+
 ## Current-source physical CSS height for bound report images
 
 The existing `height` name now affects actual PDF image matrices on

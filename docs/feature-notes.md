@@ -880,6 +880,23 @@ A separate, strictly one-page fixed-`height` panel subset is documented above.
 
 ## Images
 
+### Computed `em/rem` image geometry in business reports (candidate)
+
+A bound JPEG/PNG logo or evidence photo may size its PDF image matrix with
+`width:8em`, `max-width:6rem`, `height:2em`,
+`min-height:3rem` and `padding:0.25em`. `em` uses the image's final
+computed font size; `rem` uses the HTML root. The same geometry works for
+standalone and direct fixed-column cell images with the existing cascade,
+`!important`, `box-sizing`, text-following placement and page movement.
+The [new source test](../tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs)
+compares actual PDF bytes with independent physical-length oracles and
+checks protected output on invalid combinations. Earlier physical-only image
+notes below document their original milestone scope. Still excluded:
+image height percentages, negative lengths, `calc`, object-fit, automatic
+external loading, table structural relative sizing and image splitting.
+Source `145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430` is a PR candidate,
+not yet a new main/released capability or verified CSS support numerator.
+
 ### Bounded image height limits for report logos and photos (source-only)
 
 Explicitly bound JPEG/PNG images now accept nonnegative physical
