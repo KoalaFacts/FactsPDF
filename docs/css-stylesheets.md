@@ -666,6 +666,35 @@ exercise actual PDF bytes and pagination; NUnit and Linux/Windows
 Native AOT/Poppler/qpdf tests verify painted curves, byte-for-byte
 shorthand/longhand equivalence and protected-error recovery.
 
+## Current-source font-relative padding on fixed-column table cells (candidate)
+
+Invoice templates with fixed column tracks may use nonnegative, bounded
+`em` and `rem` in `padding`, its four physical side longhands,
+and LTR `padding-inline` / `padding-block` (including their longhands)
+on actual `td` and `th` cells. `em` uses the cell's final computed
+font size after the cascade; `rem` uses the computed HTML root size
+(or configured initial font when the root is absent). The result is a
+physical cell inset before row measurement. It changes real PDF glyph
+positions, wrapping, backgrounds, fixed-track content widths and
+page continuation/repeated headings, rather than accepting CSS syntax alone.
+Supported percentages still use the track width as before.
+
+Example: with a 16pt root and a 10pt cell, `padding:0.2em 0.25rem`
+is `padding:2pt 4pt`. Cascade, source order, `!important` and
+CSS-wide keywords continue to use the existing computed side values.
+The [24-row invoice](../examples/report-cell-relative-padding.html)
+has an [independently authored point-value oracle](../examples/report-cell-relative-padding-oracle.html);
+[actual HTML-to-PDF equality, page/header, geometry, font and protected-error
+tests](../tests/FactsPDF.Tests/TableCellRelativePaddingTests.cs)
+exercise the same fixed table layout and paint path.
+
+This does not add font-relative sizing to `table`, `col`, rows,
+table groups or table cell widths, or give nested cell paragraphs their own
+box insets. Negative/oversized values, `calc()`, impossible track geometry
+and unsupported elements still fail, preserving any existing PDF output.
+It is not generic CSS Tables, Grid, or Flex; candidate only until
+review, exact-head CI and normal integration.
+
 ## Current-source bounded vertical alignment for fixed-column table cells
 
 Fixed-column `td` and `th` accept the real PDF-rendered values

@@ -4,6 +4,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="../../examples/report-cell-relative-padding*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../examples/report-overflow-wrap*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../examples/report-word-break-identifiers*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../fixtures/jpeg/**" Link="jpeg/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
