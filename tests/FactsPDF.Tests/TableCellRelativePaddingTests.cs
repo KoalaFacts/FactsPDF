@@ -9,10 +9,15 @@ public sealed class TableCellRelativePaddingTests
     private static readonly PdfOptions Page = new() { PageWidth = 240, PageHeight = 150, Margin = 10 };
 
     private static string Cell(string style, string tag = "td", string content = "AB")
-        => "<html style='font-size:16pt'><body><table style='width:100pt;font-size:10pt;line-height:1.2'>" +
-           "<colgroup><col style='width:100pt'></colgroup><tbody><tr><" + tag +
-           " style='font-size:10pt;background:#e4f0f8;border:1pt solid #315f82;" + style +
-           "'>" + content + "</" + tag + "></tr></tbody></table></body></html>";
+    {
+        var element = "<" + tag + " style='font-size:10pt;background:#e4f0f8;border:1pt solid #315f82;" +
+            style + "'>" + content + "</" + tag + ">";
+        var rows = tag == "th"
+            ? "<thead><tr>" + element + "</tr></thead><tbody><tr><td>TAIL</td></tr></tbody>"
+            : "<tbody><tr>" + element + "</tr></tbody>";
+        return "<html style='font-size:16pt'><body><table style='width:100pt;font-size:10pt;line-height:1.2'>" +
+            "<colgroup><col style='width:100pt'></colgroup>" + rows + "</table></body></html>";
+    }
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
         => TableLayoutTests.Pdf(html, options ?? Page);
@@ -62,8 +67,8 @@ public sealed class TableCellRelativePaddingTests
         var relative = Cell("padding:0.2em 0.25rem;font-size:12pt;font-weight:normal", "th");
         var physical = Cell("padding:2.4pt 4pt;font-size:12pt;font-weight:normal", "th");
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(physical)));
-        Assert.That(Layout(relative).Single().Runs.Single().X,
-            Is.EqualTo(Layout(physical).Single().Runs.Single().X).Within(0.000001));
+        Assert.That(Layout(relative).Single().Runs.Single(r => r.Text == "AB").X,
+            Is.EqualTo(Layout(physical).Single().Runs.Single(r => r.Text == "AB").X).Within(0.000001));
     }
 
     [Test]
@@ -126,7 +131,9 @@ public sealed class TableCellRelativePaddingTests
             "<table style='padding:1em;width:100pt", StringComparison.Ordinal), "FPDF1201");
         Reject(Cell("padding:2pt").Replace("<td style=", "<td style='width:1em;", StringComparison.Ordinal),
             "FPDF1201");
-        Reject(Cell("padding:2pt", content: "<p style='padding:1em'>AB</p>"), "FPDF1201");
+        // In the strict table markup reader, a cell's independently styled paragraph
+        // is rejected at the structure boundary before it can become a painted box.
+        Reject(Cell("padding:2pt", content: "<p style='padding:1em'>AB</p>"), "FPDF1101");
     }
 
     [Test]
