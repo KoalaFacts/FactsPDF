@@ -347,11 +347,12 @@ test('text-indent remains a limited renderable CSS feature after relative audit'
   assert.equal(f.status,'partial');
   assert.equal(f.last_audited_commit,'7282c0839235443ab49935cb0f2e8092117786a1');
   assert.equal(f.introduced_release,null);
-  assert.match(f.scope,/实际内容宽度/);
+  assert.match(f.scope,/实际单元格或段落内容宽度/);
   assert.match(f.scope,/PDF/);
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/表格单元格/);
   assert.match(f.scope,/html\/body.*div\/section\/article\/blockquote/);
+  assert.match(f.scope,/固定列 td\/th/);
   assert.equal(f.example,'text-indent:0.25in');
   assert.deepEqual(filterFeatures(dataset.features,{q:'text-indent',status:'partial'})
     .map(f=>f.id).sort(), ['css.text-indent','value.length.relative']);
