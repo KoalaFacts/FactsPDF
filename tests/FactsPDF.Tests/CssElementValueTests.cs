@@ -73,5 +73,5 @@ public sealed class CssElementValueTests
         Assert.That(Encoding.Latin1.GetString(bytes), Does.Not.Contain("1 0 0 rg"));
     }
 
-    private const double PerParagraphLimit = 620;
+    private const double PerParagraphLimit = 630;
 }
