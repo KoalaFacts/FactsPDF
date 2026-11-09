@@ -4,11 +4,25 @@ using System.Text;
 namespace FactsPDF;
 
 internal enum HtmlTokenKind { Text, Start, End, StyleText }
-internal sealed record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
-    bool SelfClosing, int Offset, int StyleValueOffset = -1, int[]? StyleOriginOffsets = null);
-// StyleValueOffset: where the style attribute's raw value starts in the page (-1 without one).
-// StyleOriginOffsets: the page offset of every decoded code unit plus its end, kept only when the
-// value contains '&'; otherwise code unit i comes from StyleValueOffset + i.
+internal record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
+    bool SelfClosing, int Offset)
+{
+    // StyleValueOffset: where the style attribute's raw value starts in the page (-1 without one).
+    // StyleOriginOffsets: the page offset of every decoded code unit plus its end, kept only when
+    // the value contains '&'; otherwise code unit i comes from StyleValueOffset + i.
+    // Only a start tag with a style attribute is a StyledHtmlToken that stores them, so every other
+    // token is 8 bytes smaller.
+    public virtual int StyleValueOffset => -1;
+    public virtual int[]? StyleOriginOffsets => null;
+}
+
+internal sealed record StyledHtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
+    bool SelfClosing, int Offset, int StyleStart, int[]? StyleOrigins)
+    : HtmlToken(Kind, Value, Attributes, SelfClosing, Offset)
+{
+    public override int StyleValueOffset => StyleStart;
+    public override int[]? StyleOriginOffsets => StyleOrigins;
+}
 
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
 internal static class HtmlTokens
@@ -117,7 +131,10 @@ internal static class HtmlTokens
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
-            yield return new(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start, styleValueOffset, styleOriginOffsets);
+            yield return styleValueOffset < 0
+                ? new HtmlToken(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start)
+                : new StyledHtmlToken(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start,
+                    styleValueOffset, styleOriginOffsets);
             if (name == "style" && !selfClosing)
             {
                 // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
