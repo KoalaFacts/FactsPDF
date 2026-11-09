@@ -82,7 +82,7 @@ public sealed class TextStyleSharingTests
         var document = Read("<style>div{color:blue;font-size:20pt} p{color:inherit;font-size:initial;line-height:2}</style>"
             + "<div><p>A</p></div><p>B</p>");
         var panel = Descendants(document.Children).OfType<BlockNode>().Single(b => b.Name == "div");
-        var paragraphs = Descendants(document.Children).OfType<ParagraphNode>().Select(p => p.Paragraph).ToList();
+        var paragraphs = Descendants(document.Children).OfType<Paragraph>().ToList();
         var inner = paragraphs.Single(p => p.Runs[0].Text == "A").Style;
         var outer = paragraphs.Single(p => p.Runs[0].Text == "B").Style;
         Assert.That(panel.Style.FontSize, Is.EqualTo(20));

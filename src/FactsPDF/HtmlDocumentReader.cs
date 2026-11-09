@@ -138,7 +138,11 @@ internal static class HtmlDocumentReader
                     if (!anonymous || current.Runs.Any(r => r.IsBreak) || TextLines.HasTextContent(current, cancellation))
                         cell.Contents.Add(new TableCellText(current));
                 }
-                else CurrentChildren().Add(new ParagraphNode(current, anonymous));
+                else
+                {
+                    current.IsAnonymous = anonymous;
+                    CurrentChildren().Add(current);
+                }
             }
             current = null;
             anonymous = false;
@@ -167,10 +171,10 @@ internal static class HtmlDocumentReader
                 // so subsequent direct text/inline runs behave exactly as
                 // if the hidden block had never existed.
                 if (current is null && table is null && siblings.Count > 0
-                    && siblings[^1] is ParagraphNode { IsAnonymous: true } before)
+                    && siblings[^1] is Paragraph { IsAnonymous: true } before)
                 {
                     siblings.RemoveAt(siblings.Count - 1);
-                    current = before.Paragraph;
+                    current = before;
                     anonymous = true;
                 }
             }

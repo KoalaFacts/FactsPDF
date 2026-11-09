@@ -24,8 +24,8 @@ internal static class BlockTreeTraversal
             pending.Push((siblings, index + 1));
             switch (siblings[index])
             {
-                case ParagraphNode paragraph:
-                    yield return paragraph.Paragraph;
+                case Paragraph paragraph:
+                    yield return paragraph;
                     break;
                 case BlockNode box:
                     pending.Push((box.Children, 0));

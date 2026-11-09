@@ -90,7 +90,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(rgb.scope,/rgba/);
   for(const id of ["css.color","css.background","css.background-color","css.border","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color"]) {
     const feature=dataset.features.find(f=>f.id===id);
-    assert.equal(feature.last_audited_commit, id==='css.border' ? '99328f071395d5d7cc1eedad9138f05ee118fb0f' : id==='css.text-decoration' ? 'b8f9b938ec42b108fb6f325715a4dd9b692e027d' : ['css.color','css.background','css.background-color'].includes(id) ? '3dbcded4f5d39b16b79bbff7aac4132305659d4a' : 'c9138808d785986712f17e977fa2371854cb6aed');
+    assert.equal(feature.last_audited_commit, id==='css.border' ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : id==='css.text-decoration' ? 'b8f9b938ec42b108fb6f325715a4dd9b692e027d' : ['css.color','css.background','css.background-color'].includes(id) ? '3dbcded4f5d39b16b79bbff7aac4132305659d4a' : 'c9138808d785986712f17e977fa2371854cb6aed');
     assert.match(feature.scope,/hsl\(/);
     assert.match(feature.limitations,/alpha/);
     assert.match(feature.test_reference, id==='css.border' ? /LogicalBorderComponentTests/ : ['css.color','css.background','css.background-color'].includes(id) ? /CurrentColorReportTests/ : /CssNamedColorTests/);
@@ -668,9 +668,8 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
     // Real named-colour paint updates the border shorthand and four
     // physical border-side shorthands. Style-only rows keep prior provenance.
     const inkSides=['css.border','css.border-top','css.border-right','css.border-bottom','css.border-left'];
-    assert.equal(row.last_audited_commit,id==='css.border' ? '99328f071395d5d7cc1eedad9138f05ee118fb0f' : inkSides.includes(id)
-      ? 'c9138808d785986712f17e977fa2371854cb6aed'
-      : '4b5d6da3553579dad75dd00bfb041e1f3c200d90');
+    assert.equal(row.last_audited_commit,inkSides.includes(id)
+      ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : '4b5d6da3553579dad75dd00bfb041e1f3c200d90');
     assert.match(row.scope,/dashed/);
     assert.match(row.scope,/dotted/);
     if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))

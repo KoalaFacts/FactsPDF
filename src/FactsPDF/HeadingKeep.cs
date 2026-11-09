@@ -17,10 +17,10 @@ internal static class HeadingKeep
             cancellation.ThrowIfCancellationRequested();
             if (children[i] is not BlockNode node ||
                 !(node.Name is "p" or "pre" || IsHeading(node.Name) && node.Style.KeepWithNext) ||
-                node.Children.Count != 1 || node.Children[0] is not ParagraphNode paragraph)
+                node.Children.Count != 1 || node.Children[0] is not Paragraph paragraph)
                 return (Math.Max(start + 1, i), false);
             if (i > start && node.Style.BreakBefore) canceled = true;
-            if (node.Name is "p" or "pre" && HasTextContent(paragraph.Paragraph, cancellation))
+            if (node.Name is "p" or "pre" && HasTextContent(paragraph, cancellation))
                 return (i + 1, !canceled);
             if (node.Style.BreakAfter) canceled = true;
         }
@@ -69,7 +69,7 @@ internal static class HeadingKeep
                 cancellation.ThrowIfCancellationRequested();
                 var node = (BlockNode)group.Children[i];
                 var paragraph = BlockLayout.ResolveParagraphMargins(
-                    ((ParagraphNode)node.Children[0]).Paragraph, group.ContentWidth, options);
+                    (Paragraph)node.Children[0], group.ContentWidth, options);
                 var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle, group.ContentWidth, node.SourceOffset);
                 var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset, group.ContentWidth);
                 var before = paragraph.Style.MarginBefore;
