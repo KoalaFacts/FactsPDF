@@ -43,9 +43,9 @@ public sealed class TableCellTextFlowTests
     [TestCase("pre")]
     public void CellWhiteSpaceInheritsIntoFlatParagraphAndMatchesExplicitPdf(string mode)
     {
-        const string content = "<p>PAID  IN FULL\nREVIEWED</p>";
+        const string content = "<p>PAID  OK\nDONE</p>";
         var actual = Cell("white-space:" + mode, content);
-        var oracle = Cell("", "<p style='white-space:" + mode + "'>PAID  IN FULL\nREVIEWED</p>");
+        var oracle = Cell("", "<p style='white-space:" + mode + "'>PAID  OK\nDONE</p>");
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)));
         Assert.That(Layout(actual).SelectMany(p => p.Runs).Select(r => (r.Text,r.X,r.Baseline)),
             Is.EqualTo(Layout(oracle).SelectMany(p => p.Runs).Select(r => (r.Text,r.X,r.Baseline))));

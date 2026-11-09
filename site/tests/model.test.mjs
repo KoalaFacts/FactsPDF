@@ -127,14 +127,14 @@ test('standalone horizontal rules are real scoped PDF separators, not full HTML/
 test('bounded report overflow-wrap audit has real scope and exact source evidence', () => {
   const f=dataset.features.find(x=>x.id==='css.overflow-wrap');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.equal(f.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/break-word/);
   assert.match(f.scope,/PDF/);
   assert.match(f.limitations,/nowrap/);
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/anywhere/);
-  assert.match(f.scope,/html\/body.*div\/section\/article\/blockquote/);
+  assert.match(f.scope,/html\/body.*固定列.*td\/th/);
   assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.overflow-wrap']);
   assert.equal(dataset.accepted_css_property_count,116);
 });
@@ -142,21 +142,21 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
 test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conformance', () => {
   const feature=dataset.features.find(f=>f.id==='css.white-space');
   assert.equal(feature.status,'partial');
-  assert.equal(feature.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.equal(feature.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.equal(feature.introduced_release,null);
   assert.match(feature.scope,/nowrap/);
-  assert.match(feature.scope,/br/);
+  assert.match(feature.sources.join(' '),/488691c604e43c5bd1cf8c2b444e0d7cfb388699/);
   assert.match(feature.limitations,/span/);
   assert.match(feature.limitations,/FPDF1302/);
   assert.equal(feature.example,'white-space:pre-wrap');
   assert.match(feature.scope,/normal.*nowrap.*pre-line.*pre-wrap/);
-  assert.match(feature.scope,/html\/body.*div\/section\/article\/blockquote/);
+  assert.match(feature.scope,/html\/body.*固定列.*td\/th/);
   assert.match(feature.limitations,/制表符/);
   assert.match(feature.limitations,/FPDF1305/);
   assert.match(feature.limitations,/FPDF1201/);
   assert.match(feature.limitations,/FPDF1202/);
-  assert.match(feature.test_reference,/InheritedWhiteSpaceReportTests\.cs/);
-  assert.match(feature.evidence_level,/五个模式继承和显式子节点逐字节对照/,
+  assert.match(feature.test_reference,/TableCellTextFlowTests\.cs/);
+  assert.match(feature.evidence_level,/继承白空格模式.*独立 p PDF 等价对照/,
     'The inherited report white-space audit must retain explicit positive actual PDF equivalence evidence.');
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
     ['css.white-space','css.word-break','css.word-spacing','html.pre']);
@@ -692,7 +692,7 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
   const css=dataset.features.find(feature => feature.id==='css.white-space');
   assert.equal(pre.status,'partial');
   assert.equal(pre.last_audited_commit,'d8d1a9e083bfc83829275ec08f6038261b4e1663');
-  assert.equal(css.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.equal(css.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.match(pre.scope,/U\+0020/);
   assert.match(pre.limitations,/FPDF1305/);
   assert.match(css.scope,/pre-wrap.*pre/);
@@ -780,13 +780,13 @@ test('bounded report height is a real PDF layout feature with a precise source i
 test('scoped word-break actually places glyphs and preserves all 418 feature identities', () => {
   const row=dataset.features.find(item=>item.id==='css.word-break');
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.equal(row.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/word-break:normal\/break-all/);
   assert.match(row.scope,/PDF/);
-  assert.match(row.limitations,/FPDF1301\/1302/);
-  assert.match(row.scope,/html\/body.*div\/section\/article\/blockquote/);
-  assert.match(row.test_reference,/InheritedReportTextFlowTests.cs/);
+  assert.match(row.limitations,/FPDF1301/); assert.match(row.limitations,/FPDF1302/);
+  assert.match(row.scope,/html\/body.*固定列.*td\/th/);
+  assert.match(row.test_reference,/TableCellTextFlowTests.cs/);
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
 });

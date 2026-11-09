@@ -83,7 +83,7 @@ test('English inherited white-space audit stays partial and documents real PDF a
   const raw=data.features.find(row=>row.id==='css.white-space');
   const row=englishFeature(raw);
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'488691c604e43c5bd1cf8c2b444e0d7cfb388699');
+  assert.equal(row.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.match(row.scope,/html\/body/);
   assert.match(row.scope,/div\/section\/article\/blockquote/);
   assert.match(row.scope,/real PDF/);
@@ -141,7 +141,7 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.equal(display.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.match(display.scope,/flat cell paragraphs/);
   assert.match(display.scope,/outside lists\/tables/);
   assert.match(display.limitations,/nowrap\/pre forbids soft wraps/);
@@ -370,7 +370,7 @@ test('scoped word-break English audit distinguishes normal emergency wrap from b
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(item=>item.id==='css.word-break'));
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'c7d9bf7012bf09aaefa4dabfebc9769ce371d5ba');
+  assert.equal(row.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
   assert.match(row.scope,/current PDF line/);
   assert.match(row.scope,/glyph/);
   assert.match(row.limitations,/keep-all/);
