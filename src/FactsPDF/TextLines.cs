@@ -669,9 +669,6 @@ internal static class TextLines
         }
     }
 
-    // Wrap's line and word glyph lists, reused across paragraphs on one thread. A Wrap that starts
-    // while another is still open (a list marker's line inside its paragraph) finds the slot empty
-    // and allocates its own. Returned lists are cleared, and lists grown past MaxPooledGlyphs are dropped.
     private static void CheckSimpleScalar(int scalar, int sourceOffset)
     {
         var category = Rune.GetUnicodeCategory(new Rune(scalar));
