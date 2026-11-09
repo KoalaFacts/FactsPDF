@@ -5,7 +5,7 @@ namespace FactsPDF.Tests;
 
 // Only a start tag with attributes stores an attribute map (an AttributedHtmlToken), and only one
 // with a style attribute also stores that attribute's source offsets (a StyledHtmlToken); text, end
-// and attribute-less start tags are plain 40-byte HtmlTokens.
+// and attribute-less start tags are plain 32-byte HtmlTokens.
 [TestFixture]
 [NonParallelizable]
 public sealed class HtmlTokenSizeTests
@@ -65,6 +65,19 @@ public sealed class HtmlTokenSizeTests
         var perParagraph = (large - small) / 1_000.0;
         TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
         Assert.That(perParagraph, Is.LessThan(485));
+    }
+
+    // Measured on top of Z6g2b4 (472 bytes per paragraph, three 40-byte tokens each): 448 with a
+    // one-byte token kind, which packs beside SelfClosing so a plain token is 32 bytes.
+    [Test]
+    public void ReadingAParagraphAllocatesTokensWithAOneByteKind()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(460));
     }
 
     // Only a start tag with attributes stores an attribute map; a start tag without attributes
