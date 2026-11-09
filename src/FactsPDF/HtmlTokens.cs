@@ -141,7 +141,7 @@ internal static class HtmlTokens
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
             yield return styleValueOffset >= 0
-                ? new StyledHtmlToken(name, attrs ?? NoAttributes, selfClosing, start, styleValueOffset, styleOriginOffsets)
+                ? new StyledHtmlToken(name, attrs!, selfClosing, start, styleValueOffset, styleOriginOffsets)
                 : attrs is null
                     ? new HtmlToken(HtmlTokenKind.Start, name, selfClosing, start)
                     : new AttributedHtmlToken(name, attrs, selfClosing, start);

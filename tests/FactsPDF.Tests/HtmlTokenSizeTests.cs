@@ -3,8 +3,9 @@ using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-// Only a start tag with a style attribute stores the style attribute's source offsets; every other
-// token is a plain HtmlToken, 8 bytes smaller.
+// Only a start tag with attributes stores an attribute map (an AttributedHtmlToken), and only one
+// with a style attribute also stores that attribute's source offsets (a StyledHtmlToken); text, end
+// and attribute-less start tags are plain 40-byte HtmlTokens.
 [TestFixture]
 [NonParallelizable]
 public sealed class HtmlTokenSizeTests
