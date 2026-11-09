@@ -432,7 +432,7 @@ test('HSL colour support has exact English scope and leaves RGB history intact',
   for(const id of ['css.color','css.background','css.background-color','css.border','css.border-color',
     'css.border-top-color','css.border-right-color','css.border-bottom-color','css.border-left-color']) {
     const f=englishFeature(data.features.find(f=>f.id===id));
-    assert.equal(f.last_audited_commit,id==='css.border' ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : id==='css.text-decoration' ? '2d18399e25c65267431f0decc7fe716dde82688a' : ['css.color','css.background','css.background-color'].includes(id) ? '3dbcded4f5d39b16b79bbff7aac4132305659d4a' : 'c9138808d785986712f17e977fa2371854cb6aed');
+    assert.equal(f.last_audited_commit,['css.border','css.border-top','css.border-right','css.border-bottom','css.border-left'].includes(id) ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : id==='css.text-decoration' ? '2d18399e25c65267431f0decc7fe716dde82688a' : ['css.color','css.background','css.background-color'].includes(id) ? '3dbcded4f5d39b16b79bbff7aac4132305659d4a' : 'c9138808d785986712f17e977fa2371854cb6aed');
     assert.match(f.scope,/Opaque HSL/);assert.match(f.limitations,/alpha/);
     assert.doesNotMatch(f.scope+' '+f.limitations,han);
   }
