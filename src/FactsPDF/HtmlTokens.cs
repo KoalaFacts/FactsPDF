@@ -3,7 +3,8 @@ using System.Text;
 
 namespace FactsPDF;
 
-internal enum HtmlTokenKind { Text, Start, End, StyleText }
+// One byte, so it packs beside SelfClosing: a plain token is 32 bytes instead of 40.
+internal enum HtmlTokenKind : byte { Text, Start, End, StyleText }
 internal record HtmlToken(HtmlTokenKind Kind, string Value, bool SelfClosing, int Offset)
 {
     // Attributes: null for text, end and style-text tokens; a start tag without attributes shares
