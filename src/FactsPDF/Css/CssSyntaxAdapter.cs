@@ -413,7 +413,7 @@ internal static class CssSyntaxAdapter
                         var word = words[i];
                         var offset = valueTokens[i].Token.Span.Start;
                         if (Wide(word)) throw new FactsPdfException("FPDF1202", "CSS-wide keyword must be the only shorthand value.", offset);
-                        if (CssPaintValues.TryBorderWidth(word, out _))
+                        if (CssPaintValues.TryBorderWidth(word, out _, allowRelative: true))
                         {
                             if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
                             width = word; hasWidth = true; widthOffset = offset;
@@ -1120,7 +1120,8 @@ internal static class CssSyntaxAdapter
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
         else if (name.Contains("border", StringComparison.Ordinal))
         {
-            if (name.EndsWith("width", StringComparison.Ordinal)) _ = CssPaintValues.BorderWidth(token, offset);
+            if (name.EndsWith("width", StringComparison.Ordinal))
+                _ = CssPaintValues.BorderWidth(token, offset, allowRelative: true);
             else if (name.EndsWith("style", StringComparison.Ordinal)) _ = CssPaintValues.BorderStyle(token, offset);
             else if (name.EndsWith("color", StringComparison.Ordinal)) _ = CssPaintValues.BorderColor(token, offset);
             else throw new InvalidOperationException("Shorthand validation should be handled separately.");

@@ -394,7 +394,8 @@ internal static class CssDeclarations
         };
         var changed = component switch
         {
-            0 => old with { Width = wide ? inherited.Width : CssPaintValues.BorderWidth(value, declaration.Offset) },
+            0 => old with { Width = wide ? inherited.Width : CssPaintValues.BorderWidth(value,
+                declaration.Offset, allowRelative: true, rootFontSize: rootFontSize, elementFontSize: elementFontSize) },
             1 => old with
             {
                 Solid = wide ? inherited.Solid : value != "none",

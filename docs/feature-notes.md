@@ -205,6 +205,25 @@ For a fontless case-formatting example with a preserved proper-name span, see th
 
 ## Borders and rounded corners
 
+### Computed em/rem borders on printable report boxes (candidate source)
+
+Border widths now accept bounded nonnegative `em` and `rem` through the
+existing physical and LTR logical width longhands, 1–4 value `border-width`,
+and per-side / all-side border shorthands. `em` resolves from the final
+computed font size of the painted element; `rem` uses the computed HTML root
+(or configured initial size without `html`). The final points drive PDF
+border strokes, content-box deductions, text placement, repeated fixed-track
+table headers and page fragments. No border shorthand parsing without paint.
+
+This extends the same supported border targets (ordinary report boxes,
+bound images, fixed-column `table` and `td/th`), not structural `col`,
+`tr` or inline elements. Percentages, negative lengths, `calc()` and
+relative `outline-width`/corner radii remain rejected. Winning values that
+compute beyond 14,400pt fail `FPDF1202`; impossible content geometry fails
+`FPDF1302`, with prior output retained. See the actual HTML-to-PDF point
+oracles and negative tests in `FontRelativeBorderWidthTests.cs`.
+
+
 ### Report-panel outline paint (source-only)
 
 Use `outline:2pt dotted #285d91;outline-offset:3pt` on an ordinary
