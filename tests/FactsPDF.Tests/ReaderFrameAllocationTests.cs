@@ -58,7 +58,7 @@ public sealed class ReaderFrameAllocationTests
     private static (int Depth, string Text) Deepest(BlockChild child, int depth) => child switch
     {
         BlockNode { Children: [var only] } box => Deepest(only, depth + 1),
-        ParagraphNode paragraph => (depth, string.Concat(paragraph.Paragraph.Runs.Select(r => r.Text))),
+        Paragraph paragraph => (depth, string.Concat(paragraph.Runs.Select(r => r.Text))),
         _ => (-1, ""),
     };
 

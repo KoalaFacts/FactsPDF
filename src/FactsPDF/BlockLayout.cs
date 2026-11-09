@@ -66,11 +66,11 @@ internal static class BlockLayout
                         geometry.Width, geometry.Height, geometry.OuterWidth, geometry.OuterHeight);
                     break;
                 }
-                case ParagraphNode paragraph:
+                case Paragraph paragraph:
                     yield return new LayoutParagraph(
-                        ResolveParagraphMargins(paragraph.Paragraph, frame.ParagraphMarginBasis ?? frame.ContentWidth, options),
+                        ResolveParagraphMargins(paragraph, frame.ParagraphMarginBasis ?? frame.ContentWidth, options),
                         frame.X, frame.ContentWidth,
-                        lists?.Marker(paragraph.Paragraph), frame.MarkerRightX);
+                        lists?.Marker(paragraph), frame.MarkerRightX);
                     break;
                 case BlockNode node:
                 {
@@ -115,8 +115,8 @@ internal static class BlockLayout
                     var noOccupiedChildren = node.Children.Count == 0 ||
                         node.Children.All(child => child is BlockNode paragraph &&
                             paragraph.Name == "p" && paragraph.Children.Count == 1 &&
-                            paragraph.Children[0] is ParagraphNode content &&
-                            content.Paragraph.Runs.Count == 0 &&
+                            paragraph.Children[0] is Paragraph content &&
+                            content.Runs.Count == 0 &&
                             HasNoParagraphOutsideMargin(paragraph.Style) &&
                             !paragraph.Style.BreakBefore && !paragraph.Style.BreakAfter &&
                             !paragraph.BoxStyle.BreakBefore && !paragraph.BoxStyle.BreakAfter &&
@@ -182,10 +182,10 @@ internal static class BlockLayout
                             if (child is not BlockNode item ||
                                 item.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6") ||
                                 item.Children.Count != 1 ||
-                                item.Children[0] is not ParagraphNode paragraph ||
+                                item.Children[0] is not Paragraph paragraph ||
                                 item.Style.BreakBefore || item.Style.BreakAfter ||
-                                paragraph.Paragraph.Style.BreakBefore || paragraph.Paragraph.Style.BreakAfter ||
-                                !TextLines.HasTextContent(paragraph.Paragraph, cancellation))
+                                paragraph.Style.BreakBefore || paragraph.Style.BreakAfter ||
+                                !TextLines.HasTextContent(paragraph, cancellation))
                                 throw new FactsPdfException("FPDF1201",
                                     "Kept report card supports only nonempty, direct flat paragraphs/headings without inner page breaks.",
                                     node.SourceOffset);
@@ -279,15 +279,15 @@ internal static class BlockLayout
             {
                 if (box.PaddingTop.Value != 0 || box.PaddingBottom.Value != 0 ||
                     child.Children.Count != 1 ||
-                    child.Children[0] is not ParagraphNode content ||
-                    content.Paragraph.Runs.Count != 0)
+                    child.Children[0] is not Paragraph content ||
+                    content.Runs.Count != 0)
                     return false;
                 // A blank, unpainted paragraph can still have a nonzero outside
                 // margin. TextLayout defers the largest such margin, including
                 // percentages based on this paragraph's containing content width.
                 // Count it when deciding whether the blank parent's two outside
                 // margins can fit on one physical page.
-                var paragraph = content.Paragraph;
+                var paragraph = content;
                 var before = Checked(paragraph.Style.PercentMarginBefore?.Resolve(width) ??
                     paragraph.Style.MarginBefore, paragraph.SourceOffset);
                 var after = Checked(paragraph.Style.PercentMarginAfter?.Resolve(width) ??

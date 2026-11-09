@@ -4,12 +4,12 @@ This milestone introduces a **retained nested block tree** for FactsPDF's curren
 
 ## Data model
 
-`HtmlDocumentReader.ReadTree(html, options, cancellation)` builds an internal `DocumentRoot` whose children are `BlockNode` and `ParagraphNode`.
+`HtmlDocumentReader.ReadTree(html, options, cancellation)` builds an internal `DocumentRoot` whose children are `BlockNode` and `Paragraph`.
 
 - A **`BlockNode`** records the actual HTML tag name, computed text style, original HTML source offset and an ordered list of child nodes. The supported block nodes are `body`, `div`, `section`, `article`, `p`, and `h1`–`h6`.
-- A **`ParagraphNode`** stores the current `Paragraph` and an `IsAnonymous` flag. An explicit `p/h1…h6` box owns one explicit `ParagraphNode` (including an empty paragraph). Direct text and inline spans under a container coalesce into an anonymous paragraph. A nested block flushes that paragraph and starts a new sibling leaf when text resumes after the nested block.
+- A **`Paragraph`** is itself a block child (no wrapper object) with an `IsAnonymous` flag the reader sets when it adds the paragraph to its parent. An explicit `p/h1…h6` box owns one explicit `Paragraph` (including an empty paragraph). Direct text and inline spans under a container coalesce into an anonymous paragraph. A nested block flushes that paragraph and starts a new sibling leaf when text resumes after the nested block.
 - **`html`** participates in stylesheet selector ancestry and text-style inheritance, but is not a painted or laid-out block node in this milestone. Head, title, meta, style and `span` do not create block nodes. `br` stays a forced inline break inside the current paragraph.
-- The `BlockNode.Style` always retains the containing block's computed style. **Until the future block-aware layout milestone**, an anonymous leaf's legacy `Paragraph.Style` is initialized from the first active inline style if the first text lies inside a `span`, preserving existing PDF line/alignment behavior. Thus `ParagraphNode.Paragraph.Style` can temporarily differ from `BlockNode.Style`, by design; each text run retains its independent style.
+- The `BlockNode.Style` always retains the containing block's computed style. **Until the future block-aware layout milestone**, an anonymous leaf's legacy `Paragraph.Style` is initialized from the first active inline style if the first text lies inside a `span`, preserving existing PDF line/alignment behavior. Thus `Paragraph.Style` can temporarily differ from `BlockNode.Style`, by design; each text run retains its independent style.
 
 This is **not** a general HTML5 DOM or browser tree-construction engine. Existing strict unsupported-tag/nesting checks, optional `p/body/html` closures, HTML RAWTEXT treatment, source offsets, CSS specificity and later stylesheet rules continue to apply.
 
@@ -25,10 +25,10 @@ HtmlDocumentReader.ReadTree()
 DocumentRoot
   BlockNode ("body")
     BlockNode ("section")
-      ParagraphNode (anonymous text before child box)
+      Paragraph (anonymous text before child box)
       BlockNode ("p")
-        ParagraphNode (explicit text)
-      ParagraphNode (anonymous text after child box)
+        Paragraph (explicit text)
+      Paragraph (anonymous text after child box)
          |
 BlockTreeTraversal.Paragraphs()   <-- lazy, iterative depth-first visit
          |

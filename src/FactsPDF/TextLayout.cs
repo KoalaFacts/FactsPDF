@@ -199,7 +199,7 @@ internal static class TextLayout
                     cancellation.ThrowIfCancellationRequested();
                     var node = (BlockNode)child;
                     var keptParagraph = BlockLayout.ResolveParagraphMargins(
-                        ((ParagraphNode)node.Children[0]).Paragraph, keep.ContentWidth, o);
+                        (Paragraph)node.Children[0], keep.ContentWidth, o);
                     var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle,
                         keep.ContentWidth, node.SourceOffset);
                     var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset,

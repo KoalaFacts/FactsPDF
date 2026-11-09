@@ -65,8 +65,13 @@ internal sealed record TextStyle
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
-internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1)
+internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : BlockChild
 {
+    // A paragraph is its own block child: true for text directly inside a block (or a list
+    // marker's generated line), false for the one paragraph a p, pre or heading element holds.
+    // Set when the reader adds it to its parent, so no wrapper object per paragraph is needed.
+    public bool IsAnonymous { get; set; }
+
     // Sized exactly when the reader knows how many runs the paragraph element holds, so a
     // one-run paragraph keeps a one-slot array instead of List's default four.
     public Paragraph(TextStyle style, int sourceOffset, int runCapacity) : this(style, sourceOffset)
@@ -240,7 +245,6 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
     public bool ListReversed { get; init; }
 }
 
-internal sealed record ParagraphNode(Paragraph Paragraph, bool IsAnonymous) : BlockChild;
 
 internal sealed record ImageNode(PdfImage Image, TextStyle Style, BoxStyle BoxStyle,
     int SourceOffset, string? Alt) : BlockChild;
