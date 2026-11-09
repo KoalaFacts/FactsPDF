@@ -357,7 +357,7 @@ internal sealed class CssStylesheets
                 or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
                 && !(reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
                     or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent))
-                && !(cellTextIndentHost && declaration.Property == CssProperty.TextIndent))
+                && !(cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
@@ -517,7 +517,7 @@ internal sealed class CssStylesheets
                 CssDeclarations.Apply(style, inheritedParent, initial, declaration,
                     paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
                         or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
-                        || cellTextIndentHost && declaration.Property == CssProperty.TextIndent, computedRoot);
+                        || cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
         }
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)

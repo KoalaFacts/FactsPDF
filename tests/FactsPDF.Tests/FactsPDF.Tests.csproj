@@ -4,6 +4,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="../../examples/report-cell-text-flow*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../examples/report-cell-relative-padding*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../examples/report-cell-text-indent*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../examples/report-table-relative-tracks*.html" Link="examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
