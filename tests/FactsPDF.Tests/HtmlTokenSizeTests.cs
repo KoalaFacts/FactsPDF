@@ -61,12 +61,15 @@ public sealed class HtmlTokenSizeTests
         Assert.That(token.StyleOriginOffsets, Has.Length.EqualTo("color:red".Length + 1));
     }
 
+    // A styled token's offsets reach the cascade: a value with a character reference still
+    // applies, and an invalid one reports the location inside the attribute value.
     [Test]
-    public void StyledAndPlainTokensRenderTheSameAsInlineAndSheetStyles()
+    public void StyledTokenOffsetsReachTheCascade()
     {
-        var inline = Pdf.Write().ToBytes("<p style=\"color:#ff0000\">x</p><p>y</p>");
-        var sheet = Pdf.Write().ToBytes("<style>.r{color:#ff0000}</style><p class=\"r\">x</p><p>y</p>");
-        Assert.That(Encoding.Latin1.GetString(inline), Does.Contain("1 0 0 rg"));
-        Assert.That(Encoding.Latin1.GetString(sheet), Does.Contain("1 0 0 rg"));
+        var bytes = Pdf.Write().ToBytes("<p>y</p><p style=\"color:#ff&#48;000\">x</p>");
+        Assert.That(Encoding.Latin1.GetString(bytes), Does.Contain("1 0 0 rg"));
+        const string html = "<p>y</p><p style=\"color:r&#101;d; width:-1pt\">x</p>";
+        var error = Assert.Throws<FactsPdfException>(() => Pdf.Write().ToBytes(html))!;
+        Assert.That(error.SourceOffset, Is.GreaterThan(html.IndexOf("style=", StringComparison.Ordinal)));
     }
 }
