@@ -401,12 +401,15 @@ internal static class HtmlDocumentReader
                 {
                     ListStart = listStart, ListValue = listValue, ListReversed = listReversed
                 };
+                // A paragraph element holds at most its own paragraph: block children are rejected
+                // or close it first, so one slot is exact.
+                if (ParagraphTag(name)) box.Children.Capacity = 1;
                 CurrentChildren().Add(box);
             }
             stack.Add(new(name, style, boxStyle, box, token.Offset));
             if (ParagraphTag(name))
             {
-                current = new Paragraph(style, token.Offset);
+                current = new Paragraph(style, token.Offset, RunCount(tokens, t + 1, name));
                 anonymous = false;
             }
         }
@@ -420,6 +423,26 @@ internal static class HtmlDocumentReader
         Flush();
         return result;
     }
+    // The runs a paragraph element opened just before `start` will hold: one per text token and
+    // one per br until its end tag, or until a block start or end that closes or rejects it. The
+    // count is exact for a well-formed paragraph and only sizes the run list, so an input that
+    // fails later merely over-counts.
+    private static int RunCount(List<HtmlToken> tokens, int start, string name)
+    {
+        var count = 0;
+        for (var i = start; i < tokens.Count; i++)
+        {
+            var token = tokens[i];
+            if (token.Kind == HtmlTokenKind.Text) { count++; continue; }
+            if (token.Kind == HtmlTokenKind.StyleText) continue;
+            var tag = token.Value;
+            if (token.Kind == HtmlTokenKind.End && tag == name) break;
+            if (ParagraphTag(tag) || Container(tag) || TableMarkup.IsTag(tag) || tag is "img" or "hr" or "style") break;
+            if (token.Kind == HtmlTokenKind.Start && tag == "br") count++;
+        }
+        return count;
+    }
+
     // Bounded positive ASCII decimal list ordinals only. Reject signs,
     // zero, overflow and decimal/exponent spellings instead of silently
     // truncating or wrapping generated PDF marker text.
