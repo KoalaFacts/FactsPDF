@@ -29,7 +29,8 @@ public sealed class WrapIteratorAllocationTests
 
     // Measured on main 001178a: 1,209 bytes of layout per one-line paragraph with two glyph
     // reader iterator objects; 985 with the reader as a value (eb531d2). 873 once the line
-    // iterator no longer holds a List enumerator and placing a line creates no charge delegate.
+    // iterator no longer holds a List enumerator and placing a line creates no charge delegate;
+    // 385 once one line wrapper per thread is reused instead of a compiler iterator per paragraph.
     [Test]
     public void OneLineParagraphsAllocateNoGlyphReaderObjects()
     {
@@ -41,5 +42,5 @@ public sealed class WrapIteratorAllocationTests
         Assert.That(perParagraph, Is.LessThan(PerParagraphLimit));
     }
 
-    private const double PerParagraphLimit = 950;
+    private const double PerParagraphLimit = 450;
 }

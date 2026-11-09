@@ -61,6 +61,24 @@ public sealed class WrapBufferReuseTests
     }
 
     [Test]
+    public void DisposingAWrapTwiceDoesNotHandItsWrapperToTwoWraps()
+    {
+        var resolved = new Dictionary<(FontRole, int), (PdfFont?, double)>();
+        var finished = TextLines.Wrap(Paragraph("KK"), 100, Page, resolved, default).GetEnumerator();
+        Assert.That(finished.MoveNext(), Is.True);
+        finished.Dispose();
+        using var open = TextLines.Wrap(Paragraph("LLLL MMMM NNNN"), 100, Page, resolved, default).GetEnumerator();
+        Assert.That(open.MoveNext(), Is.True);
+        // A late second Dispose of the finished Wrap must not pool the wrapper the open Wrap now uses.
+        finished.Dispose();
+        Assert.That(Lines(Paragraph("OO PP"), resolved), Is.EqualTo(new[] { "OO PP" }));
+        Assert.That(Text(open.Current), Is.EqualTo("LLLL MMMM"));
+        Assert.That(open.MoveNext(), Is.True);
+        Assert.That(Text(open.Current), Is.EqualTo("NNNN"));
+        Assert.That(open.MoveNext(), Is.False);
+    }
+
+    [Test]
     public void ARepeatedConversionWithNestedListMarkersIsByteIdentical()
     {
         const string Html = "<ol><li>First item text that wraps across several lines in a narrow page</li>"
