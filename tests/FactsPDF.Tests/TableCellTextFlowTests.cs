@@ -77,13 +77,15 @@ public sealed class TableCellTextFlowTests
     [Test]
     public void CellWordBreakAndImportantStylesChangeActualGlyphWrapping()
     {
-        const string word = "PAID EXAMPLE";
+        const string word = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const string rules = "<style>td.memo{word-break:break-all!important}</style>";
         var actual = Cell("word-break:normal", "<p>" + word + "</p>", rules);
         var oracle = Cell("", "<p style='word-break:break-all'>" + word + "</p>");
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)));
         var actualText = Layout(actual).SelectMany(page => page.Runs).Select(r => r.Text).ToArray();
         Assert.That(string.Concat(actualText), Does.Contain(word));
+        Assert.That(actualText.Length, Is.GreaterThan(4),
+            "The real PDF must contain several measured word fragments, not merely accept break-all syntax.");
     }
 
     [Test]

@@ -159,7 +159,7 @@ test('whole-paragraph nowrap is a limited PDF capability, not CSS Text conforman
   assert.match(feature.evidence_level,/继承白空格模式.*独立 p PDF 等价对照/,
     'The inherited report white-space audit must retain explicit positive actual PDF equivalence evidence.');
   assert.deepEqual(filterFeatures(dataset.features,{q:'white-space',status:'partial'}).map(f=>f.id).sort(),
-    ['css.white-space','css.word-break','css.word-spacing','html.pre']);
+    ['css.white-space','css.word-spacing','html.pre']);
 });
 test('scoped border-box CSS affects report geometry without misreporting tables', () => {
   const feature=dataset.features.find(f=>f.id==='css.box-sizing');
