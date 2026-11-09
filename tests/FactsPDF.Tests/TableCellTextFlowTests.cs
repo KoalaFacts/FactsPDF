@@ -83,7 +83,7 @@ public sealed class TableCellTextFlowTests
         var oracle = Cell("", "<p style='word-break:break-all'>" + word + "</p>");
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)));
         var actualText = Layout(actual).SelectMany(page => page.Runs).Select(r => r.Text).ToArray();
-        Assert.That(string.Concat(actualText), Does.Contain("PAID EXAMPLE".Replace(" ", "")));
+        Assert.That(string.Concat(actualText), Does.Contain(word));
     }
 
     [Test]
@@ -129,7 +129,9 @@ public sealed class TableCellTextFlowTests
     public void StructuralAndInlineDeclarationsRemainUnsupported()
     {
         var html = Cell("", "<p><span>Text</span></p>");
-        Reject(html.Replace("<table style=", "<table style='word-break:break-all;' data-x='yes' style=", StringComparison.Ordinal), "FPDF1103");
+        Reject(html.Replace("<table style='width:180pt;font-size:10pt'>",
+            "<table style='width:180pt;font-size:10pt;word-break:break-all'>",
+            StringComparison.Ordinal), "FPDF1201");
         Reject(html.Replace("<tr><td", "<tr style='overflow-wrap:break-word'><td", StringComparison.Ordinal), "FPDF1201");
         Reject(html.Replace("<col style='width:60pt'>", "<col style='width:60pt;white-space:pre-line'>", StringComparison.Ordinal), "FPDF1201");
         Reject(html.Replace("<span>", "<span style='word-break:break-all'>", StringComparison.Ordinal), "FPDF1201");

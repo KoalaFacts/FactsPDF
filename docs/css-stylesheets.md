@@ -1,3 +1,11 @@
+## Fixed-column table-cell inherited text wrapping (source candidate)
+
+Explicitly bounded `td/th` can declare `white-space`, `word-break` and `overflow-wrap` on the cell itself. Computed winners reach its anonymous text and flat `p` by inheritance; child paragraphs can override or reset them. Measured column content widths and existing `TextLines.Wrap` produce real PDF spaces, glyph positions, wraps, repeat headers and page breaks, rather than silently accepting declarations. This removes the need to insert a styled `p` in every table cell of a commercial report.
+
+Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all` and `overflow-wrap:normal/break-word`. No break-spaces/keep-all/anywhere, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
+
+A [24-row real report](../examples/report-cell-text-flow.html) and independent [paragraph-style control](../examples/report-cell-text-flow-oracle.html) are covered by [NUnit geometry, multipage, cascade and recovery tests](../tests/FactsPDF.Tests/TableCellTextFlowTests.cs). Engine source [19c6e35eb2987aa84fc7b5ff16b2ccad57630c60](https://github.com/KoalaFacts/FactsPDF/commit/19c6e35eb2987aa84fc7b5ff16b2ccad57630c60); exact CI, independent review, main verification and release are distinct. All three Can I Render records remain partial.
+
 ## First-line indentation in fixed-column table cells (source candidate)
 
 `text-indent` can now be declared on explicit fixed-track `td`/`th` cells and their flat `p` descendants. The cell's value is inherited by anonymous text and nested paragraphs. The winning nonnegative physical, `%`, `em` or `rem` length changes the measured first PDF line, wrapping, alignment and page continuations; later broken/wrapped lines do not re-indent and the cell background stays in place. Percentages use the **actual measured cell/paragraph content width**, not page width. Existing cascade, `!important` and `inherit/initial/unset` apply. This extends the existing partial `text-indent` behavior rather than creating a full CSS Text implementation.

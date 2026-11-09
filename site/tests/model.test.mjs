@@ -1,5 +1,5 @@
 import test from 'node:test';
-import { englishAudit } from '../src/audit-english-cell-text-indent.mjs';
+import { englishAudit } from '../src/audit-english-cell-text-flow.mjs';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -1023,5 +1023,20 @@ test('bound image history survives the table-track candidate without inflating C
     assert.doesNotMatch(f.scope,/图片仍拒绝em\/rem/,id);
     assert.match(f.scope,/图片新增有界em\/rem支持/,id);
   }
+  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+});
+
+test('fixed-track td/th text flow preserves partial evidence and IDs', () => {
+  for (const id of ['css.white-space','css.word-break','css.overflow-wrap']) {
+    const f=dataset.features.find(feature=>feature.id===id);
+    assert.ok(f,id);
+    assert.equal(f.status,'partial',id);
+    assert.equal(f.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60',id);
+    assert.equal(f.introduced_release,null,id);
+    assert.match(f.scope,/固定列.*td\/th/,id);
+    assert.match(f.limitations,/FPDF1201/,id);
+    assert.match(f.test_reference,/TableCellTextFlowTests.cs/,id);
+  }
+  assert.equal(validateDataset(dataset).features.length,418);
   assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
 });
