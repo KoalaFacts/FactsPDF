@@ -62,7 +62,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // A styled token's offsets reach the cascade: a value with a character reference still
-    // applies, and an invalid one reports the location inside the attribute value.
+    // applies, and an invalid one reports its exact page location through the origin map.
     [Test]
     public void StyledTokenOffsetsReachTheCascade()
     {
@@ -70,6 +70,7 @@ public sealed class HtmlTokenSizeTests
         Assert.That(Encoding.Latin1.GetString(bytes), Does.Contain("1 0 0 rg"));
         const string html = "<p>y</p><p style=\"color:r&#101;d; width:-1pt\">x</p>";
         var error = Assert.Throws<FactsPdfException>(() => Pdf.Write().ToBytes(html))!;
-        Assert.That(error.SourceOffset, Is.GreaterThan(html.IndexOf("style=", StringComparison.Ordinal)));
+        // The origin map maps the decoded value back past the five-character reference.
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("-1pt", StringComparison.Ordinal)));
     }
 }
