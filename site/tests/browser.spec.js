@@ -404,16 +404,16 @@ test('bilingual logical-border audit distinguishes LTR painted PDF edges from un
   await expect(panel).toContainText('RTL');
 });
 
-test('new LTR border component CSS is discoverable with its exact historical PDF evidence',async({page})=>{
+test('new LTR border component CSS keeps exact historical PDF evidence after current audit',async({page})=>{
   const {readFile}=await import('node:fs/promises');
   const snapshot=JSON.parse(await readFile(new URL('../data/compatibility.json',import.meta.url)));
   const border=snapshot.features.find(feature=>feature.id==='css.border');
-  expect(border.last_audited_commit).toBe('99328f071395d5d7cc1eedad9138f05ee118fb0f');
+  expect(border.last_audited_commit).toBe('d4584c1f32d6aaa35939ff22f14a11093e92945b');
   expect(border.test_reference).toBe('https://github.com/KoalaFacts/FactsPDF/blob/99328f071395d5d7cc1eedad9138f05ee118fb0f/tests/FactsPDF.Tests/LogicalBorderComponentTests.cs');
   await page.goto('/FactsPDF/#feature=css.border');
   const details=page.getByRole('dialog');
   await expect(details).toBeVisible();
-  // The audited source appears as both a primary test reference and a cited source link.
+  // The historical PDF regression remains both the primary test reference and a cited source; last_audited_commit tracks the newer relative-width implementation.
   // Both links must point to the exact historical regression, not the latest global commit.
   await expect(details.locator(`a[href="${border.test_reference}"]`)).toHaveCount(2);
   await expect(page.locator('#detail-title')).toHaveText('border');

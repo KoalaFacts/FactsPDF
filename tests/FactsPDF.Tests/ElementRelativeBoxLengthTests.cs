@@ -151,7 +151,7 @@ public sealed class ElementRelativeBoxLengthTests
     [TestCase("<style>.unused{margin:-1em}</style><p>A</p>", "FPDF1202")]
     [TestCase("<p style='margin:calc(1em + 1pt)'>A</p>", "FPDF1202")]
     [TestCase("<p style='text-indent:-1em'>A</p>", "FPDF1202")]
-    [TestCase("<p style='border-width:1em'>A</p>", "FPDF1202")]
+    [TestCase("<p style='border-width:calc(1em + 1pt)'>A</p>", "FPDF1202")]
     [TestCase("<img src='logo' style='width:-1em'>", "FPDF1202")]
     [TestCase("<table style='width:100pt;padding:1em'><colgroup><col style='width:100pt'></colgroup><tbody><tr style='padding:1em'><td>A</td></tr></tbody></table>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:1em;padding:1em'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]

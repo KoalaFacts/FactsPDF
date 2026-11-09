@@ -131,7 +131,7 @@ public sealed class RootRelativeTypographyTests
     [TestCase("width:1vh")]
     [TestCase("padding:2vh")]
     [TestCase("margin-left:1vh")]
-    [TestCase("border-width:1rem")]
+    [TestCase("border-width:calc(1rem + 1pt)")]
     public void UnsupportedOrUnboundedInputPreservesExistingDestination(string css)
         => Reject("<html style='font-size:15pt'><body><p style='" + css + "'>AB</p></body></html>");
 

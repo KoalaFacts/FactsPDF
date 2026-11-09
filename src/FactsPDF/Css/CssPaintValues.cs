@@ -52,12 +52,18 @@ internal static class CssPaintValues
             "Only solid, none, dashed and dotted border styles are supported.", offset)
     };
 
-    internal static bool TryBorderWidth(string value, out double width)
+    internal static bool TryBorderWidth(string value, out double width, bool allowRelative = false,
+        double? rootFontSize = null, double? elementFontSize = null)
     {
         width = 0;
         if (value is "thin" or "medium" or "thick")
         { width = value == "thin" ? 0.75 : value == "medium" ? 2.25 : 3.75; return true; }
-        if (value.EndsWith('%') || !CssBoxValues.TryLength(value, out var x, out _) || x.IsPercent) return false;
+        // Syntax validation may accept a bounded relative length without a
+        // computed font. Only the winning border declaration gets the final
+        // root/element font scale; outlines deliberately remain physical.
+        if (value.EndsWith('%') || !CssBoxValues.TryLength(value, out var x, out _,
+            rootFontSize, allowRem: allowRelative, elementFontSize: elementFontSize,
+            allowEm: allowRelative) || x.IsPercent) return false;
         width = x.Value;
         return true;
     }
@@ -81,10 +87,12 @@ internal static class CssPaintValues
         return length.Value;
     }
 
-    internal static double BorderWidth(string value, int offset)
+    internal static double BorderWidth(string value, int offset, bool allowRelative = false,
+        double? rootFontSize = null, double? elementFontSize = null)
     {
-        if (!TryBorderWidth(value, out var result))
-            throw new FactsPdfException("FPDF1202", "Border width must be a nonnegative pt/px/mm/cm/in/pc/q length or thin/medium/thick.", offset);
+        if (!TryBorderWidth(value, out var result, allowRelative, rootFontSize, elementFontSize))
+            throw new FactsPdfException("FPDF1202",
+                "Border width must be a bounded nonnegative print length, scoped em/rem, or thin/medium/thick.", offset);
         return result;
     }
 }

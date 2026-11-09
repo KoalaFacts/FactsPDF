@@ -782,6 +782,23 @@ See [printable 60-entry report](../examples/report-text-decoration-paint.html)
 and [regressions](../tests/FactsPDF.Tests/TextDecorationPaintTests.cs).
 Exact-head CI, independent review, retained binary, human PDF approval and
 commercial rights remain separate from this source implementation.
+## Current-source computed font-relative border widths (candidate)
+
+The existing bordered-report path accepts `em` (own final computed
+`font-size`) and `rem` (computed HTML root) on all supported physical and
+LTR logical border-width declarations, including `border` and `border-width`
+shorthands. The winning length is converted once to a fixed point width before
+box measurement, PDF paint and pagination. CSS selector specificity, inline
+styles, `!important`, `inherit/initial/unset` and independently resolved
+side values are preserved. Unmatched invalid declarations still fail closed.
+
+Scoped to previously painted ordinary blocks/paragraphs/headings, bound
+images, and explicit fixed-column tables / cells. The element's computed font
+must be known; col/row/inline structural border declarations remain
+inapplicable. Percentage/negative/`calc()` border widths, `em/rem` outline
+widths and font-relative corner radii remain unsupported. Physical border
+widths and the default unstyled output retain their existing behavior.
+
 ## Current-source bounded patterned report borders
 
 The existing CSS box targets (ordinary report boxes, images and fixed-layout
