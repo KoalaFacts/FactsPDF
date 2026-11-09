@@ -125,8 +125,8 @@ internal sealed class ListLayout
                     // paragraph, never to a block child's independent box.
                     // A leading block gets a separate marker-only line.
                     if (item.Children.Count > 0 &&
-                        item.Children[0] is ParagraphNode { IsAnonymous: true } direct)
-                        paragraph = direct.Paragraph;
+                        item.Children[0] is Paragraph { IsAnonymous: true } direct)
+                        paragraph = direct;
                 }
                 else
                 {
@@ -134,13 +134,13 @@ internal sealed class ListLayout
                     foreach (var descendant in Descendants(item.Children, cancellation))
                     {
                         if (descendant is BlockNode { Name: "ol" or "ul" }) break;
-                        if (descendant is ParagraphNode leaf) { paragraph = leaf.Paragraph; break; }
+                        if (descendant is Paragraph leaf) { paragraph = leaf; break; }
                     }
                 }
                 if (paragraph is null)
                 {
-                    paragraph = new Paragraph(item.Style, item.SourceOffset);
-                    var view = new List<BlockChild>(item.Children.Count + 1) { new ParagraphNode(paragraph, true) };
+                    paragraph = new Paragraph(item.Style, item.SourceOffset) { IsAnonymous = true };
+                    var view = new List<BlockChild>(item.Children.Count + 1) { paragraph };
                     view.AddRange(item.Children);
                     result.children.Add(item, view);
                 }

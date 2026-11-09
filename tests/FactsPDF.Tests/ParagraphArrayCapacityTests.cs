@@ -49,7 +49,7 @@ public sealed class ParagraphArrayCapacityTests
         var paragraph = FirstParagraphElement(HtmlDocumentReader.ReadTree(html, new PdfOptions(), default).Children);
         Assert.That(paragraph.Children, Has.Count.EqualTo(1));
         Assert.That(paragraph.Children.Capacity, Is.EqualTo(1));
-        var text = ((ParagraphNode)paragraph.Children[0]).Paragraph;
+        var text = (Paragraph)paragraph.Children[0];
         Assert.That(text.Runs, Has.Count.EqualTo(runs));
         Assert.That(text.Runs.Capacity, Is.EqualTo(runs));
     }
@@ -59,7 +59,7 @@ public sealed class ParagraphArrayCapacityTests
     {
         var tree = HtmlDocumentReader.ReadTree("<div><p>a <span>b</span> c</div><p>d</p>", new PdfOptions(), default);
         var paragraph = FirstParagraphElement(tree.Children);
-        var runs = ((ParagraphNode)paragraph.Children[0]).Paragraph.Runs;
+        var runs = ((Paragraph)paragraph.Children[0]).Runs;
         Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "a ", "b", " c" }));
     }
 
@@ -82,7 +82,7 @@ public sealed class ParagraphArrayCapacityTests
         for (var i = 0; i < 40; i++) html.Append('w').Append(i).Append(" <span>x</span> ");
         html.Append("</p>");
         var tree = HtmlDocumentReader.ReadTree(html.ToString(), new PdfOptions(), default);
-        var runs = ((ParagraphNode)FirstParagraphElement(tree.Children).Children[0]).Paragraph.Runs;
+        var runs = ((Paragraph)FirstParagraphElement(tree.Children).Children[0]).Runs;
         Assert.That(runs, Has.Count.EqualTo(81));
         Assert.That(runs.Capacity, Is.EqualTo(81));
         Assert.That(Pdf.Write().ToBytes(html.ToString()), Is.Not.Empty);

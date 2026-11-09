@@ -14,9 +14,9 @@ public sealed class BlockBoxTreeTests
         => HtmlDocumentReader.ReadTree(html, options ?? new(), cancellation);
 
     private static BlockNode Box(BlockChild node) => (BlockNode)node;
-    private static ParagraphNode Text(BlockChild node) => (ParagraphNode)node;
-    private static string Content(ParagraphNode leaf)
-        => string.Concat(leaf.Paragraph.Runs.Where(r => !r.IsBreak).Select(r => r.Text));
+    private static Paragraph Text(BlockChild node) => (Paragraph)node;
+    private static string Content(Paragraph leaf)
+        => string.Concat(leaf.Runs.Where(r => !r.IsBreak).Select(r => r.Text));
 
     [Test]
     public void NestedBlockHierarchyFollowsActualHtmlContainers()
@@ -49,8 +49,8 @@ public sealed class BlockBoxTreeTests
         var before = Text(div.Children[0]);
         Assert.That(before.IsAnonymous, Is.True);
         Assert.That(Content(before), Is.EqualTo("before inline"));
-        Assert.That(before.Paragraph.Runs, Has.Count.EqualTo(2));
-        Assert.That(before.Paragraph.Runs[1].Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
+        Assert.That(before.Runs, Has.Count.EqualTo(2));
+        Assert.That(before.Runs[1].Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
         var middle = Box(div.Children[1]);
         Assert.That(middle.Name, Is.EqualTo("section"));
         Assert.That(Box(middle.Children.Single()).Name, Is.EqualTo("p"));
@@ -76,7 +76,7 @@ public sealed class BlockBoxTreeTests
         var empty = Box(body.Children[0]);
         Assert.That(empty.Children, Has.Count.EqualTo(1));
         Assert.That(Text(empty.Children[0]).IsAnonymous, Is.False);
-        Assert.That(Text(empty.Children[0]).Paragraph.Runs, Is.Empty);
+        Assert.That(Text(empty.Children[0]).Runs, Is.Empty);
     }
 
     [Test]
@@ -87,10 +87,10 @@ public sealed class BlockBoxTreeTests
         var leaf = Text(div.Children.Single());
         Assert.That(leaf.IsAnonymous, Is.True);
         Assert.That(div.Style.FontSize, Is.EqualTo(14), "The retained block has the proper parent style.");
-        Assert.That(leaf.Paragraph.Style.FontSize, Is.EqualTo(20),
+        Assert.That(leaf.Style.FontSize, Is.EqualTo(20),
             "The existing text renderer retains the first inline style until block-aware layout is implemented.");
-        Assert.That(leaf.Paragraph.Runs[0].Style.FontSize, Is.EqualTo(20));
-        Assert.That(leaf.Paragraph.Runs[1].Style.FontSize, Is.EqualTo(14));
+        Assert.That(leaf.Runs[0].Style.FontSize, Is.EqualTo(20));
+        Assert.That(leaf.Runs[1].Style.FontSize, Is.EqualTo(14));
     }
 
     [Test]
@@ -101,7 +101,7 @@ public sealed class BlockBoxTreeTests
         var outer = Box(Tree(html, options).Children.Single());
         var anonymous = Text(outer.Children.Single());
         Assert.That(outer.Style.Alignment, Is.EqualTo(TextAlignment.Left));
-        Assert.That(anonymous.Paragraph.Style.Alignment, Is.EqualTo(TextAlignment.Right),
+        Assert.That(anonymous.Style.Alignment, Is.EqualTo(TextAlignment.Right),
             "This structural milestone must retain the old PDF output for inline-led text.");
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
             options, default);
@@ -138,7 +138,7 @@ public sealed class BlockBoxTreeTests
         var body = Box(root.Children.Single());
         var p = Box(Box(Box(body.Children.Single()).Children.Single()).Children.Single());
         Assert.That(p.Name, Is.EqualTo("p"));
-        Assert.That(Text(p.Children.Single()).Paragraph.Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
+        Assert.That(Text(p.Children.Single()).Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
     }
 
     [Test]
@@ -147,7 +147,7 @@ public sealed class BlockBoxTreeTests
         var para = Box(Tree("<p>A<br>B</p>").Children.Single());
         Assert.That(para.Children, Has.Count.EqualTo(1));
         var leaf = Text(para.Children.Single());
-        Assert.That(leaf.Paragraph.Runs.Count(r => r.IsBreak), Is.EqualTo(1));
+        Assert.That(leaf.Runs.Count(r => r.IsBreak), Is.EqualTo(1));
         Assert.That(Content(leaf), Is.EqualTo("AB"));
     }
 

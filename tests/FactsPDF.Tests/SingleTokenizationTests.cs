@@ -17,7 +17,7 @@ public sealed class SingleTokenizationTests
         void Walk(IEnumerable<BlockChild> children)
         {
             foreach (var child in children)
-                if (child is ParagraphNode node) found.Add(node.Paragraph);
+                if (child is Paragraph node) found.Add(node);
                 else if (child is BlockNode block) Walk(block.Children);
         }
         Walk(HtmlDocumentReader.ReadTree(html, new(), default).Children);
