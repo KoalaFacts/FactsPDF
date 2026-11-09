@@ -53,6 +53,41 @@ public sealed class HtmlTokenSizeTests
         Assert.That(tokens[3].StyleOriginOffsets, Is.Null);
     }
 
+    // Measured on top of Z6g2b3 (496 bytes per paragraph, three 48-byte tokens each): 472 with
+    // 40-byte tokens that store no attribute map.
+    [Test]
+    public void ReadingAParagraphAllocatesTokensWithoutAnAttributeField()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(485));
+    }
+
+    // Only a start tag with attributes stores an attribute map; a start tag without attributes
+    // reads the shared empty map, and text and end tags have none.
+    [Test]
+    public void OnlyAStartTagWithAttributesCarriesAnAttributeMap()
+    {
+        var tokens = HtmlTokens.Read("<p>x</p><p id=\"a\" class=\"b\">y</p><br/>", default).ToList();
+        Assert.That(tokens, Has.Count.EqualTo(7));
+        Assert.That(tokens.Select(t => t.GetType() == typeof(AttributedHtmlToken)),
+            Is.EqualTo(new[] { false, false, false, true, false, false, false }));
+        Assert.That(tokens[0].Attributes, Is.Empty);
+        Assert.That(tokens[0].Attributes, Is.SameAs(tokens[6].Attributes));
+        Assert.That(tokens[6].SelfClosing, Is.True);
+        Assert.That(tokens[1].Attributes, Is.Null);
+        Assert.That(tokens[2].Attributes, Is.Null);
+        Assert.That(tokens[3].Attributes, Is.EqualTo(new Dictionary<string, string> { ["id"] = "a", ["class"] = "b" }));
+        Assert.That(tokens[3].StyleValueOffset, Is.EqualTo(-1));
+        var styled = HtmlTokens.Read("<p style=\"color:red\" id=\"z\">x</p>", default).First();
+        Assert.That(styled, Is.TypeOf<StyledHtmlToken>());
+        Assert.That(styled.Attributes!["id"], Is.EqualTo("z"));
+        Assert.That(styled.Attributes["style"], Is.EqualTo("color:red"));
+    }
+
     [Test]
     public void AStyledTokenWithACharacterReferenceKeepsItsOriginMap()
     {

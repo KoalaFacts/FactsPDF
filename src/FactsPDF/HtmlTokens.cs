@@ -4,21 +4,30 @@ using System.Text;
 namespace FactsPDF;
 
 internal enum HtmlTokenKind { Text, Start, End, StyleText }
-internal record HtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
-    bool SelfClosing, int Offset)
+internal record HtmlToken(HtmlTokenKind Kind, string Value, bool SelfClosing, int Offset)
 {
+    // Attributes: null for text, end and style-text tokens; a start tag without attributes shares
+    // one empty map. Only a start tag with attributes is an AttributedHtmlToken that stores its
+    // map, so every other token is 8 bytes smaller.
+    public virtual Dictionary<string, string>? Attributes => Kind == HtmlTokenKind.Start ? HtmlTokens.NoAttributes : null;
+
     // StyleValueOffset: where the style attribute's raw value starts in the page (-1 without one).
     // StyleOriginOffsets: the page offset of every decoded code unit plus its end, kept only when
     // the value contains '&'; otherwise code unit i comes from StyleValueOffset + i.
-    // Only a start tag with a style attribute is a StyledHtmlToken that stores them, so every other
-    // token is 8 bytes smaller.
+    // Only a start tag with a style attribute is a StyledHtmlToken that stores them.
     public virtual int StyleValueOffset => -1;
     public virtual int[]? StyleOriginOffsets => null;
 }
 
-internal sealed record StyledHtmlToken(HtmlTokenKind Kind, string Value, Dictionary<string, string>? Attributes,
+internal record AttributedHtmlToken(string Value, Dictionary<string, string> AttributeMap, bool SelfClosing, int Offset)
+    : HtmlToken(HtmlTokenKind.Start, Value, SelfClosing, Offset)
+{
+    public override Dictionary<string, string>? Attributes => AttributeMap;
+}
+
+internal sealed record StyledHtmlToken(string Value, Dictionary<string, string> AttributeMap,
     bool SelfClosing, int Offset, int StyleStart, int[]? StyleOrigins)
-    : HtmlToken(Kind, Value, Attributes, SelfClosing, Offset)
+    : AttributedHtmlToken(Value, AttributeMap, SelfClosing, Offset)
 {
     public override int StyleValueOffset => StyleStart;
     public override int[]? StyleOriginOffsets => StyleOrigins;
@@ -38,7 +47,7 @@ internal static class HtmlTokens
             {
                 var end = html.IndexOf('<', i);
                 if (end < 0) end = html.Length;
-                yield return new(HtmlTokenKind.Text, html[i..end], null, false, i);
+                yield return new(HtmlTokenKind.Text, html[i..end], false, i);
                 i = end;
                 continue;
             }
@@ -68,7 +77,7 @@ internal static class HtmlTokens
             if (closing)
             {
                 if (i >= html.Length || html[i++] != '>') throw Invalid("Malformed end tag.", start);
-                yield return new(HtmlTokenKind.End, name, null, false, start);
+                yield return new(HtmlTokenKind.End, name, false, start);
                 continue;
             }
             Dictionary<string, string>? attrs = null;
@@ -131,10 +140,11 @@ internal static class HtmlTokens
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
-            yield return styleValueOffset < 0
-                ? new HtmlToken(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start)
-                : new StyledHtmlToken(HtmlTokenKind.Start, name, attrs ?? NoAttributes, selfClosing, start,
-                    styleValueOffset, styleOriginOffsets);
+            yield return styleValueOffset >= 0
+                ? new StyledHtmlToken(name, attrs ?? NoAttributes, selfClosing, start, styleValueOffset, styleOriginOffsets)
+                : attrs is null
+                    ? new HtmlToken(HtmlTokenKind.Start, name, selfClosing, start)
+                    : new AttributedHtmlToken(name, attrs, selfClosing, start);
             if (name == "style" && !selfClosing)
             {
                 // RAWTEXT does not decode entities or recognize markup inside CSS comments/strings.
@@ -149,7 +159,7 @@ internal static class HtmlTokens
                     if (after < html.Length && (Space(html[after]) || html[after] is '>' or '/')) break;
                     end = after;
                 }
-                yield return new(HtmlTokenKind.StyleText, html[i..end], null, false, i);
+                yield return new(HtmlTokenKind.StyleText, html[i..end], false, i);
                 i = end;
             }
         }
@@ -216,7 +226,7 @@ internal static class HtmlTokens
     }
 
     // Start tags without attributes share this instance; token consumers only read attributes.
-    private static readonly Dictionary<string, string> NoAttributes = NewAttributes();
+    internal static readonly Dictionary<string, string> NoAttributes = NewAttributes();
 
     private static Dictionary<string, string> NewAttributes() => new(StringComparer.OrdinalIgnoreCase);
 
