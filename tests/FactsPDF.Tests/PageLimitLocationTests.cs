@@ -83,8 +83,36 @@ public sealed class PageLimitLocationTests
     [Test]
     public void HeadingKeptWithItsNextBlockPointsAtTheHeading()
     {
+        const string html = "<p style='line-height:740pt;margin:0'>F</p><h2 id='heading' style='break-after:avoid'>H</h2><p>a<br>b<br>c<br>d</p>";
+        Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='heading'")));
+    }
+
+    [Test]
+    public void ForcedBreakBeforeAHeadingPointsAtIt()
+    {
         const string html = First + "<h2 id='heading' style='break-before:page'>Heading</h2><p>Body.</p>";
         Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='heading'")));
+    }
+
+    [Test]
+    public void KeptTogetherCardPointsAtItsElement()
+    {
+        const string html = "<p style='line-height:740pt;margin:0'>F</p><div id='card' style='break-inside:avoid'><p>a</p><p>b</p></div>";
+        Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<div id='card'")));
+    }
+
+    [Test]
+    public void ForcedBreakAfterAParagraphPointsAtTheNextImage()
+    {
+        const string html = "<p style='break-after:page'>First.</p><img id='pic' src='a'>";
+        Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<img id='pic'")));
+    }
+
+    [Test]
+    public void ForcedBreakAfterAParagraphPointsAtTheNextTable()
+    {
+        const string html = "<p style='break-after:page'>First.</p><table id='grid' style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>Cell</td></tr></tbody></table>";
+        Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<table id='grid'")));
     }
 
     [Test]
