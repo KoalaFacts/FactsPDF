@@ -76,9 +76,10 @@ internal static class TextLayout
         void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1)
             => AppendLine(line, x, baseline, pages[^1].Runs, chargeDisplayCommands, cancellation, sourceOffset);
         var bottom = o.PageHeight - o.Margin;
-        void NewPage()
+        // The page limit names the element whose content needed the extra page.
+        void NewPage(int sourceOffset)
         {
-            if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.");
+            if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.", sourceOffset);
             pages.Add(new()); y = o.Margin; after = 0; closedBoxOccupied = false;
         }
         // Deferred margins on still-open ancestors must not count as page
@@ -170,7 +171,7 @@ internal static class TextLayout
                         MoveUnconsumedBlocksToNewPage(apply: false), retainFirstHeadingMargin,
                         resolved, ensureDisplayCommands, cancellation))
                 {
-                    NewPage();
+                    NewPage(first.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
                     pendingClosedPadding = 0;
                     trimNextMargin = !retainFirstHeadingMargin;
@@ -240,7 +241,7 @@ internal static class TextLayout
                 if (!breakNext && !keep.Node.BoxStyle.BreakBefore &&
                     CurrentPageOccupied() && y + neededHere > bottom + 0.000001)
                 {
-                    NewPage();
+                    NewPage(keep.Node.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
                     pendingClosedPadding = 0;
                 }
@@ -268,7 +269,7 @@ internal static class TextLayout
                     // does not justify an otherwise blank leading PDF page.
                     if (HasRetainedPageContent())
                     {
-                        NewPage();
+                        NewPage(begin.SourceOffset);
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
                     }
@@ -307,7 +308,7 @@ internal static class TextLayout
                     if (y + ruleGap + completeEmptyFootprint > bottom + 0.000001 &&
                         CurrentPageOccupied())
                     {
-                        NewPage();
+                        NewPage(begin.SourceOffset);
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
                         ruleGap = pendingTopPadding + begin.MarginTop;
@@ -555,7 +556,7 @@ internal static class TextLayout
                 {
                     if (HasRetainedPageContent())
                     {
-                        NewPage();
+                        NewPage(image.Node.SourceOffset);
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
                     }
@@ -564,7 +565,7 @@ internal static class TextLayout
                 var imageGap = after + pendingTopPadding + pendingClosedPadding;
                 if (y + imageGap + image.OuterHeight > bottom + 0.000001 && CurrentPageOccupied())
                 {
-                    NewPage();
+                    NewPage(image.Node.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
                     imageGap = pendingTopPadding;
                 }
@@ -597,7 +598,7 @@ internal static class TextLayout
                 {
                     if (HasRetainedPageContent())
                     {
-                        NewPage();
+                        NewPage(table.Node.SourceOffset);
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
                     }
@@ -621,7 +622,7 @@ internal static class TextLayout
                         var noProgress = affected ? plan!.Parts.Count == 0 : fragment.EndRow == rowIndex;
                         if (noProgress && CurrentPageOccupied())
                         {
-                            NewPage();
+                            NewPage(table.Node.SourceOffset);
                             MoveUnconsumedBlocksToNewPage();
                             tableGap = pendingTopPadding;
                             plan = affected ? TablePagination.FitWithContinuations(measured, cursor,
@@ -738,7 +739,7 @@ internal static class TextLayout
                         first = false;
                         if (!last)
                         {
-                            NewPage();
+                            NewPage(table.Node.SourceOffset);
                             MoveUnconsumedBlocksToNewPage();
                             tableGap = pendingTopPadding;
                         }
@@ -747,7 +748,7 @@ internal static class TextLayout
                 }
                 if (y + tableGap + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
                 {
-                    NewPage();
+                    NewPage(table.Node.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
                     tableGap = pendingTopPadding;
                 }
@@ -800,7 +801,7 @@ internal static class TextLayout
                 {
                     if (HasRetainedPageContent())
                     {
-                        NewPage();
+                        NewPage(paragraphOffset);
                         MoveUnconsumedBlocksToNewPage();
                         pendingClosedPadding = 0;
                     }
@@ -834,7 +835,7 @@ internal static class TextLayout
             {
                 if (HasRetainedPageContent())
                 {
-                    NewPage();
+                    NewPage(paragraphOffset);
                     MoveUnconsumedBlocksToNewPage();
                     // Discard old-page trailing closed-box spacing only when
                     // an actual page transition occurred; on a fresh page
@@ -861,7 +862,7 @@ internal static class TextLayout
                         lines.Current.Height > bottom - o.Margin + 0.000001)
                     throw new FactsPdfException("FPDF1302",
                         "Report panel top margin and first line cannot fit on a fresh page.", paragraphOffset);
-                NewPage();
+                NewPage(paragraphOffset);
                 MoveUnconsumedBlocksToNewPage();
                 // The previous paragraph's trailing gap remains behind;
                 // first-fragment outside margins and padding travel with it.
@@ -885,7 +886,7 @@ internal static class TextLayout
                 if (line.Height > bottom - o.Margin)
                     throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.",
                         TallestGlyphOffset(line, paragraphOffset));
-                if (y + line.Height > bottom + 0.000001) NewPage();
+                if (y + line.Height > bottom + 0.000001) NewPage(paragraphOffset);
                 var lineWidth = item.ContentWidth - line.FirstLineIndent;
                 var x = item.ContentX + line.FirstLineIndent + ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
                 { TextAlignment.Center => (lineWidth - line.Width) / 2,

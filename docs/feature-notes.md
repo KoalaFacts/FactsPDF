@@ -1364,7 +1364,9 @@ The offset usually points at the offending CSS value or element. Lines end at
 LF (Unix), CRLF (Windows) or a lone CR (classic Mac), each counted once, and
 columns count characters, so CJK text and emoji count as one column each. No
 input text is echoed. Diagnostics without an offset (font or image loading,
-resource limits) are unchanged, and the existing resource `Hint:` line still
+resource limits other than the page limit) are unchanged; `FPDF1303` points at
+the paragraph, list item, heading, panel, image or table that needed the page
+past `MaxPages`, and the existing resource `Hint:` line still
 follows. The library exposes the same value as `FactsPdfException.SourceOffset`.
 Source implemented at `306012538553815967d0e364ef95842648c446bb`; it is not part
 of the older retained private preview or a public binary.
