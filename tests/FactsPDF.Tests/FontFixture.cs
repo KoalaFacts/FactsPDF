@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false)
+        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -22,6 +22,9 @@ internal static class FontFixture
             for (var scalar = '0'; scalar <= '9'; scalar++) map[scalar] = 2;
             map['.'] = 4;
         }
+        // cjkScalars maps that many consecutive scalars from U+4E00 to one glyph, so a test can use
+        // thousands of distinct characters without a platform font.
+        for (var i = 0; i < cjkScalars; i++) map[0x4e00 + i] = 6;
         if (listCaseMarkers)
         {
             // A 600-unit, a 200-unit, I 900-unit and i 200-unit:
