@@ -41,6 +41,10 @@ internal sealed class CssStylesheets
     internal static CssStylesheets Collect(string html, PdfOptions options, List<HtmlToken> tokens, CancellationToken token)
     {
         var sheet = new CssStylesheets(options, token); var elements = 0;
+        // Sized once instead of doubling past the pooled capacity (each doubling copies every
+        // reference so far). Within the element limit, so an input that fails it early pays for
+        // no more slots than it may hold.
+        tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2));
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -64,6 +68,24 @@ internal sealed class CssStylesheets
             }
         }
         return sheet;
+    }
+    /// <summary>
+    /// The tokens <see cref="HtmlTokens.Read"/> produces for a page where tags and text alternate:
+    /// one per <c>&lt;</c> plus one per text run (leading, or after a <c>&gt;</c> that another tag
+    /// does not follow at once). Only a capacity hint: a <c>&gt;</c> inside a comment, an attribute
+    /// value or a stylesheet over-counts by one.
+    /// </summary>
+    internal static long EstimateTokens(ReadOnlySpan<char> html)
+    {
+        if (html.IsEmpty) return 0;
+        long count = html.Count('<') + (html[0] == '<' ? 0 : 1);
+        for (var at = html.IndexOf('>'); at >= 0;)
+        {
+            if (at + 1 < html.Length && html[at + 1] != '<') count++;
+            var next = html[(at + 1)..].IndexOf('>');
+            at = next < 0 ? -1 : at + 1 + next;
+        }
+        return count;
     }
     private static void ValidateStyleElement(HtmlToken token)
     {
