@@ -108,6 +108,7 @@ internal static class UnicodePdfSerializer
                 resources += " /F0 " + courierId.ToString(CultureInfo.InvariantCulture) + " 0 R";
             }
             var content = new StringBuilder();
+            var page = new StringBuilder();
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested(); content.Clear();
@@ -140,9 +141,19 @@ internal static class UnicodePdfSerializer
                     PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes);
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
-                Obj(firstPage + 2 * i, FormattableString.Invariant($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << {resources} >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {firstPage + 2 * i + 1} 0 R{links.PageEntry(i)} >>"));
-                Begin(firstPage + 2 * i + 1);
-                Write("<< /Length " + PdfAscii.ByteCount(content).ToString(CultureInfo.InvariantCulture) + " >>\nstream\n");
+                var pageId = firstPage + 2 * i;
+                page.Clear().Append(pageId).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth, Number).Append(' ')
+                    .AppendInvariant(o.PageHeight, Number).Append("] /Resources << /Font << ").Append(resources).Append(" >>");
+                images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
+                page.Append(" >> /Contents ").Append(pageId + 1).Append(" 0 R");
+                links.AppendPageEntry(page, i);
+                page.Append(" >>\nendobj\n");
+                if (pageId != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                PdfAscii.Write(output, page, cancellation);
+                if (pageId + 1 != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                PdfAscii.Write(output, page.Clear().Append(pageId + 1).Append(" 0 obj\n<< /Length ").Append(PdfAscii.ByteCount(content)).Append(" >>\nstream\n"), cancellation);
                 PdfAscii.Write(output, content, cancellation);
                 Write("\nendstream\nendobj\n");
             }

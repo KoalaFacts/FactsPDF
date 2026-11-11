@@ -48,8 +48,8 @@ public sealed class AllocationBudgetTests
     }
 
     // Serialization alone: page content streams are written straight from one reused builder.
-    [TestCase(false, 87)]
-    [TestCase(true, 127)]
+    [TestCase(false, 83)]
+    [TestCase(true, 123)]
     public void SerializingTheStyledTableStaysWithinItsAllocationBudget(bool embedFont, int budgetKiB)
     {
         var options = embedFont ? new PdfOptions { Fonts = [Font], SubsetFonts = true } : new PdfOptions();
