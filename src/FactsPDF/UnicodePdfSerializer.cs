@@ -75,10 +75,26 @@ internal static class UnicodePdfSerializer
                     ? TrueTypeSubsetter.Create(font, use.Characters.Select(c => c.Scalar).ToArray(), cancellation) : null;
                 var name = subset?.PostScriptName ?? font.PostScriptName;
                 ReadOnlySpan<byte> embeddedData = subset is null ? font.Data : subset.Bytes.AsSpan();
-                Obj(id, FormattableString.Invariant($"<< /Type /Font /Subtype /Type0 /BaseFont /{name} /Encoding /Identity-H /DescendantFonts [{id + 1} 0 R] /ToUnicode {id + 4} 0 R >>"));
-                var widths = string.Join(" ", use.Characters.Select(c => N(c.Width)));
-                Obj(id + 1, FormattableString.Invariant($"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor {id + 2} 0 R /CIDToGIDMap {id + 5} 0 R /DW 1000 /W [1 [{widths}]] >>"));
-                Obj(id + 2, FormattableString.Invariant($"<< /Type /FontDescriptor /FontName /{name} /Flags 4 /FontBBox [{N(font.XMin1000)} {N(font.YMin1000)} {N(font.XMax1000)} {N(font.YMax1000)}] /ItalicAngle {N(font.ItalicAngle)} /Ascent {N(font.Ascent1000)} /Descent {N(font.Descent1000)} /CapHeight {N(font.CapHeight1000)} /StemV 80 /FontFile2 {id + 3} 0 R >>"));
+                // The three font dictionaries are appended into the reused builder: no width string per
+                // character, joined width list or interpolated object string (Z2g).
+                Begin(id);
+                page.Clear().Append("<< /Type /Font /Subtype /Type0 /BaseFont /").Append(name).Append(" /Encoding /Identity-H /DescendantFonts [")
+                    .Append(id + 1).Append(" 0 R] /ToUnicode ").Append(id + 4).Append(" 0 R >>\nendobj\n");
+                PdfAscii.Write(output, page, cancellation);
+                Begin(id + 1);
+                page.Clear().Append("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /").Append(name)
+                    .Append(" /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ").Append(id + 2)
+                    .Append(" 0 R /CIDToGIDMap ").Append(id + 5).Append(" 0 R /DW 1000 /W [1 [");
+                for (var i = 0; i < use.Characters.Count; i++) (i > 0 ? page.Append(' ') : page).AppendInvariant(use.Characters[i].Width, Number);
+                PdfAscii.Write(output, page.Append("]] >>\nendobj\n"), cancellation);
+                Begin(id + 2);
+                page.Clear().Append("<< /Type /FontDescriptor /FontName /").Append(name).Append(" /Flags 4 /FontBBox [")
+                    .AppendInvariant(font.XMin1000, Number).Append(' ').AppendInvariant(font.YMin1000, Number).Append(' ')
+                    .AppendInvariant(font.XMax1000, Number).Append(' ').AppendInvariant(font.YMax1000, Number)
+                    .Append("] /ItalicAngle ").AppendInvariant(font.ItalicAngle, Number).Append(" /Ascent ").AppendInvariant(font.Ascent1000, Number)
+                    .Append(" /Descent ").AppendInvariant(font.Descent1000, Number).Append(" /CapHeight ").AppendInvariant(font.CapHeight1000, Number)
+                    .Append(" /StemV 80 /FontFile2 ").Append(id + 3).Append(" 0 R >>\nendobj\n");
+                PdfAscii.Write(output, page, cancellation);
                 var length1 = " /Filter /FlateDecode /Length1 " + embeddedData.Length.ToString(CultureInfo.InvariantCulture);
                 if (subset is null)
                 {
@@ -94,7 +110,11 @@ internal static class UnicodePdfSerializer
                             { cancellation.ThrowIfCancellationRequested(); zlib.Write(embeddedData.Slice(at, Math.Min(16384, embeddedData.Length - at))); }
                         StreamObject(id + 3, compressed.WrittenSpan, length1);
                     }
-                StreamObject(id + 4, Encoding.ASCII.GetBytes(ToUnicode(use)));
+                AppendToUnicode(page.Clear(), use);
+                Begin(id + 4);
+                Write("<< /Length " + PdfAscii.ByteCount(page).ToString(CultureInfo.InvariantCulture) + " >>\nstream\n");
+                PdfAscii.Write(output, page, cancellation);
+                Write("\nendstream\nendobj\n");
                 var map = new byte[(use.Characters.Count + 1) * 2];
                 for (var i = 0; i < use.Characters.Count; i++)
                 {
@@ -187,22 +207,27 @@ internal static class UnicodePdfSerializer
         catch { output.Dispose(); throw; }
     }
 
-    private static string ToUnicode(FontUse use)
+    // Appends the ToUnicode CMap: each code and the UTF-16BE hex of its scalar (a surrogate pair
+    // for a supplementary-plane scalar), upper-case as Convert.ToHexString wrote them, with no
+    // string per character (Z2g).
+    private static void AppendToUnicode(StringBuilder text, FontUse use)
     {
-        var text = new StringBuilder("/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /FactsPDF-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
+        text.Append("/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /FactsPDF-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
+        Span<char> utf16 = stackalloc char[2];
         for (var start = 0; start < use.Characters.Count; start += 100)
         {
             var count = Math.Min(100, use.Characters.Count - start);
-            text.Append(count.ToString(CultureInfo.InvariantCulture)).Append(" beginbfchar\n");
+            text.Append(count).Append(" beginbfchar\n");
             for (var i = start; i < start + count; i++)
             {
-                var unicode = System.Convert.ToHexString(Encoding.BigEndianUnicode.GetBytes(char.ConvertFromUtf32(use.Characters[i].Scalar)));
-                text.Append('<').Append((i + 1).ToString("X4", CultureInfo.InvariantCulture)).Append("> <").Append(unicode).Append(">\n");
+                text.Append('<').AppendHex(i + 1, 4).Append("> <");
+                var units = new Rune(use.Characters[i].Scalar).EncodeToUtf16(utf16);
+                for (var u = 0; u < units; u++) text.AppendHex(utf16[u], 4);
+                text.Append(">\n");
             }
             text.Append("endbfchar\n");
         }
-        return text.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n").ToString();
+        text.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n");
     }
     private const string Number = "0.######";
-    private static string N(double value) => value.ToString(Number, CultureInfo.InvariantCulture);
 }
