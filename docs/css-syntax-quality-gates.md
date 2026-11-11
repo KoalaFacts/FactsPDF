@@ -1,7 +1,7 @@
 # CSS Syntax Core — Independent Review and Browser Oracle Gate
 
 **Scope:** \`feat/css-syntax-core\` PR #7 against verified \`main\` \`8c303bda\`.
-**Status:** Browser structural-differential and current regression tests **passed**; initial independent review **completed with seven P2 issues**, fixed with test-first changes; **fresh review on the final head is still required** before merge. No release/merge authorized by these checks.
+**Status:** Browser structural-differential and current regression tests **passed**; initial independent review **completed with seven P2 issues**, fixed with test-first changes; PR #7 merged on 2026-10-10.
 
 ## Review independence
 

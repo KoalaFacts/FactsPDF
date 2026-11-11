@@ -927,8 +927,6 @@ checks protected output on invalid combinations. Earlier physical-only image
 notes below document their original milestone scope. Still excluded:
 image height percentages, negative lengths, `calc`, object-fit, automatic
 external loading, table structural relative sizing and image splitting.
-Source `145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430` is a PR candidate,
-not yet a new main/released capability or verified CSS support numerator.
 
 ### Bounded image height limits for report logos and photos (source-only)
 
