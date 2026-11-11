@@ -240,8 +240,11 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
     public List<BlockChild> Children { get; } = [];
     // Bounded HTML ordered-list sequence metadata. These are parsed values,
     // never generated child nodes; a tree may be laid out repeatedly.
-    public int? ListStart { get; init; }
-    public int? ListValue { get; init; }
+    // Stored as plain ints, 0 for none (list ordinals are always positive), so a block node is
+    // 8 bytes smaller than with two int? fields.
+    private readonly int listStart, listValue;
+    public int? ListStart { get => listStart == 0 ? null : listStart; init => listStart = value ?? 0; }
+    public int? ListValue { get => listValue == 0 ? null : listValue; init => listValue = value ?? 0; }
     public bool ListReversed { get; init; }
 }
 
