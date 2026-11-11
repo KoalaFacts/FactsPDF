@@ -20,15 +20,41 @@ internal static class CssSyntaxTokenizer
         var result = pooledTokens ?? [];
         pooledTokens = null;
         List<CssSyntaxDiagnostic>? diagnostics = null;
+        // The closers of the blocks and functions open so far, innermost last. The parser enters
+        // every opener and leaves only on its matching closer, so this is its nesting at each
+        // token and MaxDepth fails here, before the rest of a nesting flood is tokenized.
+        List<CssSyntaxTokenKind>? closers = null;
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
             bool integer = false, string? unit = null, bool terminated = true)
         {
             limits.Cancellation.ThrowIfCancellationRequested();
             var raw = Raw(text, start, end, value);
+            var span = source.Span(start, end - start);
             result.Add(new CssSyntaxToken(
-                kind, value ?? raw, raw, source.Span(start, end - start),
+                kind, value ?? raw, raw, span,
                 integer, false, unit, terminated));
+            Nest(kind, span);
+        }
+
+        void Nest(CssSyntaxTokenKind kind, CssSourceSpan span)
+        {
+            var closer = kind switch
+            {
+                CssSyntaxTokenKind.Function or CssSyntaxTokenKind.OpenParen => CssSyntaxTokenKind.CloseParen,
+                CssSyntaxTokenKind.OpenSquare => CssSyntaxTokenKind.CloseSquare,
+                CssSyntaxTokenKind.OpenBrace => CssSyntaxTokenKind.CloseBrace,
+                _ => CssSyntaxTokenKind.Eof,
+            };
+            if (closer != CssSyntaxTokenKind.Eof)
+            {
+                closers ??= pooledClosers ?? [];
+                pooledClosers = null;
+                if (closers.Count >= limits.MaxDepth)
+                    throw new CssSyntaxLimitException("CSS syntax nesting exceeds MaxDepth.", span);
+                closers.Add(closer);
+            }
+            else if (closers is { Count: > 0 } && closers[^1] == kind) closers.RemoveAt(closers.Count - 1);
         }
 
         for (var i = 0; i < text.Length;)
@@ -162,6 +188,7 @@ internal static class CssSyntaxTokenizer
             CssSyntaxTokenKind.Eof, "", "",
             source.Span(text.Length, 0)));
         var tokens = result.ToArray();
+        if (closers is not null) { closers.Clear(); pooledClosers = closers; }
         // Cleared before pooling so the list never keeps a finished document's token strings alive.
         result.Clear();
         if (result.Capacity <= MaxPooledTokens) pooledTokens = result;
@@ -171,6 +198,7 @@ internal static class CssSyntaxTokenizer
     // Keeps the pooled array under the large-object threshold (about 48 bytes per token).
     private const int MaxPooledTokens = 1024;
     [ThreadStatic] private static List<CssSyntaxToken>? pooledTokens;
+    [ThreadStatic] private static List<CssSyntaxTokenKind>? pooledClosers;
     // Shared one-character strings for the ASCII punctuation, whitespace and digits that make up
     // most short tokens.
     private static readonly string[] AsciiCharacters = CreateAsciiCharacters();
