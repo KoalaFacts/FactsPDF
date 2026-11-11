@@ -57,6 +57,18 @@ public sealed class EarlyDepthLimitTests
         Assert.That(Fails(html, depth - 1).Code, Is.EqualTo("FPDF1003"));
     }
 
+    // The reader checks the depth on style, img, hr and col too, though it never opens them, so the
+    // early check fails at the same tag and offset.
+    [TestCase("<div><hr/><p>x</p></div>", 5)]
+    [TestCase("<div><hr><p>x</p></div>", 5)]
+    [TestCase("<div><style>p{}</style><p>x</p></div>", 5)]
+    public void TagsThatAreNeverOpenedStillFailAtTheirOwnOffset(string html, int offset)
+    {
+        var error = Fails(html, 1);
+        Assert.That(error.Code, Is.EqualTo("FPDF1003"));
+        Assert.That(error.SourceOffset, Is.EqualTo(offset));
+    }
+
     [Test]
     public void DeepNestingInsideATableIsStillCaughtByTheReader()
     {

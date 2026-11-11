@@ -19,7 +19,10 @@ internal static class HtmlDocumentReader
     /// block, an open <c>li</c> by the next <c>li</c> or the list's end) and is never deeper than
     /// the reader's stack, so it only fails documents the reader would fail at the same tag. It
     /// stops checking at the first table (where the reader keeps an open <c>p</c>), unsupported
-    /// element or unmatched end tag, leaving those to the reader and its own error codes.
+    /// element or unmatched end tag, leaving those to the reader and its own error codes. Because
+    /// this pass runs before the reader, a reader-only error (an unsupported attribute, a nesting
+    /// rule) on the same or an earlier tag is reported as FPDF1003 instead, as FPDF1002 and CSS
+    /// errors from this pass already are.
     /// </summary>
     internal sealed class OpenElements(int maxDepth)
     {
@@ -30,7 +33,13 @@ internal static class HtmlDocumentReader
         {
             if (stopped || token.Kind is not (HtmlTokenKind.Start or HtmlTokenKind.End)) return;
             var name = token.Value;
-            if (name is "style" or "meta" or "br" or "img" or "hr" or "col") return; // never pushed
+            if (name is "meta" or "br") return; // the reader skips them before its depth check
+            if (name is "style" or "img" or "hr" or "col")
+            {
+                // Checked by the reader like any element, but never pushed.
+                if (token.Kind == HtmlTokenKind.Start) Check(token);
+                return;
+            }
             if (name == "table" || !(ParagraphTag(name) || Container(name) || InlineTag(name)
                 || TableMarkup.IsTag(name) || name is "head" or "title"))
             {
@@ -49,9 +58,14 @@ internal static class HtmlDocumentReader
             if (token.SelfClosing) { stopped = true; return; } // FPDF1101 in the reader
             if ((ParagraphTag(name) || Container(name)) && top == "p") top = PopAndPeek();
             if (name == "li" && top == "li") PopAndPeek();
-            // The reader's stack also holds the document root: it fails when 1 + open > MaxDepth.
-            if (open.Count >= maxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
+            Check(token);
             open.Add(name);
+        }
+
+        // The reader's stack also holds the document root: it fails when 1 + open > MaxDepth.
+        private void Check(HtmlToken token)
+        {
+            if (open.Count >= maxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
         }
 
         private string? PopAndPeek()
