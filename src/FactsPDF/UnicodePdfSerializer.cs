@@ -163,7 +163,7 @@ internal static class UnicodePdfSerializer
             }
             var xref = output.Position;
             Write("xref\n0 " + offsets.Count.ToString(CultureInfo.InvariantCulture) + "\n0000000000 65535 f \n");
-            foreach (var offset in offsets.Skip(1)) Write(offset.ToString("0000000000", CultureInfo.InvariantCulture) + " 00000 n \n");
+            PdfAscii.WriteXrefEntries(output, offsets);
             Write(FormattableString.Invariant($"trailer\n<< /Size {offsets.Count} /Root 1 0 R{(infoId is null ? "" : $" /Info {infoId.Value} 0 R")} >>\nstartxref\n{xref}\n%%EOF\n"));
             return output;
         }
