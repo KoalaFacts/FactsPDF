@@ -52,6 +52,19 @@ public sealed class CliErrorLocationTests
     }
 
     [Test]
+    public void PageLimitReportsTheLineOfTheElementThatNeededTheExtraPage()
+    {
+        // The CLI keeps the SDK's default limit of 1,000 pages; the 1,001st forced page fails.
+        var html = string.Concat(Enumerable.Repeat("<p style='break-before:page'>x</p>\n", 1_001));
+        var core = CoreError(html);
+        Assert.That(core.Code, Is.EqualTo("FPDF1303"));
+        var (exit, lines) = Run(html);
+        Assert.That(exit, Is.EqualTo(3));
+        Assert.That(lines[..2], Is.EqualTo(new[] { core.Message, "Location: line 1001, column 1." }));
+        Assert.That(lines[2..], Has.All.StartsWith("Hint:"), "Only resource guidance may follow the location.");
+    }
+
+    [Test]
     public void LocationNeverEchoesInputText()
     {
         const string html = "<p>SECRET-CUSTOMER-NAME</p>\n<p style=\"display:flex\">SECRET-CUSTOMER-NAME</p>";
