@@ -39,11 +39,14 @@ internal static class PdfSerializer
         {
             Write("%PDF-1.7\n%FactsPDF\n");
             Object(1, "<< /Type /Catalog /Pages 2 0 R >>");
-            var kids = string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => $"{4 + 2 * i} 0 R"));
-            Object(2, $"<< /Type /Pages /Count {pages.Count} /Kids [{kids}] >>");
-            Object(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
             var contents = new StringBuilder();
             var page = new StringBuilder();
+            if (offsets.Count != 2) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+            offsets.Add(output.Position);
+            page.Append("2 0 obj\n<< /Type /Pages /Count ").Append(pages.Count).Append(" /Kids [");
+            for (var i = 0; i < pages.Count; i++) (i > 0 ? page.Append(' ') : page).Append(4 + 2 * i).Append(" 0 R");
+            WriteText(page.Append("] >>\nendobj\n"));
+            Object(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -120,7 +123,12 @@ internal static class PdfSerializer
                 images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
             for (var i = 0; i < links.Count; i++)
-                Object(firstImage + images.ObjectCount + i, links.ObjectBody(i));
+            {
+                if (firstImage + images.ObjectCount + i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                links.AppendObject(page.Clear(), i, firstImage + images.ObjectCount + i);
+                WriteText(page);
+            }
             int? infoId = null;
             var info = PdfDocumentMetadata.BuildInfo(o);
             if (info is not null)
