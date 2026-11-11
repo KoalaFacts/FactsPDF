@@ -70,6 +70,54 @@ jobs:
           path: ${{ runner.temp }}/parity/parity.json
           if-no-files-found: warn
           retention-days: 7
+  dotnet-11:
+    # .NET 11 (GA 2026-11-10) compatibility. The package stays net10.0; this
+    # job proves a net11.0 consumer can use it on the GA SDK/runtime, that the
+    # whole solution builds and passes its tests retargeted to net11.0, and
+    # that every renderable example produces the same bytes on both runtimes.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: |
+            10.0.403
+            11.0.100
+      - name: net11.0 consumer of the net10.0 package (SDK 11.0.100, runtime 11.0.0)
+        run: |
+          dotnet pack src/FactsPDF/FactsPDF.csproj -c Release -o artifacts/packages
+          dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release --no-self-contained -o artifacts/first-use-cli
+          python3 scripts/verify_first_use.py --cli-dll artifacts/first-use-cli/FactsPDF.Cli.dll --dotnet "$(command -v dotnet)" \
+            --output "$RUNNER_TEMP/first-use-net11" --consumer-tfm net11.0 --probe-sdk 11.0.100 --probe-runtime 11.0.0
+      - name: Render examples on net10.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf10"
+          for f in examples/*.html; do dotnet artifacts/first-use-cli/FactsPDF.Cli.dll "$f" "$RUNNER_TEMP/pdf10/$(basename "$f" .html).pdf" > /dev/null 2>&1 || true; done
+      - name: Retarget the solution to net11.0 on the 11.0.100 SDK
+        run: |
+          sed -i 's#<TargetFramework>net10.0</TargetFramework>#<TargetFramework>net11.0</TargetFramework>#' Directory.Build.props examples/first-use/FirstUse.csproj tools/FactsPDF.Acceptance/FactsPDF.Acceptance.csproj
+          dotnet new globaljson --sdk-version 11.0.100 --force
+          dotnet --version
+      - name: Build and test on net11.0
+        run: dotnet test FactsPDF.slnx -c Release
+      - name: Same example bytes on net10.0 and net11.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf11"
+          cli=src/FactsPDF.Cli/bin/Release/net11.0/FactsPDF.Cli.dll
+          compared=0
+          for f in examples/*.html; do
+            name=$(basename "$f" .html)
+            dotnet "$cli" "$f" "$RUNNER_TEMP/pdf11/$name.pdf" > /dev/null 2>&1 || true
+            if [ -f "$RUNNER_TEMP/pdf10/$name.pdf" ] || [ -f "$RUNNER_TEMP/pdf11/$name.pdf" ]; then
+              cmp "$RUNNER_TEMP/pdf10/$name.pdf" "$RUNNER_TEMP/pdf11/$name.pdf"
+              compared=$((compared + 1))
+            fi
+          done
+          test "$compared" -gt 0
+          echo "$compared example PDFs are byte-identical on net10.0 and net11.0"
   native-aot:
     runs-on: ubuntu-latest
     timeout-minutes: 15

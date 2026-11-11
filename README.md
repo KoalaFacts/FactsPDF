@@ -2,7 +2,7 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
-FactsPDF is a .NET 10 library and command-line tool that turns a *controlled*
+FactsPDF is a .NET library (for .NET 10 and .NET 11) and command-line tool that turns a *controlled*
 HTML/CSS template (an invoice, inspection report, quote or status summary)
 into a real PDF: selectable text, embedded TrueType fonts, vector borders and
 backgrounds, images, tables and page numbers. It does not start Chromium or any
@@ -34,7 +34,9 @@ limitations and the tests that prove it. Check it before you write a template.
 
 ## Quick start
 
-You need Git and any **.NET 10 SDK** (10.0.100 or later).
+You need Git and any **.NET 10 SDK** (10.0.100 or later). The package targets `net10.0` and also runs
+in .NET 11 apps: CI checks a `net11.0` consumer on the .NET 11 GA SDK and runtime, and that every
+example renders the same bytes on both runtimes.
 
 ```sh
 git clone https://github.com/KoalaFacts/FactsPDF.git

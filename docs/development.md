@@ -9,7 +9,12 @@ The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](
 Any .NET 10 SDK (10.0.100 or later) works for development; `global.json` accepts
 the whole .NET 10 range. Release and delivery-candidate builds are stricter: they
 require the exact SDK and runtime in `eng/delivery-candidate.json` (currently
-10.0.403 / 10.0.14) and verify the SDK actually used. From the repository root:
+10.0.403 / 10.0.14) and verify the SDK actually used. The package targets `net10.0`;
+the `dotnet-11` CI job installs the .NET 11 GA SDK (11.0.100) and checks a `net11.0` consumer
+of that package (`verify_first_use.py --consumer-tfm net11.0 --probe-sdk 11.0.100 --probe-runtime 11.0.0`),
+runs the whole test suite retargeted to `net11.0`, and requires every example PDF to be
+byte-identical on both runtimes. Adding a native `net11.0` build to the package is a separate,
+reviewed change to the single-target package contract in `scripts/verify_package.py`. From the repository root:
 
 ```sh
 dotnet test FactsPDF.slnx -c Release
