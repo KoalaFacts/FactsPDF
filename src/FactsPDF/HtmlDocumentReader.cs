@@ -12,6 +12,55 @@ internal static class HtmlDocumentReader
     private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
         or "small" or "u" or "s" or "del" or "ins" or "a";
 
+    /// <summary>
+    /// The open elements the document reader will hold, replayed while the collecting pass reads
+    /// the tokens, so a nesting flood fails with FPDF1003 before the rest of the page is tokenized
+    /// (R1c1). It mirrors the reader's pushes and implicit pops (an open <c>p</c> closed by a
+    /// block, an open <c>li</c> by the next <c>li</c> or the list's end) and is never deeper than
+    /// the reader's stack, so it only fails documents the reader would fail at the same tag. It
+    /// stops checking at the first table (where the reader keeps an open <c>p</c>), unsupported
+    /// element or unmatched end tag, leaving those to the reader and its own error codes.
+    /// </summary>
+    internal sealed class OpenElements(int maxDepth)
+    {
+        private readonly List<string> open = [];
+        private bool stopped;
+
+        public void Read(HtmlToken token)
+        {
+            if (stopped || token.Kind is not (HtmlTokenKind.Start or HtmlTokenKind.End)) return;
+            var name = token.Value;
+            if (name is "style" or "meta" or "br" or "img" or "hr" or "col") return; // never pushed
+            if (name == "table" || !(ParagraphTag(name) || Container(name) || InlineTag(name)
+                || TableMarkup.IsTag(name) || name is "head" or "title"))
+            {
+                stopped = true;
+                return;
+            }
+            var top = open.Count == 0 ? null : open[^1];
+            if (token.Kind == HtmlTokenKind.End)
+            {
+                if (top == "p" && name != "p" && Container(name)) top = PopAndPeek();
+                if (ListTag(name) && top == "li") top = PopAndPeek();
+                if (top != name) { stopped = true; return; }
+                open.RemoveAt(open.Count - 1);
+                return;
+            }
+            if (token.SelfClosing) { stopped = true; return; } // FPDF1101 in the reader
+            if ((ParagraphTag(name) || Container(name)) && top == "p") top = PopAndPeek();
+            if (name == "li" && top == "li") PopAndPeek();
+            // The reader's stack also holds the document root: it fails when 1 + open > MaxDepth.
+            if (open.Count >= maxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
+            open.Add(name);
+        }
+
+        private string? PopAndPeek()
+        {
+            open.RemoveAt(open.Count - 1);
+            return open.Count == 0 ? null : open[^1];
+        }
+    }
+
     // Keep the old internal paragraph view for existing editor/tests; actual
     // conversions now receive a structured document via ReadTree.
     public static List<Paragraph> Read(string html, PdfOptions options, CancellationToken cancellation)

@@ -103,7 +103,8 @@ public sealed class LimitBoundaryTests
     // StopsEarly is set, the limit is checked while the flood is still being read, so failing
     // costs less than half of rendering the same input under roomy limits. The others are checked
     // only after a whole phase (CSS tokenizing, the HTML collecting pass, layout or serializing) and
-    // are bounded by the input limits instead; R1c in docs/mvp-roadmap.md tracks moving them.
+    // are bounded by the input limits instead; R1c in docs/mvp-roadmap.md tracks moving them. MaxDepth
+    // is checked while reading (R1c1, EarlyDepthLimitTests), but its reference fails as well.
     // Html builds the flood at a given scale; Large is the reference writer's limits. For MaxDepth
     // and MaxCssSyntaxDepth the reference fails too (nesting cannot be raised far enough safely), so
     // only the per-character bound applies to them.

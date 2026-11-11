@@ -41,6 +41,7 @@ internal sealed class CssStylesheets
     internal static CssStylesheets Collect(string html, PdfOptions options, List<HtmlToken> tokens, CancellationToken token)
     {
         var sheet = new CssStylesheets(options, token); var elements = 0;
+        var depth = new HtmlDocumentReader.OpenElements(options.MaxDepth);
         // Sized once instead of doubling past the pooled capacity (each doubling copies every
         // reference so far). Within the element limit, so an input that fails it early pays for
         // no more slots than it may hold.
@@ -49,6 +50,7 @@ internal sealed class CssStylesheets
         {
             token.ThrowIfCancellationRequested();
             tokens.Add(item);
+            if (item.Kind == HtmlTokenKind.End) depth.Read(item);
             if (item.Kind == HtmlTokenKind.StyleText)
             {
                 sheet.budget.Characters(item.Value.Length, item.Offset);
@@ -57,6 +59,7 @@ internal sealed class CssStylesheets
             else if (item.Kind == HtmlTokenKind.Start)
             {
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                depth.Read(item);
                 if (item.Value == "style") ValidateStyleElement(item);
                 else if (item.Attributes!.TryGetValue("style", out var css))
                 {
