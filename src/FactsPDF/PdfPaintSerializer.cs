@@ -391,7 +391,7 @@ internal static class PdfPaintSerializer
         if (stroke < 0.001 - 1e-10)
             throw new FactsPdfException("FPDF1302", "Patterned border is too thin to paint.", sourceOffset);
         // Border strokes span the *full* measured edge and are clipped to the
-        // edge rectangle. An inset centreline can disappear after N() rounds
+        // edge rectangle. An inset centreline can disappear after formatting rounds
         // two nearby endpoints to the same PDF coordinate (even when the
         // edge is longer than its thickness). Clipping also contains the
         // round end caps of dotted strokes on every page fragment.
@@ -402,7 +402,7 @@ internal static class PdfPaintSerializer
         var y2 = horizontal ? y1 : pageHeight - top - height;
         if (!double.IsFinite(x1 + x2 + y1 + y2 + stroke))
             throw new InvalidOperationException("Invalid patterned border geometry.");
-        if (N(x1) == N(x2) && N(y1) == N(y2))
+        if (SamePdfNumber(x1, x2) && SamePdfNumber(y1, y2))
             throw new FactsPdfException("FPDF1302", "Patterned border edge is too short to paint.", sourceOffset);
         output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
             .AppendInvariant(color.B, Number).Append(" RG ").AppendInvariant(stroke, Number).Append(" w ");
@@ -440,5 +440,16 @@ internal static class PdfPaintSerializer
     }
 
     private const string Number = "0.###";
-    private static string N(double value) => value.ToString(Number, CultureInfo.InvariantCulture);
+
+    // True when both values serialize to the same PDF number, compared without allocating
+    // the two strings (falls back to them only for values longer than 64 characters).
+    private static bool SamePdfNumber(double a, double b)
+    {
+        Span<char> left = stackalloc char[64];
+        Span<char> right = stackalloc char[64];
+        return a.TryFormat(left, out var leftLength, Number, CultureInfo.InvariantCulture)
+            && b.TryFormat(right, out var rightLength, Number, CultureInfo.InvariantCulture)
+            ? left[..leftLength].SequenceEqual(right[..rightLength])
+            : a.ToString(Number, CultureInfo.InvariantCulture) == b.ToString(Number, CultureInfo.InvariantCulture);
+    }
 }
