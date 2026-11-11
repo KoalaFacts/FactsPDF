@@ -65,7 +65,9 @@ internal static class UnicodePdfSerializer
             var firstPage = courierId + (hasCourier ? 1 : 0);
             var firstImage = firstPage + 2 * pages.Count;
             var links = new PdfLinkAnnotations(pages, o, firstImage + images.ObjectCount, cancellation);
-            Obj(2, $"<< /Type /Pages /Count {pages.Count.ToString(CultureInfo.InvariantCulture)} /Kids [" + string.Join(" ", Enumerable.Range(0, pages.Count).Select(i => (firstPage + 2 * i).ToString(CultureInfo.InvariantCulture) + " 0 R")) + "] >>");
+            var page = new StringBuilder("<< /Type /Pages /Count ").Append(pages.Count).Append(" /Kids [");
+            for (var i = 0; i < pages.Count; i++) (i > 0 ? page.Append(' ') : page).Append(firstPage + 2 * i).Append(" 0 R");
+            Begin(2); PdfAscii.Write(output, page.Append("] >>\nendobj\n"), cancellation);
             foreach (var use in fonts)
             {
                 cancellation.ThrowIfCancellationRequested(); var id = use.ObjectId; var font = use.Font;
@@ -108,7 +110,6 @@ internal static class UnicodePdfSerializer
                 resources += " /F0 " + courierId.ToString(CultureInfo.InvariantCulture) + " 0 R";
             }
             var content = new StringBuilder();
-            var page = new StringBuilder();
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested(); content.Clear();
@@ -164,7 +165,12 @@ internal static class UnicodePdfSerializer
                 images.WriteObject(output, i, firstImage + i, o.MaxOutputBytes, cancellation);
             }
             for (var i = 0; i < links.Count; i++)
-                Obj(firstImage + images.ObjectCount + i, links.ObjectBody(i));
+            {
+                if (firstImage + images.ObjectCount + i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                links.AppendObject(page.Clear(), i, firstImage + images.ObjectCount + i);
+                PdfAscii.Write(output, page, cancellation);
+            }
             int? infoId = null;
             var info = PdfDocumentMetadata.BuildInfo(o);
             if (info is not null)

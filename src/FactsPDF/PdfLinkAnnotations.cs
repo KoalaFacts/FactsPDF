@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace FactsPDF;
@@ -67,14 +66,19 @@ internal sealed class PdfLinkAnnotations
         output.Append(']');
     }
 
-    internal string ObjectBody(int index)
+    /// <summary>Appends link <paramref name="index"/> as the complete PDF object <paramref name="id"/>.</summary>
+    internal void AppendObject(StringBuilder output, int index, int id)
     {
         var a = entries[index];
+        output.Append(id).Append(" 0 obj\n<< /Type /Annot /Subtype /Link /Rect [")
+            .AppendInvariant(a.Left, Number).Append(' ').AppendInvariant(a.Bottom, Number).Append(' ')
+            .AppendInvariant(a.Right, Number).Append(' ').AppendInvariant(a.Top, Number)
+            .Append("] /Border [0 0 0] /A << /S /URI /URI <");
         // An ASCII URI is emitted as a PDF hex string, never interpolated as
         // literal PDF syntax (parentheses, backslashes and ampersands are safe).
-        var uriHex = Convert.ToHexString(Encoding.ASCII.GetBytes(a.Uri));
-        return FormattableString.Invariant(
-            $"<< /Type /Annot /Subtype /Link /Rect [{N(a.Left)} {N(a.Bottom)} {N(a.Right)} {N(a.Top)}] /Border [0 0 0] /A << /S /URI /URI <{uriHex}> >> >>");
+        // ValidateUri admits only printable ASCII, so each char is one byte.
+        foreach (var c in a.Uri) output.AppendHex(c, 2);
+        output.Append("> >> >>\nendobj\n");
     }
 
     internal static string ValidateUri(string input, int offset)
@@ -123,5 +127,5 @@ internal sealed class PdfLinkAnnotations
     private static FactsPdfException Invalid(int offset) => new("FPDF1103",
         "Link href requires an absolute ASCII HTTPS URL or one mailto address (max 2048 chars).", offset);
 
-    private static string N(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
+    private const string Number = "0.######";
 }
