@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace FactsPDF;
@@ -24,6 +23,12 @@ internal static class PdfSerializer
                 output.Write(buffer[..bytes]); i += count;
             }
         }
+        // The same limit check as Write, over a reused builder instead of a string per object.
+        void WriteText(StringBuilder text)
+        {
+            if (output.Length + text.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
+            PdfAscii.Write(output, text, cancellation);
+        }
         void Object(int id, string body)
         {
             if (id != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
@@ -38,6 +43,7 @@ internal static class PdfSerializer
             Object(2, $"<< /Type /Pages /Count {pages.Count} /Kids [{kids}] >>");
             Object(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
             var contents = new StringBuilder();
+            var page = new StringBuilder();
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -90,12 +96,20 @@ internal static class PdfSerializer
                     PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
-                Object(4 + 2 * i, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(o.PageWidth)} {N(o.PageHeight)}] /Resources << /Font << /F1 3 0 R >>{images.Resources(pages[i], firstImage, o.MaxOutputBytes, cancellation)} >> /Contents {5 + 2 * i} 0 R{links.PageEntry(i)} >>");
+                page.Clear().Append(4 + 2 * i).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth, Number).Append(' ')
+                    .AppendInvariant(o.PageHeight, Number).Append("] /Resources << /Font << /F1 3 0 R >>");
+                images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
+                page.Append(" >> /Contents ").Append(5 + 2 * i).Append(" 0 R");
+                links.AppendPageEntry(page, i);
+                page.Append(" >>\nendobj\n");
+                if (4 + 2 * i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
+                offsets.Add(output.Position);
+                WriteText(page);
                 if (5 + 2 * i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
                 offsets.Add(output.Position);
                 var length = PdfAscii.ByteCount(contents);
                 if (output.Length + length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
-                Write($"{5 + 2 * i} 0 obj\n<< /Length {length} >>\nstream\n");
+                WriteText(page.Clear().Append(5 + 2 * i).Append(" 0 obj\n<< /Length ").Append(length).Append(" >>\nstream\n"));
                 PdfAscii.Write(output, contents, cancellation);
                 Write("\nendstream\nendobj\n");
             }
@@ -124,5 +138,4 @@ internal static class PdfSerializer
     }
 
     private const string Number = "0.###";
-    private static string N(double value) => value.ToString(Number, CultureInfo.InvariantCulture);
 }

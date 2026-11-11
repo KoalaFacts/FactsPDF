@@ -53,10 +53,19 @@ internal sealed class PdfLinkAnnotations
         }
     }
 
-    internal string PageEntry(int page)
-        => pageIds[page].Count == 0 ? "" :
-            " /Annots [" + string.Join(" ", pageIds[page].Select(id =>
-                id.ToString(CultureInfo.InvariantCulture) + " 0 R")) + "]";
+    /// <summary>Appends the page's <c>/Annots</c> entry (nothing for a page without links).</summary>
+    internal void AppendPageEntry(StringBuilder output, int page)
+    {
+        var ids = pageIds[page];
+        if (ids.Count == 0) return;
+        output.Append(" /Annots [");
+        for (var i = 0; i < ids.Count; i++)
+        {
+            if (i > 0) output.Append(' ');
+            output.Append(ids[i]).Append(" 0 R");
+        }
+        output.Append(']');
+    }
 
     internal string ObjectBody(int index)
     {

@@ -24,18 +24,23 @@ internal sealed class PdfImageWriter
             }
     }
 
-    internal string Resources(LayoutPage page, int firstObject, int limit, CancellationToken cancellation)
+    /// <summary>
+    /// Appends the page's <c>/XObject</c> resource entries (nothing for a page without images). The
+    /// byte limit applies to the entries alone, as when they were built as a separate string.
+    /// </summary>
+    internal void AppendResources(StringBuilder output, LayoutPage page, int firstObject, int limit, CancellationToken cancellation)
     {
-        if (page.Images.Count == 0) return "";
-        var result = new StringBuilder(" /XObject <<"); var seen = new HashSet<int>();
+        if (page.Images.Count == 0) return;
+        var start = output.Length;
+        output.Append(" /XObject <<"); var seen = new HashSet<int>();
         foreach (var placed in page.Images)
         {
             cancellation.ThrowIfCancellationRequested();
             var index = indices[placed.Image];
-            if (seen.Add(index)) result.Append(FormattableString.Invariant($" /Im{index + 1} {firstObject + index} 0 R"));
-            Check(result.Length, limit);
+            if (seen.Add(index)) output.Append(" /Im").Append(index + 1).Append(' ').Append(firstObject + index).Append(" 0 R");
+            Check(output.Length - start, limit);
         }
-        return result.Append(" >>").ToString();
+        output.Append(" >>");
     }
 
     internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation)
