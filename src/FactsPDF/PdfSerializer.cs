@@ -52,10 +52,11 @@ internal static class PdfSerializer
                 foreach (var run in pages[i].Runs)
                 {
                     var color = run.Style.Color;
-                    var tracking = previousTracking == run.Style.LetterSpacing
-                        ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
+                    var tracked = previousTracking != run.Style.LetterSpacing;
                     previousTracking = run.Style.LetterSpacing;
-                    contents.Append("BT /F1 ").AppendInvariant(run.Style.FontSize, Number).Append(" Tf ").Append(tracking).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ");
+                    contents.Append("BT /F1 ").AppendInvariant(run.Style.FontSize, Number).Append(" Tf ");
+                    if (tracked) contents.AppendInvariant(run.Style.LetterSpacing, Number).Append(" Tc ");
+                    contents.AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ");
                     contents.Append("1 0 0 1 ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(run.Baseline, Number).Append(" Tm ");
                     if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
                     {

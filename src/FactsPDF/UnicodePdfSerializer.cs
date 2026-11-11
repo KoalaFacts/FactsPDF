@@ -120,10 +120,11 @@ internal static class UnicodePdfSerializer
                 foreach (var run in pages[i].Runs)
                 {
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
-                    var tracking = previousTracking == run.Style.LetterSpacing
-                        ? "" : $"{N(run.Style.LetterSpacing)} Tc ";
+                    var tracked = previousTracking != run.Style.LetterSpacing;
                     previousTracking = run.Style.LetterSpacing;
-                    content.Append("BT /").Append(use?.Resource ?? "F0").Append(' ').AppendInvariant(run.Style.FontSize, Number).Append(" Tf ").Append(tracking)
+                    content.Append("BT /").Append(use?.Resource ?? "F0").Append(' ').AppendInvariant(run.Style.FontSize, Number).Append(" Tf ");
+                    if (tracked) content.AppendInvariant(run.Style.LetterSpacing, Number).Append(" Tc ");
+                    content
                         .AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number)
                         .Append(" rg 1 0 0 1 ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(run.Baseline, Number).Append(" Tm ");
                     var spaced = run.Style.WordSpacing != 0 && run.Text.Contains(' ');
