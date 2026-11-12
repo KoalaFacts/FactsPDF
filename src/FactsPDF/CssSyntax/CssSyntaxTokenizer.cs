@@ -29,6 +29,15 @@ internal static class CssSyntaxTokenizer
         // once this bound passes MaxNodes the parser would already have failed with MaxNodes.
         var counted = 0;
         var previous = CssSyntaxTokenKind.Eof; // the last non-whitespace token; Eof at the start
+        // The top-level qualified rules opened so far, and the top-level item being read: the parser
+        // skips whitespace, CDO and CDC between items, reads an item that starts with an at-keyword
+        // as an at-rule (ended by `;` or its block) and any other as a qualified rule (ended by its
+        // block). Each qualified rule compiles at least one selector, each counted against the
+        // selector budget before anything else about the rule is checked.
+        var rules = 0;
+        var inItem = false;
+        var atRule = false;
+        var itemStart = default(CssSourceSpan);
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
             bool integer = false, string? unit = null, bool terminated = true)
@@ -40,7 +49,18 @@ internal static class CssSyntaxTokenizer
                 kind, value ?? raw, raw, span,
                 integer, false, unit, terminated));
             Count(kind, span);
+            Rule(kind, span);
             Nest(kind, span);
+        }
+
+        void Rule(CssSyntaxTokenKind kind, CssSourceSpan span)
+        {
+            if (closers is { Count: > 0 } || kind == CssSyntaxTokenKind.Whitespace) return;
+            if (!inItem && kind is CssSyntaxTokenKind.Cdo or CssSyntaxTokenKind.Cdc) return;
+            if (!inItem) { inItem = true; atRule = kind == CssSyntaxTokenKind.AtKeyword; itemStart = span; }
+            if (kind == CssSyntaxTokenKind.Semicolon && atRule) inItem = false;
+            else if (kind == CssSyntaxTokenKind.OpenBrace && !atRule && ++rules > limits.MaxQualifiedRules)
+                throw new CssSyntaxLimitException(CssSyntaxLimits.SelectorBudgetMessage, itemStart);
         }
 
         void Count(CssSyntaxTokenKind kind, CssSourceSpan span)
@@ -73,7 +93,12 @@ internal static class CssSyntaxTokenizer
                     throw new CssSyntaxLimitException("CSS syntax nesting exceeds MaxDepth.", span);
                 closers.Add(closer);
             }
-            else if (closers is { Count: > 0 } && closers[^1] == kind) closers.RemoveAt(closers.Count - 1);
+            else if (closers is { Count: > 0 } && closers[^1] == kind)
+            {
+                closers.RemoveAt(closers.Count - 1);
+                // The block of a top-level rule closed: the next token starts a new item.
+                if (closers.Count == 0 && kind == CssSyntaxTokenKind.CloseBrace) inItem = false;
+            }
         }
 
         for (var i = 0; i < text.Length;)
