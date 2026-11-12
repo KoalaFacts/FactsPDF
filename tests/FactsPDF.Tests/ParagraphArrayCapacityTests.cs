@@ -88,7 +88,7 @@ public sealed class ParagraphArrayCapacityTests
         Assert.That(Pdf.Write().ToBytes(html.ToString()), Is.Not.Empty);
     }
 
-    private static BlockNode FirstParagraphElement(List<BlockChild> children)
+    private static BlockNode FirstParagraphElement(BlockChildList children)
     {
         foreach (var child in children)
         {

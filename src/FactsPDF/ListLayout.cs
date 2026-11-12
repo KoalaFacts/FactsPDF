@@ -141,7 +141,8 @@ internal sealed class ListLayout
                 {
                     paragraph = new Paragraph(item.Style, item.SourceOffset) { IsAnonymous = true };
                     var view = new List<BlockChild>(item.Children.Count + 1) { paragraph };
-                    view.AddRange(item.Children);
+                    // An index loop: AddRange over the child list would box its enumerator.
+                    for (var i = 0; i < item.Children.Count; i++) view.Add(item.Children[i]);
                     result.children.Add(item, view);
                 }
                 result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset, kind, item.BoxStyle.MarkerInside));

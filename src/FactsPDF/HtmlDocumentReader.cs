@@ -180,7 +180,7 @@ internal static class HtmlDocumentReader
         var anonymous = false;
         var elements = 0; var insideStyle = false;
 
-        List<BlockChild> CurrentChildren()
+        BlockChildList CurrentChildren()
         {
             for (var i = stack.Count - 1; i >= 0; i--)
             {
@@ -468,9 +468,8 @@ internal static class HtmlDocumentReader
                 {
                     ListStart = listStart, ListValue = listValue, ListReversed = listReversed
                 };
-                // A paragraph element holds at most its own paragraph: block children are rejected
-                // or close it first, so one slot is exact.
-                if (ParagraphTag(name)) box.Children.Capacity = 1;
+                // A paragraph element holds at most its own paragraph (block children are rejected
+                // or close it first), which the child list keeps in its first slot without an array.
                 CurrentChildren().Add(box);
             }
             stack.Add(new(name, style, boxStyle, box, token.Offset));
