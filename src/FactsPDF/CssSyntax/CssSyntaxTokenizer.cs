@@ -24,6 +24,11 @@ internal static class CssSyntaxTokenizer
         // every opener and leaves only on its matching closer, so this is its nesting at each
         // token and MaxDepth fails here, before the rest of a nesting flood is tokenized.
         List<CssSyntaxTokenKind>? closers = null;
+        // A lower bound on the parser's node count: tokens it counts whenever it takes them (see
+        // CountedNode). It takes tokens in source order and counts a component when taking it, so
+        // once this bound passes MaxNodes the parser would already have failed with MaxNodes.
+        var counted = 0;
+        var previous = CssSyntaxTokenKind.Eof; // the last non-whitespace token; Eof at the start
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
             bool integer = false, string? unit = null, bool terminated = true)
@@ -34,7 +39,21 @@ internal static class CssSyntaxTokenizer
             result.Add(new CssSyntaxToken(
                 kind, value ?? raw, raw, span,
                 integer, false, unit, terminated));
+            Count(kind, span);
             Nest(kind, span);
+        }
+
+        void Count(CssSyntaxTokenKind kind, CssSourceSpan span)
+        {
+            if (kind == CssSyntaxTokenKind.Whitespace) return;
+            if (CountedNode(kind, previous))
+            {
+                // The parser counts a component before entering it, so this check precedes Nest's.
+                if (counted >= limits.MaxNodes)
+                    throw new CssSyntaxLimitException("CSS syntax node count exceeds MaxNodes.", span);
+                counted++;
+            }
+            previous = kind;
         }
 
         void Nest(CssSyntaxTokenKind kind, CssSourceSpan span)
@@ -100,9 +119,11 @@ internal static class CssSyntaxTokenizer
                 var start = i++;
                 var isId = StartsIdentifier(text, i);
                 var name = ConsumeName(text, ref i, limits.Cancellation);
+                var span = source.Span(start, i - start);
                 result.Add(new CssSyntaxToken(
                     CssSyntaxTokenKind.Hash, name, text[start..i],
-                    source.Span(start, i - start), false, isId));
+                    span, false, isId));
+                Count(CssSyntaxTokenKind.Hash, span);
                 continue;
             }
             if (text[i] == '@' && StartsIdentifier(text, i + 1))
@@ -194,6 +215,23 @@ internal static class CssSyntaxTokenizer
         if (result.Capacity <= MaxPooledTokens) pooledTokens = result;
         return new CssSyntaxTokenizationResult(tokens, diagnostics?.ToArray() ?? []);
     }
+
+    // Whether the parser counts this token as a component node whenever it takes it. Whitespace,
+    // colons, semicolons, closers, braces, CDO/CDC and at-keywords (counted only after their block)
+    // are not. An identifier is a declaration name, counted only if the declaration is valid,
+    // when it starts an item of a block or style attribute, that is after `{`, `;`, `}` or at the
+    // start; any other identifier is a component the parser counts.
+    private static bool CountedNode(CssSyntaxTokenKind kind, CssSyntaxTokenKind previous) => kind switch
+    {
+        CssSyntaxTokenKind.Function or CssSyntaxTokenKind.Hash or CssSyntaxTokenKind.String
+            or CssSyntaxTokenKind.BadString or CssSyntaxTokenKind.Url or CssSyntaxTokenKind.BadUrl
+            or CssSyntaxTokenKind.Delim or CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage
+            or CssSyntaxTokenKind.Dimension or CssSyntaxTokenKind.Comma or CssSyntaxTokenKind.OpenParen
+            or CssSyntaxTokenKind.OpenSquare => true,
+        CssSyntaxTokenKind.Ident => previous is not (CssSyntaxTokenKind.Eof or CssSyntaxTokenKind.OpenBrace
+            or CssSyntaxTokenKind.Semicolon or CssSyntaxTokenKind.CloseBrace),
+        _ => false,
+    };
 
     // Keeps the pooled array under the large-object threshold (about 48 bytes per token).
     private const int MaxPooledTokens = 1024;
