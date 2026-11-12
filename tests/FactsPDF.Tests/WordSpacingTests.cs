@@ -80,7 +80,7 @@ public sealed class WordSpacingTests
             "<div style='word-spacing:3pt'><p>EE<span> FF GG</span></p></div>";
         var paragraphs = HtmlDocumentReader.Read(html, Page, default);
         Assert.That(paragraphs.Select(x => x.Style.WordSpacing), Is.EqualTo(new[] { 2d, 0d, 2d }));
-        Assert.That(paragraphs.Last().Runs.Last().Style.WordSpacing, Is.EqualTo(2));
+        Assert.That(paragraphs.Last().Runs[^1].Style.WordSpacing, Is.EqualTo(2));
         Assert.That(Pdf(html), Is.Not.Empty);
     }
 

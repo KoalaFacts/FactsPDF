@@ -131,7 +131,7 @@ public sealed class LetterSpacingTests
             "<div style='letter-spacing:1pt'><p class=unset>EF<span>GH</span></p></div>";
         var items = HtmlDocumentReader.Read(html, Page, default);
         Assert.That(items.Select(p => p.Style.LetterSpacing), Is.EqualTo(new[] { 2d, 0d, 1d }));
-        Assert.That(items[2].Runs.Last().Style.LetterSpacing, Is.EqualTo(1));
+        Assert.That(items[2].Runs[^1].Style.LetterSpacing, Is.EqualTo(1));
         Assert.That(Pdf(html), Is.Not.Empty);
     }
 

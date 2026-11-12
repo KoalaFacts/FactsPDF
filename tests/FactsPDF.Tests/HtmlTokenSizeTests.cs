@@ -122,4 +122,43 @@ public sealed class HtmlTokenSizeTests
         // The origin map maps the decoded value back past the five-character reference.
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("-1pt", StringComparison.Ordinal)));
     }
+
+    // Measured on top of Z6g2b5 (448 bytes per paragraph): 416 once a paragraph stores its runs
+    // inline (an array and a count) instead of in a separate List object.
+    [Test]
+    public void ReadingAParagraphKeepsItsRunsWithoutAListObject()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(430));
+    }
+
+    [Test]
+    public void InlineRunsGrowAndEnumerateInOrder()
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var paragraph = new Paragraph(style);
+        Assert.That(paragraph.Runs.Count, Is.Zero);
+        Assert.That(paragraph.Runs.Capacity, Is.Zero);
+        Assert.That(paragraph.Runs.HasBreak(), Is.False);
+        for (var i = 0; i < 9; i++) paragraph.Runs.Add(new TextRun(i.ToString(System.Globalization.CultureInfo.InvariantCulture), style, IsBreak: i == 7));
+        Assert.That(paragraph.Runs.Count, Is.EqualTo(9));
+        Assert.That(paragraph.Runs.Capacity, Is.EqualTo(16));
+        Assert.That(paragraph.Runs.HasBreak(), Is.True);
+        var texts = new List<string>();
+        foreach (var run in paragraph.Runs) texts.Add(run.Text);
+        Assert.That(texts, Is.EqualTo(new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8" }));
+        Assert.That(paragraph.Runs[^1].Text, Is.EqualTo("8"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = paragraph.Runs[9]);
+
+        var sized = new Paragraph(style, 0, runCapacity: 1);
+        sized.Runs.Add(new TextRun("a", style));
+        Assert.That(sized.Runs.Capacity, Is.EqualTo(1));
+        sized.Runs.Add(new TextRun("b", style));
+        Assert.That(sized.Runs.Capacity, Is.EqualTo(2));
+        Assert.That(sized.Runs.Select(r => r.Text), Is.EqualTo(new[] { "a", "b" }));
+    }
 }
