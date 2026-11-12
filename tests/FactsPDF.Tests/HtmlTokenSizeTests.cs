@@ -123,7 +123,7 @@ public sealed class HtmlTokenSizeTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("-1pt", StringComparison.Ordinal)));
     }
 
-    // Measured on top of Z6g2b5 (448 bytes per paragraph): 416 once a paragraph stores its runs
+    // Measured on top of main c10e703 (440 bytes per paragraph): 416 once a paragraph stores its runs
     // inline (an array and a count) instead of in a separate List object.
     [Test]
     public void ReadingAParagraphKeepsItsRunsWithoutAListObject()
