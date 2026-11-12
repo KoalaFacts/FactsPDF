@@ -54,6 +54,10 @@ public sealed class EarlyCssSelectorLimitTests
             .SetName("{m}(braces in attribute selector strings)");
         yield return new TestCaseData("<style>\n  p { color: red }\n  h1 { color: red }\n</style><h1>t</h1><p>x</p>", 2, 29)
             .SetName("{m}(whitespace between rules)");
+        yield return new TestCaseData("<style>p{color:red}#x{color:red}</style><p id=\"x\">x</p>", 2, 19)
+            .SetName("{m}(id selector rule)");
+        yield return new TestCaseData("<style>#x{color:red} #y{color:red}</style><p id=\"x\">x</p>", 2, 21)
+            .SetName("{m}(id selector rules after whitespace)");
     }
 
     [TestCaseSource(nameof(Budgets))]
@@ -86,6 +90,7 @@ public sealed class EarlyCssSelectorLimitTests
         yield return new TestCaseData("a{b:{c}d}e:f({}){g:h}", false, 2).SetName("{m}(braces inside blocks and functions)");
         yield return new TestCaseData("{a:b}c{d:e}", false, 2).SetName("{m}(empty prelude)");
         yield return new TestCaseData("<!--a{b:c}-->d{e:f}", false, 2).SetName("{m}(cdo and cdc)");
+        yield return new TestCaseData("#a{b:c}#d{e:f}", false, 2).SetName("{m}(id selectors)");
     }
 
     [TestCaseSource(nameof(RuleCounts))]
