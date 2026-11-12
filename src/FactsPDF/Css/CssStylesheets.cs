@@ -118,10 +118,16 @@ internal sealed class CssStylesheets
         {
             var source = CssSourceText.Create(css, offset, syntaxLimits, originalOffsets);
             // A stylesheet's top-level qualified rules each compile at least one selector, so the
-            // tokenizer fails a rule flood with the selector budget before tokenizing the rest.
+            // tokenizer fails a rule flood with the selector budget before tokenizing the rest; each
+            // declaration of such a rule compiles at least one counted declaration, so a declaration
+            // flood fails with the declaration budget the same way.
             var result = declarationsOnly
                 ? CssSyntaxParser.ParseDeclarations(source, syntaxLimits)
-                : CssSyntaxParser.ParseStylesheet(source, syntaxLimits with { MaxQualifiedRules = budget.SelectorsLeft });
+                : CssSyntaxParser.ParseStylesheet(source, syntaxLimits with
+                {
+                    MaxQualifiedRules = budget.SelectorsLeft,
+                    MaxDeclarations = budget.DeclarationsLeft,
+                });
             CssSyntaxAdapter.ThrowIfRecovered(result);
             return result;
         }

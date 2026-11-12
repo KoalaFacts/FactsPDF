@@ -38,6 +38,13 @@ internal static class CssSyntaxTokenizer
         var inItem = false;
         var atRule = false;
         var itemStart = default(CssSourceSpan);
+        // Declarations of top-level qualified rules: an item of a rule's block that is a non-custom
+        // identifier, a colon and at least one value token, ended by `;` or the block's `}` with no
+        // `{` anywhere in it, is a declaration the parser returns, and compiling it emits at least
+        // one declaration counted against the declaration budget (or fails with its own error).
+        var declarations = 0;
+        var declaration = DeclarationState.Start;
+        var declarationValue = default(CssSourceSpan);
 
         void Add(CssSyntaxTokenKind kind, int start, int end, string? value = null,
             bool integer = false, string? unit = null, bool terminated = true)
@@ -50,7 +57,46 @@ internal static class CssSyntaxTokenizer
                 integer, false, unit, terminated));
             Count(kind, span);
             Rule(kind, span);
+            Declare(kind, span, value ?? raw);
             Nest(kind, span);
+        }
+
+        void Declare(CssSyntaxTokenKind kind, CssSourceSpan span, string value)
+        {
+            var depth = closers?.Count ?? 0;
+            if (depth == 0 || atRule || limits.MaxDeclarations == int.MaxValue)
+            {
+                declaration = DeclarationState.Start;
+                return;
+            }
+            if (kind == CssSyntaxTokenKind.OpenBrace) { declaration = DeclarationState.Spoiled; return; }
+            if (depth > 1)
+            {
+                // A nested rule's block closed: the parser reads the next item of the rule's block.
+                if (depth == 2 && kind == CssSyntaxTokenKind.CloseBrace && closers![^1] == kind)
+                    declaration = DeclarationState.Start;
+                return;
+            }
+            if (kind == CssSyntaxTokenKind.Whitespace) return;
+            if (kind is CssSyntaxTokenKind.Semicolon or CssSyntaxTokenKind.CloseBrace)
+            {
+                if (declaration == DeclarationState.Value && ++declarations > limits.MaxDeclarations)
+                    throw new CssSyntaxLimitException(CssSyntaxLimits.DeclarationBudgetMessage, declarationValue);
+                declaration = DeclarationState.Start;
+                return;
+            }
+            declaration = declaration switch
+            {
+                DeclarationState.Start when kind == CssSyntaxTokenKind.Ident
+                    && !value.StartsWith("--", StringComparison.Ordinal) => DeclarationState.Name,
+                DeclarationState.Name when kind == CssSyntaxTokenKind.Colon => DeclarationState.Colon,
+                DeclarationState.Colon => DeclarationState.Value,
+                DeclarationState.Value => DeclarationState.Value,
+                _ => DeclarationState.Spoiled,
+            };
+            if (declaration == DeclarationState.Value && kind != CssSyntaxTokenKind.Colon
+                && declarationValue.Start < 0) declarationValue = span;
+            if (declaration != DeclarationState.Value) declarationValue = new(-1, 0);
         }
 
         void Rule(CssSyntaxTokenKind kind, CssSourceSpan span)
@@ -150,6 +196,7 @@ internal static class CssSyntaxTokenizer
                     span, false, isId));
                 Count(CssSyntaxTokenKind.Hash, span);
                 Rule(CssSyntaxTokenKind.Hash, span);
+                Declare(CssSyntaxTokenKind.Hash, span, name);
                 continue;
             }
             if (text[i] == '@' && StartsIdentifier(text, i + 1))
@@ -468,4 +515,6 @@ internal static class CssSyntaxTokenizer
         return char.IsAsciiDigit(text[at]) ||
                (text[at] == '.' && at + 1 < text.Length && char.IsAsciiDigit(text[at + 1]));
     }
+
+    private enum DeclarationState : byte { Start, Name, Colon, Value, Spoiled }
 }
