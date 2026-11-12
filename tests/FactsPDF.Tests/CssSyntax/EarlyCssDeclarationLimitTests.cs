@@ -32,7 +32,8 @@ public sealed class EarlyCssDeclarationLimitTests
         TestContext.Out.WriteLine($"100,000 declarations over MaxCssDeclarations 100: {allocated / 1024} KiB");
         Assert.That(error.Code, Is.EqualTo("FPDF1205"));
         Assert.That(error.Message, Does.Contain("CSS declaration budget exceeded."));
-        // The value of the 101st declaration, where the compiled budget check reports it too.
+        // The value of the 101st declaration; for a single-value property the compiled check reports it
+        // there too (a shorthand can fail earlier, at the declaration where its emitted count crossed).
         Assert.That(error.SourceOffset, Is.EqualTo("<style>p{".Length + 100 * "color:red;".Length + "color:".Length));
         // Before R1c5 every token of the style element was created and parsed first.
         Assert.That(allocated, Is.LessThan(4_000_000));
