@@ -14,7 +14,7 @@ internal static class BlockTreeTraversal
 
         // A list/index stack avoids C# recursion and recursion-based stack
         // exhaustion for callers that explicitly raise MaxDepth.
-        var pending = new Stack<(List<BlockChild> Children, int Index)>();
+        var pending = new Stack<(BlockChildList Children, int Index)>();
         pending.Push((root.Children, 0));
         while (pending.Count > 0)
         {

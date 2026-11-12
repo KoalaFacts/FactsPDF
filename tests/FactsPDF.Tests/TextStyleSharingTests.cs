@@ -12,7 +12,7 @@ public sealed class TextStyleSharingTests
     private static DocumentRoot Read(string html) =>
         HtmlDocumentReader.ReadTree(html, new PdfOptions(), CancellationToken.None);
 
-    private static IEnumerable<BlockChild> Descendants(List<BlockChild> children)
+    private static IEnumerable<BlockChild> Descendants(BlockChildList children)
     {
         foreach (var child in children)
         {

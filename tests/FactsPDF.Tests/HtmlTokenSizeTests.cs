@@ -136,6 +136,46 @@ public sealed class HtmlTokenSizeTests
         Assert.That(perParagraph, Is.LessThan(430));
     }
 
+    // Measured on top of main 9d40e06 (416 bytes per paragraph): 392 once a block keeps its first
+    // child in a slot of its child list instead of a List object plus a one-slot array.
+    [Test]
+    public void ReadingAParagraphKeepsItsChildWithoutAnArray()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(405));
+    }
+
+    [Test]
+    public void BlockChildrenGrowEnumerateAndRemoveInOrder()
+    {
+        var list = new BlockChildList();
+        Assert.That(list, Is.Empty);
+        Assert.That(list.Capacity, Is.EqualTo(1));
+        var nodes = Enumerable.Range(0, 11).Select(i => new BlockNode("div" + i, new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left), BoxStyle.Initial, i)).ToArray();
+        list.Add(nodes[0]);
+        Assert.That(list.Capacity, Is.EqualTo(1));
+        for (var i = 1; i < nodes.Length; i++) list.Add(nodes[i]);
+        Assert.That(list.Capacity, Is.EqualTo(1 + 16));
+        Assert.That(list, Is.EqualTo(nodes));
+        var seen = new List<BlockChild>();
+        foreach (var child in list) seen.Add(child);
+        Assert.That(seen, Is.EqualTo(nodes));
+        Assert.That(list[^1], Is.SameAs(nodes[^1]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = list[11]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = list[-1]);
+        list.RemoveAt(list.Count - 1);
+        list.RemoveAt(0);
+        Assert.That(list, Is.EqualTo(nodes[1..10]));
+        while (list.Count > 0) list.RemoveAt(list.Count - 1);
+        Assert.That(list, Is.Empty);
+        list.Add(nodes[5]);
+        Assert.That(list, Is.EqualTo(new[] { nodes[5] }));
+    }
+
     [Test]
     public void InlineRunsGrowAndEnumerateInOrder()
     {

@@ -285,7 +285,7 @@ internal abstract record BlockChild;
 
 internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChild
 {
-    public List<BlockChild> Children { get; } = [];
+    public BlockChildList Children { get; } = new();
     // Bounded HTML ordered-list sequence metadata. These are parsed values,
     // never generated child nodes; a tree may be laid out repeatedly.
     // Stored as plain ints, 0 for none (list ordinals are always positive), so a block node is
@@ -297,11 +297,74 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
 }
 
 
+/// <summary>
+/// The children of a block or of the document root. The first child is kept in a slot of the list
+/// itself and only later children go to an array, so a paragraph element (which holds just its own
+/// paragraph) allocates no array; growth past the slot follows List's (4, then doubling).
+/// </summary>
+internal sealed class BlockChildList : IReadOnlyList<BlockChild>
+{
+    private BlockChild? first;
+    private BlockChild[]? rest;
+    private int count;
+
+    public int Count => count;
+
+    /// <summary>The first-child slot plus the length of the array for later children.</summary>
+    public int Capacity => 1 + (rest?.Length ?? 0);
+
+    public BlockChild this[int index]
+        => (uint)index < (uint)count
+            ? (index == 0 ? first! : rest![index - 1])
+            : throw new ArgumentOutOfRangeException(nameof(index));
+
+    internal void Add(BlockChild child)
+    {
+        if (count == 0) first = child;
+        else
+        {
+            var slot = count - 1;
+            if (rest is null || slot == rest.Length)
+                Array.Resize(ref rest, rest is null ? 4 : checked(rest.Length * 2));
+            rest[slot] = child;
+        }
+        count++;
+    }
+
+    internal void RemoveAt(int index)
+    {
+        if ((uint)index >= (uint)count) throw new ArgumentOutOfRangeException(nameof(index));
+        if (index == 0)
+        {
+            first = count > 1 ? rest![0] : null;
+            index = 1;
+        }
+        // Shift the later children down over the removed one and clear the vacated slot.
+        for (var i = index; i < count - 1; i++) rest![i - 1] = rest[i];
+        if (count > 1) rest![count - 2] = null!;
+        count--;
+    }
+
+    public Enumerator GetEnumerator() => new(this);
+    IEnumerator<BlockChild> IEnumerable<BlockChild>.GetEnumerator() => GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+    internal struct Enumerator(BlockChildList list) : IEnumerator<BlockChild>
+    {
+        private int index = -1;
+        public readonly BlockChild Current => list[index];
+        readonly object System.Collections.IEnumerator.Current => Current;
+        public bool MoveNext() => ++index < list.count;
+        public void Reset() => index = -1;
+        public readonly void Dispose() { }
+    }
+}
+
 internal sealed record ImageNode(PdfImage Image, TextStyle Style, BoxStyle BoxStyle,
     int SourceOffset, string? Alt) : BlockChild;
 
 internal sealed class DocumentRoot
 {
-    public List<BlockChild> Children { get; } = [];
+    public BlockChildList Children { get; } = new();
     public bool HasLists { get; set; }
 }
