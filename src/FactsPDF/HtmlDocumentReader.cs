@@ -198,7 +198,7 @@ internal static class HtmlDocumentReader
                 {
                     // Formatting whitespace and empty inline wrappers are not
                     // anonymous flow items. Explicit p margins are retained.
-                    if (!anonymous || current.Runs.Any(r => r.IsBreak) || TextLines.HasTextContent(current, cancellation))
+                    if (!anonymous || current.Runs.HasBreak() || TextLines.HasTextContent(current, cancellation))
                         cell.Contents.Add(new TableCellText(current));
                 }
                 else

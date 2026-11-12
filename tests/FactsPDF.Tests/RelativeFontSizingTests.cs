@@ -40,7 +40,7 @@ public sealed class RelativeFontSizingTests
         Assert.That(paragraphs[1].Style.FontSize, Is.EqualTo(24).Within(0.000001));
         Assert.That(paragraphs[1].Runs.Single(r => r.Text == "Bigger").Style.FontSize,
             Is.EqualTo(30).Within(0.000001));
-        Assert.That(paragraphs[1].Runs.Last().Style.FontSize, Is.EqualTo(24).Within(0.000001));
+        Assert.That(paragraphs[1].Runs[^1].Style.FontSize, Is.EqualTo(24).Within(0.000001));
     }
 
     [Test]

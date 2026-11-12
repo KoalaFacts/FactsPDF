@@ -75,9 +75,57 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : Block
     // Sized exactly when the reader knows how many runs the paragraph element holds, so a
     // one-run paragraph keeps a one-slot array instead of List's default four.
     public Paragraph(TextStyle style, int sourceOffset, int runCapacity) : this(style, sourceOffset)
-        => Runs.Capacity = runCapacity;
+        => runs = new(runCapacity);
 
-    public List<TextRun> Runs { get; } = [];
+    // The runs are stored in the paragraph itself (an array and a count) instead of a separate
+    // List object per paragraph; Runs returns them by reference so Add grows this paragraph's copy.
+    private TextRunList runs;
+    public ref TextRunList Runs => ref runs;
+}
+
+/// <summary>A paragraph's growable run array, stored inline in its <see cref="Paragraph"/>.</summary>
+internal struct TextRunList : IReadOnlyList<TextRun>
+{
+    private TextRun[]? items;
+    private int count;
+
+    internal TextRunList(int capacity) => items = capacity > 0 ? new TextRun[capacity] : null;
+
+    public readonly int Count => count;
+
+    /// <summary>The length of the backing array (0 before the first run).</summary>
+    public readonly int Capacity => items?.Length ?? 0;
+
+    public readonly TextRun this[int index]
+        => (uint)index < (uint)count ? items![index] : throw new ArgumentOutOfRangeException(nameof(index));
+
+    internal void Add(TextRun run)
+    {
+        if (items is null || count == items.Length)
+            Array.Resize(ref items, items is null || items.Length == 0 ? 4 : checked(items.Length * 2));
+        items[count++] = run;
+    }
+
+    internal readonly bool HasBreak()
+    {
+        for (var i = 0; i < count; i++)
+            if (items![i].IsBreak) return true;
+        return false;
+    }
+
+    public readonly Enumerator GetEnumerator() => new(items, count);
+    readonly IEnumerator<TextRun> IEnumerable<TextRun>.GetEnumerator() => GetEnumerator();
+    readonly System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+    internal struct Enumerator(TextRun[]? items, int count) : IEnumerator<TextRun>
+    {
+        private int index = -1;
+        public readonly TextRun Current => items![index];
+        readonly object System.Collections.IEnumerator.Current => Current;
+        public bool MoveNext() => ++index < count;
+        public void Reset() => index = -1;
+        public readonly void Dispose() { }
+    }
 }
 internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0);
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc);
