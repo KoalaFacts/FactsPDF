@@ -138,7 +138,7 @@ public sealed class LimitBoundaryTests
         yield return new("MaxCssSelectors", l => Roomy(l).MaxCssSelectors(100), Roomy,
             n => style(Repeat("p{color:red}", 50_000 * n)), "FPDF1205", true);
         yield return new("MaxCssDeclarations", l => Roomy(l).MaxCssDeclarations(100), Roomy,
-            n => style("p{" + Repeat("color:red;", 50_000 * n) + "}"), "FPDF1205", false);
+            n => style("p{" + Repeat("color:red;", 50_000 * n) + "}"), "FPDF1205", true);
         yield return new("MaxCssSyntaxNodes", l => Roomy(l).MaxCssSyntaxNodes(1_000), Roomy,
             n => style(Repeat("p{color:red}", 50_000 * n)), "FPDF1205", true);
         yield return new("MaxCssSyntaxDepth", l => Roomy(l).MaxCssSyntaxDepth(16), l => Roomy(l).MaxCssSyntaxDepth(64),
