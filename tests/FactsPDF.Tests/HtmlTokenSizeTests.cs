@@ -194,6 +194,54 @@ public sealed class HtmlTokenSizeTests
         Assert.That(list, Is.EqualTo(new[] { nodes[5] }));
     }
 
+    // Measured on top of main d405f2d (392 bytes per paragraph): 360 once a paragraph keeps a lone
+    // run in its run list's inline slot instead of a one-slot TextRun array.
+    [Test]
+    public void ReadingAParagraphKeepsItsRunWithoutAnArray()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(373));
+    }
+
+    // Layout must not give the inline-run saving back. Main d405f2d: 872 bytes per paragraph converted.
+    [Test]
+    public void ConvertingAParagraphKeepsTheInlineRunSaving()
+    {
+        static long Converted(string html)
+        {
+            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            Pdf.Write().ToBytes(html);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
+        TestContext.Out.WriteLine($"converted per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(853));
+    }
+
+    [Test]
+    public void ALoneRunStaysInlineUntilASecondRunArrives()
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var paragraph = new Paragraph(style);
+        paragraph.Runs.Add(new TextRun("a", style, IsBreak: true));
+        Assert.That(paragraph.Runs.Capacity, Is.EqualTo(1));
+        Assert.That(paragraph.Runs[0].Text, Is.EqualTo("a"));
+        Assert.That(paragraph.Runs.HasBreak(), Is.True);
+        Assert.That(paragraph.Runs.ToList().Select(r => r.Text), Is.EqualTo(new[] { "a" }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = paragraph.Runs[1]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = paragraph.Runs[-1]);
+        paragraph.Runs.Add(new TextRun("b", style));
+        paragraph.Runs.Add(new TextRun("c", style));
+        Assert.That(paragraph.Runs.Capacity, Is.EqualTo(4));
+        Assert.That(paragraph.Runs.Select(r => r.Text), Is.EqualTo(new[] { "a", "b", "c" }));
+        Assert.That(new Paragraph(style).Runs.Select(r => r.Text), Is.Empty);
+    }
+
     [Test]
     public void InlineRunsGrowAndEnumerateInOrder()
     {

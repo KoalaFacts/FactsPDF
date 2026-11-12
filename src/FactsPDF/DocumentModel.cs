@@ -72,8 +72,8 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : Block
     // Set when the reader adds it to its parent, so no wrapper object per paragraph is needed.
     public bool IsAnonymous { get; set; }
 
-    // Sized exactly when the reader knows how many runs the paragraph element holds, so a
-    // one-run paragraph keeps a one-slot array instead of List's default four.
+    // Sized exactly when the reader knows how many runs the paragraph element holds; a
+    // one-run paragraph keeps its run in the list's inline slot and allocates no array.
     public Paragraph(TextStyle style, int sourceOffset, int runCapacity) : this(style, sourceOffset)
         => runs = new(runCapacity);
 
@@ -83,33 +83,54 @@ internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : Block
     public ref TextRunList Runs => ref runs;
 }
 
-/// <summary>A paragraph's growable run array, stored inline in its <see cref="Paragraph"/>.</summary>
+/// <summary>A paragraph's growable run list, stored inline in its <see cref="Paragraph"/>.</summary>
+/// <remarks>
+/// A lone run is kept in the list's own slot; only a second run allocates an array (2, then
+/// doubling), so a one-run paragraph such as <c>&lt;p&gt;text&lt;/p&gt;</c> allocates no array.
+/// </remarks>
 internal struct TextRunList : IReadOnlyList<TextRun>
 {
-    private TextRun[]? items;
+    // null (no runs), the single TextRun, or a TextRun[] holding every run.
+    private object? items;
     private int count;
 
-    internal TextRunList(int capacity) => items = capacity > 0 ? new TextRun[capacity] : null;
+    internal TextRunList(int capacity) => items = capacity > 1 ? new TextRun[capacity] : null;
 
     public readonly int Count => count;
 
-    /// <summary>The length of the backing array (0 before the first run).</summary>
-    public readonly int Capacity => items?.Length ?? 0;
+    /// <summary>How many runs fit before the list grows (0 before the first run, 1 for the inline slot).</summary>
+    public readonly int Capacity => items is TextRun[] array ? array.Length : items is null ? 0 : 1;
 
     public readonly TextRun this[int index]
-        => (uint)index < (uint)count ? items![index] : throw new ArgumentOutOfRangeException(nameof(index));
+        => (uint)index < (uint)count ? At(items, index) : throw new ArgumentOutOfRangeException(nameof(index));
+
+    private static TextRun At(object? items, int index)
+        => items is TextRun[] array ? array[index] : (TextRun)items!;
 
     internal void Add(TextRun run)
     {
-        if (items is null || count == items.Length)
-            Array.Resize(ref items, items is null || items.Length == 0 ? 4 : checked(items.Length * 2));
-        items[count++] = run;
+        if (items is TextRun[] array)
+        {
+            if (count == array.Length) Array.Resize(ref array, checked(array.Length * 2));
+            array[count++] = run;
+            items = array;
+        }
+        else if (count == 0)
+        {
+            items = run;
+            count = 1;
+        }
+        else
+        {
+            items = new TextRun[] { (TextRun)items!, run };
+            count = 2;
+        }
     }
 
     internal readonly bool HasBreak()
     {
         for (var i = 0; i < count; i++)
-            if (items![i].IsBreak) return true;
+            if (At(items, i).IsBreak) return true;
         return false;
     }
 
@@ -117,10 +138,10 @@ internal struct TextRunList : IReadOnlyList<TextRun>
     readonly IEnumerator<TextRun> IEnumerable<TextRun>.GetEnumerator() => GetEnumerator();
     readonly System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
-    internal struct Enumerator(TextRun[]? items, int count) : IEnumerator<TextRun>
+    internal struct Enumerator(object? items, int count) : IEnumerator<TextRun>
     {
         private int index = -1;
-        public readonly TextRun Current => items![index];
+        public readonly TextRun Current => At(items, index);
         readonly object System.Collections.IEnumerator.Current => Current;
         public bool MoveNext() => ++index < count;
         public void Reset() => index = -1;
