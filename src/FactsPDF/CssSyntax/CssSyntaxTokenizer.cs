@@ -149,6 +149,7 @@ internal static class CssSyntaxTokenizer
                     CssSyntaxTokenKind.Hash, name, text[start..i],
                     span, false, isId));
                 Count(CssSyntaxTokenKind.Hash, span);
+                Rule(CssSyntaxTokenKind.Hash, span);
                 continue;
             }
             if (text[i] == '@' && StartsIdentifier(text, i + 1))
