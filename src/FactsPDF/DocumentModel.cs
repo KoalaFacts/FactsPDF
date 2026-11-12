@@ -345,6 +345,17 @@ internal sealed class BlockChildList : IReadOnlyList<BlockChild>
         count--;
     }
 
+    /// <summary>
+    /// Whether every child matches, by index: LINQ's <c>All</c> takes a span path over a
+    /// <c>List</c> but would box this list's enumerator, once per block laid out.
+    /// </summary>
+    internal bool All(Func<BlockChild, bool> predicate)
+    {
+        for (var i = 0; i < count; i++)
+            if (!predicate(this[i])) return false;
+        return true;
+    }
+
     public Enumerator GetEnumerator() => new(this);
     IEnumerator<BlockChild> IEnumerable<BlockChild>.GetEnumerator() => GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();

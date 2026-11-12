@@ -149,6 +149,24 @@ public sealed class HtmlTokenSizeTests
         Assert.That(perParagraph, Is.LessThan(405));
     }
 
+    // The whole conversion, not only reading: layout must not give the saving back (LINQ's All over
+    // the child list boxed its enumerator once per block). Measured on top of main 9d40e06: 896 bytes
+    // per paragraph converted; 872 with the child slot and the index-loop All.
+    [Test]
+    public void ConvertingAParagraphKeepsTheReadSavingThroughLayout()
+    {
+        static long Converted(string html)
+        {
+            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            Pdf.Write().ToBytes(html);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
+        TestContext.Out.WriteLine($"converted per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(885));
+    }
+
     [Test]
     public void BlockChildrenGrowEnumerateAndRemoveInOrder()
     {
