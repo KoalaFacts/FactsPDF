@@ -7,7 +7,16 @@ internal sealed record CssSyntaxLimits(
     int MaxCharacters = 262_144,
     int MaxNodes = 131_072,
     int MaxDepth = 64,
-    CancellationToken Cancellation = default);
+    int MaxQualifiedRules = int.MaxValue,
+    CancellationToken Cancellation = default)
+{
+    /// <summary>
+    /// The top-level qualified rules a stylesheet may hold before the CSS selector budget fails:
+    /// each one compiles at least one selector, so the tokenizer fails a rule flood with that
+    /// budget's message once this many have opened. Style attributes leave it unlimited.
+    /// </summary>
+    internal const string SelectorBudgetMessage = "CSS selector budget exceeded.";
+}
 
 internal sealed class CssSyntaxLimitException(string reason, CssSourceSpan span) : Exception(reason)
 {

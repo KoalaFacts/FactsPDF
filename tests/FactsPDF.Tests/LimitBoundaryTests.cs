@@ -105,6 +105,7 @@ public sealed class LimitBoundaryTests
     // only after a whole phase (CSS tokenizing, the HTML collecting pass, layout or serializing) and
     // are bounded by the input limits instead; R1c in docs/mvp-roadmap.md tracks moving them. MaxDepth
     // is checked while reading (R1c1, EarlyDepthLimitTests), but its reference fails as well.
+    // MaxCssSelectors stops a rule flood while tokenizing (R1c4, EarlyCssSelectorLimitTests).
     // Html builds the flood at a given scale; Large is the reference writer's limits. For MaxDepth
     // and MaxCssSyntaxDepth the reference fails too (nesting cannot be raised far enough safely), so
     // only the per-character bound applies to them.
@@ -135,7 +136,7 @@ public sealed class LimitBoundaryTests
         yield return new("MaxCssCharacters", l => Roomy(l).MaxCssCharacters(1_000), Roomy,
             n => style(Repeat("p{color:red}", 50_000 * n)), "FPDF1205", true);
         yield return new("MaxCssSelectors", l => Roomy(l).MaxCssSelectors(100), Roomy,
-            n => style(Repeat("p{color:red}", 50_000 * n)), "FPDF1205", false);
+            n => style(Repeat("p{color:red}", 50_000 * n)), "FPDF1205", true);
         yield return new("MaxCssDeclarations", l => Roomy(l).MaxCssDeclarations(100), Roomy,
             n => style("p{" + Repeat("color:red;", 50_000 * n) + "}"), "FPDF1205", false);
         yield return new("MaxCssSyntaxNodes", l => Roomy(l).MaxCssSyntaxNodes(1_000), Roomy,

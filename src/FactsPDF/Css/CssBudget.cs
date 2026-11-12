@@ -7,7 +7,9 @@ internal sealed class CssBudget(PdfOptions options, CancellationToken token)
     internal void Characters(int count, int offset)
     { token.ThrowIfCancellationRequested(); characters += count; Check(characters <= options.MaxCssCharacters, "CSS character budget exceeded.", offset); }
     internal void Selector(int offset)
-    { token.ThrowIfCancellationRequested(); Check(++selectors <= options.MaxCssSelectors, "CSS selector budget exceeded.", offset); }
+    { token.ThrowIfCancellationRequested(); Check(++selectors <= options.MaxCssSelectors, CssSyntax.CssSyntaxLimits.SelectorBudgetMessage, offset); }
+    /// <summary>The selectors still within <see cref="PdfOptions.MaxCssSelectors"/>.</summary>
+    internal int SelectorsLeft => (int)Math.Max(0, options.MaxCssSelectors - selectors);
     internal int Declaration(int offset)
     { token.ThrowIfCancellationRequested(); Check(++declarations <= options.MaxCssDeclarations, "CSS declaration budget exceeded.", offset); return (int)declarations; }
     internal void Work(int offset, int count = 1)

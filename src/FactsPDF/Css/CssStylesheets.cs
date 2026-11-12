@@ -31,7 +31,7 @@ internal sealed class CssStylesheets
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         budget = new(options, token);
-        syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, token);
+        syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, Cancellation: token);
     }
     /// <summary>
     /// Compiles every style element and style attribute, and appends each HTML token it reads to
@@ -117,9 +117,11 @@ internal sealed class CssStylesheets
         try
         {
             var source = CssSourceText.Create(css, offset, syntaxLimits, originalOffsets);
+            // A stylesheet's top-level qualified rules each compile at least one selector, so the
+            // tokenizer fails a rule flood with the selector budget before tokenizing the rest.
             var result = declarationsOnly
                 ? CssSyntaxParser.ParseDeclarations(source, syntaxLimits)
-                : CssSyntaxParser.ParseStylesheet(source, syntaxLimits);
+                : CssSyntaxParser.ParseStylesheet(source, syntaxLimits with { MaxQualifiedRules = budget.SelectorsLeft });
             CssSyntaxAdapter.ThrowIfRecovered(result);
             return result;
         }
