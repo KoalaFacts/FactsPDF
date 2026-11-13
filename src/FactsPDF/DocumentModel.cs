@@ -149,7 +149,9 @@ internal struct TextRunList : IReadOnlyList<TextRun>
     }
 }
 internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0);
-internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc);
+// SourceOffset is the list item's; it packs beside Kind, so a disc stays 72 bytes.
+internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
+    int SourceOffset = -1);
 internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
 internal sealed class LayoutPage
 {

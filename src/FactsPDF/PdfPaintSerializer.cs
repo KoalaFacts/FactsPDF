@@ -49,7 +49,8 @@ internal static class PdfPaintSerializer
                 output.AppendInvariant(x + k, Number).Append(' ').AppendInvariant(y - radius, Number).Append(' ').AppendInvariant(x + radius, Number).Append(' ').AppendInvariant(y - k, Number).Append(' ').AppendInvariant(x + radius, Number).Append(' ').AppendInvariant(y, Number).Append(" c");
                 output.Append(hollow ? " S Q\n" : " f Q\n");
             }
-            if (output.Length > maxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
+            if (output.Length > maxOutputBytes)
+                throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.", disc.SourceOffset);
         }
     }
 

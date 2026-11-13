@@ -916,7 +916,7 @@ internal static class TextLayout
                         ChargeDisplayCommands(1, marker.SourceOffset);
                         var radius = marker.Width / 2;
                         pages[^1].Discs.Add(new(markerRightX - radius,
-                            baseline + 0.3 * marker.Style.FontSize, radius, marker.Style.Color, marker.Kind));
+                            baseline + 0.3 * marker.Style.FontSize, radius, marker.Style.Color, marker.Kind, marker.SourceOffset));
                     }
                     pendingMarker = null;
                 }
