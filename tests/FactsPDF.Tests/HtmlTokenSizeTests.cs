@@ -252,6 +252,68 @@ public sealed class HtmlTokenSizeTests
         Assert.That(perParagraph, Is.LessThan(836));
     }
 
+    // Main 3e273b9: 352 read bytes per paragraph; a paragraph packs IsAnonymous beside its source
+    // offset, so it is 40 bytes instead of 48 (Z6g2b10).
+    [Test]
+    public void ReadingAParagraphAllocatesACompactParagraph()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(349));
+    }
+
+    // Main 3e273b9: 832 bytes per paragraph converted; the paragraph saving must survive layout.
+    [Test]
+    public void ConvertingAParagraphKeepsTheCompactParagraphSaving()
+    {
+        static long Converted(string html)
+        {
+            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            Pdf.Write().ToBytes(html);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
+        TestContext.Out.WriteLine($"converted per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(828));
+    }
+
+    [Test]
+    public void AParagraphIsFortyBytes()
+    {
+        const int count = 10_000;
+        var paragraphs = new Paragraph[count];
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        paragraphs[0] = new Paragraph(style, 0);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 1; i < count; i++) paragraphs[i] = new Paragraph(style, i);
+        var perParagraph = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)(count - 1);
+        Assert.That(perParagraph, Is.EqualTo(40));
+        GC.KeepAlive(paragraphs);
+    }
+
+    [TestCase(-1)]
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(int.MaxValue - 1)]
+    public void AParagraphKeepsItsSourceOffsetAndAnonymousFlagApart(int offset)
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var paragraph = new Paragraph(style, offset);
+        Assert.That((paragraph.SourceOffset, paragraph.IsAnonymous), Is.EqualTo((offset, false)));
+        paragraph.IsAnonymous = true;
+        Assert.That((paragraph.SourceOffset, paragraph.IsAnonymous), Is.EqualTo((offset, true)));
+        var moved = paragraph with { SourceOffset = 7 };
+        Assert.That((moved.SourceOffset, moved.IsAnonymous), Is.EqualTo((7, true)));
+        Assert.That(new Paragraph(style, offset) { IsAnonymous = true }, Is.EqualTo(paragraph));
+        paragraph.IsAnonymous = false;
+        Assert.That((paragraph.SourceOffset, paragraph.IsAnonymous), Is.EqualTo((offset, false)));
+        Assert.That(new Paragraph(style).SourceOffset, Is.EqualTo(-1));
+    }
+
     [Test]
     public void ALoneRunStaysInlineUntilASecondRunArrives()
     {
