@@ -223,6 +223,35 @@ public sealed class HtmlTokenSizeTests
         Assert.That(perParagraph, Is.LessThan(853));
     }
 
+    // Measured on top of main 7c00672 (360 bytes per paragraph): 352 once a block node packs its
+    // list start, item value and reversed flag into one int (a 56-byte node instead of 64).
+    [Test]
+    public void ReadingAParagraphAllocatesACompactBlockNode()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(357));
+    }
+
+    // Main 7c00672: 840 bytes per paragraph converted; the block node saving must survive layout.
+    [Test]
+    public void ConvertingAParagraphKeepsTheCompactBlockNodeSaving()
+    {
+        static long Converted(string html)
+        {
+            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            Pdf.Write().ToBytes(html);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
+        TestContext.Out.WriteLine($"converted per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(836));
+    }
+
     [Test]
     public void ALoneRunStaysInlineUntilASecondRunArrives()
     {
