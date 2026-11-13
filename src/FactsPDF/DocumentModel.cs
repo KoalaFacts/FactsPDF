@@ -309,12 +309,26 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
     public BlockChildList Children { get; } = new();
     // Bounded HTML ordered-list sequence metadata. These are parsed values,
     // never generated child nodes; a tree may be laid out repeatedly.
-    // Stored as plain ints, 0 for none (list ordinals are always positive), so a block node is
-    // 8 bytes smaller than with two int? fields.
-    private readonly int listStart, listValue;
-    public int? ListStart { get => listStart == 0 ? null : listStart; init => listStart = value ?? 0; }
-    public int? ListValue { get => listValue == 0 ? null : listValue; init => listValue = value ?? 0; }
-    public bool ListReversed { get; init; }
+    // Packed into one int, so a block node is 56 bytes instead of 64: the reader sets a start
+    // only on an ol and a value only on an li, ordinals are at most ListMarkerTypes.MaxOrdinal
+    // (below 2^20), and the reversed flag is one more bit.
+    private readonly int list;
+    private const int OrdinalMask = (1 << 20) - 1, StartFlag = 1 << 20, ValueFlag = 1 << 21, ReversedFlag = 1 << 22;
+    public int? ListStart { get => Ordinal(StartFlag); init => list = WithOrdinal(StartFlag, value); }
+    public int? ListValue { get => Ordinal(ValueFlag); init => list = WithOrdinal(ValueFlag, value); }
+    public bool ListReversed { get => (list & ReversedFlag) != 0; init => list = value ? list | ReversedFlag : list & ~ReversedFlag; }
+
+    private int? Ordinal(int flag) => (list & flag) != 0 ? list & OrdinalMask : null;
+
+    private int WithOrdinal(int flag, int? ordinal)
+    {
+        if (ordinal is null) return (list & flag) != 0 ? list & ReversedFlag : list;
+        if (ordinal is < 1 or > ListMarkerTypes.MaxOrdinal)
+            throw new ArgumentOutOfRangeException(nameof(ordinal));
+        if ((list & (StartFlag | ValueFlag) & ~flag) != 0)
+            throw new InvalidOperationException("A block node holds either a list start or a list item value, not both.");
+        return (list & ReversedFlag) | flag | ordinal.Value;
+    }
 }
 
 

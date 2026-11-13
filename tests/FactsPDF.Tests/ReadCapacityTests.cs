@@ -75,4 +75,30 @@ public sealed class ReadCapacityTests
         Assert.That(new BlockNode("li", Style, BoxStyle.Initial, 0) { ListValue = 999_999 }.ListValue, Is.EqualTo(999_999));
         Assert.That(new BlockNode("ul", Style, BoxStyle.Initial, 0).ListStart, Is.Null);
     }
+
+    [Test]
+    public void PackedListOrdinalsKeepStartValueAndReversedApart()
+    {
+        var reversed = new BlockNode("ol", Style, BoxStyle.Initial, 0) { ListReversed = true, ListStart = 999_999 };
+        Assert.That((reversed.ListStart, reversed.ListValue, reversed.ListReversed), Is.EqualTo(((int?)999_999, (int?)null, true)));
+        var plain = new BlockNode("ol", Style, BoxStyle.Initial, 0) { ListStart = 1 };
+        Assert.That((plain.ListStart, plain.ListValue, plain.ListReversed), Is.EqualTo(((int?)1, (int?)null, false)));
+        var item = new BlockNode("li", Style, BoxStyle.Initial, 0) { ListValue = 3, ListStart = null, ListReversed = false };
+        Assert.That((item.ListStart, item.ListValue, item.ListReversed), Is.EqualTo(((int?)null, (int?)3, false)));
+        var onlyReversed = new BlockNode("ol", Style, BoxStyle.Initial, 0) { ListReversed = true, ListStart = null };
+        Assert.That((onlyReversed.ListStart, onlyReversed.ListReversed), Is.EqualTo(((int?)null, true)));
+        Assert.Throws<InvalidOperationException>(() => _ = new BlockNode("ol", Style, BoxStyle.Initial, 0) { ListStart = 2, ListValue = 3 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = new BlockNode("ol", Style, BoxStyle.Initial, 0) { ListStart = 1_000_000 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = new BlockNode("li", Style, BoxStyle.Initial, 0) { ListValue = 0 });
+    }
+
+    [Test]
+    public void ReversedListWithStartStillNumbersDownward()
+    {
+        var tree = HtmlDocumentReader.ReadTree("<ol reversed start=\"5\"><li>a</li><li value=\"9\">b</li></ol>", new PdfOptions(), default);
+        var list = (BlockNode)tree.Children[0];
+        Assert.That((list.ListStart, list.ListValue, list.ListReversed), Is.EqualTo(((int?)5, (int?)null, true)));
+        var second = (BlockNode)list.Children[1];
+        Assert.That((second.ListStart, second.ListValue, second.ListReversed), Is.EqualTo(((int?)null, (int?)9, false)));
+    }
 }
