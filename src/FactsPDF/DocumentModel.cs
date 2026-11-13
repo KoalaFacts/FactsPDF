@@ -67,19 +67,35 @@ internal sealed record TextStyle
 internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
 internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : BlockChild
 {
+    private const uint AnonymousBit = 0x8000_0000;
+
+    // SourceOffset + 1 in the low 31 bits (a source offset is a string index, so at most
+    // int.MaxValue - 1, and -1 means none) and IsAnonymous in the top bit, kept in the run list's
+    // spare four bytes: an int and a bool beside the list cost a paragraph 48 bytes, this 40.
+    private TextRunList runs = new() { OwnerBits = checked((uint)(SourceOffset + 1)) };
+
+    public int SourceOffset
+    {
+        get => (int)(runs.OwnerBits & ~AnonymousBit) - 1;
+        init => runs.OwnerBits = (runs.OwnerBits & AnonymousBit) | checked((uint)(value + 1));
+    }
+
     // A paragraph is its own block child: true for text directly inside a block (or a list
     // marker's generated line), false for the one paragraph a p, pre or heading element holds.
     // Set when the reader adds it to its parent, so no wrapper object per paragraph is needed.
-    public bool IsAnonymous { get; set; }
+    public bool IsAnonymous
+    {
+        get => (runs.OwnerBits & AnonymousBit) != 0;
+        set => runs.OwnerBits = value ? runs.OwnerBits | AnonymousBit : runs.OwnerBits & ~AnonymousBit;
+    }
 
     // Sized exactly when the reader knows how many runs the paragraph element holds; a
     // one-run paragraph keeps its run in the list's inline slot and allocates no array.
     public Paragraph(TextStyle style, int sourceOffset, int runCapacity) : this(style, sourceOffset)
-        => runs = new(runCapacity);
+        => runs = new(runCapacity) { OwnerBits = runs.OwnerBits };
 
     // The runs are stored in the paragraph itself (an array and a count) instead of a separate
     // List object per paragraph; Runs returns them by reference so Add grows this paragraph's copy.
-    private TextRunList runs;
     public ref TextRunList Runs => ref runs;
 }
 
@@ -93,6 +109,10 @@ internal struct TextRunList : IReadOnlyList<TextRun>
     // null (no runs), the single TextRun, or a TextRun[] holding every run.
     private object? items;
     private int count;
+
+    // Not part of the list: four bytes the owning Paragraph keeps here (its source offset and
+    // anonymous flag) because the struct pads an object and an int to 16 bytes anyway.
+    internal uint OwnerBits;
 
     internal TextRunList(int capacity) => items = capacity > 1 ? new TextRun[capacity] : null;
 

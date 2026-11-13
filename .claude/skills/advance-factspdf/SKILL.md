@@ -29,7 +29,9 @@ scheduled task's prompt.
 ## Setup
 - Read first: `AGENTS.md` (binding), `CLAUDE.md`, `docs/feature-notes.md`,
   `docs/development.md`, `docs/compatibility-site.md`, `docs/mvp-roadmap.md`.
-- Schedule: standard tier (once a day), 50 minutes per run, as the owner seed says; size each item to merge within the run.
+- Schedule: raised tier (every 4 hours, per the agent-harness README), 50 minutes per run;
+  size each item to merge within the run. Housekeeping is therefore due once per Sydney
+  calendar day.
 - .NET 10 SDK: `curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir ~/.dotnet`,
   then `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`.
 - Node 24 for `site/` and the TypeScript scripts; the existing Python `scripts/`
