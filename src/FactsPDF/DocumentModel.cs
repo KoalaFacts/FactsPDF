@@ -366,50 +366,53 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
 
 
 /// <summary>
-/// The children of a block or of the document root. The first child is kept in a slot of the list
-/// itself and only later children go to an array, so a paragraph element (which holds just its own
-/// paragraph) allocates no array; growth past the slot follows List's (4, then doubling).
+/// The children of a block or of the document root. A lone child is kept in the list's own field
+/// and only a second child allocates an array (4, then doubling, like List), so a paragraph element
+/// (which holds just its own paragraph) allocates no array. One field for both shapes keeps the
+/// list at 32 bytes instead of 40.
 /// </summary>
 internal sealed class BlockChildList : IReadOnlyList<BlockChild>
 {
-    private BlockChild? first;
-    private BlockChild[]? rest;
+    // null (no children), the lone BlockChild, or a BlockChild[] once a second child arrived.
+    private object? items;
     private int count;
 
     public int Count => count;
 
-    /// <summary>The first-child slot plus the length of the array for later children.</summary>
-    public int Capacity => 1 + (rest?.Length ?? 0);
+    /// <summary>1 for the lone-child field, otherwise the length of the children array.</summary>
+    public int Capacity => items is BlockChild[] array ? array.Length : 1;
 
     public BlockChild this[int index]
         => (uint)index < (uint)count
-            ? (index == 0 ? first! : rest![index - 1])
+            ? (items is BlockChild[] array ? array[index] : (BlockChild)items!)
             : throw new ArgumentOutOfRangeException(nameof(index));
 
     internal void Add(BlockChild child)
     {
-        if (count == 0) first = child;
-        else
+        if (items is BlockChild[] array)
         {
-            var slot = count - 1;
-            if (rest is null || slot == rest.Length)
-                Array.Resize(ref rest, rest is null ? 4 : checked(rest.Length * 2));
-            rest[slot] = child;
+            if (count == array.Length)
+            {
+                Array.Resize(ref array, checked(array.Length * 2));
+                items = array;
+            }
+            array[count] = child;
         }
+        else if (count == 0) items = child;
+        else items = new BlockChild[4] { (BlockChild)items!, child, null!, null! };
         count++;
     }
 
     internal void RemoveAt(int index)
     {
         if ((uint)index >= (uint)count) throw new ArgumentOutOfRangeException(nameof(index));
-        if (index == 0)
+        if (items is BlockChild[] array)
         {
-            first = count > 1 ? rest![0] : null;
-            index = 1;
+            // Shift the later children down over the removed one and clear the vacated slot.
+            for (var i = index; i < count - 1; i++) array[i] = array[i + 1];
+            array[count - 1] = null!;
         }
-        // Shift the later children down over the removed one and clear the vacated slot.
-        for (var i = index; i < count - 1; i++) rest![i - 1] = rest[i];
-        if (count > 1) rest![count - 2] = null!;
+        else items = null;
         count--;
     }
 
