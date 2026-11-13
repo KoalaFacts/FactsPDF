@@ -43,7 +43,7 @@ Areas follow `site/data/compatibility.json` `categories`. "Run" is the command u
    `for p in $(git ls-files '*.csproj' | grep -v examples/first-use); do dotnet build "$p" -c Release -warnaserror; done`.
 2. `dotnet test tests/FactsPDF.Tests -c Release` (includes the CLI tests).
 3. Byte parity against `main`: `node scripts/parity.ts` (Node 22.18+ strips types; defaults `--base origin/main`).
-   Expect `414/414 runs identical` (138 examples × 3 option sets) unless the PR explains an intended difference; a known kind
+   Expect `N/N runs identical` (every `examples/*.html` × 3 option sets; 142 × 3 = 426 on 3e273b9) unless the PR explains an intended difference; a known kind
    (`location-added`) is declared with `--expect <kind>` locally and a `Parity-Expect: <kind>`
    trailer on the PR head commit for CI.
 4. Docs: `node --test scripts/check-docs.test.ts && node scripts/check-docs.ts`.
