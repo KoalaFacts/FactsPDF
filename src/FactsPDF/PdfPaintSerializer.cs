@@ -92,7 +92,7 @@ internal static class PdfPaintSerializer
                 // Clip the dash marks/round caps inside the measured glyph advance:
                 // no extension into neighbouring cells or outside the PDF panel.
                 if (run.Width < 0.001)
-                    throw new FactsPdfException("FPDF1302", "Text decoration is too short to paint.");
+                    throw new FactsPdfException("FPDF1302", "Text decoration is too short to paint.", run.SourceOffset);
                 output.Append("q ").AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ')
                     .AppendInvariant(c.B, Number).Append(" RG ").AppendInvariant(thickness, Number).Append(" w ");
                 if (run.Style.DecorationPattern == TextDecorationPattern.Dashed)
@@ -109,7 +109,7 @@ internal static class PdfPaintSerializer
                     .Append(" l S Q\n");
             }
             if (output.Length > maxOutputBytes)
-                throw new FactsPdfException("FPDF1401", "PDF text decoration exceeds MaxOutputBytes.");
+                throw new FactsPdfException("FPDF1401", "PDF text decoration exceeds MaxOutputBytes.", run.SourceOffset);
         }
 
     }

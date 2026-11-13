@@ -148,7 +148,18 @@ internal struct TextRunList : IReadOnlyList<TextRun>
         public readonly void Dispose() { }
     }
 }
-internal sealed record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0);
+internal record PlacedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font = null, double Width = 0)
+{
+    // -1: plain runs keep no offset, so they stay 64 bytes; see LocatedText.
+    internal virtual int SourceOffset => -1;
+}
+// A decorated or linked run keeps its paragraph's source offset for the paint-stage
+// failures only such runs can raise; `with` copies keep the derived type and offset.
+internal sealed record LocatedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font, double Width,
+    int Offset) : PlacedText(Text, X, Baseline, Style, Font, Width)
+{
+    internal override int SourceOffset => Offset;
+}
 // SourceOffset is the list item's; it packs beside Kind, so a disc stays 72 bytes.
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
     int SourceOffset = -1);

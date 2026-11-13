@@ -44,7 +44,7 @@ internal sealed class PdfLinkAnnotations
                     !double.IsFinite(bottom) || !double.IsFinite(top) ||
                     left >= right || bottom >= top)
                     throw new FactsPdfException("FPDF1302",
-                        "Linked text must have a visible bounded PDF annotation rectangle.");
+                        "Linked text must have a visible bounded PDF annotation rectangle.", run.SourceOffset);
                 var id = checked(firstId + entries.Count);
                 entries.Add(new(id, left, bottom, right, top, uri));
                 pageIds[page].Add(id);
