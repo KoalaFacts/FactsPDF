@@ -132,7 +132,7 @@ internal static class PdfPaintSerializer
                 continue;
             }
             if (s.BackgroundColor.HasValue)
-                Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes);
+                Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes, box.SourceOffset);
 
             // Slice does not repeat horizontal borders on intermediate pages.
             // Short first/last fragments clip the border to their own bounds;
@@ -231,7 +231,7 @@ internal static class PdfPaintSerializer
         }
         output.Append("S Q\n");
         if (output.Length > maxOutputBytes)
-            throw new FactsPdfException("FPDF1401", "PDF outline content exceeds MaxOutputBytes.");
+            throw new FactsPdfException("FPDF1401", "PDF outline content exceeds MaxOutputBytes.", box.SourceOffset);
     }
 
     // Four physical corners paint one closed outer background and one even-odd
@@ -276,7 +276,7 @@ internal static class PdfPaintSerializer
             RoundedPath(output, x, y, w, h, tl, tr, br, bl);
             output.Append("f Q\n");
             if (output.Length > maxOutputBytes)
-                throw new FactsPdfException("FPDF1401", "PDF rounded background exceeds MaxOutputBytes.");
+                throw new FactsPdfException("FPDF1401", "PDF rounded background exceeds MaxOutputBytes.", box.SourceOffset);
         }
 
         var border = style.BorderLeft.EffectiveWidth;
@@ -314,7 +314,7 @@ internal static class PdfPaintSerializer
         }
         else output.Append("f Q\n");
         if (output.Length > maxOutputBytes)
-            throw new FactsPdfException("FPDF1401", "PDF rounded border exceeds MaxOutputBytes.");
+            throw new FactsPdfException("FPDF1401", "PDF rounded border exceeds MaxOutputBytes.", box.SourceOffset);
     }
 
     // CSS's proportional corner fitting rule prevents adjacent curves from
@@ -381,7 +381,7 @@ internal static class PdfPaintSerializer
         var color = edge.Color ?? textColor;
         if (edge.Pattern == BorderPattern.Solid)
         {
-            Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes);
+            Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes, sourceOffset);
             return;
         }
         var stroke = horizontal ? height : width;
@@ -420,11 +420,11 @@ internal static class PdfPaintSerializer
         output.AppendInvariant(x1, Number).Append(' ').AppendInvariant(y1, Number).Append(" m ")
             .AppendInvariant(x2, Number).Append(' ').AppendInvariant(y2, Number).Append(" l S Q\n");
         if (output.Length > maxOutputBytes)
-            throw new FactsPdfException("FPDF1401", "PDF patterned border exceeds MaxOutputBytes.");
+            throw new FactsPdfException("FPDF1401", "PDF patterned border exceeds MaxOutputBytes.", sourceOffset);
     }
 
     private static void Rect(StringBuilder output, Rgb color, double x, double top,
-        double width, double height, double pageHeight, int maxOutputBytes)
+        double width, double height, double pageHeight, int maxOutputBytes, int sourceOffset)
     {
         if (width <= 0 || height <= 0) return;
         var y = pageHeight - top - height;
@@ -436,7 +436,7 @@ internal static class PdfPaintSerializer
         // A command can exceed the limit by at most its own small encoding;
         // never build an unbounded string before the serializer rejects it.
         if (output.Length > maxOutputBytes)
-            throw new FactsPdfException("FPDF1401", "PDF paint content exceeds MaxOutputBytes.");
+            throw new FactsPdfException("FPDF1401", "PDF paint content exceeds MaxOutputBytes.", sourceOffset);
     }
 
     private const string Number = "0.###";
