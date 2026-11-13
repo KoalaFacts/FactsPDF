@@ -48,7 +48,9 @@ internal static class TextLines
                         offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
                     }
                 });
-            target.Add(new(text, x, baseline, first.Style, first.Font, width));
+            target.Add(sourceOffset >= 0 && (first.Style.Decoration != TextDecoration.None || first.Style.LinkUri is not null)
+                ? new LocatedText(text, x, baseline, first.Style, first.Font, width, sourceOffset)
+                : new PlacedText(text, x, baseline, first.Style, first.Font, width));
             x += width; start = end;
         }
     }
