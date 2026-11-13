@@ -177,7 +177,7 @@ public sealed class HtmlTokenSizeTests
         list.Add(nodes[0]);
         Assert.That(list.Capacity, Is.EqualTo(1));
         for (var i = 1; i < nodes.Length; i++) list.Add(nodes[i]);
-        Assert.That(list.Capacity, Is.EqualTo(1 + 16));
+        Assert.That(list.Capacity, Is.EqualTo(16));
         Assert.That(list, Is.EqualTo(nodes));
         var seen = new List<BlockChild>();
         foreach (var child in list) seen.Add(child);
@@ -357,5 +357,76 @@ public sealed class HtmlTokenSizeTests
         sized.Runs.Add(new TextRun("b", style));
         Assert.That(sized.Runs.Capacity, Is.EqualTo(2));
         Assert.That(sized.Runs.Select(r => r.Text), Is.EqualTo(new[] { "a", "b" }));
+    }
+
+    // Main cd6f314: a BlockChildList kept a first-child slot, a later-children array and a count
+    // (40 bytes); one field for the lone child or the array makes it 32.
+    [Test]
+    public void ABlockChildListIsThirtyTwoBytes()
+    {
+        const int count = 10_000;
+        var lists = new BlockChildList[count];
+        lists[0] = new BlockChildList();
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 1; i < count; i++) lists[i] = new BlockChildList();
+        var perList = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)(count - 1);
+        Assert.That(perList, Is.EqualTo(32));
+        GC.KeepAlive(lists);
+    }
+
+    // Main cd6f314: 344.4 bytes read per paragraph (a <p> element's block node holds one child list).
+    [Test]
+    public void ReadingAParagraphAllocatesACompactChildList()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(341));
+    }
+
+    // Layout must not give the child-list saving back. Main cd6f314: 824.3 bytes per paragraph converted.
+    [Test]
+    public void ConvertingAParagraphKeepsTheCompactChildListSaving()
+    {
+        static long Converted(string html)
+        {
+            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            Pdf.Write().ToBytes(html);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
+        TestContext.Out.WriteLine($"converted per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(821));
+    }
+
+    // Once a second child moved the list to an array, it stays an array: removing down to one child,
+    // to none, and adding again keeps the order and the array.
+    [Test]
+    public void BlockChildrenKeepTheirArrayAfterShrinking()
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var nodes = Enumerable.Range(0, 3).Select(i => new BlockNode("div" + i, style, BoxStyle.Initial, i)).ToArray();
+        var list = new BlockChildList();
+        list.Add(nodes[0]);
+        list.Add(nodes[1]);
+        Assert.That(list.Capacity, Is.EqualTo(4));
+        list.RemoveAt(0);
+        Assert.That(list, Is.EqualTo(new[] { nodes[1] }));
+        list.RemoveAt(0);
+        Assert.That(list, Is.Empty);
+        list.Add(nodes[2]);
+        list.Add(nodes[0]);
+        Assert.That(list, Is.EqualTo(new[] { nodes[2], nodes[0] }));
+        Assert.That(list.Capacity, Is.EqualTo(4));
+        var lone = new BlockChildList();
+        lone.Add(nodes[1]);
+        lone.RemoveAt(0);
+        Assert.That(lone, Is.Empty);
+        Assert.That(lone.Capacity, Is.EqualTo(1));
+        lone.Add(nodes[2]);
+        Assert.That(lone[0], Is.SameAs(nodes[2]));
     }
 }
