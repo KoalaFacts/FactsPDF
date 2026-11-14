@@ -7,6 +7,19 @@ internal static class CssSyntaxAdapter
 {
     private static readonly string[] DecorationLineOrder = ["underline", "line-through", "overline"];
 
+    // Shared, never written: the box and border shorthands index these instead of building a
+    // side or edge array per declaration.
+    private static readonly CssProperty[] PaddingSides =
+        [CssProperty.PaddingTop, CssProperty.PaddingRight, CssProperty.PaddingBottom, CssProperty.PaddingLeft];
+    private static readonly CssProperty[] BorderWidthSides =
+        [CssProperty.BorderTopWidth, CssProperty.BorderRightWidth, CssProperty.BorderBottomWidth, CssProperty.BorderLeftWidth];
+    private static readonly CssProperty[] BorderStyleSides =
+        [CssProperty.BorderTopStyle, CssProperty.BorderRightStyle, CssProperty.BorderBottomStyle, CssProperty.BorderLeftStyle];
+    private static readonly CssProperty[] BorderColorSides =
+        [CssProperty.BorderTopColor, CssProperty.BorderRightColor, CssProperty.BorderBottomColor, CssProperty.BorderLeftColor];
+    private static readonly int[] TopEdge = [0], RightEdge = [1], BottomEdge = [2], LeftEdge = [3];
+    private static readonly int[] InlineEdges = [3, 1], BlockEdges = [0, 2], AllEdges = [0, 1, 2, 3];
+
     private static readonly TextStyle ValidationStyle =
         new(12, 1.2, new(0, 0, 0), TextAlignment.Left);
 
@@ -314,30 +327,22 @@ internal static class CssSyntaxAdapter
             if (name is "padding" or "border-width" or "border-style" or "border-color")
             {
                 if (terms.Count > 4) throw new FactsPdfException("FPDF1202", "Box shorthand takes one to four values.", node.Span.Start);
-                var parts = terms.ToArray();
-                if (!(parts.Length == 1 && Wide(parts[0])))
-                    for (var i = 0; i < parts.Length; i++)
-                        ValidateComponent(name, parts[i], valueTokens[i].Token.Span.Start);
-                var sides = ExpandFour(parts);
-                CssProperty[] properties = name switch
+                if (!(terms.Count == 1 && Wide(terms[0])))
+                    for (var i = 0; i < terms.Count; i++)
+                        ValidateComponent(name, terms[i], valueTokens[i].Token.Span.Start);
+                var properties = name switch
                 {
-                    "padding" => [CssProperty.PaddingTop, CssProperty.PaddingRight, CssProperty.PaddingBottom, CssProperty.PaddingLeft],
-                    "border-width" => [CssProperty.BorderTopWidth, CssProperty.BorderRightWidth, CssProperty.BorderBottomWidth, CssProperty.BorderLeftWidth],
-                    "border-style" => [CssProperty.BorderTopStyle, CssProperty.BorderRightStyle, CssProperty.BorderBottomStyle, CssProperty.BorderLeftStyle],
-                    _ => [CssProperty.BorderTopColor, CssProperty.BorderRightColor, CssProperty.BorderBottomColor, CssProperty.BorderLeftColor]
+                    "padding" => PaddingSides,
+                    "border-width" => BorderWidthSides,
+                    "border-style" => BorderStyleSides,
+                    _ => BorderColorSides
                 };
                 for (var i = 0; i < 4; i++)
                 {
                     // Expand in TRBL order but charge a generated longhand
                     // against the CSS token from which that side originated.
-                    var sourceIndex = parts.Length switch
-                    {
-                        1 => 0,
-                        2 => i % 2,
-                        3 => i == 3 ? 1 : i,
-                        _ => i
-                    };
-                    Emit(properties[i], sides[i], valueTokens[sourceIndex].Token.Span.Start);
+                    var sourceIndex = SideSource(terms.Count, i);
+                    Emit(properties[i], terms[sourceIndex], valueTokens[sourceIndex].Token.Span.Start);
                 }
                 continue;
             }
@@ -399,18 +404,18 @@ internal static class CssSyntaxAdapter
                 or "border-block-start" or "border-block-end")
             {
                 if (terms.Count > 3) throw new FactsPdfException("FPDF1202", "Border shorthand takes up to three terms.", node.Span.Start);
-                var words = terms.ToArray();
+                var words = terms;
                 string width = "medium", style = "none", color = "currentcolor";
                 var initialOffset = valueTokens[0].Token.Span.Start;
                 var widthOffset = initialOffset;
                 var styleOffset = initialOffset;
                 var colorOffset = initialOffset;
-                if (words.Length == 1 && Wide(words[0]))
+                if (words.Count == 1 && Wide(words[0]))
                     width = style = color = words[0];
                 else
                 {
                     bool hasWidth = false, hasStyle = false, hasColor = false;
-                    for (var i = 0; i < words.Length; i++)
+                    for (var i = 0; i < words.Count; i++)
                     {
                         var word = words[i];
                         var offset = valueTokens[i].Token.Span.Start;
@@ -435,13 +440,13 @@ internal static class CssSyntaxAdapter
                 }
                 var edges = name switch
                 {
-                    "border-left" or "border-inline-start" => new[] { 3 },
-                    "border-right" or "border-inline-end" => new[] { 1 },
-                    "border-top" or "border-block-start" => new[] { 0 },
-                    "border-bottom" or "border-block-end" => new[] { 2 },
-                    "border-inline" => new[] { 3, 1 },
-                    "border-block" => new[] { 0, 2 },
-                    _ => new[] { 0, 1, 2, 3 }
+                    "border-left" or "border-inline-start" => LeftEdge,
+                    "border-right" or "border-inline-end" => RightEdge,
+                    "border-top" or "border-block-start" => TopEdge,
+                    "border-bottom" or "border-block-end" => BottomEdge,
+                    "border-inline" => InlineEdges,
+                    "border-block" => BlockEdges,
+                    _ => AllEdges
                 };
                 foreach (var edge in edges)
                 {
@@ -983,6 +988,15 @@ internal static class CssSyntaxAdapter
         }
         return terms;
     }
+
+    // The term a one-to-four value shorthand gives side i (TRBL), as CSS expands it.
+    private static int SideSource(int count, int side) => count switch
+    {
+        1 => 0,
+        2 => side % 2,
+        3 => side == 3 ? 1 : side,
+        _ => side
+    };
 
     private static string[] ExpandFour(string[] parts) => parts.Length switch
     {
