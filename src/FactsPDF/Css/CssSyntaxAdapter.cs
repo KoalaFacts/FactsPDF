@@ -46,8 +46,10 @@ internal static class CssSyntaxAdapter
         IReadOnlyList<CssDeclarationNode> nodes, CssBudget budget)
     {
         var output = new List<CssDeclaration>(nodes.Count);
-        foreach (var node in nodes)
+        // An index loop: foreach over the IReadOnlyList would box an array enumerator per call.
+        for (var n = 0; n < nodes.Count; n++)
         {
+            var node = nodes[n];
             budget.Token.ThrowIfCancellationRequested();
             var originalName = node.Name.ToLowerInvariant();
             // Legacy print stylesheets use page-break-before/after:always.
@@ -950,10 +952,17 @@ internal static class CssSyntaxAdapter
 
     private static List<string> Terms(CssDeclarationNode node)
     {
-        var terms = new List<string>();
+        // Sized to the non-whitespace components (each becomes one term or throws), and walked by
+        // index so no array enumerator is boxed per declaration.
+        var values = node.Values;
+        var capacity = 0;
+        for (var i = 0; i < values.Count; i++)
+            if (values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) capacity++;
+        var terms = new List<string>(capacity);
         var whitespace = true;
-        foreach (var component in node.Values)
+        for (var i = 0; i < values.Count; i++)
         {
+            var component = values[i];
             if (component is CssTokenComponent x && x.Token.Kind == CssSyntaxTokenKind.Whitespace)
             { whitespace = true; continue; }
             if (!whitespace) throw new FactsPdfException("FPDF1202", "CSS terms require whitespace separators.", component.Span.Start);

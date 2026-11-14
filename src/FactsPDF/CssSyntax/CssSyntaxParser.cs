@@ -70,8 +70,17 @@ internal static class CssSyntaxParser
 
         internal CssSyntaxResult Declarations()
         {
+            // Inline contents hold only declarations (at-rules and nested rules are reported, not
+            // kept), so copy them into one exact-size array instead of an OfType iterator and the
+            // growing buffer its ToArray fills.
             var contents = ReadBlockContents(inline: true);
-            return new([], contents.OfType<CssDeclarationNode>().ToArray(), diagnostics.ToArray());
+            var count = 0;
+            for (var i = 0; i < contents.Count; i++) if (contents[i] is CssDeclarationNode) count++;
+            var declarations = count == 0 ? [] : new CssDeclarationNode[count];
+            count = 0;
+            for (var i = 0; i < contents.Count; i++)
+                if (contents[i] is CssDeclarationNode declaration) declarations[count++] = declaration;
+            return new([], declarations, diagnostics.ToArray());
         }
 
         private List<CssSyntaxContent> ReadBlockContents(bool inline = false)

@@ -247,6 +247,15 @@ internal static class HtmlTokens
         KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known) ? known : html[start..end].ToLowerInvariant();
 
     public static bool Space(char ch) => ch is ' ' or '\t' or '\r' or '\n' or '\f';
+
+    /// <summary>Whether every character is HTML whitespace (true for an empty string).</summary>
+    /// <remarks>A span loop: <c>text.All(Space)</c> boxes a string enumerator per call.</remarks>
+    public static bool AllSpace(string text)
+    {
+        foreach (var ch in text.AsSpan())
+            if (!Space(ch)) return false;
+        return true;
+    }
     private static bool NameCharacter(char ch) => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_' or ':';
     private static void SkipSpace(string html, ref int i) { while (i < html.Length && Space(html[i])) i++; }
     private static FactsPdfException Invalid(string message, int offset) => new("FPDF1101", message, offset);
