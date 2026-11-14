@@ -332,11 +332,13 @@ internal static class InlineCss
     internal static Rgb Color(string value, int offset)
     {
         value = CssNamedColors.Hex(value) ?? value;
-        if (value.Length == 4 && value[0] == '#')
-            value = $"#{value[1]}{value[1]}{value[2]}{value[2]}{value[3]}{value[3]}";
-        if (value.Length != 7 || value[0] != '#' || !uint.TryParse(value.AsSpan(1),
+        // #rgb doubles each digit in place (0xabc -> 0xaabbcc) instead of building a #rrggbb string,
+        // whose interpolation boxed six chars per declaration.
+        if ((value.Length != 4 && value.Length != 7) || value[0] != '#' || !uint.TryParse(value.AsSpan(1),
             NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb))
             throw Invalid("Use #rgb, #rrggbb or an opaque standard CSS named color.", offset);
+        if (value.Length == 4)
+            rgb = ((rgb >> 8) & 15) * 0x110000 + ((rgb >> 4) & 15) * 0x1100 + (rgb & 15) * 0x11;
         return new(((rgb >> 16) & 255) / 255d, ((rgb >> 8) & 255) / 255d, (rgb & 255) / 255d);
     }
 
