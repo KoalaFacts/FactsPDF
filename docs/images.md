@@ -54,8 +54,7 @@ This extends the earlier physical-only image-height/width paragraphs below
 without changing their historical test evidence. New source
 [`145b1bd5`](https://github.com/KoalaFacts/FactsPDF/commit/145b1bd5dc7ceb4d6b90fbe6c6c32259b0c2f430)
 and [actual PDF geometry tests](../tests/FactsPDF.Tests/FontRelativeImageSizingTests.cs)
-remain **unmerged candidates** until the exact-head CI, review and merge
-gates are met; this does not update the retained private preview artifact.
+are merged; this does not update the retained private preview artifact.
 
 ## Bounded image height limits
 
