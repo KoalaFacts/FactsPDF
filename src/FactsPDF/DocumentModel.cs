@@ -337,9 +337,10 @@ internal sealed record BoxStyle
 
 internal abstract record BlockChild;
 
-internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChild
+internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChildList
 {
-    public BlockChildList Children { get; } = new();
+    /// <summary>The node's children: the node is its own child list, so no separate list object.</summary>
+    public BlockChildList Children => this;
     // Bounded HTML ordered-list sequence metadata. These are parsed values,
     // never generated child nodes; a tree may be laid out repeatedly.
     // Packed into one int, so a block node is 56 bytes instead of 64: the reader sets a start
@@ -369,13 +370,21 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
 /// The children of a block or of the document root. A lone child is kept in the list's own field
 /// and only a second child allocates an array (4, then doubling, like List), so a paragraph element
 /// (which holds just its own paragraph) allocates no array. One field for both shapes keeps the
-/// list at 32 bytes instead of 40.
+/// list at 32 bytes instead of 40. A <see cref="BlockNode"/> derives from this list, so a block
+/// owns its children's fields instead of pointing at a separate 32-byte list object (a block node
+/// is 64 bytes instead of 56 + 32). Equality stays by reference: block trees are compared and
+/// hashed by identity, never structurally.
 /// </summary>
-internal sealed class BlockChildList : IReadOnlyList<BlockChild>
+internal record BlockChildList : BlockChild, IReadOnlyList<BlockChild>
 {
     // null (no children), the lone BlockChild, or a BlockChild[] once a second child arrived.
     private object? items;
     private int count;
+
+    // Identity equality: the synthesized record members would compare and hash the children,
+    // walking a whole subtree (and two distinct blocks could compare equal).
+    public virtual bool Equals(BlockChildList? other) => ReferenceEquals(this, other);
+    public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
 
     public int Count => count;
 
