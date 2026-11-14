@@ -429,4 +429,79 @@ public sealed class HtmlTokenSizeTests
         lone.Add(nodes[2]);
         Assert.That(lone[0], Is.SameAs(nodes[2]));
     }
+
+    // Main 715a126: a block node (56 bytes) pointed at its own 32-byte BlockChildList, 88 bytes per
+    // block. The node now derives from the list and owns its fields: 64 bytes and one object.
+    [Test]
+    public void ABlockNodeAndItsChildrenAreOneSixtyFourByteObject()
+    {
+        const int count = 10_000;
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var nodes = new BlockNode[count];
+        nodes[0] = new BlockNode("p", style, BoxStyle.Initial, 0);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 1; i < count; i++) nodes[i] = new BlockNode("p", style, BoxStyle.Initial, i);
+        var perNode = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)(count - 1);
+        Assert.That(perNode, Is.EqualTo(64));
+        Assert.That(nodes[1].Children, Is.SameAs(nodes[1]));
+        GC.KeepAlive(nodes);
+    }
+
+    // Owning the children must not make blocks compare structurally: two blocks with the same name,
+    // styles, offset and children stay distinct, and hashing does not walk the subtree.
+    [Test]
+    public void BlockNodesCompareByIdentity()
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var child = new Paragraph(style);
+        var a = new BlockNode("div", style, BoxStyle.Initial, 3);
+        var b = new BlockNode("div", style, BoxStyle.Initial, 3);
+        a.Children.Add(child);
+        b.Children.Add(child);
+        Assert.That(a, Is.Not.EqualTo(b));
+        Assert.That(a.Equals(a), Is.True);
+        Assert.That(new HashSet<BlockNode> { a, b }, Has.Count.EqualTo(2));
+        var list = new BlockChildList();
+        Assert.That(list.Equals(new BlockChildList()), Is.False);
+    }
+
+    // Children returns the node itself, so record printing must not print it (it would recurse).
+    [Test]
+    public void ABlockNodeFormatsWithoutPrintingItselfAsItsChildren()
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var node = new BlockNode("div", style, BoxStyle.Initial, 7);
+        Assert.That(node.ToString(), Is.EqualTo("BlockNode { Name = div, SourceOffset = 7, Count = 0 }"));
+        node.Children.Add(new Paragraph(style));
+        Assert.That($"{node}", Does.Contain("Count = 1"));
+    }
+
+    // Main 715a126: 336.4 bytes read per paragraph; the <p> element's block no longer allocates a
+    // separate child list.
+    [Test]
+    public void ReadingAParagraphAllocatesNoSeparateChildList()
+    {
+        var options = new PdfOptions { MaxElements = 100_000 };
+        var small = ReadAllocated(Paragraphs(1_000), options);
+        var large = ReadAllocated(Paragraphs(2_000), options);
+        var perParagraph = (large - small) / 1_000.0;
+        TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(320));
+    }
+
+    // Layout must not give the saving back. Main 715a126: 816.3 bytes per paragraph converted.
+    [Test]
+    public void ConvertingAParagraphKeepsTheOwnedChildrenSaving()
+    {
+        static long Converted(string html)
+        {
+            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            Pdf.Write().ToBytes(html);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
+        TestContext.Out.WriteLine($"converted per paragraph: {perParagraph:F1} bytes");
+        Assert.That(perParagraph, Is.LessThan(800));
+    }
 }
