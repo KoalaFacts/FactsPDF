@@ -420,6 +420,25 @@ internal record BlockChildList : BlockChild, IReadOnlyList<BlockChild>
         count++;
     }
 
+    /// <summary>
+    /// Moves <paramref name="source"/>'s tail from <paramref name="start"/> into this empty list:
+    /// one child into the lone-child slot, more into one array of exactly their count.
+    /// </summary>
+    internal void TakeChildren(List<BlockChild> source, int start)
+    {
+        if (count != 0) throw new InvalidOperationException("Children are taken only into an empty list.");
+        var taken = source.Count - start;
+        if (taken == 1) items = source[start];
+        else if (taken > 1)
+        {
+            var array = new BlockChild[taken];
+            source.CopyTo(start, array, 0, taken);
+            items = array;
+        }
+        count = taken;
+        source.RemoveRange(start, taken);
+    }
+
     internal void RemoveAt(int index)
     {
         if ((uint)index >= (uint)count) throw new ArgumentOutOfRangeException(nameof(index));

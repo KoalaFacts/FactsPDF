@@ -2,7 +2,9 @@ namespace FactsPDF;
 
 internal static class HtmlDocumentReader
 {
-    private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box, int SourceOffset = -1);
+    // ChildStart: for a frame with a Box, where the box's children begin in the reader's child stack.
+    private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box,
+        int SourceOffset = -1, int ChildStart = 0);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
     private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
@@ -145,14 +147,31 @@ internal static class HtmlDocumentReader
         // in use, so a read that starts during another on the same thread gets a list of its own.
         var tokens = pooledTokens ?? new List<HtmlToken>();
         pooledTokens = null;
-        try { return ReadTree(html, options, tokens, cancellation); }
+        // The child stack is pooled the same way.
+        var children = pooledChildren ?? new List<BlockChild>();
+        pooledChildren = null;
+        try { return ReadTree(html, options, tokens, children, cancellation); }
         finally
         {
             // Cleared before pooling so the list never keeps a finished document's tokens alive.
             tokens.Clear();
             if (tokens.Capacity <= MaxPooledTokens) pooledTokens = tokens;
+            children.Clear();
+            if (children.Capacity <= MaxPooledChildren) pooledChildren = children;
         }
     }
+
+    // The children of every open block, in document order: an open block's children are the tail
+    // from its frame's ChildStart, because children are only ever added to the innermost open
+    // block. When the block closes they move into one exact-size array (or its lone-child slot),
+    // so no block grows its own array by doubling and leaves the smaller copies behind.
+    internal const int MaxPooledChildren = 8192;
+    [ThreadStatic] private static List<BlockChild>? pooledChildren;
+
+    /// <summary>The calling thread's pooled child stack, for tests: its count is always zero
+    /// between reads.</summary>
+    internal static (int Count, int Capacity)? PooledChildren =>
+        pooledChildren is { } list ? (list.Count, list.Capacity) : null;
 
     // Keeps the pooled array under the large-object threshold (one 8-byte reference per token).
     internal const int MaxPooledTokens = 8192;
@@ -164,7 +183,7 @@ internal static class HtmlDocumentReader
         pooledTokens is { } list ? (list.Count, list.Capacity) : null;
 
     private static DocumentRoot ReadTree(string html, PdfOptions options, List<HtmlToken> tokens,
-        CancellationToken cancellation)
+        List<BlockChild> children, CancellationToken cancellation)
     {
         // Compile every source before computing styles: a later style block can affect earlier content.
         // The tokens are read once, here, and walked again below.
@@ -180,14 +199,12 @@ internal static class HtmlDocumentReader
         var anonymous = false;
         var elements = 0; var insideStyle = false;
 
-        BlockChildList CurrentChildren()
+        // Where the innermost open block's children begin in the child stack (0 for the root).
+        int ChildStart(int fromFrame)
         {
-            for (var i = stack.Count - 1; i >= 0; i--)
-            {
-                var box = stack[i].Box;
-                if (box is not null) return box.Children;
-            }
-            return result.Children;
+            for (var i = fromFrame; i >= 0; i--)
+                if (stack[i].Box is not null) return stack[i].ChildStart;
+            return 0;
         }
 
         void Flush()
@@ -204,7 +221,7 @@ internal static class HtmlDocumentReader
                 else
                 {
                     current.IsAnonymous = anonymous;
-                    CurrentChildren().Add(current);
+                    children.Add(current);
                 }
             }
             current = null;
@@ -218,29 +235,26 @@ internal static class HtmlDocumentReader
                 // Validate the hidden subtree normally, then remove it as a
                 // single block. This keeps it out of heading lookahead, font
                 // resolution, page layout and PDF paint/byte budgets.
-                var siblings = result.Children;
-                for (var i = stack.Count - 2; i >= 0; i--)
-                    if (stack[i].Box is { } parentBox)
-                    {
-                        siblings = parentBox.Children;
-                        break;
-                    }
-                if (siblings.Count == 0 || !ReferenceEquals(siblings[^1], hidden))
+                // Its own children are dropped with it; its siblings are the parent's tail.
+                children.RemoveRange(closing.ChildStart, children.Count - closing.ChildStart);
+                var siblingStart = ChildStart(stack.Count - 2);
+                if (children.Count == siblingStart || !ReferenceEquals(children[^1], hidden))
                     throw new InvalidOperationException("Hidden report block is not the current sibling.");
-                siblings.RemoveAt(siblings.Count - 1);
+                children.RemoveAt(children.Count - 1);
                 // Hiding a block must not leave a phantom paragraph boundary
                 // between adjacent direct text. The block's opening tag
                 // flushed the preceding anonymous paragraph; resume it here
                 // so subsequent direct text/inline runs behave exactly as
                 // if the hidden block had never existed.
-                if (current is null && table is null && siblings.Count > 0
-                    && siblings[^1] is Paragraph { IsAnonymous: true } before)
+                if (current is null && table is null && children.Count > siblingStart
+                    && children[^1] is Paragraph { IsAnonymous: true } before)
                 {
-                    siblings.RemoveAt(siblings.Count - 1);
+                    children.RemoveAt(children.Count - 1);
                     current = before;
                     anonymous = true;
                 }
             }
+            else closing.Box?.TakeChildren(children, closing.ChildStart);
             stack.RemoveAt(stack.Count - 1);
             path.RemoveAt(path.Count - 1);
         }
@@ -428,7 +442,7 @@ internal static class HtmlDocumentReader
             {
                 Flush();
                 table = new(new TableNode(style, boxStyle, token.Offset));
-                CurrentChildren().Add(table.Node);
+                children.Add(table.Node);
                 stack.Add(new(name, style, boxStyle, null, token.Offset));
                 continue;
             }
@@ -448,13 +462,13 @@ internal static class HtmlDocumentReader
                 var imageNode = new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt"));
                 Flush();
                 if (table?.Cell is { } imageCell) imageCell.Contents.Add(new TableCellImage(imageNode));
-                else CurrentChildren().Add(imageNode);
+                else children.Add(imageNode);
                 path.RemoveAt(path.Count - 1); continue;
             }
             if (name == "hr")
             {
                 Flush();
-                CurrentChildren().Add(new BlockNode(name, style, boxStyle, token.Offset));
+                children.Add(new BlockNode(name, style, boxStyle, token.Offset));
                 path.RemoveAt(path.Count - 1);
                 continue; // void block; no open frame or text runs
             }
@@ -470,9 +484,9 @@ internal static class HtmlDocumentReader
                 };
                 // A paragraph element holds at most its own paragraph (block children are rejected
                 // or close it first), which the child list keeps in its first slot without an array.
-                CurrentChildren().Add(box);
+                children.Add(box);
             }
-            stack.Add(new(name, style, boxStyle, box, token.Offset));
+            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count));
             if (ParagraphTag(name))
             {
                 current = new Paragraph(style, token.Offset, RunCount(tokens, t + 1, name));
@@ -487,6 +501,7 @@ internal static class HtmlDocumentReader
         }
         if (stack.Count > 1) throw new FactsPdfException("FPDF1101", $"Unclosed element '{stack[^1].Name}'.", html.Length);
         Flush();
+        result.Children.TakeChildren(children, 0);
         return result;
     }
     // The runs a paragraph element opened just before `start` will hold: one per text token and
