@@ -465,6 +465,17 @@ public sealed class HtmlTokenSizeTests
         Assert.That(list.Equals(new BlockChildList()), Is.False);
     }
 
+    // Children returns the node itself, so record printing must not print it (it would recurse).
+    [Test]
+    public void ABlockNodeFormatsWithoutPrintingItselfAsItsChildren()
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var node = new BlockNode("div", style, BoxStyle.Initial, 7);
+        Assert.That(node.ToString(), Is.EqualTo("BlockNode { Name = div, SourceOffset = 7, Count = 0 }"));
+        node.Children.Add(new Paragraph(style));
+        Assert.That($"{node}", Does.Contain("Count = 1"));
+    }
+
     // Main 715a126: 336.4 bytes read per paragraph; the <p> element's block no longer allocates a
     // separate child list.
     [Test]

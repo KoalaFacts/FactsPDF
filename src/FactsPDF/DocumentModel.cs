@@ -341,6 +341,14 @@ internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle
 {
     /// <summary>The node's children: the node is its own child list, so no separate list object.</summary>
     public BlockChildList Children => this;
+
+    // The synthesized PrintMembers would print Children, which is this node, and recurse forever.
+    protected override bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append("Name = ").Append(Name).Append(", SourceOffset = ").Append(SourceOffset)
+            .Append(", Count = ").Append(Count);
+        return true;
+    }
     // Bounded HTML ordered-list sequence metadata. These are parsed values,
     // never generated child nodes; a tree may be laid out repeatedly.
     // Packed into one int, so a block node is 56 bytes instead of 64: the reader sets a start
