@@ -4,7 +4,7 @@ Ordinary `td/th` in explicit-column reports now consume `white-space`, `overflow
 
 ### Fixed-track cell first-line indents (source candidate)
 
-The business-register row notes can now use `td.memo { text-indent:0.25em }` (with a computed cell font size) and a nested `p { text-indent:inherit }` or an overridden `0.5rem`. Instead of merely parsing the declarations, the computed first-line offset enters actual PDF text measurement and pagination. A 24-row multi-page synthetic source and independently written point-value oracle, real byte and coordinate comparisons and prior-output-protecting errors document the bounded feature: [example](../examples/report-cell-text-indent.html), [oracle](../examples/report-cell-text-indent-oracle.html), [tests](../tests/FactsPDF.Tests/TableCellTextIndentTests.cs). Code source [7282c0839235443ab49935cb0f2e8092117786a1](https://github.com/KoalaFacts/FactsPDF/commit/7282c0839235443ab49935cb0f2e8092117786a1), still an unmerged candidate pending exact-head CI and independent review. Existing `text-indent` compatibility entry remains **partial**; structural table elements, inline spans, negative/calc and unlimited indent are not supported.
+The business-register row notes can now use `td.memo { text-indent:0.25em }` (with a computed cell font size) and a nested `p { text-indent:inherit }` or an overridden `0.5rem`. Instead of merely parsing the declarations, the computed first-line offset enters actual PDF text measurement and pagination. A 24-row multi-page synthetic source and independently written point-value oracle, real byte and coordinate comparisons and prior-output-protecting errors document the bounded feature: [example](../examples/report-cell-text-indent.html), [oracle](../examples/report-cell-text-indent-oracle.html), [tests](../tests/FactsPDF.Tests/TableCellTextIndentTests.cs). Code source [7282c0839235443ab49935cb0f2e8092117786a1](https://github.com/KoalaFacts/FactsPDF/commit/7282c0839235443ab49935cb0f2e8092117786a1). Existing `text-indent` compatibility entry remains **partial**; structural table elements, inline spans, negative/calc and unlimited indent are not supported.
 
 ## Attribute selectors on actual invoice/report fields
 
@@ -1286,9 +1286,8 @@ are checked as actual Native AOT PDFs, not accepted syntax alone.
 `break-after:avoid` remains **heading-only**, not a section keep-together;
 left/right, RTL, tables/lists and general CSS Paged Media are unsupported.
 A separately documented top-level flat-card `break-inside:avoid` subset
-does not change these forced-boundary semantics. This is
-source-only at `67566764419232585632d8ea6f2106aeeeff2f70`, pending
-exact-head CI, independent review and the separate private/customer gates.
+does not change these forced-boundary semantics. Source:
+`67566764419232585632d8ea6f2106aeeeff2f70`.
 [Precise CSS scope](css-stylesheets.md#current-source-print-section-page-boundaries).
 
 ### Keep multi-paragraph sign-off cards together (source-only)
