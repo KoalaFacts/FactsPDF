@@ -264,7 +264,7 @@ internal static class HtmlDocumentReader
             // meaningful even before the first inline run of an anonymous
             // report paragraph. Retain them for the same PDF measurement and
             // tab/control validation used by explicitly styled paragraphs.
-            if (current is null && !lineBreak && text.All(HtmlTokens.Space) &&
+            if (current is null && !lineBreak && HtmlTokens.AllSpace(text) &&
                 !style.PreserveSpaces && !style.PreserveLineBreaks) return;
             if (current is null)
             {
@@ -291,14 +291,14 @@ internal static class HtmlDocumentReader
                 if (stack[^1].Name == "title") continue;
                 if (stack[^1].Name == "head")
                 {
-                    if (!token.Value.All(HtmlTokens.Space))
+                    if (!HtmlTokens.AllSpace(token.Value))
                         throw new FactsPdfException("FPDF1101", "Non-metadata text inside head is not supported.", token.Offset);
                     continue;
                 }
                 var decoded = HtmlTokens.Decode(token.Value, token.Offset);
                 if (ListTag(stack[^1].Name) || table is not null && table.Cell is null)
                 {
-                    if (!decoded.All(HtmlTokens.Space))
+                    if (!HtmlTokens.AllSpace(decoded))
                         throw new FactsPdfException("FPDF1101", "Structural list/table elements cannot contain direct text.", token.Offset);
                     continue;
                 }
