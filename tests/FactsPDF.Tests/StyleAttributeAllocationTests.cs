@@ -63,7 +63,7 @@ public sealed class StyleAttributeAllocationTests
         var least = long.MaxValue;
         for (var i = 0; i < 5; i++) least = Math.Min(least, CompileStyleAttribute(css, Options));
         TestContext.Out.WriteLine($"compile one style attribute: {least} bytes");
-        Assert.That(least, Is.LessThan(4_120)); // 4,232 on main
+        Assert.That(least, Is.LessThan(4_200)); // main: 4,232 or 4,376 (two modes 144 bytes apart, depending on which tests ran before)
     }
 
     [Test]
