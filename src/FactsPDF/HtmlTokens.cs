@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 
@@ -172,6 +173,7 @@ internal static class HtmlTokens
         var decoded = Decode(raw, rawStart);
         var positions = new int[decoded.Length + 1];
         var input = 0; var output = 0;
+        Span<char> entity = stackalloc char[34]; // a reference is at most 34 characters (see Decode)
         while (input < raw.Length)
         {
             if (raw[input] == '&' && input + 1 < raw.Length &&
@@ -180,8 +182,8 @@ internal static class HtmlTokens
                 var end = raw.IndexOf(';', input + 1);
                 if (end >= 0 && end - input <= 33)
                 {
-                    var entity = Decode(raw[input..(end + 1)], rawStart + input);
-                    for (var j = 0; j < entity.Length; j++)
+                    var entityLength = DecodeInto(raw.AsSpan(input, end + 1 - input), rawStart + input, entity);
+                    for (var j = 0; j < entityLength; j++)
                         positions[output++] = rawStart + input;
                     input = end + 1;
                     continue;
@@ -198,32 +200,58 @@ internal static class HtmlTokens
     public static string Decode(string text, int offset)
     {
         if (!text.Contains('&')) return text;
-        var result = new StringBuilder(text.Length);
+        // Every reference is at least as long as what it decodes to (the shortest, "&#1;", is four
+        // characters for one; a supplementary scalar is two UTF-16 units from at least eight), so
+        // the decoded text fits in a buffer of the source length.
+        char[]? rented = null;
+        Span<char> buffer = text.Length <= 256 ? stackalloc char[256] : (rented = ArrayPool<char>.Shared.Rent(text.Length));
+        try
+        {
+            var written = DecodeInto(text, offset, buffer);
+            return new string(buffer[..written]);
+        }
+        finally
+        {
+            if (rented is not null) ArrayPool<char>.Shared.Return(rented);
+        }
+    }
+
+    // Decodes character references in `text` into `destination` (at least text.Length long) and
+    // returns the number of characters written; reference names are matched as spans, so no
+    // name substring, numeric-reference string or builder is allocated.
+    private static int DecodeInto(ReadOnlySpan<char> text, int offset, Span<char> destination)
+    {
+        var written = 0;
         for (var i = 0; i < text.Length; i++)
         {
-            if (text[i] != '&') { result.Append(text[i]); continue; }
+            if (text[i] != '&') { destination[written++] = text[i]; continue; }
             if (i + 1 >= text.Length || (!char.IsAsciiLetterOrDigit(text[i + 1]) && text[i + 1] != '#'))
-            { result.Append('&'); continue; }
-            var end = text.IndexOf(';', i + 1);
+            { destination[written++] = '&'; continue; }
+            var length = text[(i + 1)..].IndexOf(';');
+            var end = length < 0 ? -1 : i + 1 + length;
             if (end < 0 || end - i > 33) throw new FactsPdfException("FPDF1104", "Character references need a supported name and semicolon.", offset + i);
             var name = text[(i + 1)..end];
-            var decoded = name switch
+            var named = name switch
             {
-                "amp" => "&", "lt" => "<", "gt" => ">", "quot" => "\"", "apos" => "'", "nbsp" => "\u00a0", _ => null
+                "amp" => '&', "lt" => '<', "gt" => '>', "quot" => '"', "apos" => '\'', "nbsp" => '\u00a0', _ => '\0'
             };
-            if (decoded is null && name.StartsWith('#'))
-            {
-                var hex = name.Length > 1 && name[1] is 'x' or 'X';
-                var number = name.AsSpan(hex ? 2 : 1);
-                if (int.TryParse(number, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.None,
-                    CultureInfo.InvariantCulture, out var scalar) && scalar > 0 && Rune.IsValid(scalar))
-                    decoded = new Rune(scalar).ToString();
-            }
-            if (decoded is null) throw new FactsPdfException("FPDF1104", $"Unsupported character reference '&{name};'.", offset + i);
-            result.Append(decoded);
+            if (named != '\0') destination[written++] = named;
+            else if (name.StartsWith('#') && NumericReference(name) is { } rune)
+                written += rune.EncodeToUtf16(destination[written..]);
+            else
+                throw new FactsPdfException("FPDF1104", $"Unsupported character reference '&{name};'.", offset + i);
             i = end;
         }
-        return result.ToString();
+        return written;
+    }
+
+    private static Rune? NumericReference(ReadOnlySpan<char> name)
+    {
+        var hex = name.Length > 1 && name[1] is 'x' or 'X';
+        var number = name[(hex ? 2 : 1)..];
+        return int.TryParse(number, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.None,
+            CultureInfo.InvariantCulture, out var scalar) && scalar > 0 && Rune.IsValid(scalar)
+            ? new Rune(scalar) : null;
     }
 
     // Start tags without attributes share this instance; token consumers only read attributes.
