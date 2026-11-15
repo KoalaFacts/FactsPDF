@@ -3,30 +3,40 @@ namespace FactsPDF.CssSyntax;
 /// <summary>CSS Syntax Level 3 rule and component-value parsing, independent of rendered CSS support.</summary>
 internal static class CssSyntaxParser
 {
+    // The parser reads the tokenizer's rented token list in place instead of a right-sized copy:
+    // nodes copy the token values they keep, so the list is returned (and cleared) when the
+    // parse ends, whether it succeeded or failed.
     internal static CssSyntaxResult ParseStylesheet(CssSourceText source, CssSyntaxLimits limits)
-        => new State(source, limits).Stylesheet();
+    {
+        var tokens = CssSyntaxTokenizer.RentTokens();
+        try { return new State(source, limits, tokens).Stylesheet(); }
+        finally { CssSyntaxTokenizer.ReturnTokens(tokens); }
+    }
 
     internal static CssSyntaxResult ParseDeclarations(CssSourceText source, CssSyntaxLimits limits)
-        => new State(source, limits).Declarations();
+    {
+        var tokens = CssSyntaxTokenizer.RentTokens();
+        try { return new State(source, limits, tokens).Declarations(); }
+        finally { CssSyntaxTokenizer.ReturnTokens(tokens); }
+    }
 
     private sealed class State
     {
-        private readonly IReadOnlyList<CssSyntaxToken> tokens;
+        private readonly List<CssSyntaxToken> tokens;
         private readonly CssSyntaxLimits limits;
         private readonly CssSyntaxBudget budget;
         private readonly List<CssSyntaxDiagnostic> diagnostics = [];
         private int position;
 
-        internal State(CssSourceText source, CssSyntaxLimits limits)
+        internal State(CssSourceText source, CssSyntaxLimits limits, List<CssSyntaxToken> tokens)
         {
             ArgumentNullException.ThrowIfNull(source);
             ArgumentNullException.ThrowIfNull(limits);
             limits.Cancellation.ThrowIfCancellationRequested();
             this.limits = limits;
             budget = new CssSyntaxBudget(limits);
-            var lexical = CssSyntaxTokenizer.TokenizeWithDiagnostics(source, limits);
-            tokens = lexical.Tokens;
-            diagnostics.AddRange(lexical.Diagnostics);
+            diagnostics.AddRange(CssSyntaxTokenizer.TokenizeInto(source, limits, tokens));
+            this.tokens = tokens;
         }
 
         private CssSyntaxToken Current => tokens[position];
