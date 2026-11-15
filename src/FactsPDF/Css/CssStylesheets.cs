@@ -102,7 +102,7 @@ internal sealed class CssStylesheets
                 budget.Token.ThrowIfCancellationRequested();
                 var declaration = declarations[i];
                 var offset = declaration.Offset - compiled.ValueOffset + valueOffset;
-                result[i] = declaration with { Order = budget.Declaration(offset), Offset = offset };
+                result[i] = declaration.At(budget.Declaration(offset), offset);
             }
             return result;
         }

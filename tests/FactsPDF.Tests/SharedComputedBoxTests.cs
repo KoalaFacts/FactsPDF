@@ -47,7 +47,7 @@ public sealed class SharedComputedBoxTests
     {
         var repeated = ReadBytesPerParagraph("padding:3pt;border:0.5pt solid #789");
         TestContext.Out.WriteLine($"repeated box: {repeated:F1} bytes per paragraph");
-        Assert.That(repeated, Is.LessThan(1_900));
+        Assert.That(repeated, Is.LessThan(1_600));
     }
 
     [Test]
