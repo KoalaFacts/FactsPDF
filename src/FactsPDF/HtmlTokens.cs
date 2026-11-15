@@ -149,6 +149,12 @@ internal static class HtmlTokens
             if (scratch.Count > 0)
             {
                 attrs = new(scratch.ToArray());
+                if (scratch.Count > HtmlAttributes.IndexedAbove)
+                {
+                    // The name set was used: release its names, and the set itself if it grew large.
+                    if (scratch.Count > MaxPooledAttributes) attributeNames = null;
+                    else attributeNames!.Clear();
+                }
                 scratch.Clear();
                 if (scratch.Capacity > MaxPooledAttributes) attributeScratch = null;
             }
