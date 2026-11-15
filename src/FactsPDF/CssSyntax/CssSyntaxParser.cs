@@ -20,6 +20,9 @@ internal static class CssSyntaxParser
         finally { CssSyntaxTokenizer.ReturnTokens(tokens); }
     }
 
+    [ThreadStatic] private static List<CssSyntaxComponent>? pooledValues;
+    private const int MaxPooledValues = 1024;
+
     private sealed class State
     {
         private readonly List<CssSyntaxToken> tokens;
@@ -264,39 +267,52 @@ internal static class CssSyntaxParser
             }
             Take(); // colon
             SkipSpace(); // CSS Syntax discards whitespace after the colon
-            var values = new List<CssSyntaxComponent>();
-            while (!End && Current.Kind != CssSyntaxTokenKind.Semicolon &&
-                   !(nested && Current.Kind == CssSyntaxTokenKind.CloseBrace))
+            // One reusable value list per thread, taken out of its slot while in use (a declaration
+            // never reads another declaration inside its value), so each declaration allocates only its
+            // exact-size value array instead of a list that grows by doubling and its final copy.
+            var values = pooledValues ?? [];
+            pooledValues = null;
+            try
             {
-                limits.Cancellation.ThrowIfCancellationRequested();
-                // An unmatched '}' in a standalone style declaration remains
-                // part of the component list and is separately diagnosed.
-                values.Add(ReadComponent());
+                while (!End && Current.Kind != CssSyntaxTokenKind.Semicolon &&
+                       !(nested && Current.Kind == CssSyntaxTokenKind.CloseBrace))
+                {
+                    limits.Cancellation.ThrowIfCancellationRequested();
+                    // An unmatched '}' in a standalone style declaration remains
+                    // part of the component list and is separately diagnosed.
+                    values.Add(ReadComponent());
+                }
+                if (Current.Kind == CssSyntaxTokenKind.Semicolon) Take();
+                var important = ExtractImportant(values);
+                if (!beginning.Value.StartsWith("--", StringComparison.Ordinal))
+                {
+                    var meaningful = 0;
+                    CssSyntaxComponent? first = null;
+                    var braceBlock = false;
+                    foreach (var value in values)
+                    {
+                        if (IsWhitespace(value)) continue;
+                        if (meaningful++ == 0) first = value;
+                        if (value is CssBlockComponent { Opening: CssSyntaxTokenKind.OpenBrace }) braceBlock = true;
+                    }
+                    if (braceBlock && (meaningful != 1 || first is not CssBlockComponent))
+                    {
+                        Error("A CSS brace block must be the entire non-custom declaration value.",
+                            beginning.Span, "semicolon");
+                        return null;
+                    }
+                }
+                if (beginning.Value.Equals("unicode-range", StringComparison.OrdinalIgnoreCase))
+                    RetokenizeUnicodeRanges(values);
+                budget.Node(beginning.Span);
+                return new(beginning.Value, values.ToArray(), important, Range(beginning.Span.Start));
             }
-            if (Current.Kind == CssSyntaxTokenKind.Semicolon) Take();
-            var important = ExtractImportant(values);
-            if (!beginning.Value.StartsWith("--", StringComparison.Ordinal))
+            finally
             {
-                var meaningful = 0;
-                CssSyntaxComponent? first = null;
-                var braceBlock = false;
-                foreach (var value in values)
-                {
-                    if (IsWhitespace(value)) continue;
-                    if (meaningful++ == 0) first = value;
-                    if (value is CssBlockComponent { Opening: CssSyntaxTokenKind.OpenBrace }) braceBlock = true;
-                }
-                if (braceBlock && (meaningful != 1 || first is not CssBlockComponent))
-                {
-                    Error("A CSS brace block must be the entire non-custom declaration value.",
-                        beginning.Span, "semicolon");
-                    return null;
-                }
+                // Cleared before pooling so the list never keeps a finished parse's components alive.
+                values.Clear();
+                if (values.Capacity <= MaxPooledValues) pooledValues = values;
             }
-            if (beginning.Value.Equals("unicode-range", StringComparison.OrdinalIgnoreCase))
-                RetokenizeUnicodeRanges(values);
-            budget.Node(beginning.Span);
-            return new(beginning.Value, values.ToArray(), important, Range(beginning.Span.Start));
         }
 
         private static void RetokenizeUnicodeRanges(List<CssSyntaxComponent> values)
