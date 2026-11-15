@@ -58,7 +58,11 @@ internal static class CssSyntaxAdapter
     internal static CssDeclaration[] CompileKnownDeclarations(
         IReadOnlyList<CssDeclarationNode> nodes, CssBudget budget)
     {
-        var output = new List<CssDeclaration>(nodes.Count);
+        // One pooled scratch list per thread: shorthands expand into several declarations
+        // (`border` into twelve), so a list sized to the nodes grew by doubling per declaration
+        // block; the result is still one exact-size array. Taken out of its slot while in use.
+        var output = pooledDeclarations ?? new List<CssDeclaration>(16);
+        pooledDeclarations = null;
         // An index loop: foreach over the IReadOnlyList would box an array enumerator per call.
         for (var n = 0; n < nodes.Count; n++)
         {
@@ -628,8 +632,15 @@ internal static class CssSyntaxAdapter
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
         }
-        return output.ToArray();
+        var compiled = output.ToArray();
+        output.Clear(); // drop the references before the list waits in its slot
+        if (output.Capacity <= MaxPooledDeclarations) pooledDeclarations = output;
+        return compiled;
     }
+
+    // Keeps the pooled array small; a larger declaration block allocates its own list.
+    private const int MaxPooledDeclarations = 1024;
+    [ThreadStatic] private static List<CssDeclaration>? pooledDeclarations;
 
     // A supported weight is exactly one nonzero decimal digit times 10^2.
     // Inspect every mantissa digit: floating-point parsing can round an
