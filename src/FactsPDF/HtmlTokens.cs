@@ -11,7 +11,7 @@ internal record HtmlToken(HtmlTokenKind Kind, string Value, bool SelfClosing, in
     // Attributes: null for text, end and style-text tokens; a start tag without attributes shares
     // one empty map. Only a start tag with attributes is an AttributedHtmlToken that stores its
     // map, so every other token is 8 bytes smaller.
-    public virtual Dictionary<string, string>? Attributes => Kind == HtmlTokenKind.Start ? HtmlTokens.NoAttributes : null;
+    public virtual HtmlAttributes? Attributes => Kind == HtmlTokenKind.Start ? HtmlAttributes.None : null;
 
     // StyleValueOffset: where the style attribute's raw value starts in the page (-1 without one).
     // StyleOriginOffsets: the page offset of every decoded code unit plus its end, kept only when
@@ -21,13 +21,13 @@ internal record HtmlToken(HtmlTokenKind Kind, string Value, bool SelfClosing, in
     public virtual int[]? StyleOriginOffsets => null;
 }
 
-internal record AttributedHtmlToken(string Value, Dictionary<string, string> AttributeMap, bool SelfClosing, int Offset)
+internal record AttributedHtmlToken(string Value, HtmlAttributes AttributeMap, bool SelfClosing, int Offset)
     : HtmlToken(HtmlTokenKind.Start, Value, SelfClosing, Offset)
 {
-    public override Dictionary<string, string>? Attributes => AttributeMap;
+    public override HtmlAttributes? Attributes => AttributeMap;
 }
 
-internal sealed record StyledHtmlToken(string Value, Dictionary<string, string> AttributeMap,
+internal sealed record StyledHtmlToken(string Value, HtmlAttributes AttributeMap,
     bool SelfClosing, int Offset, int StyleStart, int[]? StyleOrigins)
     : AttributedHtmlToken(Value, AttributeMap, SelfClosing, Offset)
 {
@@ -82,66 +82,78 @@ internal static class HtmlTokens
                 yield return new(HtmlTokenKind.End, name, false, start);
                 continue;
             }
-            Dictionary<string, string>? attrs = null;
+            // Attributes collect in one per-thread scratch list and are copied into an exact-size
+            // array at the end; the finally below empties it (and the name set) whether the tag
+            // succeeded or failed, so nothing from this tag outlives it.
+            var scratch = attributeScratch ??= [];
             var styleValueOffset = -1;
             int[]? styleOriginOffsets = null;
             var selfClosing = false;
-            while (i < html.Length && html[i] != '>')
+            HtmlAttributes? attrs = null;
+            try
             {
-                cancellation.ThrowIfCancellationRequested();
-                if (html[i] == '/' && i + 1 < html.Length && html[i + 1] == '>')
-                { selfClosing = true; i++; break; }
-                var attrStart = i;
-                while (i < html.Length && NameCharacter(html[i])) i++;
-                if (i == attrStart) throw Invalid("Malformed attribute.", i);
-                var attribute = LowerName(html, attrStart, i);
-                SkipSpace(html, ref i);
-                var value = "";
-                var rawValueStart = attrStart;
-                if (i < html.Length && html[i] == '=')
+                while (i < html.Length && html[i] != '>')
                 {
-                    i++;
+                    cancellation.ThrowIfCancellationRequested();
+                    if (html[i] == '/' && i + 1 < html.Length && html[i + 1] == '>')
+                    { selfClosing = true; i++; break; }
+                    var attrStart = i;
+                    while (i < html.Length && NameCharacter(html[i])) i++;
+                    if (i == attrStart) throw Invalid("Malformed attribute.", i);
+                    var attribute = LowerName(html, attrStart, i);
                     SkipSpace(html, ref i);
-                    if (i >= html.Length) throw Invalid("Missing attribute value.", attrStart);
-                    if (html[i] is '\'' or '"')
+                    var value = "";
+                    var rawValueStart = attrStart;
+                    if (i < html.Length && html[i] == '=')
                     {
-                        var quote = html[i++];
-                        rawValueStart = i;
-                        var end = html.IndexOf(quote, i);
-                        if (end < 0) throw Invalid("Unterminated quoted attribute.", attrStart);
-                        value = html[i..end];
-                        i = end + 1;
-                    }
-                    else
-                    {
-                        var valueStart = i;
-                        rawValueStart = valueStart;
-                        while (i < html.Length && !Space(html[i]) && html[i] != '>')
+                        i++;
+                        SkipSpace(html, ref i);
+                        if (i >= html.Length) throw Invalid("Missing attribute value.", attrStart);
+                        if (html[i] is '\'' or '"')
                         {
-                            if (html[i] is '<' or '\'' or '"' or '=' or '`') throw Invalid("Invalid unquoted attribute.", i);
-                            i++;
+                            var quote = html[i++];
+                            rawValueStart = i;
+                            var end = html.IndexOf(quote, i);
+                            if (end < 0) throw Invalid("Unterminated quoted attribute.", attrStart);
+                            value = html[i..end];
+                            i = end + 1;
                         }
-                        if (i == valueStart) throw Invalid("Empty unquoted attribute.", attrStart);
-                        value = html[valueStart..i];
+                        else
+                        {
+                            var valueStart = i;
+                            rawValueStart = valueStart;
+                            while (i < html.Length && !Space(html[i]) && html[i] != '>')
+                            {
+                                if (html[i] is '<' or '\'' or '"' or '=' or '`') throw Invalid("Invalid unquoted attribute.", i);
+                                i++;
+                            }
+                            if (i == valueStart) throw Invalid("Empty unquoted attribute.", attrStart);
+                            value = html[valueStart..i];
+                        }
                     }
+                    if (attribute == "style")
+                    {
+                        // Without '&' the value is its own decoding, so its origins are its own positions.
+                        var hasReferences = value.Contains('&');
+                        var decoded = value;
+                        int[]? offsets = null;
+                        if (hasReferences) (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
+                        if (!AddAttribute(scratch, attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
+                        styleValueOffset = rawValueStart;
+                        styleOriginOffsets = offsets;
+                    }
+                    else if (!AddAttribute(scratch, attribute, Decode(value, attrStart)))
+                        throw Invalid("Duplicate attribute.", attrStart);
+                    SkipSpace(html, ref i);
                 }
-                if (attribute == "style")
-                {
-                    // Without '&' the value is its own decoding, so its origins are its own positions.
-                    var hasReferences = value.Contains('&');
-                    var decoded = value;
-                    int[]? offsets = null;
-                    if (hasReferences) (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
-                    if (!(attrs ??= NewAttributes()).TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
-                    styleValueOffset = rawValueStart;
-                    styleOriginOffsets = offsets;
-                }
-                else if (!(attrs ??= NewAttributes()).TryAdd(attribute, Decode(value, attrStart)))
-                    throw Invalid("Duplicate attribute.", attrStart);
-                SkipSpace(html, ref i);
+                if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
+                i++;
+                if (scratch.Count > 0) attrs = new(scratch.ToArray());
             }
-            if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
-            i++;
+            finally
+            {
+                ReleaseAttributeScratch(scratch);
+            }
             yield return styleValueOffset >= 0
                 ? new StyledHtmlToken(name, attrs!, selfClosing, start, styleValueOffset, styleOriginOffsets)
                 : attrs is null
@@ -254,10 +266,45 @@ internal static class HtmlTokens
             ? new Rune(scalar) : null;
     }
 
-    // Start tags without attributes share this instance; token consumers only read attributes.
-    internal static readonly Dictionary<string, string> NoAttributes = NewAttributes();
+    private const int MaxPooledAttributes = 1_024;
+    [ThreadStatic] private static List<KeyValuePair<string, string>>? attributeScratch;
+    [ThreadStatic] private static HashSet<string>? attributeNames;
 
-    private static Dictionary<string, string> NewAttributes() => new(StringComparer.OrdinalIgnoreCase);
+    // Empties the scratch list and, when this tag used it, the name set; either is dropped when it
+    // grew past MaxPooledAttributes, so one huge tag does not stay pinned to the thread.
+    private static void ReleaseAttributeScratch(List<KeyValuePair<string, string>> scratch)
+    {
+        if (scratch.Count > HtmlAttributes.IndexedAbove && attributeNames is { } names)
+        {
+            if (scratch.Count > MaxPooledAttributes) attributeNames = null;
+            else names.Clear();
+        }
+        scratch.Clear();
+        if (scratch.Capacity > MaxPooledAttributes) attributeScratch = null;
+    }
+
+    // Adds an attribute unless its name is already present. Up to HtmlAttributes.IndexedAbove names
+    // are compared directly; past that a per-thread set keeps a long attribute list linear.
+    private static bool AddAttribute(List<KeyValuePair<string, string>> scratch, string name, string value)
+    {
+        if (scratch.Count < HtmlAttributes.IndexedAbove)
+        {
+            for (var i = 0; i < scratch.Count; i++)
+                if (string.Equals(scratch[i].Key, name, StringComparison.OrdinalIgnoreCase)) return false;
+        }
+        else
+        {
+            var names = attributeNames ??= new(StringComparer.OrdinalIgnoreCase);
+            if (scratch.Count == HtmlAttributes.IndexedAbove)
+            {
+                names.Clear();
+                for (var i = 0; i < scratch.Count; i++) names.Add(scratch[i].Key);
+            }
+            if (!names.Add(name)) return false;
+        }
+        scratch.Add(new(name, value));
+        return true;
+    }
 
     // Lower-case spellings of the tag and attribute names the reader and the CSS layer use. A name
     // found here is returned without a substring or lower-casing copy; any other name falls back to

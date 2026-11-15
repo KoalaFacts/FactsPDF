@@ -3,7 +3,7 @@ namespace FactsPDF;
 // A value in the reader's ancestor path: an element costs no object of its own, only its slot in
 // the path list, which is as deep as the document.
 internal readonly record struct CssElement(string Name, string? Id, CssClassList Classes,
-    IReadOnlyDictionary<string, string> Attributes)
+    HtmlAttributes Attributes)
 {
     internal static CssElement From(HtmlToken token)
     {
