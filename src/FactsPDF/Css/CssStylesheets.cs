@@ -27,6 +27,12 @@ internal sealed class CssStylesheets
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
     private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
+    // Boxes computed earlier in this conversion, keyed by everything their box declarations read
+    // (see Compute). Bounded so a page of distinct styles keeps no more than a small table.
+    private const int MaxComputedBoxes = 256;
+    private readonly Dictionary<int, ComputedBox> computedBoxes = [];
+    private sealed record ComputedBox(string Element, BoxStyle ParentBox, double RootFontSize, double FontSize,
+        Rgb Color, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
 
@@ -493,10 +499,33 @@ internal sealed class CssStylesheets
             Own().MarkerKind = markerKind;
             box.MarkerInside = parentBox.MarkerInside;
         }
-        foreach (var winner in winners)
+        // An element whose box declarations, parent box, element name, root font size and computed
+        // font size and colour match an earlier element's computes the same box, so it shares that
+        // published (immutable) box instead of a private copy: every cell of a table column usually
+        // repeats one style. FontSize and Color precede every box property in the enum, and no other
+        // declaration changes them, so they are final at the first box declaration. A cached box was
+        // stored only after its whole computation succeeded, so skipped box declarations cannot fail.
+        var boxChecked = false; var boxShared = false; var boxKey = 0;
+        for (var index = 0; index < winners.Length; index++)
         {
-            if (!winner.HasValue) continue;
-            var declaration = winner.Value.Declaration;
+            if (winners[index] is not { } winner) continue;
+            var declaration = winner.Declaration;
+            if (WritesBox(element.Name, declaration.Property))
+            {
+                if (boxShared) continue;
+                if (!boxChecked)
+                {
+                    boxChecked = true;
+                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, index);
+                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, element.Name,
+                        parentBox, rootFontSize, style.FontSize, style.Color, index))
+                    {
+                        box = computed.Box;
+                        boxShared = true;
+                        continue;
+                    }
+                }
+            }
             if (declaration.Property == CssProperty.Display)
                 Own().DisplayNone = declaration.Value == "none";
             else if (declaration.Property == CssProperty.ListStyleType)
@@ -620,6 +649,63 @@ internal sealed class CssStylesheets
                      ?? winners[(int)CssProperty.BorderBottomLeftRadius]?.Declaration.Offset
                      ?? elementOffset);
         }
+        if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
+            computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
+                BoxWrites(element.Name), box);
         return (style, box);
+    }
+
+    // Mirrors the branches of Compute that assign the element's box rather than its text style.
+    private static bool WritesBox(string element, CssProperty property) =>
+        property is CssProperty.Display or CssProperty.ListStyleType or CssProperty.ListStylePosition
+            or CssProperty.VerticalAlign or CssProperty.BreakInside
+        || element is ("div" or "section" or "article" or "blockquote")
+            && property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
+        || CssDeclarations.IsBoxProperty(property)
+        || element is ("div" or "section" or "article" or "blockquote" or "hr")
+            && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
+
+    private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color, int first)
+    {
+        var hash = new HashCode();
+        hash.Add(element);
+        hash.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(parentBox));
+        hash.Add(rootFontSize);
+        hash.Add(fontSize);
+        hash.Add(color);
+        for (var index = first; index < winners.Length; index++)
+            if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property))
+            {
+                hash.Add(winner.Declaration.Property);
+                hash.Add(winner.Declaration.Value);
+            }
+        return hash.ToHashCode();
+    }
+
+    private bool SameBoxInputs(ComputedBox computed, string element, BoxStyle parentBox, double rootFontSize,
+        double fontSize, Rgb color, int first)
+    {
+        if (!string.Equals(computed.Element, element, StringComparison.Ordinal) || !ReferenceEquals(computed.ParentBox, parentBox)
+            || !computed.RootFontSize.Equals(rootFontSize) || !computed.FontSize.Equals(fontSize) || computed.Color != color) return false;
+        var writes = computed.Writes; var count = 0;
+        for (var index = first; index < winners.Length; index++)
+        {
+            if (winners[index] is not { } winner || !WritesBox(element, winner.Declaration.Property)) continue;
+            if (count == writes.Length || writes[count].Property != winner.Declaration.Property
+                || !string.Equals(writes[count].Value, winner.Declaration.Value, StringComparison.Ordinal)) return false;
+            count++;
+        }
+        return count == writes.Length;
+    }
+
+    private CssDeclaration[] BoxWrites(string element)
+    {
+        var count = 0;
+        for (var index = 0; index < winners.Length; index++)
+            if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property)) count++;
+        var writes = new CssDeclaration[count]; count = 0;
+        for (var index = 0; index < winners.Length; index++)
+            if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property)) writes[count++] = winner.Declaration;
+        return writes;
     }
 }
