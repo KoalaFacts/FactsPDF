@@ -13,7 +13,46 @@ internal enum CssProperty
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast
 }
-internal sealed record CssDeclaration(CssProperty Property, string Name, string Value, bool Important, int Order, int Offset);
+/// <summary>
+/// One compiled declaration: what it says (property, name, value, importance) plus its cascade
+/// order and source offset. A repeated style attribute replays its compiled declarations with
+/// new orders and offsets (see <c>CssStylesheets.CompileStyleAttribute</c>); a replay is a
+/// 32-byte record that shares what the first compile says instead of a 48-byte copy of it.
+/// </summary>
+internal abstract class CssDeclaration
+{
+    private CssDeclaration(int order, int offset) { Order = order; Offset = offset; }
+    internal abstract CssProperty Property { get; }
+    internal abstract string Name { get; }
+    internal abstract string Value { get; }
+    internal abstract bool Important { get; }
+    internal int Order { get; }
+    internal int Offset { get; }
+    internal static CssDeclaration Create(CssProperty property, string name, string value, bool important, int order, int offset) =>
+        new Compiled(property, name, value, important, order, offset);
+    /// <summary>The same declaration at another cascade order and source offset.</summary>
+    internal CssDeclaration At(int order, int offset) => new Replayed(Source, order, offset);
+    private protected abstract Compiled Source { get; }
+
+    private protected sealed class Compiled(CssProperty property, string name, string value, bool important, int order, int offset)
+        : CssDeclaration(order, offset)
+    {
+        internal override CssProperty Property { get; } = property;
+        internal override string Name { get; } = name;
+        internal override string Value { get; } = value;
+        internal override bool Important { get; } = important;
+        private protected override Compiled Source => this;
+    }
+
+    private protected sealed class Replayed(Compiled source, int order, int offset) : CssDeclaration(order, offset)
+    {
+        internal override CssProperty Property => source.Property;
+        internal override string Name => source.Name;
+        internal override string Value => source.Value;
+        internal override bool Important => source.Important;
+        private protected override Compiled Source => source;
+    }
+}
 
 internal static class CssDeclarations
 {

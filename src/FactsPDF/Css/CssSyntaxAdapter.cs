@@ -96,7 +96,7 @@ internal static class CssSyntaxAdapter
             {
                 var sourceOffset = offset < 0 ? node.Span.Start : offset;
                 var order = budget.Declaration(sourceOffset);
-                output.Add(new(target, targetName ?? name, value, node.Important, order, sourceOffset));
+                output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
             }
             // Logical border component declarations use the existing *physical*
             // per-side width/style/colour cascade slots. The pair forms accept

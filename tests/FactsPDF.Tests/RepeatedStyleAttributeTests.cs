@@ -51,7 +51,17 @@ public sealed class RepeatedStyleAttributeTests
         // Every paragraph repeats one style text; the 200-row table's cells do the same.
         var repeated = ReadBytesPerParagraph(_ => "padding:3pt;border:0.5pt solid #789");
         TestContext.Out.WriteLine($"repeated style: {repeated:F1} bytes per paragraph");
-        Assert.That(repeated, Is.LessThan(1_900));
+        Assert.That(repeated, Is.LessThan(1_600));
+    }
+
+    [Test]
+    public void AReplayedDeclarationCopiesOnlyItsOrderAndOffset()
+    {
+        // padding and border expand into 16 declarations; a replay copies each one's order and
+        // offset and shares what it says (property, name, value, importance) with the first compile.
+        var repeated = ReadBytesPerParagraph(_ => "padding:3pt;border:0.5pt solid #789");
+        TestContext.Out.WriteLine($"replayed declarations: {repeated:F1} bytes per paragraph");
+        Assert.That(repeated, Is.LessThan(1_600));
     }
 
     [Test]
