@@ -20,6 +20,10 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
     private readonly Dictionary<int, CssDeclaration[]> inline = [];
+    // Style attribute texts already compiled in this conversion, with the value offset they were
+    // compiled at. Bounded so a page of distinct styles keeps no more than a small table.
+    private const int MaxCompiledStyles = 256, MaxCompiledStyleLength = 1_024;
+    private readonly Dictionary<string, (CssDeclaration[] Declarations, int ValueOffset)> compiledStyles = new(StringComparer.Ordinal);
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
     private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
@@ -64,13 +68,43 @@ internal sealed class CssStylesheets
                 else if (item.Attributes!.TryGetValue("style", out var css))
                 {
                     sheet.budget.Characters(css.Length, item.Offset);
-                    var declarations = sheet.ParseSource(css, item.StyleValueOffset, declarationsOnly: true,
-                        item.StyleOriginOffsets).Declarations;
-                    sheet.inline.Add(item.Offset, CssSyntaxAdapter.CompileKnownDeclarations(declarations, sheet.budget));
+                    sheet.inline.Add(item.Offset, sheet.CompileStyleAttribute(css, item.StyleValueOffset, item.StyleOriginOffsets));
                 }
             }
         }
         return sheet;
+    }
+    /// <summary>
+    /// Compiles one style attribute. A page usually repeats the same few style texts (every cell
+    /// of a table column), so a text compiled before is not tokenized, parsed and compiled again:
+    /// its declarations are replayed with this attribute's offsets. Parsing and compiling depend
+    /// only on the text (the syntax limits are per source, and without character references the
+    /// page offset of every code unit is the value start plus a function of the text), so the
+    /// replay produces the same declarations, charges the same declaration budget in the same
+    /// order and fails at the same offsets. Values with character references keep their origin
+    /// map and are always compiled.
+    /// </summary>
+    private CssDeclaration[] CompileStyleAttribute(string css, int valueOffset, int[]? originOffsets)
+    {
+        if (originOffsets is null && compiledStyles.TryGetValue(css, out var compiled))
+        {
+            var declarations = compiled.Declarations;
+            if (declarations.Length == 0) return declarations;
+            var result = new CssDeclaration[declarations.Length];
+            for (var i = 0; i < declarations.Length; i++)
+            {
+                budget.Token.ThrowIfCancellationRequested();
+                var declaration = declarations[i];
+                var offset = declaration.Offset - compiled.ValueOffset + valueOffset;
+                result[i] = declaration with { Order = budget.Declaration(offset), Offset = offset };
+            }
+            return result;
+        }
+        var nodes = ParseSource(css, valueOffset, declarationsOnly: true, originOffsets).Declarations;
+        var output = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget);
+        if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength)
+            compiledStyles.Add(css, (output, valueOffset));
+        return output;
     }
     /// <summary>
     /// The tokens <see cref="HtmlTokens.Read"/> produces for a page where tags and text alternate:
