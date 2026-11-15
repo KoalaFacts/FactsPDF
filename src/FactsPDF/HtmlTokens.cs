@@ -11,7 +11,7 @@ internal record HtmlToken(HtmlTokenKind Kind, string Value, bool SelfClosing, in
     // Attributes: null for text, end and style-text tokens; a start tag without attributes shares
     // one empty map. Only a start tag with attributes is an AttributedHtmlToken that stores its
     // map, so every other token is 8 bytes smaller.
-    public virtual Dictionary<string, string>? Attributes => Kind == HtmlTokenKind.Start ? HtmlTokens.NoAttributes : null;
+    public virtual HtmlAttributes? Attributes => Kind == HtmlTokenKind.Start ? HtmlAttributes.None : null;
 
     // StyleValueOffset: where the style attribute's raw value starts in the page (-1 without one).
     // StyleOriginOffsets: the page offset of every decoded code unit plus its end, kept only when
@@ -21,13 +21,13 @@ internal record HtmlToken(HtmlTokenKind Kind, string Value, bool SelfClosing, in
     public virtual int[]? StyleOriginOffsets => null;
 }
 
-internal record AttributedHtmlToken(string Value, Dictionary<string, string> AttributeMap, bool SelfClosing, int Offset)
+internal record AttributedHtmlToken(string Value, HtmlAttributes AttributeMap, bool SelfClosing, int Offset)
     : HtmlToken(HtmlTokenKind.Start, Value, SelfClosing, Offset)
 {
-    public override Dictionary<string, string>? Attributes => AttributeMap;
+    public override HtmlAttributes? Attributes => AttributeMap;
 }
 
-internal sealed record StyledHtmlToken(string Value, Dictionary<string, string> AttributeMap,
+internal sealed record StyledHtmlToken(string Value, HtmlAttributes AttributeMap,
     bool SelfClosing, int Offset, int StyleStart, int[]? StyleOrigins)
     : AttributedHtmlToken(Value, AttributeMap, SelfClosing, Offset)
 {
@@ -82,7 +82,10 @@ internal static class HtmlTokens
                 yield return new(HtmlTokenKind.End, name, false, start);
                 continue;
             }
-            Dictionary<string, string>? attrs = null;
+            // Attributes collect in one per-thread scratch list (cleared here, so a tag that failed
+            // part-way leaves nothing behind) and are copied into an exact-size array at the end.
+            var scratch = attributeScratch ??= [];
+            scratch.Clear();
             var styleValueOffset = -1;
             int[]? styleOriginOffsets = null;
             var selfClosing = false;
@@ -132,16 +135,23 @@ internal static class HtmlTokens
                     var decoded = value;
                     int[]? offsets = null;
                     if (hasReferences) (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
-                    if (!(attrs ??= NewAttributes()).TryAdd(attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
+                    if (!AddAttribute(scratch, attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
                     styleValueOffset = rawValueStart;
                     styleOriginOffsets = offsets;
                 }
-                else if (!(attrs ??= NewAttributes()).TryAdd(attribute, Decode(value, attrStart)))
+                else if (!AddAttribute(scratch, attribute, Decode(value, attrStart)))
                     throw Invalid("Duplicate attribute.", attrStart);
                 SkipSpace(html, ref i);
             }
             if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
             i++;
+            HtmlAttributes? attrs = null;
+            if (scratch.Count > 0)
+            {
+                attrs = new(scratch.ToArray());
+                scratch.Clear();
+                if (scratch.Capacity > MaxPooledAttributes) attributeScratch = null;
+            }
             yield return styleValueOffset >= 0
                 ? new StyledHtmlToken(name, attrs!, selfClosing, start, styleValueOffset, styleOriginOffsets)
                 : attrs is null
@@ -254,10 +264,32 @@ internal static class HtmlTokens
             ? new Rune(scalar) : null;
     }
 
-    // Start tags without attributes share this instance; token consumers only read attributes.
-    internal static readonly Dictionary<string, string> NoAttributes = NewAttributes();
+    private const int MaxPooledAttributes = 1_024;
+    [ThreadStatic] private static List<KeyValuePair<string, string>>? attributeScratch;
+    [ThreadStatic] private static HashSet<string>? attributeNames;
 
-    private static Dictionary<string, string> NewAttributes() => new(StringComparer.OrdinalIgnoreCase);
+    // Adds an attribute unless its name is already present. Up to HtmlAttributes.IndexedAbove names
+    // are compared directly; past that a per-thread set keeps a long attribute list linear.
+    private static bool AddAttribute(List<KeyValuePair<string, string>> scratch, string name, string value)
+    {
+        if (scratch.Count < HtmlAttributes.IndexedAbove)
+        {
+            for (var i = 0; i < scratch.Count; i++)
+                if (string.Equals(scratch[i].Key, name, StringComparison.OrdinalIgnoreCase)) return false;
+        }
+        else
+        {
+            var names = attributeNames ??= new(StringComparer.OrdinalIgnoreCase);
+            if (scratch.Count == HtmlAttributes.IndexedAbove)
+            {
+                names.Clear();
+                for (var i = 0; i < scratch.Count; i++) names.Add(scratch[i].Key);
+            }
+            if (!names.Add(name)) return false;
+        }
+        scratch.Add(new(name, value));
+        return true;
+    }
 
     // Lower-case spellings of the tag and attribute names the reader and the CSS layer use. A name
     // found here is returned without a substring or lower-casing copy; any other name falls back to

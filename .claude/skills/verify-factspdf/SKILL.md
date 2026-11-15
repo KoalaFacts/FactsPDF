@@ -54,6 +54,7 @@ Areas follow `site/data/compatibility.json` `categories`. "Run" is the command u
   expected and compared; a change that turns exit 3 into 0 or the reverse is a behaviour change.
 - Parity compares bytes; a comments-only `src/` change is identical by construction, but run it anyway.
 - Allocation tests (`AllocationBudgetTests`) only go down; a green run after raising a budget proves nothing.
+- By-type allocation profiles: an `EventListener` on `GCAllocationTick` receives no events inside the NUnit test host in this environment (the runtime source is enabled, nothing arrives). Run it in a throwaway console app (outside the repo) that references `src/FactsPDF/FactsPDF.csproj` and converts through the public `Pdf.Write()` API, with `AllocationAmount64` summed per `TypeName` over about 100 warm conversions.
 - `dotnet test --no-build` after editing code runs the old build.
 - The `.ttc` fonts on the system are rejected; only a static `.ttf` counts as a supplied font.
 - Hosted CI may stay queued for long periods; the local gate is the evidence until it runs.

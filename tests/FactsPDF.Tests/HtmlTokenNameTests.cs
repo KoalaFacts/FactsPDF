@@ -46,7 +46,7 @@ public sealed class HtmlTokenNameTests
         var tokens = Read("<p><span>x</span><br/><p class=c>");
         Assert.That(tokens[1].Attributes, Is.SameAs(tokens[0].Attributes));
         Assert.That(tokens[0].Attributes, Is.Empty);
-        Assert.That(tokens[0].Attributes!.Comparer, Is.EqualTo(StringComparer.OrdinalIgnoreCase));
+        Assert.That(tokens[0].Attributes!.ContainsKey("class"), Is.False);
         Assert.That(tokens[4].Attributes, Is.SameAs(tokens[0].Attributes)); // <br/>
         Assert.That(tokens[5].Attributes, Is.Not.SameAs(tokens[0].Attributes));
         Assert.That(tokens[5].Attributes!["CLASS"], Is.EqualTo("c"));
