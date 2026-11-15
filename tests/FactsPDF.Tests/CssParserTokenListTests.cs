@@ -51,7 +51,7 @@ public sealed class CssParserTokenListTests
         var least = long.MaxValue;
         for (var i = 0; i < 5; i++) least = Math.Min(least, Parse());
         TestContext.Out.WriteLine($"parse one style attribute: {least} bytes");
-        Assert.That(least, Is.LessThan(1_700)); // main: 2,040 (the parser read a right-sized copy of the 12 tokens); 1,504 here
+        Assert.That(least, Is.LessThan(1_400)); // main: 2,040 (the parser read a right-sized copy of the 12 tokens); 1,504 after Z4g; 1,240 after Z4h
     }
 
     [Test]
