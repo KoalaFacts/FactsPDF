@@ -36,7 +36,7 @@ public sealed class AllocationBudgetTests
         var html = File.ReadAllText(Path.Combine(FindRoot(), "examples", "quick-start.html"));
         var allocated = AllocatedPerConversion(html, Pdf.Write());
         TestContext.Out.WriteLine($"quick-start: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(145 * 1024));
+        Assert.That(allocated, Is.LessThan(136 * 1024));
     }
 
     [Test]
@@ -44,7 +44,7 @@ public sealed class AllocationBudgetTests
     {
         var allocated = AllocatedPerConversion(Table(200), Pdf.Write().WithFonts(f => f.Regular(Font).Subset()));
         TestContext.Out.WriteLine($"200-row styled table: {allocated / 1024} KiB per conversion");
-        Assert.That(allocated, Is.LessThan(2_525 * 1024));
+        Assert.That(allocated, Is.LessThan(2_355 * 1024));
     }
 
     // Serialization alone: page content streams are written straight from one reused builder.

@@ -11,14 +11,40 @@ internal static class CssSyntaxTokenizer
     internal static CssSyntaxTokenizationResult TokenizeWithDiagnostics(
         CssSourceText source, CssSyntaxLimits limits)
     {
+        var result = RentTokens();
+        var diagnostics = TokenizeInto(source, limits, result);
+        var tokens = result.ToArray();
+        ReturnTokens(result);
+        return new CssSyntaxTokenizationResult(tokens, diagnostics);
+    }
+
+    // One reusable token list per thread, taken out of its slot while in use: a nested or failed
+    // tokenization simply allocates its own list. The parser reads the rented list in place
+    // instead of a right-sized copy and returns it when the parse ends.
+    internal static List<CssSyntaxToken> RentTokens()
+    {
+        var tokens = pooledTokens ?? [];
+        pooledTokens = null;
+        return tokens;
+    }
+
+    // Cleared before pooling so the list never keeps a finished document's token strings alive.
+    // A list grown past MaxPooledTokens is not kept.
+    internal static void ReturnTokens(List<CssSyntaxToken> tokens)
+    {
+        tokens.Clear();
+        if (tokens.Capacity <= MaxPooledTokens) pooledTokens = tokens;
+    }
+
+    // Appends the tokens of the source, ending with Eof, to an empty list and returns the
+    // lexical diagnostics.
+    internal static IReadOnlyList<CssSyntaxDiagnostic> TokenizeInto(
+        CssSourceText source, CssSyntaxLimits limits, List<CssSyntaxToken> result)
+    {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(limits);
         limits.Cancellation.ThrowIfCancellationRequested();
         var text = source.Normalized;
-        // One reusable token list per thread (tokenizing never re-enters itself); the result is a
-        // right-sized copy. A list grown past MaxPooledTokens is not kept.
-        var result = pooledTokens ?? [];
-        pooledTokens = null;
         List<CssSyntaxDiagnostic>? diagnostics = null;
         // The closers of the blocks and functions open so far, innermost last. The parser enters
         // every opener and leaves only on its matching closer, so this is its nesting at each
@@ -281,12 +307,8 @@ internal static class CssSyntaxTokenizer
         result.Add(new CssSyntaxToken(
             CssSyntaxTokenKind.Eof, "", "",
             source.Span(text.Length, 0)));
-        var tokens = result.ToArray();
         if (closers is not null) { closers.Clear(); pooledClosers = closers; }
-        // Cleared before pooling so the list never keeps a finished document's token strings alive.
-        result.Clear();
-        if (result.Capacity <= MaxPooledTokens) pooledTokens = result;
-        return new CssSyntaxTokenizationResult(tokens, diagnostics?.ToArray() ?? []);
+        return diagnostics?.ToArray() ?? [];
     }
 
     // Whether the parser counts this token as a component node whenever it takes it. Whitespace,
