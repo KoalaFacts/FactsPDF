@@ -51,7 +51,7 @@ public sealed class RepeatedStyleAttributeTests
         // Every paragraph repeats one style text; the 200-row table's cells do the same.
         var repeated = ReadBytesPerParagraph(_ => "padding:3pt;border:0.5pt solid #789");
         TestContext.Out.WriteLine($"repeated style: {repeated:F1} bytes per paragraph");
-        Assert.That(repeated, Is.LessThan(2_450));
+        Assert.That(repeated, Is.LessThan(1_900));
     }
 
     [Test]
