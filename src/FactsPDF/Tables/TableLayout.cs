@@ -59,8 +59,10 @@ internal static class TableLayout
         var boxes = new List<PaintedBox>();
         var images = new List<PlacedImage>();
         var rows = new List<MeasuredTableRow>();
-        var rowBoxes = new List<List<PaintedBox>>();
-        var rowImageBoxes = new List<List<PaintedBox>>();
+        // A row's retained cell boxes (null until its first box) and its image decorations
+        // (an exact-size copy, the shared empty array for a row without any).
+        var rowBoxes = new List<List<PaintedBox>?>();
+        var rowImageBoxes = new List<PaintedBox[]>();
         var ambiguous = new List<int>();
         // An uncertain last occupied row may need terminal bottom decoration.
         // Defer aligned-cell failure until we know whether a later occupied
@@ -69,6 +71,9 @@ internal static class TableLayout
         // One scratch list for every cell of this table; each cell keeps an
         // exact-size copy of its units.
         var units = new List<MeasuredCellUnit>();
+        // Scratch lists for the row being measured, cleared at the start of every row.
+        var imageBoxes = new List<PaintedBox>();
+        var placements = new List<CellPlacement>();
         var firstBodyGroup = true;
         var headerHeight = 0d;
         var top = edges.Top;
@@ -89,7 +94,7 @@ internal static class TableLayout
                 var box = new PaintedBox(cell.X, measuredRow.Top, cell.Width, measuredRow.Height,
                     cell.BoxStyle, cell.TextColor, 0, SourceOffset: cell.SourceOffset);
                 charge(box.CommandCount, cell.SourceOffset);
-                if (box.CommandCount > 0) rowBoxes[index].Add(box);
+                if (box.CommandCount > 0) (rowBoxes[index] ??= new(measuredRow.Cells.Count)).Add(box);
             }
         }
         // First and last decoration may belong to different pages.
@@ -99,11 +104,11 @@ internal static class TableLayout
         {
             cancellation.ThrowIfCancellationRequested();
             measuringHeader = row.IsHeader;
-            var cells = new List<MeasuredTableCell>();
+            var cells = new List<MeasuredTableCell>(row.Cells.Count);
             var runStart = runs.Count;
             var imageStart = images.Count;
-            var imageBoxes = new List<PaintedBox>();
-            var placements = new List<CellPlacement>();
+            imageBoxes.Clear();
+            placements.Clear();
             var rowHeight = 0d;
             var x = edges.Left;
             var track = 0;
@@ -278,8 +283,8 @@ internal static class TableLayout
             }
             rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
                 runStart, runs.Count - runStart, 0, 0, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup));
-            rowBoxes.Add([]);
-            rowImageBoxes.Add(imageBoxes);
+            rowBoxes.Add(null);
+            rowImageBoxes.Add(imageBoxes.Count == 0 ? [] : imageBoxes.ToArray());
             if (uncertain) ambiguous.Add(rows.Count - 1);
             else if (!canSplit) RetainCellBoxes(rows.Count - 1);
             if (row.IsHeader) headerHeight = rowHeight;
@@ -302,7 +307,7 @@ internal static class TableLayout
         {
             cancellation.ThrowIfCancellationRequested();
             var start = boxes.Count;
-            boxes.AddRange(rowBoxes[i]);
+            if (rowBoxes[i] is { } retained) boxes.AddRange(retained);
             var imageStart = boxes.Count;
             boxes.AddRange(rowImageBoxes[i]);
             foreach (var cell in rows[i].Cells)
