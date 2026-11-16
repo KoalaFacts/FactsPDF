@@ -71,7 +71,7 @@ internal static class TablePagination
                 nextCursor = new(index);
                 continue;
             }
-            var continuation = nextCursor.Continuation ?? new(new int[row.Cells.Count], true);
+            var continuation = nextCursor.Continuation ?? new(new int[row.Cells.Length], true);
             // Logical group identity survives positive heights that round away
             // when accumulated into table-local coordinates.
             var firstCapacity = freshSpace.UsableHeight - header

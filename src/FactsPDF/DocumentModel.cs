@@ -206,25 +206,27 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     // Counts the optional outline as a single PDF stroke command.
     // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
     // An empty background or vertical edge of a zero-height box costs 0.
-    public int CommandCount
+    public int CommandCount => CountCommands(Width, Height, Style, IsFirstFragment, IsLastFragment);
+
+    // The same count for a box that has not been allocated, so a caller can charge a
+    // paint-free box and skip creating it.
+    internal static int CountCommands(double width, double height, BoxStyle style,
+        bool isFirstFragment = true, bool isLastFragment = true)
     {
-        get
-        {
-            if (Style.HasRoundedCorners)
-                return Width > 0 && Height > 0
-                    ? (Style.BackgroundColor.HasValue ? 1 : 0)
-                      + (Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
-                    : 0;
-            var outline = Width > 0 && Height > 0 && Style.Outline.EffectiveWidth > 0 ? 1 : 0;
-            var top = TopBorderHeight;
-            var bottom = BottomBorderHeight;
-            var middleHeight = Math.Max(0, Height - top - bottom);
-            return outline + (Width > 0 && Height > 0 && Style.BackgroundColor.HasValue ? 1 : 0)
-                + (Width > 0 && top > 0 ? 1 : 0)
-                + (Width > 0 && bottom > 0 ? 1 : 0)
-                + (middleHeight > 0 && Style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
-                + (middleHeight > 0 && Style.BorderRight.EffectiveWidth > 0 ? 1 : 0);
-        }
+        if (style.HasRoundedCorners)
+            return width > 0 && height > 0
+                ? (style.BackgroundColor.HasValue ? 1 : 0)
+                  + (style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+                : 0;
+        var outline = width > 0 && height > 0 && style.Outline.EffectiveWidth > 0 ? 1 : 0;
+        var top = isFirstFragment ? Math.Min(Math.Max(0, height), style.BorderTop.EffectiveWidth) : 0;
+        var bottom = isLastFragment ? Math.Min(Math.Max(0, height), style.BorderBottom.EffectiveWidth) : 0;
+        var middleHeight = Math.Max(0, height - top - bottom);
+        return outline + (width > 0 && height > 0 && style.BackgroundColor.HasValue ? 1 : 0)
+            + (width > 0 && top > 0 ? 1 : 0)
+            + (width > 0 && bottom > 0 ? 1 : 0)
+            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 ? 1 : 0);
     }
 }
 

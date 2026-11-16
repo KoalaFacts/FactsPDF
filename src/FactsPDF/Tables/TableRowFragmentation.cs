@@ -53,7 +53,7 @@ internal static class TableRowFragmentation
         CancellationToken cancellation, double? freshTerminalCapacity = null)
     {
         cancellation.ThrowIfCancellationRequested();
-        var slices = new CellUnitSlice[row.Cells.Count];
+        var slices = new CellUnitSlice[row.Cells.Length];
         var advanced = 0;
         var complete = true;
         var height = 0d;

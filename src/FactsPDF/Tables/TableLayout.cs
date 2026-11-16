@@ -6,8 +6,20 @@ internal sealed record MeasuredTable(double Width, double Height,
     List<PlacedText> Runs, List<PaintedBox> PaintBoxes, List<PlacedImage> Images,
     List<MeasuredTableRow> Rows, double Top, double Bottom);
 
+// A row's paint range is known only after every row is measured; it is assigned once to the
+// row itself (SetBoxRange) instead of a second record copy per row.
 internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader, int SourceOffset,
-    int RunStart, int RunCount, int BoxStart, int BoxCount, int ImageStart, int ImageCount, List<MeasuredTableCell> Cells, bool CanSplit = false, bool IsFirstBodyGroup = false);
+    int RunStart, int RunCount, int ImageStart, int ImageCount, MeasuredTableCell[] Cells, bool CanSplit = false, bool IsFirstBodyGroup = false)
+{
+    internal int BoxStart { get; private set; }
+    internal int BoxCount { get; private set; }
+
+    internal void SetBoxRange(int start, int count)
+    {
+        BoxStart = start;
+        BoxCount = count;
+    }
+}
 
 /// <summary>Measure the table once, retaining only charged output commands.</summary>
 internal static class TableLayout
@@ -91,10 +103,13 @@ internal static class TableLayout
             foreach (var cell in measuredRow.Cells)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var box = new PaintedBox(cell.X, measuredRow.Top, cell.Width, measuredRow.Height,
-                    cell.BoxStyle, cell.TextColor, 0, SourceOffset: cell.SourceOffset);
-                charge(box.CommandCount, cell.SourceOffset);
-                if (box.CommandCount > 0) (rowBoxes[index] ??= new(measuredRow.Cells.Count)).Add(box);
+                // Count first: most cells paint nothing, so no box is created for them.
+                var commands = PaintedBox.CountCommands(cell.Width, measuredRow.Height, cell.BoxStyle);
+                charge(commands, cell.SourceOffset);
+                if (commands > 0)
+                    (rowBoxes[index] ??= new(measuredRow.Cells.Length)).Add(new PaintedBox(cell.X,
+                        measuredRow.Top, cell.Width, measuredRow.Height, cell.BoxStyle, cell.TextColor, 0,
+                        SourceOffset: cell.SourceOffset));
             }
         }
         // First and last decoration may belong to different pages.
@@ -104,7 +119,8 @@ internal static class TableLayout
         {
             cancellation.ThrowIfCancellationRequested();
             measuringHeader = row.IsHeader;
-            var cells = new List<MeasuredTableCell>(row.Cells.Count);
+            var cells = new MeasuredTableCell[row.Cells.Count];
+            var cellIndex = 0;
             var runStart = runs.Count;
             var imageStart = images.Count;
             imageBoxes.Clear();
@@ -240,9 +256,9 @@ internal static class TableLayout
                 placements.Add(new(cell.BoxStyle.VerticalAlign, cell.SourceOffset, naturalHeight,
                     cellRunStart, runs.Count, cellImageStart, images.Count,
                     cellImageBoxStart, imageBoxes.Count));
-                cells.Add(new(x, cellWidth, x + cellEdges.Left, contentWidth, cellEdges.Top,
+                cells[cellIndex++] = new(x, cellWidth, x + cellEdges.Left, contentWidth, cellEdges.Top,
                     cellEdges.Bottom, units.Count == 0 ? pending : units[0].LeadingGap, pending,
-                    cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units.ToArray()));
+                    cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units.ToArray());
                 x += cellWidth;
                 if (!double.IsFinite(x)) throw Geometry("Cell coordinate must remain finite.", cell.SourceOffset);
             }
@@ -282,7 +298,7 @@ internal static class TableLayout
                     imageBoxes[i] = imageBoxes[i] with { Top = imageBoxes[i].Top + shift };
             }
             rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
-                runStart, runs.Count - runStart, 0, 0, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup));
+                runStart, runs.Count - runStart, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup));
             rowBoxes.Add(null);
             rowImageBoxes.Add(imageBoxes.Count == 0 ? [] : imageBoxes.ToArray());
             if (uncertain) ambiguous.Add(rows.Count - 1);
@@ -318,7 +334,7 @@ internal static class TableLayout
                     if (unit.Kind == TableCellUnitKind.Image)
                         cell.Units[j] = unit with { ImageBoxStart = imageStart + unit.ImageBoxStart };
                 }
-            rows[i] = rows[i] with { BoxStart = start, BoxCount = boxes.Count - start };
+            rows[i].SetBoxRange(start, boxes.Count - start);
         }
         var outerHeight = top + edges.Bottom;
         CheckHeight(outerHeight, table.SourceOffset);
