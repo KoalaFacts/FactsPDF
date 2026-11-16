@@ -679,11 +679,14 @@ internal static class TextLayout
                             foreach (var cell in row.Cells)
                             {
                                 cancellation.ThrowIfCancellationRequested();
-                                var box = new PaintedBox(table.X + cell.X, rowTop, cell.Width, slice.Height,
-                                    cell.BoxStyle, cell.TextColor, paintOrder++, slice.IsFirst, slice.IsLast,
-                                    SourceOffset: cell.SourceOffset);
-                                ChargeDisplayCommands(box.CommandCount, cell.SourceOffset);
-                                if (box.CommandCount > 0) pages[^1].PaintBoxes.Add(box);
+                                var commands = PaintedBox.CountCommands(cell.Width, slice.Height, cell.BoxStyle,
+                                    slice.IsFirst, slice.IsLast);
+                                var order = paintOrder++;
+                                ChargeDisplayCommands(commands, cell.SourceOffset);
+                                if (commands > 0)
+                                    pages[^1].PaintBoxes.Add(new PaintedBox(table.X + cell.X, rowTop, cell.Width,
+                                        slice.Height, cell.BoxStyle, cell.TextColor, order, slice.IsFirst, slice.IsLast,
+                                        SourceOffset: cell.SourceOffset));
                             }
                             foreach (var selected in slice.Cells)
                             {

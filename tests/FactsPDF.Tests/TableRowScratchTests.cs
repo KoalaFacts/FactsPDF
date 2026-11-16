@@ -52,6 +52,7 @@ public sealed class TableRowScratchTests
         Assert.That(perRow, Is.LessThan(LimitBordered));
     }
 
-    // Main before Z5d: 2,138.4 and 2,652.2 bytes per row; with Z5d 1,850.4 and 2,388.2.
-    private const double LimitPlain = 1_950, LimitBordered = 2_500;
+    // Main before Z5d: 2,138.4 and 2,652.2 bytes per row; with Z5d 1,850.4 and 2,388.2;
+    // with Z5e (no paint-free cell box, no second row record, cells in an array) 1,458.4 and 2,284.2.
+    private const double LimitPlain = 1_680, LimitBordered = 2_500;
 }
