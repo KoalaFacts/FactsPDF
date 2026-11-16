@@ -19,7 +19,6 @@ internal sealed class CssStylesheets
     private readonly Dictionary<string, List<Rule>> classes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<Rule>> types = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rule> universal = [];
-    private readonly Dictionary<int, CssDeclaration[]> inline = [];
     // Style attribute texts already compiled in this conversion, with the value offset they were
     // compiled at. Bounded so a page of distinct styles keeps no more than a small table.
     private const int MaxCompiledStyles = 256, MaxCompiledStyleLength = 1_024;
@@ -71,10 +70,11 @@ internal sealed class CssStylesheets
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
                 depth.Read(item);
                 if (item.Value == "style") ValidateStyleElement(item);
-                else if (item.Attributes!.TryGetValue("style", out var css))
+                else if (item is StyledHtmlToken styled)
                 {
+                    var css = styled.Attributes!["style"];
                     sheet.budget.Characters(css.Length, item.Offset);
-                    sheet.inline.Add(item.Offset, sheet.CompileStyleAttribute(css, item.StyleValueOffset, item.StyleOriginOffsets));
+                    styled.InlineDeclarations = sheet.CompileStyleAttribute(css, item.StyleValueOffset, item.StyleOriginOffsets);
                 }
             }
         }
@@ -227,7 +227,7 @@ internal sealed class CssStylesheets
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
-        bool paragraph, bool block, int elementOffset, bool allowStyling = true)
+        bool paragraph, bool block, int elementOffset, CssDeclaration[]? inlineDeclarations, bool allowStyling = true)
     {
         Array.Clear(winners); var element = path[^1];
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
@@ -450,7 +450,7 @@ internal sealed class CssStylesheets
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
-        if (inline.TryGetValue(elementOffset, out var declarations)) foreach (var d in declarations) Offer(d, true, default);
+        if (inlineDeclarations is not null) foreach (var d in inlineDeclarations) Offer(d, true, default);
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared

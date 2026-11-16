@@ -33,6 +33,10 @@ internal sealed record StyledHtmlToken(string Value, HtmlAttributes AttributeMap
 {
     public override int StyleValueOffset => StyleStart;
     public override int[]? StyleOriginOffsets => StyleOrigins;
+
+    // The style attribute's compiled declarations, set once by CssStylesheets.Collect, so the
+    // cascade reads them from the token instead of a per-conversion map keyed by tag offset.
+    internal CssDeclaration[]? InlineDeclarations { get; set; }
 }
 
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
