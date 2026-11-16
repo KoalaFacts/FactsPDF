@@ -80,8 +80,8 @@ public sealed class InlineStyleReplayTests
         for (var i = 0; i < 6; i++)
         {
             replayed.Append("<div style=\"").Append(Cell).Append("\">r</div><p style=\"color:#123;margin-top:2pt\">t</p>");
-            fresh.Append("<div style=\"").Append(Cell).Append(new string(';', i + 1)).Append("\">r</div><p style=\"color:#123;margin-top:2pt")
-                .Append(new string(' ', i)).Append("\">t</p>");
+            fresh.Append("<div style=\"").Append(Cell).Append(';', i + 1).Append("\">r</div><p style=\"color:#123;margin-top:2pt")
+                .Append(' ', i).Append("\">t</p>");
         }
         Assert.That(Pdf.Write().ToBytes(replayed.ToString()), Is.EqualTo(Pdf.Write().ToBytes(fresh.ToString())));
     }
