@@ -6,39 +6,52 @@ namespace FactsPDF;
 internal sealed class SubsetGlyphClosure
 {
     internal readonly record struct Component(int GlyphFieldOffset, ushort Glyph);
+    private struct Node { internal bool Done; internal int Height; internal Component[] Components; }
     private readonly SfntDirectory sfnt;
     private readonly CancellationToken token;
-    private readonly int[] offsets;
-    private readonly byte[] states;
-    private readonly int[] heights;
-    private readonly Component[]?[] references;
+    private readonly bool longOffsets;
+    // Only the glyphs the closure reaches get state, so the cost follows the subset, not the font's glyph count.
+    private readonly Dictionary<ushort, Node> nodes = [];
     private int edges;
-    internal int GlyphCount => states.Length;
+    internal int GlyphCount { get; }
     internal int MaxDepth { get; private set; }
     internal int MaxComponents { get; private set; }
 
     internal SubsetGlyphClosure(SfntDirectory sfnt, CancellationToken token)
     {
         this.sfnt = sfnt; this.token = token;
-        var count = U16(sfnt.Table("maxp", 6), 4); states = new byte[count]; heights = new int[count]; references = new Component[count][];
-        offsets = new int[count + 1]; var longOffsets = S16(sfnt.Table("head", 54), 50) == 1;
-        var loca = sfnt.Table("loca", (count + 1) * (longOffsets ? 4 : 2));
-        for (var i = 0; i <= count; i++) offsets[i] = longOffsets ? checked((int)U32(loca, i * 4)) : U16(loca, i * 2) * 2;
+        GlyphCount = U16(sfnt.Table("maxp", 6), 4); longOffsets = S16(sfnt.Table("head", 54), 50) == 1;
+        _ = sfnt.Table("loca", (GlyphCount + 1) * (longOffsets ? 4 : 2));
     }
-    internal ReadOnlySpan<byte> Glyph(ushort id) => sfnt.Table("glyf", 0).Slice(offsets[id], offsets[id + 1] - offsets[id]);
-    internal Component[] Components(ushort id) => references[id] ?? [];
-    internal ushort[] Selected() => Enumerable.Range(0, GlyphCount).Where(i => states[i] == 2).Select(i => (ushort)i).ToArray();
+    // PdfFont validated every loca entry (ascending, within glyf), so offsets are read per glyph on demand.
+    private int Offset(int id)
+    {
+        var loca = sfnt.Table("loca", 0);
+        return longOffsets ? checked((int)U32(loca, id * 4)) : U16(loca, id * 2) * 2;
+    }
+    internal ReadOnlySpan<byte> Glyph(ushort id)
+    { var start = Offset(id); return sfnt.Table("glyf", 0).Slice(start, Offset(id + 1) - start); }
+    internal Component[] Components(ushort id) => nodes.TryGetValue(id, out var node) ? node.Components ?? [] : [];
+    internal ushort[] Selected()
+    {
+        var selected = new ushort[nodes.Count]; var count = 0;
+        foreach (var (id, node) in nodes) if (node.Done) selected[count++] = id;
+        Array.Sort(selected, 0, count);
+        return count == selected.Length ? selected : selected[..count];
+    }
 
     internal int Include(ushort id, int depth = 0)
     {
         token.ThrowIfCancellationRequested(); Check(id < GlyphCount, "Composite references an absent glyph.");
-        Check(depth <= 64, "Composite nesting exceeds 64."); Check(states[id] != 1, "Cyclic composite glyph graph.");
-        if (states[id] == 2) return heights[id];
-        states[id] = 1; var components = ReadComponents(Glyph(id)); references[id] = components;
+        Check(depth <= 64, "Composite nesting exceeds 64.");
+        var known = nodes.TryGetValue(id, out var existing); Check(!known || existing.Done, "Cyclic composite glyph graph.");
+        if (known) return existing.Height;
+        var components = ReadComponents(Glyph(id)); nodes[id] = new Node { Components = components };
         var height = 0;
         foreach (var child in components) height = Math.Max(height, 1 + Include(child.Glyph, depth + 1));
         Check(height <= 64, "Composite dependency depth exceeds 64.");
-        heights[id] = height; states[id] = 2; MaxDepth = Math.Max(MaxDepth, height); MaxComponents = Math.Max(MaxComponents, components.Length);
+        nodes[id] = new Node { Done = true, Height = height, Components = components };
+        MaxDepth = Math.Max(MaxDepth, height); MaxComponents = Math.Max(MaxComponents, components.Length);
         return height;
     }
     private Component[] ReadComponents(ReadOnlySpan<byte> glyph)

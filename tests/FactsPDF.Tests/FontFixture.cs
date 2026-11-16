@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0)
+        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -73,16 +73,18 @@ internal static class FontFixture
         var cmap = new byte[12 + sub.Length]; U16(cmap, 2, 1); U16(cmap, 4, 3); U16(cmap, 6, format12 ? 10 : 1); U32(cmap, 8, 12); sub.CopyTo(cmap, 12);
         var head = new byte[54]; U32(head, 0, 0x00010000); U32(head, 12, 0x5f0f3cf5); U16(head, 18, 1000); U16(head, 40, 900); U16(head, 42, 700); U16(head, 50, 1);
         var hhea = new byte[36]; U32(hhea, 0, 0x00010000); U16(hhea, 4, 800); U16(hhea, 6, unchecked((ushort)-200)); U16(hhea, 10, 1000); U16(hhea, 18, 1); U16(hhea, 34, 11);
-        var maxp = new byte[32]; U32(maxp, 0, 0x00010000); U16(maxp, 4, 12); U16(maxp, 6, 4); U16(maxp, 8, 1); U16(maxp, 14, 1);
-        var hmtx = new byte[46]; int[] widths = [600, 300, 600, 600, 200, 900, 1000, 1000, 1000, 1000, 1000];
+        // emptyGlyphs appends that many outline-less glyphs after the twelve real ones, so a test can
+        // give the font a realistic glyph count without changing the glyphs any text uses.
+        var maxp = new byte[32]; U32(maxp, 0, 0x00010000); U16(maxp, 4, 12 + emptyGlyphs); U16(maxp, 6, 4); U16(maxp, 8, 1); U16(maxp, 14, 1);
+        var hmtx = new byte[46 + emptyGlyphs * 2]; int[] widths = [600, 300, 600, 600, 200, 900, 1000, 1000, 1000, 1000, 1000];
         for (var i = 0; i < widths.Length; i++) U16(hmtx, i * 4, widths[i]);
         var os2 = new byte[96]; U16(os2, 0, 4); U16(os2, 4, 400); U16(os2, 6, 5); U16(os2, 8, fsType); U16(os2, 62, 128); U16(os2, 68, 800); U16(os2, 70, unchecked((ushort)-200)); U16(os2, 74, 800); U16(os2, 76, 200); U16(os2, 86, 500); U16(os2, 88, 700);
         var rectangle = new byte[34]; U16(rectangle, 0, 1); U16(rectangle, 6, 500); U16(rectangle, 8, 700); U16(rectangle, 10, 3);
         for (var i = 0; i < 4; i++) rectangle[14 + i] = 1;
         U16(rectangle, 20, 500); U16(rectangle, 24, unchecked((ushort)-500)); U16(rectangle, 30, 700);
-        using var glyfStream = new MemoryStream(); var loca = new byte[13 * 4];
+        using var glyfStream = new MemoryStream(); var loca = new byte[(13 + emptyGlyphs) * 4];
         for (var i = 0; i < 12; i++) { U32(loca, i * 4, (uint)glyfStream.Length); if (i != 1) glyfStream.Write(rectangle); }
-        U32(loca, 48, (uint)glyfStream.Length);
+        for (var i = 12; i <= 12 + emptyGlyphs; i++) U32(loca, i * 4, (uint)glyfStream.Length);
         var label = Encoding.BigEndianUnicode.GetBytes("FactsPDFTest"); var name = new byte[18 + label.Length];
         U16(name, 2, 1); U16(name, 4, 18); U16(name, 6, 3); U16(name, 8, 1); U16(name, 10, 0x409); U16(name, 12, 6); U16(name, 14, label.Length); label.CopyTo(name, 18);
         var post = new byte[32]; U32(post, 0, 0x00030000);
