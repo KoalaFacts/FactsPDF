@@ -2,7 +2,6 @@ using FactsPDF.CssSyntax;
 
 namespace FactsPDF;
 
-/// <summary>Per-conversion compiled rules. No static mutable cache, network access or public DOM dependency.</summary>
 /// <summary>
 /// A style attribute's declarations as the cascade sees them. A fresh compile (<see cref="FirstOrder"/>
 /// 0) is used as it is; a replayed one shares an earlier compile's declarations, seen at
@@ -10,6 +9,7 @@ namespace FactsPDF;
 /// </summary>
 internal readonly record struct InlineStyle(CssDeclaration[]? Declarations, int OffsetShift, int FirstOrder);
 
+/// <summary>Per-conversion compiled rules. No static mutable cache, network access or public DOM dependency.</summary>
 internal sealed class CssStylesheets
 {
     private sealed record Rule(CssSelector Selector, CssDeclaration[] Declarations);
