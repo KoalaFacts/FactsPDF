@@ -15,9 +15,11 @@ internal enum CssProperty
 }
 /// <summary>
 /// One compiled declaration: what it says (property, name, value, importance) plus its cascade
-/// order and source offset. A repeated style attribute replays its compiled declarations with
-/// new orders and offsets (see <c>CssStylesheets.CompileStyleAttribute</c>); a replay is a
-/// 32-byte record that shares what the first compile says instead of a 48-byte copy of it.
+/// order and source offset. A repeated style attribute is not compiled again: its element reuses
+/// the first compile's declarations, and the cascade views each one at the element's own order and
+/// offset through a <see cref="Slot"/> it retargets for every element (see
+/// <c>CssStylesheets.CompileStyleAttribute</c> and <c>CssStylesheets.Compute</c>), so replaying a
+/// style allocates nothing per declaration.
 /// </summary>
 internal abstract class CssDeclaration
 {
@@ -26,12 +28,12 @@ internal abstract class CssDeclaration
     internal abstract string Name { get; }
     internal abstract string Value { get; }
     internal abstract bool Important { get; }
-    internal int Order { get; }
-    internal int Offset { get; }
+    internal int Order { get; private set; }
+    internal int Offset { get; private set; }
     internal static CssDeclaration Create(CssProperty property, string name, string value, bool important, int order, int offset) =>
         new Compiled(property, name, value, important, order, offset);
-    /// <summary>The same declaration at another cascade order and source offset.</summary>
-    internal CssDeclaration At(int order, int offset) => new Replayed(Source, order, offset);
+    /// <summary>The compiled declaration this one says the same as; never a <see cref="Slot"/>.</summary>
+    internal CssDeclaration Shared => Source;
     private protected abstract Compiled Source { get; }
 
     private protected sealed class Compiled(CssProperty property, string name, string value, bool important, int order, int offset)
@@ -44,8 +46,19 @@ internal abstract class CssDeclaration
         private protected override Compiled Source => this;
     }
 
-    private protected sealed class Replayed(Compiled source, int order, int offset) : CssDeclaration(order, offset)
+    /// <summary>
+    /// A reusable view of a compiled declaration at another cascade order and source offset. The
+    /// cascade owns its slots and retargets them for each element, so a slot is only valid until
+    /// the next element is computed; anything kept longer keeps <see cref="Shared"/> instead.
+    /// </summary>
+    internal sealed class Slot() : CssDeclaration(0, 0)
     {
+        private Compiled source = null!;
+        internal Slot Retarget(CssDeclaration declaration, int order, int offset)
+        {
+            source = declaration.Source; Order = order; Offset = offset;
+            return this;
+        }
         internal override CssProperty Property => source.Property;
         internal override string Name => source.Name;
         internal override string Value => source.Value;

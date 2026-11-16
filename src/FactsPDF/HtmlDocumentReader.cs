@@ -433,7 +433,7 @@ internal static class HtmlDocumentReader
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
-                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations, allowStyling: name != "br");
+                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br");
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "html") rootFontSize = style.FontSize;
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }

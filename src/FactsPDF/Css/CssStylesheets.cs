@@ -2,6 +2,13 @@ using FactsPDF.CssSyntax;
 
 namespace FactsPDF;
 
+/// <summary>
+/// A style attribute's declarations as the cascade sees them. A fresh compile (<see cref="FirstOrder"/>
+/// 0) is used as it is; a replayed one shares an earlier compile's declarations, seen at
+/// <see cref="FirstOrder"/> + index and at each declaration's offset plus <see cref="OffsetShift"/>.
+/// </summary>
+internal readonly record struct InlineStyle(CssDeclaration[]? Declarations, int OffsetShift, int FirstOrder);
+
 /// <summary>Per-conversion compiled rules. No static mutable cache, network access or public DOM dependency.</summary>
 internal sealed class CssStylesheets
 {
@@ -23,6 +30,10 @@ internal sealed class CssStylesheets
     // compiled at. Bounded so a page of distinct styles keeps no more than a small table.
     private const int MaxCompiledStyles = 256, MaxCompiledStyleLength = 1_024;
     private readonly Dictionary<string, (CssDeclaration[] Declarations, int ValueOffset)> compiledStyles = new(StringComparer.Ordinal);
+    // The views Compute offers a replayed style attribute through, one per declaration position,
+    // retargeted for every element (see CssDeclaration.Slot). Nothing keeps them past Compute:
+    // the box cache stores the shared compiled declarations.
+    private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
     private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
@@ -90,27 +101,26 @@ internal sealed class CssStylesheets
     /// order and fails at the same offsets. Values with character references keep their origin
     /// map and are always compiled.
     /// </summary>
-    private CssDeclaration[] CompileStyleAttribute(string css, int valueOffset, int[]? originOffsets)
+    private InlineStyle CompileStyleAttribute(string css, int valueOffset, int[]? originOffsets)
     {
         if (originOffsets is null && compiledStyles.TryGetValue(css, out var compiled))
         {
             var declarations = compiled.Declarations;
-            if (declarations.Length == 0) return declarations;
-            var result = new CssDeclaration[declarations.Length];
+            if (declarations.Length == 0) return new InlineStyle(declarations, 0, 0);
+            var shift = valueOffset - compiled.ValueOffset; var firstOrder = 0;
             for (var i = 0; i < declarations.Length; i++)
             {
                 budget.Token.ThrowIfCancellationRequested();
-                var declaration = declarations[i];
-                var offset = declaration.Offset - compiled.ValueOffset + valueOffset;
-                result[i] = declaration.At(budget.Declaration(offset), offset);
+                var order = budget.Declaration(declarations[i].Offset + shift);
+                if (i == 0) firstOrder = order;
             }
-            return result;
+            return new InlineStyle(declarations, shift, firstOrder);
         }
         var nodes = ParseSource(css, valueOffset, declarationsOnly: true, originOffsets).Declarations;
         var output = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget);
         if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength)
             compiledStyles.Add(css, (output, valueOffset));
-        return output;
+        return new InlineStyle(output, 0, 0);
     }
     /// <summary>
     /// The tokens <see cref="HtmlTokens.Read"/> produces for a page where tags and text alternate:
@@ -227,7 +237,7 @@ internal sealed class CssStylesheets
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
-        bool paragraph, bool block, int elementOffset, CssDeclaration[]? inlineDeclarations, bool allowStyling = true)
+        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true)
     {
         Array.Clear(winners); var element = path[^1];
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
@@ -450,7 +460,17 @@ internal sealed class CssStylesheets
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
-        if (inlineDeclarations is not null) foreach (var d in inlineDeclarations) Offer(d, true, default);
+        if (inlineDeclarations.Declarations is { } inline)
+        {
+            if (inlineDeclarations.FirstOrder == 0) foreach (var d in inline) Offer(d, true, default);
+            else
+                for (var i = 0; i < inline.Length; i++)
+                {
+                    if (i == inlineSlots.Count) inlineSlots.Add(new CssDeclaration.Slot());
+                    var d = inline[i];
+                    Offer(inlineSlots[i].Retarget(d, inlineDeclarations.FirstOrder + i, d.Offset + inlineDeclarations.OffsetShift), true, default);
+                }
+        }
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared
@@ -705,7 +725,7 @@ internal sealed class CssStylesheets
             if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property)) count++;
         var writes = new CssDeclaration[count]; count = 0;
         for (var index = 0; index < winners.Length; index++)
-            if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property)) writes[count++] = winner.Declaration;
+            if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property)) writes[count++] = winner.Declaration.Shared;
         return writes;
     }
 }
