@@ -35,7 +35,8 @@ internal sealed class SfntDirectory
 
     internal ReadOnlySpan<byte> Table(string tag, int minimum)
     {
-        Need(tables.TryGetValue(tag, out var t) && t.Length >= minimum, $"Missing or truncated {tag} table.");
+        // The message is built only on failure: an interpolated argument would allocate on every table read.
+        if (!tables.TryGetValue(tag, out var t) || t.Length < minimum) Need(false, $"Missing or truncated {tag} table.");
         return data.AsSpan(t.Offset, t.Length);
     }
     internal bool Contains(string tag) => tables.ContainsKey(tag);
