@@ -602,6 +602,11 @@ internal static class CssSyntaxAdapter
             var token = terms[0];
             var tokenOffset = valueTokens[0].Token.Span.Start;
             if (legacyPageBreak && token == "always") token = "page";
+            // The background shorthand's "none" resets the image layer and leaves
+            // the initial colour, transparent: exactly the existing no-fill paint.
+            // background-color has no "none" value and still rejects it.
+            if (name == "background" && token == "none" &&
+                valueTokens[0].Token.Kind == CssSyntaxTokenKind.Ident) token = "transparent";
             if (property == CssProperty.Display)
             {
                 // The report renderer supports suppression, not CSS display

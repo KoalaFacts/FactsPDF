@@ -237,6 +237,13 @@ needs all four sides transparent or none (`FPDF1201`). See
 `none` (no width, no paint; FactsPDF has no collapsing table borders), while
 `outline-style: hidden` still fails `FPDF1202` (`HiddenBorderStyleTests.cs`).
 
+### `background: none`
+
+The `background` shorthand accepts a single `none` (any case), the common reset:
+it clears an earlier fill exactly like `background: transparent`.
+`background-color: none` and `none` combined with other background components
+still fail `FPDF1202` (`BackgroundShorthandTests.cs`).
+
 
 ### Report-panel outline paint (source-only)
 

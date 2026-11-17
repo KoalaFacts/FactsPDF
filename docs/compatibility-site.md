@@ -450,7 +450,7 @@ introduction/release versions are preserved. Dataset SHA-256:
 `0cf781f2c0cffa4521ebddb7e01c8de962aafbc35a781dc2db0f300a9f84e9ab`. This is a code-audit update, not a new release, independent
 final-head review, human page acceptance or a font distribution.
 
-## 17 November 2026: border edge keywords and opaque alpha colours
+## 17 November 2026: border edge keywords, opaque alpha colours and background none
 
 Three chained snapshots audit merged sources: `transparent-border-color`
 (`value.border.transparent`, none → partial, source `291f1014`),
@@ -462,7 +462,8 @@ edges); `opaque-alpha-hex` then moves `value.color.alphahex` from none to
 partial (alpha `f`/`ff` only); `opaque-slash-alpha` re-audits
 `value.color.rgbfunc` (still partial) and the shared colour limitation text of
 eight colour rows: `rgba()`/`hsla()` are aliases, the comma form takes a fourth
-alpha and the space form a slash alpha, exactly `1` or `100%`. Current dataset SHA-256:
-`38de9fd5cc8adb046511065456b286a718168d2b83512551b727b28d010807ec`; English
-layer `site/src/audit-english-opaque-slash-alpha.mjs`, ordered source-text
-SHA-256 `cb21580d9aed91ede30fdc16917cd032af33f1249bacf9aaf0f4864248ac0702`.
+alpha and the space form a slash alpha, exactly `1` or `100%`; `background-none`
+re-audits `css.background` (still partial) for the single `none` reset. Current dataset SHA-256:
+`f50109f2697d6bc3ade158e2d9e021cb7d42f419fce012ef78540b28fe6a3591`; English
+layer `site/src/audit-english-background-none.mjs`, ordered source-text
+SHA-256 `64d834d5928bca38e2ccc4f39905a5082994dd50d27dfe0940df337603603b9f`.
