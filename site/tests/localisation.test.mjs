@@ -141,8 +141,9 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
+  assert.equal(display.last_audited_commit,'fa7531e4e3c7dd0f1199916537d885dc164bf2ab');
   assert.match(display.scope,/flat cell paragraphs/);
+  assert.match(display.scope,/legacy word-wrap alias/);
   assert.match(display.scope,/outside lists\/tables/);
   assert.match(display.limitations,/nowrap\/pre forbids soft wraps/);
   assert.match(display.limitations,/FPDF1302/);
@@ -454,7 +455,7 @@ test('named CSS colours retain the independent source and English limitations', 
     assert.equal(row.introduced_release, null);
   }
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count,116);
+  assert.equal(data.accepted_css_property_count,117);
 });
 
 
@@ -462,7 +463,7 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   const { englishFeature, translate } = await localisation();
   const feature=englishFeature(data.features.find(x=>x.id==='css.border'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count,116);
+  assert.equal(data.accepted_css_property_count,117);
   assert.match(feature.scope,/border-inline/);
   assert.match(feature.scope,/border-block/);
   assert.match(feature.scope,/actual left\/right\/top\/bottom PDF strokes/);
@@ -473,12 +474,12 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   assert.doesNotMatch(translate(data.css_inventory_note),han);
 });
 
-test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count,116);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
+test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count,117);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
 
 test('bounded printable text decoration width is translated with exact limits',async()=>{
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(f=>f.id==='css.text-decoration'));
-  assert.equal(data.accepted_css_property_count,116);
+  assert.equal(data.accepted_css_property_count,117);
   assert.match(row.scope,/three distinct/);
   assert.match(row.scope,/0.2–12pt/);
   assert.match(row.scope,/resets omitted thickness to auto/);
@@ -496,7 +497,7 @@ test('bounded underline offset remains exact in verified English and Chinese', a
   assert.match(translate(data.css_inventory_note),/from 108 to 109/);
   assert.doesNotMatch(row.scope+row.limitations,/[\u3400-\u9fff]/u);
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count,116);
+  assert.equal(data.accepted_css_property_count,117);
 });
 
 test('English CLI diagnostic location record is source-bound and fully translated',async()=>{
@@ -525,7 +526,7 @@ test('bounded English last-line alignment audit retains source and error boundar
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(x=>x.id==='css.text-align'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count,116);
+  assert.equal(data.accepted_css_property_count,117);
   assert.match(row.scope,/text-align-last:auto\/left\/center\/right\/start\/end\/justify/);
   assert.match(row.limitations,/inline declarations/);
   assert.match(translate(data.css_inventory_note),/115 to 116/);
