@@ -90,7 +90,11 @@ internal static class CssSyntaxAdapter
                 "-webkit-backface-visibility" => "backface-visibility",
                 // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
                 "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
-                    or "-webkit-transition-timing-function" or "-webkit-transition-delay" => originalName[8..],
+                    or "-webkit-transition-timing-function" or "-webkit-transition-delay"
+                    or "-webkit-animation" or "-webkit-animation-name" or "-webkit-animation-duration"
+                    or "-webkit-animation-timing-function" or "-webkit-animation-delay"
+                    or "-webkit-animation-iteration-count" or "-webkit-animation-direction"
+                    or "-webkit-animation-fill-mode" or "-webkit-animation-play-state" => originalName[8..],
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -761,7 +765,10 @@ internal static class CssSyntaxAdapter
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
             or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action"
             or "will-change" or "transition" or "transition-property" or "transition-duration"
-            or "transition-timing-function" or "transition-delay" or "transition-behavior";
+            or "transition-timing-function" or "transition-delay" or "transition-behavior"
+            or "animation" or "animation-name" or "animation-duration" or "animation-timing-function"
+            or "animation-delay" or "animation-iteration-count" or "animation-direction"
+            or "animation-fill-mode" or "animation-play-state";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -820,6 +827,9 @@ internal static class CssSyntaxAdapter
         // Transitions only animate a change of computed value on screen; a written PDF page
         // is never restyled, so a well-formed transition list is validated and dropped.
         if (IsTransition(name) && TransitionList(name, node)) return;
+        // Animations only run on screen; a written PDF page shows no keyframe, so a well-formed
+        // animation list is validated and dropped (@keyframes rules are dropped likewise).
+        if (IsAnimation(name) && AnimationList(name, node)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
         if (count == 1 && name == "text-size-adjust"
             && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
@@ -828,7 +838,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
@@ -856,6 +866,106 @@ internal static class CssSyntaxAdapter
     }
 
     private static bool IsTransition(string name) => name.StartsWith("transition", StringComparison.Ordinal);
+
+    private static bool IsAnimation(string name) => name.StartsWith("animation", StringComparison.Ordinal);
+
+    private static string AnimationForm(string name) => name switch
+    {
+        "animation" => "none or a comma-separated list of animations (name, times, easing, count, direction, fill mode, play state)",
+        "animation-name" => "a comma-separated list of none or keyframes names",
+        "animation-duration" => "a comma-separated list of auto or non-negative times",
+        "animation-delay" => "a comma-separated list of times",
+        "animation-timing-function" => "a comma-separated list of easing functions",
+        "animation-iteration-count" => "a comma-separated list of infinite or non-negative numbers",
+        "animation-direction" => "a comma-separated list of normal, reverse, alternate or alternate-reverse",
+        "animation-fill-mode" => "a comma-separated list of none, forwards, backwards or both",
+        _ => "a comma-separated list of running or paused"
+    };
+
+    // CSS Animations 1: each comma-separated layer of a longhand is one value; a shorthand layer
+    // has at most one each of name, easing, iteration count, direction, fill mode and play state
+    // and two times (duration then delay). CSS-wide keywords are accepted only as the whole value.
+    private static bool AnimationList(string name, CssDeclarationNode node)
+    {
+        int components = 0, names = 0, times = 0, easings = 0, counts = 0, directions = 0, fills = 0, states = 0;
+        for (var i = 0; i <= node.Values.Count; i++)
+        {
+            var component = i < node.Values.Count ? node.Values[i] : null;
+            if (component is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (component is null or CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Comma })
+            {
+                if (components == 0 || (name != "animation" && components != 1)) return false;
+                if (component is null) break;
+                components = names = times = easings = counts = directions = fills = states = 0;
+                continue;
+            }
+            components++;
+            if (component is CssFunctionComponent function)
+            {
+                if (name is not ("animation" or "animation-timing-function") || !EasingFunction(function)
+                    || ++easings > 1) return false;
+                continue;
+            }
+            if (component is not CssTokenComponent { Token: var token }) return false;
+            switch (token.Kind)
+            {
+                case CssSyntaxTokenKind.Dimension:
+                    if (!(name switch
+                        {
+                            "animation" => Time(token, nonNegative: times == 0),
+                            "animation-duration" => Time(token, nonNegative: true),
+                            "animation-delay" => Time(token, nonNegative: false),
+                            _ => false
+                        }) || ++times > 2) return false;
+                    continue;
+                case CssSyntaxTokenKind.Number:
+                    if (name is not ("animation" or "animation-iteration-count")
+                        || !double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var iterations)
+                        || !double.IsFinite(iterations) || iterations < 0 || ++counts > 1) return false;
+                    continue;
+                case CssSyntaxTokenKind.String:
+                    // A keyframes name may be a string (animation-name:"slide").
+                    if (name is not ("animation" or "animation-name") || token.Value.Length == 0 || ++names > 1)
+                        return false;
+                    continue;
+                case CssSyntaxTokenKind.Ident:
+                    break;
+                default:
+                    return false;
+            }
+            var term = token.Value.ToLowerInvariant();
+            if (Wide(term) || term is "revert" or "revert-layer" or "default") return false;
+            var isEasing = EasingKeyword(term);
+            var isCount = term == "infinite";
+            var isDirection = term is "normal" or "reverse" or "alternate" or "alternate-reverse";
+            var isFill = term is "none" or "forwards" or "backwards" or "both";
+            var isState = term is "running" or "paused";
+            var ok = name switch
+            {
+                "animation" => true,
+                "animation-name" => true,
+                "animation-duration" => term == "auto",
+                "animation-timing-function" => isEasing,
+                "animation-iteration-count" => isCount,
+                "animation-direction" => isDirection,
+                "animation-fill-mode" => isFill,
+                "animation-play-state" => isState,
+                _ => false
+            };
+            if (!ok) return false;
+            if (name != "animation") continue;
+            // In the shorthand a keyword is taken by the first slot it can fill; the name is
+            // whatever identifier is left (CSS Animations 1, 'animation' shorthand).
+            if (isEasing && easings == 0) easings++;
+            else if (isCount && counts == 0) counts++;
+            else if (isDirection && directions == 0) directions++;
+            else if (isFill && fills == 0) fills++;
+            else if (isState && states == 0) states++;
+            else if (++names > 1) return false;
+        }
+        return true;
+    }
 
     private static string TransitionForm(string name) => name switch
     {
