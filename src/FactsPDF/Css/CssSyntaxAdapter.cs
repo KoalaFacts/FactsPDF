@@ -100,7 +100,8 @@ internal static class CssSyntaxAdapter
             }
             // Interaction-only properties (cursor, pointer-events, user-select, resize) change
             // how a screen reacts to a pointer, never what is painted, and print-color-adjust
-            // only lets a printer drop colours, which this renderer never does; so every keyword
+            // only lets a printer drop colours, which this renderer never does; text-rendering and
+            // the font-smoothing switches only steer a screen rasteriser; so every keyword
             // value is validated and dropped and any other value fails with FPDF1202.
             if (IsInteractionOnly(name))
             {
@@ -748,7 +749,8 @@ internal static class CssSyntaxAdapter
     }
 
     private static bool IsInteractionOnly(string name) =>
-        name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust";
+        name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
+            or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -767,6 +769,12 @@ internal static class CssSyntaxAdapter
         // economy only permits a user agent to adjust colours; backgrounds and colours are
         // always painted exactly as declared, which both keywords allow.
         "print-color-adjust" => term is "exact" or "economy",
+        // Screen rasteriser hints (SVG 1.1 text-rendering; the WebKit and Gecko macOS
+        // font-smoothing switches). A PDF stores glyph outlines and the viewer chooses
+        // anti-aliasing and hinting, so no keyword changes the file.
+        "text-rendering" => term is "auto" or "optimizespeed" or "optimizelegibility" or "geometricprecision",
+        "-webkit-font-smoothing" => term is "auto" or "none" or "antialiased" or "subpixel-antialiased",
+        "-moz-osx-font-smoothing" => term is "auto" or "grayscale",
         _ => false
     };
 
