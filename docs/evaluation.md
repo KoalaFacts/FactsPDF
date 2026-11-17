@@ -192,8 +192,8 @@ The [48-entry colour report](../examples/report-hsl-colours.html)
 and [independent fixed-hex oracle](../examples/report-hsl-colours-oracle.html)
 must produce identical actual PDF bytes. Source NUnit, managed CLI
 and Linux/Windows Native AOT qpdf/Poppler check searchability, multi-page
-geometry and original-output recovery. No transparency, slash alpha,
-turn/rad, nesting, gradients or general CSS Color: unsupported values
+geometry and original-output recovery. No transparency (alpha other than
+exactly `1` or `100%`), turn/rad, nesting, gradients or general CSS Color: unsupported values
 fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
 independent review, private software, human approval and customer
 distribution remain separate.

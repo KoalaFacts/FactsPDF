@@ -116,7 +116,7 @@ public sealed class OpaqueRgbCssTests
     [TestCase("background:rgb(1 2, 3)")]
     [TestCase("background:rgba(1,2,3,0.5)")]
     [TestCase("background:rgba(1,2,3,0)")]
-    [TestCase("background:rgb(1 2 3 / 1)")]
+    [TestCase("background:rgb(1 2 3 / 0.5)")]
     [TestCase("background:rgb(calc(1),2,3)")]
     [TestCase("background:linear-gradient(red,blue)")]
     public void UnsupportedFunctionsAndAlphaFailBeforeReplacingOutput(string css) => Reject(css);
@@ -179,7 +179,7 @@ public sealed class OpaqueRgbCssTests
         Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero, diagnostics.ToString());
         Assert.That(output.ToArray(), Is.EqualTo(Pdf(report, new())));
         Reject("background:rgba(0%,50%,100%,.5)");
-        Reject("background:rgb(10% 20% 30% / 1)");
+        Reject("background:rgb(10% 20% 30% / 99%)");
         Reject("background:rgb(calc(10%) 20% 30%)");
         Reject("background:rgb(1e99999% 20% 30%)");
     }
