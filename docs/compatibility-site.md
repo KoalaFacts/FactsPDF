@@ -467,7 +467,10 @@ re-audits `css.background` (still partial) for the single `none` reset;
 `word-wrap-alias` re-audits `css.overflow-wrap` (still partial) for the legacy
 `word-wrap` alias, so accepted CSS property names go from 116 to 117;
 `hsl-hue-units` updates the shared HSL limitation text of the same eight colour
-rows for `grad`/`rad`/`turn` hues. Current dataset SHA-256:
-`48f7284462ee1728d65430c19603c8a68c1c7bc5623cb946f5bce869a39b9c8a`; English
-layer `site/src/audit-english-hsl-hue-units.mjs`, ordered source-text
-SHA-256 `bd266d77766aea14a054d67d24c640943b2b6709ada2e16f351ece9d56a7f5ce`.
+rows for `grad`/`rad`/`turn` hues; `initial-value-no-ops` moves nine CSS rows
+(`position`, `float`, `clear`, `overflow`, `overflow-x`, `overflow-y`,
+`visibility`, `z-index`, `opacity`) from none to partial for their initial value
+only, so accepted CSS property names go from 117 to 126. Current dataset SHA-256:
+`bcd293e71d6f86faca7e42d1205a9bcf029dc9ba3dc27707cf189673e36fd50c`; English
+layer `site/src/audit-english-initial-value-no-ops.mjs`, ordered source-text
+SHA-256 `851c45eb85a980236b62cc96c359c61408df1478ef73e2cb006b40b7ef56e58b`.

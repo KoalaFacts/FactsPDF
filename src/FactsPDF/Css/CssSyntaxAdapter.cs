@@ -85,7 +85,8 @@ internal static class CssSyntaxAdapter
             };
             // Fail unsupported properties first even when the value contains
             // functions or multiple tokens.
-            var property = Property(name, node.Span.Start);
+            var initialOnly = InitialOnlyValue(name);
+            var property = initialOnly is null ? Property(name, node.Span.Start) : default;
             // Only opaque RGB functions are lowered to their equivalent hex
             // colour. All downstream cascade, box paint and PDF serializers
             // therefore use exactly the already audited solid-colour path.
@@ -94,6 +95,14 @@ internal static class CssSyntaxAdapter
             var valueTokens = NonWhitespaceTokens(canonical.Values);
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+            // Properties the report renderer does not implement, declared at the one value it
+            // already lays out (position: static, float: none, opacity: 1, ...): the declaration
+            // changes nothing, so it is validated and dropped. Every other value still fails.
+            if (initialOnly is not null)
+            {
+                ValidateInitialOnly(name, initialOnly, terms, valueTokens, node.Span.Start);
+                continue;
+            }
 
             void Emit(CssProperty target, string value, int offset = -1, string? targetName = null)
             {
@@ -687,6 +696,41 @@ internal static class CssSyntaxAdapter
     }
 
     private static bool Wide(string text) => text is "inherit" or "initial" or "unset";
+
+    // The only value each property accepts: the initial value, which the report renderer's
+    // normal flow already produces (no positioning, floats, clipping, hiding, stacking or
+    // transparency). CSS-wide keywords also compute to it, since nothing else can be declared.
+    private static string? InitialOnlyValue(string name) => name switch
+    {
+        "position" => "static",
+        "float" or "clear" => "none",
+        "overflow" or "overflow-x" or "overflow-y" or "visibility" => "visible",
+        "z-index" => "auto",
+        "opacity" => "1",
+        _ => null
+    };
+
+    private static void ValidateInitialOnly(
+        string name, string initial, List<string> terms, CssTokenComponent[] valueTokens, int offset)
+    {
+        if (terms.Count == 1 && valueTokens.Length == 1)
+        {
+            var token = valueTokens[0].Token;
+            var term = terms[0];
+            if (token.Kind == CssSyntaxTokenKind.Ident && (Wide(term) || term == initial)) return;
+            if (name == "opacity" && OpaqueAlpha(token)) return;
+        }
+        var at = valueTokens.Length > 0 ? valueTokens[0].Token.Span.Start : offset;
+        throw new FactsPdfException("FPDF1202",
+            $"{name} supports only {initial}: the report renderer lays out normal flow only.", at);
+    }
+
+    // opacity: 1 or 100% (or any spelling of them, such as 1.0 or 100.00%).
+    private static bool OpaqueAlpha(CssSyntaxToken token) =>
+        (token.Kind == CssSyntaxTokenKind.Number || token.Kind == CssSyntaxTokenKind.Percentage)
+        && double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var alpha)
+        && alpha == (token.Kind == CssSyntaxTokenKind.Number ? 1 : 100);
 
     private static CssProperty Property(string name, int offset) => name switch
     {
