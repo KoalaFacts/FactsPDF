@@ -9,9 +9,9 @@ public sealed record PdfPageText
     public double FontSize { get; init; } = 10;
     /// <summary>Text color. The default is black.</summary>
     public PdfRgbColor Color { get; init; } = new(0, 0, 0);
-    /// <summary>Use the bold font chain (<see cref="PdfOptions.BoldFonts"/>).</summary>
+    /// <summary>Use the bold font chain (<see cref="PdfFontSetup.Bold"/>).</summary>
     public bool Bold { get; init; }
-    /// <summary>Use the italic font chain (<see cref="PdfOptions.ItalicFonts"/>, or <see cref="PdfOptions.BoldItalicFonts"/> with <see cref="Bold"/>).</summary>
+    /// <summary>Use the italic font chain (<see cref="PdfFontSetup.Italic"/>, or <see cref="PdfFontSetup.BoldItalic"/> with <see cref="Bold"/>).</summary>
     public bool Italic { get; init; }
 }
 
