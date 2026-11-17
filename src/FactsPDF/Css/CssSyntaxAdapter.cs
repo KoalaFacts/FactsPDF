@@ -757,7 +757,8 @@ internal static class CssSyntaxAdapter
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
             or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action"
-            or "will-change";
+            or "will-change" or "transition" or "transition-property" or "transition-duration"
+            or "transition-timing-function" or "transition-delay" or "transition-behavior";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -813,6 +814,9 @@ internal static class CssSyntaxAdapter
         // will-change is a compositor hint: auto, or a comma list of animateable features
         // (transform, opacity, scroll-position, contents, ...). A static page never changes.
         if (name == "will-change" && WillChangeList(node)) return;
+        // Transitions only animate a change of computed value on screen; a written PDF page
+        // is never restyled, so a well-formed transition list is validated and dropped.
+        if (name.StartsWith("transition", StringComparison.Ordinal) && TransitionList(name, node)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
         if (count == 1 && name == "text-size-adjust"
             && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
@@ -821,7 +825,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : name.StartsWith("transition", StringComparison.Ordinal) ? TransitionForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
@@ -846,6 +850,129 @@ internal static class CssSyntaxAdapter
             expectIdent = !expectIdent;
         }
         return idents > 0 && !expectIdent;
+    }
+
+    private static string TransitionForm(string name) => name switch
+    {
+        "transition" => "none or a comma-separated list of transitions (property, times, easing)",
+        "transition-property" => "none or a comma-separated list of property names",
+        "transition-duration" => "a comma-separated list of non-negative times",
+        "transition-delay" => "a comma-separated list of times",
+        "transition-timing-function" => "a comma-separated list of easing functions",
+        _ => "a comma-separated list of normal or allow-discrete"
+    };
+
+    private static bool EasingKeyword(string term) =>
+        term is "ease" or "linear" or "ease-in" or "ease-out" or "ease-in-out" or "step-start" or "step-end";
+
+    // cubic-bezier(x1, y1, x2, y2) with x1 and x2 in [0, 1], or steps(n[, position]) with n >= 1.
+    private static bool EasingFunction(CssFunctionComponent function)
+    {
+        var fname = function.Name.ToLowerInvariant();
+        if (fname is not ("cubic-bezier" or "steps")) return false;
+        var args = new List<CssSyntaxToken>(4);
+        var expectValue = true;
+        for (var i = 0; i < function.Values.Count; i++)
+        {
+            if (function.Values[i] is not CssTokenComponent { Token: var token }) return false;
+            if (token.Kind == CssSyntaxTokenKind.Whitespace) continue;
+            if (expectValue == (token.Kind == CssSyntaxTokenKind.Comma)) return false;
+            if (expectValue) args.Add(token);
+            expectValue = !expectValue;
+        }
+        if (expectValue) return false;
+        if (fname == "steps")
+        {
+            if (args.Count is < 1 or > 2 || args[0].Kind != CssSyntaxTokenKind.Number || !args[0].IsInteger
+                || !double.TryParse(args[0].Value, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var steps) || steps < 1) return false;
+            if (args.Count == 1) return true;
+            var position = args[1].Kind == CssSyntaxTokenKind.Ident ? args[1].Value.ToLowerInvariant() : "";
+            // jump-none needs at least two steps.
+            return position is "jump-start" or "jump-end" or "jump-both" or "start" or "end"
+                || (position == "jump-none" && steps >= 2);
+        }
+        if (args.Count != 4) return false;
+        for (var i = 0; i < 4; i++)
+        {
+            if (args[i].Kind != CssSyntaxTokenKind.Number || !double.TryParse(args[i].Value,
+                    System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture,
+                    out var number) || !double.IsFinite(number)) return false;
+            if (i % 2 == 0 && number is < 0 or > 1) return false;
+        }
+        return true;
+    }
+
+    private static bool Time(CssSyntaxToken token, bool nonNegative) =>
+        token.Kind == CssSyntaxTokenKind.Dimension
+        && (token.Unit?.ToLowerInvariant() is "s" or "ms")
+        && double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var time)
+        && double.IsFinite(time) && (!nonNegative || time >= 0);
+
+    // CSS Transitions 1/2: each comma-separated layer of a longhand is one value; a shorthand
+    // layer has at most one property name, two times (duration then delay), one easing and one
+    // behavior. none stands alone. CSS-wide keywords are accepted only as the whole value.
+    private static bool TransitionList(string name, CssDeclarationNode node)
+    {
+        var layers = 1;
+        int components = 0, properties = 0, times = 0, easings = 0, behaviors = 0;
+        var sawNone = false;
+        for (var i = 0; i <= node.Values.Count; i++)
+        {
+            var component = i < node.Values.Count ? node.Values[i] : null;
+            if (component is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (component is null or CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Comma })
+            {
+                if (components == 0 || (name != "transition" && components != 1)) return false;
+                if (component is null) break;
+                layers++;
+                components = properties = times = easings = behaviors = 0;
+                continue;
+            }
+            components++;
+            if (component is CssFunctionComponent function)
+            {
+                if (name is not ("transition" or "transition-timing-function") || !EasingFunction(function)
+                    || ++easings > 1) return false;
+                continue;
+            }
+            if (component is not CssTokenComponent { Token: var token }) return false;
+            if (token.Kind == CssSyntaxTokenKind.Dimension)
+            {
+                var allowed = name switch
+                {
+                    "transition" => Time(token, nonNegative: times == 0),
+                    "transition-duration" => Time(token, nonNegative: true),
+                    "transition-delay" => Time(token, nonNegative: false),
+                    _ => false
+                };
+                if (!allowed || ++times > 2) return false;
+                continue;
+            }
+            if (token.Kind != CssSyntaxTokenKind.Ident) return false;
+            var term = token.Value.ToLowerInvariant();
+            if (Wide(term)) return false;
+            var isEasing = EasingKeyword(term);
+            var isBehavior = term is "normal" or "allow-discrete";
+            var ok = name switch
+            {
+                "transition-timing-function" => isEasing,
+                "transition-behavior" => isBehavior,
+                "transition-property" or "transition" => true,
+                _ => false
+            };
+            if (!ok) return false;
+            if (name == "transition" && isEasing) { if (++easings > 1) return false; }
+            else if (name == "transition" && isBehavior) { if (++behaviors > 1) return false; }
+            else if (name is "transition" or "transition-property")
+            {
+                if (++properties > 1) return false;
+                if (term == "none") sawNone = true;
+            }
+        }
+        // none is valid only as the single transitioned property of a single layer.
+        return !sawNone || layers == 1;
     }
 
     private static string? FirstIdent(CssDeclarationNode node)
