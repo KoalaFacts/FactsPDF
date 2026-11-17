@@ -485,8 +485,9 @@ the CSS inventory note only, since none of them has a feature row;
 `appearance` does the same for `appearance` and its `-webkit-`/`-moz-`
 spellings at any keyword (141 to 142); `backface-touch-action` does the same
 for `backface-visibility` (and its `-webkit-` spelling) and a single
-`touch-action` keyword (142 to 144).
+`touch-action` keyword (142 to 144); `will-change` does the same for
+`will-change` at `auto` or a comma-separated list of names (144 to 145).
 Current dataset SHA-256:
-`c714be228e1c86b6151d3888b216f5bf938cca2f2a1ad5214bad78a6b35a4ed2`; English
-layer `site/src/audit-english-backface-touch-action.mjs`, ordered source-text
-SHA-256 `0470e211601dac42561f073d2dc49cc00c6dd37e594759e187c63c4cdfe3b046`.
+`1d76d0567b636e39b70c8a0cb1f5388aa9607766f63e204486a1b0dbb8708f3b`; English
+layer `site/src/audit-english-will-change.mjs`, ordered source-text
+SHA-256 `66e675c0243a09f90a0b175d289b8bcd7183114fbd762bef7326b8345da5dbc6`.
