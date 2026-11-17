@@ -1829,7 +1829,7 @@ def verify_native_percentage_rgb(executable, output, work):
     invalid = work / 'rgb-percent-invalid.html'
     retained = output / 'rgb-percent-retained.pdf'
     for css in ('rgb(1%,2,3%)', 'rgb(101%,0%,0%)',
-                'rgba(0%,50%,100%,.5)', 'rgb(0% 50% 100% / 1)'):
+                'rgba(0%,50%,100%,.5)', 'rgb(0% 50% 100% / .5)'):
         invalid.write_text('<style>.unused{color:' + css + '}</style><p>Protected</p>',
                            encoding='utf-8')
         retained.write_bytes(b'prior customer PDF')
