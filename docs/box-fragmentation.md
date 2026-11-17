@@ -4,6 +4,23 @@
 **Implementation:** [PR #14](https://github.com/KoalaFacts/FactsPDF/pull/14)  
 **Base:** merged M7 `main` commit `34b0ddd28f8eb4a6d7b20aee20ed2b598827ea87`
 
+## Box painting model
+
+Backgrounds and borders are painted into **one shared graphics stream** used
+by both the ASCII and Unicode serializers: backgrounds before edges, ancestors
+before children, all paint before text, so words stay searchable on top.
+Documents without paint emit no graphics commands. Paragraph margins lie
+outside backgrounds and borders. A `none` or `hidden` border side has zero
+width; a `transparent` side keeps its width and paints nothing; border
+`currentColor` resolves to the final computed text colour. Shorthands expand
+before cascade winner resolution (keeping `!important`, specificity and order),
+count against the CSS declaration budget, and report errors at the offending
+component's own source position. `MaxDisplayCommands` (default 200,000) counts
+only commands actually emitted and fails `FPDF1401` before any output. Accepted
+border, colour and length syntax is listed in [feature notes](feature-notes.md#borders-and-rounded-corners)
+and [Can I Render](https://koalafacts.github.io/FactsPDF/); the M7 evidence
+stays in the [painting ledger](block-painting-ledger.md).
+
 ## Outcome
 
 Previously, a painted `body`, `div`, `section`, `article` or paragraph box that crossed a page boundary failed with `FPDF1302`. M8 retains M5/M6 block topology and M7 layout/painting but emits **one paint fragment per occupied page** for a decorated ancestor that spans more than one page. Text remains searchable; its existing normal line wrapping, margins and font fallback continue to determine page positions.
