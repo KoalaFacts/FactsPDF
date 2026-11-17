@@ -43,6 +43,11 @@ internal static class CssPaintValues
     internal static Rgb? BorderColor(string value, int offset)
         => value == "currentcolor" ? null : InlineCss.Color(value, offset);
 
+    // A border edge (not an outline) also accepts transparent: the edge keeps
+    // its width in layout and paints nothing (BorderEdge.Transparent).
+    internal static Rgb? EdgeColor(string value, int offset)
+        => value == "transparent" ? null : BorderColor(value, offset);
+
     internal static BorderPattern BorderStyle(string value, int offset) => value switch
     {
         "solid" or "none" => BorderPattern.Solid,

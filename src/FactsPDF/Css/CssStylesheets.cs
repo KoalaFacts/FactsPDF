@@ -658,7 +658,8 @@ internal sealed class CssStylesheets
             {
                 if (edge.EffectiveWidth > 0) painted = true;
                 if (edge.EffectiveWidth <= 0 || edge.Pattern != BorderPattern.Solid
-                    || edge.EffectiveWidth != edges[0].EffectiveWidth || (edge.Color ?? ink) != firstInk) uneven = true;
+                    || edge.EffectiveWidth != edges[0].EffectiveWidth || (edge.Color ?? ink) != firstInk
+                    || edge.Transparent != edges[0].Transparent) uneven = true;
             }
             if (painted && uneven)
                 throw new FactsPdfException("FPDF1201",

@@ -216,17 +216,17 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
         if (style.HasRoundedCorners)
             return width > 0 && height > 0
                 ? (style.BackgroundColor.HasValue ? 1 : 0)
-                  + (style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
+                  + (style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
                 : 0;
         var outline = width > 0 && height > 0 && style.Outline.EffectiveWidth > 0 ? 1 : 0;
         var top = isFirstFragment ? Math.Min(Math.Max(0, height), style.BorderTop.EffectiveWidth) : 0;
         var bottom = isLastFragment ? Math.Min(Math.Max(0, height), style.BorderBottom.EffectiveWidth) : 0;
         var middleHeight = Math.Max(0, height - top - bottom);
         return outline + (width > 0 && height > 0 && style.BackgroundColor.HasValue ? 1 : 0)
-            + (width > 0 && top > 0 ? 1 : 0)
-            + (width > 0 && bottom > 0 ? 1 : 0)
-            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 ? 1 : 0)
-            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 ? 1 : 0);
+            + (width > 0 && top > 0 && !style.BorderTop.Transparent ? 1 : 0)
+            + (width > 0 && bottom > 0 && !style.BorderBottom.Transparent ? 1 : 0)
+            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
+            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? 1 : 0);
     }
 }
 
@@ -245,6 +245,9 @@ internal enum BorderPattern { Solid, Dashed, Dotted }
 internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
 {
     internal BorderPattern Pattern { get; init; } = BorderPattern.Solid;
+    // border-color: transparent keeps the edge's width in layout but paints
+    // nothing; the background (painted to the border box) shows through.
+    internal bool Transparent { get; init; }
     internal static BorderEdge Initial => new(2.25, false, null); // CSS medium=3px
     internal double EffectiveWidth => Solid ? Width : 0;
 }

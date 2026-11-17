@@ -453,7 +453,11 @@ internal static class CssDeclarations
                 Solid = wide ? inherited.Solid : value != "none",
                 Pattern = wide ? inherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
             },
-            2 => old with { Color = wide ? inherited.Color : CssPaintValues.BorderColor(value, declaration.Offset) },
+            2 => old with
+            {
+                Color = wide ? inherited.Color : CssPaintValues.EdgeColor(value, declaration.Offset),
+                Transparent = wide ? inherited.Transparent : value == "transparent"
+            },
             _ => throw new InvalidOperationException("Unrecognized border property.")
         };
         switch (side)
