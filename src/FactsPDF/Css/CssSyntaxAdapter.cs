@@ -78,6 +78,9 @@ internal static class CssSyntaxAdapter
                 "page-break-before" => "break-before",
                 "page-break-after" => "break-after",
                 "page-break-inside" => "break-inside",
+                // CSS Text: word-wrap is the legacy name of overflow-wrap and
+                // shares its cascade slot, values and applicability.
+                "word-wrap" => "overflow-wrap",
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains

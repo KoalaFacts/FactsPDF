@@ -2126,8 +2126,10 @@ and `white-space:nowrap` continues to prohibit automatic breaking.
 `overflow-wrap:normal` or omitted retains identical PDF drawing bytes.
 
 Only `normal`, `break-word` and single CSS-wide
-`inherit`/`initial`/`unset` values are accepted. Explicit declarations on
-inline spans, unsupported container and table-element targets (ordinary report containers outside the table/list structure are now supported for inheritance), the `word-wrap` alias,
+`inherit`/`initial`/`unset` values are accepted. The legacy `word-wrap` name is
+an alias: it shares the `overflow-wrap` cascade slot (the later declaration
+wins), values and applicability. Explicit declarations on
+inline spans, unsupported container and table-element targets (ordinary report containers outside the table/list structure are now supported for inheritance),
 `anywhere`, `break-all`, hyphen insertion, grapheme/complex-script shaping
 and bidirectional text remain outside this scoped increment. A flat `p` inside
 a fixed-column table cell may opt in for its own text, but this does not add
