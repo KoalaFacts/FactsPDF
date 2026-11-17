@@ -936,6 +936,13 @@ internal static class CssSyntaxAdapter
             }
             var term = token.Value.ToLowerInvariant();
             if (Wide(term) || term is "revert" or "revert-layer" or "default") return false;
+            // auto is the duration keyword (CSS Animations 2); in the shorthand it takes the duration slot.
+            if (term == "auto" && name == "animation")
+            {
+                if (times > 0) return false;
+                times = 1;
+                continue;
+            }
             var isEasing = EasingKeyword(term);
             var isCount = term == "infinite";
             var isDirection = term is "normal" or "reverse" or "alternate" or "alternate-reverse";

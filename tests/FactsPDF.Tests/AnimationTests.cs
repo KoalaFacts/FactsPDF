@@ -31,6 +31,9 @@ public sealed class AnimationTests
     [TestCase("animation:pulse 2s cubic-bezier(.4, 0, .6, 1) infinite alternate, slide 1s steps(4) 2 reverse forwards paused")]
     [TestCase("animation:1s ease")]
     [TestCase("animation:infinite 1s")]
+    [TestCase("animation:spin auto ease")]
+    [TestCase("animation:ease ease")]
+    [TestCase("animation:\"slide\" 1s")]
     [TestCase("ANIMATION:SPIN 1S LINEAR")]
     [TestCase("animation:inherit")]
     [TestCase("animation:spin 1s !important")]
@@ -54,7 +57,9 @@ public sealed class AnimationTests
     [TestCase("@keyframes fade{0%,50%{opacity:0}100%{opacity:1;color:red}}")]
     [TestCase("@-webkit-keyframes spin{FROM{transform:rotate(0)}TO{transform:rotate(360deg)}}")]
     [TestCase("@keyframes \"slide\"{}")]
+    [TestCase("@keyframes edge{1e2%{opacity:1}-0%{opacity:0}100.0%{opacity:1}}")]
     [TestCase("@media print{p{color:#123}} @keyframes x{to{top:0}}")]
+    [TestCase("@media print{p{color:#123} @keyframes x{to{top:0}}}")]
     public void KeyframesRulesRenderLikeThePageWithoutThem(string rules)
     {
         var expected = rules.StartsWith("@media", StringComparison.Ordinal) ? Report("", "@media print{p{color:#123}}") : Report("");
@@ -69,6 +74,8 @@ public sealed class AnimationTests
     [TestCase("animation:spin 1px", "animation supports only none")]
     [TestCase("animation:spin, inherit", "animation supports only none")]
     [TestCase("animation:spin 1s steps(0)", "animation supports only none")]
+    [TestCase("animation:spin 1s auto", "animation supports only none")]
+    [TestCase("animation:none none none", "animation supports only none")]
     [TestCase("animation-name:spin fade", "animation-name supports only a comma-separated list of none or keyframes names")]
     [TestCase("animation-name:default", "animation-name supports only")]
     [TestCase("animation-duration:-1s", "animation-duration supports only a comma-separated list of auto or non-negative times")]
@@ -93,6 +100,7 @@ public sealed class AnimationTests
     [TestCase("@keyframes spin;", "@keyframes needs one keyframes name")]
     [TestCase("@keyframes spin{half{opacity:1}}", "only from, to or percentage keyframes")]
     [TestCase("@keyframes spin{120%{opacity:1}}", "only from, to or percentage keyframes")]
+    [TestCase("@keyframes spin{100.0001%{opacity:1}}", "only from, to or percentage keyframes")]
     [TestCase("@keyframes spin{from to{opacity:1}}", "only from, to or percentage keyframes")]
     [TestCase("@keyframes spin{to{@media print{p{color:red}}}}", "A keyframe contains only declarations")]
     public void MalformedKeyframesFail(string rules, string message)

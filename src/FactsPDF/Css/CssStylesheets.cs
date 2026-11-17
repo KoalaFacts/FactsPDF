@@ -267,7 +267,10 @@ internal sealed class CssStylesheets
                     !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
                       || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
                     throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
-                if (at.Contents.Any(x => x is not CssQualifiedRuleNode))
+                // A print stylesheet may carry @keyframes; ParseRules validates and drops them.
+                if (at.Contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
+                        && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
+                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)))))
                     throw new FactsPdfException("FPDF1204",
                         "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
                 ParseRules(at.Contents.Cast<CssRuleNode>().ToArray());
