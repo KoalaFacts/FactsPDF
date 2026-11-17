@@ -88,6 +88,9 @@ internal static class CssSyntaxAdapter
                 // appearance resets are still written with both engine prefixes.
                 "-webkit-appearance" or "-moz-appearance" => "appearance",
                 "-webkit-backface-visibility" => "backface-visibility",
+                // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
+                "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
+                    or "-webkit-transition-timing-function" or "-webkit-transition-delay" => originalName[8..],
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -816,7 +819,7 @@ internal static class CssSyntaxAdapter
         if (name == "will-change" && WillChangeList(node)) return;
         // Transitions only animate a change of computed value on screen; a written PDF page
         // is never restyled, so a well-formed transition list is validated and dropped.
-        if (name.StartsWith("transition", StringComparison.Ordinal) && TransitionList(name, node)) return;
+        if (IsTransition(name) && TransitionList(name, node)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
         if (count == 1 && name == "text-size-adjust"
             && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
@@ -825,7 +828,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : name.StartsWith("transition", StringComparison.Ordinal) ? TransitionForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
@@ -852,6 +855,8 @@ internal static class CssSyntaxAdapter
         return idents > 0 && !expectIdent;
     }
 
+    private static bool IsTransition(string name) => name.StartsWith("transition", StringComparison.Ordinal);
+
     private static string TransitionForm(string name) => name switch
     {
         "transition" => "none or a comma-separated list of transitions (property, times, easing)",
@@ -868,39 +873,37 @@ internal static class CssSyntaxAdapter
     // cubic-bezier(x1, y1, x2, y2) with x1 and x2 in [0, 1], or steps(n[, position]) with n >= 1.
     private static bool EasingFunction(CssFunctionComponent function)
     {
-        var fname = function.Name.ToLowerInvariant();
-        if (fname is not ("cubic-bezier" or "steps")) return false;
-        var args = new List<CssSyntaxToken>(4);
+        var steps = function.Name.Equals("steps", StringComparison.OrdinalIgnoreCase);
+        if (!steps && !function.Name.Equals("cubic-bezier", StringComparison.OrdinalIgnoreCase)) return false;
+        CssSyntaxToken first = default, second = default;
+        var count = 0;
         var expectValue = true;
         for (var i = 0; i < function.Values.Count; i++)
         {
             if (function.Values[i] is not CssTokenComponent { Token: var token }) return false;
             if (token.Kind == CssSyntaxTokenKind.Whitespace) continue;
             if (expectValue == (token.Kind == CssSyntaxTokenKind.Comma)) return false;
-            if (expectValue) args.Add(token);
             expectValue = !expectValue;
+            if (token.Kind == CssSyntaxTokenKind.Comma) continue;
+            count++;
+            if (count == 1) first = token;
+            else if (count == 2) second = token;
+            // cubic-bezier: four finite numbers, the x values (1st and 3rd) within [0, 1].
+            if (!steps && (token.Kind != CssSyntaxTokenKind.Number || !double.TryParse(token.Value,
+                    System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture,
+                    out var number) || !double.IsFinite(number) || (count % 2 == 1 && number is < 0 or > 1)))
+                return false;
         }
         if (expectValue) return false;
-        if (fname == "steps")
-        {
-            if (args.Count is < 1 or > 2 || args[0].Kind != CssSyntaxTokenKind.Number || !args[0].IsInteger
-                || !double.TryParse(args[0].Value, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var steps) || steps < 1) return false;
-            if (args.Count == 1) return true;
-            var position = args[1].Kind == CssSyntaxTokenKind.Ident ? args[1].Value.ToLowerInvariant() : "";
-            // jump-none needs at least two steps.
-            return position is "jump-start" or "jump-end" or "jump-both" or "start" or "end"
-                || (position == "jump-none" && steps >= 2);
-        }
-        if (args.Count != 4) return false;
-        for (var i = 0; i < 4; i++)
-        {
-            if (args[i].Kind != CssSyntaxTokenKind.Number || !double.TryParse(args[i].Value,
-                    System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture,
-                    out var number) || !double.IsFinite(number)) return false;
-            if (i % 2 == 0 && number is < 0 or > 1) return false;
-        }
-        return true;
+        if (!steps) return count == 4;
+        // steps(n[, position]): n an integer >= 1; jump-none needs at least two steps.
+        if (count is < 1 or > 2 || first.Kind != CssSyntaxTokenKind.Number || !first.IsInteger
+            || !double.TryParse(first.Value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var stepCount) || stepCount < 1) return false;
+        if (count == 1) return true;
+        var position = second.Kind == CssSyntaxTokenKind.Ident ? second.Value.ToLowerInvariant() : "";
+        return position is "jump-start" or "jump-end" or "jump-both" or "start" or "end"
+            || (position == "jump-none" && stepCount >= 2);
     }
 
     private static bool Time(CssSyntaxToken token, bool nonNegative) =>
@@ -952,7 +955,8 @@ internal static class CssSyntaxAdapter
             }
             if (token.Kind != CssSyntaxTokenKind.Ident) return false;
             var term = token.Value.ToLowerInvariant();
-            if (Wide(term)) return false;
+            // CSS-wide keywords stand alone (handled before this list), and default is reserved.
+            if (Wide(term) || term is "revert" or "revert-layer" or "default") return false;
             var isEasing = EasingKeyword(term);
             var isBehavior = term is "normal" or "allow-discrete";
             var ok = name switch
