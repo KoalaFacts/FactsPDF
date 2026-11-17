@@ -39,6 +39,37 @@ public sealed class BackgroundShorthandTests
         Assert.That(Convert(source), Is.EqualTo(Convert(expected)));
     }
 
+    [TestCase("none")]
+    [TestCase("NONE")]
+    [TestCase("None")]
+    public void BackgroundNoneIsTheTransparentInitialColour(string value)
+    {
+        // A reset over an earlier fill: inline over stylesheet, and later rule over earlier rule.
+        static string Tail(string v) => "<div class=panel style='background:" + v + "'><p>Service summary</p></div>" +
+            "<div class=card><p>Totals</p></div>";
+        var source = "<style>.panel{background:#cee8fb}.card{background:red}.card{background:" + value + "}</style>" +
+            Tail(value);
+        var control = "<style>.panel{background:#cee8fb}.card{background:red}.card{background:transparent}</style>" +
+            Tail("transparent");
+        Assert.That(Convert(source), Is.EqualTo(Convert(control)));
+        Assert.That(Convert("<div style='background:" + value + "'>A</div>"),
+            Is.EqualTo(Convert("<div>A</div>")));
+    }
+
+    [TestCase("background-color:none")]
+    [TestCase("background:none red")]
+    [TestCase("background:red none")]
+    [TestCase("background:'none'")]
+    [TestCase("background:none none")]
+    public void NoneOutsideTheSingleShorthandValueStillFails(string css)
+    {
+        using var pdf = new MemoryStream();
+        var error = Assert.Throws<FactsPdfException>(() =>
+            PdfConverter.Convert("<div style=\"" + css + "\">Safe report</div>", pdf, Options));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1202"), css);
+        Assert.That(pdf.Length, Is.Zero);
+    }
+
     [TestCase("url(chart.png)")]
     [TestCase("linear-gradient(red,blue)")]
     [TestCase("rgba(1,2,3,0.5)")]

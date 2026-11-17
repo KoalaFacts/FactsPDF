@@ -1560,7 +1560,8 @@ when it contains one supported colour**. For example,
 `<div style="background:#cee8fb">Summary</div>` is byte-for-byte equivalent
 to the same element with `background-color:#cee8fb`. It accepts the same
 `#rgb` / `#rrggbb`, documented colour names, `transparent` and
-`inherit` / `initial` / `unset` keywords. Normal selector precedence,
+`inherit` / `initial` / `unset` keywords, plus a single `none`, which resets the
+fill like `transparent` (`background-color: none` still fails). Normal selector precedence,
 `!important`, non-inheritance, element applicability and existing background
 painting/fragmentation apply identically.
 
