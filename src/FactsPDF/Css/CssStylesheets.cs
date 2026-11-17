@@ -187,6 +187,58 @@ internal sealed class CssStylesheets
         }
     }
 
+    private static void ValidateKeyframes(CssAtRuleNode at)
+    {
+        CssSyntaxComponent? name = null;
+        var count = 0;
+        for (var i = 0; i < at.Prelude.Count; i++)
+            if (at.Prelude[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
+            { name ??= at.Prelude[i]; count++; }
+        var validName = count == 1 && name is CssTokenComponent { Token: var token }
+            && ((token.Kind == CssSyntaxTokenKind.String && token.Value.Length > 0)
+                || (token.Kind == CssSyntaxTokenKind.Ident && token.Value.ToLowerInvariant()
+                    is not ("none" or "inherit" or "initial" or "unset" or "revert" or "revert-layer" or "default")));
+        if (at.Contents is null || !validName)
+            throw new FactsPdfException("FPDF1204",
+                "@keyframes needs one keyframes name and a block of keyframes.", at.Span.Start);
+        for (var r = 0; r < at.Contents.Count; r++)
+        {
+            if (at.Contents[r] is not CssQualifiedRuleNode keyframe || !KeyframeSelector(keyframe.Prelude))
+                throw new FactsPdfException("FPDF1204",
+                    "@keyframes blocks contain only from, to or percentage keyframes.", at.Contents[r].Span.Start);
+            for (var d = 0; d < keyframe.Contents.Count; d++)
+                if (keyframe.Contents[d] is not CssDeclarationNode)
+                    throw new FactsPdfException("FPDF1204",
+                        "A keyframe contains only declarations.", keyframe.Contents[d].Span.Start);
+        }
+    }
+
+    // from, to or a percentage from 0% to 100%, comma-separated.
+    private static bool KeyframeSelector(IReadOnlyList<CssSyntaxComponent> prelude)
+    {
+        var expectSelector = true;
+        for (var i = 0; i < prelude.Count; i++)
+        {
+            if (prelude[i] is not CssTokenComponent { Token: var token }) return false;
+            if (token.Kind == CssSyntaxTokenKind.Whitespace) continue;
+            if (expectSelector)
+            {
+                var ok = token.Kind switch
+                {
+                    CssSyntaxTokenKind.Ident => token.Value.ToLowerInvariant() is "from" or "to",
+                    CssSyntaxTokenKind.Percentage => double.TryParse(token.Value,
+                        System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture,
+                        out var at) && at is >= 0 and <= 100,
+                    _ => false
+                };
+                if (!ok) return false;
+            }
+            else if (token.Kind != CssSyntaxTokenKind.Comma) return false;
+            expectSelector = !expectSelector;
+        }
+        return !expectSelector;
+    }
+
     private void ParseRules(IReadOnlyList<CssRuleNode> rules)
     {
         foreach (var rule in rules)
@@ -194,6 +246,14 @@ internal sealed class CssStylesheets
             budget.Token.ThrowIfCancellationRequested();
             if (rule is CssAtRuleNode at)
             {
+                // Keyframes only drive on-screen animations; a written PDF page shows none of them,
+                // so a well-formed @keyframes block is validated and dropped.
+                if (at.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
+                    || at.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase))
+                {
+                    ValidateKeyframes(at);
+                    continue;
+                }
                 // Bounded print-only conditionals: no device queries, nesting,
                 // imports or ignored rules. Reuse the exact same selector,
                 // declaration, cascade and resource budgets as top-level CSS.
@@ -207,7 +267,10 @@ internal sealed class CssStylesheets
                     !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
                       || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
                     throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
-                if (at.Contents.Any(x => x is not CssQualifiedRuleNode))
+                // A print stylesheet may carry @keyframes; ParseRules validates and drops them.
+                if (at.Contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
+                        && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
+                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)))))
                     throw new FactsPdfException("FPDF1204",
                         "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
                 ParseRules(at.Contents.Cast<CssRuleNode>().ToArray());

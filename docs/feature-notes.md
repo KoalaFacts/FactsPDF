@@ -108,6 +108,8 @@ The same stylesheets add `will-change:transform` (or a list such as `transform, 
 
 They also add `transition:all .2s ease` or `transition:none` to buttons, links and panels. A written PDF page is never restyled, so `transition` and its five longhands accept a well-formed transition list and drop the declaration; malformed lists still fail `FPDF1202` (`TransitionTests.cs`).
 
+Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webkit-` spellings) accept a well-formed animation list, and a well-formed `@keyframes` / `@-webkit-keyframes` rule (one name; `from`, `to` or 0–100% keyframes holding declarations, at the top level or inside `@media print`) is dropped: a written PDF page shows no keyframe. Malformed animation values fail `FPDF1202` and malformed keyframes rules `FPDF1204` (`AnimationTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:

@@ -488,8 +488,10 @@ for `backface-visibility` (and its `-webkit-` spelling) and a single
 `touch-action` keyword (142 to 144); `will-change` does the same for
 `will-change` at `auto` or a comma-separated list of names (144 to 145);
 `transition` does the same for `transition` and its five longhands at a
-well-formed transition list (145 to 151).
+well-formed transition list (145 to 151); `animation` does the same for
+`animation` and its eight longhands at a well-formed animation list and drops
+well-formed `@keyframes` rules (151 to 160).
 Current dataset SHA-256:
-`8659122e7b7146af4ecd49e00d1ca75d3213ec637469432aa4f17662b95d5c45`; English
-layer `site/src/audit-english-transition.mjs`, ordered source-text
-SHA-256 `d7221af01e2c5acb81ee01beff529f48d37044474ba98e97b7c76393588bd184`.
+`e1a2ec359e865e299c78611c09bec07b8ea70c8539a08511a93f4eb66b34aea9`; English
+layer `site/src/audit-english-animation.mjs`, ordered source-text
+SHA-256 `b33eb4174a608a37d4bf41d99fea2155d2cf75cffd02768d63f61a6eef060f72`.
