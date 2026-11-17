@@ -450,7 +450,7 @@ introduction/release versions are preserved. Dataset SHA-256:
 `0cf781f2c0cffa4521ebddb7e01c8de962aafbc35a781dc2db0f300a9f84e9ab`. This is a code-audit update, not a new release, independent
 final-head review, human page acceptance or a font distribution.
 
-## 17 November 2026: border edge keywords and opaque alpha hex
+## 17 November 2026: border edge keywords and opaque alpha colours
 
 Three chained snapshots audit merged sources: `transparent-border-color`
 (`value.border.transparent`, none → partial, source `291f1014`),
@@ -459,7 +459,10 @@ Three chained snapshots audit merged sources: `transparent-border-color`
 already supported them) and `hidden-border-style` (the five `border-style`
 rows and `value.border.dashed` gain `hidden`, equal to `none` on border
 edges); `opaque-alpha-hex` then moves `value.color.alphahex` from none to
-partial (alpha `f`/`ff` only). Current dataset SHA-256:
-`37c197993707daeb3577340ddace3ebdae29c40868d71fc024b85982d73b2dd6`; English
-layer `site/src/audit-english-opaque-alpha-hex.mjs`, ordered source-text
-SHA-256 `c18fab3ec8e4824ae14a89835e8f0e698170ad8fa33f32bad2b704cec7a196f2`.
+partial (alpha `f`/`ff` only); `opaque-slash-alpha` re-audits
+`value.color.rgbfunc` (still partial) and the shared colour limitation text of
+eight colour rows: `rgba()`/`hsla()` are aliases, the comma form takes a fourth
+alpha and the space form a slash alpha, exactly `1` or `100%`. Current dataset SHA-256:
+`38de9fd5cc8adb046511065456b286a718168d2b83512551b727b28d010807ec`; English
+layer `site/src/audit-english-opaque-slash-alpha.mjs`, ordered source-text
+SHA-256 `cb21580d9aed91ede30fdc16917cd032af33f1249bacf9aaf0f4864248ac0702`.
