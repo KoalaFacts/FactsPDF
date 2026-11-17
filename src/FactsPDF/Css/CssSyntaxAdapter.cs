@@ -87,6 +87,7 @@ internal static class CssSyntaxAdapter
                 "-webkit-text-size-adjust" => "text-size-adjust",
                 // appearance resets are still written with both engine prefixes.
                 "-webkit-appearance" or "-moz-appearance" => "appearance",
+                "-webkit-backface-visibility" => "backface-visibility",
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -755,7 +756,7 @@ internal static class CssSyntaxAdapter
     private static bool IsInteractionOnly(string name) =>
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
-            or "text-size-adjust" or "appearance";
+            or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -788,6 +789,11 @@ internal static class CssSyntaxAdapter
             or "searchfield" or "textarea" or "push-button" or "slider-horizontal" or "checkbox"
             or "radio" or "square-button" or "menulist" or "listbox" or "meter"
             or "progress-bar" or "button",
+        // Only a 3D-transformed element can show its back face; transform accepts only none.
+        "backface-visibility" => term is "visible" or "hidden",
+        // Which touch gestures a screen handles; a PDF page has no touch input.
+        "touch-action" => term is "auto" or "none" or "manipulation" or "pan-x" or "pan-y"
+            or "pan-left" or "pan-right" or "pan-up" or "pan-down" or "pinch-zoom",
         _ => false
     };
 
