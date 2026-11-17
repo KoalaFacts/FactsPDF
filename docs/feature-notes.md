@@ -98,6 +98,8 @@ Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `prin
 
 CSS resets and site stylesheets commonly set `-webkit-font-smoothing:antialiased`, `-moz-osx-font-smoothing:grayscale` and `text-rendering:optimizeLegibility`. These only steer how a screen rasterises glyphs, which a PDF leaves to its viewer, so any keyword value of the three is accepted on any element and dropped; the PDF is byte-identical to the page without them. Other values fail `FPDF1202` (`FontSmoothingHintTests.cs`).
 
+normalize.css and most resets start with `html{-webkit-text-size-adjust:100%}`. It only stops mobile browsers from inflating text, which never happens to a PDF page, so `text-size-adjust` and its `-webkit-` spelling accept `auto`, `none` or a non-negative percentage and drop the declaration; the PDF is byte-identical to the page without it (`TextSizeAdjustTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
