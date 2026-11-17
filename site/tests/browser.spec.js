@@ -96,7 +96,7 @@ test('filters and detail links survive refresh without inventing versions',async
   const snapshot = JSON.parse(await readFile(new URL('../data/compatibility.json', import.meta.url)));
   const feature = snapshot.features.find(row => row.id === 'css.border-style');
   expect(feature.introduced_release).toBeNull();
-  expect(feature.last_audited_commit).toBe('4b5d6da3553579dad75dd00bfb041e1f3c200d90');
+  expect(feature.last_audited_commit).toBe('7c813e9240d186fa7c57bd3736db8a453eb84109');
   expect(feature.test_reference).toContain('/blob/4b5d6da3553579dad75dd00bfb041e1f3c200d90/tests/FactsPDF.Tests/ReportPatternedBorderTests.cs');
   await expect(page.getByRole('dialog').locator(`a[href="${feature.test_reference}"]`)).toHaveCount(1);
   await page.reload();await expect(page.getByRole('dialog')).toBeVisible();

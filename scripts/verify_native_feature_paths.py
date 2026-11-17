@@ -1789,7 +1789,7 @@ def verify_native_hsl_colours(executable, output, work):
     invalid = work / 'hsl-invalid.html'
     retained = output / 'hsl-preserved.pdf'
     for css in ('hsl(12,50%,50%,.5)', 'hsla(12,50%,50%,.5)',
-                'hsl(12 50% 50% / 1)', 'hsl(12,150%,50%)'):
+                'hsl(12 50% 50% / .5)', 'hsl(12,150%,50%)'):
         invalid.write_text('<style>.unused{color:' + css + '}</style><p>Protected</p>',
                            encoding='utf-8')
         retained.write_bytes(b'prior customer PDF')
