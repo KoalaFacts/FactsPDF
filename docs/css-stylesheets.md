@@ -385,8 +385,8 @@ and customer distribution are separate checks; no release is implied.
 Business-report templates can use `hsl(210,60%,40%)`,
 `hsl(210deg 60% 40%)` or `hsla(120,100%,25%,1)` as scoped
 `color`, `background`/`background-color`, border colours and
-text-decoration colour. Hue is a finite number or `deg` from
--3600 through 3600 (wrapped by 360); saturation/lightness accept
+text-decoration colour. Hue is a finite number or an angle in `deg`,
+`grad`, `rad` or `turn` from -3600 through 3600 degrees (wrapped by 360); saturation/lightness accept
 0–100% including fractions. HSL is converted to opaque 8-bit RGB
 before the existing PDF ink/background/border paths, retaining CSS
 cascade, font/layout geometry, pagination and resource protection.
@@ -396,7 +396,7 @@ and [independent fixed-hex oracle](../examples/report-hsl-colours-oracle.html)
 must produce identical actual PDF bytes. Source NUnit, managed CLI
 and Linux/Windows Native AOT qpdf/Poppler check searchability, multi-page
 geometry and original-output recovery. No transparency (alpha other than
-exactly `1` or `100%`), turn/rad, nesting, gradients or general CSS Color: unsupported values
+exactly `1` or `100%`), nesting, gradients or general CSS Color: unsupported values
 fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
 independent review, private software, human approval and customer
 distribution remain separate.

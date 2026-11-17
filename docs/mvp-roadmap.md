@@ -47,5 +47,6 @@ budgets in `tests/FactsPDF.Tests/AllocationBudgetTests.cs` only go down.
 | R5e | Opaque CSS Color 4 colour syntax: `rgba()`/`hsla()` as aliases of `rgb()`/`hsl()`, space form with `/ alpha`, comma form with a fourth alpha; alpha exactly `1` or `100%` | Modern CSS and formatters write `rgb(35 68 107 / 1)`; it failed with FPDF1202 although `rgba(35,68,107,1)` worked | done (#280) | `OpaqueSlashAlphaColorTests` (35; 17 fail on main); 3880 tests; parity 426/426 |
 | R5f | `background: none` (single shorthand value, any case) resets the fill like `transparent`; `background-color: none` and `none` with other components still fail | The most common background reset in real CSS failed with FPDF1202 | done (#281) | `BackgroundShorthandTests` (+8; 3 fail on main); 3888 tests; parity 426/426 |
 | R5g | `word-wrap` accepted as the legacy alias of `overflow-wrap` (same values, cascade slot and applicability) | Most real-world CSS still writes `word-wrap:break-word`; it failed with FPDF1201 | done (#282) | `WordWrapAliasTests` (10; 9 fail on main); 3898 tests; parity 426/426 |
+| R5h | `hsl()` hue accepts every CSS angle unit (`deg`, `grad`, `rad`, `turn`) within ±3600 degrees | Colour pickers and modern CSS write `hsl(0.5turn …)`; it failed with FPDF1202 | in progress | `HslHueUnitTests` (17; 9 fail on main) |
 
 Each PR body carries its dated run log.

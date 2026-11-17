@@ -91,6 +91,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(rgb.scope,/rgb\(35 68 107 \/ 1\)/);
   assert.match(rgb.test_reference,/OpaqueSlashAlphaColorTests\.cs$/);
   assert.match(dataset.features.find(f=>f.id==='css.background').scope,/单独的 none/);
+  assert.match(dataset.features.find(f=>f.id==='css.color').limitations,/deg\/grad\/rad\/turn/);
   for(const id of ["css.color","css.background","css.background-color","css.border","css.border-color","css.border-top-color","css.border-right-color","css.border-bottom-color","css.border-left-color"]) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.last_audited_commit, ['css.border','css.border-top','css.border-right','css.border-bottom','css.border-left'].includes(id) ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : id==='css.text-decoration' ? 'b8f9b938ec42b108fb6f325715a4dd9b692e027d' : id==='css.background' ? '0482c90ffeab1df474d7e2b38a7aa449de18082e' : ['css.color','css.background-color'].includes(id) ? '3dbcded4f5d39b16b79bbff7aac4132305659d4a' : 'c9138808d785986712f17e977fa2371854cb6aed');
@@ -318,7 +319,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-17.word-wrap-alias');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.hsl-hue-units');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -815,7 +816,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-17.word-wrap-alias');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.hsl-hue-units');
   assert.equal(dataset.commit, '5c45a68546d0d903eccd2579782e55f2fedff5e4');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
@@ -887,7 +888,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,117);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-17.word-wrap-alias');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.hsl-hue-units');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, 'd4584c1f32d6aaa35939ff22f14a11093e92945b');
