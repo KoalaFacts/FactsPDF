@@ -756,7 +756,8 @@ internal static class CssSyntaxAdapter
     private static bool IsInteractionOnly(string name) =>
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
-            or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action";
+            or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action"
+            or "will-change";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -809,6 +810,9 @@ internal static class CssSyntaxAdapter
             var term = token.Value.ToLowerInvariant();
             if (Wide(term) || InteractionKeyword(name, term)) return;
         }
+        // will-change is a compositor hint: auto, or a comma list of animateable features
+        // (transform, opacity, scroll-position, contents, ...). A static page never changes.
+        if (name == "will-change" && WillChangeList(node)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
         if (count == 1 && name == "text-size-adjust"
             && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
@@ -817,8 +821,39 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
+    }
+
+    private static bool WillChangeList(CssDeclarationNode node)
+    {
+        var expectIdent = true;
+        var idents = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is not CssTokenComponent { Token: var token }) return false;
+            if (token.Kind == CssSyntaxTokenKind.Whitespace) continue;
+            if (expectIdent)
+            {
+                if (token.Kind != CssSyntaxTokenKind.Ident) return false;
+                var term = token.Value.ToLowerInvariant();
+                // auto stands alone; CSS-wide keywords, none and will-change are excluded idents.
+                if (term is "will-change" or "none" || Wide(term) || (term == "auto" && idents > 0)) return false;
+                if (idents > 0 && FirstIdent(node) == "auto") return false;
+                idents++;
+            }
+            else if (token.Kind != CssSyntaxTokenKind.Comma) return false;
+            expectIdent = !expectIdent;
+        }
+        return idents > 0 && !expectIdent;
+    }
+
+    private static string? FirstIdent(CssDeclarationNode node)
+    {
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token })
+                return token.Value.ToLowerInvariant();
+        return null;
     }
 
     // opacity: 1 or 100% (or any spelling of them, such as 1.0 or 100.00%).

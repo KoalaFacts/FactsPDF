@@ -104,6 +104,8 @@ Resets also clear native control styling with `-webkit-appearance:none` / `appea
 
 Animation-ready and mobile stylesheets add `backface-visibility:hidden` (often `-webkit-` prefixed) and `touch-action:manipulation`. A back face only shows under a 3D transform, which the renderer never applies, and touch gestures never reach a PDF, so both accept a single keyword and drop the declaration; combined `touch-action` values still fail `FPDF1202` (`BackfaceTouchActionTests.cs`).
 
+The same stylesheets add `will-change:transform` (or a list such as `transform, opacity`) as a compositor hint. A written PDF page never animates, so `will-change` accepts `auto` or a comma-separated list of property names and drops the declaration (`WillChangeTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
