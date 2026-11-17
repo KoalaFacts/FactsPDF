@@ -479,8 +479,10 @@ the CSS inventory note only, since none of them has a feature row;
 `print-color-adjust` does the same for `print-color-adjust` and
 `-webkit-print-color-adjust` at `exact`/`economy` (135 to 137);
 `font-smoothing-hints` does the same for `text-rendering`,
-`-webkit-font-smoothing` and `-moz-osx-font-smoothing` (137 to 140).
+`-webkit-font-smoothing` and `-moz-osx-font-smoothing` (137 to 140);
+`text-size-adjust` does the same for `text-size-adjust` and
+`-webkit-text-size-adjust` at `auto`/`none`/percentages (140 to 141).
 Current dataset SHA-256:
-`a4ed2ce101cb27f5bff471102e935b4984a16c5dbe9a4e148fb9f7274f3e3efc`; English
-layer `site/src/audit-english-font-smoothing-hints.mjs`, ordered source-text
-SHA-256 `83f3e838189cfe7ddbab7f8d3ed41e595830e67eb47d1f570d5a00f96d13ee50`.
+`8a0a4dcf09242f8027ffe89ee5b32a7d726ceee2ad203ef61b1387bb72473c9e`; English
+layer `site/src/audit-english-text-size-adjust.mjs`, ordered source-text
+SHA-256 `0bf71279209f9fc356c19a2181b1a7410fa04f8a2375ee8d83a923e47811bff6`.

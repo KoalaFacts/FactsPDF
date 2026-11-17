@@ -83,6 +83,8 @@ internal static class CssSyntaxAdapter
                 "word-wrap" => "overflow-wrap",
                 // print-color-adjust is still mostly written with Chromium's prefix.
                 "-webkit-print-color-adjust" => "print-color-adjust",
+                // text-size-adjust is almost always written with the WebKit prefix (normalize.css).
+                "-webkit-text-size-adjust" => "text-size-adjust",
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -750,7 +752,8 @@ internal static class CssSyntaxAdapter
 
     private static bool IsInteractionOnly(string name) =>
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
-            or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing";
+            or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
+            or "text-size-adjust";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -775,6 +778,8 @@ internal static class CssSyntaxAdapter
         "text-rendering" => term is "auto" or "optimizespeed" or "optimizelegibility" or "geometricprecision",
         "-webkit-font-smoothing" => term is "auto" or "none" or "antialiased" or "subpixel-antialiased",
         "-moz-osx-font-smoothing" => term is "auto" or "grayscale",
+        // Mobile browsers' automatic font inflation; a PDF page is never inflated.
+        "text-size-adjust" => term is "auto" or "none",
         _ => false
     };
 
@@ -790,8 +795,15 @@ internal static class CssSyntaxAdapter
             var term = token.Value.ToLowerInvariant();
             if (Wide(term) || InteractionKeyword(name, term)) return;
         }
+        // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
+        if (count == 1 && name == "text-size-adjust"
+            && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
+            && double.TryParse(percentage.Value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var amount)
+            && amount >= 0 && double.IsFinite(amount))
+            return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only a single keyword: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
