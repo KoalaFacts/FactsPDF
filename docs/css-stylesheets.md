@@ -366,8 +366,9 @@ integer-channel forms still work. CSS specificity, `!important`, inheritance,
 real PDF text/paint, pagination, resources and previous-output protection
 use the same established engine paths.
 
-Mixed percentage/integer channels, decimal *numeric* channels, transparency,
-slash alpha, nesting, `calc()` and general CSS Color remain unsupported;
+Mixed percentage/integer channels, decimal *numeric* channels, transparency
+(any alpha other than exactly `1` or `100%`), nesting, `calc()` and general
+CSS Color remain unsupported;
 unrecognized syntax rejects with `FPDF1202`, including unmatched rules.
 This is not a general CSS Colors or alpha-compositing implementation.
 
@@ -394,8 +395,8 @@ The [48-entry colour report](../examples/report-hsl-colours.html)
 and [independent fixed-hex oracle](../examples/report-hsl-colours-oracle.html)
 must produce identical actual PDF bytes. Source NUnit, managed CLI
 and Linux/Windows Native AOT qpdf/Poppler check searchability, multi-page
-geometry and original-output recovery. No transparency, slash alpha,
-turn/rad, nesting, gradients or general CSS Color: unsupported values
+geometry and original-output recovery. No transparency (alpha other than
+exactly `1` or `100%`), turn/rad, nesting, gradients or general CSS Color: unsupported values
 fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
 independent review, private software, human approval and customer
 distribution remain separate.
@@ -1573,8 +1574,10 @@ unsupported declaration still leaves existing output files intact.
 
 Supported text, background and solid-border colour declarations now accept
 `rgb(35, 68, 107)`, `rgb(35 68 107)` or `rgba(35,68,107,1)`. The
-channel values are **integers 0–255**; `rgba()` additionally accepts a finite
-numeric alpha of **exactly 1** in comma syntax. These opaque values are lowered
+channel values are **integers 0–255**. As in CSS Color 4, `rgba()`/`hsla()`
+are aliases of `rgb()`/`hsl()`: the comma form takes an optional fourth alpha
+and the space form an optional `/ alpha` (`rgb(35 68 107 / 1)`,
+`hsl(210 50% 40% / 100%)`); alpha must be **exactly 1 or 100%**. These opaque values are lowered
 to the matching `#rrggbb` colour before normal CSS cascade, box painting and
 PDF serialization. For the same computed colour and declarations, PDF bytes
 and page-fragment painting match the existing hex path. This applies to
@@ -1582,8 +1585,8 @@ and page-fragment painting match the existing hex path. This applies to
 longhands, and solid `border` and per-side shorthands.
 
 This does **not** implement CSS alpha compositing: `rgba(...,0)`,
-`rgba(...,0.5)`, modern slash-alpha syntax, percentage channels, fractional
-RGB channels, `hsl()`, gradients, colour mixing and nested `calc()` are
+`rgba(...,0.5)`, `rgb(r g b / 50%)`, fractional numeric RGB channels,
+gradients, colour mixing and nested `calc()` are
 rejected with `FPDF1202`. Rejected conversions preserve existing outputs;
 no CSS color-scheme, new colour spaces or implicit image loading is added.
 See `OpaqueRgbCssTests.cs` and the real Linux Native AOT run of

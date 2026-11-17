@@ -780,23 +780,39 @@ internal static class CssSyntaxAdapter
             whitespace = false;
         }
 
+        // CSS Color 4 makes rgba()/hsla() aliases of rgb()/hsl(). Both accept the
+        // legacy comma form (three channels, optional comma alpha) and the modern
+        // space form (three space-separated channels, optional "/ alpha"). Alpha
+        // must be exactly 1 or exactly 100%: no alpha compositing is painted.
+        var commaForm = tokens.Count is 5 or 7;
+        if (commaForm)
+            for (var i = 1; i < tokens.Count; i += 2)
+                commaForm &= tokens[i].Kind == CssSyntaxTokenKind.Comma;
+        var spaceForm = !commaForm && tokens.Count is 3 or 5 && spaced[1] && spaced[2] &&
+            (tokens.Count == 3 || tokens[3] is { Kind: CssSyntaxTokenKind.Delim, Value: "/" });
+        if (!commaForm && !spaceForm)
+            throw new FactsPdfException("FPDF1202", name is "hsl" or "hsla"
+                    ? "hsl() needs hue and two percentages, comma- or space-separated, with optional opaque alpha."
+                    : "rgb() needs three same-unit channels, comma- or space-separated, with optional opaque alpha.",
+                function.Span.Start);
+        CssSyntaxToken Channel(int index) => tokens[commaForm ? 2 * index : index];
+        if (tokens.Count > 3 + (commaForm ? 2 : 0))
+        {
+            var alpha = tokens[^1];
+            if (!(alpha.Kind == CssSyntaxTokenKind.Number && IsExactlyOne(alpha.Value) ||
+                  alpha.Kind == CssSyntaxTokenKind.Percentage && IsExactlyOne(alpha.Value, 2)))
+                throw new FactsPdfException("FPDF1202",
+                    "Alpha compositing is not supported; colour alpha must be exactly 1 or 100%.",
+                    alpha.Span.Start);
+        }
+
         // Independently authored HSL report colours share the existing opaque RGB
         // PDF paint path. The bounded subset accepts numbers or deg hue in
-        // [-3600,3600], saturation/lightness percentages, legacy comma syntax,
-        // and modern space syntax without slash alpha. hsla() requires comma
-        // syntax and precisely opaque alpha. No colour-space/blending fallback.
+        // [-3600,3600] and saturation/lightness percentages. No colour-space or
+        // blending fallback.
         if (name is "hsl" or "hsla")
         {
-            var commaHsl = tokens.Count == (name == "hsl" ? 5 : 7);
-            if (commaHsl)
-                for (var i = 1; i < tokens.Count; i += 2)
-                    commaHsl &= tokens[i].Kind == CssSyntaxTokenKind.Comma;
-            var spaceHsl = name == "hsl" && tokens.Count == 3 && spaced[1] && spaced[2];
-            if (!commaHsl && !spaceHsl)
-                throw new FactsPdfException("FPDF1202",
-                    "hsl() requires hue and two percentages; hsla() requires comma-form alpha exactly 1.",
-                    function.Span.Start);
-            var hueToken = tokens[0];
+            var hueToken = Channel(0);
             if (hueToken.Kind != CssSyntaxTokenKind.Number &&
                 !(hueToken.Kind == CssSyntaxTokenKind.Dimension &&
                   string.Equals(hueToken.Unit, "deg", StringComparison.OrdinalIgnoreCase)))
@@ -813,7 +829,7 @@ internal static class CssSyntaxAdapter
                     "HSL hue must be finite and between -3600 and 3600 degrees.", hueToken.Span.Start);
             decimal Percent(int index)
             {
-                var channel = tokens[commaHsl ? index * 2 : index];
+                var channel = Channel(index);
                 if (channel.Kind != CssSyntaxTokenKind.Percentage ||
                     !decimal.TryParse(channel.Value, System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out var value) ||
@@ -825,14 +841,6 @@ internal static class CssSyntaxAdapter
             }
             var saturation = Percent(1);
             var lightness = Percent(2);
-            if (name == "hsla")
-            {
-                var alpha = tokens[6];
-                if (alpha.Kind != CssSyntaxTokenKind.Number || !IsExactlyOne(alpha.Value))
-                    throw new FactsPdfException("FPDF1202",
-                        "HSL alpha compositing is unsupported; hsla() alpha must be exactly 1.",
-                        alpha.Span.Start);
-            }
             var normalizedHue = ((hue % 360m) + 360m) % 360m;
             var chroma = (1m - Math.Abs(2m * lightness - 1m)) * saturation;
             var sector = normalizedHue / 60m;
@@ -854,24 +862,14 @@ internal static class CssSyntaxAdapter
                 CssSyntaxTokenKind.Hash, hslHex, "#" + hslHex, function.Span));
         }
 
-        // Legacy comma syntax and modern space-delimited rgb(), without alpha.
-        // rgba() is deliberately limited to comma syntax and alpha exactly 1.
-        var commaForm = tokens.Count == (name == "rgb" ? 5 : 7);
-        if (commaForm)
-            for (var i = 1; i < tokens.Count; i += 2)
-                commaForm &= tokens[i].Kind == CssSyntaxTokenKind.Comma;
-        var spaceForm = name == "rgb" && tokens.Count == 3 && spaced[1] && spaced[2];
-        if (!commaForm && !spaceForm)
-            throw new FactsPdfException("FPDF1202", "rgb() needs three same-unit channels; rgba() requires opaque alpha 1.", function.Span.Start);
-
         // Accept uniform percent-channel RGB in controlled print colours.
         // Preserve integer-channel behaviour, but never mix number and percent
         // syntax; decimal rounding gives deterministic exact byte midpoints.
         var channels = new byte[3];
-        var percentage = tokens[0].Kind == CssSyntaxTokenKind.Percentage;
+        var percentage = Channel(0).Kind == CssSyntaxTokenKind.Percentage;
         for (var i = 0; i < channels.Length; i++)
         {
-            var token = tokens[commaForm ? 2 * i : i];
+            var token = Channel(i);
             if (percentage)
             {
                 if (token.Kind != CssSyntaxTokenKind.Percentage ||
@@ -889,14 +887,6 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202",
                     "RGB channels must be all integers 0–255 or all percentages 0–100%.", token.Span.Start);
         }
-        if (name == "rgba")
-        {
-            var alpha = tokens[6];
-            if (alpha.Kind != CssSyntaxTokenKind.Number ||
-                !IsExactlyOne(alpha.Value))
-                throw new FactsPdfException("FPDF1202", "Alpha compositing is not supported; rgba() alpha must be 1.", alpha.Span.Start);
-        }
-
         var hex = $"{channels[0]:x2}{channels[1]:x2}{channels[2]:x2}";
         return new CssTokenComponent(new CssSyntaxToken(
             CssSyntaxTokenKind.Hash, hex, "#" + hex, function.Span));
@@ -904,8 +894,9 @@ internal static class CssSyntaxAdapter
 
     // Compare the decimal Number token without binary/decimal rounding. After
     // removing zero digits, exactly one significant digit (1) must remain;
-    // its decimal position must be cancelled by the explicit exponent.
-    private static bool IsExactlyOne(string value)
+    // its decimal position plus the explicit exponent must equal the power of
+    // ten asked for (0 for 1, 2 for 100).
+    private static bool IsExactlyOne(string value, int powerOfTen = 0)
     {
         var number = value.AsSpan();
         if (number.Length > 0 && number[0] == '+') number = number[1..];
@@ -933,7 +924,7 @@ internal static class CssSyntaxAdapter
             }
             digitIndex++;
         }
-        return oneIndex >= 0 && exponent == oneIndex + 1 - integerDigits;
+        return oneIndex >= 0 && exponent == oneIndex + 1 - integerDigits + powerOfTen;
     }
 
     // The declaration with opaque colour functions lowered (see CanonicalOpaqueColor); the node
