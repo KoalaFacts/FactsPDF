@@ -459,3 +459,11 @@ provenance. Dataset SHA-256:
 `c0604f11d76f43f4d29c50d4cac138cb433fc55866b5c03359299282b2ffaf00`; English
 layer `site/src/audit-english-transparent-border.mjs`, ordered source-text
 SHA-256 `01853b60925b27084e80fc0309c06500d88b61f7137b1507ccb4efd5ebd12cdd`.
+
+The `audit-2026-11-17.stale-value-rows` snapshot then re-audits three rows the
+source already supported against `fd161ce60da73c759fa52742c44c734265747e37`: `value.border.dashed`,
+`value.text.currentcolor` and `value.background.currentcolor` (none →
+partial). Dataset SHA-256:
+`e30dcbac29d80874337f1e00c384a68fccbfa025e68d6670141b3638725daf2f`; English
+layer `site/src/audit-english-stale-value-rows.mjs`, ordered source-text
+SHA-256 `63394686105d562d0e858553eaab53d56d290d7ef37e1d041f97225bd79695f0`.
