@@ -470,7 +470,10 @@ re-audits `css.background` (still partial) for the single `none` reset;
 rows for `grad`/`rad`/`turn` hues; `initial-value-no-ops` moves nine CSS rows
 (`position`, `float`, `clear`, `overflow`, `overflow-x`, `overflow-y`,
 `visibility`, `z-index`, `opacity`) from none to partial for their initial value
-only, so accepted CSS property names go from 117 to 126. Current dataset SHA-256:
-`bcd293e71d6f86faca7e42d1205a9bcf029dc9ba3dc27707cf189673e36fd50c`; English
-layer `site/src/audit-english-initial-value-no-ops.mjs`, ordered source-text
-SHA-256 `851c45eb85a980236b62cc96c359c61408df1478ef73e2cb006b40b7ef56e58b`.
+only, so accepted CSS property names go from 117 to 126; `none-initial-no-ops`
+adds five more at `none` (`box-shadow`, `text-shadow`, `transform`, `filter`,
+`background-image`; 126 to 131) and re-audits the nine rows' shared text.
+Current dataset SHA-256:
+`932ab62344f5244a5990e2e9641267cf723b80c2d9987550281f0b59dde12aca`; English
+layer `site/src/audit-english-none-initial-no-ops.mjs`, ordered source-text
+SHA-256 `8aeffd3df292cd8d7c377016d9112c7c14287287f4871f938e8ca73c0a2d4835`.
