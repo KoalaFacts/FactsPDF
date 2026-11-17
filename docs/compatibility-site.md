@@ -481,8 +481,10 @@ the CSS inventory note only, since none of them has a feature row;
 `font-smoothing-hints` does the same for `text-rendering`,
 `-webkit-font-smoothing` and `-moz-osx-font-smoothing` (137 to 140);
 `text-size-adjust` does the same for `text-size-adjust` and
-`-webkit-text-size-adjust` at `auto`/`none`/percentages (140 to 141).
+`-webkit-text-size-adjust` at `auto`/`none`/percentages (140 to 141);
+`appearance` does the same for `appearance` and its `-webkit-`/`-moz-`
+spellings at any keyword (141 to 142).
 Current dataset SHA-256:
-`8a0a4dcf09242f8027ffe89ee5b32a7d726ceee2ad203ef61b1387bb72473c9e`; English
-layer `site/src/audit-english-text-size-adjust.mjs`, ordered source-text
-SHA-256 `0bf71279209f9fc356c19a2181b1a7410fa04f8a2375ee8d83a923e47811bff6`.
+`2ae4afca01fd7feba6aa6c63297761472acc5a2de0202d3ebeb9761fe7d91cbd`; English
+layer `site/src/audit-english-appearance.mjs`, ordered source-text
+SHA-256 `7cbd15e573c4961d28ae7e51e8bef676514e789718b2d567facf1d5e71b398c8`.

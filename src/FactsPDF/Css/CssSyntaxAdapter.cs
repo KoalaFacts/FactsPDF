@@ -85,6 +85,8 @@ internal static class CssSyntaxAdapter
                 "-webkit-print-color-adjust" => "print-color-adjust",
                 // text-size-adjust is almost always written with the WebKit prefix (normalize.css).
                 "-webkit-text-size-adjust" => "text-size-adjust",
+                // appearance resets are still written with both engine prefixes.
+                "-webkit-appearance" or "-moz-appearance" => "appearance",
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -753,7 +755,7 @@ internal static class CssSyntaxAdapter
     private static bool IsInteractionOnly(string name) =>
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
-            or "text-size-adjust";
+            or "text-size-adjust" or "appearance";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -780,6 +782,12 @@ internal static class CssSyntaxAdapter
         "-moz-osx-font-smoothing" => term is "auto" or "grayscale",
         // Mobile browsers' automatic font inflation; a PDF page is never inflated.
         "text-size-adjust" => term is "auto" or "none",
+        // Native form-control styling (CSS UI 4 keywords and compat values). The renderer
+        // draws no native widgets, so every element already paints as appearance:none.
+        "appearance" => term is "none" or "auto" or "base" or "menulist-button" or "textfield"
+            or "searchfield" or "textarea" or "push-button" or "slider-horizontal" or "checkbox"
+            or "radio" or "square-button" or "menulist" or "listbox" or "meter"
+            or "progress-bar" or "button",
         _ => false
     };
 
