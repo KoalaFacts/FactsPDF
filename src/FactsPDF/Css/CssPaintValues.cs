@@ -48,6 +48,11 @@ internal static class CssPaintValues
     internal static Rgb? EdgeColor(string value, int offset)
         => value == "transparent" ? null : BorderColor(value, offset);
 
+    // A border edge (not an outline) also accepts hidden. Without collapsing
+    // table borders, hidden is exactly none: the edge has no width or paint.
+    internal static BorderPattern EdgeStyle(string value, int offset)
+        => value == "hidden" ? BorderPattern.Solid : BorderStyle(value, offset);
+
     internal static BorderPattern BorderStyle(string value, int offset) => value switch
     {
         "solid" or "none" => BorderPattern.Solid,

@@ -315,7 +315,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-17.stale-value-rows');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.hidden-border-style');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -666,10 +666,11 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
     const row=dataset.features.find(f=>f.id===id);
     assert.equal(row.status,'partial');
     // Real named-colour paint updates the border shorthand and four
-    // physical border-side shorthands. Style-only rows keep prior provenance.
+    // physical border-side shorthands. Style-only rows were re-audited for hidden.
     const inkSides=['css.border','css.border-top','css.border-right','css.border-bottom','css.border-left'];
     assert.equal(row.last_audited_commit,inkSides.includes(id)
-      ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : '4b5d6da3553579dad75dd00bfb041e1f3c200d90');
+      ? 'd4584c1f32d6aaa35939ff22f14a11093e92945b' : '7c813e9240d186fa7c57bd3736db8a453eb84109');
+    if (!inkSides.includes(id)) assert.match(row.scope,/hidden/, id);
     assert.match(row.scope,/dashed/);
     assert.match(row.scope,/dotted/);
     if (["css.border-top","css.border-right","css.border-bottom","css.border-left"].includes(id))
@@ -811,7 +812,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-17.stale-value-rows');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.hidden-border-style');
   assert.equal(dataset.commit, '5c45a68546d0d903eccd2579782e55f2fedff5e4');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
@@ -883,7 +884,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-17.stale-value-rows');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.hidden-border-style');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, 'd4584c1f32d6aaa35939ff22f14a11093e92945b');
