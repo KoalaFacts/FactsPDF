@@ -281,7 +281,7 @@ internal static class PdfPaintSerializer
         }
 
         var border = style.BorderLeft.EffectiveWidth;
-        if (border <= 0) return;
+        if (border <= 0 || style.BorderLeft.Transparent) return;
         var color = style.BorderLeft.Color ?? box.TextColor;
         output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
             .AppendInvariant(color.B, Number).Append(" rg ");
@@ -378,7 +378,7 @@ internal static class PdfPaintSerializer
         double x, double top, double width, double height, bool horizontal,
         double pageHeight, int maxOutputBytes, int sourceOffset)
     {
-        if (width <= 0 || height <= 0 || edge.EffectiveWidth <= 0) return;
+        if (width <= 0 || height <= 0 || edge.EffectiveWidth <= 0 || edge.Transparent) return;
         var color = edge.Color ?? textColor;
         if (edge.Pattern == BorderPattern.Solid)
         {

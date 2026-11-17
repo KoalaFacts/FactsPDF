@@ -436,7 +436,7 @@ internal static class CssSyntaxAdapter
                         }
                         else
                         {
-                            _ = CssPaintValues.BorderColor(word, offset);
+                            _ = CssPaintValues.EdgeColor(word, offset);
                             if (hasColor) throw new FactsPdfException("FPDF1202", "Duplicate border color.", offset);
                             color = word; hasColor = true; colorOffset = offset;
                         }
@@ -1157,7 +1157,7 @@ internal static class CssSyntaxAdapter
             if (name.EndsWith("width", StringComparison.Ordinal))
                 _ = CssPaintValues.BorderWidth(token, offset, allowRelative: true);
             else if (name.EndsWith("style", StringComparison.Ordinal)) _ = CssPaintValues.BorderStyle(token, offset);
-            else if (name.EndsWith("color", StringComparison.Ordinal)) _ = CssPaintValues.BorderColor(token, offset);
+            else if (name.EndsWith("color", StringComparison.Ordinal)) _ = CssPaintValues.EdgeColor(token, offset);
             else throw new InvalidOperationException("Shorthand validation should be handled separately.");
         }
         else

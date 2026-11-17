@@ -223,6 +223,17 @@ compute beyond 14,400pt fail `FPDF1202`; impossible content geometry fails
 `FPDF1302`, with prior output retained. See the actual HTML-to-PDF point
 oracles and negative tests in `FontRelativeBorderWidthTests.cs`.
 
+### Transparent border edges
+
+`border-color: transparent` (longhands, the 1–4 value `border-color`
+shorthand and the `border`/`border-*` shorthands) keeps the edge's width in
+layout and paints nothing, so `border:4pt solid transparent` places content
+exactly like `padding:4pt` and the background shows through the edge. A later
+colour, or a `border` shorthand that omits the colour, makes the edge visible
+again. Outlines still reject `transparent` (`FPDF1202`), and a rounded box
+needs all four sides transparent or none (`FPDF1201`). See
+`TransparentBorderColorTests.cs`.
+
 
 ### Report-panel outline paint (source-only)
 
