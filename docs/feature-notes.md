@@ -90,6 +90,10 @@ authoritative CSS contract, see [CSS stylesheets](css-stylesheets.md).
 
 Stylesheets copied from report templates often reset layout properties the engine does not implement. `position:static`, `float:none`, `clear:none`, `overflow`/`overflow-x`/`overflow-y:visible`, `visibility:visible`, `z-index:auto`, `opacity:1` (or `100%`) and `box-shadow`/`text-shadow`/`transform`/`filter`/`background-image:none`, plus CSS-wide keywords, are now accepted on any element and change nothing: the PDF is byte-identical to the page without them. Any other value of these fourteen properties still fails with `FPDF1202`, also in unmatched rules; positioning, floats, clipping, hiding, stacking, transparency, shadows, transforms, filters and background images are not implemented ([property scope](css-stylesheets.md#property-scope), `InitialValueNoOpTests.cs`).
 
+### Interaction-only declarations
+
+Web stylesheets reused for reports often set `cursor:pointer`, `user-select:none`, `pointer-events:none` or `resize:none`. These only affect pointer interaction on a screen, so any single keyword value of the four properties (and CSS-wide keywords) is now accepted on any element and dropped: the PDF is byte-identical to the page without them. Cursor images, unknown keywords and vendor-prefixed names still fail ([property scope](css-stylesheets.md#property-scope), `InteractionOnlyCssTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:

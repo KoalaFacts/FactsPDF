@@ -472,8 +472,11 @@ rows for `grad`/`rad`/`turn` hues; `initial-value-no-ops` moves nine CSS rows
 `visibility`, `z-index`, `opacity`) from none to partial for their initial value
 only, so accepted CSS property names go from 117 to 126; `none-initial-no-ops`
 adds five more at `none` (`box-shadow`, `text-shadow`, `transform`, `filter`,
-`background-image`; 126 to 131) and re-audits the nine rows' shared text.
+`background-image`; 126 to 131) and re-audits the nine rows' shared text;
+`interaction-only-css` records four names accepted with any single keyword and
+dropped (`cursor`, `pointer-events`, `user-select`, `resize`; 131 to 135) in
+the CSS inventory note only, since none of them has a feature row.
 Current dataset SHA-256:
-`932ab62344f5244a5990e2e9641267cf723b80c2d9987550281f0b59dde12aca`; English
-layer `site/src/audit-english-none-initial-no-ops.mjs`, ordered source-text
-SHA-256 `8aeffd3df292cd8d7c377016d9112c7c14287287f4871f938e8ca73c0a2d4835`.
+`03ae2c561ed8c2619a011bc20fe84a6f0fd5f6ccddac64c302ba15933bcb6e41`; English
+layer `site/src/audit-english-interaction-only-css.mjs`, ordered source-text
+SHA-256 `9324ca3ed6dcb04deacabd6943f525c1c4008a00f113a233821413659ba70a53`.
