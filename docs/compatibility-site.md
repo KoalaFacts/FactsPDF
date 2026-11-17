@@ -483,8 +483,10 @@ the CSS inventory note only, since none of them has a feature row;
 `text-size-adjust` does the same for `text-size-adjust` and
 `-webkit-text-size-adjust` at `auto`/`none`/percentages (140 to 141);
 `appearance` does the same for `appearance` and its `-webkit-`/`-moz-`
-spellings at any keyword (141 to 142).
+spellings at any keyword (141 to 142); `backface-touch-action` does the same
+for `backface-visibility` (and its `-webkit-` spelling) and a single
+`touch-action` keyword (142 to 144).
 Current dataset SHA-256:
-`2ae4afca01fd7feba6aa6c63297761472acc5a2de0202d3ebeb9761fe7d91cbd`; English
-layer `site/src/audit-english-appearance.mjs`, ordered source-text
-SHA-256 `7cbd15e573c4961d28ae7e51e8bef676514e789718b2d567facf1d5e71b398c8`.
+`c714be228e1c86b6151d3888b216f5bf938cca2f2a1ad5214bad78a6b35a4ed2`; English
+layer `site/src/audit-english-backface-touch-action.mjs`, ordered source-text
+SHA-256 `0470e211601dac42561f073d2dc49cc00c6dd37e594759e187c63c4cdfe3b046`.

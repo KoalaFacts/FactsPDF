@@ -102,6 +102,8 @@ normalize.css and most resets start with `html{-webkit-text-size-adjust:100%}`. 
 
 Resets also clear native control styling with `-webkit-appearance:none` / `appearance:none` on buttons and inputs. The renderer draws no native widgets, so `appearance` and its `-webkit-`/`-moz-` spellings accept any CSS UI 4 keyword and drop the declaration; the PDF is byte-identical to the page without it (`AppearanceTests.cs`).
 
+Animation-ready and mobile stylesheets add `backface-visibility:hidden` (often `-webkit-` prefixed) and `touch-action:manipulation`. A back face only shows under a 3D transform, which the renderer never applies, and touch gestures never reach a PDF, so both accept a single keyword and drop the declaration; combined `touch-action` values still fail `FPDF1202` (`BackfaceTouchActionTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
