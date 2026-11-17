@@ -334,10 +334,18 @@ internal static class InlineCss
         value = CssNamedColors.Hex(value) ?? value;
         // #rgb doubles each digit in place (0xabc -> 0xaabbcc) instead of building a #rrggbb string,
         // whose interpolation boxed six chars per declaration.
-        if ((value.Length != 4 && value.Length != 7) || value[0] != '#' || !uint.TryParse(value.AsSpan(1),
-            NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb))
+        if (value.Length is < 4 or > 9 || value.Length == 6 || value.Length == 8 || value[0] != '#'
+            || !uint.TryParse(value.AsSpan(1), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb))
             throw Invalid("Use #rgb, #rrggbb or an opaque standard CSS named color.", offset);
-        if (value.Length == 4)
+        // #rgba and #rrggbbaa are accepted only fully opaque (alpha f or ff), like rgba(..., 1);
+        // the alpha digits are dropped so the colour is exactly its #rgb / #rrggbb form.
+        if (value.Length is 5 or 9)
+        {
+            if ((value.Length == 5 ? rgb & 15 : rgb & 255) != (value.Length == 5 ? 15u : 255u))
+                throw Invalid("Hex colours with alpha must be fully opaque (#rgbf or #rrggbbff); transparency is unsupported.", offset);
+            rgb >>= value.Length == 5 ? 4 : 8;
+        }
+        if (value.Length is 4 or 5)
             rgb = ((rgb >> 8) & 15) * 0x110000 + ((rgb >> 4) & 15) * 0x1100 + (rgb & 15) * 0x11;
         return new(((rgb >> 16) & 255) / 255d, ((rgb >> 8) & 255) / 255d, (rgb & 255) / 255d);
     }

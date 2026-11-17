@@ -450,7 +450,7 @@ introduction/release versions are preserved. Dataset SHA-256:
 `0cf781f2c0cffa4521ebddb7e01c8de962aafbc35a781dc2db0f300a9f84e9ab`. This is a code-audit update, not a new release, independent
 final-head review, human page acceptance or a font distribution.
 
-## 17 November 2026: border edge keywords
+## 17 November 2026: border edge keywords and opaque alpha hex
 
 Three chained snapshots audit merged sources: `transparent-border-color`
 (`value.border.transparent`, none → partial, source `291f1014`),
@@ -458,7 +458,8 @@ Three chained snapshots audit merged sources: `transparent-border-color`
 `value.background.currentcolor` re-audited from none to partial; the source
 already supported them) and `hidden-border-style` (the five `border-style`
 rows and `value.border.dashed` gain `hidden`, equal to `none` on border
-edges). Current dataset SHA-256:
-`baec00c893b5ac63aaf4df8be6d8969a589f68b8f9bd31fef865b00f555fbeed`; English
-layer `site/src/audit-english-hidden-border-style.mjs`, ordered source-text
-SHA-256 `b87174a035bc3f32900ed086fd935e1d5eca277c06eb3839bd1cdd348cbceaed`.
+edges); `opaque-alpha-hex` then moves `value.color.alphahex` from none to
+partial (alpha `f`/`ff` only). Current dataset SHA-256:
+`37c197993707daeb3577340ddace3ebdae29c40868d71fc024b85982d73b2dd6`; English
+layer `site/src/audit-english-opaque-alpha-hex.mjs`, ordered source-text
+SHA-256 `c18fab3ec8e4824ae14a89835e8f0e698170ad8fa33f32bad2b704cec7a196f2`.
