@@ -106,6 +106,8 @@ Animation-ready and mobile stylesheets add `backface-visibility:hidden` (often `
 
 The same stylesheets add `will-change:transform` (or a list such as `transform, opacity`) as a compositor hint. A written PDF page never animates, so `will-change` accepts `auto` or a comma-separated list of property names and drops the declaration (`WillChangeTests.cs`).
 
+They also add `transition:all .2s ease` or `transition:none` to buttons, links and panels. A written PDF page is never restyled, so `transition` and its five longhands accept a well-formed transition list and drop the declaration; malformed lists still fail `FPDF1202` (`TransitionTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
