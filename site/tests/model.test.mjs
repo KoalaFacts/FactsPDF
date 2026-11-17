@@ -27,7 +27,7 @@ test('bounded clickable report links have real source provenance without claimin
   assert.match(row.failure_code,/FPDF1103/);
   assert.match(row.test_reference,/ReportHyperlinksTests.cs/);
   assert.ok(row.sources.some(url=>url.includes('PdfLinkAnnotations.cs')));
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 test('five scoped HTML change marks have real source provenance without claiming redaction', () => {
@@ -43,7 +43,7 @@ test('five scoped HTML change marks have real source provenance without claiming
     assert.match(row.limitations, /非脱敏/);
     assert.ok(row.test_reference.endsWith('/tests/FactsPDF.Tests/SemanticInlineReportTests.cs'));
   }
-  assert.deepEqual(counts(dataset.features), { full:44, partial:164,none:202, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial: 165,none: 201, unknown:6, na:2 });
 });
 
 test('418 stable records retain provenance with scoped preview capability updates', () => {
@@ -107,7 +107,7 @@ test('418 stable records retain provenance with scoped preview capability update
   assert.match(dataset.features.find(f=>f.id==='css.background-color').limitations,/currentColor/);
   assert.match(dataset.audit_method,/All other 415 stable records/);
 
-  assert.deepEqual(counts(dataset.features), { full:44, partial:164,none:202, unknown:6, na:2 });
+  assert.deepEqual(counts(dataset.features), { full:44, partial: 165,none: 201, unknown:6, na:2 });
 });
 test('standalone horizontal rules are real scoped PDF separators, not full HTML/CSS', () => {
   const rule=dataset.features.find(f=>f.id==='html.hr');
@@ -315,7 +315,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-09.fixed-track-relative-widths-candidate');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.transparent-border-color');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -404,7 +404,7 @@ test('font-relative CSS text spacing remains a narrow audited renderer subset', 
   assert.match(dataset.features.find(f=>f.id==='css.letter-spacing').limitations,/FPDF1202/);
   assert.match(dataset.features.find(f=>f.id==='css.word-spacing').limitations,/FPDF1302/);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 test('ASCII case transform is a scoped PDF glyph capability, not full Unicode casing', () => {
@@ -472,7 +472,7 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
     'css.margin-right'];
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   for(const id of revised) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.status,'partial',id);
@@ -517,7 +517,7 @@ test('element em geometric scope is audited without weakening rejection',()=>{
   assert.match(dataset.features.find(f=>f.id==='css.padding').limitations,/td\/th包括colspan.*table自身/);
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
   assert.match(dataset.features.find(f=>f.id==='value.length.relative').limitations,/letter-spacing\/word-spacing/);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   assert.equal(dataset.features.length,418);
 });
 
@@ -541,7 +541,7 @@ test('numeric hundred-step report font weights use the explicit source-audited r
 test('logical padding catalogue distinguishes merged cells from candidate table in both locales', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(new Set(dataset.features.map(row => row.id)).size, 418);
-  assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features), {full:44,partial: 165,none: 201,unknown:6,na:2});
   for (const [id, name, scopeIndex, limitsIndex] of [
     ['css.padding-inline','padding-inline',257,258],
     ['css.padding-block','padding-block',259,260]
@@ -616,7 +616,7 @@ test('scoped display suppression is backed by actual source and retains the 418-
   assert.match(f.test_reference, /ReportDisplayTests\.cs/);
   assert.equal(dataset.accepted_css_property_count,116);
   assert.equal(dataset.features.length, 418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 test('bounded list marker audit retains actual PDF scope and 418 provenance rows',()=>{
@@ -636,7 +636,7 @@ test('bounded list marker audit retains actual PDF scope and 418 provenance rows
     assert.equal(html.last_audited_commit,'22e73cd894b8bdc750a610c1a91e11d3b36978ca');
     assert.match(html.scope,/list-style-type/);
   }
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   const inside=dataset.features.find(f=>f.id==='css.list-style-position');
   assert.equal(inside.status,'partial');
   assert.equal(inside.last_audited_commit,'22e73cd894b8bdc750a610c1a91e11d3b36978ca');
@@ -658,7 +658,7 @@ test('source-bounded ordered-list numbering and one-token shorthand evidence',()
   assert.match(entry.scope,/start\/reversed/);
   assert.equal(entry.introduced_release,null);
  }
- assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+ assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 test('bounded patterned borders draw PDF strokes without changing 418 audit IDs', () => {
@@ -682,7 +682,7 @@ test('bounded patterned borders draw PDF strokes without changing 418 audit IDs'
   }
   assert.equal(dataset.accepted_css_property_count,116);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features), {full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 
@@ -697,7 +697,7 @@ test('source-only HTML pre and CSS pre produce real bounded report text, without
   assert.match(css.scope,/pre-wrap.*pre/);
   assert.equal(dataset.accepted_html_tag_count,38);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 test('whole-row table-cell vertical alignment stays a scoped, source-proven CSS capability',()=>{
@@ -709,7 +709,7 @@ test('whole-row table-cell vertical alignment stays a scoped, source-proven CSS 
   assert.match(row.test_reference,/TableVerticalAlignmentTests\.cs/);
   assert.equal(row.introduced_release,null);
   assert.equal(dataset.features.length,418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   assert.equal(dataset.accepted_css_property_count,116);
 });
 
@@ -746,7 +746,7 @@ test('print section page boundaries and legacy aliases retain scoped source evid
   const five=['css.break-before','css.break-after','css.page-break-before','css.page-break-after','value.break.page'];
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   for(const id of five) {
     const feature=dataset.features.find(f=>f.id===id);
     assert.equal(feature.last_audited_commit,'67566764419232585632d8ea6f2106aeeeff2f70',id);
@@ -811,7 +811,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-09.fixed-track-relative-widths-candidate');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.transparent-border-color');
   assert.equal(dataset.commit, '5c45a68546d0d903eccd2579782e55f2fedff5e4');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
@@ -863,7 +863,7 @@ test('bounded keep-together card is a real, narrowly tracked PDF capability', ()
   }
   assert.equal(dataset.features.find(f=>f.id==='css.orphans').status,'none');
   assert.equal(dataset.features.find(f=>f.id==='css.widows').status,'none');
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   assert.match(dataset.audit_method,/416条维持历史来源/);
   assert.match(dataset.css_inventory_note,/83个受限CSS属性名/);
 });
@@ -874,7 +874,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
   assert.equal(extension.filter(f=>f.id.startsWith('css.')).length,36);
   assert(extension.every(f=>f.scope.includes('pc') && f.scope.includes('q')));
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   assert.equal(dataset.features.find(f=>f.id==='css.margin').last_audited_commit,
     '0f6c58655d651ee934cfb2c95272dde54f4c477e');
 });
@@ -883,7 +883,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-09.fixed-track-relative-widths-candidate');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-17.transparent-border-color');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, 'd4584c1f32d6aaa35939ff22f14a11093e92945b');
@@ -897,7 +897,7 @@ test('six LTR logical border shorthands are source-bound to existing physical PD
   assert.match(row.sources.join(' '), /e237b2737572489d7b69227a7bc3c00c2591b3be\/tests\/FactsPDF.Tests\/LogicalBorderReportTests.cs/);
   assert.match(dataset.audit_method, /44-row real paginated report and independent physical-edge PDF oracle/);
   assert.match(dataset.css_inventory_note, /从83增加至89/);
-  assert.deepEqual(counts(dataset.features), {full:44, partial:164,none:202, unknown:6, na:2});
+  assert.deepEqual(counts(dataset.features), {full:44, partial: 165,none: 201, unknown:6, na:2});
 });
 
 test('eighteen bounded LTR logical border component names share real per-side PDF geometry',()=>{const r=dataset.features.find(x=>x.id==='css.border');assert.equal(dataset.accepted_css_property_count,116);assert.equal(dataset.features.length,418);assert.equal(r.last_audited_commit,'d4584c1f32d6aaa35939ff22f14a11093e92945b');for(let p of ['border-inline-width/style/color','border-block-width/style/color','border-inline-start/end-{width,style,color}','border-block-start/end-{width,style,color}'])assert.ok(r.scope.includes(p));assert.match(r.test_reference,/LogicalBorderComponentTests\.cs$/);assert.match(r.limitations,/RTL/);assert.ok(r.sources.some(s=>s.includes('99328f071395d5d7cc1eedad9138f05ee118fb0f/tests/FactsPDF.Tests/LogicalBorderComponentTests.cs')));});
@@ -906,7 +906,7 @@ test('bounded print/all media is an independently sourced partial at-rule withou
   const row=dataset.features.find(x=>x.id==='rule.media');
   assert.equal(dataset.features.length,418);
   assert.equal(dataset.accepted_css_property_count,116);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
   assert.equal(row.status,'partial');
   assert.equal(row.last_audited_commit,'70f37e7e881bade30851ecaa06528a27813f0403');
   assert.equal(row.introduced_release,null);
@@ -974,7 +974,7 @@ test('bounded attribute selectors move a real syntax feature to partial without 
   assert.match(row.limitations, /CSS Selectors/);
   assert.match(row.test_reference, /AttributeOperatorReportTests\.cs$/);
   assert.equal(row.introduced_release, null);
-  assert.deepEqual(counts(dataset.features), {full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features), {full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 // The four bounded-margin scope descriptions must never regress to the old nonpercentage contract.
@@ -1022,7 +1022,7 @@ test('bound image history survives the table-track candidate without inflating C
     assert.doesNotMatch(f.scope,/图片仍拒绝em\/rem/,id);
     assert.match(f.scope,/图片新增有界em\/rem支持/,id);
   }
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });
 
 test('fixed-track td/th text flow preserves partial evidence and IDs', () => {
@@ -1037,5 +1037,5 @@ test('fixed-track td/th text flow preserves partial evidence and IDs', () => {
     assert.match(f.test_reference,/TableCellTextFlowTests.cs/,id);
   }
   assert.equal(validateDataset(dataset).features.length,418);
-  assert.deepEqual(counts(dataset.features),{full:44,partial:164,none:202,unknown:6,na:2});
+  assert.deepEqual(counts(dataset.features),{full:44,partial: 165,none: 201,unknown:6,na:2});
 });

@@ -449,3 +449,13 @@ introduction/release versions are preserved. Dataset SHA-256:
 `ce2002e73db8f829820605c5cf4b599703ea77e8d67144052a667571efe9ce62`; ordered bilingual source-text SHA-256:
 `0cf781f2c0cffa4521ebddb7e01c8de962aafbc35a781dc2db0f300a9f84e9ab`. This is a code-audit update, not a new release, independent
 final-head review, human page acceptance or a font distribution.
+
+## 17 November 2026: transparent border edges
+
+The `audit-2026-11-17.transparent-border-color` snapshot re-audits only
+`value.border.transparent` (none → partial) against source
+`291f1014a27cfb64ab74bca3c419f9fc87d8e9f3`; the other 417 records keep their
+provenance. Dataset SHA-256:
+`c0604f11d76f43f4d29c50d4cac138cb433fc55866b5c03359299282b2ffaf00`; English
+layer `site/src/audit-english-transparent-border.mjs`, ordered source-text
+SHA-256 `01853b60925b27084e80fc0309c06500d88b61f7137b1507ccb4efd5ebd12cdd`.
