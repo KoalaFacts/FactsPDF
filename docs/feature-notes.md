@@ -232,7 +232,9 @@ exactly like `padding:4pt` and the background shows through the edge. A later
 colour, or a `border` shorthand that omits the colour, makes the edge visible
 again. Outlines still reject `transparent` (`FPDF1202`), and a rounded box
 needs all four sides transparent or none (`FPDF1201`). See
-`TransparentBorderColorTests.cs`.
+`TransparentBorderColorTests.cs`. `border-style: hidden` on a border edge equals
+`none` (no width, no paint; FactsPDF has no collapsing table borders), while
+`outline-style: hidden` still fails `FPDF1202` (`HiddenBorderStyleTests.cs`).
 
 
 ### Report-panel outline paint (source-only)

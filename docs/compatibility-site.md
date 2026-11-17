@@ -467,3 +467,10 @@ partial). Dataset SHA-256:
 `e30dcbac29d80874337f1e00c384a68fccbfa025e68d6670141b3638725daf2f`; English
 layer `site/src/audit-english-stale-value-rows.mjs`, ordered source-text
 SHA-256 `63394686105d562d0e858553eaab53d56d290d7ef37e1d041f97225bd79695f0`.
+
+`audit-2026-11-17.hidden-border-style` then updates the five `border-style`
+rows and `value.border.dashed` for `hidden` (equal to `none` on border
+edges) against `7c813e9240d186fa7c57bd3736db8a453eb84109`. Dataset SHA-256:
+`baec00c893b5ac63aaf4df8be6d8969a589f68b8f9bd31fef865b00f555fbeed`; English
+layer `site/src/audit-english-hidden-border-style.mjs`, ordered source-text
+SHA-256 `b87174a035bc3f32900ed086fd935e1d5eca277c06eb3839bd1cdd348cbceaed`.
