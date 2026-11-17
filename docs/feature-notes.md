@@ -88,7 +88,7 @@ authoritative CSS contract, see [CSS stylesheets](css-stylesheets.md).
 
 ### Initial-value reset declarations
 
-Stylesheets copied from report templates often reset layout properties the engine does not implement. `position:static`, `float:none`, `clear:none`, `overflow`/`overflow-x`/`overflow-y:visible`, `visibility:visible`, `z-index:auto` and `opacity:1` (or `100%`), plus CSS-wide keywords, are now accepted on any element and change nothing: the PDF is byte-identical to the page without them. Any other value of these nine properties still fails with `FPDF1202`, also in unmatched rules; positioning, floats, clipping, hiding, stacking and transparency are not implemented ([property scope](css-stylesheets.md#property-scope), `InitialValueNoOpTests.cs`).
+Stylesheets copied from report templates often reset layout properties the engine does not implement. `position:static`, `float:none`, `clear:none`, `overflow`/`overflow-x`/`overflow-y:visible`, `visibility:visible`, `z-index:auto`, `opacity:1` (or `100%`) and `box-shadow`/`text-shadow`/`transform`/`filter`/`background-image:none`, plus CSS-wide keywords, are now accepted on any element and change nothing: the PDF is byte-identical to the page without them. Any other value of these fourteen properties still fails with `FPDF1202`, also in unmatched rules; positioning, floats, clipping, hiding, stacking, transparency, shadows, transforms, filters and background images are not implemented ([property scope](css-stylesheets.md#property-scope), `InitialValueNoOpTests.cs`).
 
 ### Print-only stylesheet rules for business reports (source-only)
 

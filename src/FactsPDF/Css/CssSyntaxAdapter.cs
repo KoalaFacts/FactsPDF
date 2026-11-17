@@ -87,6 +87,15 @@ internal static class CssSyntaxAdapter
             // functions or multiple tokens.
             var initialOnly = InitialOnlyValue(name);
             var property = initialOnly is null ? Property(name, node.Span.Start) : default;
+            // Properties the report renderer does not implement, declared at the one value it
+            // already lays out (position: static, float: none, opacity: 1, ...): the declaration
+            // changes nothing, so it is validated and dropped. Every other value, including any
+            // function such as rotate() or url(), fails with a message naming the one value.
+            if (initialOnly is not null)
+            {
+                ValidateInitialOnly(name, initialOnly, node);
+                continue;
+            }
             // Only opaque RGB functions are lowered to their equivalent hex
             // colour. All downstream cascade, box paint and PDF serializers
             // therefore use exactly the already audited solid-colour path.
@@ -95,14 +104,6 @@ internal static class CssSyntaxAdapter
             var valueTokens = NonWhitespaceTokens(canonical.Values);
             if (terms.Count == 0)
                 throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
-            // Properties the report renderer does not implement, declared at the one value it
-            // already lays out (position: static, float: none, opacity: 1, ...): the declaration
-            // changes nothing, so it is validated and dropped. Every other value still fails.
-            if (initialOnly is not null)
-            {
-                ValidateInitialOnly(name, initialOnly, terms, valueTokens, node.Span.Start);
-                continue;
-            }
 
             void Emit(CssProperty target, string value, int offset = -1, string? targetName = null)
             {
@@ -698,8 +699,9 @@ internal static class CssSyntaxAdapter
     private static bool Wide(string text) => text is "inherit" or "initial" or "unset";
 
     // The only value each property accepts: the initial value, which the report renderer's
-    // normal flow already produces (no positioning, floats, clipping, hiding, stacking or
-    // transparency). CSS-wide keywords also compute to it, since nothing else can be declared.
+    // normal flow already produces (no positioning, floats, clipping, hiding, stacking,
+    // transparency, shadows, transforms, filters or background images). CSS-wide keywords
+    // also compute to it, since nothing else can be declared.
     private static string? InitialOnlyValue(string name) => name switch
     {
         "position" => "static",
@@ -707,22 +709,31 @@ internal static class CssSyntaxAdapter
         "overflow" or "overflow-x" or "overflow-y" or "visibility" => "visible",
         "z-index" => "auto",
         "opacity" => "1",
+        "box-shadow" or "text-shadow" or "transform" or "filter" or "background-image" => "none",
         _ => null
     };
 
-    private static void ValidateInitialOnly(
-        string name, string initial, List<string> terms, CssTokenComponent[] valueTokens, int offset)
+    private static void ValidateInitialOnly(string name, string initial, CssDeclarationNode node)
     {
-        if (terms.Count == 1 && valueTokens.Length == 1)
+        // Exactly one component, a token; checked on the raw values so a function such as
+        // rotate() or url() gets this message rather than a colour or box-value one.
+        CssSyntaxComponent? value = null;
+        var count = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
+            { value ??= node.Values[i]; count++; }
+        if (count == 1 && value is CssTokenComponent { Token: var token })
         {
-            var token = valueTokens[0].Token;
-            var term = terms[0];
-            if (token.Kind == CssSyntaxTokenKind.Ident && (Wide(term) || term == initial)) return;
+            if (token.Kind == CssSyntaxTokenKind.Ident)
+            {
+                var term = token.Value.ToLowerInvariant();
+                if (Wide(term) || term == initial) return;
+            }
             if (name == "opacity" && OpaqueAlpha(token)) return;
         }
-        var at = valueTokens.Length > 0 ? valueTokens[0].Token.Span.Start : offset;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {initial}: the report renderer lays out normal flow only.", at);
+            $"{name} supports only {initial}: the report renderer does not implement other values.",
+            value?.Span.Start ?? node.Span.Start);
     }
 
     // opacity: 1 or 100% (or any spelling of them, such as 1.0 or 100.00%).
