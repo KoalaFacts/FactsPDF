@@ -821,18 +821,28 @@ internal static class CssSyntaxAdapter
         if (name is "hsl" or "hsla")
         {
             var hueToken = Channel(0);
-            if (hueToken.Kind != CssSyntaxTokenKind.Number &&
-                !(hueToken.Kind == CssSyntaxTokenKind.Dimension &&
-                  string.Equals(hueToken.Unit, "deg", StringComparison.OrdinalIgnoreCase)))
+            // Degrees per unit (CSS Values <angle>); a plain number is degrees.
+            var degreesPerUnit = hueToken.Kind == CssSyntaxTokenKind.Number ? 1m
+                : hueToken.Kind != CssSyntaxTokenKind.Dimension ? 0m
+                : hueToken.Unit?.ToLowerInvariant() switch
+                {
+                    "deg" => 1m,
+                    "grad" => 0.9m,
+                    "turn" => 360m,
+                    "rad" => 180m / 3.1415926535897932384626433833m,
+                    _ => 0m
+                };
+            if (degreesPerUnit == 0m)
                 throw new FactsPdfException("FPDF1202",
-                    "HSL hue must be a number or degrees.", hueToken.Span.Start);
+                    "HSL hue must be a number or an angle in deg, grad, rad or turn.", hueToken.Span.Start);
             // Use decimal throughout HSL channel calculation. Binary double
             // cancellation at 5% / 95% turns exact .5 byte midpoints into
             // 25.499999... and silently changes the promised 8-bit PDF ink.
             if (!decimal.TryParse(hueToken.Value,
                     System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var hue) ||
-                hue is < -3600m or > 3600m)
+                Math.Abs(hue) > 3600m / degreesPerUnit ||
+                (hue *= degreesPerUnit) is < -3600m or > 3600m)
                 throw new FactsPdfException("FPDF1202",
                     "HSL hue must be finite and between -3600 and 3600 degrees.", hueToken.Span.Start);
             decimal Percent(int index)

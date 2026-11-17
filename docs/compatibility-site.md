@@ -465,7 +465,9 @@ eight colour rows: `rgba()`/`hsla()` are aliases, the comma form takes a fourth
 alpha and the space form a slash alpha, exactly `1` or `100%`; `background-none`
 re-audits `css.background` (still partial) for the single `none` reset;
 `word-wrap-alias` re-audits `css.overflow-wrap` (still partial) for the legacy
-`word-wrap` alias, so accepted CSS property names go from 116 to 117. Current dataset SHA-256:
-`6257f1d3f690765d425d4488a170fb8487481bf3c05a822e599dd52cdea6a552`; English
-layer `site/src/audit-english-word-wrap-alias.mjs`, ordered source-text
-SHA-256 `78cb78b1d5185bedd71a5018ef37e8da8dd7069988175c0268495f4b3d76a44d`.
+`word-wrap` alias, so accepted CSS property names go from 116 to 117;
+`hsl-hue-units` updates the shared HSL limitation text of the same eight colour
+rows for `grad`/`rad`/`turn` hues. Current dataset SHA-256:
+`48f7284462ee1728d65430c19603c8a68c1c7bc5623cb946f5bce869a39b9c8a`; English
+layer `site/src/audit-english-hsl-hue-units.mjs`, ordered source-text
+SHA-256 `bd266d77766aea14a054d67d24c640943b2b6709ada2e16f351ece9d56a7f5ce`.

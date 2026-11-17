@@ -71,7 +71,7 @@ public sealed class OpaqueHslCssTests
     [TestCase("color:hsla(12,50%,50%,.5)")]
     [TestCase("color:hsla(12,50%,50%,0.99999999999999999)")]
     [TestCase("color:hsla(12 50% 50% 1)")]
-    [TestCase("color:hsl(1turn,50%,50%)")]
+    [TestCase("color:hsl(1dpi,50%,50%)")]
     [TestCase("color:hsl(3601,50%,50%)")]
     [TestCase("color:hsl(calc(12),50%,50%)")]
     [TestCase("color:hsl(12,50%,50%,1,1)")]
