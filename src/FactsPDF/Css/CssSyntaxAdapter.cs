@@ -429,7 +429,7 @@ internal static class CssSyntaxAdapter
                             if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
                             width = word; hasWidth = true; widthOffset = offset;
                         }
-                        else if (word is "solid" or "none" or "dashed" or "dotted")
+                        else if (word is "solid" or "none" or "hidden" or "dashed" or "dotted")
                         {
                             if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", offset);
                             style = word; hasStyle = true; styleOffset = offset;
@@ -1156,7 +1156,7 @@ internal static class CssSyntaxAdapter
         {
             if (name.EndsWith("width", StringComparison.Ordinal))
                 _ = CssPaintValues.BorderWidth(token, offset, allowRelative: true);
-            else if (name.EndsWith("style", StringComparison.Ordinal)) _ = CssPaintValues.BorderStyle(token, offset);
+            else if (name.EndsWith("style", StringComparison.Ordinal)) _ = CssPaintValues.EdgeStyle(token, offset);
             else if (name.EndsWith("color", StringComparison.Ordinal)) _ = CssPaintValues.EdgeColor(token, offset);
             else throw new InvalidOperationException("Shorthand validation should be handled separately.");
         }

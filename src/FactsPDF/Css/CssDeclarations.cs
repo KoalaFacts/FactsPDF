@@ -450,8 +450,8 @@ internal static class CssDeclarations
                 declaration.Offset, allowRelative: true, rootFontSize: rootFontSize, elementFontSize: elementFontSize) },
             1 => old with
             {
-                Solid = wide ? inherited.Solid : value != "none",
-                Pattern = wide ? inherited.Pattern : CssPaintValues.BorderStyle(value, declaration.Offset)
+                Solid = wide ? inherited.Solid : value is not ("none" or "hidden"),
+                Pattern = wide ? inherited.Pattern : CssPaintValues.EdgeStyle(value, declaration.Offset)
             },
             2 => old with
             {
