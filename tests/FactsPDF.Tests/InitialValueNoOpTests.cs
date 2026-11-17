@@ -3,7 +3,8 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// position, float, clear, overflow(-x/-y), visibility, z-index and opacity are accepted at
+/// position, float, clear, overflow(-x/-y), visibility, z-index, opacity, box-shadow,
+/// text-shadow, transform, filter and background-image are accepted at
 /// the one value the report renderer already lays out (their initial value, or a CSS-wide
 /// keyword that computes to it): the page renders byte-identical to the page without them.
 /// Every other value still fails with FPDF1202, and nothing is written.
@@ -37,6 +38,9 @@ public sealed class InitialValueNoOpTests
     [TestCase("opacity:1")]
     [TestCase("opacity:1.0")]
     [TestCase("opacity:100%")]
+    [TestCase("box-shadow:none;text-shadow:none")]
+    [TestCase("transform:none;filter:none;background-image:none")]
+    [TestCase("box-shadow:inherit;transform:initial;background-image:unset")]
     [TestCase("POSITION:STATIC;Float:None")]
     [TestCase("position:inherit;float:initial;clear:unset;visibility:inherit;opacity:initial")]
     [TestCase("position:static!important;z-index:auto !important")]
@@ -66,6 +70,12 @@ public sealed class InitialValueNoOpTests
     [TestCase("opacity:0.5")]
     [TestCase("opacity:50%")]
     [TestCase("opacity:visible")]
+    [TestCase("box-shadow:0 0 2pt #000")]
+    [TestCase("text-shadow:1px 1px #ccc")]
+    [TestCase("transform:rotate(90deg)")]
+    [TestCase("filter:grayscale(1)")]
+    [TestCase("background-image:url(a.png)")]
+    [TestCase("background-image:none none")]
     [TestCase("position:'static'")]
     [TestCase("float:none none")]
     [TestCase("overflow:visible visible")]

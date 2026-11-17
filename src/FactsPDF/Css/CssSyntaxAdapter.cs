@@ -698,8 +698,9 @@ internal static class CssSyntaxAdapter
     private static bool Wide(string text) => text is "inherit" or "initial" or "unset";
 
     // The only value each property accepts: the initial value, which the report renderer's
-    // normal flow already produces (no positioning, floats, clipping, hiding, stacking or
-    // transparency). CSS-wide keywords also compute to it, since nothing else can be declared.
+    // normal flow already produces (no positioning, floats, clipping, hiding, stacking,
+    // transparency, shadows, transforms, filters or background images). CSS-wide keywords
+    // also compute to it, since nothing else can be declared.
     private static string? InitialOnlyValue(string name) => name switch
     {
         "position" => "static",
@@ -707,6 +708,7 @@ internal static class CssSyntaxAdapter
         "overflow" or "overflow-x" or "overflow-y" or "visibility" => "visible",
         "z-index" => "auto",
         "opacity" => "1",
+        "box-shadow" or "text-shadow" or "transform" or "filter" or "background-image" => "none",
         _ => null
     };
 
