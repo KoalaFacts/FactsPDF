@@ -100,6 +100,17 @@ public sealed class InitialValueNoOpTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("left", StringComparison.Ordinal)));
     }
 
+    [TestCase("<p style='transform:rotate(90deg)'>A</p>", "transform supports only none", "rotate")]
+    [TestCase("<style>.unused{background-image:url(a.png)}</style><p>A</p>", "background-image supports only none", "url")]
+    [TestCase("<p style='opacity:calc(1)'>A</p>", "opacity supports only 1", "calc")]
+    public void FunctionValuesNameTheOnlySupportedValue(string html, string message, string at)
+    {
+        var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
+        Assert.That(error.Message, Does.Contain(message));
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(at, StringComparison.Ordinal)));
+    }
+
     [Test]
     public void OtherUnsupportedPropertiesStillFail()
     {
