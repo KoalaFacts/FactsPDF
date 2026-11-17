@@ -475,8 +475,10 @@ adds five more at `none` (`box-shadow`, `text-shadow`, `transform`, `filter`,
 `background-image`; 126 to 131) and re-audits the nine rows' shared text;
 `interaction-only-css` records four names accepted with any single keyword and
 dropped (`cursor`, `pointer-events`, `user-select`, `resize`; 131 to 135) in
-the CSS inventory note only, since none of them has a feature row.
+the CSS inventory note only, since none of them has a feature row;
+`print-color-adjust` does the same for `print-color-adjust` and
+`-webkit-print-color-adjust` at `exact`/`economy` (135 to 137).
 Current dataset SHA-256:
-`03ae2c561ed8c2619a011bc20fe84a6f0fd5f6ccddac64c302ba15933bcb6e41`; English
-layer `site/src/audit-english-interaction-only-css.mjs`, ordered source-text
-SHA-256 `9324ca3ed6dcb04deacabd6943f525c1c4008a00f113a233821413659ba70a53`.
+`75786a715350ce1c0027f478502a76f247387eb88ca6e583bc2b8449b406168f`; English
+layer `site/src/audit-english-print-color-adjust.mjs`, ordered source-text
+SHA-256 `ec9a6eab8e8d980f3e1b4c8b489c395640127e5b96f17d383b45f9189e889da2`.

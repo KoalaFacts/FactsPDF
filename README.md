@@ -167,7 +167,10 @@ A summary only. **For any specific property or value, look it up on
   complex-script shaping, right-to-left and vertical text.
 - Transparency, gradients, SVG, interlaced or 16-bit PNG and APNG.
 
-Unsupported input is rejected with a diagnostic, never silently ignored.
+Unsupported input is rejected with a diagnostic, never silently ignored. The
+only declarations accepted without effect are those that cannot change the page
+as declared (`position:static`, `cursor:pointer`, `print-color-adjust:exact`, …;
+see [property scope](docs/css-stylesheets.md#property-scope)).
 
 ## When something fails
 

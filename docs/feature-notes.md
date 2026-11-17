@@ -94,6 +94,8 @@ Stylesheets copied from report templates often reset layout properties the engin
 
 Web stylesheets reused for reports often set `cursor:pointer`, `user-select:none`, `pointer-events:none` or `resize:none`. These only affect pointer interaction on a screen, so any single keyword value of the four properties (and CSS-wide keywords) is now accepted on any element and dropped: the PDF is byte-identical to the page without them. Cursor images, unknown keywords and vendor-prefixed names still fail ([property scope](css-stylesheets.md#property-scope), `InteractionOnlyCssTests.cs`).
 
+Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `print-color-adjust:exact`) so browsers keep backgrounds when printing. FactsPDF always paints colours and backgrounds exactly as declared, so both names accept `exact` or `economy` and drop the declaration; the PDF is byte-identical to the page without it (`PrintColorAdjustTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:

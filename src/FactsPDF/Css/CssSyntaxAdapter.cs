@@ -81,6 +81,8 @@ internal static class CssSyntaxAdapter
                 // CSS Text: word-wrap is the legacy name of overflow-wrap and
                 // shares its cascade slot, values and applicability.
                 "word-wrap" => "overflow-wrap",
+                // print-color-adjust is still mostly written with Chromium's prefix.
+                "-webkit-print-color-adjust" => "print-color-adjust",
                 _ => originalName
             };
             // Fail unsupported properties first even when the value contains
@@ -97,8 +99,9 @@ internal static class CssSyntaxAdapter
                 continue;
             }
             // Interaction-only properties (cursor, pointer-events, user-select, resize) change
-            // how a screen reacts to a pointer, never what is painted, so every keyword value
-            // is validated and dropped; any other value fails with FPDF1202.
+            // how a screen reacts to a pointer, never what is painted, and print-color-adjust
+            // only lets a printer drop colours, which this renderer never does; so every keyword
+            // value is validated and dropped and any other value fails with FPDF1202.
             if (IsInteractionOnly(name))
             {
                 ValidateInteractionOnly(name, node);
@@ -745,7 +748,7 @@ internal static class CssSyntaxAdapter
     }
 
     private static bool IsInteractionOnly(string name) =>
-        name is "cursor" or "pointer-events" or "user-select" or "resize";
+        name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -761,6 +764,9 @@ internal static class CssSyntaxAdapter
             or "visiblestroke" or "visible" or "painted" or "fill" or "stroke" or "all",
         "user-select" => term is "auto" or "text" or "none" or "contain" or "all",
         "resize" => term is "none" or "both" or "horizontal" or "vertical" or "block" or "inline",
+        // economy only permits a user agent to adjust colours; backgrounds and colours are
+        // always painted exactly as declared, which both keywords allow.
+        "print-color-adjust" => term is "exact" or "economy",
         _ => false
     };
 
@@ -777,7 +783,7 @@ internal static class CssSyntaxAdapter
             if (Wide(term) || InteractionKeyword(name, term)) return;
         }
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only a single keyword: it has no effect on a PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only a single keyword: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
