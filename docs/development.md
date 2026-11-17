@@ -430,7 +430,7 @@ Current guides:
 
 Historical milestone records:
 
-- Box model: [block box tree](block-box-tree.md) ([ledger](block-box-tree-ledger.md)), [layout geometry](block-layout-geometry.md) ([ledger](block-layout-geometry-ledger.md)), [painting](block-painting.md) ([ledger](block-painting-ledger.md)), [fragmentation ledger](box-fragmentation-ledger.md), [line-box fix](css-inline-linebox-fix.md).
+- Box model: [block box tree](block-box-tree.md) ([ledger](block-box-tree-ledger.md)), [layout geometry](block-layout-geometry.md) ([ledger](block-layout-geometry-ledger.md)), [painting](box-fragmentation.md#box-painting-model) ([ledger](block-painting-ledger.md)), [fragmentation ledger](box-fragmentation-ledger.md), [line-box fix](css-inline-linebox-fix.md).
 - Performance milestones: [M9 guards](m9-layout-resource-guards.md) ([ledger](m9-layout-resource-ledger.md)), [M10](m10-glyph-wrapping.md), [M11](m11-line-at-a-time-wrapping.md), [M12](m12-direct-placed-text.md).
 - Self-reviews: [first renderer](review-first-renderer.md), [font subsetting](review-font-subsetting.md); [CSS Syntax ledger](css-syntax-development-ledger.md).
 - Implementation plans: [CSS stylesheets](superpowers/plans/2026-10-10-css-stylesheets.md), [CSS Syntax Core](superpowers/plans/2026-10-10-css-syntax-core.md), [font subsetting](superpowers/plans/2026-10-10-font-subsetting.md), [Unicode fonts](superpowers/plans/2026-10-10-unicode-fonts.md), [M9 layout resources](superpowers/plans/2026-10-11-m9-layout-resources.md).

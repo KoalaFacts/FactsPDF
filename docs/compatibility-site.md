@@ -450,27 +450,15 @@ introduction/release versions are preserved. Dataset SHA-256:
 `0cf781f2c0cffa4521ebddb7e01c8de962aafbc35a781dc2db0f300a9f84e9ab`. This is a code-audit update, not a new release, independent
 final-head review, human page acceptance or a font distribution.
 
-## 17 November 2026: transparent border edges
+## 17 November 2026: border edge keywords
 
-The `audit-2026-11-17.transparent-border-color` snapshot re-audits only
-`value.border.transparent` (none → partial) against source
-`291f1014a27cfb64ab74bca3c419f9fc87d8e9f3`; the other 417 records keep their
-provenance. Dataset SHA-256:
-`c0604f11d76f43f4d29c50d4cac138cb433fc55866b5c03359299282b2ffaf00`; English
-layer `site/src/audit-english-transparent-border.mjs`, ordered source-text
-SHA-256 `01853b60925b27084e80fc0309c06500d88b61f7137b1507ccb4efd5ebd12cdd`.
-
-The `audit-2026-11-17.stale-value-rows` snapshot then re-audits three rows the
-source already supported against `fd161ce60da73c759fa52742c44c734265747e37`: `value.border.dashed`,
-`value.text.currentcolor` and `value.background.currentcolor` (none →
-partial). Dataset SHA-256:
-`e30dcbac29d80874337f1e00c384a68fccbfa025e68d6670141b3638725daf2f`; English
-layer `site/src/audit-english-stale-value-rows.mjs`, ordered source-text
-SHA-256 `63394686105d562d0e858553eaab53d56d290d7ef37e1d041f97225bd79695f0`.
-
-`audit-2026-11-17.hidden-border-style` then updates the five `border-style`
-rows and `value.border.dashed` for `hidden` (equal to `none` on border
-edges) against `7c813e9240d186fa7c57bd3736db8a453eb84109`. Dataset SHA-256:
+Three chained snapshots audit merged sources: `transparent-border-color`
+(`value.border.transparent`, none → partial, source `291f1014`),
+`stale-value-rows` (`value.border.dashed`, `value.text.currentcolor` and
+`value.background.currentcolor` re-audited from none to partial; the source
+already supported them) and `hidden-border-style` (the five `border-style`
+rows and `value.border.dashed` gain `hidden`, equal to `none` on border
+edges). Current dataset SHA-256:
 `baec00c893b5ac63aaf4df8be6d8969a589f68b8f9bd31fef865b00f555fbeed`; English
 layer `site/src/audit-english-hidden-border-style.mjs`, ordered source-text
 SHA-256 `b87174a035bc3f32900ed086fd935e1d5eca277c06eb3839bd1cdd348cbceaed`.
