@@ -86,7 +86,7 @@ internal static class CssSyntaxAdapter
             // Fail unsupported properties first even when the value contains
             // functions or multiple tokens.
             var initialOnly = InitialOnlyValue(name);
-            var property = initialOnly is null ? Property(name, node.Span.Start) : default;
+            var property = initialOnly is null && !IsInteractionOnly(name) ? Property(name, node.Span.Start) : default;
             // Properties the report renderer does not implement, declared at the one value it
             // already lays out (position: static, float: none, opacity: 1, ...): the declaration
             // changes nothing, so it is validated and dropped. Every other value, including any
@@ -94,6 +94,14 @@ internal static class CssSyntaxAdapter
             if (initialOnly is not null)
             {
                 ValidateInitialOnly(name, initialOnly, node);
+                continue;
+            }
+            // Interaction-only properties (cursor, pointer-events, user-select, resize) change
+            // how a screen reacts to a pointer, never what is painted, so every keyword value
+            // is validated and dropped; any other value fails with FPDF1202.
+            if (IsInteractionOnly(name))
+            {
+                ValidateInteractionOnly(name, node);
                 continue;
             }
             // Only opaque RGB functions are lowered to their equivalent hex
@@ -733,6 +741,43 @@ internal static class CssSyntaxAdapter
         }
         throw new FactsPdfException("FPDF1202",
             $"{name} supports only {initial}: the report renderer does not implement other values.",
+            value?.Span.Start ?? node.Span.Start);
+    }
+
+    private static bool IsInteractionOnly(string name) =>
+        name is "cursor" or "pointer-events" or "user-select" or "resize";
+
+    // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
+    // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
+    private static bool InteractionKeyword(string name, string term) => name switch
+    {
+        "cursor" => term is "auto" or "default" or "none" or "context-menu" or "help" or "pointer"
+            or "progress" or "wait" or "cell" or "crosshair" or "text" or "vertical-text" or "alias"
+            or "copy" or "move" or "no-drop" or "not-allowed" or "grab" or "grabbing" or "e-resize"
+            or "n-resize" or "ne-resize" or "nw-resize" or "s-resize" or "se-resize" or "sw-resize"
+            or "w-resize" or "ew-resize" or "ns-resize" or "nesw-resize" or "nwse-resize"
+            or "col-resize" or "row-resize" or "all-scroll" or "zoom-in" or "zoom-out",
+        "pointer-events" => term is "auto" or "none" or "visiblepainted" or "visiblefill"
+            or "visiblestroke" or "visible" or "painted" or "fill" or "stroke" or "all",
+        "user-select" => term is "auto" or "text" or "none" or "contain" or "all",
+        "resize" => term is "none" or "both" or "horizontal" or "vertical" or "block" or "inline",
+        _ => false
+    };
+
+    private static void ValidateInteractionOnly(string name, CssDeclarationNode node)
+    {
+        CssSyntaxComponent? value = null;
+        var count = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
+            { value ??= node.Values[i]; count++; }
+        if (count == 1 && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token })
+        {
+            var term = token.Value.ToLowerInvariant();
+            if (Wide(term) || InteractionKeyword(name, term)) return;
+        }
+        throw new FactsPdfException("FPDF1202",
+            $"{name} supports only a single keyword: it has no effect on a PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
