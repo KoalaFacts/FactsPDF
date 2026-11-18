@@ -88,6 +88,8 @@ internal static class CssSyntaxAdapter
                 // appearance resets are still written with both engine prefixes.
                 "-webkit-appearance" or "-moz-appearance" => "appearance",
                 "-webkit-backface-visibility" => "backface-visibility",
+                // Bootstrap 3 and older resets write box-sizing with both engine prefixes first.
+                "-webkit-box-sizing" or "-moz-box-sizing" => "box-sizing",
                 // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
                 "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
                     or "-webkit-transition-timing-function" or "-webkit-transition-delay"
