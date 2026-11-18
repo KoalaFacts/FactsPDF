@@ -768,7 +768,10 @@ internal static class CssSyntaxAdapter
             or "transition-timing-function" or "transition-delay" or "transition-behavior"
             or "animation" or "animation-name" or "animation-duration" or "animation-timing-function"
             or "animation-delay" or "animation-iteration-count" or "animation-direction"
-            or "animation-fill-mode" or "animation-play-state";
+            or "animation-fill-mode" or "animation-play-state"
+            or "scroll-behavior" or "overscroll-behavior" or "overscroll-behavior-x"
+            or "overscroll-behavior-y" or "overscroll-behavior-inline" or "overscroll-behavior-block"
+            or "overflow-anchor" or "-webkit-overflow-scrolling" or "scrollbar-width";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -806,6 +809,16 @@ internal static class CssSyntaxAdapter
         // Which touch gestures a screen handles; a PDF page has no touch input.
         "touch-action" => term is "auto" or "none" or "manipulation" or "pan-x" or "pan-y"
             or "pan-left" or "pan-right" or "pan-up" or "pan-down" or "pinch-zoom",
+        // Scroll-container behaviour (CSSOM View, Overscroll Behavior, Scroll Anchoring,
+        // Scrollbars Styling, WebKit momentum scrolling). A PDF page never scrolls: overflow
+        // accepts only visible, so no box is a scroll container and no keyword changes the page.
+        // The overscroll-behavior shorthand takes one keyword here, like touch-action.
+        "scroll-behavior" => term is "auto" or "smooth",
+        "overscroll-behavior" or "overscroll-behavior-x" or "overscroll-behavior-y"
+            or "overscroll-behavior-inline" or "overscroll-behavior-block" => term is "auto" or "contain" or "none",
+        "overflow-anchor" => term is "auto" or "none",
+        "-webkit-overflow-scrolling" => term is "auto" or "touch",
+        "scrollbar-width" => term is "auto" or "thin" or "none",
         _ => false
     };
 

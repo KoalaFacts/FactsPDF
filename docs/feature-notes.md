@@ -110,6 +110,8 @@ They also add `transition:all .2s ease` or `transition:none` to buttons, links a
 
 Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webkit-` spellings) accept a well-formed animation list, and a well-formed `@keyframes` / `@-webkit-keyframes` rule (one name; `from`, `to` or 0–100% keyframes holding declarations, at the top level or inside `@media print`) is dropped: a written PDF page shows no keyframe. Malformed animation values fail `FPDF1202` and malformed keyframes rules `FPDF1204` (`AnimationTests.cs`).
 
+Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behavior:none`, `-webkit-overflow-scrolling:touch` or `scrollbar-width:thin`. A PDF page never scrolls, so `scroll-behavior`, `overscroll-behavior` (and its `-x`/`-y`/`-inline`/`-block` longhands), `overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept one keyword and are dropped; other values fail `FPDF1202` (`ScrollOnlyPropertyTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:

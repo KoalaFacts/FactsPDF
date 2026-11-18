@@ -490,8 +490,11 @@ for `backface-visibility` (and its `-webkit-` spelling) and a single
 `transition` does the same for `transition` and its five longhands at a
 well-formed transition list (145 to 151); `animation` does the same for
 `animation` and its eight longhands at a well-formed animation list and drops
-well-formed `@keyframes` rules (151 to 160).
+well-formed `@keyframes` rules (151 to 160); `scroll-behavior`,
+`overscroll-behavior` and its `-x`/`-y`/`-inline`/`-block` longhands,
+`overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept a
+single keyword and are dropped, since a PDF page never scrolls (160 to 169).
 Current dataset SHA-256:
-`e1a2ec359e865e299c78611c09bec07b8ea70c8539a08511a93f4eb66b34aea9`; English
-layer `site/src/audit-english-animation.mjs`, ordered source-text
-SHA-256 `b33eb4174a608a37d4bf41d99fea2155d2cf75cffd02768d63f61a6eef060f72`.
+`856f6890742456ce20f797eec6976762ef75966e6bea7af178207276e3f2e313`; English
+layer `site/src/audit-english-scroll-only.mjs`, ordered source-text
+SHA-256 `4bfb2caf32353de7dbabdcfb440ae5ccefed802ac196ab89bc85ad070ef32812`.
