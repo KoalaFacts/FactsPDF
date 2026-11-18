@@ -92,7 +92,7 @@ Stylesheets copied from report templates often reset layout properties the engin
 
 ### Interaction-only declarations
 
-Web stylesheets reused for reports often set `cursor:pointer`, `user-select:none`, `pointer-events:none` or `resize:none`. These only affect pointer interaction on a screen, so any single keyword value of the four properties (and CSS-wide keywords) is now accepted on any element and dropped: the PDF is byte-identical to the page without them. Cursor images, unknown keywords and vendor-prefixed names still fail ([property scope](css-stylesheets.md#property-scope), `InteractionOnlyCssTests.cs`).
+Web stylesheets reused for reports often set `cursor:pointer`, `user-select:none`, `pointer-events:none` or `resize:none`. These only affect pointer interaction on a screen, so any single keyword value of the four properties (and CSS-wide keywords) is now accepted on any element and dropped: the PDF is byte-identical to the page without them. `-webkit-`/`-moz-`/`-ms-user-select` are aliases of `user-select`, and `-webkit-user-drag`, `-webkit-touch-callout` and `-ms-overflow-style` keywords are dropped the same way. Cursor images, unknown keywords and other prefixes still fail ([property scope](css-stylesheets.md#property-scope), `InteractionOnlyCssTests.cs`, `ScreenGestureHintTests.cs`).
 
 Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `print-color-adjust:exact`) so browsers keep backgrounds when printing. FactsPDF always paints colours and backgrounds exactly as declared, so both names accept `exact` or `economy` and drop the declaration; the PDF is byte-identical to the page without it (`PrintColorAdjustTests.cs`).
 

@@ -71,9 +71,10 @@ public sealed class InteractionOnlyCssTests
     }
 
     [Test]
-    public void VendorPrefixedNamesStillFail()
+    public void UnaliasedVendorPrefixedNamesStillFail()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='-webkit-user-select:none'>A</p>"));
+        // -webkit-/-moz-/-ms-user-select are aliases of user-select (ScreenGestureHintTests).
+        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='-o-user-select:none'>A</p>"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 
