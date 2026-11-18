@@ -142,8 +142,8 @@ with that framework and an exact package version. Without `--package`, it
 requires the sole `artifacts/packages/FactsPDF.<declared-version>.nupkg`; stale
 extra packages fail selection. Conditional, computed or multiple declarations
 require a reviewed verifier update. This is a literal declaration reader, not a
-general MSBuild evaluator. Future `net11.0` fixture tests exercise these paths
-without executing .NET 11 or establishing RC/GA compatibility.
+general MSBuild evaluator. Its `net11.0` fixture tests exercise these paths
+without executing .NET 11; the real .NET 11 run is the `dotnet-11` CI job.
 
 CI additionally builds `tools/FactsPDF.PackageInspector` and supplies its DLL to
 `verify_package.py --assembly-inspector`. The tool reads PE metadata without
@@ -160,12 +160,10 @@ selection. This does not change the product's single-target declaration or claim
 that a real net11 package, cross-target API equivalence, or NativeAOT consumer has
 been validated. Existing first-use CLI/library byte comparisons remain intact.
 
-The source now declares the experimental, unreleased `0.1.0-preview.1` identity.
-This ordinary first-use verification does not establish an independently validated
-fixed private candidate, create a NuGet publishing channel, or establish .NET 11
-RC/GA compatibility. Candidate builds must be made
-from their committed version/source; release-specific SDK/runtime validation
-and actual registry publication remain separate operations.
+The source declares the unreleased `0.1.0-preview.1` identity. This first-use
+verification is not a release candidate or a publication: candidates are built
+from their committed version/source, and exact-toolchain validation and registry
+publication are separate operations.
 
 ### Exact toolchain verification for release preparation
 
@@ -216,15 +214,14 @@ family and at least the requested patch; a newer SDK alone is insufficient.
 Strict release verification additionally retains its exact stable SDK/runtime
 requirements. Reports distinguish `package.targetFramework` from
 `consumerTargetFramework` and retain the runtimeconfig bytes/hash and raw process
-outputs. Synthetic .NET 11 fixtures are verifier tests, not RC execution evidence.
+outputs. Synthetic .NET 11 fixtures are verifier tests, not .NET 11 execution evidence.
 
-For a real .NET 11 run, a suitable official toolchain must already be installed
-and selectable under the repository's `global.json`, which is copied into the
-isolated workspace. This option neither downloads an SDK nor overrides SDK
-selection or roll-forward policy. The staged CLI remains on its original target
-and also needs its runtime installed. The current SDK 10 configuration can
-exercise the new option with `--consumer-tfm net10.0`; it cannot establish .NET 11
-compatibility. Native AOT and WASM remain separate acceptance paths.
+The option neither downloads an SDK nor overrides SDK selection or roll-forward
+policy: a .NET 11 toolchain must already be installed and selectable (the
+repository's `global.json` is copied into the isolated workspace), or chosen with
+`--probe-sdk`/`--probe-runtime` below, as the `dotnet-11` CI job does. The staged
+CLI stays on its original target and needs its runtime installed. Native AOT and
+WASM remain separate acceptance paths.
 
 For an installed compatibility toolchain that must be selected independently of
 the repository SDK, the dev `verify_first_use.py` entrypoint additionally accepts
