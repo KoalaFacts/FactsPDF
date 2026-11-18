@@ -89,6 +89,8 @@ internal static class CssSyntaxAdapter
                 // appearance resets are still written with both engine prefixes.
                 "-webkit-appearance" or "-moz-appearance" => "appearance",
                 "-webkit-backface-visibility" => "backface-visibility",
+                // Resets and component libraries still disable selection with all three prefixes.
+                "-webkit-user-select" or "-moz-user-select" or "-ms-user-select" => "user-select",
                 // Bootstrap 3 and older resets write box-sizing with both engine prefixes first.
                 "-webkit-box-sizing" or "-moz-box-sizing" => "box-sizing",
                 // Bootstrap 3, Font Awesome 4 and older themes write the engine-prefixed spellings of
@@ -789,7 +791,8 @@ internal static class CssSyntaxAdapter
             or "overscroll-behavior-y" or "overscroll-behavior-inline" or "overscroll-behavior-block"
             or "overflow-anchor" or "-webkit-overflow-scrolling" or "scrollbar-width"
             or "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
-            or "scrollbar-gutter" or "color-scheme" or "forced-color-adjust";
+            or "scrollbar-gutter" or "color-scheme" or "forced-color-adjust"
+            or "-webkit-user-drag" or "-webkit-touch-callout" or "-ms-overflow-style";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -847,6 +850,11 @@ internal static class CssSyntaxAdapter
         // preferred or forced scheme and paints every colour exactly as declared.
         "color-scheme" => term is "normal" or "light" or "dark",
         "forced-color-adjust" => term is "auto" or "none" or "preserve-parent-color",
+        // WebKit drag-and-drop and the iOS long-press callout, and the legacy Edge/IE scrollbar
+        // style: a PDF page has no pointer drag, touch callout or scrollbar.
+        "-webkit-user-drag" => term is "auto" or "element" or "none",
+        "-webkit-touch-callout" => term is "default" or "none",
+        "-ms-overflow-style" => term is "auto" or "none" or "scrollbar" or "-ms-autohiding-scrollbar",
         _ => false
     };
 

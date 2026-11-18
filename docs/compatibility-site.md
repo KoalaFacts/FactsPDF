@@ -511,8 +511,12 @@ or forced colour scheme (178 to 180); `clip-path` and `backdrop-filter` at
 no-ops (180 to 184); the legacy engine spellings `-webkit-`/`-moz-border-radius`,
 `-webkit-`/`-moz-box-shadow`, `-webkit-`/`-moz-`/`-ms-`/`-o-transform`,
 `-webkit-filter`, `-webkit-clip-path` and `-webkit-backdrop-filter` are aliases
-of the standard names with their values and applicability (184 to 195).
+of the standard names with their values and applicability (184 to 195);
+`-webkit-`/`-moz-`/`-ms-user-select` are aliases of `user-select`, and
+`-webkit-user-drag`, `-webkit-touch-callout` and `-ms-overflow-style` accept
+their keywords and are dropped, since a PDF page has no drag, touch callout or
+scrollbar (195 to 201).
 Current dataset SHA-256:
-`3a17e532416381585676b01f5df607a672ce700f3ee0925ee5d2aa7440be1482`; English
-layer `site/src/audit-english-legacy-prefix-aliases.mjs`, ordered source-text
-SHA-256 `d1ec6945da58ff5e5118bf2a6ccc9d86d64c6bbf4e02c5249590690c8a93fa64`.
+`e1245220d904307e341250b53e7c1c5b1c23a6064f0b31491d3c8bcf65573fe8`; English
+layer `site/src/audit-english-screen-gesture-hints.mjs`, ordered source-text
+SHA-256 `44e487d21a6707d32f4c13c9bfe3b54a110a9c1fabf1e8fe05d1fd471a0163ed`.
