@@ -508,8 +508,11 @@ painted there, while a style that could paint still fails. The `-ms-` and
 accept well-formed values and are dropped, since a PDF page has no preferred
 or forced colour scheme (178 to 180); `clip-path` and `backdrop-filter` at
 `none`, `mix-blend-mode:normal` and `isolation:auto` join the initial-value
-no-ops (180 to 184).
+no-ops (180 to 184); the legacy engine spellings `-webkit-`/`-moz-border-radius`,
+`-webkit-`/`-moz-box-shadow`, `-webkit-`/`-moz-`/`-ms-`/`-o-transform`,
+`-webkit-filter`, `-webkit-clip-path` and `-webkit-backdrop-filter` are aliases
+of the standard names with their values and applicability (184 to 195).
 Current dataset SHA-256:
-`25ebb7e38e865fc3d6f930c76034d778489a43096fff76245624548d0cbb7cb4`; English
-layer `site/src/audit-english-compositing-initial-values.mjs`, ordered source-text
-SHA-256 `c22089ff587f058a9548cff4eefea27959d918f8c90801b6f6b963c4c812fc03`.
+`3a17e532416381585676b01f5df607a672ce700f3ee0925ee5d2aa7440be1482`; English
+layer `site/src/audit-english-legacy-prefix-aliases.mjs`, ordered source-text
+SHA-256 `d1ec6945da58ff5e5118bf2a6ccc9d86d64c6bbf4e02c5249590690c8a93fa64`.

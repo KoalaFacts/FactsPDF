@@ -915,7 +915,9 @@ real used block widths, including `width:auto` panels and horizontal auto
 margins. For example, `max-width:146mm` caps a report panel, while
 `min-width:82mm;max-width:90mm` bounds an invoice-reference box.
 `box-sizing:border-box` (also spelled `-webkit-box-sizing` / `-moz-box-sizing`,
-legacy aliases sharing its cascade slot, `BoxSizingPrefixAliasTests.cs`)
+legacy aliases sharing its cascade slot, `BoxSizingPrefixAliasTests.cs`; likewise
+`-webkit-`/`-moz-border-radius`, `-box-shadow`, `-webkit-`/`-moz-`/`-ms-`/`-o-transform`,
+`-webkit-filter`, `-clip-path` and `-backdrop-filter`, `LegacyPrefixAliasTests.cs`)
 applies constraints to the padded/bordered outer box; the default `content-box` constrains the content width instead. Supported
 lengths are nonnegative `pt/px/mm/cm/in/%` or zero; `min-width:auto`
 and `max-width:none` remove the constraint. Actual over-constrained geometry
