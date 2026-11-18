@@ -44,6 +44,9 @@ public sealed class InitialValueNoOpTests
     [TestCase("POSITION:STATIC;Float:None")]
     [TestCase("position:inherit;float:initial;clear:unset;visibility:inherit;opacity:initial")]
     [TestCase("position:static!important;z-index:auto !important")]
+    [TestCase("mix-blend-mode:normal;isolation:auto")]
+    [TestCase("clip-path:none;backdrop-filter:none")]
+    [TestCase("MIX-BLEND-MODE:NORMAL;clip-path:inherit;isolation:unset")]
     public void InitialValueRendersLikeTheUndeclaredPage(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -80,6 +83,10 @@ public sealed class InitialValueNoOpTests
     [TestCase("float:none none")]
     [TestCase("overflow:visible visible")]
     [TestCase("position:")]
+    [TestCase("mix-blend-mode:multiply")]
+    [TestCase("isolation:isolate")]
+    [TestCase("clip-path:circle(50%)")]
+    [TestCase("backdrop-filter:blur(4px)")]
     public void AnyOtherValueFailsWithoutOutput(string declaration)
     {
         foreach (var html in new[] { $"<p style=\"{declaration}\">A</p>", $"<style>.unused{{{declaration}}}</style><p>A</p>" })
