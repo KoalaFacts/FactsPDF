@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "FactsPDF Compatibility Tracker",
-  "dataset_version": "audit-2026-11-18.box-sizing-prefixes",
+  "dataset_version": "audit-2026-11-18.outline-none-reset",
   "audited_at": "2026-11-17",
   "repository": "KoalaFacts/FactsPDF",
   "commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
@@ -5738,7 +5738,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "仅普通div/section/article/blockquote报表面板（不在列表、表格子树）接受outline:2pt dotted #285d91、outline-width/style/color和outline-offset:3pt；不占盒宽，真实PDF外侧线条、CSS层叠与跨页续片首末边缘",
-      "limitations": "线宽0或0.2–6pt，offset仅0–12pt物理pt/px/mm/cm/in/pc/q；solid/dashed/dotted/none与不透明颜色/currentColor。拒绝圆角与outline组合、负值、百分比、calc()、透明度、图片、列表/表格/图像/段落、任意CSS Outline标准扩展；错误保留原PDF",
+      "limitations": "线宽0或0.2–6pt，offset仅0–12pt物理pt/px/mm/cm/in/pc/q；solid/dashed/dotted/none与不透明颜色/currentColor。拒绝圆角与outline组合、负值、百分比、calc()、透明度、图片、任意CSS Outline标准扩展；错误保留原PDF。面板以外（列表/表格/图像/段落/行内）从不绘制外框，故outline:none/0、outline-style:none/initial/unset及宽度/颜色/偏移等不产生外框的重置会验证后丢弃，PDF字节不变；可能绘制的solid/dashed/dotted/inherit样式仍为FPDF1201",
       "stage": "受限可见PDF报表外框线（仅源码）",
       "applicability": "共享核心（CLI / .NET）",
       "example": "outline:2pt dotted #285d91;outline-offset:3pt",

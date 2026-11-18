@@ -285,9 +285,13 @@ fragments. Default/none preserves existing PDF bytes.
 
 Widths are zero or 0.2–6pt; offsets 0–12pt. Both use physical
 pt/px/mm/cm/in/pc/q only. Solid/dashed/dotted/none and opaque ink are
-accepted; negative, percentage, alpha, gradient, rounded-corner outlines
-and applications outside scoped panels reject, preserving output.
-This is not full CSS Outline.
+accepted; negative, percentage, alpha, gradient and rounded-corner outlines
+reject, preserving output. Outside scoped panels no outline is ever painted,
+so resets that remove one (`a{outline:none}`, `img{outline:0}`,
+`outline-style:none|initial|unset`, any width, colour or offset) are dropped
+and leave the PDF bytes unchanged; an outline style that could paint there
+(`solid`, `dashed`, `dotted`, `inherit`) still fails `FPDF1201`
+(`OutlineNoneResetTests.cs`). This is not full CSS Outline.
 
 [44-record report](../examples/report-outlines.html),
 [independent longhand oracle](../examples/report-outlines-oracle.html),

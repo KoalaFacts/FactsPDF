@@ -499,8 +499,11 @@ and `scrollbar-gutter` accept `auto`, their keywords or a well-formed colour and
 are dropped, since a PDF page has no caret, native control, tap flash or
 scrollbar (169 to 174); the legacy `-webkit-box-sizing` and `-moz-box-sizing`
 spellings are aliases of `box-sizing` with its values and applicability
-(174 to 176).
+(174 to 176). `outline-none-reset` re-audits `css.outline` (still partial,
+no count change): outside report panels outline resets (`outline:none`/`0`,
+`outline-style:none`, widths, colours, offsets) are dropped, since no outline is
+painted there, while a style that could paint still fails.
 Current dataset SHA-256:
-`72b5cc1fc45e59c85cbc32a7fae646ff697ba5ea9828c298dec440e44c9e9eb2`; English
-layer `site/src/audit-english-box-sizing-prefixes.mjs`, ordered source-text
-SHA-256 `e336b3ee8ffe89fd1171a7ce741cfe0c195c8f732f61c268aa36d6ad15af7c2f`.
+`270682b6390dbe90d5e860d15c0fae5395e9e1c8a0a3ab5b3b141b59c8ed9067`; English
+layer `site/src/audit-english-outline-none-reset.mjs`, ordered source-text
+SHA-256 `61add9533f0009b5d2868cd9928acfd8d47e02c0ee247935ce03823d50e7eae8`.

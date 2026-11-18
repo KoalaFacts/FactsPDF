@@ -323,7 +323,7 @@ test('literal all query survives route serialization while enum sentinels remain
 });
 
 test('bounded LTR alignment provenance and historical justification remain precise', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-18.box-sizing-prefixes');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-18.outline-none-reset');
   assert.equal(dataset.commit_url, `https://github.com/KoalaFacts/FactsPDF/commit/${dataset.commit}`);
   assert.match(dataset.audit_method, /413 other stable-ID records remain unchanged/);
   assert.match(dataset.css_inventory_note, /现累计81个受限CSS属性名/);
@@ -820,7 +820,7 @@ test('bound image sizing appears without losing all 418 records or image transpa
 
 
 test('bound image height changes actual PDF geometry without changing stable audit scope', () => {
-  assert.equal(dataset.dataset_version, 'audit-2026-11-18.box-sizing-prefixes');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-18.outline-none-reset');
   assert.equal(dataset.commit, '5c45a68546d0d903eccd2579782e55f2fedff5e4');
   for (const id of ['html.img','pdf.images','css.height','css.box-sizing']) {
     const f=dataset.features.find(x=>x.id===id);
@@ -892,7 +892,7 @@ test('pc and q physical lengths retain 418 audit rows and 107 current CSS proper
 test('six LTR logical border shorthands are source-bound to existing physical PDF paint', () => {
   assert.equal(dataset.features.length, 418);
   assert.equal(dataset.accepted_css_property_count,176);
-  assert.equal(dataset.dataset_version, 'audit-2026-11-18.box-sizing-prefixes');
+  assert.equal(dataset.dataset_version, 'audit-2026-11-18.outline-none-reset');
   const row = dataset.features.find(f => f.id === 'css.border');
   assert.equal(row.status, 'partial');
   assert.equal(row.last_audited_commit, 'd4584c1f32d6aaa35939ff22f14a11093e92945b');
