@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// text-size-adjust (and the -webkit- spelling that normalize.css and most resets use) only
+/// text-size-adjust (and the -webkit-, -ms- and -moz- spellings that normalize.css and resets use) only
 /// controls mobile browsers' automatic font inflation. A PDF page is never inflated, so auto,
 /// none and non-negative percentages are validated and dropped and the page renders
 /// byte-identical to the page without the declaration.
@@ -36,6 +36,11 @@ public sealed class TextSizeAdjustTests
     [TestCase("-WEBKIT-TEXT-SIZE-ADJUST:NONE")]
     [TestCase("text-size-adjust:inherit;-webkit-text-size-adjust:unset")]
     [TestCase("-webkit-text-size-adjust:100% !important")]
+    [TestCase("-ms-text-size-adjust:100%")]
+    [TestCase("-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%")]
+    [TestCase("-moz-text-size-adjust:none")]
+    [TestCase("-MS-TEXT-SIZE-ADJUST:AUTO")]
+    [TestCase("-ms-text-size-adjust:inherit !important")]
     public void AcceptedValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -47,6 +52,8 @@ public sealed class TextSizeAdjustTests
     [TestCase("-webkit-text-size-adjust:100% 100%")]
     [TestCase("-webkit-text-size-adjust:always")]
     [TestCase("text-size-adjust:calc(100%)")]
+    [TestCase("-ms-text-size-adjust:12pt")]
+    [TestCase("-moz-text-size-adjust:always")]
     public void OtherValuesFail(string declaration)
     {
         var html = $"<p style=\"{declaration}\">A</p>";
@@ -56,10 +63,11 @@ public sealed class TextSizeAdjustTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(':') + 1));
     }
 
-    [Test]
-    public void OtherPrefixesStillFail()
+    [TestCase("-o-text-size-adjust")]
+    [TestCase("-khtml-text-size-adjust")]
+    public void OtherPrefixesStillFail(string name)
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='-ms-text-size-adjust:100%'>A</p>"));
+        var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{name}:100%'>A</p>"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 }

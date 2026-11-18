@@ -98,7 +98,7 @@ Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `prin
 
 CSS resets and site stylesheets commonly set `-webkit-font-smoothing:antialiased`, `-moz-osx-font-smoothing:grayscale` and `text-rendering:optimizeLegibility`. These only steer how a screen rasterises glyphs, which a PDF leaves to its viewer, so any keyword value of the three is accepted on any element and dropped; the PDF is byte-identical to the page without them. Other values fail `FPDF1202` (`FontSmoothingHintTests.cs`).
 
-normalize.css and most resets start with `html{-webkit-text-size-adjust:100%}`. It only stops mobile browsers from inflating text, which never happens to a PDF page, so `text-size-adjust` and its `-webkit-` spelling accept `auto`, `none` or a non-negative percentage and drop the declaration; the PDF is byte-identical to the page without it (`TextSizeAdjustTests.cs`).
+normalize.css and most resets start with `html{-webkit-text-size-adjust:100%}`. It only stops mobile browsers from inflating text, which never happens to a PDF page, so `text-size-adjust` and its `-webkit-` spelling (and the `-ms-`/`-moz-` spellings normalize.css v3/v4 adds) accept `auto`, `none` or a non-negative percentage and drop the declaration; the PDF is byte-identical to the page without it (`TextSizeAdjustTests.cs`).
 
 Resets also clear native control styling with `-webkit-appearance:none` / `appearance:none` on buttons and inputs. The renderer draws no native widgets, so `appearance` and its `-webkit-`/`-moz-` spellings accept any CSS UI 4 keyword and drop the declaration; the PDF is byte-identical to the page without it (`AppearanceTests.cs`).
 

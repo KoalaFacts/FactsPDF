@@ -502,8 +502,10 @@ spellings are aliases of `box-sizing` with its values and applicability
 (174 to 176). `outline-none-reset` re-audits `css.outline` (still partial,
 no count change): outside report panels outline resets (`outline:none`/`0`,
 `outline-style:none`, widths, colours, offsets) are dropped, since no outline is
-painted there, while a style that could paint still fails.
+painted there, while a style that could paint still fails. The `-ms-` and
+`-moz-text-size-adjust` spellings (normalize.css v3/v4) are aliases of
+`text-size-adjust` (176 to 178).
 Current dataset SHA-256:
-`270682b6390dbe90d5e860d15c0fae5395e9e1c8a0a3ab5b3b141b59c8ed9067`; English
-layer `site/src/audit-english-outline-none-reset.mjs`, ordered source-text
-SHA-256 `61add9533f0009b5d2868cd9928acfd8d47e02c0ee247935ce03823d50e7eae8`.
+`1b5ba7674b7bf4d10733ee353bda7c7b9f4cdf82068b19f39b943261055152c6`; English
+layer `site/src/audit-english-text-size-adjust-prefixes.mjs`, ordered source-text
+SHA-256 `c8f07dd6015f991365a82aa6fb25315f0116c4b8203626fa37b69eb98b636d85`.
