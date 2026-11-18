@@ -1985,7 +1985,11 @@ percent padding still resolve against the original parent content width.
 
 `box-sizing:content-box` is the non-inherited default and preserves existing
 PDF bytes. The normal cascade, `!important`, and explicit `inherit`,
-`initial` and `unset` work independently of width and padding. For example:
+`initial` and `unset` work independently of width and padding. The legacy
+`-webkit-box-sizing` and `-moz-box-sizing` spellings (which Bootstrap 3 and
+older resets write before `box-sizing`) are aliases: they share the
+`box-sizing` cascade slot (the later declaration wins), values, applicability
+and errors (`BoxSizingPrefixAliasTests`). For example:
 
     <section style="box-sizing:border-box;width:140mm;padding:5mm;border:0.25mm solid #23446b">
       <p>Service summary</p>
