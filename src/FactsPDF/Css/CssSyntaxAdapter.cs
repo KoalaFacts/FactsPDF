@@ -737,6 +737,10 @@ internal static class CssSyntaxAdapter
         "z-index" => "auto",
         "opacity" => "1",
         "box-shadow" or "text-shadow" or "transform" or "filter" or "background-image" => "none",
+        // Compositing and clipping resets: nothing is blended, isolated or clipped.
+        "clip-path" or "backdrop-filter" => "none",
+        "mix-blend-mode" => "normal",
+        "isolation" => "auto",
         _ => null
     };
 

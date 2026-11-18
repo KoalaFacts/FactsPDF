@@ -506,8 +506,10 @@ painted there, while a style that could paint still fails. The `-ms-` and
 `-moz-text-size-adjust` spellings (normalize.css v3/v4) are aliases of
 `text-size-adjust` (176 to 178); `color-scheme` and `forced-color-adjust`
 accept well-formed values and are dropped, since a PDF page has no preferred
-or forced colour scheme (178 to 180).
+or forced colour scheme (178 to 180); `clip-path` and `backdrop-filter` at
+`none`, `mix-blend-mode:normal` and `isolation:auto` join the initial-value
+no-ops (180 to 184).
 Current dataset SHA-256:
-`e1f3d4ef905de0220e3795aeeea7add551bf7725990f1e72dee56d613b06e9a3`; English
-layer `site/src/audit-english-color-scheme-hints.mjs`, ordered source-text
-SHA-256 `6e696ee21648ef405b32ba574b216ed9cc356106c1e12fa293a144d3eada23d3`.
+`25ebb7e38e865fc3d6f930c76034d778489a43096fff76245624548d0cbb7cb4`; English
+layer `site/src/audit-english-compositing-initial-values.mjs`, ordered source-text
+SHA-256 `c22089ff587f058a9548cff4eefea27959d918f8c90801b6f6b963c4c812fc03`.
