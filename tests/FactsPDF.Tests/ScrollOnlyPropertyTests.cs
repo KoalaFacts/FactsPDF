@@ -67,8 +67,8 @@ public sealed class ScrollOnlyPropertyTests
 
     [TestCase("-moz-scroll-behavior:smooth")]
     [TestCase("-ms-overflow-style:none")]
-    [TestCase("scrollbar-color:auto")]
-    [TestCase("scrollbar-gutter:stable")]
+    [TestCase("scroll-snap-type:x mandatory")]
+    [TestCase("scroll-margin-top:1rem")]
     public void OtherScrollPropertiesStillFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{declaration}'>A</p>"));

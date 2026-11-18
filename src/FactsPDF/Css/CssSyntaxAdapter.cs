@@ -771,7 +771,9 @@ internal static class CssSyntaxAdapter
             or "animation-fill-mode" or "animation-play-state"
             or "scroll-behavior" or "overscroll-behavior" or "overscroll-behavior-x"
             or "overscroll-behavior-y" or "overscroll-behavior-inline" or "overscroll-behavior-block"
-            or "overflow-anchor" or "-webkit-overflow-scrolling" or "scrollbar-width";
+            or "overflow-anchor" or "-webkit-overflow-scrolling" or "scrollbar-width"
+            or "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
+            or "scrollbar-gutter";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -819,6 +821,11 @@ internal static class CssSyntaxAdapter
         "overflow-anchor" => term is "auto" or "none",
         "-webkit-overflow-scrolling" => term is "auto" or "touch",
         "scrollbar-width" => term is "auto" or "thin" or "none",
+        // Screen-only UI colours and scrollbar space: the text caret, native form-control
+        // accents, the WebKit tap flash and scrollbar paint. A PDF page has no caret, native
+        // control, tap or scrollbar, so auto and any colour (validated, never painted) are dropped.
+        "caret-color" or "accent-color" or "scrollbar-color" => term == "auto",
+        "scrollbar-gutter" => term is "auto" or "stable",
         _ => false
     };
 
@@ -843,6 +850,10 @@ internal static class CssSyntaxAdapter
         // Animations only run on screen; a written PDF page shows no keyframe, so a well-formed
         // animation list is validated and dropped (@keyframes rules are dropped likewise).
         if (IsAnimation(name) && AnimationList(name, node)) return;
+        if (name is "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
+            && UiColours(node, name == "scrollbar-color" ? 2 : 1)) return;
+        // scrollbar-gutter also takes stable both-edges (either order).
+        if (name == "scrollbar-gutter" && ScrollbarGutterBothEdges(node)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
         if (count == 1 && name == "text-size-adjust"
             && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
@@ -851,8 +862,70 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
+    }
+
+    // Exactly `count` colours: a named colour, transparent, currentColor, #rgb, #rgba, #rrggbb,
+    // #rrggbbaa or an rgb()/rgba()/hsl()/hsla() function of numbers, percentages, angles, commas
+    // and "/". Alpha is allowed because the colour is validated and dropped, never painted.
+    private static bool UiColours(CssDeclarationNode node, int count)
+    {
+        var colours = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            var component = node.Values[i];
+            if (component is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (++colours > count || !UiColour(component)) return false;
+        }
+        return colours == count;
+    }
+
+    private static bool UiColour(CssSyntaxComponent component)
+    {
+        if (component is CssTokenComponent { Token: var token })
+        {
+            if (token.Kind == CssSyntaxTokenKind.Ident)
+            {
+                var term = token.Value.ToLowerInvariant();
+                return term is "transparent" or "currentcolor" || CssNamedColors.Hex(term) is not null;
+            }
+            if (token.Kind != CssSyntaxTokenKind.Hash || token.Value.Length is not (3 or 4 or 6 or 8)) return false;
+            for (var i = 0; i < token.Value.Length; i++)
+                if (!char.IsAsciiHexDigit(token.Value[i])) return false;
+            return true;
+        }
+        if (component is not CssFunctionComponent function
+            || function.Name.ToLowerInvariant() is not ("rgb" or "rgba" or "hsl" or "hsla")) return false;
+        var channels = 0;
+        for (var i = 0; i < function.Values.Count; i++)
+        {
+            if (function.Values[i] is not CssTokenComponent { Token: var item }) return false;
+            switch (item.Kind)
+            {
+                case CssSyntaxTokenKind.Whitespace or CssSyntaxTokenKind.Comma: break;
+                case CssSyntaxTokenKind.Delim when item.Value == "/": break;
+                case CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage or CssSyntaxTokenKind.Dimension:
+                    channels++;
+                    break;
+                default: return false;
+            }
+        }
+        return channels is 3 or 4;
+    }
+
+    private static bool ScrollbarGutterBothEdges(CssDeclarationNode node)
+    {
+        string? first = null, second = null;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is not CssTokenComponent { Token: var token }) return false;
+            if (token.Kind == CssSyntaxTokenKind.Whitespace) continue;
+            if (token.Kind != CssSyntaxTokenKind.Ident || second is not null) return false;
+            if (first is null) first = token.Value.ToLowerInvariant();
+            else second = token.Value.ToLowerInvariant();
+        }
+        return (first, second) is ("stable", "both-edges") or ("both-edges", "stable");
     }
 
     private static bool WillChangeList(CssDeclarationNode node)
