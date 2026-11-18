@@ -493,8 +493,12 @@ well-formed transition list (145 to 151); `animation` does the same for
 well-formed `@keyframes` rules (151 to 160); `scroll-behavior`,
 `overscroll-behavior` and its `-x`/`-y`/`-inline`/`-block` longhands,
 `overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept a
-single keyword and are dropped, since a PDF page never scrolls (160 to 169).
+single keyword and are dropped, since a PDF page never scrolls (160 to 169);
+`caret-color`, `accent-color`, `-webkit-tap-highlight-color`, `scrollbar-color`
+and `scrollbar-gutter` accept `auto`, their keywords or a well-formed colour and
+are dropped, since a PDF page has no caret, native control, tap flash or
+scrollbar (169 to 174).
 Current dataset SHA-256:
-`856f6890742456ce20f797eec6976762ef75966e6bea7af178207276e3f2e313`; English
-layer `site/src/audit-english-scroll-only.mjs`, ordered source-text
-SHA-256 `4bfb2caf32353de7dbabdcfb440ae5ccefed802ac196ab89bc85ad070ef32812`.
+`874e0233a254fffe222fa39576db5e10ea6bda194d7730b35b3b6a2809d8205d`; English
+layer `site/src/audit-english-ui-colours.mjs`, ordered source-text
+SHA-256 `0e6d561fd1baed5f19f7b8f6e05f752b04c8f0d854021dc0031069b5a5f5eb83`.
