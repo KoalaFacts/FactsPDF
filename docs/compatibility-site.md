@@ -504,8 +504,10 @@ no count change): outside report panels outline resets (`outline:none`/`0`,
 `outline-style:none`, widths, colours, offsets) are dropped, since no outline is
 painted there, while a style that could paint still fails. The `-ms-` and
 `-moz-text-size-adjust` spellings (normalize.css v3/v4) are aliases of
-`text-size-adjust` (176 to 178).
+`text-size-adjust` (176 to 178); `color-scheme` and `forced-color-adjust`
+accept well-formed values and are dropped, since a PDF page has no preferred
+or forced colour scheme (178 to 180).
 Current dataset SHA-256:
-`1b5ba7674b7bf4d10733ee353bda7c7b9f4cdf82068b19f39b943261055152c6`; English
-layer `site/src/audit-english-text-size-adjust-prefixes.mjs`, ordered source-text
-SHA-256 `c8f07dd6015f991365a82aa6fb25315f0116c4b8203626fa37b69eb98b636d85`.
+`e1f3d4ef905de0220e3795aeeea7add551bf7725990f1e72dee56d613b06e9a3`; English
+layer `site/src/audit-english-color-scheme-hints.mjs`, ordered source-text
+SHA-256 `6e696ee21648ef405b32ba574b216ed9cc356106c1e12fa293a144d3eada23d3`.

@@ -776,7 +776,7 @@ internal static class CssSyntaxAdapter
             or "overscroll-behavior-y" or "overscroll-behavior-inline" or "overscroll-behavior-block"
             or "overflow-anchor" or "-webkit-overflow-scrolling" or "scrollbar-width"
             or "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
-            or "scrollbar-gutter";
+            or "scrollbar-gutter" or "color-scheme" or "forced-color-adjust";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -829,6 +829,11 @@ internal static class CssSyntaxAdapter
         // control, tap or scrollbar, so auto and any colour (validated, never painted) are dropped.
         "caret-color" or "accent-color" or "scrollbar-color" => term == "auto",
         "scrollbar-gutter" => term is "auto" or "stable",
+        // Screen colour-scheme hints: color-scheme lets a browser pick dark UA defaults and
+        // forced-color-adjust opts out of a forced high-contrast palette. A PDF page has no
+        // preferred or forced scheme and paints every colour exactly as declared.
+        "color-scheme" => term is "normal" or "light" or "dark",
+        "forced-color-adjust" => term is "auto" or "none" or "preserve-parent-color",
         _ => false
     };
 
@@ -855,6 +860,8 @@ internal static class CssSyntaxAdapter
         if (IsAnimation(name) && AnimationList(name, node)) return;
         if (name is "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
             && UiColours(node, name == "scrollbar-color" ? 2 : 1)) return;
+        // color-scheme also takes a list of scheme names with one leading or trailing "only".
+        if (name == "color-scheme" && ColorSchemeList(node)) return;
         // scrollbar-gutter also takes stable both-edges (either order).
         if (name == "scrollbar-gutter" && ScrollbarGutterBothEdges(node)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
@@ -865,8 +872,31 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
+    }
+
+    // color-scheme: normal, or one or more scheme names (light, dark or custom identifiers)
+    // with at most one "only" at the start or end; normal, only and CSS-wide keywords cannot
+    // be scheme names.
+    private static bool ColorSchemeList(CssDeclarationNode node)
+    {
+        var count = 0; var onlyAt = -1; var bad = false;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (node.Values[i] is not CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token }) return false;
+            var term = token.Value.ToLowerInvariant();
+            if (term == "only")
+            {
+                if (onlyAt >= 0) return false;
+                onlyAt = count;
+            }
+            else if (term is "normal" or "default" || Wide(term)) bad = true;
+            count++;
+        }
+        var names = onlyAt >= 0 ? count - 1 : count;
+        return !bad && names > 0 && (onlyAt < 0 || onlyAt == 0 || onlyAt == count - 1);
     }
 
     // Exactly `count` colours: a named colour, transparent, currentColor, #rgb, #rgba, #rrggbb,
