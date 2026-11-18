@@ -84,7 +84,8 @@ internal static class CssSyntaxAdapter
                 // print-color-adjust is still mostly written with Chromium's prefix.
                 "-webkit-print-color-adjust" => "print-color-adjust",
                 // text-size-adjust is almost always written with the WebKit prefix (normalize.css).
-                "-webkit-text-size-adjust" => "text-size-adjust",
+                // normalize.css v3/v4 also writes the -ms- spelling (and some resets -moz-).
+                "-webkit-text-size-adjust" or "-ms-text-size-adjust" or "-moz-text-size-adjust" => "text-size-adjust",
                 // appearance resets are still written with both engine prefixes.
                 "-webkit-appearance" or "-moz-appearance" => "appearance",
                 "-webkit-backface-visibility" => "backface-visibility",
