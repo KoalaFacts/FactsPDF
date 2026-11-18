@@ -1994,7 +1994,12 @@ PDF bytes. The normal cascade, `!important`, and explicit `inherit`,
 `-webkit-box-sizing` and `-moz-box-sizing` spellings (which Bootstrap 3 and
 older resets write before `box-sizing`) are aliases: they share the
 `box-sizing` cascade slot (the later declaration wins), values, applicability
-and errors (`BoxSizingPrefixAliasTests`). For example:
+and errors (`BoxSizingPrefixAliasTests`). The same holds for the other legacy
+engine spellings older themes still write: `-webkit-`/`-moz-border-radius`,
+`-webkit-`/`-moz-box-shadow`, `-webkit-`/`-moz-`/`-ms-`/`-o-transform`,
+`-webkit-filter`, `-webkit-clip-path` and `-webkit-backdrop-filter` behave
+exactly like the standard name, so `-webkit-transform:none` is dropped while
+`-webkit-box-shadow:0 1px 2px #000` fails `FPDF1202` (`LegacyPrefixAliasTests`). For example:
 
     <section style="box-sizing:border-box;width:140mm;padding:5mm;border:0.25mm solid #23446b">
       <p>Service summary</p>

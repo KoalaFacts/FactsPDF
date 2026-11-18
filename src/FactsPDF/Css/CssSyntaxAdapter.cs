@@ -91,6 +91,15 @@ internal static class CssSyntaxAdapter
                 "-webkit-backface-visibility" => "backface-visibility",
                 // Bootstrap 3 and older resets write box-sizing with both engine prefixes first.
                 "-webkit-box-sizing" or "-moz-box-sizing" => "box-sizing",
+                // Bootstrap 3, Font Awesome 4 and older themes write the engine-prefixed spellings of
+                // border-radius, box-shadow, transform and filter before (or instead of) the standard
+                // name; they share its cascade slot, values, applicability and errors.
+                "-webkit-border-radius" or "-moz-border-radius" => "border-radius",
+                "-webkit-box-shadow" or "-moz-box-shadow" => "box-shadow",
+                "-webkit-transform" or "-moz-transform" or "-ms-transform" or "-o-transform" => "transform",
+                "-webkit-filter" => "filter",
+                "-webkit-clip-path" => "clip-path",
+                "-webkit-backdrop-filter" => "backdrop-filter",
                 // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
                 "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
                     or "-webkit-transition-timing-function" or "-webkit-transition-delay"
