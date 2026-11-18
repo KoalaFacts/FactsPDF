@@ -334,9 +334,19 @@ internal sealed class CssStylesheets
                 (element.Name is not ("div" or "section" or "article" or "blockquote") ||
                  path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
+            {
+                // Resets such as a{outline:none}, img{outline:0} or button{outline:none}
+                // remove an outline that is never painted outside report panels. Elsewhere
+                // outline-style can only be none, so no outline exists to paint and every
+                // already validated outline declaration that cannot make one is dropped.
+                // A style that could paint (solid, dashed, dotted, inherit) still fails.
+                if (declaration.Property != CssProperty.OutlineStyle
+                    || declaration.Value is "none" or "initial" or "unset")
+                    return;
                 throw new FactsPdfException("FPDF1201",
-                    "Outlines apply only to ordinary report panels outside lists and tables.",
+                    "Outlines apply only to ordinary report panels outside lists and tables; elsewhere only outline:none (or outline-style:none) is accepted.",
                     declaration.Offset);
+            }
             // Rounded paint is deliberately scoped to ordinary report boxes, not
             // table/list/image geometry or inline text. Unsupported matches fail
             // even if a later cascade winner would remove the radius.

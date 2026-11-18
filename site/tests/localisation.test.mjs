@@ -581,3 +581,14 @@ test('initial-value-only CSS rows are fully translated without claiming layout s
   assert.match(translate(data.css_inventory_note),/-moz-box-sizing/);
   assert.match(translate(data.css_inventory_note),/@keyframes rule/);
 });
+
+test('English outline audit keeps panel-only paint and dropped resets elsewhere', async () => {
+  const { englishFeature } = await localisation();
+  const row = data.features.find(f => f.id === 'css.outline');
+  assert.equal(row.status, 'partial');
+  const f = englishFeature(row);
+  assert.match(f.limitations, /outline:none\/0/);
+  assert.match(f.limitations, /still fails FPDF1201/);
+  assert.match(row.limitations, /outline:none\/0/);
+  assert.doesNotMatch(f.scope + f.limitations, han);
+});
