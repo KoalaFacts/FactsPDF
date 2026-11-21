@@ -521,8 +521,10 @@ aliases), `font-variation-settings`, `font-variant-ligatures`,
 and `font-size-adjust:none` join the initial-value no-ops (201 to 210);
 `color-adjust` is the deprecated alias of `print-color-adjust`, and `tab-size`
 (with `-moz-tab-size`) accepts a non-negative number or length and is dropped,
-since no tab stop reaches a page (210 to 213).
+since no tab stop reaches a page (210 to 213); `zoom:normal` (or `1`/`100%`),
+`contain:none`, `content-visibility:visible` and `auto` for `line-break`,
+`text-justify` and `image-rendering` join the initial-value no-ops (213 to 219).
 Current dataset SHA-256:
-`c1024649bf6baf3ffebd44693ece51b7145be13fdc8be5815e575f0ec1cebde7`; English
-layer `site/src/audit-english-tab-size-color-adjust.mjs`, ordered source-text
-SHA-256 `fc99a0efe114d7a2e9b8564babea71e228970633c5a5c2839c2bc27296d1db80`.
+`6c0a006ccfe1a8e3f7803ec4b9088cae3330a29178349b891413766745b12b90`; English
+layer `site/src/audit-english-legacy-initial-values.mjs`, ordered source-text
+SHA-256 `77b3816d589381ed6d46599ddf848c511e7ade0e7811345b0f90fd19bcf327f2`.

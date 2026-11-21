@@ -765,6 +765,13 @@ internal static class CssSyntaxAdapter
             or "font-variant-numeric" or "font-stretch" => "normal",
         "font-optical-sizing" => "auto",
         "font-size-adjust" => "none",
+        // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
+        // contain:none and content-visibility:visible skip nothing; line breaking, justification
+        // and image interpolation at auto are already the renderer's own choice.
+        "zoom" => "normal",
+        "contain" => "none",
+        "content-visibility" => "visible",
+        "line-break" or "text-justify" or "image-rendering" => "auto",
         _ => null
     };
 
@@ -784,7 +791,7 @@ internal static class CssSyntaxAdapter
                 var term = token.Value.ToLowerInvariant();
                 if (Wide(term) || term == initial) return;
             }
-            if (name == "opacity" && OpaqueAlpha(token)) return;
+            if (name is "opacity" or "zoom" && OpaqueAlpha(token)) return;
         }
         throw new FactsPdfException("FPDF1202",
             $"{name} supports only {initial}: the report renderer does not implement other values.",
