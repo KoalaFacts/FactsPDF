@@ -66,7 +66,7 @@ public sealed class ScrollOnlyPropertyTests
     }
 
     [TestCase("-moz-scroll-behavior:smooth")]
-    [TestCase("-ms-overflow-style:none")]
+    [TestCase("-ms-scroll-chaining:none")]
     [TestCase("scroll-snap-type:x mandatory")]
     [TestCase("scroll-margin-top:1rem")]
     public void OtherScrollPropertiesStillFail(string declaration)

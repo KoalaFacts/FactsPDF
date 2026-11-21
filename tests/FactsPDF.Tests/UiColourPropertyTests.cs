@@ -77,7 +77,7 @@ public sealed class UiColourPropertyTests
 
     [TestCase("-moz-tap-highlight-color:transparent")]
     [TestCase("-webkit-scrollbar-color:red blue")]
-    [TestCase("-ms-overflow-style:none")]
+    [TestCase("-ms-scrollbar-face-color:red")]
     public void OtherPrefixesStillFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{declaration}'>A</p>"));
