@@ -515,8 +515,11 @@ of the standard names with their values and applicability (184 to 195);
 `-webkit-`/`-moz-`/`-ms-user-select` are aliases of `user-select`, and
 `-webkit-user-drag`, `-webkit-touch-callout` and `-ms-overflow-style` accept
 their keywords and are dropped, since a PDF page has no drag, touch callout or
-scrollbar (195 to 201).
+scrollbar (195 to 201); `font-feature-settings` (with its `-webkit-`/`-moz-`
+aliases), `font-variation-settings`, `font-variant-ligatures`,
+`font-variant-numeric` and `font-stretch` at `normal`, `font-optical-sizing:auto`
+and `font-size-adjust:none` join the initial-value no-ops (201 to 210).
 Current dataset SHA-256:
-`e1245220d904307e341250b53e7c1c5b1c23a6064f0b31491d3c8bcf65573fe8`; English
-layer `site/src/audit-english-screen-gesture-hints.mjs`, ordered source-text
-SHA-256 `44e487d21a6707d32f4c13c9bfe3b54a110a9c1fabf1e8fe05d1fd471a0163ed`.
+`8f3bf18f36ca6814592a78c0252829476f9ba84471fcb278adb1320723315681`; English
+layer `site/src/audit-english-font-initial-values.mjs`, ordered source-text
+SHA-256 `1828ab9646e58199eb5cae79025b884adf88f39c6929a7aafa2b437573adde7f`.

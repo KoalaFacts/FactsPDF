@@ -102,6 +102,8 @@ internal static class CssSyntaxAdapter
                 "-webkit-filter" => "filter",
                 "-webkit-clip-path" => "clip-path",
                 "-webkit-backdrop-filter" => "backdrop-filter",
+                // Older stylesheets still write font-feature-settings with both engine prefixes.
+                "-webkit-font-feature-settings" or "-moz-font-feature-settings" => "font-feature-settings",
                 // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
                 "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
                     or "-webkit-transition-timing-function" or "-webkit-transition-delay"
@@ -752,6 +754,14 @@ internal static class CssSyntaxAdapter
         "clip-path" or "backdrop-filter" => "none",
         "mix-blend-mode" => "normal",
         "isolation" => "auto",
+        // Font tuning resets (Tailwind preflight writes font-feature-settings and
+        // font-variation-settings as normal on html): the renderer applies no OpenType
+        // features, variation axes, optical sizing, aspect adjustment or width selection
+        // beyond the font as given, which is exactly what these initial values ask for.
+        "font-feature-settings" or "font-variation-settings" or "font-variant-ligatures"
+            or "font-variant-numeric" or "font-stretch" => "normal",
+        "font-optical-sizing" => "auto",
+        "font-size-adjust" => "none",
         _ => null
     };
 
