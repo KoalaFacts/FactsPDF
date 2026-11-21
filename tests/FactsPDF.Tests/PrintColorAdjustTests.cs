@@ -33,6 +33,9 @@ public sealed class PrintColorAdjustTests
     [TestCase("-WebKit-Print-Color-Adjust:EXACT")]
     [TestCase("print-color-adjust:inherit;-webkit-print-color-adjust:unset")]
     [TestCase("print-color-adjust:exact !important")]
+    [TestCase("color-adjust:exact")]
+    [TestCase("color-adjust:economy;-webkit-print-color-adjust:exact;print-color-adjust:exact")]
+    [TestCase("COLOR-ADJUST:EXACT")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -42,6 +45,7 @@ public sealed class PrintColorAdjustTests
     [TestCase("print-color-adjust:exact exact")]
     [TestCase("-webkit-print-color-adjust:1")]
     [TestCase("print-color-adjust:'exact'")]
+    [TestCase("color-adjust:auto")]
     public void OtherValuesFail(string declaration)
     {
         var html = $"<p style=\"{declaration}\">A</p>";
@@ -52,9 +56,9 @@ public sealed class PrintColorAdjustTests
     }
 
     [Test]
-    public void TheLegacyColorAdjustNameStillFails()
+    public void UnaliasedPrefixedNamesStillFail()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='color-adjust:exact'>A</p>"));
+        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='-moz-print-color-adjust:exact'>A</p>"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 

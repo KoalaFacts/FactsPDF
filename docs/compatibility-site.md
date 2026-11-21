@@ -518,8 +518,11 @@ their keywords and are dropped, since a PDF page has no drag, touch callout or
 scrollbar (195 to 201); `font-feature-settings` (with its `-webkit-`/`-moz-`
 aliases), `font-variation-settings`, `font-variant-ligatures`,
 `font-variant-numeric` and `font-stretch` at `normal`, `font-optical-sizing:auto`
-and `font-size-adjust:none` join the initial-value no-ops (201 to 210).
+and `font-size-adjust:none` join the initial-value no-ops (201 to 210);
+`color-adjust` is the deprecated alias of `print-color-adjust`, and `tab-size`
+(with `-moz-tab-size`) accepts a non-negative number or length and is dropped,
+since no tab stop reaches a page (210 to 213).
 Current dataset SHA-256:
-`8f3bf18f36ca6814592a78c0252829476f9ba84471fcb278adb1320723315681`; English
-layer `site/src/audit-english-font-initial-values.mjs`, ordered source-text
-SHA-256 `1828ab9646e58199eb5cae79025b884adf88f39c6929a7aafa2b437573adde7f`.
+`c1024649bf6baf3ffebd44693ece51b7145be13fdc8be5815e575f0ec1cebde7`; English
+layer `site/src/audit-english-tab-size-color-adjust.mjs`, ordered source-text
+SHA-256 `fc99a0efe114d7a2e9b8564babea71e228970633c5a5c2839c2bc27296d1db80`.

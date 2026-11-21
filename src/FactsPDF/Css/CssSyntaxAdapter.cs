@@ -82,7 +82,10 @@ internal static class CssSyntaxAdapter
                 // shares its cascade slot, values and applicability.
                 "word-wrap" => "overflow-wrap",
                 // print-color-adjust is still mostly written with Chromium's prefix.
-                "-webkit-print-color-adjust" => "print-color-adjust",
+                // color-adjust is the deprecated name of print-color-adjust (Firefox, older print CSS).
+                "-webkit-print-color-adjust" or "color-adjust" => "print-color-adjust",
+                // Tailwind preflight and modern-normalize write tab-size with the Gecko prefix first.
+                "-moz-tab-size" => "tab-size",
                 // text-size-adjust is almost always written with the WebKit prefix (normalize.css).
                 // normalize.css v3/v4 also writes the -ms- spelling (and some resets -moz-).
                 "-webkit-text-size-adjust" or "-ms-text-size-adjust" or "-moz-text-size-adjust" => "text-size-adjust",
@@ -802,7 +805,10 @@ internal static class CssSyntaxAdapter
             or "overflow-anchor" or "-webkit-overflow-scrolling" or "scrollbar-width"
             or "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
             or "scrollbar-gutter" or "color-scheme" or "forced-color-adjust"
-            or "-webkit-user-drag" or "-webkit-touch-callout" or "-ms-overflow-style";
+            or "-webkit-user-drag" or "-webkit-touch-callout" or "-ms-overflow-style"
+            // Tab stops never reach a page: collapsed tabs become spaces and preserved tabs fail
+            // (FPDF1305), so the tab width is validated and dropped.
+            or "tab-size";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -895,6 +901,8 @@ internal static class CssSyntaxAdapter
         if (name == "color-scheme" && ColorSchemeList(node)) return;
         // scrollbar-gutter also takes stable both-edges (either order).
         if (name == "scrollbar-gutter" && ScrollbarGutterBothEdges(node)) return;
+        // tab-size takes a non-negative number of spaces or a non-negative length.
+        if (count == 1 && name == "tab-size" && value is CssTokenComponent { Token: var tab } && TabSize(tab)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
         if (count == 1 && name == "text-size-adjust"
             && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percentage }
@@ -903,9 +911,18 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
+
+    private static bool TabSize(CssSyntaxToken token) =>
+        (token.Kind == CssSyntaxTokenKind.Number
+            || token.Kind == CssSyntaxTokenKind.Dimension
+                && token.Unit?.ToLowerInvariant() is "px" or "pt" or "pc" or "in" or "cm" or "mm" or "q"
+                    or "em" or "rem" or "ex" or "ch")
+        && double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var size)
+        && double.IsFinite(size) && size >= 0;
 
     // color-scheme: normal, or one or more scheme names (light, dark or custom identifiers)
     // with at most one "only" at the start or end; normal, only and CSS-wide keywords cannot
