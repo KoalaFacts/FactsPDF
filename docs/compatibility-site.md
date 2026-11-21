@@ -523,8 +523,9 @@ and `font-size-adjust:none` join the initial-value no-ops (201 to 210);
 (with `-moz-tab-size`) accepts a non-negative number or length and is dropped,
 since no tab stop reaches a page (210 to 213); `zoom:normal` (or `1`/`100%`),
 `contain:none`, `content-visibility:visible` and `auto` for `line-break`,
-`text-justify` and `image-rendering` join the initial-value no-ops (213 to 219).
+`text-justify` and `image-rendering` join the initial-value no-ops (213 to 219); `speak` accepts its CSS Speech and
+CSS 2 aural keywords and is dropped, since the renderer speaks nothing (219 to 220).
 Current dataset SHA-256:
-`6c0a006ccfe1a8e3f7803ec4b9088cae3330a29178349b891413766745b12b90`; English
-layer `site/src/audit-english-legacy-initial-values.mjs`, ordered source-text
-SHA-256 `77b3816d589381ed6d46599ddf848c511e7ade0e7811345b0f90fd19bcf327f2`.
+`042e049c89a1e8c8dfff6e39899ca8402129ca1606a89265ea8bc47811d5f80b`; English
+layer `site/src/audit-english-speak-hint.mjs`, ordered source-text
+SHA-256 `e1f8bb548cc74611d7ecf3b111e9215ac80dd38ef55abb75846e5b77a05924dd`.
