@@ -4,7 +4,8 @@ namespace FactsPDF.Tests;
 
 /// <summary>
 /// cursor, pointer-events, user-select and resize only change how a screen reacts to a
-/// pointer; a PDF page has none. Every keyword value of them (and a CSS-wide keyword) is
+/// pointer; a PDF page has none. speak (aural rendering, as icon-font stylesheets write it)
+/// is dropped likewise. Every keyword value of them (and a CSS-wide keyword) is
 /// validated and dropped, so the page renders byte-identical to the page without them.
 /// Any other value (an image, a number, several components) fails with FPDF1202.
 /// </summary>
@@ -38,6 +39,10 @@ public sealed class InteractionOnlyCssTests
     [TestCase("cursor:inherit;pointer-events:initial;user-select:unset;resize:inherit")]
     [TestCase("cursor:pointer!important;user-select:none !important")]
     [TestCase("cursor: pointer ;pointer-events: none")]
+    [TestCase("speak:none")]
+    [TestCase("speak:never;speak:always;speak:auto")]
+    [TestCase("speak:normal;speak:spell-out")]
+    [TestCase("SPEAK:NONE;speak:inherit !important")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -54,6 +59,9 @@ public sealed class InteractionOnlyCssTests
     [TestCase("resize:auto")]
     [TestCase("resize:var(--r)")]
     [TestCase("user-select:")]
+    [TestCase("speak:loud")]
+    [TestCase("speak:none none")]
+    [TestCase("speak:'none'")]
     public void OtherValuesFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style=\"{declaration}\">A</p>"));
@@ -62,6 +70,7 @@ public sealed class InteractionOnlyCssTests
 
     [TestCase("<style>.unused{cursor:url(a.png)}</style><p>A</p>", "cursor supports only a single keyword", "url")]
     [TestCase("<p style='resize:auto'>A</p>", "resize supports only a single keyword", "auto")]
+    [TestCase("<p style='speak:loud'>A</p>", "speak supports only a single keyword", "loud")]
     public void FailuresNameThePropertyAndTheValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));

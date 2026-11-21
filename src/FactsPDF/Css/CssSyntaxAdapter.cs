@@ -815,7 +815,9 @@ internal static class CssSyntaxAdapter
             or "-webkit-user-drag" or "-webkit-touch-callout" or "-ms-overflow-style"
             // Tab stops never reach a page: collapsed tabs become spaces and preserved tabs fail
             // (FPDF1305), so the tab width is validated and dropped.
-            or "tab-size";
+            or "tab-size"
+            // Aural rendering only (CSS Speech); icon-font stylesheets write speak:none or never.
+            or "speak";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -878,6 +880,9 @@ internal static class CssSyntaxAdapter
         "-webkit-user-drag" => term is "auto" or "element" or "none",
         "-webkit-touch-callout" => term is "default" or "none",
         "-ms-overflow-style" => term is "auto" or "none" or "scrollbar" or "-ms-autohiding-scrollbar",
+        // CSS Speech keywords plus the CSS 2 aural values icon fonts still write; a PDF page is
+        // not spoken by the renderer.
+        "speak" => term is "auto" or "never" or "always" or "none" or "normal" or "spell-out",
         _ => false
     };
 
