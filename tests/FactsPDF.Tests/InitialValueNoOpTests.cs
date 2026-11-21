@@ -4,7 +4,9 @@ namespace FactsPDF.Tests;
 
 /// <summary>
 /// position, float, clear, overflow(-x/-y), visibility, z-index, opacity, box-shadow,
-/// text-shadow, transform, filter and background-image are accepted at
+/// text-shadow, transform, filter, background-image, clip-path, backdrop-filter, mix-blend-mode,
+/// isolation and the font tuning properties (font-feature-settings, font-variation-settings,
+/// font-variant-ligatures/-numeric, font-stretch, font-optical-sizing, font-size-adjust) are accepted at
 /// the one value the report renderer already lays out (their initial value, or a CSS-wide
 /// keyword that computes to it): the page renders byte-identical to the page without them.
 /// Every other value still fails with FPDF1202, and nothing is written.
@@ -47,6 +49,11 @@ public sealed class InitialValueNoOpTests
     [TestCase("mix-blend-mode:normal;isolation:auto")]
     [TestCase("clip-path:none;backdrop-filter:none")]
     [TestCase("MIX-BLEND-MODE:NORMAL;clip-path:inherit;isolation:unset")]
+    [TestCase("font-feature-settings:normal;font-variation-settings:normal")]
+    [TestCase("-webkit-font-feature-settings:normal;-moz-font-feature-settings:normal")]
+    [TestCase("font-variant-ligatures:normal;font-variant-numeric:normal;font-stretch:normal")]
+    [TestCase("font-optical-sizing:auto;font-size-adjust:none")]
+    [TestCase("FONT-FEATURE-SETTINGS:NORMAL;font-stretch:inherit;font-size-adjust:unset !important")]
     public void InitialValueRendersLikeTheUndeclaredPage(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -87,6 +94,15 @@ public sealed class InitialValueNoOpTests
     [TestCase("isolation:isolate")]
     [TestCase("clip-path:circle(50%)")]
     [TestCase("backdrop-filter:blur(4px)")]
+    [TestCase("font-feature-settings:'tnum'")]
+    [TestCase("-webkit-font-feature-settings:'liga' 0")]
+    [TestCase("font-variation-settings:'wght' 700")]
+    [TestCase("font-variant-numeric:tabular-nums")]
+    [TestCase("font-variant-ligatures:none")]
+    [TestCase("font-stretch:condensed")]
+    [TestCase("font-stretch:100%")]
+    [TestCase("font-optical-sizing:none")]
+    [TestCase("font-size-adjust:0.5")]
     public void AnyOtherValueFailsWithoutOutput(string declaration)
     {
         foreach (var html in new[] { $"<p style=\"{declaration}\">A</p>", $"<style>.unused{{{declaration}}}</style><p>A</p>" })
@@ -116,6 +132,25 @@ public sealed class InitialValueNoOpTests
         Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
         Assert.That(error.Message, Does.Contain(message));
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(at, StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void PrefixedFontFeatureSettingsFailsWithTheStandardMessage()
+    {
+        const string html = "<p style='-webkit-font-feature-settings:\"kern\"'>A</p>";
+        var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
+        Assert.That(error.Message, Does.Contain("font-feature-settings supports only normal"));
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("\"kern\"", StringComparison.Ordinal)));
+    }
+
+    [TestCase("font-kerning:auto")]
+    [TestCase("-o-font-feature-settings:normal")]
+    [TestCase("font-synthesis:none")]
+    public void UnlistedFontPropertiesStillFail(string declaration)
+    {
+        var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{declaration}'>A</p>"));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 
     [Test]
