@@ -6,7 +6,8 @@ namespace FactsPDF.Tests;
 /// position, float, clear, overflow(-x/-y), visibility, z-index, opacity, box-shadow,
 /// text-shadow, transform, filter, background-image, clip-path, backdrop-filter, mix-blend-mode,
 /// isolation and the font tuning properties (font-feature-settings, font-variation-settings,
-/// font-variant-ligatures/-numeric, font-stretch, font-optical-sizing, font-size-adjust) are accepted at
+/// font-variant-ligatures/-numeric, font-stretch, font-optical-sizing, font-size-adjust), zoom,
+/// contain, content-visibility, line-break, text-justify and image-rendering are accepted at
 /// the one value the report renderer already lays out (their initial value, or a CSS-wide
 /// keyword that computes to it): the page renders byte-identical to the page without them.
 /// Every other value still fails with FPDF1202, and nothing is written.
@@ -54,6 +55,12 @@ public sealed class InitialValueNoOpTests
     [TestCase("font-variant-ligatures:normal;font-variant-numeric:normal;font-stretch:normal")]
     [TestCase("font-optical-sizing:auto;font-size-adjust:none")]
     [TestCase("FONT-FEATURE-SETTINGS:NORMAL;font-stretch:inherit;font-size-adjust:unset !important")]
+    [TestCase("zoom:normal")]
+    [TestCase("zoom:1")]
+    [TestCase("zoom:100%")]
+    [TestCase("contain:none;content-visibility:visible")]
+    [TestCase("line-break:auto;text-justify:auto;image-rendering:auto")]
+    [TestCase("ZOOM:1;Contain:inherit;line-break:unset !important")]
     public void InitialValueRendersLikeTheUndeclaredPage(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -103,6 +110,14 @@ public sealed class InitialValueNoOpTests
     [TestCase("font-stretch:100%")]
     [TestCase("font-optical-sizing:none")]
     [TestCase("font-size-adjust:0.5")]
+    [TestCase("zoom:2")]
+    [TestCase("zoom:150%")]
+    [TestCase("zoom:reset")]
+    [TestCase("contain:layout")]
+    [TestCase("content-visibility:auto")]
+    [TestCase("line-break:anywhere")]
+    [TestCase("text-justify:inter-word")]
+    [TestCase("image-rendering:pixelated")]
     public void AnyOtherValueFailsWithoutOutput(string declaration)
     {
         foreach (var html in new[] { $"<p style=\"{declaration}\">A</p>", $"<style>.unused{{{declaration}}}</style><p>A</p>" })
@@ -147,6 +162,7 @@ public sealed class InitialValueNoOpTests
     [TestCase("font-kerning:auto")]
     [TestCase("-o-font-feature-settings:normal")]
     [TestCase("font-synthesis:none")]
+    [TestCase("-ms-zoom:1")]
     public void UnlistedFontPropertiesStillFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{declaration}'>A</p>"));
