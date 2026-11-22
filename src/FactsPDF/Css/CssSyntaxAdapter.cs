@@ -105,6 +105,8 @@ internal static class CssSyntaxAdapter
                 "-webkit-filter" => "filter",
                 "-webkit-clip-path" => "clip-path",
                 "-webkit-backdrop-filter" => "backdrop-filter",
+                // normalize.css 7 and Bootstrap 4's reboot write -webkit-text-decoration-skip:objects on a.
+                "-webkit-text-decoration-skip" => "text-decoration-skip",
                 // Older stylesheets still write font-feature-settings with both engine prefixes.
                 "-webkit-font-feature-settings" or "-moz-font-feature-settings" => "font-feature-settings",
                 // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
@@ -820,7 +822,7 @@ internal static class CssSyntaxAdapter
             or "speak"
             // Hints the renderer already satisfies: it synthesizes no bold or italic face and
             // never breaks an underline around descenders (see the keyword arms).
-            or "font-synthesis" or "text-decoration-skip-ink";
+            or "font-synthesis" or "text-decoration-skip-ink" or "text-decoration-skip";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -892,6 +894,10 @@ internal static class CssSyntaxAdapter
         // ask for faux faces still fail.
         "text-decoration-skip-ink" => term is "auto" or "none",
         "font-synthesis" => term == "none",
+        // Legacy text-decoration-skip: objects skips atomic inlines, and no image or other atomic
+        // inline can sit inside a line here; none and auto ask for no skipping. ink, spaces, edges
+        // and box-decoration ask for gaps the renderer never draws, so they still fail.
+        "text-decoration-skip" => term is "none" or "auto" or "objects",
         _ => false
     };
 
@@ -932,7 +938,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : name == "text-decoration-skip-ink" ? "auto or none" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
