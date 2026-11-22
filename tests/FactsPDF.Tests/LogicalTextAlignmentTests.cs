@@ -116,7 +116,7 @@ public sealed class LogicalTextAlignmentTests
     [TestCase("<p style='text-align:end start'>A</p>", "FPDF1202")]
     [TestCase("<style>.unused{text-align:logical}</style><p>A</p>", "FPDF1202")]
     [TestCase("<p><span style='text-align:end'>A</span></p>", "FPDF1201")]
-    [TestCase("<p style='direction:rtl;text-align:start'>A</p>", "FPDF1201")]
+    [TestCase("<p style='direction:rtl;text-align:start'>A</p>", "FPDF1202")]
     public void UnsupportedDirectionValuesAndInlineUsageKeepOriginalOutput(string html, string code)
         => Reject(html, code);
 }
