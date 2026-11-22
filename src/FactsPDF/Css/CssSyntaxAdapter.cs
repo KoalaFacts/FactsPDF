@@ -892,7 +892,9 @@ internal static class CssSyntaxAdapter
         // Scroll-into-view offsets (docs and utility stylesheets write scroll-margin-top on
         // anchored headings): a PDF page is never scrolled, so the offsets are validated and
         // dropped.
-        || ScrollOffsetSides(name) > 0;
+        || ScrollOffsetSides(name) > 0
+        // Scroll snapping only steers where a scroll container comes to rest.
+        || name is "scroll-snap-type" or "scroll-snap-align" or "scroll-snap-stop";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -968,6 +970,9 @@ internal static class CssSyntaxAdapter
         // inline can sit inside a line here; none and auto ask for no skipping. ink, spaces, edges
         // and box-decoration ask for gaps the renderer never draws, so they still fail.
         "text-decoration-skip" => term is "none" or "auto" or "objects",
+        "scroll-snap-type" => term is "none" or "x" or "y" or "block" or "inline" or "both",
+        "scroll-snap-align" => term is "none" or "start" or "end" or "center",
+        "scroll-snap-stop" => term is "normal" or "always",
         _ => false
     };
 
@@ -1001,6 +1006,9 @@ internal static class CssSyntaxAdapter
         // scroll-margin* take one to four lengths (one or two for the axis pairs, one for a side);
         // scroll-padding* take auto or non-negative lengths and percentages.
         if (ScrollOffsetSides(name) is > 0 and var sides && count >= 1 && count <= sides && ScrollOffsets(name, node)) return;
+        // scroll-snap-type also takes an axis then mandatory or proximity; scroll-snap-align
+        // also takes a block then an inline alignment.
+        if (count == 2 && name is "scroll-snap-type" or "scroll-snap-align" && ScrollSnapPair(name, node)) return;
         // tab-size takes a non-negative number of spaces or a non-negative length.
         if (count == 1 && name == "tab-size" && value is CssTokenComponent { Token: var tab } && TabSize(tab)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
@@ -1011,8 +1019,24 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
+    }
+
+    private static bool ScrollSnapPair(string name, CssDeclarationNode node)
+    {
+        string? first = null;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (node.Values[i] is not CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token }) return false;
+            var term = token.Value.ToLowerInvariant();
+            if (first is null) { first = term; continue; }
+            return name == "scroll-snap-type"
+                ? first is "x" or "y" or "block" or "inline" or "both" && term is "mandatory" or "proximity"
+                : first is "none" or "start" or "end" or "center" && term is "none" or "start" or "end" or "center";
+        }
+        return false;
     }
 
     // How many components a scroll-margin or scroll-padding name takes (0: not one of them).
