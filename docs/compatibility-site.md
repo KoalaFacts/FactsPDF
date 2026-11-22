@@ -526,8 +526,10 @@ since no tab stop reaches a page (210 to 213); `zoom:normal` (or `1`/`100%`),
 `text-justify` and `image-rendering` join the initial-value no-ops (213 to 219); `speak` accepts its CSS Speech and
 CSS 2 aural keywords and is dropped, since the renderer speaks nothing (219 to 220);
 `text-decoration-skip-ink` accepts `auto` or `none` and `font-synthesis` accepts `none`,
-both dropped, since the renderer synthesizes no face and skips no ink (220 to 222).
+both dropped, since the renderer synthesizes no face and skips no ink (220 to 222); the legacy
+`text-decoration-skip` (with its `-webkit-` alias) accepts `none`, `auto` or `objects` and is
+dropped, since no atomic inline sits in a line (222 to 224).
 Current dataset SHA-256:
-`7646ea0947bb39bf2539ed78dc00e394830ec0180d16239c586f38ca6d38eb59`; English
-layer `site/src/audit-english-font-hint-keywords.mjs`, ordered source-text
-SHA-256 `1774fb2d3d17120190f6593205dcaaaa8c4181905175820f1b3423505698cdc3`.
+`2a9244a5f8c32dc1b1d51dd7c7123b5895789733125b6bc8c4a44055e67a78c2`; English
+layer `site/src/audit-english-text-decoration-skip.mjs`, ordered source-text
+SHA-256 `5df45ca2ac73211b0863d1bfa80baa4831b3913a419c7fbf4679a0e02e2dd596`.
