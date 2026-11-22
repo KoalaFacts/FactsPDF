@@ -68,7 +68,6 @@ public sealed class ScrollOnlyPropertyTests
 
     [TestCase("-moz-scroll-behavior:smooth")]
     [TestCase("-ms-scroll-chaining:none")]
-    [TestCase("scroll-snap-type:x mandatory")]
     public void OtherScrollPropertiesStillFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{declaration}'>A</p>"));
@@ -110,4 +109,21 @@ public sealed class ScrollOnlyPropertyTests
         Assert.That(error.Message, Does.Contain(message));
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(':') + 1));
     }
+
+    // Scroll snapping only steers where a scroll container comes to rest; a PDF page never scrolls.
+    [TestCase("scroll-snap-type:x mandatory;scroll-snap-align:start;scroll-snap-stop:always")]
+    [TestCase("scroll-snap-type:none;scroll-snap-align:center end;scroll-snap-stop:normal")]
+    [TestCase("SCROLL-SNAP-TYPE:BOTH PROXIMITY;scroll-snap-align:none;scroll-snap-type:inherit !important")]
+    public void ScrollSnapKeywordsRenderLikeThePageWithoutThem(string declarations)
+    {
+        Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
+    }
+
+    [TestCase("scroll-snap-type:mandatory x", "scroll-snap-type supports only none, or an axis")]
+    [TestCase("scroll-snap-type:none mandatory", "scroll-snap-type supports only none, or an axis")]
+    [TestCase("scroll-snap-align:left", "scroll-snap-align supports only one or two of none")]
+    [TestCase("scroll-snap-align:start end center", "scroll-snap-align supports only one or two of none")]
+    [TestCase("scroll-snap-stop:always always", "scroll-snap-stop supports only a single keyword")]
+    public void InvalidScrollSnapValuesFail(string declaration, string message) =>
+        InvalidScrollOffsetsFail(declaration, message);
 }
