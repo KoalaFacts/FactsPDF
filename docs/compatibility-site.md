@@ -524,8 +524,10 @@ and `font-size-adjust:none` join the initial-value no-ops (201 to 210);
 since no tab stop reaches a page (210 to 213); `zoom:normal` (or `1`/`100%`),
 `contain:none`, `content-visibility:visible` and `auto` for `line-break`,
 `text-justify` and `image-rendering` join the initial-value no-ops (213 to 219); `speak` accepts its CSS Speech and
-CSS 2 aural keywords and is dropped, since the renderer speaks nothing (219 to 220).
+CSS 2 aural keywords and is dropped, since the renderer speaks nothing (219 to 220);
+`text-decoration-skip-ink` accepts `auto` or `none` and `font-synthesis` accepts `none`,
+both dropped, since the renderer synthesizes no face and skips no ink (220 to 222).
 Current dataset SHA-256:
-`042e049c89a1e8c8dfff6e39899ca8402129ca1606a89265ea8bc47811d5f80b`; English
-layer `site/src/audit-english-speak-hint.mjs`, ordered source-text
-SHA-256 `e1f8bb548cc74611d7ecf3b111e9215ac80dd38ef55abb75846e5b77a05924dd`.
+`7646ea0947bb39bf2539ed78dc00e394830ec0180d16239c586f38ca6d38eb59`; English
+layer `site/src/audit-english-font-hint-keywords.mjs`, ordered source-text
+SHA-256 `1774fb2d3d17120190f6593205dcaaaa8c4181905175820f1b3423505698cdc3`.

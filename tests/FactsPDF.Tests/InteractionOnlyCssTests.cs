@@ -5,7 +5,8 @@ namespace FactsPDF.Tests;
 /// <summary>
 /// cursor, pointer-events, user-select and resize only change how a screen reacts to a
 /// pointer; a PDF page has none. speak (aural rendering, as icon-font stylesheets write it)
-/// is dropped likewise. Every keyword value of them (and a CSS-wide keyword) is
+/// is dropped likewise, as are text-decoration-skip-ink at auto or none and font-synthesis:none,
+/// which ask for no ink skipping or face synthesis (the renderer does neither). Every keyword value of them (and a CSS-wide keyword) is
 /// validated and dropped, so the page renders byte-identical to the page without them.
 /// Any other value (an image, a number, several components) fails with FPDF1202.
 /// </summary>
@@ -43,6 +44,10 @@ public sealed class InteractionOnlyCssTests
     [TestCase("speak:never;speak:always;speak:auto")]
     [TestCase("speak:normal;speak:spell-out")]
     [TestCase("SPEAK:NONE;speak:inherit !important")]
+    [TestCase("font-synthesis:none")]
+    [TestCase("text-decoration-skip-ink:none;text-decoration-skip-ink:auto")]
+    [TestCase("Font-Synthesis:NONE;text-decoration-skip-ink:unset !important")]
+    [TestCase("font-synthesis:inherit;text-decoration-skip-ink:NONE")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -62,6 +67,12 @@ public sealed class InteractionOnlyCssTests
     [TestCase("speak:loud")]
     [TestCase("speak:none none")]
     [TestCase("speak:'none'")]
+    [TestCase("text-decoration-skip-ink:auto none")]
+    [TestCase("font-synthesis:weight")]
+    [TestCase("font-synthesis:weight style")]
+    [TestCase("font-synthesis:auto")]
+    [TestCase("text-decoration-skip-ink:all")]
+    [TestCase("text-decoration-skip-ink:0")]
     public void OtherValuesFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style=\"{declaration}\">A</p>"));
@@ -71,6 +82,8 @@ public sealed class InteractionOnlyCssTests
     [TestCase("<style>.unused{cursor:url(a.png)}</style><p>A</p>", "cursor supports only a single keyword", "url")]
     [TestCase("<p style='resize:auto'>A</p>", "resize supports only a single keyword", "auto")]
     [TestCase("<p style='speak:loud'>A</p>", "speak supports only a single keyword", "loud")]
+    [TestCase("<style>p{font-synthesis:weight}</style><p>A</p>", "font-synthesis supports only none", "weight")]
+    [TestCase("<p style='text-decoration-skip-ink:all'>A</p>", "text-decoration-skip-ink supports only auto or none", "all")]
     public void FailuresNameThePropertyAndTheValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
