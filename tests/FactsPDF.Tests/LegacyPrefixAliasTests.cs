@@ -6,7 +6,8 @@ namespace FactsPDF.Tests;
 /// The engine-prefixed spellings of border-radius, box-shadow, transform, filter, clip-path and
 /// backdrop-filter that Bootstrap 3, Font Awesome 4 and older themes still write: same values,
 /// cascade slot and applicability as the standard name, so they render byte-identical and fail
-/// exactly where the standard name fails.
+/// exactly where the standard name fails. The -webkit- text-decoration shorthand and longhands
+/// (Bootstrap 4's reboot) are aliases in the same way.
 /// </summary>
 [TestFixture]
 public sealed class LegacyPrefixAliasTests
@@ -101,6 +102,45 @@ public sealed class LegacyPrefixAliasTests
         Assert.That(actual?.Code, Is.EqualTo(expected?.Code));
         if (code is not null) Assert.That(actual?.Code, Is.EqualTo(code));
         if (actual is not null) Assert.That(actual.Message, Is.EqualTo(expected!.Message));
+    }
+
+    private static string Decorated(string declarations) =>
+        $"<style>h2{{{declarations}}} .unused{{{declarations}}}</style><h2>Invoice</h2>" +
+        $"<p style='{declarations}'>Paid <span style='{declarations}'>in full</span> " +
+        $"<a href='https://example.com/' style='{declarations}'>link</a></p>";
+
+    [TestCase("-webkit-text-decoration:underline", "text-decoration:underline")]
+    [TestCase("-webkit-text-decoration:underline dotted #c00", "text-decoration:underline dotted #c00")]
+    [TestCase("-WEBKIT-TEXT-DECORATION:LINE-THROUGH", "text-decoration:line-through")]
+    [TestCase("-webkit-text-decoration:none", "text-decoration:none")]
+    [TestCase("-webkit-text-decoration-line:overline", "text-decoration-line:overline")]
+    [TestCase("text-decoration-line:underline;-webkit-text-decoration-color:red",
+        "text-decoration-line:underline;text-decoration-color:red")]
+    [TestCase("text-decoration-line:underline;-webkit-text-decoration-style:dashed",
+        "text-decoration-line:underline;text-decoration-style:dashed")]
+    [TestCase("-webkit-text-decoration:underline;text-decoration:none", "text-decoration:none")]
+    [TestCase("text-decoration:none;-webkit-text-decoration:underline !important", "text-decoration:underline !important")]
+    public void PrefixedTextDecorationRendersLikeTheStandardName(string prefixed, string standard)
+    {
+        Assert.That(Pdf(Decorated(prefixed)), Is.EqualTo(Pdf(Decorated(standard))));
+    }
+
+    [Test]
+    public void PrefixedUnderlineChangesThePaint()
+    {
+        Assert.That(Pdf(Decorated("-webkit-text-decoration:underline dotted")), Is.Not.EqualTo(Pdf(Decorated("text-decoration:none"))));
+    }
+
+    [TestCase("-webkit-text-decoration:blink", "text-decoration:blink")]
+    [TestCase("-webkit-text-decoration-style:double", "text-decoration-style:double")]
+    [TestCase("-webkit-text-decoration-color:url(a)", "text-decoration-color:url(a)")]
+    public void PrefixedTextDecorationFailsLikeTheStandardName(string prefixed, string standard)
+    {
+        var expected = Catch($"<p style='{standard}'>A</p>");
+        var actual = Catch($"<p style='{prefixed}'>A</p>");
+        Assert.That(expected, Is.Not.Null);
+        Assert.That(actual?.Code, Is.EqualTo(expected!.Code));
+        Assert.That(actual!.Message, Is.EqualTo(expected.Message));
     }
 
     [TestCase("-o-box-shadow")]

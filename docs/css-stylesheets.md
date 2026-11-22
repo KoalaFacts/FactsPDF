@@ -2000,7 +2000,9 @@ engine spellings older themes still write: `-webkit-`/`-moz-border-radius`,
 `-webkit-`/`-moz-box-shadow`, `-webkit-`/`-moz-`/`-ms-`/`-o-transform`,
 `-webkit-filter`, `-webkit-clip-path` and `-webkit-backdrop-filter` behave
 exactly like the standard name, so `-webkit-transform:none` is dropped while
-`-webkit-box-shadow:0 1px 2px #000` fails `FPDF1202` (`LegacyPrefixAliasTests`). For example:
+`-webkit-box-shadow:0 1px 2px #000` fails `FPDF1202` (`LegacyPrefixAliasTests`);
+`-webkit-text-decoration` and `-webkit-text-decoration-line`/`-color`/`-style`
+are aliases of the text-decoration shorthand and longhands in the same way. For example:
 
     <section style="box-sizing:border-box;width:140mm;padding:5mm;border:0.25mm solid #23446b">
       <p>Service summary</p>
