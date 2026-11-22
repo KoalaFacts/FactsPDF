@@ -316,6 +316,13 @@ internal sealed class CssStylesheets
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
             budget.Work(declaration.Offset);
+            // baseline is the initial value. Outside cells inline text (and a br or img) already
+            // sits on its baseline and blocks ignore vertical-align, so resets such as
+            // *{vertical-align:baseline} are validated and dropped, even on void elements.
+            // A cell's baseline row alignment is not implemented (rejected below).
+            if (declaration.Property == CssProperty.VerticalAlign && declaration.Value == "baseline"
+                && element.Name is not ("td" or "th"))
+                return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
@@ -388,17 +395,10 @@ internal sealed class CssStylesheets
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
             if (declaration.Property == CssProperty.VerticalAlign)
             {
-                // baseline is the initial value. Outside cells inline text already sits on its
-                // baseline and blocks ignore vertical-align, so resets such as *{vertical-align:baseline}
-                // are validated and dropped. A cell's baseline row alignment is not implemented.
-                var baseline = declaration.Value == "baseline";
                 if (element.Name is not ("td" or "th"))
-                {
-                    if (baseline) return;
                     throw new FactsPdfException("FPDF1201",
                         "vertical-align applies only to fixed-column table td/th cells (elsewhere only its initial value baseline is accepted).", declaration.Offset);
-                }
-                if (baseline)
+                if (declaration.Value == "baseline")
                     throw new FactsPdfException("FPDF1202",
                         "Table-cell vertical-align supports only top, middle and bottom.", declaration.Offset);
             }

@@ -736,7 +736,7 @@ non-inherited `top`. No alignment is silently ignored: split-body-row
 middle/bottom fails `FPDF1302`, baseline/sub/super/length/percentage
 values on a cell fail `FPDF1202`, and non-cell targets fail `FPDF1201` —
 except the initial value `baseline`, which changes nothing outside cells and
-is validated and dropped there (resets such as `*{vertical-align:baseline}`
+is validated and dropped there, even on void elements such as `br` (resets such as `*{vertical-align:baseline}`
 render while no table cell matches).
 This does not implement general CSS inline vertical alignment or
 CSS Tables. See [the table contract](tables.md#vertical-alignment-in-whole-table-rows),

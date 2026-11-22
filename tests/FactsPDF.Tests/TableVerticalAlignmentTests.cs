@@ -154,6 +154,7 @@ public sealed class TableVerticalAlignmentTests
     [TestCase("<style>*{vertical-align:baseline}</style><div><p>TEXT</p></div>", "<div><p>TEXT</p></div>")]
     [TestCase("<style>p,span{vertical-align:baseline !important}</style><p>TEXT <span>MORE</span></p>", "<p>TEXT <span>MORE</span></p>")]
     [TestCase("<style>.unused{vertical-align:baseline}</style><p>TEXT</p>", "<p>TEXT</p>")]
+    [TestCase("<style>*{vertical-align:baseline}</style><p>LINE<br>BREAK</p>", "<p>LINE<br>BREAK</p>")]
     public void InitialBaselineOutsideCellsRendersLikeTheUndeclaredPage(string html, string oracle)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(oracle)));
 
