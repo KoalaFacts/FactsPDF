@@ -88,7 +88,7 @@ authoritative CSS contract, see [CSS stylesheets](css-stylesheets.md).
 
 ### Initial-value reset declarations
 
-Stylesheets copied from report templates often reset layout properties the engine does not implement. `position:static`, `float:none`, `clear:none`, `overflow`/`overflow-x`/`overflow-y:visible`, `visibility:visible`, `z-index:auto`, `opacity:1` (or `100%`) and `box-shadow`/`text-shadow`/`transform`/`filter`/`background-image`/`clip-path`/`backdrop-filter:none`, `mix-blend-mode:normal`, `isolation:auto`, `font-feature-settings` (also `-webkit-`/`-moz-`)/`font-variation-settings`/`font-variant-ligatures`/`font-variant-numeric`/`font-stretch:normal`, `font-optical-sizing:auto`, `font-size-adjust:none` (Tailwind preflight puts the first two on `html`), `font-variant` and its `-caps`/`-east-asian`/`-alternates`/`-position` longhands at `normal` (email and print template resets), `font-language-override`/`font-variant-emoji`/`font-palette:normal` and `text-emphasis`/`text-emphasis-style:none` (no language glyph forms, emoji switches, palettes or emphasis marks are applied), `zoom:normal`/`1`/`100%` (old clearfix rules), `contain:none`, `content-visibility:visible` and `line-break`/`text-justify`/`image-rendering:auto`, plus CSS-wide keywords, are now accepted on any element and change nothing: the PDF is byte-identical to the page without them. Any other value of these properties still fails with `FPDF1202`, also in unmatched rules; positioning, floats, clipping, hiding, stacking, transparency, shadows, transforms, filters, background images, OpenType features, variation axes, optical sizing, aspect adjustment, font width selection, zoom, containment, content skipping, alternative line breaking or justification and image interpolation control are not implemented ([property scope](css-stylesheets.md#property-scope), `InitialValueNoOpTests.cs`).
+Stylesheets copied from report templates often reset layout properties the engine does not implement. `position:static`, `float:none`, `clear:none`, `overflow`/`overflow-x`/`overflow-y:visible`, `visibility:visible`, `z-index:auto`, `opacity:1` (or `100%`) and `box-shadow`/`text-shadow`/`transform`/`filter`/`background-image`/`clip-path`/`backdrop-filter:none`, `mix-blend-mode:normal`, `isolation:auto`, `font-feature-settings` (also `-webkit-`/`-moz-`)/`font-variation-settings`/`font-variant-ligatures`/`font-variant-numeric`/`font-stretch:normal`, `font-optical-sizing:auto`, `font-size-adjust:none` (Tailwind preflight puts the first two on `html`), `font-variant` and its `-caps`/`-east-asian`/`-alternates`/`-position` longhands at `normal` (email and print template resets), `font-language-override`/`font-variant-emoji`/`font-palette:normal` and `text-emphasis`/`text-emphasis-style:none` (no language glyph forms, emoji switches, palettes or emphasis marks are applied), `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizontal-tb`, `text-orientation:mixed` and `text-combine-upright:none` (only left-to-right horizontal text is laid out; `direction:rtl`, `writing-mode:vertical-rl` and other values fail `FPDF1202`), `zoom:normal`/`1`/`100%` (old clearfix rules), `contain:none`, `content-visibility:visible` and `line-break`/`text-justify`/`image-rendering:auto`, plus CSS-wide keywords, are now accepted on any element and change nothing: the PDF is byte-identical to the page without them. Any other value of these properties still fails with `FPDF1202`, also in unmatched rules; positioning, floats, clipping, hiding, stacking, transparency, shadows, transforms, filters, background images, OpenType features, variation axes, optical sizing, aspect adjustment, font width selection, zoom, containment, content skipping, alternative line breaking or justification and image interpolation control are not implemented ([property scope](css-stylesheets.md#property-scope), `InitialValueNoOpTests.cs`).
 
 ### Interaction-only declarations
 
@@ -604,7 +604,7 @@ glyph X coordinates, font measurement, first-line indentation, wrapping and
 cross-page continuation follow the existing physical-alignment renderer.
 
 This applies through embedded stylesheets, inline declarations, normal
-cascade and inheritance; it does **not** add RTL, `direction`, HTML `dir`,
+cascade and inheritance; it does **not** add RTL, `direction` other than `ltr`, HTML `dir`,
 vertical writing, inline-span start/end alignment or full CSS Text behavior.
 Unsupported values and directions fail without replacing an existing PDF.
 Compare the [46-entry printable report](../examples/report-logical-text-align.html)
@@ -867,7 +867,7 @@ written physical-side [PDF oracle](../examples/report-logical-longhands-oracle.h
 for the [logical-side example](../examples/report-logical-longhands.html).
 
 This is **LTR normal-flow mapping only**: inline-start = left, inline-end =
-right, block-start = top, block-end = bottom. `direction`, RTL/vertical writing
+right, block-start = top, block-end = bottom. `direction` other than `ltr`, RTL/vertical writing
 modes, negative values, CSS margin collapse, other logical properties,
 `calc()` and unsupported elements remain outside scope. Body/list/table/
 image/inline margins remain rejected, as with their physical longhands.

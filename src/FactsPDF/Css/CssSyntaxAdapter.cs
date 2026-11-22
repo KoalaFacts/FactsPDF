@@ -781,6 +781,15 @@ internal static class CssSyntaxAdapter
         "text-emphasis" or "text-emphasis-style" => "none",
         "font-optical-sizing" => "auto",
         "font-size-adjust" => "none",
+        // Writing-direction resets at their initial value: the renderer lays out only
+        // left-to-right horizontal text (characters that need bidi fail FPDF1305), never
+        // reorders, rotates or combines glyphs, so ltr, normal, horizontal-tb, mixed and none
+        // ask for exactly that; rtl, isolate, vertical-rl and the rest still fail FPDF1202.
+        "direction" => "ltr",
+        "unicode-bidi" => "normal",
+        "writing-mode" => "horizontal-tb",
+        "text-orientation" => "mixed",
+        "text-combine-upright" => "none",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.

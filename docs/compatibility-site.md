@@ -533,8 +533,9 @@ dropped, since no atomic inline sits in a line (222 to 224); `-webkit-text-decor
 `-east-asian`, `-alternates` and `-position` longhands at `normal` join the
 initial-value no-ops (228 to 233); `font-language-override`, `font-variant-emoji` and
 `font-palette` at `normal` and `text-emphasis` and `text-emphasis-style` at `none` join them
-too (233 to 238).
+too (233 to 238); `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizontal-tb`,
+`text-orientation:mixed` and `text-combine-upright:none` join them as well (238 to 243).
 Current dataset SHA-256:
-`33897fad27827e5da7b8fe0a4ecffeb12f6179e1c1b6dff25d620e56573e72fb`; English
-layer `site/src/audit-english-font-palette-emphasis-initial-values.mjs`, ordered source-text
-SHA-256 `2958159be4243d83d5aec5dfe827a9b0b4077a7dcd5e81e3ccc5a1f52316fe7b`.
+`3f9994fb32b310803f26c996cc3159eadf9f0f852957af043f0c74caacec3d05`; English
+layer `site/src/audit-english-writing-direction-initial-values.mjs`, ordered source-text
+SHA-256 `3e63e0974d431d9f2f03f8bc9ea42ed1de99ff28be7913ffa1d9c14134e076a3`.
