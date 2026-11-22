@@ -769,6 +769,11 @@ internal static class CssSyntaxAdapter
         // beyond the font as given, which is exactly what these initial values ask for.
         "font-feature-settings" or "font-variation-settings" or "font-variant-ligatures"
             or "font-variant-numeric" or "font-stretch" => "normal",
+        // The remaining font-variant longhands and the font-variant shorthand at normal
+        // (email and print templates reset them) ask for no small caps, East Asian forms,
+        // alternates or sub/superscript glyphs, which the renderer never substitutes.
+        "font-variant" or "font-variant-caps" or "font-variant-east-asian"
+            or "font-variant-alternates" or "font-variant-position" => "normal",
         "font-optical-sizing" => "auto",
         "font-size-adjust" => "none",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;

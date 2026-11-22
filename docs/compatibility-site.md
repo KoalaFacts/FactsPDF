@@ -529,8 +529,10 @@ CSS 2 aural keywords and is dropped, since the renderer speaks nothing (219 to 2
 both dropped, since the renderer synthesizes no face and skips no ink (220 to 222); the legacy
 `text-decoration-skip` (with its `-webkit-` alias) accepts `none`, `auto` or `objects` and is
 dropped, since no atomic inline sits in a line (222 to 224); `-webkit-text-decoration` and its
-`-line`, `-color` and `-style` longhands are aliases of the standard names (224 to 228).
+`-line`, `-color` and `-style` longhands are aliases of the standard names (224 to 228); `font-variant` and its `-caps`,
+`-east-asian`, `-alternates` and `-position` longhands at `normal` join the
+initial-value no-ops (228 to 233).
 Current dataset SHA-256:
-`e1e8519e2cf75820880df8d800e549ce4a63e698fed1d30203fd12ed82cbdde8`; English
-layer `site/src/audit-english-webkit-text-decoration.mjs`, ordered source-text
-SHA-256 `d061da813734ce0ebe6dca0ba7da23dbaf6f8e931ea21c49248874a3c82f08d3`.
+`94729d70a0fddd8882839a3451fe4df5337dd6d43d71ab45cbab0a7a90021045`; English
+layer `site/src/audit-english-font-variant-initial-values.mjs`, ordered source-text
+SHA-256 `d0abe019aecdacb27bcbee4ee43fba3ec8709140c01e347c45526f11112e74b7`.
