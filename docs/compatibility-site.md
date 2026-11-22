@@ -539,8 +539,9 @@ too (233 to 238); `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizont
 limitations change; the count stays 243); the multi-column resets `column-count`,
 `column-width` and `columns` at `auto`, `column-gap:normal`, `column-span`, `column-rule`
 and `column-rule-style` at `none` and `column-fill:balance` join the initial-value no-ops
-(243 to 251).
+(243 to 251); `text-overflow:clip`, `line-clamp` and `-webkit-line-clamp` at `none` and
+`box-decoration-break` and `-webkit-box-decoration-break` at `slice` join them too (251 to 256).
 Current dataset SHA-256:
-`6cf89cc1c91eeade6cebe9673fc98624e8dbaef6b8d107ea06c7c8ef43616eb4`; English
-layer `site/src/audit-english-multicol-initial-values.mjs`, ordered source-text
-SHA-256 `ef5e004f19de6a2d602506e1011bfe662aa6fbb645a8ad4570d12ef194c6f85f`.
+`2f87e06b2bc092c5d0792f6d6a9a2f04b819168a5d7f9eefb7d12ca35ddeeacd`; English
+layer `site/src/audit-english-overflow-fragment-initial-values.mjs`, ordered source-text
+SHA-256 `cc72e860f4fbdb38d77cc4df28fb8a73d4cd7c0303a2ce7d2effa0e2225e5ad6`.
