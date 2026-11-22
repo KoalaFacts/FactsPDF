@@ -790,6 +790,13 @@ internal static class CssSyntaxAdapter
         "writing-mode" => "horizontal-tb",
         "text-orientation" => "mixed",
         "text-combine-upright" => "none",
+        // Multi-column resets at their initial value: the renderer lays every box out in one
+        // column, so no column count or width, the normal gap, no spanning, balanced fill and no
+        // column rule describe exactly that; column-count:2 and the rest still fail FPDF1202.
+        "column-count" or "column-width" or "columns" => "auto",
+        "column-gap" => "normal",
+        "column-span" or "column-rule" or "column-rule-style" => "none",
+        "column-fill" => "balance",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
