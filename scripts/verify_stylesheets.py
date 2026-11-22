@@ -1304,7 +1304,7 @@ def main():
         for html, diagnostic in (
             ("<p style='text-align:match-parent'>A</p>", b'FPDF1202'),
             ("<span style='text-align:end'>A</span>", b'FPDF1201'),
-            ("<p style='direction:rtl;text-align:start'>A</p>", b'FPDF1201')
+            ("<p style='direction:rtl;text-align:start'>A</p>", b'FPDF1202')
         ):
             bad.write_text(html, encoding='utf-8')
             original.write_bytes(b'prior-accepted-report')
