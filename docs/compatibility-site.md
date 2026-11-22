@@ -531,8 +531,10 @@ both dropped, since the renderer synthesizes no face and skips no ink (220 to 22
 dropped, since no atomic inline sits in a line (222 to 224); `-webkit-text-decoration` and its
 `-line`, `-color` and `-style` longhands are aliases of the standard names (224 to 228); `font-variant` and its `-caps`,
 `-east-asian`, `-alternates` and `-position` longhands at `normal` join the
-initial-value no-ops (228 to 233).
+initial-value no-ops (228 to 233); `font-language-override`, `font-variant-emoji` and
+`font-palette` at `normal` and `text-emphasis` and `text-emphasis-style` at `none` join them
+too (233 to 238).
 Current dataset SHA-256:
-`94729d70a0fddd8882839a3451fe4df5337dd6d43d71ab45cbab0a7a90021045`; English
-layer `site/src/audit-english-font-variant-initial-values.mjs`, ordered source-text
-SHA-256 `d0abe019aecdacb27bcbee4ee43fba3ec8709140c01e347c45526f11112e74b7`.
+`33897fad27827e5da7b8fe0a4ecffeb12f6179e1c1b6dff25d620e56573e72fb`; English
+layer `site/src/audit-english-font-palette-emphasis-initial-values.mjs`, ordered source-text
+SHA-256 `2958159be4243d83d5aec5dfe827a9b0b4077a7dcd5e81e3ccc5a1f52316fe7b`.

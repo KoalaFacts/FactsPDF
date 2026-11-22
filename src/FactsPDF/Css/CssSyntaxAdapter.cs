@@ -774,6 +774,11 @@ internal static class CssSyntaxAdapter
         // alternates or sub/superscript glyphs, which the renderer never substitutes.
         "font-variant" or "font-variant-caps" or "font-variant-east-asian"
             or "font-variant-alternates" or "font-variant-position" => "normal",
+        // Font language, emoji and colour-palette selection at normal (the font's own default)
+        // and no emphasis marks: the renderer applies no language-specific glyph forms, emoji
+        // presentation switches or palettes, and draws no East Asian emphasis marks.
+        "font-language-override" or "font-variant-emoji" or "font-palette" => "normal",
+        "text-emphasis" or "text-emphasis-style" => "none",
         "font-optical-sizing" => "auto",
         "font-size-adjust" => "none",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
