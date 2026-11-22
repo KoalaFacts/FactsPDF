@@ -810,6 +810,12 @@ internal static class CssSyntaxAdapter
         "transform-style" => "flat",
         "mask" or "mask-image" or "-webkit-mask" or "-webkit-mask-image" => "none",
         "shape-outside" => "none",
+        // Typography resets: no hanging punctuation, no hyphenation character choice (nothing
+        // is hyphenated automatically), no CJK spacing trim beyond the font and underlines at
+        // the renderer's own position are exactly what is drawn.
+        "hanging-punctuation" => "none",
+        "hyphenate-character" or "text-underline-position" => "auto",
+        "text-spacing-trim" => "normal",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.

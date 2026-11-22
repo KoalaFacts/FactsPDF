@@ -543,8 +543,9 @@ and `column-rule-style` at `none` and `column-fill:balance` join the initial-val
 `box-decoration-break` and `-webkit-box-decoration-break` at `slice` join them too (251 to 256);
 `rotate`, `scale`, `translate` and `perspective` at `none`, `transform-style:flat` and `mask`,
 `mask-image`, `-webkit-mask`, `-webkit-mask-image` and `shape-outside` at `none` join them as
-well (256 to 266).
+well (256 to 266); `hanging-punctuation:none`, `hyphenate-character` and
+`text-underline-position` at `auto` and `text-spacing-trim:normal` join them too (266 to 270).
 Current dataset SHA-256:
-`bd94525804ccc8071d77d590feee9df60be85718d67a2033ff22ddfd069aae5a`; English
-layer `site/src/audit-english-transform-mask-initial-values.mjs`, ordered source-text
-SHA-256 `f3cedf4bd8a51545914a42ea357de6b54a044d25c6ae849e312267678ad01ee0`.
+`8ae4918b6da2dd50da9f1f2bf6c853a1ad66851792c9f387a8b9a6907fb6f1d3`; English
+layer `site/src/audit-english-typography-initial-values.mjs`, ordered source-text
+SHA-256 `3b7f1bb48e901f8b485a16735eece024c4864ff23562b49588b89eccaf4fe48c`.
