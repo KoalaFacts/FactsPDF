@@ -540,8 +540,11 @@ limitations change; the count stays 243); the multi-column resets `column-count`
 `column-width` and `columns` at `auto`, `column-gap:normal`, `column-span`, `column-rule`
 and `column-rule-style` at `none` and `column-fill:balance` join the initial-value no-ops
 (243 to 251); `text-overflow:clip`, `line-clamp` and `-webkit-line-clamp` at `none` and
-`box-decoration-break` and `-webkit-box-decoration-break` at `slice` join them too (251 to 256).
+`box-decoration-break` and `-webkit-box-decoration-break` at `slice` join them too (251 to 256);
+`rotate`, `scale`, `translate` and `perspective` at `none`, `transform-style:flat` and `mask`,
+`mask-image`, `-webkit-mask`, `-webkit-mask-image` and `shape-outside` at `none` join them as
+well (256 to 266).
 Current dataset SHA-256:
-`2f87e06b2bc092c5d0792f6d6a9a2f04b819168a5d7f9eefb7d12ca35ddeeacd`; English
-layer `site/src/audit-english-overflow-fragment-initial-values.mjs`, ordered source-text
-SHA-256 `cc72e860f4fbdb38d77cc4df28fb8a73d4cd7c0303a2ce7d2effa0e2225e5ad6`.
+`bd94525804ccc8071d77d590feee9df60be85718d67a2033ff22ddfd069aae5a`; English
+layer `site/src/audit-english-transform-mask-initial-values.mjs`, ordered source-text
+SHA-256 `f3cedf4bd8a51545914a42ea357de6b54a044d25c6ae849e312267678ad01ee0`.

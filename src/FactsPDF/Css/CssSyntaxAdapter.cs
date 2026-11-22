@@ -803,6 +803,13 @@ internal static class CssSyntaxAdapter
         "text-overflow" => "clip",
         "line-clamp" or "-webkit-line-clamp" => "none",
         "box-decoration-break" or "-webkit-box-decoration-break" => "slice",
+        // Transform, masking and float-shape resets: like transform:none, the individual
+        // transforms and perspective at none and transform-style:flat move nothing; no mask or
+        // float shape is ever applied, so none asks for exactly what is drawn.
+        "rotate" or "scale" or "translate" or "perspective" => "none",
+        "transform-style" => "flat",
+        "mask" or "mask-image" or "-webkit-mask" or "-webkit-mask-image" => "none",
+        "shape-outside" => "none",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
