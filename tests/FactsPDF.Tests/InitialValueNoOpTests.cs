@@ -161,7 +161,6 @@ public sealed class InitialValueNoOpTests
 
     [TestCase("font-kerning:auto")]
     [TestCase("-o-font-feature-settings:normal")]
-    [TestCase("font-synthesis:none")]
     [TestCase("-ms-zoom:1")]
     public void UnlistedFontPropertiesStillFail(string declaration)
     {

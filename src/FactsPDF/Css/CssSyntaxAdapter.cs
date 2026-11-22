@@ -817,7 +817,10 @@ internal static class CssSyntaxAdapter
             // (FPDF1305), so the tab width is validated and dropped.
             or "tab-size"
             // Aural rendering only (CSS Speech); icon-font stylesheets write speak:none or never.
-            or "speak";
+            or "speak"
+            // Hints the renderer already satisfies: it synthesizes no bold or italic face and
+            // never breaks an underline around descenders (see the keyword arms).
+            or "font-synthesis" or "text-decoration-skip-ink";
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -883,6 +886,12 @@ internal static class CssSyntaxAdapter
         // CSS Speech keywords plus the CSS 2 aural values icon fonts still write; a PDF page is
         // not spoken by the renderer.
         "speak" => term is "auto" or "never" or "always" or "none" or "normal" or "spell-out",
+        // Only the values the renderer already honours: skip-ink auto leaves ink skipping to the
+        // renderer (which does none) and none forbids it; font-synthesis:none forbids synthesized
+        // faces, and none are made. text-decoration-skip-ink:all and the synthesis keywords that
+        // ask for faux faces still fail.
+        "text-decoration-skip-ink" => term is "auto" or "none",
+        "font-synthesis" => term == "none",
         _ => false
     };
 
@@ -923,7 +932,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : name == "text-decoration-skip-ink" ? "auto or none" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
