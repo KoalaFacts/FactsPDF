@@ -544,8 +544,10 @@ and `column-rule-style` at `none` and `column-fill:balance` join the initial-val
 `rotate`, `scale`, `translate` and `perspective` at `none`, `transform-style:flat` and `mask`,
 `mask-image`, `-webkit-mask`, `-webkit-mask-image` and `shape-outside` at `none` join them as
 well (256 to 266); `hanging-punctuation:none`, `hyphenate-character` and
-`text-underline-position` at `auto` and `text-spacing-trim:normal` join them too (266 to 270).
+`text-underline-position` at `auto` and `text-spacing-trim:normal` join them too (266 to 270);
+`background-attachment:scroll`, `background-blend-mode:normal`, `background-origin:padding-box`,
+`container-type:normal` and `container:none` join them as well (270 to 275).
 Current dataset SHA-256:
-`8ae4918b6da2dd50da9f1f2bf6c853a1ad66851792c9f387a8b9a6907fb6f1d3`; English
-layer `site/src/audit-english-typography-initial-values.mjs`, ordered source-text
-SHA-256 `3b7f1bb48e901f8b485a16735eece024c4864ff23562b49588b89eccaf4fe48c`.
+`f7243ed3cd8eb99301348389cbb3c5a97d8c2c7d144df720b764ed2d6ecfc9d3`; English
+layer `site/src/audit-english-background-container-initial-values.mjs`, ordered source-text
+SHA-256 `10a18365046543a97c05ba2dde1eb649a65ff14f7cb65f5226a1b9072b19d04f`.

@@ -816,6 +816,14 @@ internal static class CssSyntaxAdapter
         "hanging-punctuation" => "none",
         "hyphenate-character" or "text-underline-position" => "auto",
         "text-spacing-trim" => "normal",
+        // Background and container resets: no background image is ever painted (only
+        // background-image:none is accepted), so it neither stays fixed across pages, nor blends,
+        // nor needs an origin box; no container query is evaluated, so no element is a container.
+        "background-attachment" => "scroll",
+        "background-blend-mode" => "normal",
+        "background-origin" => "padding-box",
+        "container-type" => "normal",
+        "container" => "none",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
