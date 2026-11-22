@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "FactsPDF Compatibility Tracker",
-  "dataset_version": "audit-2026-11-23.writing-direction-initial-values",
+  "dataset_version": "audit-2026-11-23.vertical-align-baseline-reset",
   "audited_at": "2026-11-17",
   "repository": "KoalaFacts/FactsPDF",
   "commit": "5c45a68546d0d903eccd2579782e55f2fedff5e4",
@@ -6298,7 +6298,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "固定列宽表格 td/th 单元格限定支持 vertical-align:top/middle/bottom；短单元格的实际 PDF 文字行、字体基线、图片及图片自身边框在整行高度内上/中/下定位。多页表格的完整行与重复表头沿用真实排版。",
-      "limitations": "不是通用CSS vertical-align。baseline/sub/super、长度与百分比拒绝 FPDF1202；非 td/th 元素拒绝 FPDF1201；需要独立单元格跨页续排的正文行使用 middle/bottom 明确拒绝 FPDF1302，原 PDF 不被覆盖。不支持 rowspan 或内联基线对齐。",
+      "limitations": "不是通用CSS vertical-align。非 td/th 元素上的初始值 baseline 不改变排版，验证后丢弃（PDF 字节与未声明时相同），其他取值拒绝 FPDF1201；td/th 上 baseline/sub/super、长度与百分比拒绝 FPDF1202；需要独立单元格跨页续排的正文行使用 middle/bottom 明确拒绝 FPDF1302，原 PDF 不被覆盖。不支持 rowspan 或内联基线对齐。",
       "stage": "实际 PDF 表格整行定位（限定）",
       "applicability": "共享核心（CLI / .NET）",
       "example": "<td style=\"vertical-align:bottom\">INV-004</td>",

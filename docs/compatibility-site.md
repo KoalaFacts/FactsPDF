@@ -534,8 +534,10 @@ dropped, since no atomic inline sits in a line (222 to 224); `-webkit-text-decor
 initial-value no-ops (228 to 233); `font-language-override`, `font-variant-emoji` and
 `font-palette` at `normal` and `text-emphasis` and `text-emphasis-style` at `none` join them
 too (233 to 238); `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizontal-tb`,
-`text-orientation:mixed` and `text-combine-upright:none` join them as well (238 to 243).
+`text-orientation:mixed` and `text-combine-upright:none` join them as well (238 to 243);
+`vertical-align:baseline` outside table cells is dropped too (the `css.vertical-align`
+limitations change; the count stays 243).
 Current dataset SHA-256:
-`3f9994fb32b310803f26c996cc3159eadf9f0f852957af043f0c74caacec3d05`; English
-layer `site/src/audit-english-writing-direction-initial-values.mjs`, ordered source-text
-SHA-256 `3e63e0974d431d9f2f03f8bc9ea42ed1de99ff28be7913ffa1d9c14134e076a3`.
+`a40c0e27efabaced8f4f514e32f54dbdb2666515273cf468ba0c949426de06e3`; English
+layer `site/src/audit-english-vertical-align-baseline-reset.mjs`, ordered source-text
+SHA-256 `23a7b55ca523b9cb1a67361be475c0fcbf630a1a437343084b970e957fd33996`.
