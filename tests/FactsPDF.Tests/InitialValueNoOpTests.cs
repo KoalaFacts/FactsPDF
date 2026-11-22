@@ -183,7 +183,7 @@ public sealed class InitialValueNoOpTests
     [TestCase("shape-outside:circle(50%)")]
     [TestCase("shape-outside:none none")]
     [TestCase("hanging-punctuation:first")]
-    [TestCase("hyphenate-character:\"-\"")]
+    [TestCase("hyphenate-character:'-'")]
     [TestCase("text-spacing-trim:trim-start")]
     [TestCase("text-underline-position:under")]
     [TestCase("zoom:2")]
