@@ -824,6 +824,15 @@ internal static class CssSyntaxAdapter
         "background-origin" => "padding-box",
         "container-type" => "normal",
         "container" => "none",
+        // Aspect-ratio and mask longhand resets: images always keep their pixel ratio and other
+        // boxes have none, which is aspect-ratio:auto; with no mask ever applied (only mask:none
+        // is accepted), the mask longhands at their initial values describe exactly that.
+        "aspect-ratio" or "mask-size" => "auto",
+        "mask-repeat" => "repeat",
+        "mask-origin" or "mask-clip" => "border-box",
+        "mask-mode" => "match-source",
+        "mask-composite" => "add",
+        "mask-type" => "luminance",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.

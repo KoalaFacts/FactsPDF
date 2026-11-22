@@ -546,8 +546,10 @@ and `column-rule-style` at `none` and `column-fill:balance` join the initial-val
 well (256 to 266); `hanging-punctuation:none`, `hyphenate-character` and
 `text-underline-position` at `auto` and `text-spacing-trim:normal` join them too (266 to 270);
 `background-attachment:scroll`, `background-blend-mode:normal`, `background-origin:padding-box`,
-`container-type:normal` and `container:none` join them as well (270 to 275).
+`container-type:normal` and `container:none` join them as well (270 to 275); `aspect-ratio:auto`,
+`mask-repeat:repeat`, `mask-size:auto`, `mask-origin` and `mask-clip` at `border-box`,
+`mask-mode:match-source`, `mask-composite:add` and `mask-type:luminance` join them too (275 to 283).
 Current dataset SHA-256:
-`f7243ed3cd8eb99301348389cbb3c5a97d8c2c7d144df720b764ed2d6ecfc9d3`; English
-layer `site/src/audit-english-background-container-initial-values.mjs`, ordered source-text
-SHA-256 `10a18365046543a97c05ba2dde1eb649a65ff14f7cb65f5226a1b9072b19d04f`.
+`0d971e28987d3bb0dd1ba478a3eb8fcc8dd0f6503dffa0a1604a06f1fbaff189`; English
+layer `site/src/audit-english-aspect-mask-initial-values.mjs`, ordered source-text
+SHA-256 `75a0de7219842fe092062e6a8791953235f415ea22fd89faf6a02c6b76963c42`.
