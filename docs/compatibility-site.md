@@ -528,8 +528,9 @@ CSS 2 aural keywords and is dropped, since the renderer speaks nothing (219 to 2
 `text-decoration-skip-ink` accepts `auto` or `none` and `font-synthesis` accepts `none`,
 both dropped, since the renderer synthesizes no face and skips no ink (220 to 222); the legacy
 `text-decoration-skip` (with its `-webkit-` alias) accepts `none`, `auto` or `objects` and is
-dropped, since no atomic inline sits in a line (222 to 224).
+dropped, since no atomic inline sits in a line (222 to 224); `-webkit-text-decoration` and its
+`-line`, `-color` and `-style` longhands are aliases of the standard names (224 to 228).
 Current dataset SHA-256:
-`2a9244a5f8c32dc1b1d51dd7c7123b5895789733125b6bc8c4a44055e67a78c2`; English
-layer `site/src/audit-english-text-decoration-skip.mjs`, ordered source-text
-SHA-256 `5df45ca2ac73211b0863d1bfa80baa4831b3913a419c7fbf4679a0e02e2dd596`.
+`e1e8519e2cf75820880df8d800e549ce4a63e698fed1d30203fd12ed82cbdde8`; English
+layer `site/src/audit-english-webkit-text-decoration.mjs`, ordered source-text
+SHA-256 `d061da813734ce0ebe6dca0ba7da23dbaf6f8e931ea21c49248874a3c82f08d3`.

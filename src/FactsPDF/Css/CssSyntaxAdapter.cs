@@ -107,6 +107,10 @@ internal static class CssSyntaxAdapter
                 "-webkit-backdrop-filter" => "backdrop-filter",
                 // normalize.css 7 and Bootstrap 4's reboot write -webkit-text-decoration-skip:objects on a.
                 "-webkit-text-decoration-skip" => "text-decoration-skip",
+                // Bootstrap 4's reboot and Safari-era stylesheets write the text-decoration shorthand
+                // and longhands with the WebKit prefix (abbr{-webkit-text-decoration:underline dotted}).
+                "-webkit-text-decoration" or "-webkit-text-decoration-line" or "-webkit-text-decoration-color"
+                    or "-webkit-text-decoration-style" => originalName[8..],
                 // Older stylesheets still write font-feature-settings with both engine prefixes.
                 "-webkit-font-feature-settings" or "-moz-font-feature-settings" => "font-feature-settings",
                 // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
