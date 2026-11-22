@@ -888,7 +888,11 @@ internal static class CssSyntaxAdapter
             or "speak"
             // Hints the renderer already satisfies: it synthesizes no bold or italic face and
             // never breaks an underline around descenders (see the keyword arms).
-            or "font-synthesis" or "text-decoration-skip-ink" or "text-decoration-skip";
+            or "font-synthesis" or "text-decoration-skip-ink" or "text-decoration-skip"
+        // Scroll-into-view offsets (docs and utility stylesheets write scroll-margin-top on
+        // anchored headings): a PDF page is never scrolled, so the offsets are validated and
+        // dropped.
+        || ScrollOffsetSides(name) > 0;
 
     // The keyword values of each interaction-only property (CSS UI 4; pointer-events also
     // takes the SVG keywords). cursor images (url(...) with a fallback) are not accepted.
@@ -994,6 +998,9 @@ internal static class CssSyntaxAdapter
         if (name == "color-scheme" && ColorSchemeList(node)) return;
         // scrollbar-gutter also takes stable both-edges (either order).
         if (name == "scrollbar-gutter" && ScrollbarGutterBothEdges(node)) return;
+        // scroll-margin* take one to four lengths (one or two for the axis pairs, one for a side);
+        // scroll-padding* take auto or non-negative lengths and percentages.
+        if (ScrollOffsetSides(name) is > 0 and var sides && count >= 1 && count <= sides && ScrollOffsets(name, node)) return;
         // tab-size takes a non-negative number of spaces or a non-negative length.
         if (count == 1 && name == "tab-size" && value is CssTokenComponent { Token: var tab } && TabSize(tab)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
@@ -1004,8 +1011,58 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
+    }
+
+    // How many components a scroll-margin or scroll-padding name takes (0: not one of them).
+    private static int ScrollOffsetSides(string name)
+    {
+        if (!name.StartsWith("scroll-margin", StringComparison.Ordinal)
+            && !name.StartsWith("scroll-padding", StringComparison.Ordinal)) return 0;
+        var side = name[(name[7] == 'm' ? "scroll-margin".Length : "scroll-padding".Length)..];
+        return side switch
+        {
+            "" => 4,
+            "-inline" or "-block" => 2,
+            "-top" or "-right" or "-bottom" or "-left" or "-inline-start" or "-inline-end"
+                or "-block-start" or "-block-end" => 1,
+            _ => 0
+        };
+    }
+
+    private static string ScrollOffsetForm(string name)
+    {
+        var sides = ScrollOffsetSides(name);
+        var many = sides switch { 1 => "one", 2 => "one or two", _ => "one to four" };
+        return name[7] == 'm'
+            ? $"{many} length{(sides == 1 ? "" : "s")}"
+            : $"{many} of auto or a non-negative length or percentage";
+    }
+
+    // Each component of a scroll-margin (any length or zero) or scroll-padding (auto, zero, a
+    // non-negative length or percentage) declaration; the caller has checked the count.
+    private static bool ScrollOffsets(string name, CssDeclarationNode node)
+    {
+        var padding = name[7] == 'p';
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (node.Values[i] is not CssTokenComponent { Token: var token }) return false;
+            if (padding && token.Kind == CssSyntaxTokenKind.Ident && token.Value.Equals("auto", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var length = token.Kind == CssSyntaxTokenKind.Dimension
+                && token.Unit?.ToLowerInvariant() is "px" or "pt" or "pc" or "in" or "cm" or "mm" or "q"
+                    or "em" or "rem" or "ex" or "ch" or "vh" or "vw" or "vmin" or "vmax";
+            var kind = token.Kind == CssSyntaxTokenKind.Number || length
+                || padding && token.Kind == CssSyntaxTokenKind.Percentage;
+            if (!kind || !double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var amount) || !double.IsFinite(amount))
+                return false;
+            // A bare number is only allowed as zero; padding is never negative.
+            if (token.Kind == CssSyntaxTokenKind.Number && amount != 0 || padding && amount < 0) return false;
+        }
+        return true;
     }
 
     private static bool TabSize(CssSyntaxToken token) =>

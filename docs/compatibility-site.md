@@ -548,8 +548,10 @@ well (256 to 266); `hanging-punctuation:none`, `hyphenate-character` and
 `background-attachment:scroll`, `background-blend-mode:normal`, `background-origin:padding-box`,
 `container-type:normal` and `container:none` join them as well (270 to 275); `aspect-ratio:auto`,
 `mask-repeat:repeat`, `mask-size:auto`, `mask-origin` and `mask-clip` at `border-box`,
-`mask-mode:match-source`, `mask-composite:add` and `mask-type:luminance` join them too (275 to 283).
+`mask-mode:match-source`, `mask-composite:add` and `mask-type:luminance` join them too (275 to 283);
+`scroll-margin` and `scroll-padding` with their ten side and axis longhands each accept well-formed
+offsets and are dropped, since a PDF page is never scrolled to an anchor (283 to 305).
 Current dataset SHA-256:
-`0d971e28987d3bb0dd1ba478a3eb8fcc8dd0f6503dffa0a1604a06f1fbaff189`; English
-layer `site/src/audit-english-aspect-mask-initial-values.mjs`, ordered source-text
-SHA-256 `75a0de7219842fe092062e6a8791953235f415ea22fd89faf6a02c6b76963c42`.
+`21d616decd13cb2d78f0bf55dbfd34c0b5d2ea3e07253766cd1f3a94d431b58d`; English
+layer `site/src/audit-english-scroll-offsets.mjs`, ordered source-text
+SHA-256 `c327902d42d44505b36ef9a34b9cbc6324d70ab75177ca6c9eeb8dc8deb3d1fb`.
