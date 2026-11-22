@@ -536,8 +536,11 @@ initial-value no-ops (228 to 233); `font-language-override`, `font-variant-emoji
 too (233 to 238); `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizontal-tb`,
 `text-orientation:mixed` and `text-combine-upright:none` join them as well (238 to 243);
 `vertical-align:baseline` outside table cells is dropped too (the `css.vertical-align`
-limitations change; the count stays 243).
+limitations change; the count stays 243); the multi-column resets `column-count`,
+`column-width` and `columns` at `auto`, `column-gap:normal`, `column-span`, `column-rule`
+and `column-rule-style` at `none` and `column-fill:balance` join the initial-value no-ops
+(243 to 251).
 Current dataset SHA-256:
-`a40c0e27efabaced8f4f514e32f54dbdb2666515273cf468ba0c949426de06e3`; English
-layer `site/src/audit-english-vertical-align-baseline-reset.mjs`, ordered source-text
-SHA-256 `23a7b55ca523b9cb1a67361be475c0fcbf630a1a437343084b970e957fd33996`.
+`6cf89cc1c91eeade6cebe9673fc98624e8dbaef6b8d107ea06c7c8ef43616eb4`; English
+layer `site/src/audit-english-multicol-initial-values.mjs`, ordered source-text
+SHA-256 `ef5e004f19de6a2d602506e1011bfe662aa6fbb645a8ad4570d12ef194c6f85f`.
