@@ -903,7 +903,12 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+      # Like native-aot: install the exact candidate SDK into its own directory, since
+      # global.json rolls forward and the windows-latest image now ships a newer SDK
+      # (10.0.404) in C:\Program Files\dotnet that would otherwise be selected.
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet-10.0.403
         with:
           dotnet-version: '10.0.403'
       - name: Gate Windows private candidate source and inspector inputs before build
