@@ -797,6 +797,12 @@ internal static class CssSyntaxAdapter
         "column-gap" => "normal",
         "column-span" or "column-rule" or "column-rule-style" => "none",
         "column-fill" => "balance",
+        // Overflow and fragment resets: no box clips its overflow (overflow stays visible), so
+        // text-overflow:clip and line-clamp:none ask for nothing, and a box split across pages
+        // already paints as slices, which is what box-decoration-break:slice describes.
+        "text-overflow" => "clip",
+        "line-clamp" or "-webkit-line-clamp" => "none",
+        "box-decoration-break" or "-webkit-box-decoration-break" => "slice",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
