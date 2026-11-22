@@ -386,9 +386,22 @@ internal sealed class CssStylesheets
                 element.Name is not ("ol" or "ul" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
-            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("td" or "th"))
-                throw new FactsPdfException("FPDF1201",
-                    "vertical-align applies only to fixed-column table td/th cells.", declaration.Offset);
+            if (declaration.Property == CssProperty.VerticalAlign)
+            {
+                // baseline is the initial value. Outside cells inline text already sits on its
+                // baseline and blocks ignore vertical-align, so resets such as *{vertical-align:baseline}
+                // are validated and dropped. A cell's baseline row alignment is not implemented.
+                var baseline = declaration.Value == "baseline";
+                if (element.Name is not ("td" or "th"))
+                {
+                    if (baseline) return;
+                    throw new FactsPdfException("FPDF1201",
+                        "vertical-align applies only to fixed-column table td/th cells (elsewhere only its initial value baseline is accepted).", declaration.Offset);
+                }
+                if (baseline)
+                    throw new FactsPdfException("FPDF1202",
+                        "Table-cell vertical-align supports only top, middle and bottom.", declaration.Offset);
+            }
             if (element.Name == "col" && declaration.Property != CssProperty.Width
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);

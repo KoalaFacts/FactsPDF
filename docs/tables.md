@@ -66,9 +66,10 @@ and `inherit/initial/unset` apply. Cell alignment is non-inherited;
 `initial` and `unset` resolve to `top` and `inherit` reads the
 parent's computed alignment (normally `top`).
 
-This is not unrestricted CSS `vertical-align`. `baseline`, `sub`,
+This is not unrestricted CSS `vertical-align`. On a cell, `baseline`, `sub`,
 `super`, lengths and percentages are rejected (`FPDF1202`). Use
-outside `td/th` fails `FPDF1201`. The whole-row behavior applies in
+outside `td/th` fails `FPDF1201`, except the initial `baseline`, which is
+validated and dropped there because it changes nothing. The whole-row behavior applies in
 multi-page tables and intact repeated header rows, but body rows that
 require **independent cell continuation**, including terminal-decoration
 fragmentation, must not request `middle` or `bottom`: those fail

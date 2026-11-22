@@ -1741,7 +1741,8 @@ internal static class CssSyntaxAdapter
         }
         else if (name == "vertical-align")
         {
-            if (token is not ("top" or "middle" or "bottom"))
+            // baseline passes here; the cascade drops it outside cells and rejects it on td/th.
+            if (token is not ("top" or "middle" or "bottom" or "baseline"))
                 throw new FactsPdfException("FPDF1202",
                     "Table-cell vertical-align supports only top, middle and bottom.", offset);
         }

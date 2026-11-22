@@ -150,9 +150,21 @@ public sealed class TableVerticalAlignmentTests
     public void OutsideTableCellsNeverAcceptIgnoredVerticalAlign(string html)
         => Reject(html, "FPDF1201");
 
+    [TestCase("<p style='vertical-align:baseline'>TEXT <span style='VERTICAL-ALIGN:BASELINE'>MORE</span></p>", "<p>TEXT <span>MORE</span></p>")]
+    [TestCase("<style>*{vertical-align:baseline}</style><div><p>TEXT</p></div>", "<div><p>TEXT</p></div>")]
+    [TestCase("<style>p,span{vertical-align:baseline !important}</style><p>TEXT <span>MORE</span></p>", "<p>TEXT <span>MORE</span></p>")]
+    [TestCase("<style>.unused{vertical-align:baseline}</style><p>TEXT</p>", "<p>TEXT</p>")]
+    public void InitialBaselineOutsideCellsRendersLikeTheUndeclaredPage(string html, string oracle)
+        => Assert.That(Pdf(html), Is.EqualTo(Pdf(oracle)));
+
+    [TestCase("<style>*{vertical-align:baseline}</style>")]
+    [TestCase("<style>td{vertical-align:baseline}</style>")]
+    public void BaselineReachingATableCellStillFails(string style)
+        => Reject(style + TwoCells(), "FPDF1202");
+
     [Test]
     public void UnmatchedInvalidCssRuleStillRejectsAndProtectsDestination()
-        => Reject("<style>.never{vertical-align:baseline}</style>" + TwoCells(), "FPDF1202");
+        => Reject("<style>.never{vertical-align:sub}</style>" + TwoCells(), "FPDF1202");
 
 
     [Test]

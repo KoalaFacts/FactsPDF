@@ -1063,7 +1063,7 @@ package or full CSS table layout.
 
 ### Table cell `vertical-align` (source-only)
 
-For business tables with multiline descriptions, `td`/`th` now accept `vertical-align:top`, `middle` or `bottom` to position a shorter cell's text or image within the complete painted row. Whole rows and intact repeated headers work across pages. Rows needing independent cell-by-cell continuation reject `middle`/`bottom` instead of pretending to align; inline baseline alignment, `rowspan` and general CSS table layout remain unsupported. See the [40-row report](../examples/report-table-vertical-align.html), [physical-padding oracle](../examples/report-table-vertical-align-oracle.html) and [table contract](tables.md#vertical-alignment-in-whole-table-rows).
+For business tables with multiline descriptions, `td`/`th` now accept `vertical-align:top`, `middle` or `bottom` to position a shorter cell's text or image within the complete painted row. Whole rows and intact repeated headers work across pages. Rows needing independent cell-by-cell continuation reject `middle`/`bottom` instead of pretending to align; inline baseline alignment, `rowspan` and general CSS table layout remain unsupported. Outside cells the initial value `vertical-align:baseline` (as written by CSS resets) is validated and dropped, since inline text already sits on its baseline; on a cell it still fails `FPDF1202`. See the [40-row report](../examples/report-table-vertical-align.html), [physical-padding oracle](../examples/report-table-vertical-align-oracle.html) and [table contract](tables.md#vertical-alignment-in-whole-table-rows).
 
 ### Current-source list marker placement in business registers
 
