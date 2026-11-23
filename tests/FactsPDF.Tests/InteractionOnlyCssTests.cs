@@ -8,7 +8,9 @@ namespace FactsPDF.Tests;
 /// is dropped likewise, as are text-decoration-skip-ink at auto or none and font-synthesis:none,
 /// which ask for no ink skipping or face synthesis (the renderer does neither), and the legacy
 /// text-decoration-skip (and -webkit-) at none, auto or objects, since no atomic inline can sit
-/// in a line, and font-kerning at auto or none, since no glyph pair is ever kerned. Every keyword value of them (and a CSS-wide keyword) is
+/// in a line, and font-kerning at auto or none, since no glyph pair is ever kerned. The
+/// font-synthesis longhands (-weight, -style, -small-caps, -position) accept none like the
+/// shorthand. Every keyword value of them (and a CSS-wide keyword) is
 /// validated and dropped, so the page renders byte-identical to the page without them.
 /// Any other value (an image, a number, several components) fails with FPDF1202.
 /// </summary>
@@ -50,6 +52,9 @@ public sealed class InteractionOnlyCssTests
     [TestCase("text-decoration-skip-ink:none;text-decoration-skip-ink:auto")]
     [TestCase("Font-Synthesis:NONE;text-decoration-skip-ink:unset !important")]
     [TestCase("font-synthesis:inherit;text-decoration-skip-ink:NONE")]
+    [TestCase("font-synthesis-weight:none;font-synthesis-style:none")]
+    [TestCase("font-synthesis-small-caps:none;font-synthesis-position:none")]
+    [TestCase("FONT-SYNTHESIS-WEIGHT:None !important;font-synthesis-style:inherit;font-synthesis-position:unset")]
     [TestCase("-webkit-text-decoration-skip:objects")]
     [TestCase("text-decoration-skip:none;text-decoration-skip:auto;text-decoration-skip:objects")]
     [TestCase("-WEBKIT-Text-Decoration-Skip:OBJECTS;text-decoration-skip:inherit !important")]
@@ -79,6 +84,12 @@ public sealed class InteractionOnlyCssTests
     [TestCase("font-synthesis:weight")]
     [TestCase("font-synthesis:weight style")]
     [TestCase("font-synthesis:auto")]
+    [TestCase("font-synthesis-weight:auto")]
+    [TestCase("font-synthesis-style:auto")]
+    [TestCase("font-synthesis-small-caps:auto")]
+    [TestCase("font-synthesis-position:auto")]
+    [TestCase("font-synthesis-weight:none none")]
+    [TestCase("font-synthesis-style:0")]
     [TestCase("text-decoration-skip-ink:all")]
     [TestCase("text-decoration-skip-ink:0")]
     [TestCase("text-decoration-skip:ink")]
@@ -101,6 +112,7 @@ public sealed class InteractionOnlyCssTests
     [TestCase("<p style='-webkit-text-decoration-skip:ink'>A</p>", "text-decoration-skip supports only none, auto or objects", "ink")]
     [TestCase("<p style='text-decoration-skip-ink:all'>A</p>", "text-decoration-skip-ink supports only auto or none", "all")]
     [TestCase("<style>p{font-kerning:normal}</style><p>A</p>", "font-kerning supports only auto or none", "normal")]
+    [TestCase("<p style='font-synthesis-weight:auto'>A</p>", "font-synthesis-weight supports only none", "auto")]
     public void FailuresNameThePropertyAndTheValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));

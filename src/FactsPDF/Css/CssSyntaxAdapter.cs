@@ -932,7 +932,9 @@ internal static class CssSyntaxAdapter
             or "speak"
             // Hints the renderer already satisfies: it synthesizes no bold or italic face and
             // never breaks an underline around descenders (see the keyword arms).
-            or "font-synthesis" or "text-decoration-skip-ink" or "text-decoration-skip"
+            or "font-synthesis" or "font-synthesis-weight" or "font-synthesis-style"
+            or "font-synthesis-small-caps" or "font-synthesis-position"
+            or "text-decoration-skip-ink" or "text-decoration-skip"
             or "font-kerning"
         // Scroll-into-view offsets (docs and utility stylesheets write scroll-margin-top on
         // anchored headings): a PDF page is never scrolled, so the offsets are validated and
@@ -1011,6 +1013,11 @@ internal static class CssSyntaxAdapter
         // ask for faux faces still fail.
         "text-decoration-skip-ink" => term is "auto" or "none",
         "font-synthesis" => term == "none",
+        // The longhands of font-synthesis (CSS Fonts 4): none forbids one kind of synthesized
+        // face, and no bold, italic, small-caps or super/subscript face is ever synthesized;
+        // auto asks for synthesis and still fails, as for the shorthand.
+        "font-synthesis-weight" or "font-synthesis-style" or "font-synthesis-small-caps"
+            or "font-synthesis-position" => term == "none",
         // No glyph pair is ever kerned (no kern or GPOS data is read), so auto (the renderer's
         // choice) and none (never kern) are already honoured; normal asks for kerning and fails.
         "font-kerning" => term is "auto" or "none",
@@ -1070,7 +1077,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "font-kerning" ? "auto or none" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
