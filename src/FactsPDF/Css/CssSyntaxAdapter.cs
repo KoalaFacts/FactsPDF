@@ -863,6 +863,12 @@ internal static class CssSyntaxAdapter
         "text-wrap-style" or "text-box-edge" => "auto",
         "text-box-trim" => "none",
         "text-box" or "paint-order" or "math-style" or "math-shift" => "normal",
+        // Intrinsic-size and transform-box resets: size containment never applies (only
+        // contain:none and content-visibility:visible are accepted), so no fallback intrinsic
+        // size is used, and with only transform:none accepted the transform box is never consulted.
+        "contain-intrinsic-size" or "contain-intrinsic-width" or "contain-intrinsic-height"
+            or "contain-intrinsic-block-size" or "contain-intrinsic-inline-size" => "none",
+        "transform-box" => "view-box",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
