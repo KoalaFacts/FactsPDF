@@ -556,8 +556,10 @@ dropped too (305 to 308); `animation-composition:replace`, `animation-timeline` 
 `view-timeline-inset` at `auto`, `animation-range` and its `-start`/`-end` longhands at `normal`,
 `scroll-timeline`, `view-timeline`, their `-name` longhands, `timeline-scope`,
 `view-transition-name` and `view-transition-class` at `none` and `scroll-timeline-axis` and
-`view-timeline-axis` at `block` join the initial-value no-ops (308 to 323).
+`view-timeline-axis` at `block` join the initial-value no-ops (308 to 323); `anchor-name`,
+`anchor-scope`, `position-area`, `position-try`, `position-try-fallbacks` and `overlay` at
+`none` and `position-try-order:normal` join them too (323 to 330).
 Current dataset SHA-256:
-`c5d00bb634e50d8af9614eb41d82a23db1a7dc0e626a9f26b39f718b1cbb68c1`; English
-layer `site/src/audit-english-animation-timeline.mjs`, ordered source-text
-SHA-256 `33e1c2325b76cb571a368d2d7c0f12eb7c22a0db7fe67253f956a58e267a47cf`.
+`8270a85198d9c457f795c06bc1c8a5babf220cd0475aeee0d2a06be6416cab85`; English
+layer `site/src/audit-english-anchor-positioning.mjs`, ordered source-text
+SHA-256 `538c62d6acd03881a14bc69434e22ff152cda7f3f1d7a89049c872b7af5ada5c`.
