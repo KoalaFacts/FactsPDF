@@ -857,6 +857,12 @@ internal static class CssSyntaxAdapter
         "field-sizing" => "fixed",
         "dynamic-range-limit" => "no-limit",
         "caret" or "caret-animation" or "caret-shape" => "auto",
+        // Text box and paint resets: lines break greedily (text-wrap-style:auto), line boxes
+        // keep the font's full ascent and descent (no text-box trimming), glyphs are filled
+        // without a stroke to reorder and no MathML layout is applied.
+        "text-wrap-style" or "text-box-edge" => "auto",
+        "text-box-trim" => "none",
+        "text-box" or "paint-order" or "math-style" or "math-shift" => "normal",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
