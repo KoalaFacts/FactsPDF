@@ -575,8 +575,11 @@ accepted, are re-audited from rejected to partial as well (count unchanged at 36
 Well-formed `transform-origin` and `-webkit-transform-origin` values join them too, and the
 `transform-origin` row moves from rejected to partial (364 to 366). The `font-synthesis-weight`,
 `font-synthesis-style`, `font-synthesis-small-caps` and `font-synthesis-position` longhands accept
-`none` like the shorthand and are dropped, since no face is ever synthesized (366 to 370).
+`none` like the shorthand and are dropped, since no face is ever synthesized (366 to 370). `border-collapse:separate` and `border-spacing` at one
+or two zero lengths are accepted as initial values, since cells already paint separate border boxes
+that touch without spacing, and the `border-collapse` and `border-spacing` rows move from rejected
+to partial (370 to 372).
 Current dataset SHA-256:
-`3c71e76add964a6400ba62367e675cf4db889d4b20d4471f37054f3528d9c6dd`; English
-layer `site/src/audit-english-font-synthesis-longhands.mjs`, ordered source-text
-SHA-256 `47607cbc455bd67f44d07bd0374141e58a8b77314bc6a77dcdc0e8f2a2566b37`.
+`6b913174d576e3d4a0e98e12605f941eaa17c718eede67b036a7b6802ae544fa`; English
+layer `site/src/audit-english-table-border-model.mjs`, ordered source-text
+SHA-256 `1d1346560d77e545c58cd21fefee12719ec013df766c109c05ac873c3a837b95`.

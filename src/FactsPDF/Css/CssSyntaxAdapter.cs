@@ -884,6 +884,10 @@ internal static class CssSyntaxAdapter
         "contain" => "none",
         "content-visibility" => "visible",
         "line-break" or "text-justify" or "image-rendering" => "auto",
+        // Table border model: every cell paints its own border box and adjacent cell boxes
+        // touch with distinct strokes, which is the separated model (with zero spacing, below);
+        // border-collapse:collapse would merge shared borders and still fails.
+        "border-collapse" => "separate",
         _ => null
     };
 
@@ -936,6 +940,9 @@ internal static class CssSyntaxAdapter
             or "font-synthesis-small-caps" or "font-synthesis-position"
             or "text-decoration-skip-ink" or "text-decoration-skip"
             or "font-kerning"
+        // Cell spacing at its initial value: separated cell boxes already touch (zero spacing),
+        // so one or two zero lengths are validated and dropped; any other spacing fails.
+        || name == "border-spacing"
         // Scroll-into-view offsets (docs and utility stylesheets write scroll-margin-top on
         // anchored headings): a PDF page is never scrolled, so the offsets are validated and
         // dropped.
@@ -1067,6 +1074,7 @@ internal static class CssSyntaxAdapter
         // scroll-snap-type also takes an axis then mandatory or proximity; scroll-snap-align
         // also takes a block then an inline alignment.
         if (count == 2 && name is "scroll-snap-type" or "scroll-snap-align" && ScrollSnapPair(name, node)) return;
+        if (name == "border-spacing" && count is 1 or 2 && ZeroLengths(node)) return;
         // tab-size takes a non-negative number of spaces or a non-negative length.
         if (count == 1 && name == "tab-size" && value is CssTokenComponent { Token: var tab } && TabSize(tab)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
@@ -1077,7 +1085,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "border-spacing" ? "0 (one or two zero lengths)" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
@@ -1189,6 +1197,22 @@ internal static class CssSyntaxAdapter
         // A bare number is only allowed as zero (a length).
         if (token.Kind == CssSyntaxTokenKind.Number) return ZeroNumber(token.Value) ? 4 : 0;
         return length ? 4 : 5;
+    }
+
+    // Every component is a zero length: a bare zero or a zero with a length unit.
+    private static bool ZeroLengths(CssDeclarationNode node)
+    {
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (node.Values[i] is not CssTokenComponent { Token: var token }) return false;
+            var length = token.Kind == CssSyntaxTokenKind.Number
+                || token.Kind == CssSyntaxTokenKind.Dimension
+                    && token.Unit?.ToLowerInvariant() is "px" or "pt" or "pc" or "in" or "cm" or "mm" or "q"
+                        or "em" or "rem" or "ex" or "ch" or "vh" or "vw" or "vmin" or "vmax";
+            if (!length || !ZeroNumber(token.Value)) return false;
+        }
+        return true;
     }
 
     // A bare number is zero only when its mantissa has no nonzero digit: 1e-999 parses to 0 but

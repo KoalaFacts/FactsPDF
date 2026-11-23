@@ -102,6 +102,9 @@ public sealed class InitialValueNoOpTests
     [TestCase("contain:none;content-visibility:visible")]
     [TestCase("line-break:auto;text-justify:auto;image-rendering:auto")]
     [TestCase("ZOOM:1;Contain:inherit;line-break:unset !important")]
+    [TestCase("border-collapse:separate;border-spacing:0")]
+    [TestCase("border-spacing:0pt 0;Border-Collapse:SEPARATE !important;border-spacing:-0.0px")]
+    [TestCase("border-collapse:inherit;border-spacing:initial;border-spacing:0 0mm")]
     public void InitialValueRendersLikeTheUndeclaredPage(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -270,6 +273,13 @@ public sealed class InitialValueNoOpTests
     [TestCase("line-break:anywhere")]
     [TestCase("text-justify:inter-word")]
     [TestCase("image-rendering:pixelated")]
+    [TestCase("border-collapse:collapse")]
+    [TestCase("border-spacing:2pt")]
+    [TestCase("border-spacing:0 1px")]
+    [TestCase("border-spacing:1e-999px")]
+    [TestCase("border-spacing:0 0 0")]
+    [TestCase("border-spacing:0%")]
+    [TestCase("border-spacing:none")]
     public void AnyOtherValueFailsWithoutOutput(string declaration)
     {
         foreach (var html in new[] { $"<p style=\"{declaration}\">A</p>", $"<style>.unused{{{declaration}}}</style><p>A</p>" })
@@ -293,6 +303,8 @@ public sealed class InitialValueNoOpTests
     [TestCase("<p style='transform:rotate(90deg)'>A</p>", "transform supports only none", "rotate")]
     [TestCase("<style>.unused{background-image:url(a.png)}</style><p>A</p>", "background-image supports only none", "url")]
     [TestCase("<p style='opacity:calc(1)'>A</p>", "opacity supports only 1", "calc")]
+    [TestCase("<style>table{border-collapse:collapse}</style><p>A</p>", "border-collapse supports only separate", "collapse}")]
+    [TestCase("<p style='border-spacing:2pt'>A</p>", "border-spacing supports only 0 (one or two zero lengths)", "2pt")]
     public void FunctionValuesNameTheOnlySupportedValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
