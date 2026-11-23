@@ -572,7 +572,9 @@ and `border-image` rows move from rejected to partial (351 to 364). The `directi
 accepted, are re-audited from rejected to partial as well (count unchanged at 364), and so are the
 `font-variant`, `text-overflow`, `box-decoration-break`, `columns`, `column-count`,
 `column-width`, `column-gap`, `animation` and `transition` rows (count unchanged).
+Well-formed `transform-origin` and `-webkit-transform-origin` values join them too, and the
+`transform-origin` row moves from rejected to partial (364 to 366).
 Current dataset SHA-256:
-`f4c41e6da6e0e139ce8b8933b92888fa61b153c69721099902949063be54c328`; English
-layer `site/src/audit-english-stale-resets.mjs`, ordered source-text
-SHA-256 `3d5a1fc249638c2fc736f20d568541d02cfd5a77c3ef8da37bda269ef44c8ecd`.
+`78b3d37ba97c6332dfc9c497b02a79c716925dfe8b5ed88152f3f3f2dc8fe0ef`; English
+layer `site/src/audit-english-transform-origin.mjs`, ordered source-text
+SHA-256 `6208badd87d2037a3ff8db29e0fee7fd34262d7329247562ad49b7b9e09e9604`.
