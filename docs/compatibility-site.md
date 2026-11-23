@@ -560,8 +560,10 @@ dropped too (305 to 308); `animation-composition:replace`, `animation-timeline` 
 `anchor-scope`, `position-area`, `position-try`, `position-try-fallbacks` and `overlay` at
 `none` and `position-try-order:normal` join them too (323 to 330); `interpolate-size:numeric-only`,
 `reading-flow:normal`, `field-sizing:fixed`, `dynamic-range-limit:no-limit` and `caret`,
-`caret-animation` and `caret-shape` at `auto` join them as well (330 to 337).
+`caret-animation` and `caret-shape` at `auto` join them as well (330 to 337); `text-wrap-style` and
+`text-box-edge` at `auto`, `text-box-trim:none` and `text-box`, `paint-order`, `math-style` and
+`math-shift` at `normal` join them too (337 to 344).
 Current dataset SHA-256:
-`80fcd551ed7c87066fc37bbbac46b8146d9395849f89277946283875562ed35e`; English
-layer `site/src/audit-english-screen-ui.mjs`, ordered source-text
-SHA-256 `56ad226b5e6d67a730aca04b68c4365b778153907889fc01c7e69d628bf72096`.
+`7238eecdbc974bcac70d08fddde30b11bf15f5e32a87a0a4bf2cbc58794edb87`; English
+layer `site/src/audit-english-text-box.mjs`, ordered source-text
+SHA-256 `a48f22d4b49dff3ad2a4459765f673cce63490f781fb586c7689f056404a4d7f`.
