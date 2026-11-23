@@ -582,8 +582,10 @@ to partial (370 to 372). `empty-cells:show` and `caption-side:top` join them, si
 paint and no `caption` element is accepted, and both rows move from rejected to partial (372 to 374). `offset-path:none`, `offset-rotate` and
 `offset-anchor` at `auto`, `initial-letter:normal` and `text-emphasis-color:currentcolor` are accepted
 as initial values too, since no box follows a motion path, no drop cap is drawn and no emphasis mark
-is painted; no feature row moves (374 to 379).
+is painted; no feature row moves (374 to 379). `quotes` at `auto`, `none`, `match-parent` or pairs
+of strings is dropped, since no `q` element or quote content is accepted, and the `quotes` row moves
+from rejected to partial (379 to 380).
 Current dataset SHA-256:
-`e41d91c57455c4a8a3388f4527cb552270f0b4f0ba6c6dcaf2f49cf9f853e201`; English
-layer `site/src/audit-english-motion-path-initial-letter.mjs`, ordered source-text
-SHA-256 `077823822fc70b3ee64ec99ee2e987fad79fff74796e50f91a273b1519168660`.
+`63005b888cbc96c38f8ef9cc70803c25148c72e074d372d130517d573a120051`; English
+layer `site/src/audit-english-quotes.mjs`, ordered source-text
+SHA-256 `a8d38ed983b943b48573394a580bd742de39cfdea10453dcace1679746035d3b`.
