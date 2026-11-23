@@ -78,6 +78,7 @@ public sealed class ScrollOnlyPropertyTests
     // scroll-padding (and every side and axis longhand) are validated and dropped.
     [TestCase("scroll-margin-top:4rem")]
     [TestCase("scroll-margin:0")]
+    [TestCase("scroll-margin:-0.0 +0e5")]
     [TestCase("scroll-margin:1px -2pt 3mm 4em")]
     [TestCase("scroll-margin-inline:1rem 2rem;scroll-margin-block:-8px")]
     [TestCase("scroll-margin-right:1in;scroll-margin-bottom:2cm;scroll-margin-left:3pc;scroll-margin-inline-start:1ch;scroll-margin-inline-end:1ex;scroll-margin-block-start:10vh;scroll-margin-block-end:1q")]
@@ -98,6 +99,8 @@ public sealed class ScrollOnlyPropertyTests
     [TestCase("scroll-margin:1px 2px 3px 4px 5px", "scroll-margin supports only one to four lengths")]
     [TestCase("scroll-margin-inline:1px 2px 3px", "scroll-margin-inline supports only one or two lengths")]
     [TestCase("scroll-margin:5", "scroll-margin supports only one to four lengths")]
+    [TestCase("scroll-margin:1e-999", "scroll-margin supports only one to four lengths")]
+    [TestCase("scroll-margin-top:-1e-999", "scroll-margin-top supports only one length")]
     [TestCase("scroll-padding-top:-1px", "scroll-padding-top supports only one of auto or a non-negative length or percentage")]
     [TestCase("scroll-padding:calc(1px + 2px)", "scroll-padding supports only one to four of auto or a non-negative length or percentage")]
     [TestCase("scroll-padding-block:1deg", "scroll-padding-block supports only one or two of auto")]

@@ -1135,7 +1135,7 @@ internal static class CssSyntaxAdapter
                     System.Globalization.CultureInfo.InvariantCulture, out var amount) || !double.IsFinite(amount))
                 return false;
             // A bare number is only allowed as zero; padding is never negative.
-            if (token.Kind == CssSyntaxTokenKind.Number && amount != 0 || padding && amount < 0) return false;
+            if (token.Kind == CssSyntaxTokenKind.Number && !ZeroNumber(token.Value) || padding && amount < 0) return false;
         }
         return true;
     }
@@ -1179,16 +1179,18 @@ internal static class CssSyntaxAdapter
         if (!double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var amount) || !double.IsFinite(amount))
             return 0;
-        // A bare number is only allowed as zero (a length); a nonzero mantissa that underflows
-        // to 0 (1e-999) is not zero.
-        if (token.Kind == CssSyntaxTokenKind.Number)
-        {
-            var text = token.Value;
-            for (var i = 0; i < text.Length && text[i] is not ('e' or 'E'); i++)
-                if (text[i] is >= '1' and <= '9') return 0;
-            return 4;
-        }
+        // A bare number is only allowed as zero (a length).
+        if (token.Kind == CssSyntaxTokenKind.Number) return ZeroNumber(token.Value) ? 4 : 0;
         return length ? 4 : 5;
+    }
+
+    // A bare number is zero only when its mantissa has no nonzero digit: 1e-999 parses to 0 but
+    // is not zero, so it must not pass as the unitless zero length.
+    private static bool ZeroNumber(string text)
+    {
+        for (var i = 0; i < text.Length && text[i] is not ('e' or 'E'); i++)
+            if (text[i] is >= '1' and <= '9') return false;
+        return true;
     }
 
     private static bool TabSize(CssSyntaxToken token) =>
