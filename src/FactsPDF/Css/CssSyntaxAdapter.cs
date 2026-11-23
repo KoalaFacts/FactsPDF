@@ -849,6 +849,14 @@ internal static class CssSyntaxAdapter
         "anchor-name" or "anchor-scope" or "position-area" or "position-try"
             or "position-try-fallbacks" or "overlay" => "none",
         "position-try-order" => "normal",
+        // Screen and UI resets: no size is ever interpolated (nothing animates), focus and
+        // reading order follow the document, form fields keep their fixed sizing, colours are
+        // never mapped to a high-dynamic-range display and no text caret is drawn.
+        "interpolate-size" => "numeric-only",
+        "reading-flow" => "normal",
+        "field-sizing" => "fixed",
+        "dynamic-range-limit" => "no-limit",
+        "caret" or "caret-animation" or "caret-shape" => "auto",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
