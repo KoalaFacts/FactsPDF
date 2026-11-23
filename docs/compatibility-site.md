@@ -578,8 +578,9 @@ Well-formed `transform-origin` and `-webkit-transform-origin` values join them t
 `none` like the shorthand and are dropped, since no face is ever synthesized (366 to 370). `border-collapse:separate` and `border-spacing` at one
 or two zero lengths are accepted as initial values, since cells already paint separate border boxes
 that touch without spacing, and the `border-collapse` and `border-spacing` rows move from rejected
-to partial (370 to 372).
+to partial (370 to 372). `empty-cells:show` and `caption-side:top` join them, since empty cells already
+paint and no `caption` element is accepted, and both rows move from rejected to partial (372 to 374).
 Current dataset SHA-256:
-`6b913174d576e3d4a0e98e12605f941eaa17c718eede67b036a7b6802ae544fa`; English
-layer `site/src/audit-english-table-border-model.mjs`, ordered source-text
-SHA-256 `1d1346560d77e545c58cd21fefee12719ec013df766c109c05ac873c3a837b95`.
+`3af2f1bd7ef8594b63be046accea406521d609cfaf64ea4088fe0e2ba10e30ee`; English
+layer `site/src/audit-english-table-cell-initial-values.mjs`, ordered source-text
+SHA-256 `759d02b0e69b3d2f9b1d7741c33e30186a509f66aec129f2654c9050a203087b`.

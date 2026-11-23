@@ -110,7 +110,7 @@ public sealed class TableStructureTests
     [TestCase("tr", "border:1pt solid red")][TestCase("td", "width:100pt")]
     [TestCase("td", "margin-top:1pt")][TestCase("td", "break-before:page")]
     [TestCase("table", "margin-top:1pt")][TestCase("table", "table-layout:fixed")]
-    [TestCase("table", "empty-cells:show")][TestCase("table", "caption-side:top")]
+    [TestCase("table", "table-layout:auto")][TestCase("table", "vertical-align:top")]
     public void TableCssApplicabilityRejectsMatchedDeclarations(string selector, string declaration)
         => Fails($"<style>{selector}{{{declaration}}}</style>" + One, "FPDF1201");
 
