@@ -8,7 +8,9 @@ namespace FactsPDF.Tests;
 /// is dropped likewise, as are text-decoration-skip-ink at auto or none and font-synthesis:none,
 /// which ask for no ink skipping or face synthesis (the renderer does neither), and the legacy
 /// text-decoration-skip (and -webkit-) at none, auto or objects, since no atomic inline can sit
-/// in a line, and font-kerning at auto or none, since no glyph pair is ever kerned. The
+/// in a line, and font-kerning at auto or none, since no glyph pair is ever kerned. quotes at
+/// auto, none, match-parent or pairs of strings is dropped, since no quotation mark is ever
+/// inserted (no q element or quote content is accepted). The
 /// font-synthesis longhands (-weight, -style, -small-caps, -position) accept none like the
 /// shorthand. Every keyword value of them (and a CSS-wide keyword) is
 /// validated and dropped, so the page renders byte-identical to the page without them.
@@ -61,6 +63,9 @@ public sealed class InteractionOnlyCssTests
     [TestCase("font-kerning:auto")]
     [TestCase("font-kerning:none;font-kerning:auto")]
     [TestCase("Font-Kerning:NONE !important;font-kerning:inherit")]
+    [TestCase("quotes:none;quotes:auto")]
+    [TestCase("Quotes:MATCH-PARENT !important;quotes:inherit")]
+    [TestCase("quotes:\"\\201C\" \"\\201D\" \"\\2018\" \"\\2019\"")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -99,6 +104,12 @@ public sealed class InteractionOnlyCssTests
     [TestCase("font-kerning:normal")]
     [TestCase("font-kerning:auto none")]
     [TestCase("font-kerning:0")]
+    [TestCase("quotes:normal")]
+    [TestCase("quotes:'a'")]
+    [TestCase("quotes:'a' 'b' 'c'")]
+    [TestCase("quotes:'a' none")]
+    [TestCase("quotes:auto none")]
+    [TestCase("quotes:attr(a) 'b'")]
     public void OtherValuesFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style=\"{declaration}\">A</p>"));
@@ -113,6 +124,7 @@ public sealed class InteractionOnlyCssTests
     [TestCase("<p style='text-decoration-skip-ink:all'>A</p>", "text-decoration-skip-ink supports only auto or none", "all")]
     [TestCase("<style>p{font-kerning:normal}</style><p>A</p>", "font-kerning supports only auto or none", "normal")]
     [TestCase("<p style='font-synthesis-weight:auto'>A</p>", "font-synthesis-weight supports only none", "auto")]
+    [TestCase("<style>q,blockquote{quotes:'a'}</style><p>A</p>", "quotes supports only auto, none, match-parent or pairs of strings", "'a'")]
     public void FailuresNameThePropertyAndTheValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));

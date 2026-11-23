@@ -952,6 +952,9 @@ internal static class CssSyntaxAdapter
             or "font-synthesis-small-caps" or "font-synthesis-position"
             or "text-decoration-skip-ink" or "text-decoration-skip"
             or "font-kerning"
+            // Quotation marks are only inserted by q elements and open-quote/close-quote content,
+            // and neither is accepted, so no quote is ever drawn (see the keyword arm and pairs).
+            or "quotes"
         // Cell spacing at its initial value: separated cell boxes already touch (zero spacing),
         // so one or two zero lengths are validated and dropped; any other spacing fails.
         || name == "border-spacing"
@@ -1040,6 +1043,7 @@ internal static class CssSyntaxAdapter
         // No glyph pair is ever kerned (no kern or GPOS data is read), so auto (the renderer's
         // choice) and none (never kern) are already honoured; normal asks for kerning and fails.
         "font-kerning" => term is "auto" or "none",
+        "quotes" => term is "auto" or "none" or "match-parent",
         // Legacy text-decoration-skip: objects skips atomic inlines, and no image or other atomic
         // inline can sit inside a line here; none and auto ask for no skipping. ink, spaces, edges
         // and box-decoration ask for gaps the renderer never draws, so they still fail.
@@ -1049,6 +1053,14 @@ internal static class CssSyntaxAdapter
         "scroll-snap-stop" => term is "normal" or "always",
         _ => false
     };
+
+    private static bool OnlyStrings(CssDeclarationNode node)
+    {
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace or CssSyntaxTokenKind.String })
+                return false;
+        return true;
+    }
 
     private static void ValidateInteractionOnly(string name, CssDeclarationNode node)
     {
@@ -1087,6 +1099,8 @@ internal static class CssSyntaxAdapter
         // also takes a block then an inline alignment.
         if (count == 2 && name is "scroll-snap-type" or "scroll-snap-align" && ScrollSnapPair(name, node)) return;
         if (name == "border-spacing" && count is 1 or 2 && ZeroLengths(node)) return;
+        // quotes also takes one or more pairs of strings (open and close marks per level).
+        if (name == "quotes" && count >= 2 && count % 2 == 0 && OnlyStrings(node)) return;
         // tab-size takes a non-negative number of spaces or a non-negative length.
         if (count == 1 && name == "tab-size" && value is CssTokenComponent { Token: var tab } && TabSize(tab)) return;
         // text-size-adjust also takes a non-negative percentage (text-size-adjust:100%).
@@ -1097,7 +1111,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "border-spacing" ? "0 (one or two zero lengths)" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "quotes" ? "auto, none, match-parent or pairs of strings" : name == "border-spacing" ? "0 (one or two zero lengths)" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
