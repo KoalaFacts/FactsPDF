@@ -843,6 +843,12 @@ internal static class CssSyntaxAdapter
         "scroll-timeline" or "scroll-timeline-name" or "view-timeline" or "view-timeline-name"
             or "timeline-scope" or "view-transition-name" or "view-transition-class" => "none",
         "scroll-timeline-axis" or "view-timeline-axis" => "block",
+        // Anchor positioning and top-layer resets: every box stays in normal flow (only
+        // position:static is accepted) and nothing is promoted to a top layer, so no anchor name,
+        // anchor scope, position area or fallback list and overlay:none describe what is drawn.
+        "anchor-name" or "anchor-scope" or "position-area" or "position-try"
+            or "position-try-fallbacks" or "overlay" => "none",
+        "position-try-order" => "normal",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
