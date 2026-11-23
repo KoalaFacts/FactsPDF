@@ -564,8 +564,11 @@ dropped too (305 to 308); `animation-composition:replace`, `animation-timeline` 
 `text-box-edge` at `auto`, `text-box-trim:none` and `text-box`, `paint-order`, `math-style` and
 `math-shift` at `normal` join them too (337 to 344); `contain-intrinsic-size` and its four longhands
 at `none` and `transform-box:view-box` join them as well (344 to 350); `font-kerning` at `auto` or
-`none` joins them too, and its feature row moves from rejected to partial (350 to 351).
+`none` joins them too, and its feature row moves from rejected to partial (350 to 351); `top`,
+`right`, `bottom`, `left`, `inset` and the six logical insets at `auto` and `border-image` and
+`border-image-source` at `none` join them as well, and the `top`, `right`, `bottom`, `left`, `inset`
+and `border-image` rows move from rejected to partial (351 to 364).
 Current dataset SHA-256:
-`9a3cfd76e360610833194a59d275a818b3f946e35d7a9ca10d98c951a76a0ede`; English
-layer `site/src/audit-english-font-kerning.mjs`, ordered source-text
-SHA-256 `a01e0857cb65b34345d83f4e539c1a57c999c0a196847a697c88976641b894c8`.
+`754bf943eeb38575cbca38d22fc46d6893a6a00d270e09a123312cd538c8812f`; English
+layer `site/src/audit-english-offset-border-image.mjs`, ordered source-text
+SHA-256 `b78c8c99d602117606bad5580e56ebcfa18331d204b6076a5610849a9b9a975b`.
