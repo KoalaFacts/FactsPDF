@@ -558,8 +558,10 @@ dropped too (305 to 308); `animation-composition:replace`, `animation-timeline` 
 `view-transition-name` and `view-transition-class` at `none` and `scroll-timeline-axis` and
 `view-timeline-axis` at `block` join the initial-value no-ops (308 to 323); `anchor-name`,
 `anchor-scope`, `position-area`, `position-try`, `position-try-fallbacks` and `overlay` at
-`none` and `position-try-order:normal` join them too (323 to 330).
+`none` and `position-try-order:normal` join them too (323 to 330); `interpolate-size:numeric-only`,
+`reading-flow:normal`, `field-sizing:fixed`, `dynamic-range-limit:no-limit` and `caret`,
+`caret-animation` and `caret-shape` at `auto` join them as well (330 to 337).
 Current dataset SHA-256:
-`8270a85198d9c457f795c06bc1c8a5babf220cd0475aeee0d2a06be6416cab85`; English
-layer `site/src/audit-english-anchor-positioning.mjs`, ordered source-text
-SHA-256 `538c62d6acd03881a14bc69434e22ff152cda7f3f1d7a89049c872b7af5ada5c`.
+`80fcd551ed7c87066fc37bbbac46b8146d9395849f89277946283875562ed35e`; English
+layer `site/src/audit-english-screen-ui.mjs`, ordered source-text
+SHA-256 `56ad226b5e6d67a730aca04b68c4365b778153907889fc01c7e69d628bf72096`.
