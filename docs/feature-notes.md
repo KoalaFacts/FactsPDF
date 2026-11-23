@@ -104,7 +104,7 @@ Resets also clear native control styling with `-webkit-appearance:none` / `appea
 
 Animation-ready and mobile stylesheets add `backface-visibility:hidden` (often `-webkit-` prefixed) and `touch-action:manipulation`. A back face only shows under a 3D transform, which the renderer never applies, and touch gestures never reach a PDF, so both accept a single keyword and drop the declaration; combined `touch-action` values still fail `FPDF1202` (`BackfaceTouchActionTests.cs`).
 
-The same stylesheets add `will-change:transform` (or a list such as `transform, opacity`) as a compositor hint. A written PDF page never animates, so `will-change` accepts `auto` or a comma-separated list of property names and drops the declaration (`WillChangeTests.cs`).
+The same stylesheets add `will-change:transform` (or a list such as `transform, opacity`) as a compositor hint. A written PDF page never animates, so `will-change` accepts `auto` or a comma-separated list of property names and drops the declaration (`WillChangeTests.cs`). Component and animation CSS also sets `transform-origin` (`top left`, `50% 50%`, `0 0`) beside the transform it pivots; the only accepted transform is `none`, so a well-formed origin (one or two positions and an optional length, also `-webkit-transform-origin`) moves nothing and is validated and dropped (`TransformOriginTests.cs`).
 
 They also add `transition:all .2s ease` or `transition:none` to buttons, links and panels. A written PDF page is never restyled, so `transition` and its five longhands accept a well-formed transition list and drop the declaration; malformed lists still fail `FPDF1202` (`TransitionTests.cs`).
 

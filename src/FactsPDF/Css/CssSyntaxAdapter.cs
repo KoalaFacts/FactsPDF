@@ -103,6 +103,7 @@ internal static class CssSyntaxAdapter
                 "-webkit-box-shadow" or "-moz-box-shadow" => "box-shadow",
                 "-webkit-transform" or "-moz-transform" or "-ms-transform" or "-o-transform" => "transform",
                 "-webkit-filter" => "filter",
+                "-webkit-transform-origin" => "transform-origin",
                 "-webkit-clip-path" => "clip-path",
                 "-webkit-backdrop-filter" => "backdrop-filter",
                 // normalize.css 7 and Bootstrap 4's reboot write -webkit-text-decoration-skip:objects on a.
@@ -913,7 +914,7 @@ internal static class CssSyntaxAdapter
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
             or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action"
-            or "will-change" or "transition" or "transition-property" or "transition-duration"
+            or "will-change" or "transform-origin" or "transition" or "transition-property" or "transition-duration"
             or "transition-timing-function" or "transition-delay" or "transition-behavior"
             or "animation" or "animation-name" or "animation-duration" or "animation-timing-function"
             or "animation-delay" or "animation-iteration-count" or "animation-direction"
@@ -1038,6 +1039,9 @@ internal static class CssSyntaxAdapter
         // will-change is a compositor hint: auto, or a comma list of animateable features
         // (transform, opacity, scroll-position, contents, ...). A static page never changes.
         if (name == "will-change" && WillChangeList(node)) return;
+        // transform-origin only moves the point a transform pivots around; the only accepted
+        // transform is none, so no box is ever moved and a well-formed origin changes nothing.
+        if (name == "transform-origin" && TransformOrigin(node)) return;
         // Transitions only animate a change of computed value on screen; a written PDF page
         // is never restyled, so a well-formed transition list is validated and dropped.
         if (IsTransition(name) && TransitionList(name, node)) return;
@@ -1066,7 +1070,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "font-kerning" ? "auto or none" : name == "will-change" ? "auto or a comma-separated list of property names" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name == "font-synthesis" ? "none" : name == "font-kerning" ? "auto or none" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
@@ -1134,6 +1138,57 @@ internal static class CssSyntaxAdapter
             if (token.Kind == CssSyntaxTokenKind.Number && amount != 0 || padding && amount < 0) return false;
         }
         return true;
+    }
+
+    // One or two positions (a horizontal then a vertical, or keywords in either order) and an
+    // optional third length (the z offset).
+    private static bool TransformOrigin(CssDeclarationNode node)
+    {
+        var count = 0;
+        var first = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (node.Values[i] is not CssTokenComponent { Token: var token } || ++count > 3) return false;
+            // 1 horizontal keyword, 2 vertical keyword, 3 center, 4 length, 5 percentage.
+            var kind = OriginComponent(token);
+            if (kind == 0) return false;
+            if (count == 3) { if (kind != 4) return false; continue; }
+            if (count == 1) { first = kind; continue; }
+            // After a vertical keyword the second is horizontal (a keyword or center); after
+            // center anything goes; otherwise the second is vertical.
+            if (first == 2 ? kind is 2 or 4 or 5 : first != 3 && kind == 1) return false;
+        }
+        return count > 0;
+    }
+
+    private static int OriginComponent(CssSyntaxToken token)
+    {
+        if (token.Kind == CssSyntaxTokenKind.Ident)
+            return token.Value.ToLowerInvariant() switch
+            {
+                "left" or "right" => 1,
+                "top" or "bottom" => 2,
+                "center" => 3,
+                _ => 0,
+            };
+        var length = token.Kind == CssSyntaxTokenKind.Dimension
+            && token.Unit?.ToLowerInvariant() is "px" or "pt" or "pc" or "in" or "cm" or "mm" or "q"
+                or "em" or "rem" or "ex" or "ch" or "vh" or "vw" or "vmin" or "vmax";
+        if (!length && token.Kind is not (CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage)) return 0;
+        if (!double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var amount) || !double.IsFinite(amount))
+            return 0;
+        // A bare number is only allowed as zero (a length); a nonzero mantissa that underflows
+        // to 0 (1e-999) is not zero.
+        if (token.Kind == CssSyntaxTokenKind.Number)
+        {
+            var text = token.Value;
+            for (var i = 0; i < text.Length && text[i] is not ('e' or 'E'); i++)
+                if (text[i] is >= '1' and <= '9') return 0;
+            return 4;
+        }
+        return length ? 4 : 5;
     }
 
     private static bool TabSize(CssSyntaxToken token) =>
