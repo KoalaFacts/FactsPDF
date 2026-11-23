@@ -573,8 +573,10 @@ accepted, are re-audited from rejected to partial as well (count unchanged at 36
 `font-variant`, `text-overflow`, `box-decoration-break`, `columns`, `column-count`,
 `column-width`, `column-gap`, `animation` and `transition` rows (count unchanged).
 Well-formed `transform-origin` and `-webkit-transform-origin` values join them too, and the
-`transform-origin` row moves from rejected to partial (364 to 366).
+`transform-origin` row moves from rejected to partial (364 to 366). The `font-synthesis-weight`,
+`font-synthesis-style`, `font-synthesis-small-caps` and `font-synthesis-position` longhands accept
+`none` like the shorthand and are dropped, since no face is ever synthesized (366 to 370).
 Current dataset SHA-256:
-`78b3d37ba97c6332dfc9c497b02a79c716925dfe8b5ed88152f3f3f2dc8fe0ef`; English
-layer `site/src/audit-english-transform-origin.mjs`, ordered source-text
-SHA-256 `6208badd87d2037a3ff8db29e0fee7fd34262d7329247562ad49b7b9e09e9604`.
+`3c71e76add964a6400ba62367e675cf4db889d4b20d4471f37054f3528d9c6dd`; English
+layer `site/src/audit-english-font-synthesis-longhands.mjs`, ordered source-text
+SHA-256 `47607cbc455bd67f44d07bd0374141e58a8b77314bc6a77dcdc0e8f2a2566b37`.
