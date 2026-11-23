@@ -584,8 +584,9 @@ paint and no `caption` element is accepted, and both rows move from rejected to 
 as initial values too, since no box follows a motion path, no drop cap is drawn and no emphasis mark
 is painted; no feature row moves (374 to 379). `quotes` at `auto`, `none`, `match-parent` or pairs
 of strings is dropped, since no `q` element or quote content is accepted, and the `quotes` row moves
-from rejected to partial (379 to 380).
+from rejected to partial (379 to 380). The `word-break` row adds the legacy `break-word` value,
+which wraps like `overflow-wrap:break-word`; no count moves.
 Current dataset SHA-256:
-`63005b888cbc96c38f8ef9cc70803c25148c72e074d372d130517d573a120051`; English
-layer `site/src/audit-english-quotes.mjs`, ordered source-text
-SHA-256 `a8d38ed983b943b48573394a580bd742de39cfdea10453dcace1679746035d3b`.
+`4d157d35cb6d3bf064323256cb93455bd7bf2a198f2d3859bda1bb638f2e594d`; English
+layer `site/src/audit-english-word-break-break-word.mjs`, ordered source-text
+SHA-256 `5b9c455c68be83d3f4f4a620be1b58f9ab4aaa9cc37253a33b65d065ec6cde50`.

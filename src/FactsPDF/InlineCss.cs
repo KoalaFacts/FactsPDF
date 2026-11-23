@@ -168,10 +168,13 @@ internal static class InlineCss
             case "word-break" when paragraph && !inline:
                 // Every already-supported simple glyph can end a line;
                 // unlike emergency wrapping, this consumes remaining width.
-                style.BreakAll = value switch
+                // CSS Text 3: the legacy break-word value is word-break:normal
+                // plus overflow-wrap:anywhere whatever overflow-wrap says, so it
+                // gets its own flag instead of overwriting BreakWords.
+                (style.BreakAll, style.BreakWordsByWordBreak) = value switch
                 {
-                    "normal" => false, "break-all" => true,
-                    _ => throw Invalid("word-break supports only normal and break-all.", offset)
+                    "normal" => (false, false), "break-all" => (true, false), "break-word" => (false, true),
+                    _ => throw Invalid("word-break supports only normal, break-all and break-word.", offset)
                 };
                 break;
             case "text-indent" when paragraph && !inline:
