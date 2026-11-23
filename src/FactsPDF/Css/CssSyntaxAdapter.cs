@@ -957,6 +957,10 @@ internal static class CssSyntaxAdapter
             // Quotation marks are only inserted by q elements and open-quote/close-quote content,
             // and neither is accepted, so no quote is ever drawn (see the keyword arm and pairs).
             or "quotes"
+            // Fonts are never discovered: the supplied font chain (or the standard Courier
+            // fallback) is the only installed font, so every family list resolves to it, as a
+            // browser falls back when none of the named families is installed (see FamilyList).
+            or "font-family"
         // Cell spacing at its initial value: separated cell boxes already touch (zero spacing),
         // so one or two zero lengths are validated and dropped; any other spacing fails.
         || name == "border-spacing"
@@ -1079,6 +1083,7 @@ internal static class CssSyntaxAdapter
         // will-change is a compositor hint: auto, or a comma list of animateable features
         // (transform, opacity, scroll-position, contents, ...). A static page never changes.
         if (name == "will-change" && WillChangeList(node)) return;
+        if (name == "font-family" && FamilyList(node)) return;
         // transform-origin only moves the point a transform pivots around; the only accepted
         // transform is none, so no box is ever moved and a well-formed origin changes nothing.
         if (name == "transform-origin" && TransformOrigin(node)) return;
@@ -1113,7 +1118,7 @@ internal static class CssSyntaxAdapter
             && amount >= 0 && double.IsFinite(amount))
             return;
         throw new FactsPdfException("FPDF1202",
-            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "quotes" ? "auto, none, match-parent or pairs of strings" : name == "border-spacing" ? "0 (one or two zero lengths)" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
+            $"{name} supports only {(name is "caret-color" or "accent-color" ? "auto or a colour" : name == "-webkit-tap-highlight-color" ? "a colour" : name == "scrollbar-color" ? "auto or two colours (thumb and track)" : name == "scrollbar-gutter" ? "auto, stable or stable both-edges" : name == "color-scheme" ? "normal, or scheme names such as light dark with an optional only" : name == "text-size-adjust" ? "auto, none or a non-negative percentage" : name == "tab-size" ? "a non-negative number or length" : ScrollOffsetSides(name) > 0 ? ScrollOffsetForm(name) : name == "scroll-snap-type" ? "none, or an axis with an optional mandatory or proximity" : name == "scroll-snap-align" ? "one or two of none, start, end or center" : name == "text-decoration-skip-ink" ? "auto or none" : name == "text-decoration-skip" ? "none, auto or objects" : name.StartsWith("font-synthesis", StringComparison.Ordinal) ? "none" : name == "font-kerning" ? "auto or none" : name == "quotes" ? "auto, none, match-parent or pairs of strings" : name == "font-family" ? "a comma-separated list of family names (strings or identifiers) and generic families" : name == "border-spacing" ? "0 (one or two zero lengths)" : name == "will-change" ? "auto or a comma-separated list of property names" : name == "transform-origin" ? "one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length" : IsTransition(name) ? TransitionForm(name) : IsAnimation(name) ? AnimationForm(name) : "a single keyword")}: it does not change the PDF page, so the declaration is validated and dropped.",
             value?.Span.Start ?? node.Span.Start);
     }
 
@@ -1344,6 +1349,43 @@ internal static class CssSyntaxAdapter
             else second = token.Value.ToLowerInvariant();
         }
         return (first, second) is ("stable", "both-edges") or ("both-edges", "stable");
+    }
+
+    // CSS Fonts 4 <family-name>#: each entry is one string or a sequence of identifiers (a
+    // generic family such as sans-serif is a single identifier); entries are comma-separated and
+    // none may be empty, a CSS-wide keyword or the reserved default.
+    private static bool FamilyList(CssDeclarationNode node)
+    {
+        var entries = 0;
+        var inEntry = false;
+        var stringEntry = false;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is not CssTokenComponent { Token: var token }) return false;
+            switch (token.Kind)
+            {
+                case CssSyntaxTokenKind.Whitespace:
+                    continue;
+                case CssSyntaxTokenKind.Comma:
+                    if (!inEntry) return false;
+                    inEntry = false;
+                    continue;
+                case CssSyntaxTokenKind.String:
+                    if (inEntry || token.Value.Length == 0) return false;
+                    inEntry = stringEntry = true;
+                    entries++;
+                    continue;
+                case CssSyntaxTokenKind.Ident:
+                    var term = token.Value.ToLowerInvariant();
+                    if (Wide(term) || term == "default") return false;
+                    if (inEntry && stringEntry) return false;
+                    if (!inEntry) { entries++; inEntry = true; stringEntry = false; }
+                    continue;
+                default:
+                    return false;
+            }
+        }
+        return entries > 0 && inEntry;
     }
 
     private static bool WillChangeList(CssDeclarationNode node)
