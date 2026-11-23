@@ -569,8 +569,10 @@ at `none` and `transform-box:view-box` join them as well (344 to 350); `font-ker
 `border-image-source` at `none` join them as well, and the `top`, `right`, `bottom`, `left`, `inset`
 and `border-image` rows move from rejected to partial (351 to 364). The `direction`,
 `unicode-bidi`, `writing-mode` and `text-orientation` rows, whose initial values the engine already
-accepted, are re-audited from rejected to partial as well (count unchanged at 364).
+accepted, are re-audited from rejected to partial as well (count unchanged at 364), and so are the
+`font-variant`, `text-overflow`, `box-decoration-break`, `columns`, `column-count`,
+`column-width`, `column-gap`, `animation` and `transition` rows (count unchanged).
 Current dataset SHA-256:
-`2ef4bdc90d0ab6e2af909e89c5c30d38a707b483ed90b622703fe1172e60801d`; English
-layer `site/src/audit-english-writing-direction.mjs`, ordered source-text
-SHA-256 `df14aaf0736cc411d81248ec06d267aa8b18b580ef3fb10023625d60b5e7ca4a`.
+`f4c41e6da6e0e139ce8b8933b92888fa61b153c69721099902949063be54c328`; English
+layer `site/src/audit-english-stale-resets.mjs`, ordered source-text
+SHA-256 `3d5a1fc249638c2fc736f20d568541d02cfd5a77c3ef8da37bda269ef44c8ecd`.
