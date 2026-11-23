@@ -552,8 +552,12 @@ well (256 to 266); `hanging-punctuation:none`, `hyphenate-character` and
 `scroll-margin` and `scroll-padding` with their ten side and axis longhands each accept well-formed
 offsets and are dropped, since a PDF page is never scrolled to an anchor (283 to 305);
 `scroll-snap-type`, `scroll-snap-align` and `scroll-snap-stop` accept their keyword forms and are
-dropped too (305 to 308).
+dropped too (305 to 308); `animation-composition:replace`, `animation-timeline` and
+`view-timeline-inset` at `auto`, `animation-range` and its `-start`/`-end` longhands at `normal`,
+`scroll-timeline`, `view-timeline`, their `-name` longhands, `timeline-scope`,
+`view-transition-name` and `view-transition-class` at `none` and `scroll-timeline-axis` and
+`view-timeline-axis` at `block` join the initial-value no-ops (308 to 323).
 Current dataset SHA-256:
-`db9354ea56c1e6f1d3a3c77b9c020708e87c5a7f7140a7b1f4761bc425230327`; English
-layer `site/src/audit-english-scroll-snap.mjs`, ordered source-text
-SHA-256 `a0101c43083e0477ebe085f1cc69d9ab47327aae8ccc2b6df5402cc1c5c5ba8f`.
+`c5d00bb634e50d8af9614eb41d82a23db1a7dc0e626a9f26b39f718b1cbb68c1`; English
+layer `site/src/audit-english-animation-timeline.mjs`, ordered source-text
+SHA-256 `33e1c2325b76cb571a368d2d7c0f12eb7c22a0db7fe67253f956a58e267a47cf`.
