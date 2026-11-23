@@ -585,8 +585,10 @@ as initial values too, since no box follows a motion path, no drop cap is drawn 
 is painted; no feature row moves (374 to 379). `quotes` at `auto`, `none`, `match-parent` or pairs
 of strings is dropped, since no `q` element or quote content is accepted, and the `quotes` row moves
 from rejected to partial (379 to 380). The `word-break` row adds the legacy `break-word` value,
-which wraps like `overflow-wrap:break-word`; no count moves.
+which wraps like `overflow-wrap:break-word`; no count moves. `gap` and `row-gap` at `normal` are
+accepted as initial values, since no flex, grid or multi-column container exists, and both rows
+move from rejected to partial (380 to 382).
 Current dataset SHA-256:
-`4d157d35cb6d3bf064323256cb93455bd7bf2a198f2d3859bda1bb638f2e594d`; English
-layer `site/src/audit-english-word-break-break-word.mjs`, ordered source-text
-SHA-256 `5b9c455c68be83d3f4f4a620be1b58f9ab4aaa9cc37253a33b65d065ec6cde50`.
+`ce115e886a73401ad1e6d4cb056881cd8b7de70f12ca0f3d9ad4d6121faed83a`; English
+layer `site/src/audit-english-gap-row-gap.mjs`, ordered source-text
+SHA-256 `99bded12cddb152d85d13cc296f09867c0b29d0032c554e92a2b2e95e29265cb`.
