@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 /// is dropped likewise, as are text-decoration-skip-ink at auto or none and font-synthesis:none,
 /// which ask for no ink skipping or face synthesis (the renderer does neither), and the legacy
 /// text-decoration-skip (and -webkit-) at none, auto or objects, since no atomic inline can sit
-/// in a line. Every keyword value of them (and a CSS-wide keyword) is
+/// in a line, and font-kerning at auto or none, since no glyph pair is ever kerned. Every keyword value of them (and a CSS-wide keyword) is
 /// validated and dropped, so the page renders byte-identical to the page without them.
 /// Any other value (an image, a number, several components) fails with FPDF1202.
 /// </summary>
@@ -53,6 +53,9 @@ public sealed class InteractionOnlyCssTests
     [TestCase("-webkit-text-decoration-skip:objects")]
     [TestCase("text-decoration-skip:none;text-decoration-skip:auto;text-decoration-skip:objects")]
     [TestCase("-WEBKIT-Text-Decoration-Skip:OBJECTS;text-decoration-skip:inherit !important")]
+    [TestCase("font-kerning:auto")]
+    [TestCase("font-kerning:none;font-kerning:auto")]
+    [TestCase("Font-Kerning:NONE !important;font-kerning:inherit")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -82,6 +85,9 @@ public sealed class InteractionOnlyCssTests
     [TestCase("-webkit-text-decoration-skip:spaces")]
     [TestCase("text-decoration-skip:objects spaces")]
     [TestCase("text-decoration-skip:edges")]
+    [TestCase("font-kerning:normal")]
+    [TestCase("font-kerning:auto none")]
+    [TestCase("font-kerning:0")]
     public void OtherValuesFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style=\"{declaration}\">A</p>"));
@@ -94,6 +100,7 @@ public sealed class InteractionOnlyCssTests
     [TestCase("<style>p{font-synthesis:weight}</style><p>A</p>", "font-synthesis supports only none", "weight")]
     [TestCase("<p style='-webkit-text-decoration-skip:ink'>A</p>", "text-decoration-skip supports only none, auto or objects", "ink")]
     [TestCase("<p style='text-decoration-skip-ink:all'>A</p>", "text-decoration-skip-ink supports only auto or none", "all")]
+    [TestCase("<style>p{font-kerning:normal}</style><p>A</p>", "font-kerning supports only auto or none", "normal")]
     public void FailuresNameThePropertyAndTheValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
