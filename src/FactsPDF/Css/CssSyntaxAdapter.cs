@@ -833,6 +833,16 @@ internal static class CssSyntaxAdapter
         "mask-mode" => "match-source",
         "mask-composite" => "add",
         "mask-type" => "luminance",
+        // Animation timeline and view-transition resets: no animation ever runs (animations are
+        // validated and dropped) and the page is never scrolled or navigated, so the default
+        // document timeline, no named scroll or view timeline and no view-transition name are
+        // exactly what is drawn.
+        "animation-composition" => "replace",
+        "animation-timeline" or "view-timeline-inset" => "auto",
+        "animation-range" or "animation-range-start" or "animation-range-end" => "normal",
+        "scroll-timeline" or "scroll-timeline-name" or "view-timeline" or "view-timeline-name"
+            or "timeline-scope" or "view-transition-name" or "view-transition-class" => "none",
+        "scroll-timeline-axis" or "view-timeline-axis" => "block",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.
