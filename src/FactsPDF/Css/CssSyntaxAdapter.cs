@@ -795,7 +795,9 @@ internal static class CssSyntaxAdapter
         // column, so no column count or width, the normal gap, no spanning, balanced fill and no
         // column rule describe exactly that; column-count:2 and the rest still fail FPDF1202.
         "column-count" or "column-width" or "columns" => "auto",
-        "column-gap" => "normal",
+        // gap and row-gap at normal: no flex, grid or multi-column container exists, so no gap
+        // is ever inserted between rows or columns; gap:0 and row-gap:1em still fail FPDF1202.
+        "column-gap" or "row-gap" or "gap" => "normal",
         "column-span" or "column-rule" or "column-rule-style" => "none",
         "column-fill" => "balance",
         // Overflow and fragment resets: no box clips its overflow (overflow stays visible), so

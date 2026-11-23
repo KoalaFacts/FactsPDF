@@ -457,7 +457,7 @@ test('named CSS colours retain the independent source and English limitations', 
     assert.equal(row.introduced_release, null);
   }
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 380);
+  assert.equal(data.accepted_css_property_count, 382);
 });
 
 
@@ -465,7 +465,7 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   const { englishFeature, translate } = await localisation();
   const feature=englishFeature(data.features.find(x=>x.id==='css.border'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 380);
+  assert.equal(data.accepted_css_property_count, 382);
   assert.match(feature.scope,/border-inline/);
   assert.match(feature.scope,/border-block/);
   assert.match(feature.scope,/actual left\/right\/top\/bottom PDF strokes/);
@@ -476,12 +476,12 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   assert.doesNotMatch(translate(data.css_inventory_note),han);
 });
 
-test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count, 380);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
+test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count, 382);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
 
 test('bounded printable text decoration width is translated with exact limits',async()=>{
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(f=>f.id==='css.text-decoration'));
-  assert.equal(data.accepted_css_property_count, 380);
+  assert.equal(data.accepted_css_property_count, 382);
   assert.match(row.scope,/three distinct/);
   assert.match(row.scope,/0.2–12pt/);
   assert.match(row.scope,/resets omitted thickness to auto/);
@@ -499,7 +499,7 @@ test('bounded underline offset remains exact in verified English and Chinese', a
   assert.match(translate(data.css_inventory_note),/from 108 to 109/);
   assert.doesNotMatch(row.scope+row.limitations,/[\u3400-\u9fff]/u);
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 380);
+  assert.equal(data.accepted_css_property_count, 382);
 });
 
 test('English CLI diagnostic location record is source-bound and fully translated',async()=>{
@@ -528,7 +528,7 @@ test('bounded English last-line alignment audit retains source and error boundar
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(x=>x.id==='css.text-align'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 380);
+  assert.equal(data.accepted_css_property_count, 382);
   assert.match(row.scope,/text-align-last:auto\/left\/center\/right\/start\/end\/justify/);
   assert.match(row.limitations,/inline declarations/);
   assert.match(translate(data.css_inventory_note),/115 to 116/);
@@ -598,6 +598,8 @@ test('initial-value-only CSS rows are fully translated without claiming layout s
   assert.match(translate(data.css_inventory_note),/empty-cells:show and caption-side:top[^.]*from 372 to 374/);
   assert.match(translate(data.css_inventory_note),/offset-path:none, offset-rotate and offset-anchor at auto, initial-letter:normal[^.]*from 374 to 379/);
   assert.match(translate(data.css_inventory_note),/quotes at auto, none, match-parent or pairs of strings[^.]*from 379 to 380/);
+  assert.match(translate(data.css_inventory_note),/gap and row-gap at normal[^.]*from 380 to 382/);
+  for (const id of ['css.gap','css.row-gap']) { const row=data.features.find(x=>x.id===id); assert.equal(row.status,'partial'); assert.equal(row.failure_code,'FPDF1202'); assert.doesNotMatch(englishFeature(row).scope+englishFeature(row).limitations,han); }
   { const row=data.features.find(x=>x.id==='css.quotes'); assert.equal(row.status,'partial'); assert.equal(row.failure_code,'FPDF1202'); assert.doesNotMatch(englishFeature(row).scope+englishFeature(row).limitations,han); }
   for (const id of ['css.border-collapse','css.border-spacing','css.empty-cells','css.caption-side']) { const row=data.features.find(x=>x.id===id); assert.equal(row.status,'partial'); assert.equal(row.failure_code,'FPDF1202'); assert.doesNotMatch(englishFeature(row).scope+englishFeature(row).limitations,han); }
   assert.match(translate(data.css_inventory_note),/font-synthesis-position at none are validated and dropped like the shorthand[^.]*from 366 to 370/);
