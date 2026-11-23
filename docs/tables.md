@@ -247,7 +247,7 @@ PDFs must fail the corresponding content or geometry assertions.
 | `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root) |
 | `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only |
 
-Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. `table-layout`, vertical alignment and cell height controls are not implemented. Cells use the separated border model with zero spacing, so only `border-collapse:separate` and `border-spacing` at one or two zero lengths are accepted (validated and dropped, on any element); `border-collapse:collapse` and non-zero spacing fail `FPDF1202`.
+Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. `table-layout`, vertical alignment and cell height controls are not implemented. `empty-cells:show` (empty cells always paint their background and borders) and `caption-side:top` (no `caption` element is accepted) are validated and dropped; other values fail `FPDF1202`. Cells use the separated border model with zero spacing, so only `border-collapse:separate` and `border-spacing` at one or two zero lengths are accepted (validated and dropped, on any element); `border-collapse:collapse` and non-zero spacing fail `FPDF1202`.
 
 ## Limits and diagnostics
 

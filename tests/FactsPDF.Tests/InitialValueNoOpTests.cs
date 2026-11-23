@@ -105,6 +105,8 @@ public sealed class InitialValueNoOpTests
     [TestCase("border-collapse:separate;border-spacing:0")]
     [TestCase("border-spacing:0pt 0;Border-Collapse:SEPARATE !important;border-spacing:-0.0px")]
     [TestCase("border-collapse:inherit;border-spacing:initial;border-spacing:0 0mm")]
+    [TestCase("empty-cells:show;caption-side:top")]
+    [TestCase("Empty-Cells:SHOW !important;caption-side:inherit;caption-side:TOP")]
     public void InitialValueRendersLikeTheUndeclaredPage(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -280,6 +282,9 @@ public sealed class InitialValueNoOpTests
     [TestCase("border-spacing:0 0 0")]
     [TestCase("border-spacing:0%")]
     [TestCase("border-spacing:none")]
+    [TestCase("empty-cells:hide")]
+    [TestCase("caption-side:bottom")]
+    [TestCase("caption-side:top top")]
     public void AnyOtherValueFailsWithoutOutput(string declaration)
     {
         foreach (var html in new[] { $"<p style=\"{declaration}\">A</p>", $"<style>.unused{{{declaration}}}</style><p>A</p>" })
@@ -305,6 +310,7 @@ public sealed class InitialValueNoOpTests
     [TestCase("<p style='opacity:calc(1)'>A</p>", "opacity supports only 1", "calc")]
     [TestCase("<style>table{border-collapse:collapse}</style><p>A</p>", "border-collapse supports only separate", "collapse}")]
     [TestCase("<p style='border-spacing:2pt'>A</p>", "border-spacing supports only 0 (one or two zero lengths)", "2pt")]
+    [TestCase("<style>td{empty-cells:hide}</style><p>A</p>", "empty-cells supports only show", "hide")]
     public void FunctionValuesNameTheOnlySupportedValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));

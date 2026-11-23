@@ -888,6 +888,10 @@ internal static class CssSyntaxAdapter
         // touch with distinct strokes, which is the separated model (with zero spacing, below);
         // border-collapse:collapse would merge shared borders and still fails.
         "border-collapse" => "separate",
+        // Empty cells already paint their background and borders (empty-cells:show), and no
+        // caption element is accepted, so the caption side is never consulted.
+        "empty-cells" => "show",
+        "caption-side" => "top",
         _ => null
     };
 
