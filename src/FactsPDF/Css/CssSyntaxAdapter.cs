@@ -892,6 +892,14 @@ internal static class CssSyntaxAdapter
         // caption element is accepted, so the caption side is never consulted.
         "empty-cells" => "show",
         "caption-side" => "top",
+        // Motion path, drop cap and emphasis colour resets: no box is ever placed along a path
+        // (only transform:none and position:static are accepted), no first letter is enlarged
+        // into a drop cap, and no emphasis mark is drawn (only text-emphasis:none is accepted),
+        // so the initial values describe exactly what is painted.
+        "offset-path" => "none",
+        "offset-rotate" or "offset-anchor" => "auto",
+        "initial-letter" => "normal",
+        "text-emphasis-color" => "currentcolor",
         _ => null
     };
 
