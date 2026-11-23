@@ -587,8 +587,10 @@ of strings is dropped, since no `q` element or quote content is accepted, and th
 from rejected to partial (379 to 380). The `word-break` row adds the legacy `break-word` value,
 which wraps like `overflow-wrap:break-word`; no count moves. `gap` and `row-gap` at `normal` are
 accepted as initial values, since no flex, grid or multi-column container exists, and both rows
-move from rejected to partial (380 to 382).
+move from rejected to partial (380 to 382). A well-formed `font-family` list is validated and
+dropped, since no font is discovered and the supplied chain is the only installed font, and the
+`font-family` row moves from rejected to partial (382 to 383).
 Current dataset SHA-256:
-`ce115e886a73401ad1e6d4cb056881cd8b7de70f12ca0f3d9ad4d6121faed83a`; English
-layer `site/src/audit-english-gap-row-gap.mjs`, ordered source-text
-SHA-256 `99bded12cddb152d85d13cc296f09867c0b29d0032c554e92a2b2e95e29265cb`.
+`9ab4e35e2c775a9da19b9add9c311aeeebb49c3d360760ae34ad774417cf90d0`; English
+layer `site/src/audit-english-font-family.mjs`, ordered source-text
+SHA-256 `3f5d07a4d7300f04e29553e640f729bf0b77fd1c7fa79f0a4d6019ca021b6e11`.

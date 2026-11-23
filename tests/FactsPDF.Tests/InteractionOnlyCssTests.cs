@@ -66,6 +66,11 @@ public sealed class InteractionOnlyCssTests
     [TestCase("quotes:none;quotes:auto")]
     [TestCase("Quotes:MATCH-PARENT !important;quotes:inherit")]
     [TestCase("quotes:\"\\201C\" \"\\201D\" \"\\2018\" \"\\2019\"")]
+    [TestCase("font-family:Arial")]
+    [TestCase("font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif")]
+    [TestCase("FONT-FAMILY:Times New Roman,serif !important")]
+    [TestCase("font-family:monospace,monospace;font-family:inherit")]
+    [TestCase("font-family:\"\u5FAE\u8F6F\u96C5\u9ED1\", system-ui;font-family:initial")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -110,6 +115,17 @@ public sealed class InteractionOnlyCssTests
     [TestCase("quotes:'a' none")]
     [TestCase("quotes:auto none")]
     [TestCase("quotes:attr(a) 'b'")]
+    [TestCase("font-family:")]
+    [TestCase("font-family:Arial,")]
+    [TestCase("font-family:,serif")]
+    [TestCase("font-family:Arial,,serif")]
+    [TestCase("font-family:'Open' Sans")]
+    [TestCase("font-family:Open 'Sans'")]
+    [TestCase("font-family:''")]
+    [TestCase("font-family:12px")]
+    [TestCase("font-family:inherit,serif")]
+    [TestCase("font-family:default")]
+    [TestCase("font-family:var(--font)")]
     public void OtherValuesFail(string declaration)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style=\"{declaration}\">A</p>"));
@@ -125,6 +141,7 @@ public sealed class InteractionOnlyCssTests
     [TestCase("<style>p{font-kerning:normal}</style><p>A</p>", "font-kerning supports only auto or none", "normal")]
     [TestCase("<p style='font-synthesis-weight:auto'>A</p>", "font-synthesis-weight supports only none", "auto")]
     [TestCase("<style>q,blockquote{quotes:'a'}</style><p>A</p>", "quotes supports only auto, none, match-parent or pairs of strings", "'a'")]
+    [TestCase("<style>.unused{font-family:12px}</style><p>A</p>", "font-family supports only a comma-separated list of family names (strings or identifiers) and generic families", "12px")]
     public void FailuresNameThePropertyAndTheValue(string html, string message, string at)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
@@ -146,5 +163,15 @@ public sealed class InteractionOnlyCssTests
     {
         var bytes = FactsPDF.Pdf.Write().ToBytes("<p style='cursor:pointer;user-select:none;pointer-events:none'>Paid</p>");
         Assert.That(bytes, Is.EqualTo(FactsPDF.Pdf.Write().ToBytes("<p>Paid</p>")));
+    }
+
+    [Test]
+    public void FontFamilyOnAStylesheetResolvesToTheSuppliedFontChain()
+    {
+        // Every family list falls back to the only installed font, so the page is unchanged.
+        const string body = "<h1>Invoice</h1><p>Total due</p><div class=n><p>Note</p></div>";
+        const string css = "<style>html{font-family:system-ui,sans-serif}body{font-family:\"Helvetica Neue\",Arial,sans-serif}" +
+            "pre,code{font-family:monospace,monospace}.n{font-family:inherit}</style>";
+        Assert.That(Pdf(css + body), Is.EqualTo(Pdf(body)));
     }
 }
