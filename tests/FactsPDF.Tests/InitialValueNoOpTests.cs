@@ -303,7 +303,6 @@ public sealed class InitialValueNoOpTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("\"kern\"", StringComparison.Ordinal)));
     }
 
-    [TestCase("font-kerning:auto")]
     [TestCase("-o-font-feature-settings:normal")]
     [TestCase("-ms-zoom:1")]
     public void UnlistedFontPropertiesStillFail(string declaration)

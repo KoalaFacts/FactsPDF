@@ -563,8 +563,9 @@ dropped too (305 to 308); `animation-composition:replace`, `animation-timeline` 
 `caret-animation` and `caret-shape` at `auto` join them as well (330 to 337); `text-wrap-style` and
 `text-box-edge` at `auto`, `text-box-trim:none` and `text-box`, `paint-order`, `math-style` and
 `math-shift` at `normal` join them too (337 to 344); `contain-intrinsic-size` and its four longhands
-at `none` and `transform-box:view-box` join them as well (344 to 350).
+at `none` and `transform-box:view-box` join them as well (344 to 350); `font-kerning` at `auto` or
+`none` joins them too, and its feature row moves from rejected to partial (350 to 351).
 Current dataset SHA-256:
-`ac3ca676ccda8407078bfdef853991f2aecf8e82e6e8619de742ea9328beb1dc`; English
-layer `site/src/audit-english-intrinsic-size.mjs`, ordered source-text
-SHA-256 `1648f9c7c3b3558fb9025a65c22b40a97f5089300d870babd59be8ee4e6f14b3`.
+`9a3cfd76e360610833194a59d275a818b3f946e35d7a9ca10d98c951a76a0ede`; English
+layer `site/src/audit-english-font-kerning.mjs`, ordered source-text
+SHA-256 `a01e0857cb65b34345d83f4e539c1a57c999c0a196847a697c88976641b894c8`.
