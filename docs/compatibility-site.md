@@ -579,8 +579,11 @@ Well-formed `transform-origin` and `-webkit-transform-origin` values join them t
 or two zero lengths are accepted as initial values, since cells already paint separate border boxes
 that touch without spacing, and the `border-collapse` and `border-spacing` rows move from rejected
 to partial (370 to 372). `empty-cells:show` and `caption-side:top` join them, since empty cells already
-paint and no `caption` element is accepted, and both rows move from rejected to partial (372 to 374).
+paint and no `caption` element is accepted, and both rows move from rejected to partial (372 to 374). `offset-path:none`, `offset-rotate` and
+`offset-anchor` at `auto`, `initial-letter:normal` and `text-emphasis-color:currentcolor` are accepted
+as initial values too, since no box follows a motion path, no drop cap is drawn and no emphasis mark
+is painted; no feature row moves (374 to 379).
 Current dataset SHA-256:
-`3af2f1bd7ef8594b63be046accea406521d609cfaf64ea4088fe0e2ba10e30ee`; English
-layer `site/src/audit-english-table-cell-initial-values.mjs`, ordered source-text
-SHA-256 `759d02b0e69b3d2f9b1d7741c33e30186a509f66aec129f2654c9050a203087b`.
+`e41d91c57455c4a8a3388f4527cb552270f0b4f0ba6c6dcaf2f49cf9f853e201`; English
+layer `site/src/audit-english-motion-path-initial-letter.mjs`, ordered source-text
+SHA-256 `077823822fc70b3ee64ec99ee2e987fad79fff74796e50f91a273b1519168660`.
