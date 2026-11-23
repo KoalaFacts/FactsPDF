@@ -869,6 +869,13 @@ internal static class CssSyntaxAdapter
         "contain-intrinsic-size" or "contain-intrinsic-width" or "contain-intrinsic-height"
             or "contain-intrinsic-block-size" or "contain-intrinsic-inline-size" => "none",
         "transform-box" => "view-box",
+        // Box offsets and border images: with only position:static accepted the offsets never
+        // move a box, and with no border image every border is painted from its style, width
+        // and colour, which is what auto and none ask for.
+        "top" or "right" or "bottom" or "left" or "inset" or "inset-block" or "inset-inline"
+            or "inset-block-start" or "inset-block-end" or "inset-inline-start"
+            or "inset-inline-end" => "auto",
+        "border-image" or "border-image-source" => "none",
         // Legacy and containment resets: zoom:normal (or 1/100%, below) scales nothing;
         // contain:none and content-visibility:visible skip nothing; line breaking, justification
         // and image interpolation at auto are already the renderer's own choice.

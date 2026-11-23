@@ -88,6 +88,8 @@ public sealed class InitialValueNoOpTests
     [TestCase("TEXT-WRAP-STYLE:AUTO;text-box-trim:inherit;paint-order:unset;math-shift:normal !important")]
     [TestCase("contain-intrinsic-size:none;contain-intrinsic-width:none;contain-intrinsic-height:none;contain-intrinsic-block-size:none;contain-intrinsic-inline-size:none;transform-box:view-box")]
     [TestCase("CONTAIN-INTRINSIC-SIZE:NONE;contain-intrinsic-width:inherit;transform-box:unset !important")]
+    [TestCase("top:auto;right:auto;bottom:auto;left:auto;inset:auto;inset-block:auto;inset-inline:auto;inset-block-start:auto;inset-block-end:auto;inset-inline-start:auto;inset-inline-end:auto")]
+    [TestCase("TOP:AUTO;left:inherit !important;border-image:none;border-image-source:NONE")]
     [TestCase("ANIMATION-TIMELINE:AUTO;view-transition-name:inherit;scroll-timeline-axis:unset;animation-composition:replace !important")]
     [TestCase("background-attachment:scroll;background-blend-mode:normal;background-origin:padding-box;container-type:normal;container:none")]
     [TestCase("aspect-ratio:auto;mask-repeat:repeat;mask-size:auto;mask-origin:border-box;mask-clip:border-box;mask-mode:match-source;mask-composite:add;mask-type:luminance")]
@@ -244,6 +246,12 @@ public sealed class InitialValueNoOpTests
     [TestCase("contain-intrinsic-block-size:auto none")]
     [TestCase("transform-box:fill-box")]
     [TestCase("transform-box:border-box")]
+    [TestCase("top:0")]
+    [TestCase("left:10px")]
+    [TestCase("inset:auto auto")]
+    [TestCase("inset-inline-start:5%")]
+    [TestCase("border-image:url(a.png) 30 round")]
+    [TestCase("border-image-source:linear-gradient(red, blue)")]
     [TestCase("background-attachment:fixed")]
     [TestCase("background-blend-mode:multiply")]
     [TestCase("background-origin:content-box")]
@@ -314,7 +322,7 @@ public sealed class InitialValueNoOpTests
     [Test]
     public void OtherUnsupportedPropertiesStillFail()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='top:0'>A</p>"));
+        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='order:0'>A</p>"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 
