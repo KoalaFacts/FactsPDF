@@ -220,7 +220,7 @@ internal static class CssDeclarations
             case CssProperty.TextUnderlineOffset: style.UnderlineOffset = source.UnderlineOffset; break;
             case CssProperty.WhiteSpace: style.NoWrap = source.NoWrap; style.PreserveLineBreaks = source.PreserveLineBreaks; style.PreserveSpaces = source.PreserveSpaces; break;
             case CssProperty.OverflowWrap: style.BreakWords = source.BreakWords; break;
-            case CssProperty.WordBreak: style.BreakAll = source.BreakAll; break;
+            case CssProperty.WordBreak: style.BreakAll = source.BreakAll; style.BreakWordsByWordBreak = source.BreakWordsByWordBreak; break;
             case CssProperty.TextIndent: style.FirstLineIndent = source.FirstLineIndent; break;
             case CssProperty.LetterSpacing: style.LetterSpacing = source.LetterSpacing; break;
             case CssProperty.WordSpacing: style.WordSpacing = source.WordSpacing; break;

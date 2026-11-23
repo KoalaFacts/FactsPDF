@@ -268,7 +268,7 @@ internal static class TextLines
                     var glyph = cursor.Current;
                     word.Add(glyph);
                     wordWidth += glyph.Width;
-                    if (!paragraph.Style.BreakWords && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
+                    if (!paragraph.Style.EmergencyBreak && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
                         throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.", glyph.SourceOffset);
                     previous = glyph.Scalar;
                     hasGlyph = cursor.MoveNext();
@@ -287,7 +287,7 @@ internal static class TextLines
                 // Break only a token that cannot fit a fresh line, or the
                 // indented first line when no earlier text can move. A fitting
                 // word moves as a whole at the preceding ordinary space.
-                if (paragraph.Style.BreakWords &&
+                if (paragraph.Style.EmergencyBreak &&
                     (wordWidth > available + 0.000001 ||
                      current.Count == 0 && wordWidth > lineAvailable + 0.000001 && !markerOnlyWrap))
                 {
@@ -394,7 +394,7 @@ internal static class TextLines
                     previousScalar = -1;
                     continue;
                 }
-                if (paragraph.Style.BreakWords || paragraph.Style.BreakAll)
+                if (paragraph.Style.EmergencyBreak || paragraph.Style.BreakAll)
                 {
                     // Both breaking modes use only supported resolved glyphs.
                     // A glyph wider than the fresh content line still fails.

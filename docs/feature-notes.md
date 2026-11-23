@@ -633,7 +633,7 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ### Inherited report text flow (source-only)
 
-The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all`
+The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all|break-word`
 and nonnegative `text-indent` values can now be declared on `html`, `body`
 or ordinary report `div`/`section`/`article`/`blockquote` containers.
 Their computed values inherit into descendant paragraphs and headings and
@@ -763,8 +763,9 @@ renderer, **not** Unicode grapheme segmentation or a browser CSS Text engine.
 The [48-record report](../examples/report-word-break-identifiers.html) and
 [separately authored explicit-break control](../examples/report-word-break-identifiers-oracle.html)
 exercise source NUnit and real Linux/Windows Native AOT PDF-byte, page-text and
-failure-recovery gates. Unsupported `keep-all`, `break-word` as a value of
-`word-break`, inline spans, arbitrary container declarations, complex shaping
+failure-recovery gates. `word-break:break-word` wraps exactly like
+`overflow-wrap:break-word` whatever `overflow-wrap` says (`WordBreakTests.cs`).
+Unsupported `keep-all`, inline spans, arbitrary container declarations, complex shaping
 and width too small for one glyph fail without replacing the previous PDF.
 [Exact CSS contract](css-stylesheets.md#current-source-word-break-for-invoice-identifiers).
 Source implementation is ac6cec7000b308b403dd95abcd14441240b1f791; this does not update the retained private

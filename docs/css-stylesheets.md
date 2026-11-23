@@ -2,7 +2,7 @@
 
 Explicitly bounded `td/th` can declare `white-space`, `word-break` and `overflow-wrap` on the cell itself. Computed winners reach its anonymous text and flat `p` by inheritance; child paragraphs can override or reset them. Measured column content widths and existing `TextLines.Wrap` produce real PDF spaces, glyph positions, wraps, repeat headers and page breaks, rather than silently accepting declarations. This removes the need to insert a styled `p` in every table cell of a commercial report.
 
-Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all` and `overflow-wrap:normal/break-word`. No break-spaces/keep-all/anywhere, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
+Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word`. No break-spaces/keep-all/anywhere, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
 
 A [24-row real report](../examples/report-cell-text-flow.html) and independent [paragraph-style control](../examples/report-cell-text-flow-oracle.html) are covered by [NUnit geometry, multipage, cascade and recovery tests](../tests/FactsPDF.Tests/TableCellTextFlowTests.cs). Engine source [19c6e35eb2987aa84fc7b5ff16b2ccad57630c60](https://github.com/KoalaFacts/FactsPDF/commit/19c6e35eb2987aa84fc7b5ff16b2ccad57630c60); exact CI, independent review, main verification and release are distinct. All three Can I Render records remain partial.
 
@@ -539,14 +539,18 @@ This is not a private package rebuild, publication or full CSS Sizing.
 
 ## Current-source word-break for invoice identifiers
 
-**Bounded supported values:** `word-break:normal | break-all` on explicit
+**Bounded supported values:** `word-break:normal | break-all | break-word` on explicit
 paragraphs/headings, including flat `p` in fixed-width cells. Normal preserves
 existing wrapping and PDF bytes. Break-all offers a potential soft line break
 between **each supported simple glyph** rather than only after the whole word;
 it fills available width even when the word would fit on a fresh line. PDF text
 positions, page counts and font-measured advances really change; the same
 pagination, font, display-command and output-byte limits continue to apply.
-`white-space:nowrap` and `pre` still disallow automatic breaking.
+`white-space:nowrap` and `pre` still disallow automatic breaking. The legacy
+`break-word` value (Bootstrap's `.text-break`) is, per CSS Text 3, `normal` plus
+`overflow-wrap:anywhere` whatever `overflow-wrap` computes to; with no
+min-content sizing here it wraps byte-for-byte like `overflow-wrap:break-word`,
+even next to `overflow-wrap:normal`, and a later `normal`/`break-all` replaces it.
 
 Every recognized declaration is validated even in an unmatched stylesheet or
 when losing the cascade. Existing selector specificity, `!important`,
@@ -554,8 +558,7 @@ source order, CSS-wide `inherit/initial/unset`, per-paragraph applicability
 and inherited text style are used; there is no silent fallback to a browser.
 Unlike `overflow-wrap:break-word`, `break-all` is not an emergency-only
 wrap. Combining characters, shaping, bidi, grapheme clusters, hyphenation,
-`word-break:keep-all`, the separate `word-break:break-word` spelling,
-and general CSS Text are **not** implemented. Unfitting single glyphs fail
+`word-break:keep-all` and general CSS Text are **not** implemented. Unfitting single glyphs fail
 `FPDF1302`; unsupported values/contexts fail `FPDF1202/1201`; missing
 font glyphs and unsupported Unicode retain their existing explicit errors.
 All pre-output failures preserve the caller's destination bytes/position.

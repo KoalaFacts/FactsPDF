@@ -139,7 +139,7 @@ test('bounded report overflow-wrap audit has real scope and exact source evidenc
   assert.match(f.limitations,/FPDF1302/);
   assert.match(f.limitations,/anywhere/);
   assert.match(f.scope,/html\/body.*固定列.*td\/th/);
-  assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.overflow-wrap']);
+  assert.deepEqual(filterFeatures(dataset.features,{q:'overflow-wrap',status:'partial'}).map(x=>x.id),['css.word-break','css.overflow-wrap']);
   assert.equal(dataset.accepted_css_property_count, 380);
 });
 
@@ -788,7 +788,7 @@ test('bounded report height is a real PDF layout feature with a precise source i
 test('scoped word-break actually places glyphs and preserves all 418 feature identities', () => {
   const row=dataset.features.find(item=>item.id==='css.word-break');
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
+  assert.equal(row.last_audited_commit,'2732d4e49cba7bcbb82d30023291d0301dfc4802');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/word-break:normal\/break-all/);
   assert.match(row.scope,/PDF/);
@@ -1039,7 +1039,7 @@ test('fixed-track td/th text flow preserves partial evidence and IDs', () => {
     const f=dataset.features.find(feature=>feature.id===id);
     assert.ok(f,id);
     assert.equal(f.status,'partial',id);
-    assert.equal(f.last_audited_commit,id==='css.overflow-wrap' ? 'fa7531e4e3c7dd0f1199916537d885dc164bf2ab' : '19c6e35eb2987aa84fc7b5ff16b2ccad57630c60',id);
+    assert.equal(f.last_audited_commit,id==='css.overflow-wrap' ? 'fa7531e4e3c7dd0f1199916537d885dc164bf2ab' : id==='css.word-break' ? '2732d4e49cba7bcbb82d30023291d0301dfc4802' : '19c6e35eb2987aa84fc7b5ff16b2ccad57630c60',id);
     assert.equal(f.introduced_release,null,id);
     assert.match(f.scope,/固定列.*td\/th/,id);
     assert.match(f.limitations,/FPDF1201/,id);

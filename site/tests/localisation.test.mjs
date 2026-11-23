@@ -371,10 +371,12 @@ test('scoped word-break English audit distinguishes normal emergency wrap from b
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(item=>item.id==='css.word-break'));
   assert.equal(row.status,'partial');
-  assert.equal(row.last_audited_commit,'19c6e35eb2987aa84fc7b5ff16b2ccad57630c60');
+  assert.equal(row.last_audited_commit,'2732d4e49cba7bcbb82d30023291d0301dfc4802');
   assert.match(row.scope,/current PDF line/);
   assert.match(row.scope,/glyph/);
   assert.match(row.limitations,/keep-all/);
+  assert.match(row.scope,/break-word[^.]*byte-identical to overflow-wrap:break-word/);
+  assert.doesNotMatch(row.limitations,/break-word/);
   assert.match(row.limitations,/FPDF1301\/1302/);
   assert.doesNotMatch(row.scope+' '+row.limitations,han);
   assert.match(translate(data.css_inventory_note),/80 scoped CSS property names/);
