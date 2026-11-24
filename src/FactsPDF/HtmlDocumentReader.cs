@@ -17,7 +17,7 @@ internal static class HtmlDocumentReader
     // default style; their machine-readable datetime and value attributes are metadata only.
     internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
         or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
-        or "time" or "data";
+        or "time" or "data" or "abbr";
 
     /// <summary>
     /// The open elements the document reader will hold, replayed while the collecting pass reads
@@ -396,6 +396,7 @@ internal static class HtmlDocumentReader
             var (style, styleOwned) = ElementDefaults(parent, name, sharedDefaults);
             var columnSpan = 1;
             string? href = null;
+            var titled = false;
             int? listStart = null, listValue = null;
             var listReversed = false;
             foreach (var (attribute, value) in token.Attributes!)
@@ -424,7 +425,8 @@ internal static class HtmlDocumentReader
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value") { }
-                else if (attribute is "id" or "class" or "lang" or "title" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
+                else if (attribute == "title") titled = true;
+                else if (attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
             }
             if (name == "a")
@@ -433,6 +435,14 @@ internal static class HtmlDocumentReader
                 if (stack.Any(frame => frame.Name == "a"))
                     throw new FactsPdfException("FPDF1101", "Nested links are not supported.", token.Offset);
                 style.LinkUri = href; // ElementDefaults always returns a private copy for an a element.
+            }
+            // abbr[title] { text-decoration: dotted underline } in the HTML rendering section's
+            // user-agent sheet; an abbr without a title has no default style. CSS can override it.
+            if (name == "abbr" && titled)
+            {
+                if (!styleOwned) { style = style with { }; styleOwned = true; }
+                style.Decoration = TextDecoration.Underline;
+                style.DecorationPattern = TextDecorationPattern.Dotted;
             }
             if (name == "meta") continue;
             path.Add(CssElement.From(token));

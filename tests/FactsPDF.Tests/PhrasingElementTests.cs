@@ -100,6 +100,6 @@ public sealed class PhrasingElementTests
     [TestCase("<code><div>Bad nesting</div></code>", "FPDF1101")]
     [TestCase("<p><kbd>Unclosed</p>", "FPDF1101")]
     [TestCase("<p><dfn datetime='x'>A</dfn></p>", "FPDF1103")]
-    [TestCase("<p><abbr>A</abbr></p>", "FPDF1102")]
+    [TestCase("<p><mark>A</mark></p>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code) => Reject(html, code);
 }
