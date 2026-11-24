@@ -179,8 +179,8 @@ required atomic content still fails explicitly.
 `pdf.headers` remains partial for `PageNumbers`, `HeaderText` and `FooterText`:
 literal single-line text, fixed normal black 10pt styling and existing centered
 margin placement. Total pages, six regions, first-page replacements and custom
-styles are outside this main snapshot. HTML `<header>` and `<footer>` remain
-unsupported. Unmerged implementation work is not release evidence or current
+styles are outside this main snapshot. HTML `<header>` and `<footer>` are
+ordinary flow blocks (like `div`), never repeated page furniture. Unmerged implementation work is not release evidence or current
 support.
 
 This refresh statically inspects the merged source, documentation and existing
@@ -223,7 +223,7 @@ automatic shrinking or CSS `@page`. Missing fonts, bad templates, collisions
 and overflow fail explicitly. Structured furniture is mutually exclusive with
 legacy `PageNumbers`, `HeaderText` and `FooterText`, even empty legacy text;
 those text fields retain their literal behavior. HTML `<header>` and `<footer>`
-still fail independently of either PDF option mode. No full status or new
+render as ordinary flow blocks like `div`, independently of either PDF option mode. No full status or new
 release/introduction version is inferred from this expansion.
 
 The cited core, CLI, shared JSON decoder and dedicated furniture tests are
@@ -601,8 +601,9 @@ and `br`; no count moves. The `<code>`, `<kbd>`, `<samp>`, `<var>`, `<cite>` and
 move from rejected to partial inline text (partial 212 to 218, rejected 154 to 148; the
 `FPDF1102` search lists 67 records instead of 73). The `<time>` and `<data>` rows follow
 (partial 220, rejected 146; 65 `FPDF1102` records), then `<abbr>` (partial 221, rejected 145;
-64 records).
+64 records). The `<header>`, `<footer>`, `<main>`, `<nav>` and `<aside>` rows move to partial
+block containers like `div` (partial 226, rejected 140; 59 records).
 Current dataset SHA-256:
-`2ce12d269a841177ca15e60e3b15a3030deadba40cea963c7764bb983b5f3ff2`; English
-layer `site/src/audit-english-abbr.mjs`, ordered source-text
-SHA-256 `68bae99e38c38f876079d494127367ca9fc1921ba9d9e1b71816580c80aa7836`.
+`a9bf7448ff88bf7aabd980bf9708b14283915d1325bbc164c57aab4fd49960cf`; English
+layer `site/src/audit-english-sectioning-elements.mjs`, ordered source-text
+SHA-256 `b6fbeb372c7d50aa8fde1461e3a8f755a8bfb556ae37649ef2c603e2cb3e28c7`.
