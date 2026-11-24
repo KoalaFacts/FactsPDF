@@ -601,6 +601,6 @@ and `br`; no count moves. The `<code>`, `<kbd>`, `<samp>`, `<var>`, `<cite>` and
 move from rejected to partial inline text (partial 212 to 218, rejected 154 to 148; the
 `FPDF1102` search lists 67 records instead of 73).
 Current dataset SHA-256:
-`8159dfe4158f2e797e8818cb112cd738776691b498684428bae6c1805dce6875`; English
+`264b7a33eff31bea76cc43ab4d2983cfb90ed876b4b30d63d0e005e4dbe59969`; English
 layer `site/src/audit-english-phrasing-elements.mjs`, ordered source-text
 SHA-256 `ce6139c90cebe9b0187a7d491cdc1e9dd2a4bc05c572b584ea25490fcf9a2f0d`.

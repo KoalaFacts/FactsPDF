@@ -507,13 +507,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "7012ad27e355e7e638591ca24df21764054fe89d",
+      "last_audited_commit": "95da93ae9475e653f585f400a728a7e5f148dd6c",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -533,13 +533,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "7012ad27e355e7e638591ca24df21764054fe89d",
+      "last_audited_commit": "95da93ae9475e653f585f400a728a7e5f148dd6c",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -744,13 +744,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "7012ad27e355e7e638591ca24df21764054fe89d",
+      "last_audited_commit": "95da93ae9475e653f585f400a728a7e5f148dd6c",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -1492,13 +1492,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "7012ad27e355e7e638591ca24df21764054fe89d",
+      "last_audited_commit": "95da93ae9475e653f585f400a728a7e5f148dd6c",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -2184,13 +2184,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "7012ad27e355e7e638591ca24df21764054fe89d",
+      "last_audited_commit": "95da93ae9475e653f585f400a728a7e5f148dd6c",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -2958,13 +2958,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "7012ad27e355e7e638591ca24df21764054fe89d",
+      "last_audited_commit": "95da93ae9475e653f585f400a728a7e5f148dd6c",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/7012ad27e355e7e638591ca24df21764054fe89d/tests/FactsPDF.Tests/PhrasingElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/95da93ae9475e653f585f400a728a7e5f148dd6c/tests/FactsPDF.Tests/PhrasingElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
