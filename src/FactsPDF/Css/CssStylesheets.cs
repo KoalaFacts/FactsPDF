@@ -334,7 +334,7 @@ internal sealed class CssStylesheets
             // background (normalize.css a{background-color:transparent}, *{margin:0;padding:0}) are
             // dropped there too. Any value that would move or paint the content still fails below.
             if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration)
-                || TablePartMargin(element.Name, declaration))
+                || TablePartMargin(element.Name, declaration) || UnusedZeroInset(element.Name, declaration))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
@@ -832,6 +832,23 @@ internal sealed class CssStylesheets
             allowRem: true, elementFontSize: 16, allowEm: true);
         return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup"
             && (wide || length && value.Value == 0);
+    }
+
+    // ul, ol and table lay out with a zero margin (their initial value, used as is); rows, row groups,
+    // columns and column groups take no padding (CSS 2.1 §8.4); a br lays out no box at all. So the
+    // rest of *{margin:0;padding:0} changes nothing there and is dropped. inherit could carry a
+    // parent panel's inset, and nonzero values would need real geometry, so both still fail.
+    private static bool UnusedZeroInset(string element, CssDeclaration declaration)
+    {
+        var margin = declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight
+            or CssProperty.MarginBottom or CssProperty.MarginLeft;
+        var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
+            or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
+        if (!(margin && element is "ul" or "ol" or "table" or "br"
+            || padding && element is "tr" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "br")) return false;
+        return declaration.Value is "initial" or "unset"
+            || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
+                allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
     }
 
     // Mirrors the branches of Compute that assign the element's box rather than its text style.

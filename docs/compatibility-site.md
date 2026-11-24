@@ -595,9 +595,10 @@ supports `border-box`, so universal resets render; no count moves. The margin ro
 margin on `<html>`/`<body>` and the padding rows a zero padding on `<html>`, accepted with no
 effect, so `html,body{margin:0;padding:0}` renders; no count moves. The margin, padding and
 background rows add inline text as a host that accepts a zero margin or padding and a transparent
-background with no effect, then zero margins on `li` and table rows, groups, columns and cells;
-no count moves.
+background with no effect, then zero margins on `li` and table rows, groups, columns and cells,
+then zero margins on `ul`, `ol`, `table` and `br` and zero padding on table rows, groups, columns
+and `br`; no count moves.
 Current dataset SHA-256:
-`3dcf7f6da3a1c5a4c53005c72d02805e7159f7c4856666d42f3526d8f37c4cb3`; English
-layer `site/src/audit-english-table-part-margins.mjs`, ordered source-text
-SHA-256 `24194881e4a80ce36794be78e216033c33a3d19f72ffc4dcc1c0301c34de854b`.
+`618ad4df537c7a8a46becb01bef79582d4da3e3c305ae817539901c2caafea1e`; English
+layer `site/src/audit-english-unused-zero-insets.mjs`, ordered source-text
+SHA-256 `c1f65d6280d6532da3dc2faff0646489c68cb15c4de826bbc302d1380ae168f4`.

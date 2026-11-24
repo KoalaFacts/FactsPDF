@@ -2252,6 +2252,13 @@ on `li` and on `tr`, `thead`, `tbody`, `tfoot`, `col`, `colgroup`, `td` and
 `th`, so `*{margin:0}` reaches list and table pages without failing there.
 Nonzero margins on those elements still fail `FPDF1201` (`TablePartMarginTests`).
 
+`ul`, `ol` and `table` lay out with a zero margin, table rows, row groups,
+columns and column groups take no padding, and `br` lays out no box, so a zero
+margin there, a zero padding there and a zero margin or padding on `br` are
+dropped too: `*{margin:0;padding:0}` now renders list and table pages, changing
+only the elements with real insets (headings, paragraphs, list and cell
+padding). Nonzero values and `inherit` still fail (`UnusedZeroInsetTests`).
+
 The [50-entry percentage report](../examples/report-percentage-panel-margins.html)
 and [independently authored physical-point oracle](../examples/report-percentage-panel-margins-oracle.html)
 compare real PDF bytes at outer 26.164pt/15.6984pt and nested
