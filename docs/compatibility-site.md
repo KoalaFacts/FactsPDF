@@ -603,8 +603,9 @@ move from rejected to partial inline text (partial 212 to 218, rejected 154 to 1
 (partial 220, rejected 146; 65 `FPDF1102` records), then `<abbr>` (partial 221, rejected 145;
 64 records). The `<header>`, `<footer>`, `<main>`, `<nav>` and `<aside>` rows move to partial
 block containers like `div` (partial 226, rejected 140; 59 records). `<figure>` moves to
-partial like `blockquote` and `<figcaption>` like `div` (partial 228, rejected 138; 57 records).
+partial like `blockquote` and `<figcaption>` like `div` (partial 228, rejected 138; 57 records). `<address>` moves to partial as an
+italic block like `div` (partial 229, rejected 137; 56 records).
 Current dataset SHA-256:
-`bf07cfe20de08a67cd8d2ac802b5ac18928023793ce369a7f228e7620cef0236`; English
-layer `site/src/audit-english-figure-elements.mjs`, ordered source-text
-SHA-256 `e9cd4450754361d51f6a2ce61e4d915193776df94c6582cdb278767a37a66dbe`.
+`3e8d13f32fb4d2b01bc45486e39b3596c23ee4b65f2097b3ee8736a674f0922b`; English
+layer `site/src/audit-english-address.mjs`, ordered source-text
+SHA-256 `4ee01de6cdaaaeb21ac199aac9ace5dd68d3d2e0057a1bbfa1de0c2ce553d64b`.
