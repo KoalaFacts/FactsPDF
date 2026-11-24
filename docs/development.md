@@ -303,19 +303,13 @@ member fails the tests until the example is updated.
 
 ## Current content and layout scope
 
-| Area | Supported | Not yet supported |
-| --- | --- | --- |
-| Content | p, h1-h6, div, section, article, span, b/strong, i/em, br; bounded ol/ul/li; explicit standalone or direct-cell JPEG/static PNG img; explicit-column tables with colspan, paragraph/image cells, whole-row pagination and oversized-body-row continuation/repeated headers | Links, rowspan/nested tables, inline/list images, splitting images/headers, SVG, APNG, interlaced/16-bit PNG, forms; general list styles/counters |
-| Document shell | html/body, explicit head/title, UTF-8 meta, HTML5 doctype, comments, embedded style | Full HTML5 tree construction, encoding sniffing and browser recovery |
-| Text | ASCII/Courier fallback; explicit static TrueType fonts, simple horizontal Unicode/Chinese, searchable text and optional glyph subsetting | Complete shaping, bidi/RTL, all-script typography, automatic font discovery |
-| Styles | Inline and embedded declarations; tag/class/id/universal/compound/group/descendant/child selectors, bounded author cascade | External stylesheets, at-rules, other selector classes, variables/functions and full CSS recovery |
-| Text layout | Supported font size/weight/style/color/line-height/alignment; vertical paragraph margins with zero-horizontal `margin` shorthand, physical `mm/cm/in` print units for supported lengths; nested block widths, four-sided padding, solid border edges and background colors | Arbitrary CSS height, nonzero horizontal margins, `em/rem/calc`, border-radius, floats/flex/grid and general image/table layout |
-| Pagination | Wrapping; paragraph/heading break-before/break-after auto/page; opt-in [heading + first paragraph](heading-pagination.md) via break-after:avoid; opt-in [decimal page numbers](page-numbers.md) and [static page headers/footers](page-margins.md); CSS sliced block decorations across page fragments (background and side borders continue, top/bottom only first/last) | @page, arbitrary header/footer templates, widows/orphans, general keep-together and full browser fragmentation rules |
-| PDF | PDF 1.7 text/page tree/xref, embedded and compressed font resources, ToUnicode, explicit JPEG/PNG XObjects and PNG alpha soft masks | Tagged PDF, PDF/A/UA conformance, links/bookmarks, signatures/encryption |
+The supported HTML, CSS, text, pagination and PDF features are summarised in the README's
+[supported table](../README.md#what-is-supported) and listed record by record in
+[Can I Render](https://koalafacts.github.io/FactsPDF/); [feature notes](feature-notes.md) explain each one.
 
 CSS property/value and applicability rules are in the stylesheet guide. Unsupported inputs fail explicitly rather than silently rendering wrong output. Headings use larger text by default, not synthetic bold. Normal whitespace is collapsed; font-aware CJK wrapping has a limited punctuation rule, not full UAX #14 support. A segment wider than the line is rejected rather than clipped or arbitrarily split.
 
-Names are ASCII case-insensitive in the supported HTML grammar. Quoted/unquoted attributes and selected omitted p/body/html end tags are supported. XML self-closing non-void tags and unsupported nesting are errors. Class/id attributes now participate in selectors; lang/title/data-* do not execute code. Title remains non-rendering metadata. Character references require a supported name/number and semicolon: amp, lt, gt, quot, apos, nbsp and valid numeric scalars. Without explicit fonts, non-ASCII output is rejected rather than replaced with question marks.
+Names are ASCII case-insensitive in the supported HTML grammar. Quoted/unquoted attributes and selected omitted p/body/html end tags are supported. XML self-closing non-void tags and unsupported nesting are errors. Class/id attributes participate in selectors; no attribute executes code. Title remains non-rendering metadata. Character references require a supported name/number and semicolon: amp, lt, gt, quot, apos, nbsp and valid numeric scalars. Without explicit fonts, non-ASCII output is rejected rather than replaced with question marks.
 
 The core does not execute scripts, dynamically compile input, fetch network resources or discover fonts/images implicitly. Font loading is structurally checked but not a complete sanitizer for hostile fonts. This parser is not a general HTML sanitization API.
 

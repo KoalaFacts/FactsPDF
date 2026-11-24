@@ -1,6 +1,7 @@
 ---
 name: advance-factspdf
 description: How the scheduled task advances FactsPDF — goal, headline metric, gate, work order, scope and project rules. Read with agent-harness/skills/autonomous-dev at the start of every run.
+ledger: docs/mvp-roadmap.md
 ---
 
 # Advance FactsPDF
