@@ -79,7 +79,7 @@ test('theme desktop, detail, mobile and English review captures',async({page})=>
   await page.getByRole('button',{name:'English',exact:true}).click();
   await page.screenshot({path:'test-results/caniuse-english.png'});
   await page.setViewportSize({width:390,height:844});
-  await page.goto(base+'#q=width');
+  await page.goto(base+'#q=css.width');
   await expect(page.getByRole('button',{name:'width',exact:true})).toBeVisible();
   await page.screenshot({path:'test-results/caniuse-mobile.png',fullPage:true});
   expect(errors).toEqual([]);

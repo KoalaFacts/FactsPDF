@@ -142,7 +142,7 @@ test('snapshot load failure is visible and retry recovers',async({page})=>{
   await page.getByRole('button',{name:'重试',exact:true}).click();await expect(page.locator('[data-total]')).toHaveText('418');
 });
 test('mobile layout contains controls and visible detail without viewport overflow',async({page})=>{
-  await page.setViewportSize({width:390,height:844});await page.goto(base+'#q=width');
+  await page.setViewportSize({width:390,height:844});await page.goto(base+'#q=css.width');
   await expect(page.getByRole('searchbox')).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole('button',{name:'width',exact:true}).click();
@@ -248,7 +248,7 @@ test('uppercase identifier search works in a Turkish browser context',async({bro
   const context=await browser.newContext({locale:'tr-TR'});
   try{
     const page=await context.newPage();await page.goto('http://127.0.0.1:4173'+base);
-    await page.getByRole('searchbox').fill('WIDTH');
+    await page.getByRole('searchbox').fill('CSS.WIDTH');
     await expect(page.getByRole('button',{name:'width',exact:true})).toBeVisible();
   }finally{await context.close();}
 });
