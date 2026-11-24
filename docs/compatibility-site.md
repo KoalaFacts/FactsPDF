@@ -593,8 +593,10 @@ dropped, since no font is discovered and the supplied chain is the only installe
 and inline text as accepting hosts with no effect, then table parts, and the table box's width
 supports `border-box`, so universal resets render; no count moves. The margin rows add a zero
 margin on `<html>`/`<body>` and the padding rows a zero padding on `<html>`, accepted with no
-effect, so `html,body{margin:0;padding:0}` renders; no count moves.
+effect, so `html,body{margin:0;padding:0}` renders; no count moves. The margin, padding and
+background rows add inline text as a host that accepts a zero margin or padding and a transparent
+background with no effect; no count moves.
 Current dataset SHA-256:
-`982dae6a6ff6335f788fbe73f56d20d993b2812e2a06b6efcb7d45ae9ebe70a8`; English
-layer `site/src/audit-english-root-zero-inset.mjs`, ordered source-text
-SHA-256 `b2c553d03a6aea68392e2451c8f182df3a58a9b55e2f4f4bc3d527fe163ae510`.
+`c0da008df4a10fa5311ddeda2edfc8e35016e8057d39718e87736bb053eb22a7`; English
+layer `site/src/audit-english-inline-zero-box.mjs`, ordered source-text
+SHA-256 `e673185fd0d9cd3a9e813210672dfeb0955c070b44c699955e1aaaeaaf9762e0`.

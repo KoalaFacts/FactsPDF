@@ -648,3 +648,14 @@ test('zero root margins and html padding are translated without claiming body ma
   const padding = englishFeature(data.features.find(x => x.id === 'css.padding'));
   assert.match(padding.limitations, /<html> accepts only a zero padding, which changes no output; a nonzero value still fails FPDF1201\./);
 });
+
+test('zero inline margins, padding and transparent inline backgrounds are translated as exceptions only', async () => {
+  const { englishFeature } = await localisation();
+  for (const [id, kind] of [['css.margin', 'a zero margin'], ['css.margin-left', 'a zero margin'], ['css.padding', 'a zero padding'],
+    ['css.padding-inline', 'a zero padding'], ['css.background-color', 'a transparent background'], ['css.background', 'a transparent background']]) {
+    const english = englishFeature(data.features.find(x => x.id === id));
+    assert.match(english.limitations, new RegExp(`Exception: ${kind}.* on inline text \\(span/b/strong/i/em/small/u/s/del/ins/a\\) is accepted`), id);
+    assert.match(english.limitations, /other values still fail FPDF1201\.$/, id);
+    assert.doesNotMatch(english.limitations, han, id);
+  }
+});

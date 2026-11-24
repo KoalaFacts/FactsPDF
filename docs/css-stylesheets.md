@@ -2237,6 +2237,16 @@ logical longhands) and a zero padding on `<html>` are validated and dropped:
 the page without them. Any other value, such as `body{margin:8px}` or
 `body{margin:0 auto}`, still fails `FPDF1201` (`RootZeroInsetTests`).
 
+Inline text (`span`, `b`, `strong`, `i`, `em`, `small`, `u`, `s`, `del`, `ins`,
+`a`) lays out no box of its own, so a zero margin or padding there (any zero
+length, `initial` or `unset`, physical or logical longhands) and a
+transparent background (`background-color:transparent`, `background:none`,
+`background:transparent`, `initial`, `unset`) are validated and dropped too:
+normalize.css's `a{background-color:transparent}` and
+`span,a{margin:0;padding:0}` render byte-identical to the page without them.
+A nonzero inset, `auto`, a real colour and `inherit` (which could carry a
+parent block's inset or fill) still fail `FPDF1201` (`InlineZeroBoxResetTests`).
+
 The [50-entry percentage report](../examples/report-percentage-panel-margins.html)
 and [independently authored physical-point oracle](../examples/report-percentage-panel-margins-oracle.html)
 compare real PDF bytes at outer 26.164pt/15.6984pt and nested
