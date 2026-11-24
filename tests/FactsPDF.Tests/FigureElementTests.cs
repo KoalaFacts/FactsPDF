@@ -58,7 +58,33 @@ public sealed class FigureElementTests
         => Assert.That(Pdf("<figure><p>Chart<figcaption>Caption</figcaption></figure>"),
             Is.EqualTo(Pdf("<blockquote><p>Chart<div>Caption</div></blockquote>")));
 
-    [TestCase("<ul><li><figure>A</figure></li></ul>", "FPDF1101")]
+    [Test]
+    public void AFigcaptionInAListItemRendersLikeADiv()
+        => Assert.That(Pdf("<ul><li><figcaption>Caption</figcaption></li></ul>"),
+            Is.EqualTo(Pdf("<ul><li><div>Caption</div></li></ul>")));
+
+    [Test]
+    public void ALongFigurePaginatesLikeABlockquote()
+    {
+        var body = string.Concat(Enumerable.Repeat("<p>Quarterly revenue line.</p>", 60));
+        var figure = Pdf($"<figure>{body}<figcaption>End</figcaption></figure>");
+        Assert.That(figure, Is.EqualTo(Pdf($"<blockquote>{body}<div>End</div></blockquote>")));
+    }
+
+    [TestCase("<ul><li><figure>A</figure></li></ul>")]
+    [TestCase("<ol><li><p>x</p><figure>A</figure></li></ol>")]
+    public void AFigureInAListFailsWithItsOwnMessage(string html)
+    {
+        using var output = new MemoryStream();
+        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, Page))!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(ex.Code, Is.EqualTo("FPDF1101"));
+            Assert.That(ex.Message, Does.Contain("figure must be outside lists and tables."));
+            Assert.That(output.Length, Is.Zero);
+        });
+    }
+
     [TestCase("<table><tr><td><figure>A</figure></td></tr></table>", "FPDF1101")]
     [TestCase("<p><span><figcaption>A</figcaption></span></p>", "FPDF1101")]
     [TestCase("<figure>A</figcaption>", "FPDF1101")]
