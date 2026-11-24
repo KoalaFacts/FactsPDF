@@ -727,3 +727,16 @@ test('header, footer, main, nav and aside are partial block containers like div,
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, `${tag} ${field}`);
   }
 });
+
+test('figure is a partial block like blockquote and figcaption a block like div, in English', async () => {
+  const { englishFeature } = await localisation();
+  const figure = englishFeature(data.features.find(x => x.id === 'html.figure'));
+  const caption = englishFeature(data.features.find(x => x.id === 'html.figcaption'));
+  assert.equal(figure.status, 'partial');
+  assert.equal(caption.status, 'partial');
+  assert.match(figure.scope, /^A block container like blockquote/);
+  assert.match(figure.limitations, /list or a table/);
+  assert.match(caption.scope, /^A nested block container like div/);
+  for (const f of [figure, caption])
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(f[field], han, field);
+});

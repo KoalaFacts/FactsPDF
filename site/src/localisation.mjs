@@ -1,4 +1,4 @@
-import { sourceDigest, englishAudit } from './audit-english-sectioning-elements.mjs';
+import { sourceDigest, englishAudit } from './audit-english-figure-elements.mjs';
 import { diagnosticEnglish } from './diagnostic-english.mjs';
 
 export const auditFields = ['feature','scope','limitations','stage','applicability','planning_bucket','evidence_level','test_reference'];
