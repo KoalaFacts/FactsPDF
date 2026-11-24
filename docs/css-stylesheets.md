@@ -234,8 +234,11 @@ user-agent sheet makes them, and need an italic font chain like `em`
 (`FPDF1507` otherwise). Everything else above applies: the cascade can
 override the defaults, unsupported attributes fail `FPDF1103`, block
 children `FPDF1101`, and they are accepted in `pre`, headings, lists and
-table cells (`PhrasingElementTests.cs`). `abbr`, `mark`, `q`, `sub` and `sup`
-still fail `FPDF1102`.
+table cells (`PhrasingElementTests.cs`). `time` and `data` are inline text
+with no default style; `time` accepts `datetime` and `data` accepts `value`
+as machine-readable metadata that is never drawn (any other element with
+those attributes fails `FPDF1103`; `TimeDataElementTests.cs`). `abbr`,
+`mark`, `q`, `sub` and `sup` still fail `FPDF1102`.
 
 The [44-change source](../examples/report-inline-changes.html)
 and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)
@@ -2014,7 +2017,7 @@ percent padding still resolve against the original parent content width.
 `box-sizing:content-box` is the non-inherited default and preserves existing
 PDF bytes. `<html>` and inline text (`span`, `b`, `strong`, `i`, `em`,
 `small`, `u`, `s`, `del`, `ins`, `a`, `code`, `kbd`, `samp`, `var`, `cite`,
-`dfn`) also accept `box-sizing`, where it
+`dfn`, `time`, `data`) also accept `box-sizing`, where it
 changes nothing because no width or height applies there; on `<br>` it is
 validated and dropped (any other declaration on `<br>` still fails `FPDF1103`), so the universal
 resets `*{box-sizing:border-box}` and `html{box-sizing:border-box}
@@ -2251,7 +2254,7 @@ the page without them. Any other value, such as `body{margin:8px}` or
 `body{margin:0 auto}`, still fails `FPDF1201` (`RootZeroInsetTests`).
 
 Inline text (`span`, `b`, `strong`, `i`, `em`, `small`, `u`, `s`, `del`, `ins`,
-`a`, `code`, `kbd`, `samp`, `var`, `cite`, `dfn`) lays out no box of its own, so a zero margin or padding there (any zero
+`a`, `code`, `kbd`, `samp`, `var`, `cite`, `dfn`, `time`, `data`) lays out no box of its own, so a zero margin or padding there (any zero
 length, `initial` or `unset`, physical or logical longhands) and a
 transparent background (`background-color:transparent`, `background:none`,
 `background:transparent`, `initial`, `unset`) are validated and dropped too:
