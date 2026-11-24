@@ -327,6 +327,12 @@ internal sealed class CssStylesheets
             // nothing there and *{box-sizing:border-box} does not fail on a line break.
             if (declaration.Property == CssProperty.BoxSizing && element.Name == "br")
                 return;
+            // <html> and <body> lay out with no margin of their own (the page margin options frame
+            // the content), and <html> with no padding, so the resets body{margin:0},
+            // html,body{margin:0;padding:0} and *{margin:0} change nothing there and are validated
+            // and dropped. Any value that would move the content still fails below.
+            if (RootZeroInset(element.Name, declaration))
+                return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
@@ -775,6 +781,21 @@ internal sealed class CssStylesheets
             computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
                 BoxWrites(element.Name), box);
         return (style, box);
+    }
+
+    // A zero margin on <html> or <body>, or a zero padding on <html>: their used insets are already
+    // zero. CSS-wide keywords compute to zero too (the initial value is 0 and html, the only parent
+    // body can inherit from, never takes a non-zero inset).
+    private static bool RootZeroInset(string element, CssDeclaration declaration)
+    {
+        var margin = declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight
+            or CssProperty.MarginBottom or CssProperty.MarginLeft;
+        var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
+            or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
+        if (!(element == "html" && (margin || padding) || element == "body" && margin)) return false;
+        return declaration.Value is "inherit" or "initial" or "unset"
+            || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
+                allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
     }
 
     // Mirrors the branches of Compute that assign the element's box rather than its text style.

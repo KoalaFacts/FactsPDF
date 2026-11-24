@@ -637,3 +637,14 @@ test('box-sizing on the root, inline text and tables is translated with its tabl
   assert.match(english.applicability, /table structure \(col\/row\/cell boxes and cell paragraphs\) accept it with no effect; the table box width supports border-box\./);
   assert.doesNotMatch(english.scope + english.limitations + english.applicability, han);
 });
+
+test('zero root margins and html padding are translated without claiming body margin support', async () => {
+  const { englishFeature } = await localisation();
+  for (const id of ['css.margin', 'css.margin-top', 'css.margin-left', 'css.margin-inline', 'css.margin-block']) {
+    const english = englishFeature(data.features.find(x => x.id === id));
+    assert.match(english.limitations, /body.*accept only (a )?zero|zero margin on <html> or <body>/, id);
+    assert.doesNotMatch(english.limitations, han, id);
+  }
+  const padding = englishFeature(data.features.find(x => x.id === 'css.padding'));
+  assert.match(padding.limitations, /<html> accepts only a zero padding, which changes no output; a nonzero value still fails FPDF1201\./);
+});

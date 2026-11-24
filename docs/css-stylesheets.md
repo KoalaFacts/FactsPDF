@@ -2223,11 +2223,19 @@ vertical margin contract. Vertical percentages on paragraph/heading
 declarations fail `FPDF1202`; directly inheriting a percentage panel
 margin into a paragraph/heading fails `FPDF1201` rather than accidentally
 treating 10% as 10pt. Vertical `auto`, negative values, `calc()`,
-out-of-range or underflow lengths, body/list/table/image/inline margins,
+out-of-range or underflow lengths, nonzero body/html margins, list/table/image/inline margins,
 RTL/vertical writing, percentage panel margins inside list items,
 general margin collapse and Paged Media are not
 implemented. Geometry that cannot fit the PDF page fails `FPDF1302` and
 preserves an existing PDF destination.
+
+`<html>` and `<body>` have no margin of their own here (the page margin
+options frame the content) and `<html>` has no padding, so a zero margin on
+either (any zero length, `inherit`, `initial` or `unset`, including the
+logical longhands) and a zero padding on `<html>` are validated and dropped:
+`body{margin:0}` and `html,body{margin:0;padding:0}` render byte-identical to
+the page without them. Any other value, such as `body{margin:8px}` or
+`body{margin:0 auto}`, still fails `FPDF1201` (`RootZeroInsetTests`).
 
 The [50-entry percentage report](../examples/report-percentage-panel-margins.html)
 and [independently authored physical-point oracle](../examples/report-percentage-panel-margins-oracle.html)
