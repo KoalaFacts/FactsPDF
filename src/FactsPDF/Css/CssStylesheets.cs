@@ -333,7 +333,8 @@ internal sealed class CssStylesheets
             // and dropped. Inline text has no box here, so a zero margin or padding and a transparent
             // background (normalize.css a{background-color:transparent}, *{margin:0;padding:0}) are
             // dropped there too. Any value that would move or paint the content still fails below.
-            if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration))
+            if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration)
+                || TablePartMargin(element.Name, declaration))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
@@ -816,6 +817,21 @@ internal sealed class CssStylesheets
                 or CssProperty.PaddingBottom or CssProperty.PaddingLeft
             && CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
                 allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
+    }
+
+    // A zero margin is the initial value on list items and on table rows, row groups, columns,
+    // column groups and cells (where CSS 2.1 §8.3 margins do not apply at all), so *{margin:0}
+    // changes nothing there and is dropped. Nonzero values still fail: a list item would need real
+    // spacing, and the table parts keep rejecting declarations they do not render.
+    private static bool TablePartMargin(string element, CssDeclaration declaration)
+    {
+        if (declaration.Property is not (CssProperty.MarginTop or CssProperty.MarginRight
+            or CssProperty.MarginBottom or CssProperty.MarginLeft)) return false;
+        var wide = declaration.Value is "initial" or "unset";
+        var length = CssBoxValues.TryLength(declaration.Value, out var value, out _, rootFontSize: 16,
+            allowRem: true, elementFontSize: 16, allowEm: true);
+        return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup"
+            && (wide || length && value.Value == 0);
     }
 
     // Mirrors the branches of Compute that assign the element's box rather than its text style.

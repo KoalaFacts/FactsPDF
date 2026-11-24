@@ -825,7 +825,7 @@ root (or the writer's base font size as fallback) drives real PDF vertical gaps,
 horizontal text/paint position, wrapping and pagination. Horizontal `auto`
 still combines with supported lengths. Negative margins, vertical `auto`,
 `calc()`, nonzero body/html margins, list/table/image/inline margins and table-cell `rem`/`em` margins
-remain rejected (a zero margin on `<html>`/`<body>` and a zero padding on `<html>` change nothing and are dropped, so `html,body{margin:0;padding:0}` renders, `RootZeroInsetTests.cs`; zero margins and padding and a transparent background on inline text are dropped likewise, `InlineZeroBoxResetTests.cs`); bounded paragraph/heading vertical `%` is described below; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](css-stylesheets.md#current-source-root-relative-paragraph-margins),
+remain rejected (a zero margin on `<html>`/`<body>` and a zero padding on `<html>` change nothing and are dropped, so `html,body{margin:0;padding:0}` renders, `RootZeroInsetTests.cs`; zero margins and padding and a transparent background on inline text are dropped likewise, `InlineZeroBoxResetTests.cs`, and so are zero margins on `li` and table rows, groups, columns and cells, `TablePartMarginTests.cs`); bounded paragraph/heading vertical `%` is described below; `div`/`section`/`article` panels have a separate bounded exception. See [the scoped margin contract](css-stylesheets.md#current-source-root-relative-paragraph-margins),
 the [32-entry report](../examples/report-rem-margins.html) and its separately
 authored [fixed-point oracle](../examples/report-rem-margins-oracle.html).
 Unfit output preserves the prior destination. This is source-only.

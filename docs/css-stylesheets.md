@@ -2247,6 +2247,11 @@ normalize.css's `a{background-color:transparent}` and
 A nonzero inset, `auto`, a real colour and `inherit` (which could carry a
 parent block's inset or fill) still fail `FPDF1201` (`InlineZeroBoxResetTests`).
 
+A zero margin (any zero length, `initial`, `unset`) is also the initial value
+on `li` and on `tr`, `thead`, `tbody`, `tfoot`, `col`, `colgroup`, `td` and
+`th`, so `*{margin:0}` reaches list and table pages without failing there.
+Nonzero margins on those elements still fail `FPDF1201` (`TablePartMarginTests`).
+
 The [50-entry percentage report](../examples/report-percentage-panel-margins.html)
 and [independently authored physical-point oracle](../examples/report-percentage-panel-margins-oracle.html)
 compare real PDF bytes at outer 26.164pt/15.6984pt and nested
