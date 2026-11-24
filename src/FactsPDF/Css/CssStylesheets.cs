@@ -485,8 +485,7 @@ internal sealed class CssStylesheets
             // Last-line alignment belongs to a paragraph's line box, never
             // a single inline run (including losing CSS declarations).
             if (declaration.Property == CssProperty.TextAlignLast &&
-                element.Name is ("span" or "b" or "strong" or "i" or "em"
-                    or "small" or "u" or "s" or "del" or "ins" or "a"))
+                HtmlDocumentReader.InlineTag(element.Name))
                 throw new FactsPdfException("FPDF1201",
                     "text-align-last cannot be declared on inline text.", declaration.Offset);
             // Inline spans cannot independently align paragraph lines.
@@ -495,8 +494,7 @@ internal sealed class CssStylesheets
             // Do not key this off BoxTag/block: <html> inherits text alignment.
             if (declaration.Property == CssProperty.TextAlign
                 && declaration.Value is ("justify" or "start" or "end")
-                && (element.Name is "span" or "b" or "strong" or "i" or "em"
-                    or "small" or "u" or "s" or "del" or "ins" or "a"))
+                && HtmlDocumentReader.InlineTag(element.Name))
                 throw new FactsPdfException("FPDF1201", "text-align:justify/start/end cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
@@ -806,8 +804,7 @@ internal sealed class CssStylesheets
     // unset compute to those values; inherit could carry a parent block's inset or fill, so it fails.
     private static bool InlineZeroBox(string element, CssDeclaration declaration)
     {
-        if (element is not ("span" or "b" or "strong" or "i" or "em" or "small" or "u" or "s"
-            or "del" or "ins" or "a")) return false;
+        if (!HtmlDocumentReader.InlineTag(element)) return false;
         if (declaration.Value is "initial" or "unset") return declaration.Property is CssProperty.BackgroundColor
             or CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom or CssProperty.MarginLeft
             or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
@@ -852,9 +849,8 @@ internal sealed class CssStylesheets
     }
 
     // Mirrors the branches of Compute that assign the element's box rather than its text style.
-    private static bool BoxSizingNoOpHost(string element) => element is "html" or "span" or "b" or "strong"
-        or "i" or "em" or "small" or "u" or "s" or "del" or "ins" or "a"
-        or "tr" or "thead" or "tbody" or "tfoot" or "colgroup";
+    private static bool BoxSizingNoOpHost(string element) => HtmlDocumentReader.InlineTag(element)
+        || element is "html" or "tr" or "thead" or "tbody" or "tfoot" or "colgroup";
 
     private static bool WritesBox(string element, CssProperty property) =>
         property is CssProperty.Display or CssProperty.ListStyleType or CssProperty.ListStylePosition

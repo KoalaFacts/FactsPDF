@@ -597,8 +597,10 @@ effect, so `html,body{margin:0;padding:0}` renders; no count moves. The margin, 
 background rows add inline text as a host that accepts a zero margin or padding and a transparent
 background with no effect, then zero margins on `li` and table rows, groups, columns and cells,
 then zero margins on `ul`, `ol`, `table` and `br` and zero padding on table rows, groups, columns
-and `br`; no count moves.
+and `br`; no count moves. The `<code>`, `<kbd>`, `<samp>`, `<var>`, `<cite>` and `<dfn>` rows
+move from rejected to partial inline text (partial 212 to 218, rejected 154 to 148; the
+`FPDF1102` search lists 67 records instead of 73).
 Current dataset SHA-256:
-`618ad4df537c7a8a46becb01bef79582d4da3e3c305ae817539901c2caafea1e`; English
-layer `site/src/audit-english-unused-zero-insets.mjs`, ordered source-text
-SHA-256 `c1f65d6280d6532da3dc2faff0646489c68cb15c4de826bbc302d1380ae168f4`.
+`264b7a33eff31bea76cc43ab4d2983cfb90ed876b4b30d63d0e005e4dbe59969`; English
+layer `site/src/audit-english-phrasing-elements.mjs`, ordered source-text
+SHA-256 `ce6139c90cebe9b0187a7d491cdc1e9dd2a4bc05c572b584ea25490fcf9a2f0d`.

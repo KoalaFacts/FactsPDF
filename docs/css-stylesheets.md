@@ -225,6 +225,18 @@ Deleted text remains selectable and searchable, and is never a redaction.
 This is not a general HTML user-agent stylesheet, change-tracking
 annotation, auto-font support or PDF semantic history metadata.
 
+`code`, `kbd`, `samp`, `var`, `cite` and `dfn` are inline text too, so
+documentation, runbook and citation pages render. `code`, `kbd` and `samp`
+keep the supplied regular font chain: there is no generic monospace face, as
+for `pre`, so they look like the surrounding text unless CSS styles them.
+`var`, `cite` and `dfn` are italic, as the HTML rendering section's
+user-agent sheet makes them, and need an italic font chain like `em`
+(`FPDF1507` otherwise). Everything else above applies: the cascade can
+override the defaults, unsupported attributes fail `FPDF1103`, block
+children `FPDF1101`, and they are accepted in `pre`, headings, lists and
+table cells (`PhrasingElementTests.cs`). `abbr`, `mark`, `q`, `sub` and `sup`
+still fail `FPDF1102`.
+
 The [44-change source](../examples/report-inline-changes.html)
 and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)
 are checked by `SemanticInlineReportTests.cs` and the real Native AOT
@@ -2001,7 +2013,8 @@ percent padding still resolve against the original parent content width.
 
 `box-sizing:content-box` is the non-inherited default and preserves existing
 PDF bytes. `<html>` and inline text (`span`, `b`, `strong`, `i`, `em`,
-`small`, `u`, `s`, `del`, `ins`, `a`) also accept `box-sizing`, where it
+`small`, `u`, `s`, `del`, `ins`, `a`, `code`, `kbd`, `samp`, `var`, `cite`,
+`dfn`) also accept `box-sizing`, where it
 changes nothing because no width or height applies there; on `<br>` it is
 validated and dropped (any other declaration on `<br>` still fails `FPDF1103`), so the universal
 resets `*{box-sizing:border-box}` and `html{box-sizing:border-box}
@@ -2238,7 +2251,7 @@ the page without them. Any other value, such as `body{margin:8px}` or
 `body{margin:0 auto}`, still fails `FPDF1201` (`RootZeroInsetTests`).
 
 Inline text (`span`, `b`, `strong`, `i`, `em`, `small`, `u`, `s`, `del`, `ins`,
-`a`) lays out no box of its own, so a zero margin or padding there (any zero
+`a`, `code`, `kbd`, `samp`, `var`, `cite`, `dfn`) lays out no box of its own, so a zero margin or padding there (any zero
 length, `initial` or `unset`, physical or logical longhands) and a
 transparent background (`background-color:transparent`, `background:none`,
 `background:transparent`, `initial`, `unset`) are validated and dropped too:
