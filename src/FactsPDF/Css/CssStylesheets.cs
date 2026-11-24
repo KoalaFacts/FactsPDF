@@ -528,7 +528,12 @@ internal sealed class CssStylesheets
                     or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent))
                 && !(cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
-            if (!block && CssDeclarations.IsBoxProperty(declaration.Property))
+            // box-sizing changes nothing on <html> (no width or height is accepted there) or on
+            // non-replaced inline text (CSS Box Sizing: width and height do not apply), so the
+            // universal reset *{box-sizing:border-box} is accepted there. It is still recorded on
+            // the element's box so a child's box-sizing:inherit reads it, as in a browser.
+            if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
+                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name)))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;
@@ -763,6 +768,9 @@ internal sealed class CssStylesheets
     }
 
     // Mirrors the branches of Compute that assign the element's box rather than its text style.
+    private static bool BoxSizingNoOpHost(string element) => element is "html" or "span" or "b" or "strong"
+        or "i" or "em" or "small" or "u" or "s" or "del" or "ins" or "a";
+
     private static bool WritesBox(string element, CssProperty property) =>
         property is CssProperty.Display or CssProperty.ListStyleType or CssProperty.ListStylePosition
             or CssProperty.VerticalAlign or CssProperty.BreakInside
