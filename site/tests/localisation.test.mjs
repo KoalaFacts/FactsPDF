@@ -695,3 +695,14 @@ test('code, kbd, samp, var, cite and dfn are partial inline text with English au
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, `${tag} ${field}`);
   }
 });
+
+test('time and data are partial inline text with English audit text', async () => {
+  const { englishFeature } = await localisation();
+  for (const [tag, attribute] of [['time', 'datetime'], ['data', 'value']]) {
+    const feature = data.features.find(x => x.id === `html.${tag}`);
+    assert.equal(feature.status, 'partial', tag);
+    const english = englishFeature(feature);
+    assert.match(english.scope, new RegExp(`^<${tag}> renders as inline text with no default style; its ${attribute} attribute`), tag);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, `${tag} ${field}`);
+  }
+});

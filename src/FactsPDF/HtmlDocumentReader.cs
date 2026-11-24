@@ -13,9 +13,11 @@ internal static class HtmlDocumentReader
 
     // Inline text elements: no box of their own, only a text style. code, kbd and samp keep the
     // supplied font (FactsPDF has no generic monospace face, as for pre); var, cite and dfn are
-    // italic, as the HTML rendering section's user-agent sheet makes them.
+    // italic, as the HTML rendering section's user-agent sheet makes them. time and data have no
+    // default style; their machine-readable datetime and value attributes are metadata only.
     internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
-        or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn";
+        or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
+        or "time" or "data";
 
     /// <summary>
     /// The open elements the document reader will hold, replayed while the collecting pass reads
@@ -421,6 +423,7 @@ internal static class HtmlDocumentReader
                 }
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 else if (name == "img" && attribute is "src" or "alt") { }
+                else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value") { }
                 else if (attribute is "id" or "class" or "lang" or "title" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
             }
