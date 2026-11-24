@@ -323,6 +323,10 @@ internal sealed class CssStylesheets
             if (declaration.Property == CssProperty.VerticalAlign && declaration.Value == "baseline"
                 && element.Name is not ("td" or "th"))
                 return;
+            // A br has no width, height or children, so box-sizing (validated when parsed) changes
+            // nothing there and *{box-sizing:border-box} does not fail on a line break.
+            if (declaration.Property == CssProperty.BoxSizing && element.Name == "br")
+                return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and

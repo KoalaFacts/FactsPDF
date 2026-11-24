@@ -589,8 +589,9 @@ which wraps like `overflow-wrap:break-word`; no count moves. `gap` and `row-gap`
 accepted as initial values, since no flex, grid or multi-column container exists, and both rows
 move from rejected to partial (380 to 382). A well-formed `font-family` list is validated and
 dropped, since no font is discovered and the supplied chain is the only installed font, and the
-`font-family` row moves from rejected to partial (382 to 383).
+`font-family` row moves from rejected to partial (382 to 383). The `box-sizing` row adds `<html>`
+and inline text as accepting hosts with no effect, so universal resets render; no count moves.
 Current dataset SHA-256:
-`9ab4e35e2c775a9da19b9add9c311aeeebb49c3d360760ae34ad774417cf90d0`; English
-layer `site/src/audit-english-font-family.mjs`, ordered source-text
-SHA-256 `3f5d07a4d7300f04e29553e640f729bf0b77fd1c7fa79f0a4d6019ca021b6e11`.
+`2306d3d1765ad9d7b0b3692808c9d0c1f321a07a96fb27cf877030b33ef20fe2`; English
+layer `site/src/audit-english-box-sizing-inline.mjs`, ordered source-text
+SHA-256 `885fb68832180584bdaad254b98b1e3fccbfce603e7b0d0064fad82d7b638b5f`.

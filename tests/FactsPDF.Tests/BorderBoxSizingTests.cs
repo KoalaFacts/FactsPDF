@@ -130,7 +130,7 @@ public sealed class BorderBoxSizingTests
     [TestCase("html{box-sizing:border-box}body,section{box-sizing:inherit}span,small,a{box-sizing:content-box}")]
     public void UniversalAndInheritedResetsReachBlocksThroughRootAndInlineText(string css)
     {
-        const string body = "<section style='" + Panel + "'>Ref <small>small</small> <span>span</span> <a href='https://example.com/'>link</a></section>";
+        const string body = "<section style='" + Panel + "'>Ref <small>small</small> <span>span</span><br><a href='https://example.com/'>link</a></section>";
         var reset = Pdf($"<html><head><style>{css}</style></head><body>{body}</body></html>");
         var expected = Pdf($"<html><head></head><body>{body.Replace("<section style='", "<section style='box-sizing:border-box;", StringComparison.Ordinal)}</body></html>");
         Assert.That(reset, Is.EqualTo(expected));
@@ -143,6 +143,10 @@ public sealed class BorderBoxSizingTests
         const string declared = "<html style='box-sizing:border-box'><body><section style='" + Panel + "'>Ref <small style='box-sizing:border-box'>small</small> <span style='box-sizing:content-box'>span</span></section></body></html>";
         Assert.That(Pdf(declared), Is.EqualTo(Pdf(plain)));
     }
+
+    [Test]
+    public void StylingALineBreakOtherwiseStillFails()
+        => FailClosed("<style>*{box-sizing:border-box;color:red}</style><p>A<br>B</p>", "FPDF1103");
 
     [Test]
     public void UniversalResetStillFailsOnTables()
