@@ -330,8 +330,10 @@ internal sealed class CssStylesheets
             // <html> and <body> lay out with no margin of their own (the page margin options frame
             // the content), and <html> with no padding, so the resets body{margin:0},
             // html,body{margin:0;padding:0} and *{margin:0} change nothing there and are validated
-            // and dropped. Any value that would move the content still fails below.
-            if (RootZeroInset(element.Name, declaration))
+            // and dropped. Inline text has no box here, so a zero margin or padding and a transparent
+            // background (normalize.css a{background-color:transparent}, *{margin:0;padding:0}) are
+            // dropped there too. Any value that would move or paint the content still fails below.
+            if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
@@ -795,6 +797,24 @@ internal sealed class CssStylesheets
         if (!(element == "html" && (margin || padding) || element == "body" && margin)) return false;
         return declaration.Value is "inherit" or "initial" or "unset"
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
+                allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
+    }
+
+    // Inline text elements lay out no box of their own: a zero margin or padding leaves the text
+    // where it is, and a transparent background (also background:none) paints nothing. initial and
+    // unset compute to those values; inherit could carry a parent block's inset or fill, so it fails.
+    private static bool InlineZeroBox(string element, CssDeclaration declaration)
+    {
+        if (element is not ("span" or "b" or "strong" or "i" or "em" or "small" or "u" or "s"
+            or "del" or "ins" or "a")) return false;
+        if (declaration.Value is "initial" or "unset") return declaration.Property is CssProperty.BackgroundColor
+            or CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom or CssProperty.MarginLeft
+            or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
+        if (declaration.Property == CssProperty.BackgroundColor) return declaration.Value == "transparent";
+        return declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom
+                or CssProperty.MarginLeft or CssProperty.PaddingTop or CssProperty.PaddingRight
+                or CssProperty.PaddingBottom or CssProperty.PaddingLeft
+            && CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
                 allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
     }
 
