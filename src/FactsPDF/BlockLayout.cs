@@ -295,7 +295,7 @@ internal static class BlockLayout
                 largestBlankParagraphMargin = Math.Max(largestBlankParagraphMargin,
                     Math.Max(before, after));
             }
-            else if (child.Name is "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
+            else if (child.Name is "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption" or "address")
             {
                 var (_, _, available) = ResolveMargins(box, width, child.SourceOffset);
                 var resolved = ResolveBox(box, available, child.SourceOffset, width);

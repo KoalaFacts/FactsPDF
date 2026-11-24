@@ -740,3 +740,14 @@ test('figure is a partial block like blockquote and figcaption a block like div,
   for (const f of [figure, caption])
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(f[field], han, field);
 });
+
+test('address is a partial italic block like div, in English', async () => {
+  const { englishFeature } = await localisation();
+  const feature = data.features.find(x => x.id === 'html.address');
+  assert.equal(feature.status, 'partial');
+  const english = englishFeature(feature);
+  assert.match(english.scope, /^A block container like div whose text is italic by default/);
+  assert.match(english.limitations, /fails like em/);
+  assert.equal(english.stage, 'Semantics / rendering');
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, field);
+});

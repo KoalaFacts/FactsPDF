@@ -509,6 +509,10 @@ both the same margins; like `blockquote` it may not sit in a list or table), and
 `<figcaption>` exactly like `<div>`, so a figure with an image and a caption
 renders as an indented block (`FigureElementTests.cs`).
 
+`<address>` renders like `<div>` with italic text, as the HTML default sheet
+styles it; like `<em>` it needs an italic font chain, and CSS
+`font-style:normal` resets it (`AddressElementTests.cs`).
+
 In an invoice, updated quote or service register, `<small>` renders a
 secondary note at 5/6 of its computed parent font size; `<u>` and
 `<ins>` underline, while `<s>` and `<del>` strike through changed text.
