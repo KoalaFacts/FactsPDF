@@ -406,7 +406,9 @@ internal sealed class CssStylesheets
                     throw new FactsPdfException("FPDF1202",
                         "Table-cell vertical-align supports only top, middle and bottom.", declaration.Offset);
             }
-            if (element.Name == "col" && declaration.Property != CssProperty.Width
+            // A col takes only a track width; box-sizing changes nothing there (a col has no
+            // padding or borders), so *{box-sizing:border-box} is accepted on it.
+            if (element.Name == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing)
                 || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
             // hr has physical box geometry but no text. Its local font-size
@@ -461,10 +463,14 @@ internal sealed class CssStylesheets
             // their measured outer box, including direct image items in cells.
             // Table tracks and cell layouts remain separately controlled and
             // cannot silently accept sizing declarations they do not render.
-            if (declaration.Property is CssProperty.BoxSizing or CssProperty.MinWidth or CssProperty.MaxWidth &&
+            // box-sizing is supported on the table box itself (an explicit width then includes its
+            // padding and borders); on columns, rows, groups and cells no width with padding or
+            // borders is accepted, so it changes nothing there and universal resets pass.
+            if (declaration.Property is CssProperty.MinWidth or CssProperty.MaxWidth &&
                 (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
-            if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset)
+            if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset
+                    && declaration.Property != CssProperty.BoxSizing)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
             // Last-line alignment belongs to a paragraph's line box, never
@@ -773,7 +779,8 @@ internal sealed class CssStylesheets
 
     // Mirrors the branches of Compute that assign the element's box rather than its text style.
     private static bool BoxSizingNoOpHost(string element) => element is "html" or "span" or "b" or "strong"
-        or "i" or "em" or "small" or "u" or "s" or "del" or "ins" or "a";
+        or "i" or "em" or "small" or "u" or "s" or "del" or "ins" or "a"
+        or "tr" or "thead" or "tbody" or "tfoot" or "colgroup";
 
     private static bool WritesBox(string element, CssProperty property) =>
         property is CssProperty.Display or CssProperty.ListStyleType or CssProperty.ListStylePosition

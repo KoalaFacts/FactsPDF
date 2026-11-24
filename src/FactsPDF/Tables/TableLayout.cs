@@ -39,9 +39,11 @@ internal static class TableLayout
         var style = table.BoxStyle;
         var edges = ResolveEdges(style, item.AvailableWidth, table.SourceOffset);
         // As for existing blocks, auto fills the parent's content area with
-        // the outer box; an explicit width describes the table's content.
+        // the outer box; an explicit width describes the table's content, or
+        // with box-sizing:border-box its outer box including padding and borders.
         var width = style.Width is { } specified
-            ? Checked(specified.Resolve(item.AvailableWidth), table.SourceOffset)
+            ? Checked(specified.Resolve(item.AvailableWidth)
+                - (style.BorderBoxSizing ? edges.Left + edges.Right : 0), table.SourceOffset)
             : item.AvailableWidth - edges.Left - edges.Right;
         var outerWidth = width + edges.Left + edges.Right;
         if (width <= 0 || outerWidth > item.AvailableWidth + 0.000001)

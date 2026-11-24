@@ -118,7 +118,9 @@ public sealed class BorderBoxSizingTests
     [TestCase("<p>A <span style='width:10pt'>Inline</span></p>", "FPDF1201")]
     [TestCase("<p>A <b style='padding:2pt;box-sizing:border-box'>Inline</b></p>", "FPDF1201")]
     [TestCase("<img src='logo' style='box-sizing:padding-box'>", "FPDF1202")]
-    [TestCase("<table style='box-sizing:border-box'>", "FPDF1201")]
+    [TestCase("<table style='box-sizing:padding-box'>", "FPDF1202")]
+    [TestCase("<table style='box-sizing:border-box;width:10pt;padding:6pt'><colgroup><col style='width:1pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1302")]
+    [TestCase("<table style='box-sizing:border-box;min-width:10pt'>", "FPDF1201")]
     public void InvalidOrUnsupportedBoxSizingKeepsExistingOutput(string html, string error)
         => FailClosed(html, error);
 
@@ -148,7 +150,24 @@ public sealed class BorderBoxSizingTests
     public void StylingALineBreakOtherwiseStillFails()
         => FailClosed("<style>*{box-sizing:border-box;color:red}</style><p>A<br>B</p>", "FPDF1103");
 
+    private static string Table(string tableStyle, string colWidth, string css = "") =>
+        $"<html><head><style>{css}</style></head><body><table style='{tableStyle}'><colgroup><col style='width:{colWidth}'></colgroup>" +
+        "<tbody><tr><td>Head</td></tr><tr><td style='padding:4pt'><p>Cell <span>text</span></p></td></tr></tbody></table></body></html>";
+
     [Test]
-    public void UniversalResetStillFailsOnTables()
-        => FailClosed("<style>*{box-sizing:border-box}</style><table style='width:200pt'><colgroup><col style='width:200pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201");
+    public void BorderBoxTableWidthIncludesPaddingAndBorders()
+        => Assert.That(Pdf(Table("box-sizing:border-box;width:200pt;padding:5pt;border:2pt solid red", "186pt")),
+            Is.EqualTo(Pdf(Table("width:186pt;padding:5pt;border:2pt solid red", "186pt"))));
+
+    [TestCase("*{box-sizing:border-box}")]
+    [TestCase("html{box-sizing:border-box}*{box-sizing:inherit}")]
+    [TestCase("table,colgroup,col,tbody,tr,td,p{box-sizing:border-box}")]
+    public void UniversalResetsOnTablePagesChangeOnlyTheTableBox(string css)
+    {
+        // Without padding or borders the table box is the same either way; rows, groups,
+        // columns, cells and cell paragraphs accept no width with edges, so nothing moves.
+        Assert.That(Pdf(Table("width:200pt", "200pt", css)), Is.EqualTo(Pdf(Table("width:200pt", "200pt"))));
+        Assert.That(Pdf(Table("width:200pt;padding:5pt", "190pt", css)),
+            Is.EqualTo(Pdf(Table("width:190pt;padding:5pt", "190pt"))));
+    }
 }
