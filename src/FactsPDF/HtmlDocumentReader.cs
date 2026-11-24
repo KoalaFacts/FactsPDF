@@ -11,8 +11,11 @@ internal static class HtmlDocumentReader
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 
-    private static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
-        or "small" or "u" or "s" or "del" or "ins" or "a";
+    // Inline text elements: no box of their own, only a text style. code, kbd and samp keep the
+    // supplied font (FactsPDF has no generic monospace face, as for pre); var, cite and dfn are
+    // italic, as the HTML rendering section's user-agent sheet makes them.
+    internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
+        or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn";
 
     /// <summary>
     /// The open elements the document reader will hold, replayed while the collecting pass reads
@@ -99,7 +102,7 @@ internal static class HtmlDocumentReader
     {
         var marginAfter = ParagraphTag(name) ? 8 : 0;
         var bold = parent.Bold || name is "b" or "strong" or "th";
-        var italic = parent.Italic || name is "i" or "em";
+        var italic = parent.Italic || name is "i" or "em" or "var" or "cite" or "dfn";
         var heading = name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6';
         if (parent.MarginBefore == 0 && parent.MarginAfter == marginAfter &&
             parent.PercentMarginBefore is null && parent.PercentMarginAfter is null && !parent.BreakBefore && !parent.BreakAfter

@@ -491,6 +491,10 @@ No public package, updated private candidate, human approval or commercial grant
 
 ### Semantic inline change marks and fine print (source only)
 
+`<code>`, `<kbd>` and `<samp>` render as inline text in the supplied regular
+font (no monospace face), and `<var>`, `<cite>` and `<dfn>` as italic inline
+text that needs an italic font chain (`PhrasingElementTests.cs`).
+
 In an invoice, updated quote or service register, `<small>` renders a
 secondary note at 5/6 of its computed parent font size; `<u>` and
 `<ins>` underline, while `<s>` and `<del>` strike through changed text.

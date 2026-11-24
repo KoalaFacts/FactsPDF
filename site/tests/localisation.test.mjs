@@ -683,3 +683,15 @@ test('zero ul, ol, table and br margins and zero table-part padding are translat
     assert.doesNotMatch(english.limitations, han, id);
   }
 });
+
+test('code, kbd, samp, var, cite and dfn are partial inline text with English audit text', async () => {
+  const { englishFeature } = await localisation();
+  for (const tag of ['code', 'kbd', 'samp', 'var', 'cite', 'dfn']) {
+    const feature = data.features.find(x => x.id === `html.${tag}`);
+    assert.equal(feature.status, 'partial', tag);
+    const english = englishFeature(feature);
+    assert.match(english.scope, new RegExp(`^<${tag}> renders as inline `), tag);
+    assert.match(english.limitations, /There is no monospace fallback/, tag);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, `${tag} ${field}`);
+  }
+});
