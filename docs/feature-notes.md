@@ -504,6 +504,11 @@ without a title is plain text (`AbbrElementTests.cs`).
 page; that is what `PageFurniture` / `--page-furniture` does
 (`SectioningElementTests.cs`).
 
+`<figure>` renders exactly like `<blockquote>` (the HTML default sheet gives
+both the same margins; like `blockquote` it may not sit in a list or table), and
+`<figcaption>` exactly like `<div>`, so a figure with an image and a caption
+renders as an indented block (`FigureElementTests.cs`).
+
 In an invoice, updated quote or service register, `<small>` renders a
 secondary note at 5/6 of its computed parent font size; `<u>` and
 `<ins>` underline, while `<s>` and `<del>` strike through changed text.

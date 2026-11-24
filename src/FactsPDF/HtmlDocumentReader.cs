@@ -7,10 +7,11 @@ internal static class HtmlDocumentReader
         int SourceOffset = -1, int ChildStart = 0);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
-    // header, footer, main, nav and aside are sectioning blocks with no user-agent style beyond
-    // display:block, so they render exactly like div, section and article.
+    // header, footer, main, nav, aside and figcaption are blocks with no user-agent style beyond
+    // display:block, so they render exactly like div, section and article; figure renders like
+    // blockquote (the HTML user-agent sheet gives both the same margins).
     private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
-        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
+        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote" or "figure" or "figcaption";
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 
@@ -364,10 +365,12 @@ internal static class HtmlDocumentReader
                     "pre must be a standalone report block outside lists and tables.", token.Offset);
             // Quoted report panels reuse ordinary block layout, but may not
             // acquire unsupported list/table-cell nesting semantics.
-            if (name == "blockquote" && (table is not null ||
+            // figure has the same user-agent margins as blockquote and the same limits.
+            if (name is "blockquote" or "figure" && (table is not null ||
                 stack.Any(f => ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101",
-                    "blockquote must be outside lists and tables.", token.Offset);
+                    name == "blockquote" ? "blockquote must be outside lists and tables."
+                        : "figure must be outside lists and tables.", token.Offset);
             // Standalone void report separator, never a table/list/inline child.
             if (name == "hr" && (table is not null ||
                 stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) ||

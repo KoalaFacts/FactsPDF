@@ -310,7 +310,7 @@ internal sealed class CssStylesheets
         // ordinary report containers. Their computed state reaches the same
         // measured paragraph/heading renderer, not a separate box approximation.
         // Direct inline, list and table declarations remain unsupported.
-        var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote")
+        var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
             && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                 or "td" or "th" or "thead" or "tbody" or "tfoot");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
@@ -342,7 +342,7 @@ internal sealed class CssStylesheets
             // resource contracts; their display declarations fail explicitly.
             if (declaration.Property == CssProperty.Display &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
-                    or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote") ||
+                    or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption") ||
                  path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
@@ -351,7 +351,7 @@ internal sealed class CssStylesheets
             // list, image or inline formatting contexts.
             if (declaration.Property is (CssProperty.OutlineWidth or CssProperty.OutlineStyle
                     or CssProperty.OutlineColor or CssProperty.OutlineOffset) &&
-                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote") ||
+                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption") ||
                  path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
             {
@@ -374,7 +374,7 @@ internal sealed class CssStylesheets
                 or CssProperty.BorderTopRightRadius or CssProperty.BorderBottomRightRadius
                 or CssProperty.BorderBottomLeftRadius) &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
-                    or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote") ||
+                    or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption") ||
                  path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
@@ -386,7 +386,7 @@ internal sealed class CssStylesheets
             {
                 var imageHeight = element.Name == "img";
                 var panelHeight = declaration.Property != CssProperty.MaxHeight
-                    && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote")
+                    && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
                     && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                         or "td" or "th" or "thead" or "tbody" or "tfoot");
                 if (!imageHeight && !panelHeight)
@@ -397,7 +397,7 @@ internal sealed class CssStylesheets
             // Validate losing declarations too; nested/table/list/inline usage
             // must never be accepted as an unimplemented decoration.
             if (declaration.Property == CssProperty.BreakInside &&
-                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote")
+                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
                  || path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
@@ -507,7 +507,7 @@ internal sealed class CssStylesheets
             // spacing resolves against the containing block content WIDTH at
             // layout time, not the page height. Vertical auto still fails.
             // CSS-wide inheritance/reset is resolved for the winner below.
-            var panelMargin = element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "hr")
+            var panelMargin = element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
@@ -532,7 +532,7 @@ internal sealed class CssStylesheets
             // at its box boundary, not be delayed until its first text leaf.
             // No break-inside, avoid for whole panels or list/table breaks.
             var panelPageBreak = declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
-                && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote")
+                && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
                 && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot");
             if (panelPageBreak && declaration.Value == "avoid")
@@ -596,7 +596,7 @@ internal sealed class CssStylesheets
                 MarginTop = new CssLength(8),
                 MarginBottom = new CssLength(8)
             },
-            "blockquote" => new BoxStyle
+            "blockquote" or "figure" => new BoxStyle
             {
                 MarginTop = new CssLength(8),
                 MarginBottom = new CssLength(8),
@@ -680,7 +680,7 @@ internal sealed class CssStylesheets
                     "bottom" => CellVerticalAlign.Bottom,
                     _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
                 };
-            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote")
+            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
                 && declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter))
             {
                 var value = declaration.Value switch
@@ -705,7 +705,7 @@ internal sealed class CssStylesheets
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
-            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "hr")
+            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
@@ -725,7 +725,7 @@ internal sealed class CssStylesheets
                 // inherited by default; do not change anonymous text or the
                 // normal reset of non-inherited paragraph declarations.
                 var hasReportPanelParent = paragraph && path.Count > 1 &&
-                    path[^2].Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote");
+                    path[^2].Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption");
                 var inheritedParent = hasReportPanelParent &&
                     declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                     ? parent with { MarginBefore = parentBox.MarginTop.IsPercent ? 0 : parentBox.MarginTop.Value,
@@ -855,10 +855,10 @@ internal sealed class CssStylesheets
     private static bool WritesBox(string element, CssProperty property) =>
         property is CssProperty.Display or CssProperty.ListStyleType or CssProperty.ListStylePosition
             or CssProperty.VerticalAlign or CssProperty.BreakInside
-        || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote")
+        || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption")
             && property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
         || CssDeclarations.IsBoxProperty(property)
-        || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "hr")
+        || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "blockquote" or "figure" or "figcaption" or "hr")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
 
     private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color, int first)

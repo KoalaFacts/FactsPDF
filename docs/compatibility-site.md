@@ -602,8 +602,9 @@ move from rejected to partial inline text (partial 212 to 218, rejected 154 to 1
 `FPDF1102` search lists 67 records instead of 73). The `<time>` and `<data>` rows follow
 (partial 220, rejected 146; 65 `FPDF1102` records), then `<abbr>` (partial 221, rejected 145;
 64 records). The `<header>`, `<footer>`, `<main>`, `<nav>` and `<aside>` rows move to partial
-block containers like `div` (partial 226, rejected 140; 59 records).
+block containers like `div` (partial 226, rejected 140; 59 records). `<figure>` moves to
+partial like `blockquote` and `<figcaption>` like `div` (partial 228, rejected 138; 57 records).
 Current dataset SHA-256:
-`a9bf7448ff88bf7aabd980bf9708b14283915d1325bbc164c57aab4fd49960cf`; English
-layer `site/src/audit-english-sectioning-elements.mjs`, ordered source-text
-SHA-256 `b6fbeb372c7d50aa8fde1461e3a8f755a8bfb556ae37649ef2c603e2cb3e28c7`.
+`bf07cfe20de08a67cd8d2ac802b5ac18928023793ce369a7f228e7620cef0236`; English
+layer `site/src/audit-english-figure-elements.mjs`, ordered source-text
+SHA-256 `e9cd4450754361d51f6a2ce61e4d915193776df94c6582cdb278767a37a66dbe`.
