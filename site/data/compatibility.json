@@ -618,13 +618,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "PLACEHOLDERSHA0000000000000000000000000000",
+      "last_audited_commit": "fa7fc4e127055727936da60a5bf209642c1e7e4d",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/PLACEHOLDERSHA0000000000000000000000000000/tests/FactsPDF.Tests/TimeDataElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/fa7fc4e127055727936da60a5bf209642c1e7e4d/tests/FactsPDF.Tests/TimeDataElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/PLACEHOLDERSHA0000000000000000000000000000/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/PLACEHOLDERSHA0000000000000000000000000000/tests/FactsPDF.Tests/TimeDataElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/fa7fc4e127055727936da60a5bf209642c1e7e4d/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/fa7fc4e127055727936da60a5bf209642c1e7e4d/tests/FactsPDF.Tests/TimeDataElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null
@@ -2797,13 +2797,13 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "PLACEHOLDERSHA0000000000000000000000000000",
+      "last_audited_commit": "fa7fc4e127055727936da60a5bf209642c1e7e4d",
       "last_audited_date": "2026-11-25",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/PLACEHOLDERSHA0000000000000000000000000000/tests/FactsPDF.Tests/TimeDataElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/fa7fc4e127055727936da60a5bf209642c1e7e4d/tests/FactsPDF.Tests/TimeDataElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/PLACEHOLDERSHA0000000000000000000000000000/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/PLACEHOLDERSHA0000000000000000000000000000/tests/FactsPDF.Tests/TimeDataElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/fa7fc4e127055727936da60a5bf209642c1e7e4d/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/fa7fc4e127055727936da60a5bf209642c1e7e4d/tests/FactsPDF.Tests/TimeDataElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

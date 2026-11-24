@@ -599,8 +599,9 @@ background with no effect, then zero margins on `li` and table rows, groups, col
 then zero margins on `ul`, `ol`, `table` and `br` and zero padding on table rows, groups, columns
 and `br`; no count moves. The `<code>`, `<kbd>`, `<samp>`, `<var>`, `<cite>` and `<dfn>` rows
 move from rejected to partial inline text (partial 212 to 218, rejected 154 to 148; the
-`FPDF1102` search lists 67 records instead of 73).
+`FPDF1102` search lists 67 records instead of 73). The `<time>` and `<data>` rows follow
+(partial 220, rejected 146; 65 `FPDF1102` records).
 Current dataset SHA-256:
-`264b7a33eff31bea76cc43ab4d2983cfb90ed876b4b30d63d0e005e4dbe59969`; English
-layer `site/src/audit-english-phrasing-elements.mjs`, ordered source-text
-SHA-256 `ce6139c90cebe9b0187a7d491cdc1e9dd2a4bc05c572b584ea25490fcf9a2f0d`.
+`8cc6770889e2ea0270d84e9d9a60188eac7dfa0cdef10530b008934f09c03df9`; English
+layer `site/src/audit-english-time-data.mjs`, ordered source-text
+SHA-256 `fce666d72a2aa0d745aa464d661e92affe26380113615eef4e233e7bedbf36dc`.
