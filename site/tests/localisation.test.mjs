@@ -655,7 +655,17 @@ test('zero inline margins, padding and transparent inline backgrounds are transl
     ['css.padding-inline', 'a zero padding'], ['css.background-color', 'a transparent background'], ['css.background', 'a transparent background']]) {
     const english = englishFeature(data.features.find(x => x.id === id));
     assert.match(english.limitations, new RegExp(`Exception: ${kind}.* on inline text \\(span/b/strong/i/em/small/u/s/del/ins/a\\) is accepted`), id);
-    assert.match(english.limitations, /other values still fail FPDF1201\.$/, id);
+    assert.match(english.limitations, /is accepted and (changes no output|paints nothing); other values still fail FPDF1201\./, id);
+    assert.doesNotMatch(english.limitations, han, id);
+  }
+});
+
+test('zero table-part and list-item margins are translated for every margin row', async () => {
+  const { englishFeature } = await localisation();
+  for (const id of ['css.margin', 'css.margin-top', 'css.margin-bottom', 'css.margin-left', 'css.margin-right', 'css.margin-inline', 'css.margin-block']) {
+    const english = englishFeature(data.features.find(x => x.id === id));
+    assert.match(english.limitations, /A zero margin on li and on table rows, row groups, columns, column groups and cells \(tr\/thead\/tbody\/col\/colgroup\/td\/th\) is the initial value/, id);
+    assert.match(english.limitations, /nonzero values still fail FPDF1201\.$/, id);
     assert.doesNotMatch(english.limitations, han, id);
   }
 });
