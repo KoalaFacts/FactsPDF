@@ -706,3 +706,12 @@ test('time and data are partial inline text with English audit text', async () =
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, `${tag} ${field}`);
   }
 });
+
+test('abbr is partial inline text with a dotted underline when titled, in English', async () => {
+  const { englishFeature } = await localisation();
+  const feature = data.features.find(x => x.id === 'html.abbr');
+  assert.equal(feature.status, 'partial');
+  const english = englishFeature(feature);
+  assert.match(english.scope, /^<abbr> renders as inline text; with a title attribute it draws the HTML default dotted underline/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, field);
+});
