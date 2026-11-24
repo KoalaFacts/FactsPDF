@@ -2006,8 +2006,12 @@ changes nothing because no width or height applies there; on `<br>` it is
 validated and dropped (any other declaration on `<br>` still fails `FPDF1103`), so the universal
 resets `*{box-sizing:border-box}` and `html{box-sizing:border-box}
 *{box-sizing:inherit}` reach every block (a child's `inherit` reads the root or
-inline value, as in a browser). Tables, columns, rows and cells still reject it
-with `FPDF1201`, so a universal reset fails on a page with a table. The normal cascade, `!important`, and explicit `inherit`,
+inline value, as in a browser). On a `<table>`, `box-sizing:border-box`
+makes an explicit `width` include the table's padding and borders (column
+percentages resolve against the remaining content width). Columns, column
+groups, row groups, rows, cells and cell paragraphs accept it with no effect,
+because none of them takes a width together with padding or borders there, so
+universal resets also pass on pages with tables (`BorderBoxSizingTests`). The normal cascade, `!important`, and explicit `inherit`,
 `initial` and `unset` work independently of width and padding. The legacy
 `-webkit-box-sizing` and `-moz-box-sizing` spellings (which Bootstrap 3 and
 older resets write before `box-sizing`) are aliases: they share the
