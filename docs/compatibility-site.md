@@ -591,8 +591,10 @@ move from rejected to partial (380 to 382). A well-formed `font-family` list is 
 dropped, since no font is discovered and the supplied chain is the only installed font, and the
 `font-family` row moves from rejected to partial (382 to 383). The `box-sizing` row adds `<html>`
 and inline text as accepting hosts with no effect, then table parts, and the table box's width
-supports `border-box`, so universal resets render; no count moves.
+supports `border-box`, so universal resets render; no count moves. The margin rows add a zero
+margin on `<html>`/`<body>` and the padding rows a zero padding on `<html>`, accepted with no
+effect, so `html,body{margin:0;padding:0}` renders; no count moves.
 Current dataset SHA-256:
-`1612e4d7fa455ecfef2d23a881b63034f5a2a55c5ca06578f40adbd950a4d429`; English
-layer `site/src/audit-english-box-sizing-tables.mjs`, ordered source-text
-SHA-256 `f17a951e34e6bc5d80db8bd2cdbe8991a7564c77a2e129253f69f0bb1e9e1695`.
+`982dae6a6ff6335f788fbe73f56d20d993b2812e2a06b6efcb7d45ae9ebe70a8`; English
+layer `site/src/audit-english-root-zero-inset.mjs`, ordered source-text
+SHA-256 `b2c553d03a6aea68392e2451c8f182df3a58a9b55e2f4f4bc3d527fe163ae510`.
