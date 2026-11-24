@@ -11,7 +11,7 @@ internal static class HtmlDocumentReader
     // display:block, so they render exactly like div, section and article; figure renders like
     // blockquote (the HTML user-agent sheet gives both the same margins).
     private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
-        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote" or "figure" or "figcaption";
+        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote" or "figure" or "figcaption" or "address";
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 
@@ -108,7 +108,7 @@ internal static class HtmlDocumentReader
     {
         var marginAfter = ParagraphTag(name) ? 8 : 0;
         var bold = parent.Bold || name is "b" or "strong" or "th";
-        var italic = parent.Italic || name is "i" or "em" or "var" or "cite" or "dfn";
+        var italic = parent.Italic || name is "i" or "em" or "var" or "cite" or "dfn" or "address";
         var heading = name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6';
         if (parent.MarginBefore == 0 && parent.MarginAfter == marginAfter &&
             parent.PercentMarginBefore is null && parent.PercentMarginAfter is null && !parent.BreakBefore && !parent.BreakAfter

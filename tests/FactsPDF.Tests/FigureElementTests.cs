@@ -94,7 +94,6 @@ public sealed class FigureElementTests
     [TestCase("<p><span><figcaption>A</figcaption></span></p>", "FPDF1101")]
     [TestCase("<figure>A</figcaption>", "FPDF1101")]
     [TestCase("<figure href='x'>A</figure>", "FPDF1103")]
-    [TestCase("<address>A</address>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code)
     {
         using var output = new MemoryStream();

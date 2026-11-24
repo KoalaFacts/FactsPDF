@@ -47,7 +47,7 @@ public sealed class SectioningElementTests
     [TestCase("<p><span><header>A</header></span></p>", "FPDF1101")]
     [TestCase("<footer>A</main>", "FPDF1101")]
     [TestCase("<nav href='x'>A</nav>", "FPDF1103")]
-    [TestCase("<address>A</address>", "FPDF1102")]
+    [TestCase("<mark>A</mark>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code)
     {
         using var output = new MemoryStream();
