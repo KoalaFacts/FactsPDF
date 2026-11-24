@@ -129,7 +129,7 @@ public sealed class ResponsiveImageSizingTests
     [TestCase("<img src=chart style='width:0;max-width:100%'>", "FPDF1302")]
     [TestCase("<style>.never{max-width:6vw}</style><img src=chart>", "FPDF1202")]
     [TestCase("<table style='max-width:120pt'>", "FPDF1201")]
-    [TestCase("<span style='box-sizing:border-box'>A</span>", "FPDF1201")]
+    [TestCase("<span style='box-sizing:border-box;max-width:5pt'>A</span>", "FPDF1201")]
     public void UnsupportedOrUnplaceableValuesPreserveOriginalOutput(string html, string code)
         => Reject(html, code);
 

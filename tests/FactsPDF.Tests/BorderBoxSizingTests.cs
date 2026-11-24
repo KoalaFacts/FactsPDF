@@ -113,9 +113,42 @@ public sealed class BorderBoxSizingTests
     [TestCase("<style>.never{box-sizing:border-box content-box}</style><p>Unmatched invalid</p>", "FPDF1202")]
     [TestCase("<div style='box-sizing:border-box;width:10pt;padding:6pt'>Too narrow</div>", "FPDF1302")]
     [TestCase("<div style='box-sizing:border-box;width:270pt'>Too wide</div>", "FPDF1302")]
-    [TestCase("<span style='box-sizing:border-box'>Inline</span>", "FPDF1201")]
+    [TestCase("<span style='box-sizing:padding-box'>Inline</span>", "FPDF1202")]
+    [TestCase("<html style='box-sizing:auto'><body><p>Root</p></body></html>", "FPDF1202")]
+    [TestCase("<p>A <span style='width:10pt'>Inline</span></p>", "FPDF1201")]
+    [TestCase("<p>A <b style='padding:2pt;box-sizing:border-box'>Inline</b></p>", "FPDF1201")]
     [TestCase("<img src='logo' style='box-sizing:padding-box'>", "FPDF1202")]
     [TestCase("<table style='box-sizing:border-box'>", "FPDF1201")]
     public void InvalidOrUnsupportedBoxSizingKeepsExistingOutput(string html, string error)
         => FailClosed(html, error);
+
+    private const string Panel = "width:160pt;padding:10pt;border:2pt solid blue;background:#f0f6fa";
+
+    [TestCase("*{box-sizing:border-box}")]
+    [TestCase("*{-webkit-box-sizing:border-box;box-sizing:border-box!important}")]
+    [TestCase("html{box-sizing:border-box}*{box-sizing:inherit}")]
+    [TestCase("html{box-sizing:border-box}body,section{box-sizing:inherit}span,small,a{box-sizing:content-box}")]
+    public void UniversalAndInheritedResetsReachBlocksThroughRootAndInlineText(string css)
+    {
+        const string body = "<section style='" + Panel + "'>Ref <small>small</small> <span>span</span><br><a href='https://example.com/'>link</a></section>";
+        var reset = Pdf($"<html><head><style>{css}</style></head><body>{body}</body></html>");
+        var expected = Pdf($"<html><head></head><body>{body.Replace("<section style='", "<section style='box-sizing:border-box;", StringComparison.Ordinal)}</body></html>");
+        Assert.That(reset, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void BoxSizingOnRootOrInlineTextAloneLeavesBytesUnchanged()
+    {
+        const string plain = "<html><body><section style='" + Panel + "'>Ref <small>small</small> <span>span</span></section></body></html>";
+        const string declared = "<html style='box-sizing:border-box'><body><section style='" + Panel + "'>Ref <small style='box-sizing:border-box'>small</small> <span style='box-sizing:content-box'>span</span></section></body></html>";
+        Assert.That(Pdf(declared), Is.EqualTo(Pdf(plain)));
+    }
+
+    [Test]
+    public void StylingALineBreakOtherwiseStillFails()
+        => FailClosed("<style>*{box-sizing:border-box;color:red}</style><p>A<br>B</p>", "FPDF1103");
+
+    [Test]
+    public void UniversalResetStillFailsOnTables()
+        => FailClosed("<style>*{box-sizing:border-box}</style><table style='width:200pt'><colgroup><col style='width:200pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201");
 }
