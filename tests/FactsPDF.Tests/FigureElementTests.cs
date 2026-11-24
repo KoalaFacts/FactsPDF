@@ -68,7 +68,12 @@ public sealed class FigureElementTests
     {
         var body = string.Concat(Enumerable.Repeat("<p>Quarterly revenue line.</p>", 60));
         var figure = Pdf($"<figure>{body}<figcaption>End</figcaption></figure>");
-        Assert.That(figure, Is.EqualTo(Pdf($"<blockquote>{body}<div>End</div></blockquote>")));
+        Assert.Multiple(() =>
+        {
+            Assert.That(System.Text.RegularExpressions.Regex.Count(
+                System.Text.Encoding.Latin1.GetString(figure), @"/Type\s*/Page\b"), Is.GreaterThan(1));
+            Assert.That(figure, Is.EqualTo(Pdf($"<blockquote>{body}<div>End</div></blockquote>")));
+        });
     }
 
     [TestCase("<ul><li><figure>A</figure></li></ul>")]
