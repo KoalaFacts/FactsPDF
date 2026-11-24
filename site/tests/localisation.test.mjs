@@ -626,13 +626,14 @@ test('English outline audit keeps panel-only paint and dropped resets elsewhere'
   assert.doesNotMatch(f.scope + f.limitations, han);
 });
 
-test('box-sizing on the root and inline text is translated without claiming table support', async () => {
+test('box-sizing on the root, inline text and tables is translated with its table-box geometry', async () => {
   const { englishFeature } = await localisation();
   const row = data.features.find(x => x.id === 'css.box-sizing');
   assert.equal(row.status, 'partial');
   const english = englishFeature(row);
   assert.match(english.limitations, /<html> and inline text \(span\/b\/strong\/i\/em\/small\/u\/s\/del\/ins\/a\) accept it without changing output/);
-  assert.match(english.limitations, /universal \*\{box-sizing:border-box\} reset still fails FPDF1201 on a page with a table/);
-  assert.match(english.applicability, /<html> and inline text accept it with no effect\. Not table\/col\/row\/cell boxes\./);
+  assert.match(english.limitations, /On a table, border-box makes an explicit width include its padding and borders/);
+  assert.match(english.limitations, /universal \*\{box-sizing:border-box\} reset also passes on pages with tables/);
+  assert.match(english.applicability, /table structure \(col\/row\/cell boxes and cell paragraphs\) accept it with no effect; the table box width supports border-box\./);
   assert.doesNotMatch(english.scope + english.limitations + english.applicability, han);
 });

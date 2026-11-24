@@ -924,7 +924,8 @@ legacy aliases sharing its cascade slot, `BoxSizingPrefixAliasTests.cs`; likewis
 applies constraints to the padded/bordered outer box; the default `content-box` constrains the content width instead.
 `<html>`, inline text and `<br>` also accept `box-sizing` (no width or height applies there), so
 `*{box-sizing:border-box}` and `html{box-sizing:border-box}*{box-sizing:inherit}` reach every
-block; table parts still reject it (`BorderBoxSizingTests.cs`). Supported
+block. On a `<table>`, `border-box` makes an explicit width include its padding and borders;
+columns, groups, rows, cells and cell paragraphs accept it with no effect (`BorderBoxSizingTests.cs`). Supported
 lengths are nonnegative `pt/px/mm/cm/in/%` or zero; `min-width:auto`
 and `max-width:none` remove the constraint. Actual over-constrained geometry
 is rejected without replacing prior output. This is only ordinary report
