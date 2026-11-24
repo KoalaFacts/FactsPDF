@@ -715,3 +715,15 @@ test('abbr is partial inline text with a dotted underline when titled, in Englis
   assert.match(english.scope, /^<abbr> renders as inline text; with a title attribute it draws the HTML default dotted underline/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, field);
 });
+
+test('header, footer, main, nav and aside are partial block containers like div, in English', async () => {
+  const { englishFeature } = await localisation();
+  for (const tag of ['header', 'footer', 'main', 'nav', 'aside']) {
+    const feature = data.features.find(x => x.id === `html.${tag}`);
+    assert.equal(feature.status, 'partial', tag);
+    const english = englishFeature(feature);
+    assert.match(english.scope, /^A nested block container like div/, tag);
+    if (tag === 'header' || tag === 'footer') assert.match(english.limitations, /PageFurniture/, tag);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, `${tag} ${field}`);
+  }
+});

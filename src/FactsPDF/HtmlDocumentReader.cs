@@ -7,7 +7,10 @@ internal static class HtmlDocumentReader
         int SourceOffset = -1, int ChildStart = 0);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul";
-    private static bool Container(string name) => name is "div" or "section" or "article" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
+    // header, footer, main, nav and aside are sectioning blocks with no user-agent style beyond
+    // display:block, so they render exactly like div, section and article.
+    private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
+        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote";
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 

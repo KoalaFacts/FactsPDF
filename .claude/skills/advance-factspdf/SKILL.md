@@ -57,7 +57,10 @@ scheduled task's prompt.
    rendered pages are rasterised and looked at for visible changes, and the
    feature map in `verify-factspdf` follows the areas of
    `site/data/compatibility.json`.
-6. When `site/` data changes: `cd site && npm test && npm run validate`; Can I
+6. When `site/` data changes: `cd site && npm test && npm run validate`, then the
+   browser suite the hosted `verify-build` job runs: `npm run build &&
+   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux64/chrome | head -1) npx playwright test`
+   (status changes move search pages and record counts it pins); Can I
    Render data changes need a new chained English translation layer
    (`docs/compatibility-site.md`) plus updated snapshot pins.
 
@@ -89,9 +92,13 @@ only from the existing same-harness benchmark workflow (`box-layout-resources.ym
 - First line of every PR body: "Opened by the FactsPDF scheduled task."
 - One PR at a time; exception: while a code PR waits only on CI, the next one
   may be built locally (not opened).
-- Never dispatch `publish-nuget.yml` or any publish workflow. Merging deploys
-  nothing beyond what the repository's own workflows already do on `main`.
-- Never touch other people's PRs or branches.
+- Releases, deploys and publish workflows (`publish-nuget.yml` and the others)
+  follow agent-harness autonomous-dev §0.2 (owner, 2026-11-24): only after the
+  merged commit passes the full gate with an independent review PASS, with a
+  SemVer version and release notes, no breaking change, no paid resource and
+  only existing credentials.
+- Other people's PRs and branches are handled only through the open-PR triage
+  (autonomous-dev §3 step 0).
 
 ## Project rules
 - Never edit `LICENSE.md`, `LICENSING.md`, `COMMERCIAL.md` or
