@@ -811,3 +811,12 @@ test('template is partial: dropped with its inert contents, in English', async (
   assert.match(template.limitations, /shadowrootmode/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(template[field], han, field);
 });
+
+test('dir is partial: ltr accepted on any element, in English', async () => {
+  const { englishFeature } = await localisation();
+  const dir = englishFeature(data.features.find(x => x.id === 'attr.10'));
+  assert.equal(dir.status, 'partial');
+  assert.match(dir.scope, /dir="ltr"/);
+  assert.match(dir.limitations, /FPDF1103/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(dir[field], han, field);
+});
