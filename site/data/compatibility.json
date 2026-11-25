@@ -2215,7 +2215,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "不执行脚本：整个元素连同其脚本数据与属性被丢弃，页面按没有它的情况渲染；可位于 head、容器、段落、列表与表格中；脚本数据中的标记与样式不生效",
-      "limitations": "必须有结束标签（与浏览器一致，自闭合斜杠被忽略）；计入元素上限；不得位于 title 内；脚本数据中先出现 <!-- 后又出现 <script 的双重转义形式明确失败（FPDF1101）；不加载 src，不执行任何代码，noscript 仍不支持",
+      "limitations": "必须有结束标签（与浏览器一致，自闭合斜杠被忽略）；计入元素上限；不得位于 title 或 colgroup 内（HTML 会在此关闭列组并移动列）；属性仍须能被分词；脚本数据中先出现 <!-- 后又出现 <script 的双重转义形式明确失败（FPDF1101）；不加载 src，不执行任何代码，noscript 仍不支持",
       "stage": "接受但不绘制",
       "applicability": "共享核心（CLI / .NET）",
       "example": "<script type=\"application/ld+json\">{…}</script>",

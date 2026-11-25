@@ -521,8 +521,9 @@ declarative shadow root (`shadowrootmode`), which browsers do render, fails `FPD
 renders the element: the PDF is byte-identical to the page without it, in the head, containers,
 paragraphs, lists and tables. Script data ends at the first `</script` followed by a delimiter, as
 in browsers (which also ignore a self-closing slash on `script`), so markup and styles inside it
-never apply and `src` is never loaded. The end tag is required (`FPDF1101`), a script inside `title`
-fails `FPDF1101`, scripts count toward `MaxElements` (`FPDF1002`), and data where `<!--` is
+never apply and `src` is never loaded; its attributes must still tokenize. The end tag is required
+(`FPDF1101`), a script inside `title` or `colgroup` (where HTML would close the column group and
+shift the columns) fails `FPDF1101`, scripts count toward `MaxElements` (`FPDF1002`), and data where `<!--` is
 followed by `<script` (the double-escaped form, where a browser would not end the element at
 `</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is still
 unsupported.

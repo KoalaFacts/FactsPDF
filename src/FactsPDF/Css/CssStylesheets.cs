@@ -69,7 +69,7 @@ internal sealed class CssStylesheets
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
-        var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false;
+        var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -110,12 +110,17 @@ internal sealed class CssStylesheets
                 }
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
                 if (insideTitle) throw new FactsPdfException("FPDF1101", "script cannot be inside title.", item.Offset);
+                // In a colgroup, HTML closes the column group before a script, so the following col
+                // would start a new column group; dropping the script would shift the columns.
+                if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
                 insideScript = true;
                 continue;
             }
             tokens.Add(item);
             if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title")
                 insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
+            else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
+                insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
             if (item.Kind == HtmlTokenKind.End) depth.Read(item);
             if (item.Kind == HtmlTokenKind.StyleText)
             {

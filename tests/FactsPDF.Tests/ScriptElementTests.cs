@@ -30,6 +30,8 @@ public sealed class ScriptElementTests
     [TestCase("<script src=a.js /><p>Swallowed</p></script><p>Body</p>", "<p>Body</p>")]
     [TestCase("<script><!-- legacy(); //--></script><p>Body</p>", "<p>Body</p>")]
     [TestCase("<template><script>x()</script><p>T</p></template><p>Body</p>", "<p>Body</p>")]
+    [TestCase("<table><colgroup><col style='width:236pt'></colgroup><script></script><tbody><tr><td>Row</td></tr></tbody></table>",
+        "<table><colgroup><col style='width:236pt'></colgroup><tbody><tr><td>Row</td></tr></tbody></table>")]
     public void RendersAsIfAbsent(string html, string without)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(without)));
 
@@ -57,6 +59,8 @@ public sealed class ScriptElementTests
     [TestCase("<p>A</p></script>", "FPDF1101", 8)]
     [TestCase("<head><title>Ti<script>x</script>tle</title></head>", "FPDF1101", 15)]
     [TestCase("<p>A</p><script><!--<script>x</script>--></script>", "FPDF1101", 16)]
+    [TestCase("<table><colgroup><script></script><col style='width:50pt'><col style='width:186pt'></colgroup><tbody><tr><td>A</td><td>B</td></tr></tbody></table>", "FPDF1101", 17)]
+    [TestCase("<table><colgroup><col style='width:50pt'><script></script><col style='width:186pt'><tbody><tr><td>A</td><td>B</td></tr></tbody></table>", "FPDF1101", 41)]
     public void UnclosedStrayOrDoubleEscapedScriptsFail(string html, string code, int offset)
     {
         using var output = new MemoryStream();
