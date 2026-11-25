@@ -613,9 +613,10 @@ English layer are unchanged (partial 235, rejected 131; 50 records). `<menu>` mo
 with its own scope and limitation strings (partial 236, rejected 130; 49 records). `<q>` moves
 to partial inline text in quotation marks (partial 237, rejected 129; 48 records). `<bdi>` moves
 to partial inline text like `span` (partial 238, rejected 128; 47 records). `<template>` moves
-to partial: dropped with its inert contents (partial 239, rejected 127; 46 records). The `dir`
+to partial: dropped with its inert contents (partial 239, rejected 127; 46 records). `<script>`
+moves to partial: dropped with its data, never run (partial 241, rejected 125; 45 records). The `dir`
 attribute moves to partial: `ltr` is accepted on any element (partial 240, rejected 126).
 Current dataset SHA-256:
-`c1eb94ce27cdf50435cc86d7a7c388ae292485a270c749548e6da6f9a27b7b43`; English
-layer `site/src/audit-english-dir.mjs`, ordered source-text
-SHA-256 `fedaf3e9e4bc315e7a467c480480ff274c17aefc549c8774e81b71b2e901f319`.
+`06638f84e1f210975a3953d44c33fd162b1d7a0584f313489a5acc945f141d0b`; English
+layer `site/src/audit-english-script.mjs`, ordered source-text
+SHA-256 `26366ff4c0b4903e5b44e4df05b3aada9a6a6e1bbd57c9d7d1c73dd42e881b04`.

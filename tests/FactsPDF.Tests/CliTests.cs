@@ -64,7 +64,7 @@ public sealed class CliTests
     public void RenderFailurePreservesDestinationAndRemovesTemporaryFiles()
     {
         File.WriteAllText(FilePath("out.pdf"), "keep me");
-        var result = Run(["-", FilePath("out.pdf"), "--overwrite"], Encoding.UTF8.GetBytes("<script>bad</script>"));
+        var result = Run(["-", FilePath("out.pdf"), "--overwrite"], Encoding.UTF8.GetBytes("<video>bad</video>"));
         Assert.That(result.Exit, Is.EqualTo(3));
         Assert.That(result.Error, Does.Contain("FPDF1102"));
         Assert.That(File.ReadAllText(FilePath("out.pdf")), Is.EqualTo("keep me"));

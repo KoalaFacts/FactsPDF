@@ -512,11 +512,21 @@ Email and document builders put it on `html`, `body`, tables and paragraphs. `di
 fragment that never renders: the PDF is byte-identical to the page without the element, in the
 head, in containers, lists and tables, and nested. Style elements and style attributes inside it
 are not compiled, and elements FactsPDF does not otherwise support may appear there. The contents
-must still tokenize: a `<` inside script text or an invalid character reference in an attribute
-fails as it would elsewhere. The end tag is required (`FPDF1101`), a template inside `title`
+must still tokenize: an invalid character reference in an attribute fails as it would elsewhere. The end tag is required (`FPDF1101`), a template inside `title`
 fails `FPDF1101`, the contents still count toward `MaxElements` (`FPDF1002`), and a
 declarative shadow root (`shadowrootmode`), which browsers do render, fails `FPDF1103`
 (`TemplateElementTests.cs`).
+
+`<script>` is dropped with its data and attributes, since FactsPDF runs no scripts and HTML never
+renders the element: the PDF is byte-identical to the page without it, in the head, containers,
+paragraphs, lists and tables. Script data ends at the first `</script` followed by a delimiter, as
+in browsers (which also ignore a self-closing slash on `script`), so markup and styles inside it
+never apply and `src` is never loaded; its attributes must still tokenize. The end tag is required
+(`FPDF1101`), a script inside `title` or `colgroup` (where HTML would close the column group and
+shift the columns) fails `FPDF1101`, scripts count toward `MaxElements` (`FPDF1002`), and data where `<!--` is
+followed by `<script` (the double-escaped form, where a browser would not end the element at
+`</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is still
+unsupported.
 
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
