@@ -450,6 +450,9 @@ internal static class HtmlDocumentReader
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
                     || name == "q" && attribute == "cite") { }
+                // Every run is laid out left to right, so the left-to-right direction is already in
+                // effect; any other direction (rtl, auto) still fails below.
+                else if (attribute == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)) { }
                 else if (attribute == "title") titled = true;
                 else if (attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
