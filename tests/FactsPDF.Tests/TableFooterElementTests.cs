@@ -48,6 +48,11 @@ public sealed class TableFooterElementTests
     }
 
     [Test]
+    public void FooterAcceptsColspanAndStructuralWhitespaceAndComments()
+        => Assert.That(Pdf($"<table style='width:180pt'>{Columns}<tbody>{Rows(2)}</tbody>\n <!-- totals -->\n<tfoot>\n <tr><td colspan=2>WAB</td></tr>\n</tfoot> <!-- end -->\n</table>"),
+            Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<tbody>{Rows(2)}<tr><td colspan=2>WAB</td></tr></tbody></table>")));
+
+    [Test]
     public void LongTablesPaginateWithTheFooterRowsAtTheEnd()
         => Assert.That(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(30)}</tbody><tfoot>{Rows(3, 30)}</tfoot></table>"),
             Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(33)}</tbody></table>")));

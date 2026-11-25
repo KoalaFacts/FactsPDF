@@ -1087,7 +1087,7 @@ A `<tfoot>` directly after the `tbody` holds one or more ordinary `td` rows,
 such as an invoice's total. They render exactly like the same rows appended
 to the `tbody`: once, after the body rows, with the same cascade, inheritance
 (`tfoot{color:…}`, `tfoot td{…}`) and pagination. They are not repeated on
-each page fragment, `th` cells and a `tfoot` before the `tbody` fail with
+each page fragment. `th` cells and a `tfoot` before the `tbody` fail with
 `FPDF1101` (`TableFooterElementTests.cs`).
 
 ### Font-relative padding for fixed-column invoice cells (candidate)
