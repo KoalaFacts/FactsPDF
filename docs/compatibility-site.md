@@ -612,8 +612,9 @@ containers like `div`, reusing the `<aside>` row's strings, so the ordered sourc
 English layer are unchanged (partial 235, rejected 131; 50 records). `<menu>` moves to partial as a list exactly like `<ul>`
 with its own scope and limitation strings (partial 236, rejected 130; 49 records). `<q>` moves
 to partial inline text in quotation marks (partial 237, rejected 129; 48 records). `<bdi>` moves
-to partial inline text like `span` (partial 238, rejected 128; 47 records).
+to partial inline text like `span` (partial 238, rejected 128; 47 records). `<template>` moves
+to partial: dropped with its inert contents (partial 239, rejected 127; 46 records).
 Current dataset SHA-256:
-`2627db74ff467dcd4d92b3ae86c5e51033b9f8c5ff0c92689a28b80129aa161f`; English
-layer `site/src/audit-english-bdi.mjs`, ordered source-text
-SHA-256 `d8df4604094ee95ebfd29c123b45ccc25379113d247e1cf375e54a3d8c1bd174`.
+`9d5b7a740abae601bee8d2b695ec2bd527c842ed3898980427a3b6ce7c10d05a`; English
+layer `site/src/audit-english-template.mjs`, ordered source-text
+SHA-256 `29c75b0fb7b7d4c942f0199e03c231a20d751527b7973a1ab0bb91f9eea11172`.

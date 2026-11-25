@@ -802,3 +802,12 @@ test('bdi is partial inline text like span without bidi isolation, in English', 
   assert.match(bdi.limitations, /No bidirectional isolation/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(bdi[field], han, field);
 });
+
+test('template is partial: dropped with its inert contents, in English', async () => {
+  const { englishFeature } = await localisation();
+  const template = englishFeature(data.features.find(x => x.id === 'html.template'));
+  assert.equal(template.status, 'partial');
+  assert.match(template.scope, /inert HTML template fragment/);
+  assert.match(template.limitations, /shadowrootmode/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(template[field], han, field);
+});

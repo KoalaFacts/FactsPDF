@@ -508,6 +508,16 @@ Email and document builders put it on `html`, `body`, tables and paragraphs. `di
 `dir="auto"` and an empty `dir` still fail `FPDF1103`, and `[dir]` attribute selectors still fail
 `FPDF1203` (`DirLtrAttributeTests.cs`).
 
+`<template>` and everything inside it are dropped, as HTML treats template contents as an inert
+fragment that never renders: the PDF is byte-identical to the page without the element, in the
+head, in containers, lists and tables, and nested. Style elements and style attributes inside it
+are not compiled, and elements FactsPDF does not otherwise support may appear there. The contents
+must still tokenize: a `<` inside script text or an invalid character reference in an attribute
+fails as it would elsewhere. The end tag is required (`FPDF1101`), a template inside `title`
+fails `FPDF1101`, the contents still count toward `MaxElements` (`FPDF1002`), and a
+declarative shadow root (`shadowrootmode`), which browsers do render, fails `FPDF1103`
+(`TemplateElementTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
