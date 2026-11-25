@@ -1054,7 +1054,7 @@ pagination use the same renderer as explicit left/right. Default/no-CSS
 output bytes remain unchanged.
 
 Scope intentionally excludes RTL, bidirectional or vertical writing:
-`direction` other than its initial `ltr` (FPDF1202) and HTML `dir` are still rejected, and `text-align:start/end`
+`direction` other than its initial `ltr` (FPDF1202) and HTML `dir` other than `ltr` (FPDF1103) are still rejected, and `text-align:start/end`
 do not request either writing mode. Inline spans cannot specify start/end or justify;
 unknown/multi-token values such as `match-parent`, `justify-all` and
 `start end` fail `FPDF1202`, `direction:rtl` fails `FPDF1202`, inline alignment
