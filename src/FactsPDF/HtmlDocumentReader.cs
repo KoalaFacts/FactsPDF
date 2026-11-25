@@ -411,6 +411,10 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
                 throw new FactsPdfException("FPDF1101", "head must be at document level.", token.Offset);
+            // A stylesheet link fails as an unsupported style source wherever it appears.
+            if (name == "link")
+                foreach (var (attribute, value) in token.Attributes!)
+                    if (attribute == "rel") LinkRelations(value, token.Offset);
             if (name is "title" or "meta" or "link" && stack[^1].Name != "head")
                 throw new FactsPdfException("FPDF1101", "title/meta/link must be inside head.", token.Offset);
 
@@ -460,12 +464,8 @@ internal static class HtmlDocumentReader
                 }
                 // A link that only names a related resource (icon, canonical, alternate, preconnect,
                 // manifest) is never fetched or painted by a static render. A stylesheet link would
-                // change the render, and external resources are never loaded, so it still fails.
-                else if (name == "link" && attribute == "rel")
-                {
-                    LinkRelations(value, token.Offset);
-                    linkRel = true;
-                }
+                // change the render, and external resources are never loaded, so it fails FPDF1204 like @import.
+                else if (name == "link" && attribute == "rel") linkRel = true; // validated before placement
                 else if (name == "link" && attribute is "href" or "type" or "sizes" or "hreflang" or "crossorigin"
                     or "as" or "color" or "integrity" or "referrerpolicy") { }
                 else if (name == "img" && attribute is "src" or "alt") { }
@@ -618,6 +618,8 @@ internal static class HtmlDocumentReader
             if (rest.IsEmpty) break;
             var end = 0;
             while (end < rest.Length && !HtmlTokens.Space(rest[end])) end++;
+            if (rest[..end].Equals("stylesheet", StringComparison.OrdinalIgnoreCase))
+                throw new FactsPdfException("FPDF1204", "External stylesheets are not loaded; use a style element.", offset);
             if (!MetadataLinkTypes.Contains(rest[..end]))
                 throw new FactsPdfException("FPDF1103",
                     $"link rel '{rest[..end].ToString()}' is not supported; only metadata links (icon, canonical, alternate, preconnect, ...) are accepted.", offset);

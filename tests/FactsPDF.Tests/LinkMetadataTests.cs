@@ -6,7 +6,8 @@ namespace FactsPDF.Tests;
 // preconnect, manifest, preload) are never fetched or painted by a static render, so they are
 // accepted in head and change nothing (R5cl). Pages exported from CMSs and web apps carry a
 // favicon and a canonical link, and either failed the whole page with FPDF1102. Stylesheet links
-// still fail: external resources are never loaded, and ignoring one would change the render.
+// still fail (FPDF1204, like @import): external resources are never loaded, and ignoring one
+// would change the render.
 [TestFixture]
 public sealed class LinkMetadataTests
 {
@@ -36,9 +37,10 @@ public sealed class LinkMetadataTests
         Assert.That(with, Is.EqualTo(without));
     }
 
-    [TestCase("<head><link rel=stylesheet href=/site.css></head><p>A</p>", "FPDF1103")]
-    [TestCase("<head><link rel='alternate stylesheet' href=/print.css></head><p>A</p>", "FPDF1103")]
-    [TestCase("<head><link rel='icon STYLESHEET' href=/a></head><p>A</p>", "FPDF1103")]
+    [TestCase("<head><link rel=stylesheet href=/site.css></head><p>A</p>", "FPDF1204")]
+    [TestCase("<head><link rel='alternate stylesheet' href=/print.css></head><p>A</p>", "FPDF1204")]
+    [TestCase("<head><link rel='icon STYLESHEET' href=/a></head><p>A</p>", "FPDF1204")]
+    [TestCase("<body><link rel=stylesheet href=/a.css><p>A</p></body>", "FPDF1204")]
     [TestCase("<head><link rel=import href=/a></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><link href=/a></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><link rel='  ' href=/a></head><p>A</p>", "FPDF1103")]
