@@ -2223,14 +2223,14 @@
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "cd30113d3bb79bf1236da7de3b07edd1b3772967",
+      "last_audited_commit": "a677551843d8d9fecd817bd6d8392519f5afa09e",
       "last_audited_date": "2026-11-26",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/cd30113d3bb79bf1236da7de3b07edd1b3772967/tests/FactsPDF.Tests/ScriptElementTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/a677551843d8d9fecd817bd6d8392519f5afa09e/tests/FactsPDF.Tests/ScriptElementTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/cd30113d3bb79bf1236da7de3b07edd1b3772967/src/FactsPDF/HtmlTokens.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/cd30113d3bb79bf1236da7de3b07edd1b3772967/src/FactsPDF/Css/CssStylesheets.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/cd30113d3bb79bf1236da7de3b07edd1b3772967/tests/FactsPDF.Tests/ScriptElementTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/a677551843d8d9fecd817bd6d8392519f5afa09e/src/FactsPDF/HtmlTokens.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/a677551843d8d9fecd817bd6d8392519f5afa09e/src/FactsPDF/Css/CssStylesheets.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/a677551843d8d9fecd817bd6d8392519f5afa09e/tests/FactsPDF.Tests/ScriptElementTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

@@ -617,6 +617,6 @@ to partial: dropped with its inert contents (partial 239, rejected 127; 46 recor
 moves to partial: dropped with its data, never run (partial 241, rejected 125; 45 records). The `dir`
 attribute moves to partial: `ltr` is accepted on any element (partial 240, rejected 126).
 Current dataset SHA-256:
-`2a0202e805558614530e5f928b8339e28a4c62e64491a0245737dbb3df2e7698`; English
+`06638f84e1f210975a3953d44c33fd162b1d7a0584f313489a5acc945f141d0b`; English
 layer `site/src/audit-english-script.mjs`, ordered source-text
 SHA-256 `26366ff4c0b4903e5b44e4df05b3aada9a6a6e1bbd57c9d7d1c73dd42e881b04`.
