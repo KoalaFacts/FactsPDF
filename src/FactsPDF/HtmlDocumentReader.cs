@@ -22,10 +22,11 @@ internal static class HtmlDocumentReader
     // italic, as the HTML rendering section's user-agent sheet makes them. time and data have no
     // default style; their machine-readable datetime and value attributes are metadata only.
     // q is inline text wrapped in the quotation marks of the user-agent sheet's quotes:auto for
-    // English: curly double quotes, and curly single quotes for every nested q.
+    // English: curly double quotes, and curly single quotes for every nested q. bdi only isolates
+    // its text direction, and every run is laid out left to right, so it renders like span.
     internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
         or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
-        or "time" or "data" or "abbr" or "q";
+        or "time" or "data" or "abbr" or "q" or "bdi";
 
     // The quotation mark a q at this nesting level opens or closes (CSS quotes for English:
     // the outer pair, then the inner pair for every deeper level). Text in the built-in font

@@ -611,8 +611,9 @@ partial as body rows after the `tbody`; the `<table>` and `<thead>` limitations 
 containers like `div`, reusing the `<aside>` row's strings, so the ordered source text and the
 English layer are unchanged (partial 235, rejected 131; 50 records). `<menu>` moves to partial as a list exactly like `<ul>`
 with its own scope and limitation strings (partial 236, rejected 130; 49 records). `<q>` moves
-to partial inline text in quotation marks (partial 237, rejected 129; 48 records).
+to partial inline text in quotation marks (partial 237, rejected 129; 48 records). `<bdi>` moves
+to partial inline text like `span` (partial 238, rejected 128; 47 records).
 Current dataset SHA-256:
-`e081628e41557b530a2b3ff79460fdecc39ce9a54a34b4f2e901a296ee920c33`; English
-layer `site/src/audit-english-quote.mjs`, ordered source-text
-SHA-256 `cbd64977f57574930e3872396990e6af3eb650526f0837c103d1e3a30e3cf8a2`.
+`2627db74ff467dcd4d92b3ae86c5e51033b9f8c5ff0c92689a28b80129aa161f`; English
+layer `site/src/audit-english-bdi.mjs`, ordered source-text
+SHA-256 `d8df4604094ee95ebfd29c123b45ccc25379113d247e1cf375e54a3d8c1bd174`.
