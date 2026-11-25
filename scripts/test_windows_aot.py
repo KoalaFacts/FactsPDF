@@ -52,7 +52,7 @@ class WindowsAotTests(unittest.TestCase):
         with self.assertRaises(AssertionError): self.module.validate_pe(bad)
 
     def test_diagnostic_requires_exact_error_exit_and_empty_stdout(self):
-        message = (b"FPDF1102: Element 'script' is not supported in this development slice.\r\n"
+        message = (b"FPDF1102: Element 'video' is not supported in this development slice.\r\n"
                    b"Location: line 1, column 1.\r\n")
         self.module.validate_diagnostic(subprocess.CompletedProcess([], 3, b'', message))
         for code, out, error in [(0, b'', message), (3, b'%PDF', message),
