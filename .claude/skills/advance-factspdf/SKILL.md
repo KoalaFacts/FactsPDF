@@ -7,9 +7,7 @@ ledger: docs/mvp-roadmap.md
 # Advance FactsPDF
 
 This skill is the repo-specific half of the scheduled development task; the run
-loop is `agent-harness/skills/autonomous-dev`, and the owner's seed is
-`agent-harness/projects/factspdf.md`. Where this file and the seed differ, the
-stricter rule wins. The task keeps this file current through its own PRs. It may
+loop is `agent-harness/skills/autonomous-dev`. It was created from the owner's former seed `agent-harness/projects/factspdf.md`, which is retired (owner, 2026-11-25): every owner rule it held is in this file, and the scheduled task's prompt and this file are the project rules. The task keeps this file current through its own PRs. It may
 make rules stricter, never looser, and never relaxes the hard limits in the
 scheduled task's prompt.
 
