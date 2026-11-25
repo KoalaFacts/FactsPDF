@@ -609,8 +609,9 @@ to partial block containers like `div` (partial 232, rejected 134; 53 records). 
 partial as body rows after the `tbody`; the `<table>` and `<thead>` limitations drop `tfoot`
 (partial 233, rejected 133; 52 records). `<hgroup>` and `<search>` move to partial block
 containers like `div`, reusing the `<aside>` row's strings, so the ordered source text and the
-English layer are unchanged (partial 235, rejected 131; 50 records).
+English layer are unchanged (partial 235, rejected 131; 50 records). `<menu>` moves to partial as a list exactly like `<ul>`
+with its own scope and limitation strings (partial 236, rejected 130; 49 records).
 Current dataset SHA-256:
-`34e9eb1f1ae66b56b9c6dfc16907c501dbab5ea478970a9dfc1d37e7e690162d`; English
-layer `site/src/audit-english-table-footer.mjs`, ordered source-text
-SHA-256 `4cdd203577afc335d6e03536bab1d1dcf725a3ec45a9251851a559d4f2eb0114`.
+`45ba15b120417d49297f952660b9a6e9c506b35ea510eea2c3b7a232eab940fd`; English
+layer `site/src/audit-english-menu.mjs`, ordered source-text
+SHA-256 `edd674bb15056b88cb2a0f81adfa9a084a153e519246b700c518b0d0b725674e`.

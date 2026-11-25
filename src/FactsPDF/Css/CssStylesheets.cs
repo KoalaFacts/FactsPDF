@@ -311,7 +311,7 @@ internal sealed class CssStylesheets
         // measured paragraph/heading renderer, not a separate box approximation.
         // Direct inline, list and table declarations remain unsupported.
         var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
-            && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+            && !path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                 or "td" or "th" or "thead" or "tbody" or "tfoot");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
@@ -343,7 +343,7 @@ internal sealed class CssStylesheets
             if (declaration.Property == CssProperty.Display &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
-                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                 path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "display is supported only on ordinary report blocks outside lists and tables.", declaration.Offset);
@@ -352,7 +352,7 @@ internal sealed class CssStylesheets
             if (declaration.Property is (CssProperty.OutlineWidth or CssProperty.OutlineStyle
                     or CssProperty.OutlineColor or CssProperty.OutlineOffset) &&
                 (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
-                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                 path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
             {
                 // Resets such as a{outline:none}, img{outline:0} or button{outline:none}
@@ -375,7 +375,7 @@ internal sealed class CssStylesheets
                 or CssProperty.BorderBottomLeftRadius) &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
-                 path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                 path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "border-radius is supported only on ordinary report boxes outside lists and tables.", declaration.Offset);
@@ -387,7 +387,7 @@ internal sealed class CssStylesheets
                 var imageHeight = element.Name == "img";
                 var panelHeight = declaration.Property != CssProperty.MaxHeight
                     && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
-                    && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                    && !path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                         or "td" or "th" or "thead" or "tbody" or "tfoot");
                 if (!imageHeight && !panelHeight)
                     throw new FactsPdfException("FPDF1201",
@@ -398,12 +398,12 @@ internal sealed class CssStylesheets
             // must never be accepted as an unimplemented decoration.
             if (declaration.Property == CssProperty.BreakInside &&
                 (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
-                 || path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                 || path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "break-inside is supported only on ordinary report panels outside lists/tables.", declaration.Offset);
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
-                element.Name is not ("ol" or "ul" or "li"))
+                element.Name is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
             if (declaration.Property == CssProperty.VerticalAlign)
@@ -498,7 +498,7 @@ internal sealed class CssStylesheets
                 throw new FactsPdfException("FPDF1201", "text-align:justify/start/end cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
-                (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "li")))
+                (!HeadingKeep.IsHeading(element.Name) || path.Any(e => e.Name is "ol" or "ul" or "menu" or "li")))
                 throw new FactsPdfException("FPDF1201", "break-after:avoid is supported only on headings outside lists.", declaration.Offset);
             // Report panels have real outside-the-border vertical margins.
             // Validate all matching declarations, even losing ones. Vertical
@@ -512,7 +512,7 @@ internal sealed class CssStylesheets
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith('%') &&
-                path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
+                path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr" or "td" or "th"))
                 throw new FactsPdfException("FPDF1201",
                     "Percentage report-panel margins are not supported inside lists or tables.", declaration.Offset);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
@@ -525,7 +525,7 @@ internal sealed class CssStylesheets
             // List and table flows have distinct geometry; reject even losing candidates.
             if (paragraph && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith('%') &&
-                path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr" or "td" or "th"))
+                path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr" or "td" or "th"))
                 throw new FactsPdfException("FPDF1201",
                     "Percentage paragraph margins are not supported inside lists or tables.", declaration.Offset);
             // Forced page breaks on a whole report section must open/close
@@ -533,7 +533,7 @@ internal sealed class CssStylesheets
             // No break-inside, avoid for whole panels or list/table breaks.
             var panelPageBreak = declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
                 && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
-                && !path.Any(e => e.Name is "ol" or "ul" or "li" or "table" or "tr"
+                && !path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot");
             if (panelPageBreak && declaration.Value == "avoid")
                 throw new FactsPdfException("FPDF1202",
@@ -619,7 +619,7 @@ internal sealed class CssStylesheets
         var markerKind = element.Name switch
         {
             "ol" => ListMarkerKind.Decimal,
-            "ul" => ListMarkerKind.Disc,
+            "ul" or "menu" => ListMarkerKind.Disc,
             _ => parentBox.MarkerKind
         };
         // All of this element's declarations are applied to one private copy, made on the first
@@ -849,7 +849,7 @@ internal sealed class CssStylesheets
             or CssProperty.MarginBottom or CssProperty.MarginLeft;
         var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
             or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (!(margin && element is "ul" or "ol" or "table" or "br"
+        if (!(margin && element is "ul" or "menu" or "ol" or "table" or "br"
             || padding && element is "tr" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "br")) return false;
         return declaration.Value is "initial" or "unset"
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,

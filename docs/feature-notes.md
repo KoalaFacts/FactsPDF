@@ -1081,6 +1081,13 @@ new private software, human reference approval, CI and customer rights are separ
 
 ## Tables and lists
 
+### Menu lists
+
+`<menu>` renders exactly like `<ul>`: disc markers, the marker gutter, the
+two-level nesting limit (mixable with `ul`/`ol`), `list-style` and the CSS
+cascade, and pagination; every invalid shape fails with the same code as the
+`ul` spelling (`MenuElementTests.cs`). It adds no toolbar-menu semantics.
+
 ### Table footer rows
 
 A `<tfoot>` directly after the `tbody` holds one or more ordinary `td` rows,

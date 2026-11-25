@@ -316,7 +316,7 @@ internal static class HtmlTokens
     private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> KnownNames = new HashSet<string>([
         "a", "abbr", "address", "article", "aside", "b", "blockquote", "body", "br", "caption", "cite", "code", "col", "colgroup", "data", "dd", "del", "dfn", "div",
         "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "img",
-        "ins", "kbd", "li", "link", "main", "meta", "nav", "ol", "p", "pre", "s", "samp", "search", "section", "small", "span", "strong",
+        "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "s", "samp", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
         "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "href", "id", "lang", "name", "reversed",
         "rowspan", "src", "start", "type", "value", "width",

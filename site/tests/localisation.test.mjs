@@ -775,3 +775,12 @@ test('tfoot is a partial table footer of ordinary body rows, in English', async 
   assert.doesNotMatch(thead.limitations, /tfoot/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(tfoot[field], han, field);
 });
+
+test('menu is a partial list exactly like ul, in English', async () => {
+  const { englishFeature } = await localisation();
+  const menu = englishFeature(data.features.find(x => x.id === 'html.menu'));
+  assert.equal(menu.status, 'partial');
+  assert.match(menu.scope, /exactly like ul/);
+  assert.match(menu.limitations, /No toolbar-menu semantics/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(menu[field], han, field);
+});

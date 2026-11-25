@@ -96,7 +96,7 @@ internal sealed class ListLayout
         var widths = new Dictionary<(FontRole Role, int Scalar), double>();
         foreach (var child in Descendants(root.Children, cancellation))
         {
-            if (child is not BlockNode list || list.Name is not ("ol" or "ul")) continue;
+            if (child is not BlockNode list || list.Name is not ("ol" or "ul" or "menu")) continue;
             var maximum = 0d;
             // Both forward and reverse sequence positions advance for every
             // direct li, including marker-free items. Nested lists compute
@@ -133,7 +133,7 @@ internal sealed class ListLayout
                     // Preserve the legacy outside-marker attachment and bytes.
                     foreach (var descendant in Descendants(item.Children, cancellation))
                     {
-                        if (descendant is BlockNode { Name: "ol" or "ul" }) break;
+                        if (descendant is BlockNode { Name: "ol" or "ul" or "menu" }) break;
                         if (descendant is Paragraph leaf) { paragraph = leaf; break; }
                     }
                 }
