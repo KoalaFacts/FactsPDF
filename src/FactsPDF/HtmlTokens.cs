@@ -314,7 +314,7 @@ internal static class HtmlTokens
     // found here is returned without a substring or lower-casing copy; any other name falls back to
     // the copy. Names are ASCII (NameCharacter), so the ignore-case match equals ToLowerInvariant.
     private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> KnownNames = new HashSet<string>([
-        "a", "abbr", "address", "article", "aside", "b", "blockquote", "body", "br", "caption", "cite", "code", "col", "colgroup", "data", "dd", "del", "dfn", "div",
+        "a", "abbr", "address", "article", "aside", "b", "bdi", "blockquote", "body", "br", "caption", "cite", "code", "col", "colgroup", "data", "dd", "del", "dfn", "div",
         "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "img",
         "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
