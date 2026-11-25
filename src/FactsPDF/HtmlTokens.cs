@@ -342,7 +342,7 @@ internal static class HtmlTokens
         "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "script", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "template", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
         "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "href", "id", "lang", "name", "reversed",
-        "rowspan", "src", "start", "type", "value", "width",
+        "property", "rowspan", "src", "start", "type", "value", "width",
     ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
 
     private static string LowerName(string html, int start, int end) =>
