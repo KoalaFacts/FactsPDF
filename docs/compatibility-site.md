@@ -617,8 +617,10 @@ to partial: dropped with its inert contents (partial 239, rejected 127; 46 recor
 moves to partial: dropped with its data, never run (partial 241, rejected 125; 45 records). The `dir`
 attribute moves to partial: `ltr` is accepted on any element (partial 240, rejected 126).
 The `<meta>` row stays partial with a wider scope (named and Open Graph metadata accepted); its
-scope and limitation strings are replaced in place, so no count moves.
+scope and limitation strings are replaced in place, so no count moves. `<link>` moves to
+partial: metadata links accepted, stylesheet links still fail (partial 242, rejected 124; 44
+records).
 Current dataset SHA-256:
-`4cf10479d145b465a17ac63e2cf5cbf7f42793f98d258547ffd5c4c5867097ba`; English
-layer `site/src/audit-english-meta.mjs`, ordered source-text
-SHA-256 `69160811116fdba4811df5f5c83fdf31a468adb4a2219ef79385acf246df0b1d`.
+`b384ff07c0166535a6538cdff4161cbb00c10b95f5bc4d4a368546cfee43764c`; English
+layer `site/src/audit-english-link.mjs`, ordered source-text
+SHA-256 `9bef2dc93c3719702ea186a982116c3cff98abb00a159c8ae351495b9520b976`.

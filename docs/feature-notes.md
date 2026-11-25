@@ -536,6 +536,16 @@ title or document information. `name=color-scheme` and `supported-color-schemes`
 `itemprop` and `style` fail `FPDF1103`, and a meta outside the head fails `FPDF1101`
 (`MetaNameContentTests.cs`).
 
+`<link>` in the head is accepted when every `rel` type only names a related resource or a
+connection hint: `icon` (and `shortcut`, `apple-touch-icon`, `mask-icon`), `manifest`,
+`canonical`, `alternate`, `author`, `license`, `help`, `search`, `next`, `prev`, `me`, `pingback`,
+`amphtml`, `preconnect`, `dns-prefetch`, `prefetch`, `preload` and `modulepreload`. Nothing is
+fetched or painted, so the PDF is byte-identical to the page without it. `rel=stylesheet`
+(including `alternate stylesheet`) and unknown types fail `FPDF1103`, since external resources
+are never loaded and ignoring a stylesheet would change the render; a missing or empty `rel`,
+`media` and `style` fail `FPDF1103`; a link outside the head fails `FPDF1101`; links count toward
+`MaxElements` (`LinkMetadataTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
