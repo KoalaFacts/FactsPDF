@@ -69,7 +69,7 @@ internal sealed class CssStylesheets
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
-        var templates = 0; var templateOffset = -1;
+        var templates = 0; var templateOffset = -1; var insideTitle = false;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -82,6 +82,9 @@ internal sealed class CssStylesheets
                     continue;
                 }
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                // Title text is plain text in HTML, so markup there would show literally; reject it
+                // like any other element inside title instead of silently changing the title.
+                if (insideTitle) throw new FactsPdfException("FPDF1101", "template cannot be inside title.", item.Offset);
                 // A declarative shadow root is rendered by browsers, so dropping it would lose content.
                 if (item.Attributes!.ContainsKey("shadowrootmode"))
                     throw new FactsPdfException("FPDF1103", "Declarative shadow DOM (template shadowrootmode) is not supported.", item.Offset);
@@ -95,6 +98,8 @@ internal sealed class CssStylesheets
                 continue;
             }
             tokens.Add(item);
+            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title")
+                insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
             if (item.Kind == HtmlTokenKind.End) depth.Read(item);
             if (item.Kind == HtmlTokenKind.StyleText)
             {

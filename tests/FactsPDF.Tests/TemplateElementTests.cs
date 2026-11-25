@@ -64,6 +64,7 @@ public sealed class TemplateElementTests
     [TestCase("<p>A</p></template>", "FPDF1101", 8)]
     [TestCase("<template><p>B</p></template></template>", "FPDF1101", 29)]
     [TestCase("<p>A</p><template shadowrootmode=open><p>B</p></template>", "FPDF1103", 8)]
+    [TestCase("<head><title>Ti<template>x</template>tle</title></head>", "FPDF1101", 15)]
     [TestCase("<p>A</p><template><template ShadowRootMode='closed'></template></template>", "FPDF1103", 18)]
     public void UnbalancedOrShadowRootTemplatesFail(string html, string code, int offset)
     {
