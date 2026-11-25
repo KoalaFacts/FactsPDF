@@ -24,8 +24,8 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 ## Structure and placement
 
 - Tables are standalone blocks in the document/body or ordinary block containers. They cannot appear in paragraphs, headings, inline elements, list items or another table.
-- A table contains exactly one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, and exactly one `tbody` with at least one `tr`, in that order.
-- Every row covers the same explicit columns, using consecutive cells and optional `colspan`. Header rows contain `th`; body rows contain `td`. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
+- A table contains exactly one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, exactly one `tbody` with at least one `tr`, and optionally one `tfoot` with at least one `tr`, in that order.
+- Every row covers the same explicit columns, using consecutive cells and optional `colspan`. Header rows contain `th`; body and footer rows contain `td`. Footer rows are laid out, painted and paginated exactly like body rows placed after the `tbody` rows, once; they are not repeated on each fragment. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
 - Cells accept an ordered flat flow of text/inline runs, direct `p` paragraphs and direct images. Text uses `span`, `b/strong`, `i/em`, `br`. Lists, nested tables, headings/containers inside cells, captions and `rowspan` are unsupported.
 
 ## Widths, rows and paint
