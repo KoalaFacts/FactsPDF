@@ -619,6 +619,6 @@ attribute moves to partial: `ltr` is accepted on any element (partial 240, rejec
 The `<meta>` row stays partial with a wider scope (named and Open Graph metadata accepted); its
 scope and limitation strings are replaced in place, so no count moves.
 Current dataset SHA-256:
-`17a9be9bf78a3cc190317fdfd10ae8dbcc171778075d4a8d8bba0bc1836ca3ac`; English
+`4cf10479d145b465a17ac63e2cf5cbf7f42793f98d258547ffd5c4c5867097ba`; English
 layer `site/src/audit-english-meta.mjs`, ordered source-text
 SHA-256 `69160811116fdba4811df5f5c83fdf31a468adb4a2219ef79385acf246df0b1d`.

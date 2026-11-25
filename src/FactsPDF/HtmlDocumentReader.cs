@@ -452,8 +452,9 @@ internal static class HtmlDocumentReader
                 // standard name that changes the rendered canvas and text colours, so it still fails.
                 else if (name == "meta" && attribute is "name" or "property" or "content")
                 {
-                    if (attribute == "name" && (value.Equals("color-scheme", StringComparison.OrdinalIgnoreCase)
-                        || value.Equals("supported-color-schemes", StringComparison.OrdinalIgnoreCase)))
+                    // Trimmed, so a padded name fails rather than guessing whether a browser trims it.
+                    if (attribute == "name" && (value.AsSpan().Trim().Equals("color-scheme", StringComparison.OrdinalIgnoreCase)
+                        || value.AsSpan().Trim().Equals("supported-color-schemes", StringComparison.OrdinalIgnoreCase)))
                         throw new FactsPdfException("FPDF1103", "meta color-scheme is not supported.", token.Offset);
                 }
                 else if (name == "img" && attribute is "src" or "alt") { }

@@ -45,6 +45,8 @@ public sealed class MetaNameContentTests
     [TestCase("<head><meta name=color-scheme content=dark></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta name=COLOR-SCHEME content=\"light dark\"></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta name=supported-color-schemes content=\"light dark\"></head><p>A</p>", "FPDF1103")]
+    [TestCase("<head><meta name=' color-scheme ' content=dark></head><p>A</p>", "FPDF1103")]
+    [TestCase("<head><meta content=dark name=color-scheme></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta http-equiv=refresh content=5></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta itemprop=name content=A></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta name=viewport content=x style='color:red'></head><p>A</p>", "FPDF1103")]
