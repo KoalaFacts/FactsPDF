@@ -3,15 +3,15 @@ namespace FactsPDF;
 /// <summary>Strict E1 shape validation; no HTML table repair or implicit columns.</summary>
 internal sealed class TableMarkup(TableNode node)
 {
-    private enum Phase { NeedColumns, Columns, AfterColumns, Header, AfterHeader, Body, Complete }
+    private enum Phase { NeedColumns, Columns, AfterColumns, Header, AfterHeader, Body, Complete, Footer, AfterFooter }
     private Phase phase;
-    private int headerRows, bodyRows;
+    private int headerRows, bodyRows, footerRows;
     private int coveredColumns;
     private TableRow? row;
     internal TableNode Node { get; } = node;
     internal TableCell? Cell { get; private set; }
 
-    internal static bool IsTag(string name) => name is "table" or "colgroup" or "col" or "thead" or "tbody" or "tr" or "th" or "td";
+    internal static bool IsTag(string name) => name is "table" or "colgroup" or "col" or "thead" or "tbody" or "tfoot" or "tr" or "th" or "td";
 
     internal void CheckChild(string parent, string name, int offset)
     {
@@ -23,10 +23,11 @@ internal sealed class TableMarkup(TableNode node)
             {
                 "table" => name == "colgroup" && phase == Phase.NeedColumns
                     || name == "thead" && phase == Phase.AfterColumns
-                    || name == "tbody" && phase is Phase.AfterColumns or Phase.AfterHeader,
+                    || name == "tbody" && phase is Phase.AfterColumns or Phase.AfterHeader
+                    || name == "tfoot" && phase == Phase.Complete,
                 "colgroup" => name == "col" && Node.Columns.Count < 16,
                 "thead" => name == "tr" && headerRows == 0,
-                "tbody" => name == "tr",
+                "tbody" or "tfoot" => name == "tr",
                 "tr" => row is not null && name == (row.IsHeader ? "th" : "td")
                     && coveredColumns < Node.Columns.Count,
                 _ => false
@@ -42,10 +43,15 @@ internal sealed class TableMarkup(TableNode node)
             case "col": Node.Columns.Add(new(box.Width, offset)); break;
             case "thead": phase = Phase.Header; break;
             case "tbody": phase = Phase.Body; break;
+            // Footer rows are ordinary body rows placed after the tbody rows,
+            // where the source already puts them; they are not repeated per page.
+            case "tfoot": phase = Phase.Footer; break;
             case "tr":
                 coveredColumns = 0;
                 row = new(phase == Phase.Header, offset);
-                if (row.IsHeader) headerRows++; else bodyRows++;
+                if (row.IsHeader) headerRows++;
+                else if (phase == Phase.Footer) footerRows++;
+                else bodyRows++;
                 Node.Rows.Add(row);
                 break;
             case "td": case "th":
@@ -71,6 +77,9 @@ internal sealed class TableMarkup(TableNode node)
             case "tbody":
                 if (bodyRows == 0) throw Invalid("tbody requires at least one row.", offset);
                 phase = Phase.Complete; break;
+            case "tfoot":
+                if (footerRows == 0) throw Invalid("tfoot requires at least one row.", offset);
+                phase = Phase.AfterFooter; break;
             case "tr":
                 if (coveredColumns != Node.Columns.Count)
                     throw Invalid("Every table row must match the explicit column count.", offset);
@@ -82,7 +91,8 @@ internal sealed class TableMarkup(TableNode node)
                     Cell.Contents.Add(new TableCellText(new Paragraph(Cell.Style, Cell.SourceOffset)));
                 Cell = null; break;
             case "table":
-                if (phase != Phase.Complete) throw Invalid("table requires one colgroup and one nonempty tbody in order.", offset);
+                if (phase is not (Phase.Complete or Phase.AfterFooter))
+                    throw Invalid("table requires one colgroup and one nonempty tbody in order, then an optional tfoot.", offset);
                 break;
         }
     }
