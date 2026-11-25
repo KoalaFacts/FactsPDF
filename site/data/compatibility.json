@@ -1599,21 +1599,21 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "head 内只指向相关资源或连接提示的链接（icon、canonical、alternate、manifest、preconnect、dns-prefetch、preload 等）被接受，既不获取也不绘制，渲染与没有它时相同",
-      "limitations": "rel=stylesheet（包括 alternate stylesheet）与未知链接类型明确失败（FPDF1103：外部资源从不加载）；必须有非空 rel；不支持 media 与 style 属性；只能位于 head 内；计入元素上限",
+      "limitations": "rel=stylesheet（包括 alternate stylesheet）在页面任何位置都明确失败（FPDF1204，与 @import 相同：外部资源从不加载）；未知链接类型、空 rel、media 与 style 属性失败（FPDF1103）；只能位于 head 内；计入元素上限",
       "stage": "接受但不绘制",
       "applicability": "共享核心（CLI / .NET）",
       "example": "<link rel=\"icon\" href=\"/favicon.ico\">",
-      "failure_code": "FPDF1101 / FPDF1103",
+      "failure_code": "FPDF1101 / FPDF1103 / FPDF1204",
       "introduced_milestone": null,
       "introduced_pr": null,
       "introduced_release": null,
-      "last_audited_commit": "097f6f07c9a58c3ff195fca45d3495dcff79fb5e",
+      "last_audited_commit": "d3d77f1eccfcef1efcc99a56771bec60f9193c8f",
       "last_audited_date": "2026-11-26",
       "evidence_level": "源代码、单元测试与真实CLI PDF栅格核对；独立审查另行确认",
-      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/097f6f07c9a58c3ff195fca45d3495dcff79fb5e/tests/FactsPDF.Tests/LinkMetadataTests.cs",
+      "test_reference": "https://github.com/KoalaFacts/FactsPDF/blob/d3d77f1eccfcef1efcc99a56771bec60f9193c8f/tests/FactsPDF.Tests/LinkMetadataTests.cs",
       "sources": [
-        "https://github.com/KoalaFacts/FactsPDF/blob/097f6f07c9a58c3ff195fca45d3495dcff79fb5e/src/FactsPDF/HtmlDocumentReader.cs",
-        "https://github.com/KoalaFacts/FactsPDF/blob/097f6f07c9a58c3ff195fca45d3495dcff79fb5e/tests/FactsPDF.Tests/LinkMetadataTests.cs"
+        "https://github.com/KoalaFacts/FactsPDF/blob/d3d77f1eccfcef1efcc99a56771bec60f9193c8f/src/FactsPDF/HtmlDocumentReader.cs",
+        "https://github.com/KoalaFacts/FactsPDF/blob/d3d77f1eccfcef1efcc99a56771bec60f9193c8f/tests/FactsPDF.Tests/LinkMetadataTests.cs"
       ],
       "planning_bucket": "未指定",
       "parent_id": null

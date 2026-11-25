@@ -621,6 +621,6 @@ scope and limitation strings are replaced in place, so no count moves. `<link>` 
 partial: metadata links accepted, stylesheet links still fail (partial 242, rejected 124; 44
 records).
 Current dataset SHA-256:
-`b384ff07c0166535a6538cdff4161cbb00c10b95f5bc4d4a368546cfee43764c`; English
+`752d6c4ed0cb3badcdd9e201f3f58dbc0655aa69a722eab54d5d74068356a361`; English
 layer `site/src/audit-english-link.mjs`, ordered source-text
-SHA-256 `9bef2dc93c3719702ea186a982116c3cff98abb00a159c8ae351495b9520b976`.
+SHA-256 `99b1cae2426650b7ca752d9466bb3e61de1fa8455f61e06f214ea78c56950fd9`.

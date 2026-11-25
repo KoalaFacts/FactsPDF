@@ -541,8 +541,9 @@ connection hint: `icon` (and `shortcut`, `apple-touch-icon`, `mask-icon`), `mani
 `canonical`, `alternate`, `author`, `license`, `help`, `search`, `next`, `prev`, `me`, `pingback`,
 `amphtml`, `preconnect`, `dns-prefetch`, `prefetch`, `preload` and `modulepreload`. Nothing is
 fetched or painted, so the PDF is byte-identical to the page without it. `rel=stylesheet`
-(including `alternate stylesheet`) and unknown types fail `FPDF1103`, since external resources
-are never loaded and ignoring a stylesheet would change the render; a missing or empty `rel`,
+(including `alternate stylesheet`), anywhere in the page, fails `FPDF1204` like `@import`, since
+external resources are never loaded and ignoring a stylesheet would change the render; unknown
+types and a missing or empty `rel`,
 `media` and `style` fail `FPDF1103`; a link outside the head fails `FPDF1101`; links count toward
 `MaxElements` (`LinkMetadataTests.cs`).
 
