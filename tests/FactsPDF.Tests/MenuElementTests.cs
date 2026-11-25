@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 // HTML defines menu as a toolbar list with the same user-agent style as ul, so it renders
-// exactly like ul: disc markers, the list gutter, nesting limits, CSS and pagination (R5cd2).
+// exactly like ul: disc markers, the list gutter, nesting limits, CSS and pagination (R5ce).
 // Before, it failed FPDF1102.
 [TestFixture]
 public sealed class MenuElementTests

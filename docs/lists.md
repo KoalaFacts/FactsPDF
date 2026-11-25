@@ -1,6 +1,6 @@
 # Bounded lists (C2)
 
-The shared core accepts `ol`, `ul` and `li`, with at most two list levels. Ordered lists default to decimal markers starting at 1; unordered lists use filled discs. Existing .NET options and CLI font arguments are sufficient; no new public configuration is required.
+The shared core accepts `ol`, `ul` and `li`, with at most two list levels. Ordered lists default to decimal markers starting at 1; unordered lists use filled discs. `menu`, which HTML defines as a toolbar list with the same default style as `ul`, renders exactly like `ul` everywhere in this page, including nesting with `ul`/`ol` and CSS (`MenuElementTests.cs`); it adds no menu semantics. Existing .NET options and CLI font arguments are sufficient; no new public configuration is required.
 
 ```html
 <ol>
