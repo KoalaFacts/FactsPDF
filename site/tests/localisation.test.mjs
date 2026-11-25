@@ -793,3 +793,12 @@ test('q is partial inline text in quotation marks, in English', async () => {
   assert.match(q.limitations, /ASCII straight quotes/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(q[field], han, field);
 });
+
+test('bdi is partial inline text like span without bidi isolation, in English', async () => {
+  const { englishFeature } = await localisation();
+  const bdi = englishFeature(data.features.find(x => x.id === 'html.bdi'));
+  assert.equal(bdi.status, 'partial');
+  assert.match(bdi.scope, /Inline text like span/);
+  assert.match(bdi.limitations, /No bidirectional isolation/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(bdi[field], han, field);
+});

@@ -499,7 +499,8 @@ text that needs an italic font chain (`PhrasingElementTests.cs`); `<time datetim
 without a title is plain text (`AbbrElementTests.cs`). `<q>` wraps its inline text
 in curly double quotes (curly single quotes when nested), in the `q`'s own text
 style; normal text without a supplied font gets the ASCII `"` and `'`
-(`QuoteElementTests.cs`).
+(`QuoteElementTests.cs`). `<bdi>` renders like `<span>`; FactsPDF lays out every
+run left to right, so it isolates nothing (`BdiElementTests.cs`).
 
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML

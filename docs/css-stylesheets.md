@@ -244,7 +244,9 @@ never drawn; `AbbrElementTests.cs`). `q` is inline text wrapped in the English
 marks of the user-agent sheet's `quotes:auto` (curly double quotes, curly single
 quotes when nested), drawn in the `q`'s own text style; normal text with no
 supplied font uses the ASCII `"` and `'`, and `cite` is metadata only
-(`QuoteElementTests.cs`). `mark`, `sub` and `sup` still fail `FPDF1102`.
+(`QuoteElementTests.cs`). `bdi` renders like `span`: every run is laid out left
+to right, so it isolates nothing (`BdiElementTests.cs`). `mark`, `sub` and `sup`
+still fail `FPDF1102`.
 
 The [44-change source](../examples/report-inline-changes.html)
 and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)
@@ -2023,7 +2025,7 @@ percent padding still resolve against the original parent content width.
 `box-sizing:content-box` is the non-inherited default and preserves existing
 PDF bytes. `<html>` and inline text (`span`, `b`, `strong`, `i`, `em`,
 `small`, `u`, `s`, `del`, `ins`, `a`, `code`, `kbd`, `samp`, `var`, `cite`,
-`dfn`, `time`, `data`, `abbr`, `q`) also accept `box-sizing`, where it
+`dfn`, `time`, `data`, `abbr`, `q`, `bdi`) also accept `box-sizing`, where it
 changes nothing because no width or height applies there; on `<br>` it is
 validated and dropped (any other declaration on `<br>` still fails `FPDF1103`), so the universal
 resets `*{box-sizing:border-box}` and `html{box-sizing:border-box}
@@ -2260,7 +2262,7 @@ the page without them. Any other value, such as `body{margin:8px}` or
 `body{margin:0 auto}`, still fails `FPDF1201` (`RootZeroInsetTests`).
 
 Inline text (`span`, `b`, `strong`, `i`, `em`, `small`, `u`, `s`, `del`, `ins`,
-`a`, `code`, `kbd`, `samp`, `var`, `cite`, `dfn`, `time`, `data`, `abbr`, `q`) lays out no box of its own, so a zero margin or padding there (any zero
+`a`, `code`, `kbd`, `samp`, `var`, `cite`, `dfn`, `time`, `data`, `abbr`, `q`, `bdi`) lays out no box of its own, so a zero margin or padding there (any zero
 length, `initial` or `unset`, physical or logical longhands) and a
 transparent background (`background-color:transparent`, `background:none`,
 `background:transparent`, `initial`, `unset`) are validated and dropped too:
