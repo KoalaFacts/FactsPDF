@@ -204,7 +204,7 @@ internal static class BlockLayout
                         indivisibleClosingMargin,
                         DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0);
                     frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
-                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" ? 0.5 * node.Style.FontSize : 0, markerRight,
+                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" or "menu" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
                         ParagraphMarginBasis: node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                             ? containing : null));
