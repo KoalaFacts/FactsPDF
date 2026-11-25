@@ -41,6 +41,9 @@ public sealed class LinkMetadataTests
     [TestCase("<head><link rel='alternate stylesheet' href=/print.css></head><p>A</p>", "FPDF1204")]
     [TestCase("<head><link rel='icon STYLESHEET' href=/a></head><p>A</p>", "FPDF1204")]
     [TestCase("<body><link rel=stylesheet href=/a.css><p>A</p></body>", "FPDF1204")]
+    [TestCase("<ul><link rel=stylesheet href=/a.css><li>A</li></ul>", "FPDF1204")]
+    [TestCase("<table><tbody><link rel=stylesheet href=/a.css><tr><td>A</td></tr></tbody></table>", "FPDF1101")]
+    [TestCase("<head><link rel='unknown stylesheet' href=/a></head><p>A</p>", "FPDF1204")]
     [TestCase("<head><link rel=import href=/a></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><link href=/a></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><link rel='  ' href=/a></head><p>A</p>", "FPDF1103")]
@@ -66,7 +69,11 @@ public sealed class LinkMetadataTests
     {
         const string html = "<head><title>T</title><link rel=stylesheet href=/a.css></head><p>A</p>";
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, new MemoryStream(), Page))!;
-        Assert.That(ex.SourceOffset, Is.EqualTo(html.IndexOf("<link", StringComparison.Ordinal)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(ex.Code, Is.EqualTo("FPDF1204"));
+            Assert.That(ex.SourceOffset, Is.EqualTo(html.IndexOf("<link", StringComparison.Ordinal)));
+        });
     }
 
     [Test]

@@ -369,6 +369,11 @@ internal static class HtmlDocumentReader
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
+            // A stylesheet link fails as an unsupported style source wherever it appears, before
+            // any placement check.
+            if (name == "link")
+                foreach (var (attribute, value) in token.Attributes!)
+                    if (attribute == "rel") LinkRelations(value, token.Offset);
             if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "link" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && (table is not null || stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
@@ -411,10 +416,6 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
                 throw new FactsPdfException("FPDF1101", "head must be at document level.", token.Offset);
-            // A stylesheet link fails as an unsupported style source wherever it appears.
-            if (name == "link")
-                foreach (var (attribute, value) in token.Attributes!)
-                    if (attribute == "rel") LinkRelations(value, token.Offset);
             if (name is "title" or "meta" or "link" && stack[^1].Name != "head")
                 throw new FactsPdfException("FPDF1101", "title/meta/link must be inside head.", token.Offset);
 
@@ -608,6 +609,10 @@ internal static class HtmlDocumentReader
 
     private static void LinkRelations(string value, int offset)
     {
+        // Any stylesheet token decides the diagnosis, whatever other tokens come first.
+        foreach (var range in value.AsSpan().SplitAny(" \t\r\n\f"))
+            if (value.AsSpan()[range].Equals("stylesheet", StringComparison.OrdinalIgnoreCase))
+                throw new FactsPdfException("FPDF1204", "External stylesheets are not loaded; use a style element.", offset);
         var rest = value.AsSpan();
         var any = false;
         while (true)
@@ -618,8 +623,6 @@ internal static class HtmlDocumentReader
             if (rest.IsEmpty) break;
             var end = 0;
             while (end < rest.Length && !HtmlTokens.Space(rest[end])) end++;
-            if (rest[..end].Equals("stylesheet", StringComparison.OrdinalIgnoreCase))
-                throw new FactsPdfException("FPDF1204", "External stylesheets are not loaded; use a style element.", offset);
             if (!MetadataLinkTypes.Contains(rest[..end]))
                 throw new FactsPdfException("FPDF1103",
                     $"link rel '{rest[..end].ToString()}' is not supported; only metadata links (icon, canonical, alternate, preconnect, ...) are accepted.", offset);
