@@ -66,9 +66,34 @@ internal sealed class CssStylesheets
         // reference so far). Within the element limit, so an input that fails it early pays for
         // no more slots than it may hold.
         tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2));
+        // A template's contents are inert (HTML: a document fragment that is never rendered), so
+        // its tokens, style elements and style attributes are counted against the element limit
+        // and then dropped before any pass sees them; the page renders as if it were absent.
+        var templates = 0; var templateOffset = -1;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
+            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "template")
+            {
+                if (item.Kind == HtmlTokenKind.End)
+                {
+                    if (templates == 0) throw new FactsPdfException("FPDF1101", "Unexpected end tag 'template'.", item.Offset);
+                    templates--;
+                    continue;
+                }
+                if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                // A declarative shadow root is rendered by browsers, so dropping it would lose content.
+                if (item.Attributes!.ContainsKey("shadowrootmode"))
+                    throw new FactsPdfException("FPDF1103", "Declarative shadow DOM (template shadowrootmode) is not supported.", item.Offset);
+                if (templates++ == 0) templateOffset = item.Offset;
+                continue;
+            }
+            if (templates > 0)
+            {
+                if (item.Kind == HtmlTokenKind.Start && ++elements > options.MaxElements)
+                    throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                continue;
+            }
             tokens.Add(item);
             if (item.Kind == HtmlTokenKind.End) depth.Read(item);
             if (item.Kind == HtmlTokenKind.StyleText)
@@ -89,6 +114,7 @@ internal sealed class CssStylesheets
                 }
             }
         }
+        if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
         return sheet;
     }
     /// <summary>
