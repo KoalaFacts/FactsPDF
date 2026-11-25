@@ -502,6 +502,12 @@ style; normal text without a supplied font gets the ASCII `"` and `'`
 (`QuoteElementTests.cs`). `<bdi>` renders like `<span>`; FactsPDF lays out every
 run left to right, so it isolates nothing (`BdiElementTests.cs`).
 
+The HTML `dir="ltr"` attribute (any ASCII case) is accepted on every element and changes nothing:
+it names the only direction FactsPDF lays out, so the PDF is byte-identical to the page without it.
+Email and document builders put it on `html`, `body`, tables and paragraphs. `dir="rtl"`,
+`dir="auto"` and an empty `dir` still fail `FPDF1103`, and `[dir]` attribute selectors still fail
+`FPDF1203` (`DirLtrAttributeTests.cs`).
+
 `<template>` and everything inside it are dropped, as HTML treats template contents as an inert
 fragment that never renders: the PDF is byte-identical to the page without the element, in the
 head, in containers, lists and tables, and nested. Style elements and style attributes inside it
@@ -648,7 +654,7 @@ glyph X coordinates, font measurement, first-line indentation, wrapping and
 cross-page continuation follow the existing physical-alignment renderer.
 
 This applies through embedded stylesheets, inline declarations, normal
-cascade and inheritance; it does **not** add RTL, `direction` other than `ltr`, HTML `dir`,
+cascade and inheritance; it does **not** add RTL, `direction` other than `ltr`, HTML `dir` other than `ltr`,
 vertical writing, inline-span start/end alignment or full CSS Text behavior.
 Unsupported values and directions fail without replacing an existing PDF.
 Compare the [46-entry printable report](../examples/report-logical-text-align.html)
