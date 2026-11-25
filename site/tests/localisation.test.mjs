@@ -838,3 +838,12 @@ test('meta is partial: named and Open Graph metadata accepted, in English', asyn
   assert.match(meta.limitations, /color-scheme/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(meta[field], han, field);
 });
+
+test('link is partial: metadata links accepted, stylesheets still fail, in English', async () => {
+  const { englishFeature } = await localisation();
+  const link = englishFeature(data.features.find(x => x.id === 'html.link'));
+  assert.equal(link.status, 'partial');
+  assert.match(link.scope, /canonical/);
+  assert.match(link.limitations, /rel=stylesheet/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(link[field], han, field);
+});
