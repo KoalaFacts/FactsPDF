@@ -24,6 +24,8 @@ public sealed class DirLtrAttributeTests
     [TestCase("<table dir=ltr><colgroup><col style='width:236pt'></colgroup><tbody dir=ltr><tr dir=ltr><td dir=ltr>Cell</td></tr></tbody></table>",
         "<table><colgroup><col style='width:236pt'></colgroup><tbody><tr><td>Cell</td></tr></tbody></table>")]
     [TestCase("<p>Name: <bdi dir=ltr>Acme</bdi></p>", "<p>Name: <bdi>Acme</bdi></p>")]
+    [TestCase("<head><meta charset=utf-8 dir=ltr><title dir=ltr>T</title><style dir=LTR>p{color:#c00}</style></head><p dir=ltr>Invoice</p><hr dir=ltr>",
+        "<head><meta charset=utf-8><title>T</title><style>p{color:#c00}</style></head><p>Invoice</p><hr>")]
     public void LeftToRightRendersAsIfAbsent(string html, string without)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(without)));
 
@@ -31,6 +33,7 @@ public sealed class DirLtrAttributeTests
     [TestCase("<p dir=auto>A</p>")]
     [TestCase("<p dir>A</p>")]
     [TestCase("<html dir=rtl><p>A</p></html>")]
+    [TestCase("<style dir=rtl>p{}</style><p>A</p>")]
     public void OtherDirectionsStillFail(string html)
     {
         using var output = new MemoryStream();

@@ -186,7 +186,9 @@ internal sealed class CssStylesheets
                 var media = value.Trim().ToLowerInvariant();
                 if (media is not ("" or "all" or "print")) throw new FactsPdfException("FPDF1204", "Only empty/all/print style media are supported.", token.Offset);
             }
-            else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)))
+            // dir="ltr" is accepted on every element, as in the document reader (R5ci).
+            else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)
+                || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
     }
