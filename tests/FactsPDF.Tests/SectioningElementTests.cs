@@ -2,8 +2,8 @@ using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-// header, footer, main, nav and aside are sectioning blocks whose only user-agent style is
-// display:block, so they render exactly like div (R5by). Before, each failed FPDF1102.
+// header, footer, main, nav and aside (R5by), hgroup and search (R5cd) are blocks whose only
+// user-agent style is display:block, so they render exactly like div. Before, each failed FPDF1102.
 [TestFixture]
 public sealed class SectioningElementTests
 {
@@ -16,7 +16,7 @@ public sealed class SectioningElementTests
         return output.ToArray();
     }
 
-    private static readonly string[] Names = ["header", "footer", "main", "nav", "aside"];
+    private static readonly string[] Names = ["header", "footer", "main", "nav", "aside", "hgroup", "search"];
 
     [TestCaseSource(nameof(Names))]
     public void RendersLikeADiv(string name)
@@ -44,9 +44,22 @@ public sealed class SectioningElementTests
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
     }
 
+    [Test]
+    public void AHeadingGroupAndSearchRegionRenderLikeDivs()
+    {
+        const string source = "<hgroup><h1>Quarterly report</h1><p>Q3 2026</p></hgroup>" +
+            "<search><p>Filter: open invoices</p></search><p>Body</p>";
+        const string oracle = "<div><h1>Quarterly report</h1><p>Q3 2026</p></div>" +
+            "<div><p>Filter: open invoices</p></div><p>Body</p>";
+        Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
+    }
+
     [TestCase("<p><span><header>A</header></span></p>", "FPDF1101")]
     [TestCase("<footer>A</main>", "FPDF1101")]
     [TestCase("<nav href='x'>A</nav>", "FPDF1103")]
+    [TestCase("<p><span><hgroup>A</hgroup></span></p>", "FPDF1101")]
+    [TestCase("<search>A</hgroup>", "FPDF1101")]
+    [TestCase("<hgroup href='x'>A</hgroup>", "FPDF1103")]
     [TestCase("<mark>A</mark>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code)
     {

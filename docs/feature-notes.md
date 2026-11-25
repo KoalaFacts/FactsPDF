@@ -498,7 +498,7 @@ text that needs an italic font chain (`PhrasingElementTests.cs`); `<time datetim
 (`TimeDataElementTests.cs`); `<abbr title>` draws a dotted underline and `<abbr>`
 without a title is plain text (`AbbrElementTests.cs`).
 
-`<header>`, `<footer>`, `<main>`, `<nav>` and `<aside>` render exactly like
+`<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
 page; that is what `PageFurniture` / `--page-furniture` does
