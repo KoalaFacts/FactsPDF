@@ -496,7 +496,10 @@ font (no monospace face), and `<var>`, `<cite>` and `<dfn>` as italic inline
 text that needs an italic font chain (`PhrasingElementTests.cs`); `<time datetime>` and
 `<data value>` render as plain inline text, their attribute kept as metadata only
 (`TimeDataElementTests.cs`); `<abbr title>` draws a dotted underline and `<abbr>`
-without a title is plain text (`AbbrElementTests.cs`).
+without a title is plain text (`AbbrElementTests.cs`). `<q>` wraps its inline text
+in curly double quotes (curly single quotes when nested), in the `q`'s own text
+style; normal text without a supplied font gets the ASCII `"` and `'`
+(`QuoteElementTests.cs`).
 
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML

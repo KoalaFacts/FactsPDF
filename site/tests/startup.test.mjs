@@ -56,7 +56,7 @@ test('production template mounts the snapshot and reactive table without a load 
   query.value = 'FPDF1102';
   query.dispatchEvent(new window.Event('input', { bubbles: true }));
   await settled();
-  assert.equal(document.querySelector('.results-heading h2 span').textContent, '49');
+  assert.equal(document.querySelector('.results-heading h2 span').textContent, '48');
   assert.deepEqual([...document.querySelectorAll('tbody .feature-button')].map(node => node.textContent),
     filterFeatures(dataset.features, { q: 'FPDF1102' }).slice(0, 25).map(row => row.feature));
   assert.equal(document.querySelectorAll('tbody tr').length, 25);
@@ -180,11 +180,11 @@ test('cached empty state follows locale and route navigation after recovery', as
   assert.equal(document.querySelector('.empty h3').textContent,'No matching records');
   await navigate('#q=FPDF1102');
   assert.equal(document.querySelector('.empty'),null);
-  assert.equal(document.querySelector('.results-heading h2 span').textContent,'49');
-  assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 2 · 49 records/);
+  assert.equal(document.querySelector('.results-heading h2 span').textContent,'48');
+  assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 2 · 48 records/);
   assert.equal(document.querySelectorAll('tbody tr').length,25);
   document.querySelector('[aria-label="Next page"]').click();await settled();
-  assert.match(document.querySelector('.pagination').textContent,/Page 2 \/ 2 · 49 records/);
+  assert.match(document.querySelector('.pagination').textContent,/Page 2 \/ 2 · 48 records/);
   document.querySelector('.reset').click();await settled();
   assert.match(document.querySelector('.pagination').textContent,/Page 1 \/ 17 · 418 records/);
 });
