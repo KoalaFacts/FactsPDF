@@ -10,8 +10,10 @@ internal static class HtmlDocumentReader
     // header, footer, main, nav, aside and figcaption are blocks with no user-agent style beyond
     // display:block, so they render exactly like div, section and article; figure renders like
     // blockquote (the HTML user-agent sheet gives both the same margins).
+    // dl, dt and dd are blocks like div; dl adds the paragraph-like block margins and dd the start
+    // indent of the HTML user-agent sheet (see CssStylesheets).
     private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
-        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote" or "figure" or "figcaption" or "address";
+        or "main" or "nav" or "aside" or "body" or "html" or "ol" or "ul" or "li" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd";
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
 
@@ -366,11 +368,10 @@ internal static class HtmlDocumentReader
             // Quoted report panels reuse ordinary block layout, but may not
             // acquire unsupported list/table-cell nesting semantics.
             // figure has the same user-agent margins as blockquote and the same limits.
-            if (name is "blockquote" or "figure" && (table is not null ||
+            // dl and dd carry user-agent margins too, so they share those limits.
+            if (name is "blockquote" or "figure" or "dl" or "dd" && (table is not null ||
                 stack.Any(f => ListTag(f.Name) || f.Name == "li")))
-                throw new FactsPdfException("FPDF1101",
-                    name == "blockquote" ? "blockquote must be outside lists and tables."
-                        : "figure must be outside lists and tables.", token.Offset);
+                throw new FactsPdfException("FPDF1101", name + " must be outside lists and tables.", token.Offset);
             // Standalone void report separator, never a table/list/inline child.
             if (name == "hr" && (table is not null ||
                 stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) ||

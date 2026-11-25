@@ -513,6 +513,12 @@ renders as an indented block (`FigureElementTests.cs`).
 styles it; like `<em>` it needs an italic font chain, and CSS
 `font-style:normal` resets it (`AddressElementTests.cs`).
 
+`<dl>`, `<dt>` and `<dd>` render as block containers like `<div>`: `dl` with
+the default 8pt top and bottom margins and `dd` with a 24pt start indent
+(blockquote's scale), both overridable by CSS. The `</dt>` and `</dd>` end tags
+must be written, and like `blockquote`, `dl` and `dd` may not sit in a list or
+table (`DescriptionListElementTests.cs`).
+
 In an invoice, updated quote or service register, `<small>` renders a
 secondary note at 5/6 of its computed parent font size; `<u>` and
 `<ins>` underline, while `<s>` and `<del>` strike through changed text.
