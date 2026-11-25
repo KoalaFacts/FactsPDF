@@ -528,6 +528,14 @@ followed by `<script` (the double-escaped form, where a browser would not end th
 `</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is still
 unsupported.
 
+`<meta>` in the head accepts `charset=utf-8` and named metadata: `name` or `property` with
+`content` (viewport, description, author, generator, Open Graph `og:*`). A static render never
+reads it, so the PDF is byte-identical to the page without it, and it does not change the PDF
+title or document information. `name=color-scheme` and `supported-color-schemes` fail
+`FPDF1103`, since they change the canvas and text colours a browser paints; `http-equiv`,
+`itemprop` and `style` fail `FPDF1103`, and a meta outside the head fails `FPDF1101`
+(`MetaNameContentTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every

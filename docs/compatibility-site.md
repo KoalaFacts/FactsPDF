@@ -616,7 +616,9 @@ to partial inline text like `span` (partial 238, rejected 128; 47 records). `<te
 to partial: dropped with its inert contents (partial 239, rejected 127; 46 records). `<script>`
 moves to partial: dropped with its data, never run (partial 241, rejected 125; 45 records). The `dir`
 attribute moves to partial: `ltr` is accepted on any element (partial 240, rejected 126).
+The `<meta>` row stays partial with a wider scope (named and Open Graph metadata accepted); its
+scope and limitation strings are replaced in place, so no count moves.
 Current dataset SHA-256:
-`06638f84e1f210975a3953d44c33fd162b1d7a0584f313489a5acc945f141d0b`; English
-layer `site/src/audit-english-script.mjs`, ordered source-text
-SHA-256 `26366ff4c0b4903e5b44e4df05b3aada9a6a6e1bbd57c9d7d1c73dd42e881b04`.
+`17a9be9bf78a3cc190317fdfd10ae8dbcc171778075d4a8d8bba0bc1836ca3ac`; English
+layer `site/src/audit-english-meta.mjs`, ordered source-text
+SHA-256 `69160811116fdba4811df5f5c83fdf31a468adb4a2219ef79385acf246df0b1d`.
