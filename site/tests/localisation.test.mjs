@@ -784,3 +784,12 @@ test('menu is a partial list exactly like ul, in English', async () => {
   assert.match(menu.limitations, /No toolbar-menu semantics/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(menu[field], han, field);
 });
+
+test('q is partial inline text in quotation marks, in English', async () => {
+  const { englishFeature } = await localisation();
+  const q = englishFeature(data.features.find(x => x.id === 'html.q'));
+  assert.equal(q.status, 'partial');
+  assert.match(q.scope, /curly double quotes/);
+  assert.match(q.limitations, /ASCII straight quotes/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(q[field], han, field);
+});
