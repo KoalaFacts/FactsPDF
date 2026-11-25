@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0)
+        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0, bool quotationMarks = false)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -33,6 +33,11 @@ internal static class FontFixture
             map['a'] = 4;
             map['I'] = 5;
             map['.'] = 4;
+        }
+        if (quotationMarks)
+        {
+            // Curly double and single quotation marks, on distinct existing outlines.
+            map[0x201C] = 2; map[0x201D] = 3; map[0x2018] = 4; map[0x2019] = 5;
         }
         if (unicodeCaseSymbols)
         {

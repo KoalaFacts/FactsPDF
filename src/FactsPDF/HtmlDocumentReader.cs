@@ -21,9 +21,24 @@ internal static class HtmlDocumentReader
     // supplied font (FactsPDF has no generic monospace face, as for pre); var, cite and dfn are
     // italic, as the HTML rendering section's user-agent sheet makes them. time and data have no
     // default style; their machine-readable datetime and value attributes are metadata only.
+    // q is inline text wrapped in the quotation marks of the user-agent sheet's quotes:auto for
+    // English: curly double quotes, and curly single quotes for every nested q.
     internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
         or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
-        or "time" or "data" or "abbr";
+        or "time" or "data" or "abbr" or "q";
+
+    // The quotation mark a q at this nesting level opens or closes (CSS quotes for English:
+    // the outer pair, then the inner pair for every deeper level). Text in the built-in font
+    // (normal text with no supplied font chain) is ASCII-only, so it gets the ASCII marks.
+    private static string Quote(List<Frame> stack, bool open, PdfOptions options)
+    {
+        var outer = true;
+        for (var i = stack.Count - 2; i >= 0; i--)
+            if (stack[i].Name == "q") { outer = false; break; }
+        if (options.Fonts.Count == 0 && FontRoles.Role(stack[^1].Style) == FontRole.Normal)
+            return outer ? "\"" : "'";
+        return outer ? open ? "\u201C" : "\u201D" : open ? "\u2018" : "\u2019";
+    }
 
     /// <summary>
     /// The open elements the document reader will hold, replayed while the collecting pass reads
@@ -349,6 +364,7 @@ internal static class HtmlDocumentReader
                     Pop(); continue;
                 }
                 if (ParagraphTag(name) || Container(name)) Flush();
+                if (name == "q") Add(Quote(stack, open: false, options), stack[^1].Style);
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
@@ -431,7 +447,8 @@ internal static class HtmlDocumentReader
                 }
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 else if (name == "img" && attribute is "src" or "alt") { }
-                else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value") { }
+                else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
+                    || name == "q" && attribute == "cite") { }
                 else if (attribute == "title") titled = true;
                 else if (attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
@@ -510,6 +527,7 @@ internal static class HtmlDocumentReader
                 children.Add(box);
             }
             stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count));
+            if (name == "q") Add(Quote(stack, open: true, options), style);
             if (ParagraphTag(name))
             {
                 current = new Paragraph(style, token.Offset, RunCount(tokens, t + 1, name));
@@ -527,8 +545,8 @@ internal static class HtmlDocumentReader
         result.Children.TakeChildren(children, 0);
         return result;
     }
-    // The runs a paragraph element opened just before `start` will hold: one per text token and
-    // one per br until its end tag, or until a block start or end that closes or rejects it. The
+    // The runs a paragraph element opened just before `start` will hold: one per text token, one
+    // per br and one per q start or end tag (its quotation mark) until its end tag, or until a block start or end that closes or rejects it. The
     // count is exact for a well-formed paragraph and only sizes the run list, so an input that
     // fails later merely over-counts.
     private static int RunCount(List<HtmlToken> tokens, int start, string name)
@@ -542,7 +560,7 @@ internal static class HtmlDocumentReader
             var tag = token.Value;
             if (token.Kind == HtmlTokenKind.End && tag == name) break;
             if (ParagraphTag(tag) || Container(tag) || TableMarkup.IsTag(tag) || tag is "img" or "hr" or "style") break;
-            if (token.Kind == HtmlTokenKind.Start && tag == "br") count++;
+            if (token.Kind == HtmlTokenKind.Start && tag == "br" || tag == "q") count++;
         }
         return count;
     }
