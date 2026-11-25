@@ -751,3 +751,16 @@ test('address is a partial italic block like div, in English', async () => {
   assert.equal(english.stage, 'Semantics / rendering');
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(english[field], han, field);
 });
+
+test('dl, dt and dd are partial block containers like div, in English', async () => {
+  const { englishFeature } = await localisation();
+  const [dl, dt, dd] = ['html.dl', 'html.dt', 'html.dd'].map(id => englishFeature(data.features.find(x => x.id === id)));
+  for (const f of [dl, dt, dd]) {
+    assert.equal(f.status, 'partial');
+    assert.equal(f.stage, 'Semantics / rendering');
+    assert.match(f.limitations, /end tags cannot be omitted/);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(f[field], han, field);
+  }
+  assert.match(dl.scope, /8pt top and bottom margins/);
+  assert.match(dd.scope, /24pt start indent/);
+});

@@ -604,8 +604,9 @@ move from rejected to partial inline text (partial 212 to 218, rejected 154 to 1
 64 records). The `<header>`, `<footer>`, `<main>`, `<nav>` and `<aside>` rows move to partial
 block containers like `div` (partial 226, rejected 140; 59 records). `<figure>` moves to
 partial like `blockquote` and `<figcaption>` like `div` (partial 228, rejected 138; 57 records). `<address>` moves to partial as an
-italic block like `div` (partial 229, rejected 137; 56 records).
+italic block like `div` (partial 229, rejected 137; 56 records). `<dl>`, `<dt>` and `<dd>` move
+to partial block containers like `div` (partial 232, rejected 134; 53 records).
 Current dataset SHA-256:
-`3e8d13f32fb4d2b01bc45486e39b3596c23ee4b65f2097b3ee8736a674f0922b`; English
-layer `site/src/audit-english-address.mjs`, ordered source-text
-SHA-256 `4ee01de6cdaaaeb21ac199aac9ace5dd68d3d2e0057a1bbfa1de0c2ce553d64b`.
+`9c71899367c9c47d0e6f90bcd2cbba1baa5cc895b0ed280bcde081a1e928d5b8`; English
+layer `site/src/audit-english-description-list.mjs`, ordered source-text
+SHA-256 `bcc1ed8d6130682570fab4736558193f590f821d5cafc83cfe033ca2a97119b4`.
