@@ -447,6 +447,16 @@ internal static class HtmlDocumentReader
                     listReversed = true;
                 }
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
+                // Named and Open Graph metadata (viewport, description, author, generator, og:title)
+                // is document metadata a static page render never reads. color-scheme is the one
+                // standard name that changes the rendered canvas and text colours, so it still fails.
+                else if (name == "meta" && attribute is "name" or "property" or "content")
+                {
+                    // Trimmed, so a padded name fails rather than guessing whether a browser trims it.
+                    if (attribute == "name" && (value.AsSpan().Trim().Equals("color-scheme", StringComparison.OrdinalIgnoreCase)
+                        || value.AsSpan().Trim().Equals("supported-color-schemes", StringComparison.OrdinalIgnoreCase)))
+                        throw new FactsPdfException("FPDF1103", "meta color-scheme is not supported.", token.Offset);
+                }
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
                     || name == "q" && attribute == "cite") { }

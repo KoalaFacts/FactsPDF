@@ -829,3 +829,12 @@ test('script is partial: dropped with its data and never run, in English', async
   assert.match(script.limitations, /double-escaped/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(script[field], han, field);
 });
+
+test('meta is partial: named and Open Graph metadata accepted, in English', async () => {
+  const { englishFeature } = await localisation();
+  const meta = englishFeature(data.features.find(x => x.id === 'html.meta'));
+  assert.equal(meta.status, 'partial');
+  assert.match(meta.scope, /viewport/);
+  assert.match(meta.limitations, /color-scheme/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(meta[field], han, field);
+});
