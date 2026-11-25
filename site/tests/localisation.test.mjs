@@ -820,3 +820,12 @@ test('dir is partial: ltr accepted on any element, in English', async () => {
   assert.match(dir.limitations, /FPDF1103/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(dir[field], han, field);
 });
+
+test('script is partial: dropped with its data and never run, in English', async () => {
+  const { englishFeature } = await localisation();
+  const script = englishFeature(data.features.find(x => x.id === 'html.script'));
+  assert.equal(script.status, 'partial');
+  assert.match(script.scope, /No script runs/);
+  assert.match(script.limitations, /double-escaped/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(script[field], han, field);
+});

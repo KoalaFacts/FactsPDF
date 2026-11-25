@@ -112,8 +112,8 @@ public sealed class PdfWriterTests
         var file = Path.Combine(directory, "report.pdf");
         byte[] sentinel = [1, 2, 3];
         File.WriteAllBytes(file, sentinel);
-        Assert.Throws<FactsPdfException>(() => Pdf.Write().ToFile("<script>x</script>", file));
-        Assert.ThrowsAsync<FactsPdfException>(() => Pdf.Write().ToFileAsync("<script>x</script>", file));
+        Assert.Throws<FactsPdfException>(() => Pdf.Write().ToFile("<video>x</video>", file));
+        Assert.ThrowsAsync<FactsPdfException>(() => Pdf.Write().ToFileAsync("<video>x</video>", file));
         Assert.That(File.ReadAllBytes(file), Is.EqualTo(sentinel));
         Assert.That(Directory.GetFiles(directory), Is.EqualTo(new[] { file }));
     }
@@ -132,9 +132,9 @@ public sealed class PdfWriterTests
     public void FailedStreamWritesNothing()
     {
         using var stream = new MemoryStream();
-        Assert.Throws<FactsPdfException>(() => Pdf.Write().ToStream("<script>x</script>", stream));
+        Assert.Throws<FactsPdfException>(() => Pdf.Write().ToStream("<video>x</video>", stream));
         var buffer = new ArrayBufferWriter<byte>();
-        Assert.Throws<FactsPdfException>(() => Pdf.Write().ToBufferWriter("<script>x</script>", buffer));
+        Assert.Throws<FactsPdfException>(() => Pdf.Write().ToBufferWriter("<video>x</video>", buffer));
         Assert.That(stream.Length, Is.Zero);
         Assert.That(buffer.WrittenCount, Is.Zero);
     }

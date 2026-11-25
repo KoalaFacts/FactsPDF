@@ -147,7 +147,7 @@ public sealed class CliResourceGuidanceTests
     [Test]
     public void UnsupportedInputIsNotMisdiagnosedAsMissingResources()
     {
-        const string html = "<script>not supported</script>";
+        const string html = "<video>not supported</video>";
         using var expectedOutput = new MemoryStream();
         var expected = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, expectedOutput));
         var result = Run(["-", "-"], html);

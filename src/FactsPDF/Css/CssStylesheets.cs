@@ -69,7 +69,7 @@ internal sealed class CssStylesheets
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
-        var templates = 0; var templateOffset = -1; var insideTitle = false;
+        var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -95,6 +95,22 @@ internal sealed class CssStylesheets
             {
                 if (item.Kind == HtmlTokenKind.Start && ++elements > options.MaxElements)
                     throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                continue;
+            }
+            // FactsPDF runs no scripts, and a script element is never rendered (display:none in the
+            // HTML user-agent sheet), so it is counted against the element limit and dropped with
+            // its attributes; the tokenizer has already skipped its data (R5cj).
+            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "script")
+            {
+                if (item.Kind == HtmlTokenKind.End)
+                {
+                    if (!insideScript) throw new FactsPdfException("FPDF1101", "Unexpected end tag 'script'.", item.Offset);
+                    insideScript = false;
+                    continue;
+                }
+                if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                if (insideTitle) throw new FactsPdfException("FPDF1101", "script cannot be inside title.", item.Offset);
+                insideScript = true;
                 continue;
             }
             tokens.Add(item);

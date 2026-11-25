@@ -180,6 +180,29 @@ internal static class HtmlTokens
                 yield return new(HtmlTokenKind.StyleText, html[i..end], false, i);
                 i = end;
             }
+            else if (name == "script")
+            {
+                // Script data ends at the first "</script" followed by a delimiter, as in browsers,
+                // which also ignore a self-closing slash on script. FactsPDF runs no scripts, so the
+                // data is skipped and never becomes a token. "<!--" followed by "<script" would put
+                // a browser in the double-escaped state, where "</script>" does not end the element;
+                // that case fails instead of guessing where the element ends.
+                var end = i;
+                while (true)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    end = html.IndexOf("</script", end, StringComparison.OrdinalIgnoreCase);
+                    if (end < 0) throw Invalid("Unclosed script element.", start);
+                    var after = end + 8;
+                    if (after < html.Length && (Space(html[after]) || html[after] is '>' or '/')) break;
+                    end = after;
+                }
+                var data = html.AsSpan(i, end - i);
+                var comment = data.IndexOf("<!--", StringComparison.Ordinal);
+                if (comment >= 0 && data[comment..].Contains("<script", StringComparison.OrdinalIgnoreCase))
+                    throw Invalid("A nested '<script' after '<!--' inside script data is not supported.", i + comment);
+                i = end;
+            }
         }
     }
 
@@ -316,7 +339,7 @@ internal static class HtmlTokens
     private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> KnownNames = new HashSet<string>([
         "a", "abbr", "address", "article", "aside", "b", "bdi", "blockquote", "body", "br", "caption", "cite", "code", "col", "colgroup", "data", "dd", "del", "dfn", "div",
         "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "img",
-        "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "search", "section", "small", "span", "strong",
+        "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "script", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "template", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
         "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "href", "id", "lang", "name", "reversed",
         "rowspan", "src", "start", "type", "value", "width",
