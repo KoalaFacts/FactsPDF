@@ -62,7 +62,7 @@ internal static class HtmlDocumentReader
         {
             if (stopped || token.Kind is not (HtmlTokenKind.Start or HtmlTokenKind.End)) return;
             var name = token.Value;
-            if (name is "meta" or "br") return; // the reader skips them before its depth check
+            if (name is "meta" or "link" or "br") return; // the reader skips them before its depth check
             if (name is "style" or "img" or "hr" or "col")
             {
                 // Checked by the reader like any element, but never pushed.
@@ -349,7 +349,7 @@ internal static class HtmlDocumentReader
                 insideStyle = true; continue;
             }
             if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
-                || name is "img" or "hr" or "br" or "head" or "title" or "meta"))
+                || name is "img" or "hr" or "br" or "head" or "title" or "meta" or "link"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -369,7 +369,7 @@ internal static class HtmlDocumentReader
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
-            if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "col"))
+            if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "link" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && (table is not null || stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
@@ -407,12 +407,12 @@ internal static class HtmlDocumentReader
             if (ListTag(name) && stack.Count(f => ListTag(f.Name)) >= 2)
                 throw new FactsPdfException("FPDF1101", "Lists support at most two nested levels.", token.Offset);
             if (ListTag(name)) result.HasLists = true;
-            if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta")))
+            if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta" or "link")))
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
                 throw new FactsPdfException("FPDF1101", "head must be at document level.", token.Offset);
-            if (name is "title" or "meta" && stack[^1].Name != "head")
-                throw new FactsPdfException("FPDF1101", "title/meta must be inside head.", token.Offset);
+            if (name is "title" or "meta" or "link" && stack[^1].Name != "head")
+                throw new FactsPdfException("FPDF1101", "title/meta/link must be inside head.", token.Offset);
 
             var parent = stack[^1].Style;
             var parentBox = stack[^1].BoxStyle;
@@ -421,13 +421,14 @@ internal static class HtmlDocumentReader
             var columnSpan = 1;
             string? href = null;
             var titled = false;
+            var linkRel = false;
             int? listStart = null, listValue = null;
             var listReversed = false;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
                 {
-                    if (name is "head" or "title" or "meta" or "br")
+                    if (name is "head" or "title" or "meta" or "link" or "br")
                         throw new FactsPdfException("FPDF1103", "Styling this metadata/void element is not supported.", token.Offset);
                     // Declarations were parsed once during source collection.
                 }
@@ -457,6 +458,16 @@ internal static class HtmlDocumentReader
                         || value.AsSpan().Trim().Equals("supported-color-schemes", StringComparison.OrdinalIgnoreCase)))
                         throw new FactsPdfException("FPDF1103", "meta color-scheme is not supported.", token.Offset);
                 }
+                // A link that only names a related resource (icon, canonical, alternate, preconnect,
+                // manifest) is never fetched or painted by a static render. A stylesheet link would
+                // change the render, and external resources are never loaded, so it still fails.
+                else if (name == "link" && attribute == "rel")
+                {
+                    LinkRelations(value, token.Offset);
+                    linkRel = true;
+                }
+                else if (name == "link" && attribute is "href" or "type" or "sizes" or "hreflang" or "crossorigin"
+                    or "as" or "color" or "integrity" or "referrerpolicy") { }
                 else if (name == "img" && attribute is "src" or "alt") { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
                     || name == "q" && attribute == "cite") { }
@@ -481,6 +492,11 @@ internal static class HtmlDocumentReader
                 if (!styleOwned) { style = style with { }; styleOwned = true; }
                 style.Decoration = TextDecoration.Underline;
                 style.DecorationPattern = TextDecorationPattern.Dotted;
+            }
+            if (name == "link")
+            {
+                if (!linkRel) throw new FactsPdfException("FPDF1103", "link requires a rel attribute.", token.Offset);
+                continue;
             }
             if (name == "meta") continue;
             path.Add(CssElement.From(token));
@@ -582,6 +598,35 @@ internal static class HtmlDocumentReader
     // Bounded positive ASCII decimal list ordinals only. Reject signs,
     // zero, overflow and decimal/exponent spellings instead of silently
     // truncating or wrapping generated PDF marker text.
+    // Link types that name a related resource or a connection hint. None is fetched or painted when a
+    // page renders to paper; stylesheet (and anything unknown) still fails.
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> MetadataLinkTypes = new HashSet<string>([
+        "icon", "shortcut", "apple-touch-icon", "apple-touch-icon-precomposed", "mask-icon", "manifest", "canonical",
+        "alternate", "author", "license", "help", "search", "next", "prev", "me", "pingback", "amphtml",
+        "preconnect", "dns-prefetch", "prefetch", "preload", "modulepreload",
+    ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+
+    private static void LinkRelations(string value, int offset)
+    {
+        var rest = value.AsSpan();
+        var any = false;
+        while (true)
+        {
+            var start = 0;
+            while (start < rest.Length && HtmlTokens.Space(rest[start])) start++;
+            rest = rest[start..];
+            if (rest.IsEmpty) break;
+            var end = 0;
+            while (end < rest.Length && !HtmlTokens.Space(rest[end])) end++;
+            if (!MetadataLinkTypes.Contains(rest[..end]))
+                throw new FactsPdfException("FPDF1103",
+                    $"link rel '{rest[..end].ToString()}' is not supported; only metadata links (icon, canonical, alternate, preconnect, ...) are accepted.", offset);
+            any = true;
+            rest = rest[end..];
+        }
+        if (!any) throw new FactsPdfException("FPDF1103", "link requires a non-empty rel.", offset);
+    }
+
     private static int ParseListOrdinal(string value, int offset, CancellationToken cancellation)
     {
         var start = 0;
