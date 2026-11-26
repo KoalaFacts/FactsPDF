@@ -33,7 +33,7 @@ HTML attributes are decoded before matching. `~=` uses ASCII whitespace only;
 operands deliberately reject. Empty equality strings are valid.
 
 Supported attribute names are `id`, `class`, `title`, `lang`, `href`,
-`src`, `alt` and nonempty `data-*` names. Attribute names are
+`src`, `alt`, `hidden` and nonempty `data-*` names. Attribute names are
 ASCII-insensitive; attribute values with the `i` flag fold **ASCII letters
 only**, not arbitrary Unicode. All operators compose with supported type,
 class, ID, comma, descendant and direct-child selectors and contribute
@@ -2329,7 +2329,15 @@ destination bytes and position. The feature hides rendered output, not the
 original source data; it is not an information-security boundary for HTML
 input documents.
 
-**Excluded:** HTML `hidden`, CSS `visibility`/`opacity`, list/table row
+**HTML `hidden` attribute:** an empty `hidden` or `hidden="hidden"` (any ASCII
+case) on these same blocks is the user-agent rule `[hidden]{display:none}`: it
+sits below every author declaration, so the block is removed exactly as above
+unless author CSS sets `display:block` on it. `hidden="until-found"` and other
+values, and `hidden` on any other element (inline text, `html`/`body`, `img`,
+`hr`, lists, tables and blocks inside them) fail `FPDF1103`
+([`HiddenAttributeTests`](../tests/FactsPDF.Tests/HiddenAttributeTests.cs)).
+
+**Excluded:** CSS `visibility`/`opacity`, list/table row
 suppression, general `display` layout, flex/grid, CSS media queries, scripts,
 reflow or animations. See the
 [40-entry visible report](../examples/report-display-visibility.html),

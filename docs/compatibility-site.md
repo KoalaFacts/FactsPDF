@@ -619,8 +619,10 @@ attribute moves to partial: `ltr` is accepted on any element (partial 240, rejec
 The `<meta>` row stays partial with a wider scope (named and Open Graph metadata accepted); its
 scope and limitation strings are replaced in place, so no count moves. `<link>` moves to
 partial: metadata links accepted, stylesheet links still fail (partial 242, rejected 124; 44
-records).
+records). The `hidden` attribute moves to partial as `[hidden]{display:none}` on ordinary
+report blocks, the `display` row's limitation stops calling it unsupported and the attribute-selector row adds `hidden` (partial 243,
+rejected 123; its failure code is `FPDF1103`, so the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`752d6c4ed0cb3badcdd9e201f3f58dbc0655aa69a722eab54d5d74068356a361`; English
-layer `site/src/audit-english-link.mjs`, ordered source-text
-SHA-256 `99b1cae2426650b7ca752d9466bb3e61de1fa8455f61e06f214ea78c56950fd9`.
+`57b3a5b730db1ea0d43de702553eaac8af6d56ccb372227d2d867d4de998fc08`; English
+layer `site/src/audit-english-hidden.mjs`, ordered source-text
+SHA-256 `0324cda400c99bb50902855f987b5d5272fddfb615252a1291232abaaa937f95`.

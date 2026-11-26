@@ -354,7 +354,7 @@ internal sealed class CssStylesheets
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
-        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true)
+        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false)
     {
         Array.Clear(winners); var element = path[^1];
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
@@ -843,6 +843,11 @@ internal sealed class CssStylesheets
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
                 BoxWrites(element.Name), box);
+        // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
+        // declaration, so an author display:block still shows the element. Applied after the box cache
+        // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
+        if (hidden && winners[(int)CssProperty.Display] is null && !box.DisplayNone)
+            box = box with { DisplayNone = true };
         return (style, box);
     }
 

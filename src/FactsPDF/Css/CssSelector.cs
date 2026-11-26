@@ -135,7 +135,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                         throw CssTokens.Invalid("Expected an attribute name.", current.Offset);
                     var name = tokens[i++].Text.ToLowerInvariant();
                     var supported = name is "id" or "class" or "title" or "lang"
-                        or "href" or "src" or "alt"
+                        or "href" or "src" or "alt" or "hidden"
                         || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5;
                     if (!supported)
                         throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);

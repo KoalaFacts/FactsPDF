@@ -847,3 +847,15 @@ test('link is partial: metadata links accepted, stylesheets still fail, in Engli
   assert.match(link.limitations, /rel=stylesheet/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(link[field], han, field);
 });
+
+test('hidden attribute is partial: display:none on report blocks, in English', async () => {
+  const { englishFeature } = await localisation();
+  const hidden = englishFeature(data.features.find(x => x.id === 'attr.11'));
+  assert.equal(hidden.status, 'partial');
+  assert.match(hidden.scope, /\[hidden\]\{display:none\}/);
+  assert.match(hidden.limitations, /until-found/);
+  const display = englishFeature(data.features.find(x => x.id === 'css.display'));
+  assert.match(display.limitations, /attr\.11/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'selector.attribute')).limitations, /alt\/hidden and/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(hidden[field], han, field);
+});
