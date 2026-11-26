@@ -55,8 +55,11 @@ internal static class CssSyntaxAdapter
         }
     }
 
+    // hostSelectors are the selectors of the rule that holds the declarations, hostElement the
+    // element whose style attribute holds them; a table-part display value is checked against them.
     internal static CssDeclaration[] CompileKnownDeclarations(
-        IReadOnlyList<CssDeclarationNode> nodes, CssBudget budget)
+        IReadOnlyList<CssDeclarationNode> nodes, CssBudget budget,
+        CssSelector[]? hostSelectors = null, string? hostElement = null)
     {
         // One pooled scratch list per thread: shorthands expand into several declarations
         // (`border` into twelve), so a list sized to the nodes grew by doubling per declaration
@@ -675,10 +678,15 @@ internal static class CssSyntaxAdapter
                 // The report renderer supports suppression, not CSS display
                 // formatting contexts. CSS-wide initial/unset compute to
                 // inline and are deliberately rejected rather than faked.
-                if (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident ||
-                    token is not ("none" or "block"))
-                    throw new FactsPdfException("FPDF1202",
-                        "Report display supports only block and none.", tokenOffset);
+                // A table-part keyword passes only where every host the declarations
+                // can reach is the table part whose rendering it names; the cascade
+                // then drops it (CssStylesheets.TablePartDisplayError).
+                var displayError = valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
+                    ? "Report display supports only block and none."
+                    : token is "none" or "block" ? null
+                    : CssStylesheets.TablePartDisplayError(token, hostSelectors, hostElement);
+                if (displayError is not null)
+                    throw new FactsPdfException("FPDF1202", displayError, tokenOffset);
                 Emit(property, token, tokenOffset);
                 continue;
             }

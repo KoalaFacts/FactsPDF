@@ -868,3 +868,16 @@ test('href / target / rel is partial: target and hyperlink rel on a ignored, in 
   assert.match(row.limitations, /_new/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test('table parts accept the display value they already render, in English', async () => {
+  const { englishFeature } = await localisation();
+  const display = englishFeature(data.features.find(x => x.id === 'css.display'));
+  assert.equal(display.status, 'partial');
+  assert.match(display.limitations, /table-header-group on thead/);
+  assert.match(display.limitations, /table-footer-group on tfoot/);
+  const tfoot = englishFeature(data.features.find(x => x.id === 'html.tfoot'));
+  assert.match(tfoot.limitations, /table-row-group is accepted/);
+  assert.match(tfoot.limitations, /table-footer-group .* fails FPDF1202/);
+  for (const row of [display, tfoot])
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
