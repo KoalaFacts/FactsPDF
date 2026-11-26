@@ -33,7 +33,7 @@ HTML attributes are decoded before matching. `~=` uses ASCII whitespace only;
 operands deliberately reject. Empty equality strings are valid.
 
 Supported attribute names are `id`, `class`, `title`, `lang`, `href`,
-`src`, `alt` and nonempty `data-*` names. Attribute names are
+`src`, `alt`, `hidden` and nonempty `data-*` names. Attribute names are
 ASCII-insensitive; attribute values with the `i` flag fold **ASCII letters
 only**, not arbitrary Unicode. All operators compose with supported type,
 class, ID, comma, descendant and direct-child selectors and contribute

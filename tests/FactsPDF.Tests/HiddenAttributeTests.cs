@@ -34,6 +34,15 @@ public sealed class HiddenAttributeTests
     public void AuthorDisplayBlockOverridesHidden(string html, string without)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(without)));
 
+    // normalize.css and many resets repeat the user-agent rule as [hidden]{display:none}.
+    [TestCase("<style>[hidden]{display:none}</style><p>A</p><div hidden><p>B</p></div><p>C</p>",
+        "<style>[hidden]{display:none}</style><p>A</p><p>C</p>")]
+    [TestCase("<style>template,[hidden]{display:none}</style><p hidden>B</p><p>C</p>", "<p>C</p>")]
+    [TestCase("<style>[hidden]{display:block}</style><p hidden>B</p>", "<p>B</p>")]
+    [TestCase("<style>p[hidden=\"\"]{display:block}</style><p hidden>B</p>", "<p>B</p>")]
+    public void HiddenAttributeSelectorsMatch(string html, string without)
+        => Assert.That(Pdf(html), Is.EqualTo(Pdf(without)));
+
     [Test]
     public void HiddenElementsShareStylesWithVisibleOnesWithoutLeaking()
     {

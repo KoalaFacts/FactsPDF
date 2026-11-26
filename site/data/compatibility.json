@@ -9092,7 +9092,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "支持 [attr]、[attr=value]、[attr^=value] 前缀、[attr$=value] 后缀、[attr*=value] 子串、[attr~=value] 空白分词、[attr|=value] 语言前缀；比较可用 i(仅ASCII忽略大小写)/s(大小写敏感)旗标，默认严格大小写；在实际HTML解码属性上匹配并叠加类型/class/ID/逗号、后代/子代、specificity、!important及预算，真实改变多页PDF文字/边框/间距/显式图片。",
-      "limitations": "仅 id/class/title/lang/href/src/alt 和非空 data-* 属性名；空的非等值操作数、未知属性、!=、多旗标/未知旗标、拆散的运算符、伪类/兄弟组合/嵌套选择器均明确拒绝；i仅ASCII字母大小写折叠，不是Unicode或完整CSS Selectors；失败保留原PDF。",
+      "limitations": "仅 id/class/title/lang/href/src/alt/hidden 和非空 data-* 属性名；空的非等值操作数、未知属性、!=、多旗标/未知旗标、拆散的运算符、伪类/兄弟组合/嵌套选择器均明确拒绝；i仅ASCII字母大小写折叠，不是Unicode或完整CSS Selectors；失败保留原PDF。",
       "stage": "属性前缀/后缀/包含/词/语言匹配实际PDF渲染（源码）",
       "applicability": "共享核心（CLI / .NET）",
       "example": "p[data-status^=\"overdue\" i] { color: red }",
