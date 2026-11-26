@@ -2329,9 +2329,13 @@ rows), `tr{display:table-row}` and `td,th{display:table-cell}`.
 in browsers, which `tfoot` rows never do here. Every other pairing of these
 five keywords with an element (`thead{display:table-row-group}`,
 `p{display:table-cell}` …) fails `FPDF1202` with the same message and
-location as before. Unlike the other unknown values, these five keywords are
-checked against the element a rule matches, so a rule that matches no element
-changes nothing
+location as before. The value is checked while the stylesheet is parsed, like
+every other `display` value: it is accepted only in a `style` attribute of that
+table part, or in a rule whose every selector names that table part as its
+subject element (`thead`, `.table tfoot`, `td,th`). A rule whose subject has no
+element name (`.row{display:table-row}`, `*{…}`) or names another element fails
+`FPDF1202` even when it matches nothing, so the first error on a page is
+reported exactly as before
 ([`TablePartDisplayTests`](../tests/FactsPDF.Tests/TablePartDisplayTests.cs)).
 
 **Actual rendering:** The reader parses and validates a hidden block and all

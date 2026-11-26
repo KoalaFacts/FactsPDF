@@ -136,7 +136,7 @@ internal sealed class CssStylesheets
                 {
                     var css = styled.Attributes!["style"];
                     sheet.budget.Characters(css.Length, item.Offset);
-                    styled.InlineDeclarations = sheet.CompileStyleAttribute(css, item.StyleValueOffset, item.StyleOriginOffsets);
+                    styled.InlineDeclarations = sheet.CompileStyleAttribute(css, item.Value, item.StyleValueOffset, item.StyleOriginOffsets);
                 }
             }
         }
@@ -151,9 +151,11 @@ internal sealed class CssStylesheets
     /// page offset of every code unit is the value start plus a function of the text), so the
     /// replay produces the same declarations, charges the same declaration budget in the same
     /// order and fails at the same offsets. Values with character references keep their origin
-    /// map and are always compiled.
+    /// map and are always compiled. A table-part display value depends on the element too, so the
+    /// replay checks it against this element before charging its declaration, where compiling
+    /// would have rejected it.
     /// </summary>
-    private InlineStyle CompileStyleAttribute(string css, int valueOffset, int[]? originOffsets)
+    private InlineStyle CompileStyleAttribute(string css, string element, int valueOffset, int[]? originOffsets)
     {
         if (originOffsets is null && compiledStyles.TryGetValue(css, out var compiled))
         {
@@ -163,13 +165,15 @@ internal sealed class CssStylesheets
             for (var i = 0; i < declarations.Length; i++)
             {
                 budget.Token.ThrowIfCancellationRequested();
+                if (TablePartDisplay(declarations[i]) && TablePartDisplayError(declarations[i].Value, element) is { } displayError)
+                    throw new FactsPdfException("FPDF1202", displayError, declarations[i].Offset + shift);
                 var order = budget.Declaration(declarations[i].Offset + shift);
                 if (i == 0) firstOrder = order;
             }
             return new InlineStyle(declarations, shift, firstOrder);
         }
         var nodes = ParseSource(css, valueOffset, declarationsOnly: true, originOffsets).Declarations;
-        var output = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget);
+        var output = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget, hostElement: element);
         if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength)
             compiledStyles.Add(css, (output, valueOffset));
         return new InlineStyle(output, 0, 0);
@@ -336,7 +340,7 @@ internal sealed class CssStylesheets
             if (qualified.Contents.Any(x => x is not CssDeclarationNode))
                 throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", rule.Span.Start);
             var declarations = CssSyntaxAdapter.CompileKnownDeclarations(
-                qualified.Contents.OfType<CssDeclarationNode>().ToArray(), budget);
+                qualified.Contents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
             foreach (var selector in selectors)
             {
                 var entry = new Rule(selector, declarations);
@@ -370,7 +374,7 @@ internal sealed class CssStylesheets
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
             budget.Work(declaration.Offset);
-            if (TablePartDisplay(element.Name, declaration)) return;
+            if (TablePartDisplay(declaration)) return;
             // baseline is the initial value. Outside cells inline text (and a br or img) already
             // sits on its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
@@ -884,24 +888,42 @@ internal sealed class CssStylesheets
                 allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
     }
 
-    // Report stylesheets restate the table-part display values. Where the value names what the table
-    // already lays out it is dropped: the single thead row repeats on every fragment
-    // (table-header-group), tbody and tfoot rows are placed once in source order (table-row-group),
-    // and rows and cells are table-row and table-cell. table-footer-group would repeat the footer at
-    // the foot of every fragment, which tfoot rows never do, so it fails; so does every table keyword
-    // on any other element, exactly as when the syntax adapter rejected them all.
-    private static bool TablePartDisplay(string element, CssDeclaration declaration)
+    // Report stylesheets restate the table-part display values. A value that names what the table
+    // already lays out is accepted and dropped in the cascade: the single thead row repeats on every
+    // fragment (table-header-group), tbody and tfoot rows are placed once in source order
+    // (table-row-group), and rows and cells are table-row and table-cell. It is accepted only when
+    // the declaration can reach nothing else: a style attribute of that element, or a rule whose
+    // every selector names that element as its subject. Otherwise the syntax adapter rejects it while
+    // parsing, with the message, location and order every other display value has.
+    // table-footer-group would repeat the footer at the foot of every fragment, which tfoot rows
+    // never do, so it fails.
+    internal static string? TablePartDisplayError(string value, CssSelector[]? selectors, string? element)
     {
-        if (declaration.Property != CssProperty.Display || declaration.Value is "none" or "block") return false;
-        if ((element, declaration.Value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
-            or ("tr", "table-row") or ("td" or "th", "table-cell"))
-            return true;
-        if (element == "tfoot" && declaration.Value == "table-footer-group")
-            throw new FactsPdfException("FPDF1202",
-                "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported.",
-                declaration.Offset);
-        throw new FactsPdfException("FPDF1202", "Report display supports only block and none.", declaration.Offset);
+        if (element is not null) return TablePartDisplayError(value, element);
+        if (selectors is not { Length: > 0 }) return UnsupportedDisplay;
+        foreach (var selector in selectors)
+        {
+            var error = selector.Rightmost.Type is { } type ? TablePartDisplayError(value, type) : UnsupportedDisplay;
+            if (error is not null) return error;
+        }
+        return null;
     }
+
+    private const string UnsupportedDisplay = "Report display supports only block and none.";
+
+    private static string? TablePartDisplayError(string value, string element)
+    {
+        var host = element.ToLowerInvariant();
+        if ((host, value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
+            or ("tr", "table-row") or ("td" or "th", "table-cell"))
+            return null;
+        return (host, value) is ("tfoot", "table-footer-group")
+            ? "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported."
+            : UnsupportedDisplay;
+    }
+
+    private static bool TablePartDisplay(CssDeclaration declaration) =>
+        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block");
 
     // A zero margin is the initial value on list items and on table rows, row groups, columns,
     // column groups and cells (where CSS 2.1 §8.3 margins do not apply at all), so *{margin:0}

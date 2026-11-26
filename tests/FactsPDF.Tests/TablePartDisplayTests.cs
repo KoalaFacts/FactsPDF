@@ -67,6 +67,13 @@ public sealed class TablePartDisplayTests
     [TestCase("thead{display:initial}", "initial", "FPDF1202")]
     [TestCase("td{display:block}", "block", "FPDF1201")]
     [TestCase("tfoot{display:none}", "none", "FPDF1201")]
+    [TestCase("h3{display:table-cell}", "table-cell", "FPDF1202")]
+    [TestCase(".row{display:table-row}", "table-row", "FPDF1202")]
+    [TestCase("*{display:table-cell}", "table-cell", "FPDF1202")]
+    [TestCase("td,p{display:table-cell}", "table-cell", "FPDF1202")]
+    [TestCase("p{display:table-cell}h2{display:table-row}", "table-cell", "FPDF1202")]
+    [TestCase("h2{display:table-cell}p{color:notacolour}", "table-cell", "FPDF1202")]
+    [TestCase("td{display:table-cell;display:inline}", "inline", "FPDF1202")]
     public void OtherDisplayValuesStillFailWithoutOutput(string css, string at, string code)
     {
         var html = Doc(css);
@@ -75,6 +82,22 @@ public sealed class TablePartDisplayTests
         Assert.That(error!.Code, Is.EqualTo(code), css);
         Assert.That(output.Length, Is.Zero);
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(at, StringComparison.Ordinal)), css);
+    }
+
+    // A style text compiled once for a cell is replayed for later elements; the replay still checks
+    // the element, and a table keyword fails before any later declaration in the same attribute.
+    [TestCase("<p style='display:table-cell'>Paid</p>", "display:table-cell'>Paid")]
+    [TestCase("<p style='display:table-cell;color:notacolour'>Paid</p>", "display:table-cell;")]
+    public void InlineTableKeywordsOnOtherElementsStillFail(string paragraph, string at)
+    {
+        var html = Doc("").Replace("<p>Paid in full</p>", paragraph, StringComparison.Ordinal)
+            .Replace("<td>Line 1</td>", "<td style='display:table-cell'>Line 1</td>", StringComparison.Ordinal);
+        using var output = new MemoryStream();
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, Page));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
+        Assert.That(error.Message, Does.Contain("only block and none"));
+        Assert.That(output.Length, Is.Zero);
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(at, StringComparison.Ordinal) + "display:".Length));
     }
 
     [Test]
