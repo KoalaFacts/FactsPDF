@@ -341,7 +341,7 @@ internal static class HtmlTokens
         "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "img",
         "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "script", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "template", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
-        "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "href", "id", "lang", "name", "reversed",
+        "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "hidden", "href", "id", "lang", "name", "reversed",
         "property", "rel", "rowspan", "src", "start", "type", "value", "width",
     ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
 

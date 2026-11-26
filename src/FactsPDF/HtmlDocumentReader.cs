@@ -426,6 +426,7 @@ internal static class HtmlDocumentReader
             var columnSpan = 1;
             string? href = null;
             var titled = false;
+            var hidden = false;
             var linkRel = false;
             int? listStart = null, listValue = null;
             var listReversed = false;
@@ -475,6 +476,18 @@ internal static class HtmlDocumentReader
                 // Every run is laid out left to right, so the left-to-right direction is already in
                 // effect; any other direction (rtl, auto) still fails below.
                 else if (attribute == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)) { }
+                // The user-agent rule [hidden]{display:none}: accepted only where display:none is
+                // (ordinary report blocks outside lists and tables); until-found would need find-in-page.
+                else if (attribute == "hidden")
+                {
+                    if (value.Length != 0 && !value.Equals("hidden", StringComparison.OrdinalIgnoreCase))
+                        throw new FactsPdfException("FPDF1103", "hidden accepts only an empty boolean attribute or 'hidden'.", token.Offset);
+                    if (!(ParagraphTag(name) || Container(name) && name is not ("body" or "html" or "ol" or "ul" or "menu" or "li"))
+                        || table is not null || stack.Any(f => ListTag(f.Name) || f.Name == "li"))
+                        throw new FactsPdfException("FPDF1103",
+                            "hidden is supported only on ordinary report blocks outside lists and tables.", token.Offset);
+                    hidden = true;
+                }
                 else if (attribute == "title") titled = true;
                 else if (attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
@@ -504,7 +517,7 @@ internal static class HtmlDocumentReader
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
-                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br");
+                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "html") rootFontSize = style.FontSize;
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
