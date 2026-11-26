@@ -675,8 +675,12 @@ internal static class CssSyntaxAdapter
                 // The report renderer supports suppression, not CSS display
                 // formatting contexts. CSS-wide initial/unset compute to
                 // inline and are deliberately rejected rather than faked.
+                // The table-part keywords pass through only so the cascade can
+                // drop them where they name what the table already renders
+                // (CssStylesheets.TablePartDisplay); everywhere else they fail.
                 if (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident ||
-                    token is not ("none" or "block"))
+                    token is not ("none" or "block" or "table-header-group" or "table-row-group"
+                        or "table-footer-group" or "table-row" or "table-cell"))
                     throw new FactsPdfException("FPDF1202",
                         "Report display supports only block and none.", tokenOffset);
                 Emit(property, token, tokenOffset);

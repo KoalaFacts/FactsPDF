@@ -370,6 +370,7 @@ internal sealed class CssStylesheets
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
             budget.Work(declaration.Offset);
+            if (TablePartDisplay(element.Name, declaration)) return;
             // baseline is the initial value. Outside cells inline text (and a br or img) already
             // sits on its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
@@ -881,6 +882,25 @@ internal sealed class CssStylesheets
                 or CssProperty.PaddingBottom or CssProperty.PaddingLeft
             && CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
                 allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
+    }
+
+    // Report stylesheets restate the table-part display values. Where the value names what the table
+    // already lays out it is dropped: the single thead row repeats on every fragment
+    // (table-header-group), tbody and tfoot rows are placed once in source order (table-row-group),
+    // and rows and cells are table-row and table-cell. table-footer-group would repeat the footer at
+    // the foot of every fragment, which tfoot rows never do, so it fails; so does every table keyword
+    // on any other element, exactly as when the syntax adapter rejected them all.
+    private static bool TablePartDisplay(string element, CssDeclaration declaration)
+    {
+        if (declaration.Property != CssProperty.Display || declaration.Value is "none" or "block") return false;
+        if ((element, declaration.Value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
+            or ("tr", "table-row") or ("td" or "th", "table-cell"))
+            return true;
+        if (element == "tfoot" && declaration.Value == "table-footer-group")
+            throw new FactsPdfException("FPDF1202",
+                "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported.",
+                declaration.Offset);
+        throw new FactsPdfException("FPDF1202", "Report display supports only block and none.", declaration.Offset);
     }
 
     // A zero margin is the initial value on list items and on table rows, row groups, columns,

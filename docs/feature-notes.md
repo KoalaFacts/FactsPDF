@@ -1144,7 +1144,8 @@ A `<tfoot>` directly after the `tbody` holds one or more ordinary `td` rows,
 such as an invoice's total. They render exactly like the same rows appended
 to the `tbody`: once, after the body rows, with the same cascade, inheritance
 (`tfoot{color:…}`, `tfoot td{…}`) and pagination. They are not repeated on
-each page fragment. `th` cells and a `tfoot` before the `tbody` fail with
+each page fragment, so `tfoot{display:table-row-group}` is accepted and changes
+nothing while `tfoot{display:table-footer-group}` fails `FPDF1202`. `th` cells and a `tfoot` before the `tbody` fail with
 `FPDF1101` (`TableFooterElementTests.cs`).
 
 ### Font-relative padding for fixed-column invoice cells (candidate)
@@ -1334,7 +1335,12 @@ and input budgets are **still checked inside hidden markup**; this is not
 a validator bypass. The HTML `hidden` attribute (empty or `hidden`) on the same
 blocks is the user-agent rule `[hidden]{display:none}`, so it removes the block
 unless author CSS sets `display:block`; `until-found` and `hidden` anywhere else
-fail `FPDF1103` (`HiddenAttributeTests.cs`). CSS-wide display keywords,
+fail `FPDF1103` (`HiddenAttributeTests.cs`). Table parts accept the display
+value that names what they already render and change nothing:
+`thead{display:table-header-group}`, `tbody`/`tfoot{display:table-row-group}`,
+`tr{display:table-row}` and `td,th{display:table-cell}`;
+`tfoot{display:table-footer-group}` (a footer repeated on every fragment) and
+any other pairing still fail `FPDF1202` (`TablePartDisplayTests.cs`). CSS-wide display keywords,
 inline/flex/grid layout, image/`hr`/table/list suppression, JavaScript and
 media-query display switches are not supported.
 
