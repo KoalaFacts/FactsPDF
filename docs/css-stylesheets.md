@@ -200,7 +200,9 @@ breaks and in permitted flat table-cell text. This does not add CSS properties
 or element applicability. `text-align:justify/start/end` on an inline anchor
 is rejected rather than silently applied. The single supported destination
 contract is HTTPS (ASCII, no credentials) or plain single mailto, max 2048
-characters; unsupported URLs and extra anchor attributes fail explicitly.
+characters; unsupported URLs and extra anchor attributes fail explicitly, except
+`target` and hyperlink `rel` types, which are validated and ignored
+(`AnchorTargetRelTests.cs`).
 
 See [report link example](../examples/report-clickable-orders.html),
 `ReportHyperlinksTests.cs` and `verify_stylesheets.py`. Implementation source

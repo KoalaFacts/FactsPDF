@@ -1250,8 +1250,12 @@ DNS-style labels (not a quoted mailbox, address literal, path or port), without
 query parameters. URL length is limited to 2048 characters, percent escapes
 must be well formed. An invalid/relative/HTTP/file/JavaScript URL or missing
 `href` fails `FPDF1103` without replacing an existing PDF. Nested anchors,
-block descendants and general DOM navigation fail; clickable linked images,
-`target`, `download`, fragments, local-page destinations and full HTML anchor
+block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
+`_parent`, `_top` or a name) and hyperlink `rel` types (`noopener`, `noreferrer`,
+`nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a
+PDF link always opens outside the document; an empty or other underscore `target`
+and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`).
+Clickable linked images, `download`, fragments, local-page destinations and full HTML anchor
 semantics are not implemented. Links are external PDF actions, not embedded
 content or a claim that target addresses are trusted.
 

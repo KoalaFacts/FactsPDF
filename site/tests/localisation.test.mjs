@@ -859,3 +859,12 @@ test('hidden attribute is partial: display:none on report blocks, in English', a
   assert.match(englishFeature(data.features.find(x => x.id === 'selector.attribute')).limitations, /alt\/hidden and/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(hidden[field], han, field);
 });
+
+test('href / target / rel is partial: target and hyperlink rel on a ignored, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'attr.12'));
+  assert.equal(row.status, 'partial');
+  assert.match(row.scope, /noopener/);
+  assert.match(row.limitations, /_new/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
