@@ -440,6 +440,10 @@ internal static class HtmlDocumentReader
                 }
                 else if (attribute == "href" && name == "a")
                     href = PdfLinkAnnotations.ValidateUri(value, token.Offset);
+                // A PDF link annotation always opens its URI outside the document, so the browsing
+                // context (target) and the hyperlink relations (noopener, nofollow, ...) change nothing.
+                else if (name == "a" && attribute == "target") AnchorTarget(value, token.Offset);
+                else if (name == "a" && attribute == "rel") AnchorRelations(value, token.Offset);
                 else if (attribute == "colspan" && name is "td" or "th")
                     columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count, token.Offset, cancellation);
                 else if (attribute == "start" && name == "ol")
@@ -619,6 +623,34 @@ internal static class HtmlDocumentReader
         "alternate", "author", "license", "help", "search", "next", "prev", "me", "pingback", "amphtml",
         "preconnect", "dns-prefetch", "prefetch", "preload", "modulepreload",
     ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> HyperlinkTypes = new HashSet<string>([
+        "noopener", "noreferrer", "nofollow", "opener", "external", "sponsored", "ugc", "author", "license",
+        "help", "bookmark", "tag", "next", "prev", "alternate", "me", "privacy-policy", "terms-of-service", "search",
+    ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+
+    // _blank, _self, _parent, _top (any case) or a navigable name, which never starts with an underscore.
+    private static void AnchorTarget(string value, int offset)
+    {
+        if (value.Length == 0 || value[0] == '_' && !(value.Equals("_blank", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("_self", StringComparison.OrdinalIgnoreCase) || value.Equals("_parent", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("_top", StringComparison.OrdinalIgnoreCase)))
+            throw new FactsPdfException("FPDF1103", "a target must be _blank, _self, _parent, _top or a name.", offset);
+    }
+
+    private static void AnchorRelations(string value, int offset)
+    {
+        var any = false;
+        foreach (var range in value.AsSpan().SplitAny(" \t\r\n\f"))
+        {
+            var type = value.AsSpan()[range];
+            if (type.IsEmpty) continue;
+            if (!HyperlinkTypes.Contains(type))
+                throw new FactsPdfException("FPDF1103", $"a rel '{type.ToString()}' is not supported.", offset);
+            any = true;
+        }
+        if (!any) throw new FactsPdfException("FPDF1103", "a rel must name at least one link type.", offset);
+    }
 
     private static void LinkRelations(string value, int offset)
     {

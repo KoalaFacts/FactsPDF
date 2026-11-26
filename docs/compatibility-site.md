@@ -622,7 +622,10 @@ partial: metadata links accepted, stylesheet links still fail (partial 242, reje
 records). The `hidden` attribute moves to partial as `[hidden]{display:none}` on ordinary
 report blocks, the `display` row's limitation stops calling it unsupported and the attribute-selector row adds `hidden` (partial 243,
 rejected 123; its failure code is `FPDF1103`, so the `FPDF1102` search is unchanged).
+The stale `href` / `target` / `rel` row moves to partial: `a` `href` and metadata `link` `rel`
+were already accepted, and `target` plus hyperlink `rel` types on `a` are now ignored
+(partial 244, rejected 122; `FPDF1103`, so the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`57b3a5b730db1ea0d43de702553eaac8af6d56ccb372227d2d867d4de998fc08`; English
-layer `site/src/audit-english-hidden.mjs`, ordered source-text
-SHA-256 `0324cda400c99bb50902855f987b5d5272fddfb615252a1291232abaaa937f95`.
+`1d907be98cd150e911fd220a09d4317e8aab4c2f342b15cf5d56489f0cb94ccf`; English
+layer `site/src/audit-english-anchor.mjs`, ordered source-text
+SHA-256 `34133510e2f335271455527a5356db750e46ab2293db9b85b36f169d9461f389`.
