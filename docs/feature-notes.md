@@ -1327,7 +1327,10 @@ and `blockquote` **outside lists/tables**. A hidden block and its complete
 validated subtree never reach PDF glyph layout, margin/padding geometry,
 pagination or painted backgrounds/borders. Invalid HTML/CSS, absent resources
 and input budgets are **still checked inside hidden markup**; this is not
-a validator bypass. The HTML `hidden` attribute, CSS-wide display keywords,
+a validator bypass. The HTML `hidden` attribute (empty or `hidden`) on the same
+blocks is the user-agent rule `[hidden]{display:none}`, so it removes the block
+unless author CSS sets `display:block`; `until-found` and `hidden` anywhere else
+fail `FPDF1103` (`HiddenAttributeTests.cs`). CSS-wide display keywords,
 inline/flex/grid layout, image/`hr`/table/list suppression, JavaScript and
 media-query display switches are not supported.
 

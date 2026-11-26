@@ -2,7 +2,7 @@ using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-// The HTML hidden attribute is the user-agent rule [hidden]{display:none} (R5co). On the ordinary
+// The HTML hidden attribute is the user-agent rule [hidden]{display:none} (R5cm). On the ordinary
 // report blocks that accept display:none it removes the block like that declaration; author CSS
 // display:block still shows it, as in a browser. Before, any hidden attribute failed FPDF1103.
 [TestFixture]
