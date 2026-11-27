@@ -72,6 +72,61 @@ internal static class TextLines
         return false;
     }
 
+    /// <summary>
+    /// The paragraph's min-content width (its widest unbreakable segment) and max-content width
+    /// (its widest line between forced breaks), with the glyphs, spacing and break opportunities
+    /// <see cref="Wrap"/> uses, so wrapping at the max-content width keeps every line whole.
+    /// </summary>
+    internal static (double Min, double Max) IntrinsicWidths(Paragraph paragraph, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+    {
+        var style = paragraph.Style;
+        if (style.FirstLineIndent.IsPercent && style.FirstLineIndent.Value != 0)
+            throw new FactsPdfException("FPDF1201",
+                "A percentage text-indent cannot size a flex item from its content.", paragraph.SourceOffset);
+        // overflow-wrap:anywhere (word-break:break-word) and word-break:break-all offer a break
+        // between any two glyphs, so the narrowest segment is one glyph; overflow-wrap:break-word
+        // does not change min-content.
+        var perGlyph = style.BreakAll || style.BreakWordsByWordBreak;
+        double max = 0, line = style.FirstLineIndent.Value, min = 0, segment = line;
+        var previous = -1;
+        var reader = new GlyphReader(paragraph, options, resolved, cancellation);
+        while (reader.MoveNext())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var glyph = reader.Current;
+            if (glyph.Scalar == 10)
+            {
+                max = Math.Max(max, line);
+                min = Math.Max(min, segment);
+                line = segment = 0;
+                previous = -1;
+                continue;
+            }
+            line += glyph.Width;
+            if (style.NoWrap)
+            {
+                segment += glyph.Width;
+                continue;
+            }
+            if (glyph.Scalar == 32)
+            {
+                min = Math.Max(min, segment);
+                segment = 0;
+                previous = -1;
+                continue;
+            }
+            if (perGlyph || previous >= 0 && CanBreak(previous, glyph.Scalar))
+            {
+                min = Math.Max(min, segment);
+                segment = 0;
+            }
+            segment += glyph.Width;
+            previous = glyph.Scalar;
+        }
+        return (Math.Max(min, segment), Math.Max(max, line));
+    }
+
     internal static WrappedLines Wrap(Paragraph paragraph, double available, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
         ListMarker? firstMarker = null, double firstLineMarkerInset = 0) =>

@@ -127,6 +127,14 @@ internal static class CssSyntaxAdapter
                     or "-webkit-animation-fill-mode" or "-webkit-animation-play-state" => originalName[8..],
                 _ => originalName
             };
+            // align-content places the lines of a multi-line flex container; a single-line container
+            // (the only kind laid out) has one line filling its cross size, so no value moves
+            // anything. Its keywords are validated and dropped.
+            if (name == "align-content")
+            {
+                ValidateAlignContent(node);
+                continue;
+            }
             // Fail unsupported properties first even when the value contains
             // functions or multiple tokens.
             var initialOnly = InitialOnlyValue(name);
@@ -622,6 +630,11 @@ internal static class CssSyntaxAdapter
                 Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");
                 continue;
             }
+            if (name is "flex" or "flex-flow" or "gap")
+            {
+                CompileFlexShorthand(name, terms, valueTokens, Emit);
+                continue;
+            }
             // List shorthands reset BOTH inherited marker type and position.
             // Support only marker type plus optional inside/outside; never
             // silently accept a URL, counter or arbitrary list-style image.
@@ -683,8 +696,8 @@ internal static class CssSyntaxAdapter
                 // can reach is the table part whose rendering it names; the cascade
                 // then drops it (CssStylesheets.TablePartDisplayError).
                 var displayError = valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
-                    ? "Report display supports only block and none."
-                    : token is "none" or "block" ? null
+                    ? "Report display supports only block, flex and none."
+                    : token is "none" or "block" or "flex" ? null
                     : CssStylesheets.TablePartDisplayError(token, hostSelectors, hostElement);
                 if (displayError is not null)
                     throw new FactsPdfException("FPDF1202", displayError, tokenOffset);
@@ -804,9 +817,6 @@ internal static class CssSyntaxAdapter
         // column, so no column count or width, the normal gap, no spanning, balanced fill and no
         // column rule describe exactly that; column-count:2 and the rest still fail FPDF1202.
         "column-count" or "column-width" or "columns" => "auto",
-        // gap and row-gap at normal: no flex, grid or multi-column container exists, so no gap
-        // is ever inserted between rows or columns; gap:0 and row-gap:1em still fail FPDF1202.
-        "column-gap" or "row-gap" or "gap" => "normal",
         "column-span" or "column-rule" or "column-rule-style" => "none",
         "column-fill" => "balance",
         // Overflow and fragment resets: no box clips its overflow (overflow stays visible), so
@@ -1678,6 +1688,13 @@ internal static class CssSyntaxAdapter
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "display" => CssProperty.Display,
+        "flex-direction" => CssProperty.FlexDirection, "flex-wrap" => CssProperty.FlexWrap,
+        "justify-content" => CssProperty.JustifyContent, "align-items" => CssProperty.AlignItems,
+        "align-self" => CssProperty.AlignSelf, "flex-grow" => CssProperty.FlexGrow,
+        "flex-shrink" => CssProperty.FlexShrink, "flex-basis" => CssProperty.FlexBasis,
+        "column-gap" => CssProperty.ColumnGap, "row-gap" => CssProperty.RowGap, "order" => CssProperty.Order,
+        // Shorthands, lowered to their longhands where they are compiled.
+        "flex" => CssProperty.FlexGrow, "flex-flow" => CssProperty.FlexDirection, "gap" => CssProperty.RowGap,
         "list-style-type" or "list-style" => CssProperty.ListStyleType,
         "list-style-position" => CssProperty.ListStylePosition,
         "text-decoration" or "text-decoration-line" => CssProperty.TextDecoration,
@@ -1938,6 +1955,132 @@ internal static class CssSyntaxAdapter
         return node;
     }
 
+    private static void ValidateAlignContent(CssDeclarationNode node)
+    {
+        var tokens = NonWhitespaceTokens(node.Values);
+        var count = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) count++;
+        if (count == 1 && tokens.Length == 1 && tokens[0].Token.Kind == CssSyntaxTokenKind.Ident
+            && tokens[0].Token.Value.ToLowerInvariant() is "normal" or "stretch" or "flex-start" or "start" or "flex-end"
+                or "end" or "center" or "space-between" or "space-around" or "space-evenly"
+                or "inherit" or "initial" or "unset")
+            return;
+        throw new FactsPdfException("FPDF1202",
+            "align-content supports a single normal, stretch, start, end, center or space-* keyword.",
+            tokens.Length > 0 ? tokens[0].Token.Span.Start : node.Span.Start);
+    }
+
+    // Lowers flex, flex-flow and gap to their longhands through the normal cascade, so a later
+    // longhand overrides one component and the shorthand resets every omitted one.
+    private static void CompileFlexShorthand(string name, List<string> terms, CssTokenComponent[] tokens,
+        Action<CssProperty, string, int, string?> emit)
+    {
+        var start = tokens.Length > 0 ? tokens[0].Token.Span.Start : 0;
+        if (terms.Count == 1 && Wide(terms[0]))
+        {
+            switch (name)
+            {
+                case "flex":
+                    emit(CssProperty.FlexGrow, terms[0], start, "flex-grow");
+                    emit(CssProperty.FlexShrink, terms[0], start, "flex-shrink");
+                    emit(CssProperty.FlexBasis, terms[0], start, "flex-basis");
+                    break;
+                case "flex-flow":
+                    emit(CssProperty.FlexDirection, terms[0], start, "flex-direction");
+                    emit(CssProperty.FlexWrap, terms[0], start, "flex-wrap");
+                    break;
+                default:
+                    emit(CssProperty.RowGap, terms[0], start, "row-gap");
+                    emit(CssProperty.ColumnGap, terms[0], start, "column-gap");
+                    break;
+            }
+            return;
+        }
+        for (var i = 0; i < terms.Count; i++)
+            if (Wide(terms[i]))
+                throw new FactsPdfException("FPDF1202", "CSS-wide keyword must be the only shorthand value.",
+                    tokens[i].Token.Span.Start);
+        if (name == "gap")
+        {
+            if (terms.Count > 2)
+                throw new FactsPdfException("FPDF1202", "gap accepts a row gap and an optional column gap.", start);
+            CssFlexValues.Validate("row-gap", terms[0], tokens[0].Token.Span.Start);
+            var column = terms.Count == 2 ? 1 : 0;
+            CssFlexValues.Validate("column-gap", terms[column], tokens[column].Token.Span.Start);
+            emit(CssProperty.RowGap, terms[0], tokens[0].Token.Span.Start, "row-gap");
+            emit(CssProperty.ColumnGap, terms[column], tokens[column].Token.Span.Start, "column-gap");
+            return;
+        }
+        if (name == "flex-flow")
+        {
+            if (terms.Count > 2)
+                throw new FactsPdfException("FPDF1202", "flex-flow accepts a direction and a wrap keyword.", start);
+            string direction = "row", wrap = "nowrap";
+            bool sawDirection = false, sawWrap = false;
+            for (var i = 0; i < terms.Count; i++)
+            {
+                var at = tokens[i].Token.Span.Start;
+                if (terms[i] is "row" or "row-reverse" or "column" or "column-reverse" && !sawDirection)
+                {
+                    CssFlexValues.Validate("flex-direction", terms[i], at);
+                    direction = terms[i]; sawDirection = true;
+                }
+                else if (terms[i] is "nowrap" or "wrap" or "wrap-reverse" && !sawWrap)
+                {
+                    CssFlexValues.Validate("flex-wrap", terms[i], at);
+                    wrap = terms[i]; sawWrap = true;
+                }
+                else throw new FactsPdfException("FPDF1202", "flex-flow accepts one direction and one wrap keyword.", at);
+            }
+            emit(CssProperty.FlexDirection, direction, start, "flex-direction");
+            emit(CssProperty.FlexWrap, wrap, start, "flex-wrap");
+            return;
+        }
+        // flex: none | auto | [ <grow> <shrink>? || <basis> ]. A number omitted from the
+        // shorthand is 1 for shrink and the basis becomes 0%, unlike the longhand initial values.
+        string grow = "1", shrink = "1", basis = "0%";
+        if (terms.Count == 1 && terms[0] is "none" or "auto")
+        {
+            (grow, shrink, basis) = terms[0] == "none" ? ("0", "0", "auto") : ("1", "1", "auto");
+        }
+        else
+        {
+            if (terms.Count > 3)
+                throw new FactsPdfException("FPDF1202", "flex accepts a grow factor, a shrink factor and a basis.", start);
+            var numbers = 0;
+            var sawBasis = false;
+            var basisBeforeNumbers = false;
+            for (var i = 0; i < terms.Count; i++)
+            {
+                var at = tokens[i].Token.Span.Start;
+                // A unitless zero is a basis only where no further factor can stand (after two numbers).
+                var isNumber = tokens[i].Token.Kind == CssSyntaxTokenKind.Number
+                    && !(numbers == 2 && !sawBasis);
+                if (isNumber)
+                {
+                    if (numbers == 2 || sawBasis && numbers > 0 && !basisBeforeNumbers)
+                        throw new FactsPdfException("FPDF1202", "flex factors must be adjacent.", at);
+                    CssFlexValues.Validate("flex-grow", terms[i], at);
+                    if (numbers == 0) grow = terms[i]; else shrink = terms[i];
+                    numbers++;
+                }
+                else
+                {
+                    if (sawBasis)
+                        throw new FactsPdfException("FPDF1202", "flex accepts one basis.", at);
+                    CssFlexValues.Validate("flex-basis", terms[i], at);
+                    basis = terms[i]; sawBasis = true;
+                    basisBeforeNumbers = numbers == 0;
+                }
+            }
+            if (numbers == 0) grow = "1";
+        }
+        emit(CssProperty.FlexGrow, grow, start, "flex-grow");
+        emit(CssProperty.FlexShrink, shrink, start, "flex-shrink");
+        emit(CssProperty.FlexBasis, basis, start, "flex-basis");
+    }
+
     private static CssTokenComponent[] NonWhitespaceTokens(IReadOnlyList<CssSyntaxComponent> values)
     {
         var count = 0;
@@ -2063,6 +2206,9 @@ internal static class CssSyntaxAdapter
                         "Text-underline-offset requires auto or a nonnegative 0–24pt physical/em/rem length.", offset);
             }
         }
+        else if (name is "flex-direction" or "flex-wrap" or "justify-content" or "align-items" or "align-self"
+            or "flex-grow" or "flex-shrink" or "flex-basis" or "column-gap" or "row-gap" or "order")
+            CssFlexValues.Validate(name, token, offset);
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);
         else if (name == "list-style-position")

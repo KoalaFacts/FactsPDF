@@ -3,8 +3,10 @@ namespace FactsPDF;
 internal static class HtmlDocumentReader
 {
     // ChildStart: for a frame with a Box, where the box's children begin in the reader's child stack.
+    // FlexItem: an inline element that is a direct child of a flex container, so its text is a
+    // flex item of its own (CSS blockifies it) rather than part of a shared anonymous paragraph.
     private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box,
-        int SourceOffset = -1, int ChildStart = 0);
+        int SourceOffset = -1, int ChildStart = 0, bool FlexItem = false);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul" or "menu";
     // header, footer, main, nav, aside, hgroup, search and figcaption are blocks with no user-agent style beyond
@@ -366,6 +368,7 @@ internal static class HtmlDocumentReader
                 }
                 if (ParagraphTag(name) || Container(name)) Flush();
                 if (name == "q") Add(Quote(stack, open: false, options), stack[^1].Style);
+                if (stack[^1].FlexItem) Flush();
                 Pop(); continue;
             }
             if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
@@ -523,7 +526,11 @@ internal static class HtmlDocumentReader
                     ParagraphTag(name), BoxTag(name),
                     token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
-            if (name == "html") rootFontSize = style.FontSize;
+            if (name == "html")
+            {
+                rootFontSize = style.FontSize;
+                if (boxStyle.IsFlexContainer) result.FlexRootOffset = token.Offset;
+            }
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             if (name == "table")
@@ -574,7 +581,11 @@ internal static class HtmlDocumentReader
                 // or close it first), which the child list keeps in its first slot without an array.
                 children.Add(box);
             }
-            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count));
+            // Each inline child of a flex container, and each run of text between them, is its own
+            // flex item: close the anonymous paragraph before and after the inline element.
+            var flexItem = InlineTag(name) && table is null && stack[^1].Box is { BoxStyle.IsFlexContainer: true };
+            if (flexItem) Flush();
+            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, flexItem));
             if (name == "q") Add(Quote(stack, open: true, options), style);
             if (ParagraphTag(name))
             {

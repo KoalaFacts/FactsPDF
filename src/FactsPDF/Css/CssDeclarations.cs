@@ -11,7 +11,9 @@ internal enum CssProperty
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
-    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast,
+    FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
+    ColumnGap, RowGap, Order
 }
 /// <summary>
 /// One compiled declaration: what it says (property, name, value, importance) plus its cascade
@@ -236,7 +238,8 @@ internal static class CssDeclarations
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
-        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset;
+        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
+        || CssFlexValues.IsFlexProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -269,6 +272,11 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : BoxStyle.Initial;
 
+        if (CssFlexValues.IsFlexProperty(property))
+        {
+            CssFlexValues.Apply(current, parent, declaration, rootFontSize, elementFontSize);
+            return current;
+        }
         if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
             or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius)
         {

@@ -122,7 +122,7 @@ public sealed class PrintMediaReportTests
     [TestCase("@supports(display:grid){p{color:red}}", "FPDF1204")]
     [TestCase("@import 'https://example.invalid/a.css';", "FPDF1204")]
     [TestCase("@media print{.unmatched{padding:-1pt}}", "FPDF1202")]
-    [TestCase("@media all{.unmatched{display:flex}}", "FPDF1202")]
+    [TestCase("@media all{.unmatched{display:inline-flex}}", "FPDF1202")]
     public void UnsupportedMediaAndEvenUnmatchedInvalidDeclarationsAreRejected(string css, string code)
         => Reject(css, code);
 

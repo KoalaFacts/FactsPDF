@@ -36,7 +36,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Order + 1];
     // Boxes computed earlier in this conversion, keyed by everything their box declarations read
     // (see Compute). Bounded so a page of distinct styles keeps no more than a small table.
     private const int MaxComputedBoxes = 256;
@@ -399,7 +399,19 @@ internal sealed class CssStylesheets
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
             // resource contracts; their display declarations fail explicitly.
-            if (declaration.Property == CssProperty.Display &&
+            // A flex container lays out its children as one row of flex items: ordinary report
+            // panels, list items, body and html (where layout accepts it only as a no-op). Never
+            // inside tables, whose cells flatten their content.
+            if (declaration.Property == CssProperty.Display && declaration.Value == "flex")
+            {
+                if (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav"
+                        or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address"
+                        or "dl" or "dt" or "dd" or "li" or "body" or "html")
+                    || path.Any(e => e.Name is "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot"))
+                    throw new FactsPdfException("FPDF1201",
+                        "display:flex is supported only on report panels, list items, body and html outside tables.", declaration.Offset);
+            }
+            else if (declaration.Property == CssProperty.Display &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
@@ -610,6 +622,11 @@ internal sealed class CssStylesheets
             // non-replaced inline text (CSS Box Sizing: width and height do not apply), so the
             // universal reset *{box-sizing:border-box} is accepted there. It is still recorded on
             // the element's box so a child's box-sizing:inherit reads it, as in a browser.
+            // html lays out at the full page width, so width:100% (or auto) changes nothing there; its
+            // flex container properties are accepted with display:flex (see RootFlexNoOp).
+            if (element.Name == "html" && (RootFlexNoOp(declaration)
+                || declaration.Property == CssProperty.Width && declaration.Value is "100%" or "auto" or "initial" or "unset"))
+                return;
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
                 && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name)))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
@@ -724,7 +741,11 @@ internal sealed class CssStylesheets
                 }
             }
             if (declaration.Property == CssProperty.Display)
+            {
                 Own().DisplayNone = declaration.Value == "none";
+                var display = declaration.Value == "flex" ? BoxDisplay.Flex : BoxDisplay.Block;
+                if (box.Flex.Display != display) box.Flex = box.Flex with { Display = display };
+            }
             else if (declaration.Property == CssProperty.ListStyleType)
                 Own().MarkerKind = declaration.Value switch
                 {
@@ -858,6 +879,13 @@ internal sealed class CssStylesheets
         return (style, box);
     }
 
+    // html{display:flex} only centres a body narrower than the page in a browser window; the
+    // layout accepts it where the body fills the page width, where every flex container property
+    // places nothing (one item, no free space, the line as tall as the item).
+    private static bool RootFlexNoOp(CssDeclaration declaration) =>
+        declaration.Property is CssProperty.JustifyContent or CssProperty.AlignItems or CssProperty.FlexDirection
+            or CssProperty.FlexWrap or CssProperty.ColumnGap or CssProperty.RowGap;
+
     // A zero margin on <html> or <body>, or a zero padding on <html>: their used insets are already
     // zero. CSS-wide keywords compute to zero too (the initial value is 0 and html, the only parent
     // body can inherit from, never takes a non-zero inset).
@@ -911,7 +939,7 @@ internal sealed class CssStylesheets
         return null;
     }
 
-    private const string UnsupportedDisplay = "Report display supports only block and none.";
+    private const string UnsupportedDisplay = "Report display supports only block, flex and none.";
 
     private static string? TablePartDisplayError(string value, string element)
     {
@@ -925,7 +953,7 @@ internal sealed class CssStylesheets
     }
 
     private static bool TablePartDisplay(CssDeclaration declaration) =>
-        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block");
+        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block" or "flex");
 
     // A zero margin is the initial value on list items and on table rows, row groups, columns,
     // column groups and cells (where CSS 2.1 §8.3 margins do not apply at all), so *{margin:0}
