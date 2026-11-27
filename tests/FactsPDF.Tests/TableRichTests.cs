@@ -95,7 +95,7 @@ public sealed class TableRichTests
     [TestCase("<ul><li>A</li></ul>")][TestCase(TableStructureTests.One)]
     public void ParentRulesRejectWithoutOrdinaryParagraphRepair(string content)
         => TableStructureTests.Fails(Rich(content), "FPDF1101", TableImageTests.Options());
-    [TestCase("width:auto")][TestCase("padding:initial")][TestCase("border:inherit")]
+    [TestCase("width:auto")][TestCase("padding:5%")][TestCase("border:inherit")]
     [TestCase("background-color:unset")][TestCase("break-before:auto")][TestCase("break-after:initial")]
     [TestCase("break-after:inherit")][TestCase("break-after:unset")]
     public void InapplicableParagraphPropertiesFailBeforeWinner(string declaration)

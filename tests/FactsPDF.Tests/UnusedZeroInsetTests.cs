@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// ul, ol and table lay out with a zero margin, rows, row groups, columns and column groups take
+/// A table has no horizontal margin geometry, rows, row groups, columns and column groups take
 /// no padding, and a br lays out no box, so the rest of *{margin:0;padding:0} renders
 /// byte-identical to the page without it. Nonzero values and inherit still fail with no output.
 /// </summary>
@@ -27,10 +27,8 @@ public sealed class UnusedZeroInsetTests
     private static string Doc(string css) =>
         $"<!doctype html><html><head><style>th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
 
-    [TestCase("ul,ol{margin:0}")]
-    [TestCase("ul{margin:0px 0pt 0em 0%}ol{margin-block:0rem;margin-inline:0}")]
     [TestCase("table{margin:0}")]
-    [TestCase("table{margin:initial}ul{margin:unset}ol{margin:0!important}")]
+    [TestCase("table{margin:initial}")]
     [TestCase("tr,thead,tbody,tfoot,col,colgroup{padding:0}")]
     [TestCase("tr{padding:0px 0pt}tbody{padding-inline:0;padding-block:0em}")]
     [TestCase("colgroup{padding:initial}col{padding:unset}")]
@@ -50,13 +48,19 @@ public sealed class UnusedZeroInsetTests
         Assert.That(Pdf(Doc(css)), Is.EqualTo(Pdf(Doc(Insets))), css);
     }
 
-    private const string Insets = "h2,p{margin:0;padding:0}ul,ol,li,th,td{padding:0}";
+    private const string Insets = "h2,p{margin:0;padding:0}ul,ol{margin:0}ul,ol,li,th,td{padding:0}";
 
-    [TestCase("ul{margin:4pt}", "4pt", "FPDF1201")]
-    [TestCase("ol{margin-top:1em}", "1em", "FPDF1201")]
-    [TestCase("ul{margin:inherit}", "inherit", "FPDF1201")]
+    // Lists have the user-agent 1em above and below, so a zero margin is a real declaration there.
+    [TestCase("ul,ol{margin:0}")]
+    [TestCase("ul{margin:0px 0pt 0em 0%}ol{margin-block:0rem;margin-inline:0}")]
+    [TestCase("ul{margin:unset}ol{margin:0!important}")]
+    public void ZeroListMarginRendersLikeTheExplicitZeroListMargin(string css)
+    {
+        Assert.That(Pdf(Doc(css)), Is.EqualTo(Pdf(Doc("ul,ol{margin:0}"))), css);
+    }
+
     [TestCase("table{margin:0 auto}", "auto", "FPDF1201")]
-    [TestCase("table{margin-bottom:2px}", "2px", "FPDF1201")]
+    [TestCase("table{margin-left:2px}", "2px", "FPDF1201")]
     [TestCase("tr{padding:2pt}", "2pt", "FPDF1201")]
     [TestCase("tbody{padding:inherit}", "inherit", "FPDF1201")]
     [TestCase("col{padding-left:1px}", "1px", "FPDF1201")]

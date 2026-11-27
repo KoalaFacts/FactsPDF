@@ -135,8 +135,8 @@ public sealed class ReportPanelVerticalMarginTests
     [TestCase("<div style='margin:15000pt 0'>A</div>", "FPDF1202")]
     [TestCase("<body style='margin-top:4pt'>A</body>", "FPDF1201")]
     [TestCase("<span style='margin-top:4pt'>A</span>", "FPDF1201")]
-    [TestCase("<ol style='margin-top:4pt'><li>A</li></ol>", "FPDF1201")]
-    [TestCase("<table style='margin-top:4pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
+    [TestCase("<ul style='margin-top:4%'><li>A</li></ul>", "FPDF1201")]
+    [TestCase("<table style='margin-top:4%'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
     public void UnsupportedValuesAndElementsFailWithoutDamagingDestination(string html, string code)
         => Reject(html, code);
 
@@ -162,7 +162,7 @@ public sealed class ReportPanelVerticalMarginTests
     }
 
     [Test]
-    public void UnconsumedPanelTopMarginMovesWithFirstPaintedFragment()
+    public void UnforcedPageBreakTruncatesTheMovedPanelTopMargin()
     {
         var page = Page with { PageHeight = 150 };
         var leading = "<p style='margin:0'>" + string.Join("<br>",
@@ -172,8 +172,19 @@ public sealed class ReportPanelVerticalMarginTests
         var pages = Layout(document, page);
         Assert.That(pages, Has.Count.EqualTo(2));
         var box = pages[1].PaintBoxes.Single(painted => painted.Style.BackgroundColor.HasValue);
-        Assert.That(box.Top, Is.EqualTo(45).Within(0.000001));
+        Assert.That(box.Top, Is.EqualTo(Page.Margin).Within(0.000001));
         Assert.That(pages[0].PaintBoxes, Is.Empty);
+    }
+
+    [Test]
+    public void ForcedPageBreakKeepsThePanelTopMargin()
+    {
+        var page = Page with { PageHeight = 150 };
+        var document = "<p style='margin:0'>Row</p>" +
+            "<section style='margin-top:25pt;break-before:page;background:blue'><p style='margin:0'>PANEL</p></section>";
+        var pages = Layout(document, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[1].PaintBoxes.Single().Top, Is.EqualTo(Page.Margin + 25).Within(0.000001));
     }
 
     [Test]
@@ -203,7 +214,7 @@ public sealed class ReportPanelVerticalMarginTests
 
     [TestCase("p")]
     [TestCase("h2")]
-    public void MovingAnUnconsumedPanelPreservesItsChildFirstParagraphMargin(string tag)
+    public void MovingAnUnconsumedPanelTruncatesItsAndItsChildsTopMargins(string tag)
     {
         var options = Page with { PageHeight = 150 };
         var leading = "<p style='margin:0'>" + string.Join("<br>",
@@ -213,32 +224,28 @@ public sealed class ReportPanelVerticalMarginTests
             "</section>";
         var fresh = Layout(panel, options);
         var moved = Layout(leading + panel, options);
+        var bare = Layout(leading + panel.Replace("margin-top:25pt", "margin-top:0")
+            .Replace("margin-top:12pt", "margin-top:0"), options);
         Assert.That(fresh, Has.Count.EqualTo(1));
         Assert.That(moved, Has.Count.EqualTo(2));
-        Assert.That(moved[1].PaintBoxes.Single().Top,
-            Is.EqualTo(fresh[0].PaintBoxes.Single().Top).Within(0.000001));
-        // No margin collapse: the panel's 25pt and the child's 12pt are
-        // both first-fragment spacing even when earlier content forces a new page.
-        Assert.That(moved[1].Runs.Single().Baseline,
-            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.000001),
-            "An unconsumed parent must not drop its child's own margin-top on relocation");
+        // The panel's 25pt and the child's 12pt collapse to 25pt on a fresh page; the margin adjoining
+        // an unforced page break is truncated, so the moved panel starts at the top of the page.
+        Assert.That(fresh[0].PaintBoxes.Single().Top, Is.EqualTo(Page.Margin + 25).Within(0.000001));
+        Assert.That(moved[1].PaintBoxes.Single().Top, Is.EqualTo(Page.Margin).Within(0.000001));
+        Assert.That(moved[1].Runs.Single().Baseline, Is.EqualTo(bare[1].Runs.Single().Baseline).Within(0.000001));
     }
 
     [TestCase("p")]
     [TestCase("h2")]
-    public void CombinedNewPanelAndChildTopMarginMustFitFreshPageWithoutMutatingDestination(string tag)
+    public void PanelAndChildTopMarginsCollapseSoOnlyTheLargerMustFitThePage(string tag)
     {
+        // 95pt + 12pt added would leave no room for the line on a 110pt page; collapsed it is 95pt.
         var options = Page with { PageHeight = 150, MaxPages = 1 };
         var html = "<section style='margin-top:95pt;background:blue'>" +
             $"<{tag} style='font-size:12pt;margin-top:12pt;margin-bottom:0'>A</{tag}>" +
             "</section>";
-        using var destination = new MemoryStream();
-        destination.Write("existing-document"u8);
-        destination.Position = 5;
-        var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert(html, destination, options));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
-        Assert.That(destination.ToArray(), Is.EqualTo("existing-document"u8.ToArray()));
-        Assert.That(destination.Position, Is.EqualTo(5));
+        var pages = Layout(html, options);
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(pages[0].PaintBoxes.Single().Top, Is.EqualTo(Page.Margin + 95).Within(0.000001));
     }
 }

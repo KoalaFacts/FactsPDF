@@ -122,7 +122,7 @@ public sealed class ListLayoutTests
     [Test]
     public void LargeMarkerContributesToFirstLineStrut()
     {
-        var runs = Layout("<ol><li style='font-size:36pt'><p style='font-size:12pt'>A<br>B</p></li></ol>")[0].Runs;
+        var runs = Layout("<ol style='margin:0'><li style='font-size:36pt'><p style='font-size:12pt'>A<br>B</p></li></ol>")[0].Runs;
         var marker = runs.Single(Marker);
         Assert.That(marker.Style.FontSize, Is.EqualTo(36));
         Assert.That(marker.Baseline, Is.EqualTo(87.6).Within(0.000001));
@@ -148,8 +148,14 @@ public sealed class ListLayoutTests
     }
 
     [Test]
-    public void EmptyListDoesNotChangeOrdinaryPdfBytes()
-        => Assert.That(Pdf("<ul></ul><ol></ol><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
+    public void EmptyListWithoutMarginDoesNotChangeOrdinaryPdfBytes()
+        => Assert.That(Pdf("<ul style='margin:0'></ul><ol style='margin:0'></ol><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
+
+    // An empty block's margins collapse through it, so the user-agent 1em above and below an empty
+    // list is one 1em gap before the next block.
+    [Test]
+    public void EmptyListMarginsCollapseIntoOneGapBeforeTheNextBlock()
+        => Assert.That(Pdf("<ul></ul><ol></ol><p>A</p>"), Is.EqualTo(Pdf("<p style='margin-top:12pt'>A</p>")));
 
     [Test]
     public void RepeatedLayoutDoesNotMutateParsedTree()
@@ -224,7 +230,7 @@ public sealed class ListLayoutTests
         var font = PdfFont.FromBytes(bytes);
         Assert.That(font.Ascent1000, Is.EqualTo(2000));
         Assert.That(font.Descent1000, Is.EqualTo(0));
-        var page = Layout("<ul style='line-height:1'><li></li><li></li></ul>", Page with { Fonts = [font] })[0];
+        var page = Layout("<ul style='line-height:1;margin:0'><li></li><li></li></ul>", Page with { Fonts = [font] })[0];
         // Strut ascent=18, descent=-6; disc needs descent >= -1.8.
         Assert.That(page.Discs[0].Y - page.Discs[1].Y, Is.EqualTo(16.2).Within(0.000001));
         Assert.That(page.Discs[0].Y - page.Discs[0].Radius, Is.EqualTo(Page.PageHeight - Page.Margin - 16.2).Within(0.000001));

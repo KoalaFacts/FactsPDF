@@ -750,7 +750,14 @@ internal sealed class CssStylesheets
             if (declaration.Property is CssProperty.MinWidth or CssProperty.MaxWidth &&
                 (subject is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
                 throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
-            if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset
+            // A cell paragraph keeps its own padding (the other box properties still need a block box);
+            // percentages would need the paragraph's containing width, which the flat cell does not track.
+            var cellPadding = cellParagraph && declaration.Property is (CssProperty.PaddingTop
+                or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft);
+            if (cellPadding && declaration.Value.EndsWith('%'))
+                throw new FactsPdfException("FPDF1201",
+                    $"CSS property '{declaration.Name}' does not support percentages on table cell paragraphs.", declaration.Offset);
+            if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset && !cellPadding
                     && declaration.Property != CssProperty.BoxSizing)
                 || declaration.Property is CssProperty.BreakBefore or CssProperty.BreakAfter))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on table cell paragraphs.", declaration.Offset);
@@ -779,14 +786,22 @@ internal sealed class CssStylesheets
             // spacing resolves against the containing block content WIDTH at
             // layout time, not the page height. Vertical auto still fails.
             // CSS-wide inheritance/reset is resolved for the winner below.
-            var panelMargin = subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+            // Lists, list items and tables take them as well; a table has no horizontal margin
+            // geometry, so only its zero horizontal margins (dropped above) are accepted.
+            var panelMargin = (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
+                    or "ul" or "ol" or "menu" or "li")
+                    || subject == "table" && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
+            if (subject == "table" && declaration.Property is (CssProperty.MarginLeft or CssProperty.MarginRight))
+                throw new FactsPdfException("FPDF1201",
+                    $"CSS property '{declaration.Name}' is not supported on tables except as zero; only margin-top and margin-bottom apply to a table.",
+                    declaration.Offset);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value.EndsWith('%') &&
                 AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr" or "td" or "th"))
                 throw new FactsPdfException("FPDF1201",
-                    "Percentage report-panel margins are not supported inside lists or tables.", declaration.Offset);
+                    "Percentage vertical margins are not supported on lists, list items and tables or inside them.", declaration.Offset);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
                 && declaration.Value is not ("inherit" or "initial" or "unset"))
             {
@@ -1049,7 +1064,8 @@ internal sealed class CssStylesheets
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
-            else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+            else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
+                    or "ul" or "ol" or "menu" or "li" or "table")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
@@ -1125,6 +1141,22 @@ internal sealed class CssStylesheets
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(subject, parentBox, rootFontSize, style.FontSize, style.Color,
                 listTypeHint, BoxWrites(subject), box);
+        // The user-agent sheet gives ul, ol and menu 1em above and below, and none when the list is
+        // nested in another. It applies to each side no author declaration (or revert) wins, in the
+        // list's own computed font size, so it is set here rather than in the cached box above.
+        if (subject is "ul" or "ol" or "menu")
+        {
+            var nested = false;
+            for (var i = 0; i < path.Count - 1 && !nested; i++) nested = path[i].Name is "ul" or "ol" or "menu";
+            var topDefault = !nested && winners[(int)CssProperty.MarginTop] is null;
+            var bottomDefault = !nested && winners[(int)CssProperty.MarginBottom] is null;
+            if (topDefault || bottomDefault)
+                box = box with
+                {
+                    MarginTop = topDefault ? new CssLength(style.FontSize) : box.MarginTop,
+                    MarginBottom = bottomDefault ? new CssLength(style.FontSize) : box.MarginBottom
+                };
+        }
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
@@ -1377,10 +1409,10 @@ internal sealed class CssStylesheets
     private static bool TablePartDisplay(CssDeclaration declaration) =>
         declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block" or "flex" or "grid");
 
-    // A zero margin is the initial value on list items and on table rows, row groups, columns,
-    // column groups and cells (where CSS 2.1 §8.3 margins do not apply at all), so *{margin:0}
-    // changes nothing there and is dropped. Nonzero values still fail: a list item would need real
-    // spacing, and the table parts keep rejecting declarations they do not render.
+    // A zero margin is the initial value on table rows, row groups, columns, column groups and
+    // cells (where CSS 2.1 section 8.3 margins do not apply at all), so *{margin:0} changes nothing
+    // there and is dropped. Nonzero values still fail: the table parts keep rejecting declarations
+    // they do not render. List items take real margins and are not dropped here.
     private static bool TablePartMargin(string element, CssDeclaration declaration)
     {
         if (declaration.Property is not (CssProperty.MarginTop or CssProperty.MarginRight
@@ -1388,21 +1420,23 @@ internal sealed class CssStylesheets
         var wide = declaration.Value is "initial" or "unset";
         var length = CssBoxValues.TryLength(declaration.Value, out var value, out _, rootFontSize: 16,
             allowRem: true, elementFontSize: 16, allowEm: true);
-        return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "caption"
+        return element is "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "caption"
             && (wide || length && value.Value == 0);
     }
 
-    // ul, ol, table and svg lay out with a zero margin (their initial value, used as is); rows, row groups,
-    // columns and column groups take no padding (CSS 2.1 §8.4); a br lays out no box at all. So the
-    // rest of *{margin:0;padding:0} changes nothing there and is dropped. inherit could carry a
-    // parent panel's inset, and nonzero values would need real geometry, so both still fail.
+    // A table has no horizontal margin geometry (its zero horizontal margins change nothing) and an svg
+    // takes none; rows, row groups, columns and column groups take no padding (CSS 2.1 section 8.4); a br
+    // lays out no box at all. So the rest of *{margin:0;padding:0} changes nothing there and is dropped.
+    // inherit could carry a parent panel's inset, and nonzero values would need real geometry, so
+    // both still fail. Lists and the vertical margins of a table are real boxes and are not dropped.
     private static bool UnusedZeroInset(string element, CssDeclaration declaration)
     {
         var margin = declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight
             or CssProperty.MarginBottom or CssProperty.MarginLeft;
         var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
             or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (!(margin && element is "ul" or "menu" or "ol" or "table" or "br" or "svg"
+        var horizontal = declaration.Property is CssProperty.MarginLeft or CssProperty.MarginRight;
+        if (!(margin && (element is "br" or "svg" || element == "table" && horizontal)
             || padding && element is "tr" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "br")) return false;
         return declaration.Value is "initial" or "unset"
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
@@ -1419,7 +1453,8 @@ internal sealed class CssStylesheets
         || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
             && property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
         || CssDeclarations.IsBoxProperty(property)
-        || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+        || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
+                or "ul" or "ol" or "menu" or "li" or "table")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
 
     private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,

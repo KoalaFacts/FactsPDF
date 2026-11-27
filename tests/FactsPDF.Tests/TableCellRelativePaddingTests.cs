@@ -131,9 +131,10 @@ public sealed class TableCellRelativePaddingTests
             "<tbody><tr style='padding:1em'>", StringComparison.Ordinal), "FPDF1201");
         Reject(Cell("padding:2pt").Replace("<td style='font-size:10pt;", "<td style='width:1em;font-size:10pt;", StringComparison.Ordinal),
             "FPDF1201");
-        // The flat paragraph is structurally valid within the cell, but its
-        // independent padding box must be rejected by CSS applicability.
-        Reject(Cell("padding:2pt", content: "<p style='padding:1em'>AB</p>"), "FPDF1201");
+        // The flat paragraph keeps its padding, but not a percentage of an unknown width or its
+        // border, which would need a box of its own.
+        Reject(Cell("padding:2pt", content: "<p style='padding:5%'>AB</p>"), "FPDF1201");
+        Reject(Cell("padding:2pt", content: "<p style='border:1pt solid red'>AB</p>"), "FPDF1201");
     }
 
     [Test]

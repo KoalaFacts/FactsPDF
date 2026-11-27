@@ -92,7 +92,7 @@ public sealed class TableBoundaryTests
     {
         var o = new PdfOptions { PageWidth = 220, PageHeight = 130, Margin = 10,
             Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420")) } };
-        var html = "<body style='font-size:10pt;line-height:2'><section style='padding:4pt;border:1pt solid red'>"
+        var html = "<body style='font-size:10pt;line-height:2'><style>ul,ol{margin:0}</style><section style='padding:4pt;border:1pt solid red'>"
             + "<ol><li>BEFORE</li></ol><img src='chart' style='width:120pt'>"
             + TableLayoutTests.Table("A<br>B<br>C", cellStyle: "border:1pt solid blue")
             + "<ul><li>AFTER</li></ul></section></body>";

@@ -46,8 +46,8 @@ public sealed class LayoutErrorLocationTests
     [Test]
     public void PanelTopMarginThatLeavesNoRoomPointsAtTheParagraphInside()
     {
-        const string html = Prefix + "<div style='border:1pt solid black;margin-top:780pt'><p id='inner'>i</p></div>";
-        var error = Fails(html, "Report panel top margin and first line cannot fit on a fresh page.");
+        const string html = "<div style='border:1pt solid black;margin-top:780pt'><p id='inner'>i</p></div>";
+        var error = Fails(html, "Paragraph margin, box padding and first line cannot fit on a page.");
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<p id='inner'>")));
     }
 

@@ -40,9 +40,6 @@ public sealed class TablePartMarginTests
         Assert.That(Pdf(Doc(css)), Is.EqualTo(Pdf(Doc(""))), css);
     }
 
-    [TestCase("li{margin:4pt}", "4pt", "FPDF1201")]
-    [TestCase("li{margin-left:1em}", "1em", "FPDF1201")]
-    [TestCase("li{margin:inherit}", "inherit", "FPDF1201")]
     [TestCase("li{margin:auto}", "auto", "FPDF1202")]
     [TestCase("td{margin:4px}", "4px", "FPDF1201")]
     [TestCase("th{margin-left:1em}", "1em", "FPDF1201")]

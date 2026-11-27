@@ -158,7 +158,7 @@ public sealed class PercentagePanelMarginTests
 
     [TestCase("20%")]
     [TestCase("52pt")]
-    public void KeptCardReservesItsClosingOutsideMarginBeforeChoosingAPage(string closingMargin)
+    public void KeptCardTruncatesItsClosingOutsideMarginAtThePageEnd(string closingMargin)
     {
         var page = Page with { PageHeight = 160 };
         var leading = "<p style='margin:0'>" +
@@ -168,24 +168,26 @@ public sealed class PercentagePanelMarginTests
             "<p style='margin:0'>CARD</p></section>";
         const string tail = "<p style='margin:0'>AFTER</p>";
         // Both 20% and 52pt use a 52pt closing gap at 260pt content width.
-        // The card's text fits after the leading lines, but its complete
-        // outside margin footprint does not. Move it intact, not just AFTER.
-        var actual = leading + card + tail;
-        var forced = leading + card.Replace("break-inside:avoid;",
-            "break-inside:avoid;break-before:page;") + tail;
-        var actualPages = Layout(actual, page);
-        Assert.That(actualPages, Has.Count.EqualTo(2));
-        Assert.That(actualPages[0].Runs.Any(r => r.Text == "CARD"), Is.False);
-        Assert.That(actualPages[1].Runs.Any(r => r.Text == "CARD"), Is.True);
-        Assert.That(Render(actual, page), Is.EqualTo(Render(forced, page)));
+        // The card fits after the leading lines; its closing margin does not, but a margin that
+        // adjoins an unforced page break is truncated, so only AFTER moves, to the top of page two.
+        var pages = Layout(leading + card + tail, page);
+        Assert.That(pages, Has.Count.EqualTo(2));
+        Assert.That(pages[0].Runs.Any(r => r.Text == "CARD"), Is.True);
+        Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("AFTER"));
+        Assert.That(pages[1].Runs.Single().Baseline,
+            Is.EqualTo(Layout(tail, page)[0].Runs.Single().Baseline).Within(0.000001));
     }
 
     [Test]
-    public void OversizedKeptCardClosingPercentageMarginProtectsExistingPdf()
-        => RejectPreservingOutput(
+    public void KeptCardClosingMarginTallerThanThePageIsTruncatedNotRejected()
+    {
+        // Nothing follows the card, so its trailing margin has nothing to push.
+        var pages = Layout(
             "<section style='break-inside:avoid;margin-top:10%;margin-bottom:40%'>" +
-            "<p style='margin:0'>CARD</p></section>",
-            "FPDF1302", Page with { PageHeight = 160 });
+            "<p style='margin:0'>CARD</p></section>", Page with { PageHeight = 160 });
+        Assert.That(pages, Has.Count.EqualTo(1));
+        Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("CARD"));
+    }
 
     [Test]
     public void FittingEmptyPanelPercentMarginsStillReserveExactPhysicalSpace()
@@ -271,29 +273,27 @@ public sealed class PercentagePanelMarginTests
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("BEFORE"));
         Assert.That(pages[1].Runs.Single().Text, Is.EqualTo("AFTER"));
-        // Fresh baseline 239.2 minus 26pt opening, 100pt reserved box,
-        // and 78pt closing margin must remain 35.2pt, not the page top.
-        Assert.That(pages[1].Runs.Single().Baseline, Is.EqualTo(35.2).Within(0.000001));
+        // The panel keeps its 100pt box and 26pt opening (the blank child's margin collapses into
+        // it), but its 78pt closing margin adjoins the unforced page break and is truncated:
+        // AFTER starts at the top of page two.
+        Assert.That(pages[1].Runs.Single().Baseline, Is.EqualTo(239.2).Within(0.000001));
         Assert.That(Render(html, page), Is.EqualTo(Render(
             html.Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
                 StringComparison.Ordinal), page)));
     }
 
-    [TestCase(false, "FPDF1302")]
-    [TestCase(true, "FPDF1401")]
-    public void BlankPanelRechecksFreshPageFootprintAndPaintBudget(bool consumePaintBudget, string code)
+    [Test]
+    public void NestedBlankPanelsCollapseTheirMarginsInsteadOfStackingThem()
     {
-        var html = (consumePaintBudget ? "<p style='margin:0'>BUDGET</p>" : "") +
-            "<div style='padding-top:20pt'><p style='margin:0;margin-bottom:40pt'></p>" +
+        const string html = "<div style='padding-top:20pt'><p style='margin:0;margin-bottom:40pt'></p>" +
             "<section style='margin-top:10%;margin-bottom:30%;background:#ddeeff'>" +
             "<p style='margin:0;margin-top:10%'></p></section></div>";
-        // The fresh page has no preceding 40pt gap to share: its retained
-        // 20pt ancestor padding plus 130pt panel exceeds 140pt usable height.
-        // An exhausted display budget keeps precedence when paint reappears.
-        RejectPreservingOutput(html, code, Page with
-        {
-            PageHeight = 180, MaxDisplayCommands = consumePaintBudget ? 1 : 10_000
-        });
+        // The empty paragraph's 40pt, the panel's 26pt and 78pt and its blank child's 26pt all
+        // collapse into one 78pt gap below the 20pt padding, which fits the 140pt usable height
+        // (added together they would not).
+        var options = Page with { PageHeight = 180 };
+        Assert.That(Layout(html, options), Has.Count.EqualTo(1));
+        Assert.DoesNotThrow(() => Render(html, options));
     }
 
     [Test]
@@ -321,8 +321,9 @@ public sealed class PercentagePanelMarginTests
         Assert.That(fresh, Has.Count.EqualTo(1));
         Assert.That(moved, Has.Count.EqualTo(2));
         Assert.That(moved[0].Runs.Any(run => run.Text == "AFTER"), Is.False);
+        // The panel's collapsed margins adjoin the unforced break, so AFTER starts the new page.
         Assert.That(moved[1].Runs.Single().Baseline,
-            Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.000001));
+            Is.EqualTo(Layout("<p style='margin:0'>AFTER</p>", page)[0].Runs.Single().Baseline).Within(0.000001));
         Assert.That(Render(leading + panel, page), Is.EqualTo(Render(
             (leading + panel).Replace("margin-top:10%'></p>", "margin-top:26pt'></p>",
                 StringComparison.Ordinal), page)));
@@ -348,19 +349,25 @@ public sealed class PercentagePanelMarginTests
         Assert.That(moved[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
         var freshTail = fresh[0].Runs.Single(r => r.Text == "AFTER");
         var movedTail = moved[1].Runs.Single(r => r.Text == "AFTER");
-        Assert.That(movedTail.Baseline, Is.EqualTo(freshTail.Baseline).Within(0.000001),
+        // The 26pt opening margin adjoins the unforced page break and is truncated. The rule keeps its
+        // 52pt closing margin (AFTER follows on the same page). An empty section's two margins
+        // collapse into one that adjoins the break, so AFTER starts at the top of the page.
+        Assert.That(movedTail.Baseline, Is.EqualTo(freshTail.Baseline + (tag == "hr" ? 26 : 52)).Within(0.000001),
             "The closing percentage margin must stay with its empty box across a page break.");
         if (tag == "hr")
         {
             Assert.That(moved[0].PaintBoxes, Is.Empty);
             Assert.That(moved[1].PaintBoxes.Single().Top,
-                Is.EqualTo(46).Within(0.000001));
+                Is.EqualTo(20).Within(0.000001));
         }
         // Verify the *serialized PDF*, not only the internal layout model:
         // explicit page breaking before the empty box is an independent
         // placement oracle for the automatic keep-together decision.
+        // A forced break keeps margins, so the oracle drops the ones the unforced break truncates.
         var forced = leading + "<section style='break-before:page'>" +
-            empty + tail + "</section>";
+            empty.Replace("margin-top:10%", "margin-top:0")
+                .Replace("margin-bottom:20%", tag == "hr" ? "margin-bottom:20%" : "margin-bottom:0") +
+            tail + "</section>";
         Assert.That(Render(leading + empty + tail, page),
             Is.EqualTo(Render(forced, page)));
     }
@@ -375,7 +382,9 @@ public sealed class PercentagePanelMarginTests
             "<p style='margin:0'></p></section>";
         const string tail = "<p style='margin:0'>AFTER</p>";
         var actual = leading + panel + tail;
-        var forced = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        // The empty panel's margins collapse into one that adjoins the unforced break: truncated.
+        var forced = leading + "<section style='break-before:page'>" +
+            panel.Replace("margin-top:10%", "margin-top:0").Replace("margin-bottom:20%", "margin-bottom:0") + tail + "</section>";
         var pages = Layout(actual, page);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
@@ -407,7 +416,8 @@ public sealed class PercentagePanelMarginTests
             "<article><div><p style='margin:0'></p></div></article></section>";
         const string tail = "<p style='margin:0'>AFTER</p>";
         var actual = leading + panel + tail;
-        var forced = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        var forced = leading + "<section style='break-before:page'>" +
+            panel.Replace("margin-top:10%", "margin-top:0").Replace("margin-bottom:20%", "margin-bottom:0") + tail + "</section>";
         var pages = Layout(actual, page);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
@@ -433,7 +443,9 @@ public sealed class PercentagePanelMarginTests
             "<div style='padding-top:2pt'></div></article></section>";
         const string tail = "<p style='margin:0'>AFTER</p>";
         var actual = leading + panel + tail;
-        var oracle = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        // The opening margin adjoins the unforced break and is truncated; a forced break keeps it.
+        var oracle = leading + "<section style='break-before:page'>" +
+            panel.Replace("margin-top:10%", "margin-top:0") + tail + "</section>";
         var pages = Layout(actual, page);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
@@ -464,7 +476,7 @@ public sealed class PercentagePanelMarginTests
         // The margins alone fit after LEAD, but the full panel does not.
         var actual = leading + panel + tail;
         var oracle = leading + "<section style='break-before:page'>" +
-            panel + tail + "</section>";
+            panel.Replace("margin-top:10%", "margin-top:0") + tail + "</section>";
         var pages = Layout(actual, page);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);
@@ -482,7 +494,8 @@ public sealed class PercentagePanelMarginTests
             "<article style='padding-top:2pt'><div style='min-height:4pt'></div></article></section>";
         const string tail = "<p style='margin:0'>AFTER</p>";
         var actual = leading + panel + tail;
-        var forced = leading + "<section style='break-before:page'>" + panel + tail + "</section>";
+        var forced = leading + "<section style='break-before:page'>" +
+            panel.Replace("margin-top:10%", "margin-top:0") + tail + "</section>";
         var pages = Layout(actual, page);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Any(r => r.Text == "AFTER"), Is.False);

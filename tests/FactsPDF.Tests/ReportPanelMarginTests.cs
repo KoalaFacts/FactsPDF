@@ -136,7 +136,8 @@ public sealed class ReportPanelMarginTests
     }
 
     [TestCase("<body style='margin:0 auto'>A</body>", "FPDF1201")]
-    [TestCase("<ol style='margin-left:5pt'><li>A</li></ol>", "FPDF1201")]
+    [TestCase("<table style='margin-left:5pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
+    [TestCase("<ol style='margin-top:5%'><li>A</li></ol>", "FPDF1201")]
     [TestCase("<span style='margin-left:2pt'>A</span>", "FPDF1201")]
     [TestCase("<div style='margin-left:-2pt'>A</div>", "FPDF1202")]
     [TestCase("<div style='margin-left:calc(2pt + 3pt)'>A</div>", "FPDF1202")]

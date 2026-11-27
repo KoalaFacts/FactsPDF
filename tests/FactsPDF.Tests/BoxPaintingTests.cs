@@ -339,15 +339,16 @@ public sealed class BoxPaintingTests
     }
 
     [Test]
-    public void ParentStartsBeforeChildMarginWhilePaintedParagraphStartsAfterIt()
+    public void ChildTopMarginCollapsesThroughParentSoBothBoxesStartAfterIt()
     {
         const string html = "<div style='background-color:blue'><p style='margin-top:40pt;" +
             "margin-bottom:0pt;background-color:red'>A</p></div>";
         var boxes = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
             Options, default)[0].PaintBoxes.OrderBy(b => b.Order).ToArray();
         Assert.That(boxes, Has.Length.EqualTo(2));
-        Assert.That(boxes[0].Top, Is.EqualTo(Options.Margin).Within(0.00001));
-        Assert.That(boxes[1].Top - boxes[0].Top, Is.EqualTo(40).Within(0.00001));
+        // The child's margin collapses through the parent's top edge, so both boxes start below it.
+        Assert.That(boxes[0].Top, Is.EqualTo(Options.Margin + 40).Within(0.00001));
+        Assert.That(boxes[1].Top, Is.EqualTo(boxes[0].Top).Within(0.00001));
     }
 
     [Test]

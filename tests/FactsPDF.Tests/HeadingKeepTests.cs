@@ -149,7 +149,7 @@ public sealed class HeadingKeepTests
 
     [TestCase("h2")]
     [TestCase("h3")]
-    public void FirstHeadingInUnconsumedMarginedPanelKeepsOwnTopMarginOnGroupPageMove(string tag)
+    public void FirstHeadingInUnconsumedMarginedPanelLosesItsMarginsOnGroupPageMove(string tag)
     {
         var options = Page with { PageWidth = 300, PageHeight = 150, Margin = 20 };
         const string css = "<style>p,h2,h3{font-size:12pt;line-height:1;margin-bottom:0}</style>";
@@ -164,11 +164,11 @@ public sealed class HeadingKeepTests
         Assert.That(moved, Has.Count.EqualTo(2));
         Assert.That(moved[0].Runs, Has.Count.EqualTo(7));
         Assert.That(moved[1].Runs.Select(run => run.Text), Is.EqualTo(new[] { "TITLE", "BODY" }));
-        Assert.That(moved[1].PaintBoxes.Single().Top,
-            Is.EqualTo(fresh[0].PaintBoxes.Single().Top).Within(0.000001));
+        // The margins adjoining an unforced page break are truncated: the panel and its heading start
+        // at the top of the page, where a fresh page puts them below the collapsed 25pt margin.
+        Assert.That(moved[1].PaintBoxes.Single().Top, Is.EqualTo(options.Margin).Within(0.000001));
         Assert.That(moved[1].Runs[0].Baseline,
-            Is.EqualTo(fresh[0].Runs[0].Baseline).Within(0.000001),
-            "The first heading's authored 12pt margin must travel with the unconsumed parent panel");
+            Is.EqualTo(fresh[0].Runs[0].Baseline + 25).Within(0.000001));
     }
 
     [Test]
@@ -188,7 +188,9 @@ public sealed class HeadingKeepTests
             + Heading(extra: "margin-top:8pt") + "<p>A<br>B</p></div>", Page);
         Assert.That(pages[0].PaintBoxes, Is.Empty);
         Assert.That(pages[1].PaintBoxes.Single().Top, Is.EqualTo(10));
-        Assert.That(pages[1].Runs[0].Baseline, Is.EqualTo(71));
+        // The heading's 8pt margin lies below the div's padding and border, so it does not adjoin
+        // the page break and stays: 63 is 8pt lower than the heading without it.
+        Assert.That(pages[1].Runs[0].Baseline, Is.EqualTo(63));
     }
 
     [TestCase("break-before:page")] [TestCase("break-after:page")]

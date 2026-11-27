@@ -80,7 +80,6 @@ public sealed class ListStructureTests
     [TestCase("<ul><li value='4'>A</li></ul>")]
     public void UnsupportedListAttributesProtectOutput(string html) => Fails(html, "FPDF1103");
 
-    [TestCase("<ol style='margin-top:1pt'><li>A</li></ol>")]
     [TestCase("<ul><li style='break-before:page'>A</li></ul>")]
     public void ListsKeepContainerCssApplicability(string html) => Fails(html, "FPDF1201");
 
