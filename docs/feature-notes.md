@@ -1164,9 +1164,10 @@ sizes its columns from its cells' min-content and max-content widths the way
 browsers do, instead of failing: a table without a width shrinks to its
 content, a wider or explicit width is shared out by each column's content
 range, and long text wraps inside its column. The first row sets the column
-count. Measured cell edges and widths match Chrome 158 within 0.1pt on ten
+count; `colspan` cells widen the columns they cover as in browsers. Measured
+cell edges and widths match Chrome 158 within 0.1pt on 17
 synthetic fixtures with the same font (`TableAutoLayoutTests.cs`,
-`scripts/table-auto-layout-oracle.ts`). `colspan`, percentage cell padding or
+`scripts/table-auto-layout-oracle.ts`). Percentage cell padding or
 image sizes, and mixed explicit/automatic `col` widths in such tables fail
 `FPDF1302`; fixed-column tables are unchanged. See
 [automatic column widths](tables.md#automatic-column-widths).

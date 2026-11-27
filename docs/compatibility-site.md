@@ -663,8 +663,9 @@ are replaced in place again and a kept last row split only for the table's botto
 decoration is the remaining `FPDF1302`; no count moves.
 The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
 limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
-elements without widths), so no count moves.
+elements without widths), so no count moves. The `<table>` scope and limitation are replaced
+again when `colspan` joins automatic layout.
 Current dataset SHA-256:
-`ef3d39adfc3d7af6c82c9ab5befaa46e5ee4dd7c44d65484b0214973cd57d281`; English
-layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
-SHA-256 `0d04065cef83cbcb6b354c4b06d05c17b9db472dc2ad2b96bfac476b84f61b44`.
+`55e91c973e3287cb768e4691ec7c4c39e0b3e535217b42436e836c7db6c6fe1b`; English
+layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
+SHA-256 `63da38ec73cdb3c00e307d441bf55422d38a292e39be3026df2e11c22fdd90a3`.
