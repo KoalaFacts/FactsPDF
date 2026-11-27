@@ -105,6 +105,41 @@ public sealed class TableAutoLayoutTests
     }
 
     [Test]
+    public void PercentageColumnGetsItsShareOfTheTableAndWidensAnAutoTable()
+    {
+        // 50% of the table for "AB" (12) and "ABCD" (24) in the rest: the other half must hold 24,
+        // so the table is 48 and both columns 24.
+        Assert.That(Widths(Table("<tr><td style='width:50%'>AB</td><td>ABCD</td></tr>")), Is.EqualTo(new[] { 24d, 24d }));
+        // Percentages past 100% are cut: 60% and the remaining 40% of 100pt.
+        Assert.That(Widths(Table("<tr><td style='width:60%'>A</td><td style='width:60%'>B</td></tr>", "font-size:10pt;width:100pt")),
+            Is.EqualTo(new[] { 60d, 40d }));
+    }
+
+    [Test]
+    public void FixedCellWidthIsTheColumnMaximumAndAutoColumnsTakeTheRest()
+    {
+        // At auto width the 30pt column reaches its width; in a 200pt table the auto column takes the rest.
+        Assert.That(Widths(Table("<tr><td style='width:30pt'>AB</td><td>ABCD</td></tr>")), Is.EqualTo(new[] { 30d, 24d }));
+        Assert.That(Widths(Table("<tr><td style='width:30pt'>AB</td><td>ABCD</td></tr>", "font-size:10pt;width:200pt")), Is.EqualTo(new[] { 30d, 170d }));
+        // The width is a content width plus padding, or the whole border box with box-sizing:border-box.
+        Assert.That(Widths(Table("<tr><td style='width:30pt;padding:2pt'>AB</td><td>ABCD</td></tr>")), Is.EqualTo(new[] { 34d, 24d }));
+        Assert.That(Widths(Table("<tr><td style='width:30pt;padding:2pt;box-sizing:border-box'>AB</td><td>ABCD</td></tr>")), Is.EqualTo(new[] { 30d, 24d }));
+    }
+
+    [Test]
+    public void ColgroupMixingExplicitAndAutomaticWidthsGivesTheAutoColumnTheRest()
+        => Assert.That(TableLayoutTests.Pdf(TableLayoutTests.Fixture("missing-width")), Is.EqualTo(TableLayoutTests.Pdf(TableLayoutTests.Fixture("points"))));
+
+    [Test]
+    public void CellWidthInAnExplicitColumnTableTakesAutomaticLayout()
+    {
+        // Both columns are 50pt; the narrower 20pt cell width cannot shrink a 50pt col.
+        var html = Cells + "<table style='width:100pt;font-size:10pt'><colgroup><col style='width:50pt'><col style='width:50pt'></colgroup>"
+            + "<tbody><tr><td style='width:20pt'>A</td><td>B</td></tr></tbody></table>";
+        Assert.That(Widths(html), Is.EqualTo(new[] { 50d, 50d }));
+    }
+
+    [Test]
     public void ExplicitWidthWiderThanTheContainerFailsAsATableWidthError()
     {
         var html = Table("<tr><td>A</td></tr>", "font-size:10pt;width:600pt");
@@ -203,7 +238,7 @@ public sealed class TableAutoLayoutTests
         Assert.That(Widths(html), Is.EqualTo(new[] { 30d, 70d }));
     }
 
-    [TestCase("<colgroup><col style='width:30pt'><col></colgroup><tbody><tr><td>A</td><td>B</td></tr></tbody>", "explicit and automatic")]
+    [TestCase("<tbody><tr><td colspan=2 style='width:20pt'>A</td></tr><tr><td>A</td><td>B</td></tr></tbody>", "spanning cell cannot have its own width")]
     [TestCase("<tbody><tr><td style='padding:5%'>A</td></tr></tbody>", "Percentage cell padding")]
     [TestCase("<tbody><tr><td style='text-indent:10%'>A</td></tr></tbody>", "Percentage text-indent")]
     public void UnsupportedAutomaticLayoutFailsWithAClearMessage(string content, string message)

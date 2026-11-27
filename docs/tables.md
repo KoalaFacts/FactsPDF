@@ -30,7 +30,7 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 
 ## Widths, rows and paint
 
-A table uses fixed columns when every `col` has a width, and [automatic column widths](#automatic-column-widths) when it has no `colgroup` or no `col` has a width; some `col` elements with a width and some without fail `FPDF1302`. A fixed column needs a positive CSS `width` in an accepted print length, percentage, or bounded `em`/`rem`. Percentages use the resolved table **content** width; `em` uses the column's inherited computed font size (from `colgroup`/table), and `rem` uses the computed HTML root font size. A column's own `font-size` declaration remains unsupported. Resolved fixed columns must sum to the table content width within **0.001pt**; accepted differences are not redistributed. Zero widths, incompatible sums and insufficient content width are errors.
+A table uses fixed columns when every `col` has a width and no cell has one, and [automatic column widths](#automatic-column-widths) otherwise. A fixed column needs a positive CSS `width` in an accepted print length, percentage, or bounded `em`/`rem`. Percentages use the resolved table **content** width; `em` uses the column's inherited computed font size (from `colgroup`/table), and `rem` uses the computed HTML root font size. A column's own `font-size` declaration remains unsupported. Resolved fixed columns must sum to the table content width within **0.001pt**; accepted differences are not redistributed. Zero widths, incompatible sums and insufficient content width are errors.
 
 An explicit table width describes its content box. Table `width` and padding accept bounded `em` (the table's final computed font size) and `rem` (the computed HTML root font size), alongside existing print lengths and percentages. Its own padding/borders sit **outside** that content width and the outer box must fit its parent. As for existing blocks, omitted/auto table width fills the parent with the outer box, subtracting the table's own padding/borders to find its content width. Neither font-relative values nor percentages trigger automatic track redistribution; overwide outer boxes fail rather than paint approximately.
 
@@ -48,9 +48,9 @@ A header, atomic line/image or required leading/terminal decoration that cannot 
 
 ## Automatic column widths
 
-A table without a `colgroup`, or whose `col` elements all lack a width (or set
-`width:auto`), sizes its columns from their content with the automatic table
-layout browsers use:
+A table without a `colgroup`, with a `col` that lacks a width (or sets
+`width:auto`), or with a `td`/`th` `width`, sizes its columns from their content
+and those widths with the automatic table layout browsers use:
 
 ```html
 <style>td,th { padding:3pt 5pt; border:1px solid #5b6b78 } th { font-weight:normal }</style>
@@ -98,19 +98,38 @@ content-box meaning (border-box with `box-sizing:border-box`).
 
 Measured against Chrome 158 with the same TrueType font on both sides (kerning
 and ligatures off in Chrome, which FactsPDF does not apply), every cell's left
-edge and width in the 17 synthetic fixtures under
-`tests/fixtures/tables-auto/` agree within **0.1pt** (largest measured
-difference 0.077pt). Run the comparison with
+edge and width in the 26 synthetic fixtures under
+`tests/fixtures/tables-auto/` agree within **0.15pt** (largest measured
+difference 0.11pt, where a percentage column sets the table width and so
+multiplies Chrome's 1/64px rounding; every other fixture is within 0.08pt). Run the comparison with
 `node scripts/table-auto-layout-oracle.ts --cli <FactsPDF.Cli> --chrome <chrome> --font <regular.ttf> --font-bold <bold.ttf>`.
 Two browser behaviours fall outside this contract: Chrome rounds border widths
 to whole device pixels (so `1pt` borders, 1.33px, draw 1px wide there), and it
 breaks lines after hyphens and some punctuation, where FactsPDF does not, so
 FactsPDF's min-content can be wider for such text.
 
-Automatic layout fails `FPDF1302` for percentage cell padding,
-image sizes or `text-indent` (they would depend on the width being computed),
-and for a mix of explicit and automatic `col` widths. `table-layout` and cell
-`width` remain unsupported (`FPDF1201`).
+Explicit widths join in as in browsers. A `col` or cell `width` in pt, px or
+another print length makes its column *constrained*: a `col` width is the
+column's starting minimum and maximum, and a cell width (a content width plus
+the cell's padding and borders, or the border box with `box-sizing:border-box`)
+is that cell's maximum; a constrained column ignores the maximums of cells
+without a width. A percentage `col` or cell `width` asks for that share of the
+table (the largest per column; a running total past 100% is cut to what is
+left), and an auto-width table widens until percentage columns get their share
+and the other columns their maximums. The table width is then shared out in
+Chrome's order: minimums; percentage columns up to their share; constrained
+columns up to their maximums; auto columns up to theirs; then any extra to auto
+columns by their maximums, else to constrained columns by their maximums, else
+to percentage columns by their percentages. A `colspan` cell's widths spread
+the same way over the columns it covers, except that past their maximums its
+extra goes to percentage columns before constrained ones, as in Chrome.
+
+Automatic layout fails `FPDF1302` for percentage cell padding, image sizes or
+`text-indent` (they would depend on the width being computed) and for a
+`colspan` cell with its own `width`. Cell `em`/`rem` widths and `min-width`/
+`max-width` fail `FPDF1201`. `table-layout` is not implemented and fails
+`FPDF1201`: `fixed` sizes columns from the first row alone and lets wider
+content overflow its column, which FactsPDF would have to clip or reject.
 [Example report](../examples/report-auto-table-layout.html).
 
 ## Vertical alignment in whole table rows
@@ -346,7 +365,7 @@ PDFs must fail the corresponding content or geometry assertions.
 | Element | Supported CSS |
 | --- | --- |
 | `table` | Existing container width and padding (including computed em/rem), solid borders, background-color and inherited text properties |
-| `td`, `th` | Padding, solid borders, background-color, text properties and `vertical-align` (above); no width, margin or break declarations |
+| `td`, `th` | Padding, solid borders, background-color, text properties, `vertical-align` (above) and print-length or percentage `width` (automatic layout); no `em`/`rem` width, min/max width, margin or break declarations |
 | `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
 | `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root), or no width on every `col` for automatic layout |
 | `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only; `tr` and `thead` also accept `break-inside`/`page-break-inside:auto\|avoid` (below) |
@@ -369,7 +388,7 @@ the caller's destination.
 | `FPDF1101` | Invalid structure/placement, incorrect column coverage (every row must cover the `colgroup` columns or the first row's count) or more than 16 columns |
 | `FPDF1103` | Invalid/misplaced `colspan`, unsupported attributes including `rowspan` |
 | `FPDF1201` | Unsupported CSS or tag-specific applicability |
-| `FPDF1302` | Invalid resolved widths, mixed explicit and automatic columns, automatic-layout input it does not support, automatic columns wider than the available width, cell content too narrow, table too wide, or an unplaceable short table/header/atomic unit/required-decoration combination |
+| `FPDF1302` | Invalid resolved widths, automatic-layout input it does not support, automatic columns wider than the available width, cell content too narrow, table too wide, or an unplaceable short table/header/atomic unit/required-decoration combination |
 | `FPDF1303` | Table movement or continuation would exceed MaxPages |
 | `FPDF1401` | Display-command or serialized output budget exceeded |
 | `FPDF1507` | A required bold/italic/bold-italic font chain is missing |

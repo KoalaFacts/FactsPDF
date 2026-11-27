@@ -664,8 +664,9 @@ decoration is the remaining `FPDF1302`; no count moves.
 The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
 limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
 elements without widths), so no count moves. The `<table>` scope and limitation are replaced
-again when `colspan` joins automatic layout.
+again when `colspan` joins automatic layout, and with the `<col>`, `<td>` and `<th>` rows
+when `col` and cell widths join it.
 Current dataset SHA-256:
-`55e91c973e3287cb768e4691ec7c4c39e0b3e535217b42436e836c7db6c6fe1b`; English
-layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
-SHA-256 `63da38ec73cdb3c00e307d441bf55422d38a292e39be3026df2e11c22fdd90a3`.
+`98496c6a4e19439271a5da1cc2dcce1f6ff07b0926b2920db4bb02011de29693`; English
+layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
+SHA-256 `adfc1d5aa0a35e5015b43c3ac6cf4ba364676e1e5ed1a73c5804982e09279159`.
