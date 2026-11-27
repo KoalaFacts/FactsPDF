@@ -499,7 +499,8 @@ test('bounded rem/em report margins are actual source-bound partial CSS abilitie
   for(const id of ['css.margin-top','css.margin-bottom']) {
     const row=dataset.features.find(f=>f.id===id);
     assert.match(row.scope,/div\/section\/article/);
-    assert.match(row.limitations,/margin collapse/);
+    assert.match(row.limitations,/垂直外边距按CSS 2折叠/);
+    assert.match(row.scope,/ul\/ol\/menu\/li\/table接受margin-top\/margin-bottom/);
     assert.match(row.limitations,/FPDF1302/);
   }
   assert.match(dataset.features.find(f=>f.id==='css.margin').limitations,/table-cell p左右仍仅显式零值/);
