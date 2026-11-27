@@ -118,6 +118,10 @@ Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behav
 
 Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). Other pseudo-classes and pseudo-elements still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
 
+### Custom properties and var()
+
+Design-token stylesheets declare colours, font sizes and spacing once as custom properties (`:root{--brand-700:#b3261e;--brand:var(--brand-700);--space-6:12pt}`) and use them everywhere with `var()`: `font-size:var(--font-3) !important`, `padding:var(--space-3) var(--space-6)`, `border-top:2px solid var(--brand)`, `style="padding: 0 var(--space-6)"`. Custom properties cascade, inherit and accept `inherit`/`initial`/`unset`; `var()` works in every supported property, shorthands included, with fallbacks and nested references, and the page renders byte-identical to the same page with the values written out ([example](../examples/report-custom-properties.html) with 71 tokens and its [literal oracle](../examples/report-custom-properties-oracle.html)). Where a browser would quietly unset a declaration (a reference with no value and no fallback, a used reference cycle, a value the property does not accept after substitution) FactsPDF fails with `FPDF1202` at that declaration; doubling or deep reference chains fail with `FPDF1205` ([custom properties](css-stylesheets.md#custom-properties-and-var), `CustomPropertyTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:

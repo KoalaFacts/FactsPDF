@@ -99,6 +99,49 @@ public sealed class RobustnessFuzzTests
     }
 
     [Test]
+    public void FuzzedCustomPropertyGraphsRenderOrFailWithFactsPdfException()
+    {
+        // Random custom property graphs on :root, a panel and style attributes: references to defined,
+        // undefined and cyclic names, nested fallbacks, doubling chains, CSS-wide keywords and malformed
+        // var() syntax, used by text, box and border declarations. Substitution must stay bounded and
+        // every failure must be a FactsPdfException.
+        string[] literals = ["#1f4e79", "4pt", "0", "1.4", "12pt", "solid", "bold", "x", "", "1px solid #333", "red blue", "1em"];
+        string[] properties = ["color", "padding", "margin", "border-top", "line-height", "font-size", "background-color", "letter-spacing", "float"];
+        var rendered = Run(600, Seed + 7, random =>
+        {
+            var names = Enumerable.Range(0, 1 + random.Next(8)).Select(i => $"--v{i}").ToArray();
+            string Reference(int depth)
+            {
+                var name = random.Next(6) == 0 ? "--missing" : names[random.Next(names.Length)];
+                return random.Next(8) switch
+                {
+                    0 when depth < 3 => $"var({name}, {Value(depth + 1)})",
+                    1 => $"var({name},)",
+                    2 => random.Next(4) == 0 ? "var(" + name : "var(nope)",
+                    3 => $"VAR( {name} )",
+                    _ => $"var({name})"
+                };
+            }
+            string Value(int depth) => random.Next(5) switch
+            {
+                0 when depth < 3 => Reference(depth) + " " + Reference(depth),
+                1 => random.Next(3) switch { 0 => "inherit", 1 => "initial", _ => "unset" },
+                2 => literals[random.Next(literals.Length)],
+                _ => Reference(depth)
+            };
+            string Declarations(int count) => string.Join(";", Enumerable.Range(0, count).Select(_ => random.Next(2) == 0
+                ? $"{names[random.Next(names.Length)]}:{Value(0)}{(random.Next(6) == 0 ? " !important" : "")}"
+                : $"{properties[random.Next(properties.Length)]}:{Value(0)}"));
+            var html = $"<!doctype html><html><head><style>:root{{{Declarations(1 + random.Next(6))}}}.panel{{{Declarations(random.Next(4))}}}" +
+                $"p{{{Declarations(random.Next(3))}}}</style></head><body><div class='panel' style='{Declarations(random.Next(3)).Replace("'", "", StringComparison.Ordinal)}'>" +
+                "<p>Paid <span>in</span> full</p></div><p>Thanks</p></body></html>";
+            return () => Render(html, new PdfOptions());
+        });
+        // Coverage floor (measured 29 of 600): some graphs must still reach layout, not only the resolver.
+        Assert.That(rendered, Is.GreaterThan(15));
+    }
+
+    [Test]
     public void FuzzedPageFurnitureTextRendersOrFailsWithFactsPdfException()
     {
         // Templates are untrusted text; font sizes stay inside their documented 1–144pt configuration range,

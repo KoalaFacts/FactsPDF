@@ -42,7 +42,7 @@ document corpus.
 | Numbers, dimensions, %, strings and functions | Parses | Existing documented value grammar only |
 | Unknown property `display:grid` | Retains declaration | Rejects `FPDF1201` |
 | `@media print`, `@page` | Retains at-rule | Rejects `FPDF1204` |
-| `calc()` / `var()` | Retains nested function tree | Does not evaluate |
+| `calc()` / `var()` | Retains nested function tree | `var()` and custom properties are substituted by the cascade; `calc()` is not evaluated |
 | Nested CSS rules | Retains ordered rule/declaration contents | Does not evaluate nesting |
 | Comments and malformed constructs | Tokenizes/recovery diagnostics | Strict mode rejects recovered errors |
 | Existing eight supported properties | Parses | Computes and renders |

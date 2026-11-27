@@ -652,7 +652,12 @@ The pseudo-class row moves to partial for `:root` (the root `html` element, pseu
 specificity); its own feature name, scope and limitation strings are replaced in place and the
 attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
 `FPDF1102` search is unchanged).
+The custom property / `var()` row moves to partial: custom properties cascade and inherit and
+`var()` is substituted into every supported property, while a reference without a value or
+fallback fails `FPDF1202` instead of being unset. Its scope and limitation strings are replaced in
+place and its stage becomes the existing `语义/渲染`, so the `仅语法可表示` stage it shared with the
+value-function row moves after that row's strings (partial 247, rejected 119; `FPDF1202`).
 Current dataset SHA-256:
-`3a0fd0e36cf2d0d1ebb172090e9bb020fcc735b173a432a8f1d829c65b7a5538`; English
-layer `site/src/audit-english-root-pseudo-class.mjs`, ordered source-text
-SHA-256 `cf4ff1dc6a955acf122bf49ed835dc2ffae7fc54835cde6a61420230ac3651f7`.
+`59c9929a533f41bc48340676854c7d916d4594a9ba2c04e455c381b882d6d788`; English
+layer `site/src/audit-english-custom-properties.mjs`, ordered source-text
+SHA-256 `ec7b30b4a5fa54a67a3b88ec6bd96f45b142b120037d2592ebc09976018f5ab0`.
