@@ -336,23 +336,25 @@ internal static class InlineCss
 
     internal static Rgb Color(string value, int offset)
     {
+        // transparent is transparent black: it keeps its place in the cascade and paints nothing.
+        if (value == "transparent") return new(0, 0, 0, 0);
         value = CssNamedColors.Hex(value) ?? value;
         // #rgb doubles each digit in place (0xabc -> 0xaabbcc) instead of building a #rrggbb string,
         // whose interpolation boxed six chars per declaration.
         if (value.Length is < 4 or > 9 || value.Length == 6 || value.Length == 8 || value[0] != '#'
             || !uint.TryParse(value.AsSpan(1), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var rgb))
-            throw Invalid("Use #rgb, #rrggbb or an opaque standard CSS named color.", offset);
-        // #rgba and #rrggbbaa are accepted only fully opaque (alpha f or ff), like rgba(..., 1);
-        // the alpha digits are dropped so the colour is exactly its #rgb / #rrggbb form.
+            throw Invalid("Use #rgb, #rgba, #rrggbb, #rrggbbaa or a standard CSS named color.", offset);
+        // #rgba and #rrggbbaa carry a byte of alpha. A fully opaque alpha (f or ff) is exactly
+        // the #rgb / #rrggbb colour, so it keeps the opaque PDF bytes.
+        var alpha = 255u;
         if (value.Length is 5 or 9)
         {
-            if ((value.Length == 5 ? rgb & 15 : rgb & 255) != (value.Length == 5 ? 15u : 255u))
-                throw Invalid("Hex colours with alpha must be fully opaque (#rgbf or #rrggbbff); transparency is unsupported.", offset);
+            alpha = value.Length == 5 ? (rgb & 15) * 0x11 : rgb & 255;
             rgb >>= value.Length == 5 ? 4 : 8;
         }
         if (value.Length is 4 or 5)
             rgb = ((rgb >> 8) & 15) * 0x110000 + ((rgb >> 4) & 15) * 0x1100 + (rgb & 15) * 0x11;
-        return new(((rgb >> 16) & 255) / 255d, ((rgb >> 8) & 255) / 255d, (rgb & 255) / 255d);
+        return new(((rgb >> 16) & 255) / 255d, ((rgb >> 8) & 255) / 255d, (rgb & 255) / 255d, alpha / 255d);
     }
 
     private static FactsPdfException Invalid(string text, int offset) => new("FPDF1202", text, offset);

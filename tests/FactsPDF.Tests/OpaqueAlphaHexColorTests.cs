@@ -4,8 +4,8 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// #rgba and #rrggbbaa are accepted only when fully opaque (alpha f / ff), like rgba(..., 1),
-/// and paint exactly as their #rgb / #rrggbb form. Any other alpha still fails FPDF1202.
+/// A fully opaque #rgba / #rrggbbaa (alpha f / ff) paints exactly as its #rgb / #rrggbb form;
+/// translucent hex alpha is covered by TranslucentColourTests. Malformed hex still fails FPDF1202.
 /// </summary>
 [TestFixture]
 public sealed class OpaqueAlphaHexColorTests
@@ -31,14 +31,10 @@ public sealed class OpaqueAlphaHexColorTests
         Assert.That(Render(Page(withAlpha)), Is.EqualTo(Render(Page(opaque))));
     }
 
-    [TestCase("color:#abc8")]
-    [TestCase("color:#23446b80")]
-    [TestCase("background:#23446b00")]
-    [TestCase("border:1pt solid #abce")]
     [TestCase("color:#23446")]
     [TestCase("color:#2344")]
     [TestCase("color:#23446bfff")]
-    public void TranslucentOrMalformedHexStillFails(string css)
+    public void MalformedHexStillFails(string css)
     {
         using var stream = new MemoryStream();
         var error = Assert.Throws<FactsPdfException>(

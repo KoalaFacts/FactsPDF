@@ -236,7 +236,22 @@ distribution remain separate.
 
 ### Opaque `rgb()` and `rgba(…,1)` colours (source-only)
 
-Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders, and hex with a fully opaque alpha (`#23446bff`, `#abcf`) wherever hex is accepted (other alpha values fail `FPDF1202`; `OpaqueAlphaHexColorTests.cs`). These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](../examples/report-print-spacing.html).
+Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders, and hex with a fully opaque alpha (`#23446bff`, `#abcf`) wherever hex is accepted (`OpaqueAlphaHexColorTests.cs`). These produce the same painted PDF as matching hex colours; gradients still fail explicitly.
+
+### Translucent colours
+
+A translucent colour such as `border-top:1px solid rgba(164, 176, 195, 0.2)` no
+longer fails the page. `rgba()`/`hsla()` (comma alpha or `/ alpha`, a number or
+a percentage), `#rgba`/`#rrggbbaa` and `transparent` paint everywhere FactsPDF
+paints a colour: text, backgrounds, solid/dashed/dotted and rounded borders,
+outlines, text decorations and list markers. Alpha is clamped to 0–1 and
+rounded to one byte as Chrome rounds paint alpha; each translucent paint selects
+a constant-alpha ExtGState (`/ca` fill, `/CA` stroke) that the page declares
+once per alpha, so it composites over what is painted below it as in Chrome.
+Alpha 1 keeps the opaque PDF bytes; alpha 0 paints nothing (`color:transparent`
+and `outline-color:transparent` are accepted for that). `opacity` and malformed
+alpha (`none`, a unit) still fail `FPDF1202` (`TranslucentColourTests.cs`,
+[exact contract](css-stylesheets.md#translucent-colours)). See [bounded CSS colours](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](../examples/report-print-spacing.html).
 For a fontless case-formatting example with a preserved proper-name span, see the
 [report case labels](../examples/report-case-labels.html).
 

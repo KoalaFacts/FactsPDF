@@ -14,7 +14,12 @@ internal enum TextDecorationPattern { Solid, Dashed, Dotted }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
-internal readonly record struct Rgb(double R, double G, double B);
+// A is the CSS alpha quantised to one byte (n/255), as Chrome's PDF backend stores paint alpha.
+// 1 is opaque and paints through the legacy opaque PDF path byte for byte; 0 paints nothing.
+internal readonly record struct Rgb(double R, double G, double B, double A = 1)
+{
+    internal bool IsInvisible => A <= 0;
+}
 // Computed text style. Treat every published instance as immutable: the root style, a parent's
 // style and any style stored in the document model or a run are shared, and adjacent runs with
 // equal styles coalesce by value. The setters exist only so CSS computing can apply all of one

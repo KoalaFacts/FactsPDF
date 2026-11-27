@@ -667,7 +667,15 @@ still failing `FPDF1204` and conflicts with explicit writer page options failing
 Its scope and limitation strings are replaced in place, its new evidence string is inserted
 and the `@media` limitation no longer lists `@page` (partial 248, rejected 118; 877 ordered
 strings; the `FPDF1102` search is unchanged).
+Translucent colours (`rgba()`/`hsla()` and slash alpha, `#rgba`/`#rrggbbaa`, `color:transparent`
+and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colour strings of the
+`color`, `background-color`, `background`, `border`, `border-color` (and its four sides),
+`outline` and `text-decoration` rows and of the `value.color.rgbfunc`, `value.color.alphahex`,
+`value.background.transparent`, `value.background.currentcolor`, `value.border.transparent` and
+`value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
+since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
+stays partial.
 Current dataset SHA-256:
-`7143f97d06112e76e25fb2dedd0c3b6b1983cf83f70ffee180a6c6228405501f`; English
-layer `site/src/audit-english-page-rule.mjs`, ordered source-text
-SHA-256 `e1f2bd849730e4c2d1ef87051223501ec9c8be22b835ae981f7eb87cffa315aa`.
+`c91a3026eee6fd6ff8cd3354123d3c4ce13e2aefa656f7e20f8f5b341efa1705`; English
+layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
+SHA-256 `9030c98569c8dcc545bc3dd0dd3c3057b86c6f5e38507765bf1162ea998e90b1`.

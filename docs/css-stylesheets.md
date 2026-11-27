@@ -88,9 +88,9 @@ continue on page fragments, with top/bottom strokes only on first/last
 fragments. Default/none preserves existing PDF bytes.
 
 Widths are zero or 0.2–6pt; offsets 0–12pt. Both use physical
-pt/px/mm/cm/in/pc/q only. Solid/dashed/dotted/none and opaque ink are
-accepted; negative, percentage, alpha, gradient and rounded-corner outlines
-reject, preserving output. Outside scoped panels no outline is ever painted,
+pt/px/mm/cm/in/pc/q only. Solid/dashed/dotted/none and any supported colour,
+including [translucent colours](#translucent-colours), are accepted; negative, percentage, gradient and
+rounded-corner outlines reject, preserving output. Outside scoped panels no outline is ever painted,
 so resets that remove one (`a{outline:none}`, `img{outline:0}`,
 `outline-style:none|initial|unset`, any width, colour or offset) are dropped
 and leave the PDF bytes unchanged; an outline style that could paint there
@@ -110,7 +110,7 @@ Controlled business report paragraphs, headings, inline text and flat table
 cell text accept `text-decoration-line` with standalone `none` or **1–3
 distinct** `underline`/`line-through`/`overline` values in any order.
 The `text-decoration` shorthand accepts the same line set, optionally one
-opaque colour, one solid/dashed/dotted stroke and one bounded 0.2–12pt
+colour ([translucent colours](#translucent-colours) included), one solid/dashed/dotted stroke and one bounded 0.2–12pt
 computed thickness. Omitted shorthand terms reset as before, and
 `inherit`/`initial`/`unset`, specificity and `!important` apply to
 the line set as one CSS property. Underline offset changes only the underline.
@@ -389,7 +389,7 @@ physical borders, the 18 bounded names `border-inline-width/style/color`,
 `border-block-width/style/color`, and `border-inline-start/end-{width,style,color}`
 or `border-block-start/end-{width,style,color}` lower to physical left/right
 or top/bottom independent cascade slots. The two paired forms on each axis
-accept **one or two** widths, line styles or opaque colours; a named single
+accept **one or two** widths, line styles or colours; a named single
 side accepts **one**. A lone CSS-wide keyword `inherit`, `initial` or
 `unset` applies to all targeted physical sides. Per-side widths actually
 change report content geometry, solid/dashed/dotted strokes paint PDF bytes,
@@ -397,7 +397,7 @@ and authored colours including opaque rgb/hsl/currentColor reach PDF paint.
 Existing font layout, stylesheet specificity, `!important`, source order,
 fragmented boxes and explicit error/output preservation are unchanged.
 
-No RTL/vertical text, unlisted border properties, transparency, double
+No RTL/vertical text, unlisted border properties, double
 styles, `calc()`, mixed CSS-wide components or new inline/table contexts.
 Unmatched invalid declarations still fail `FPDF1202`; inapplicable
 elements fail `FPDF1201`. See [44-entry logical HTML](../examples/report-logical-border-components.html),
@@ -413,7 +413,7 @@ On the same report boxes that already accept physical `border-*`, the
 shorthands `border-inline` (left and right), `border-block` (top and
 bottom), `border-inline-start` (left), `border-inline-end` (right),
 `border-block-start` (top), and `border-block-end` (bottom) reuse the
-existing border widths, opaque colours, and solid/none/dashed/dotted strokes.
+existing border widths, colours, and solid/none/dashed/dotted strokes.
 Up to one of each width/style/colour is accepted in any order, with physical
 defaults for omitted terms; a single CSS-wide keyword applies to all three
 components of each affected side. Shorthands lower to independent longhand
@@ -422,7 +422,7 @@ then feed actual painted PDF edges, content geometry and page fragments.
 
 This scope assumes **LTR horizontal** writing. The renderer rejects unknown
 logical border forms, direction/RTL/vertical writing, double styles,
-nonopaque alpha, calc and mixed CSS-wide terms rather than pretending
+calc and mixed CSS-wide terms rather than pretending
 to implement them. Existing unsupported inline/table/list/image contexts
 and strict output-preserving failure behaviour remain. The
 [44-entry source HTML](../examples/report-logical-borders.html) and
@@ -442,7 +442,8 @@ and single-colour `background:currentColor` paint the element's **final**
 computed text ink, after stylesheet/inline cascade and `!important`.
 The pre-existing border/text-decoration currentColor behaviour is preserved.
 CSS-wide resets, inheritance, actual PDF background fragments, font metrics
-and page continuation use the ordinary renderer paths. No transparency,
+and page continuation use the ordinary renderer paths. A translucent text
+colour keeps its alpha ([translucent colours](#translucent-colours)). No
 system colours, gradients, URLs, additional elements, arbitrary CSS Color or
 new layout model is accepted.
 
@@ -473,8 +474,8 @@ qpdf/Poppler for searchability, positions, pages and recovery.
 
 This is a bounded colour *value* extension, not 148 new CSS properties or full
 CSS Color: `background:transparent` retains its previous limited meaning;
-`color:transparent`, system/theme colours, arbitrary `currentColor`,
-alpha blending, gradients and unsupported selectors/elements still reject.
+system/theme colours, arbitrary `currentColor`, `opacity`,
+gradients and unsupported selectors/elements still reject.
 Implementation source [`c9138808`](https://github.com/KoalaFacts/FactsPDF/commit/c9138808d785986712f17e977fa2371854cb6aed).
 Exact-head CI, independent review, private software, human reference approval
 and customer permission remain separate; no public release is implied.
@@ -490,11 +491,11 @@ integer-channel forms still work. CSS specificity, `!important`, inheritance,
 real PDF text/paint, pagination, resources and previous-output protection
 use the same established engine paths.
 
-Mixed percentage/integer channels, decimal *numeric* channels, transparency
-(any alpha other than exactly `1` or `100%`), nesting, `calc()` and general
+Mixed percentage/integer channels, decimal *numeric* channels, nesting, `calc()` and general
 CSS Color remain unsupported;
 unrecognized syntax rejects with `FPDF1202`, including unmatched rules.
-This is not a general CSS Colors or alpha-compositing implementation.
+This is not a general CSS Colors implementation; alpha is covered by
+[translucent colours](#translucent-colours).
 
 [48-entry real paginated report](../examples/report-rgb-percent-colours.html) and
 [independently authored HEX control](../examples/report-rgb-percent-colours-oracle.html)
@@ -519,8 +520,8 @@ The [48-entry colour report](../examples/report-hsl-colours.html)
 and [independent fixed-hex oracle](../examples/report-hsl-colours-oracle.html)
 must produce identical actual PDF bytes. Source NUnit, managed CLI
 and Linux/Windows Native AOT qpdf/Poppler check searchability, multi-page
-geometry and original-output recovery. No transparency (alpha other than
-exactly `1` or `100%`), nesting, gradients or general CSS Color: unsupported values
+geometry and original-output recovery. Alpha paints as [translucent colours](#translucent-colours); no
+nesting, gradients or general CSS Color: unsupported values
 fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
 independent review, private software, human approval and customer
 distribution remain separate.
@@ -902,7 +903,7 @@ their own runs, including explicit TrueType faces. Existing solid
 underline/strike-through output remains byte-identical by default.
 
 This is a deliberately **bounded** CSS Text Decoration subset: no simultaneous
-lines, `double`, `wavy`, alpha, unbounded thickness/offset,
+lines, `double`, `wavy`, unbounded thickness/offset,
 general HTML edit semantics (though u/s now render actual lines),
 browser-style descendant decoration propagation, bidi,
 or complex shaping. Invalid values and targets raise `FPDF1202`/`FPDF1201`,
@@ -940,7 +941,7 @@ individual side shorthands. The 1–4-value `border-style` expansion and CSS
 importance, specificity, source order and per-side CSS-wide keywords continue
 to use the existing cascade. A style is non-inherited unless `inherit` wins.
 Border widths remain the existing nonnegative, bounded absolute values and
-thin/medium/thick; colours use the existing opaque RGB and `currentcolor`
+thin/medium/thick; colours use the existing RGB (with alpha) and `currentcolor`
 rules. There is no new element applicability, font synthesis or layout mode.
 
 A nonzero dashed edge paints a PDF stroke with butt caps and an on/off
@@ -1504,7 +1505,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | font-weight | normal/bold, numeric hundred steps 100–900 (100–500 normal role; 600–900 bold role), or bounded bolder/lighter (selects explicit bold/normal role, saturating at endpoints), including equivalent numeric CSS tokens; real matching font chains required, no synthetic intermediate weights |
 | font-style | normal/italic; explicit role resources required |
 | line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
-| color | #rgb/#rrggbb; black, white, red, green, blue, gray, grey; bounded opaque rgb()/rgba() |
+| color | #rgb/#rrggbb (and #rgba/#rrggbbaa); 148 named colours, transparent; bounded rgb()/rgba()/hsl()/hsla() with alpha ([translucent colours](#translucent-colours)) |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
 | white-space | `normal` (default), `nowrap`, scoped `pre-line`, bounded `pre-wrap` and unwrapped `pre` on explicit `p` / `h1`–`h6` or supported `<pre>`, inherited from `html`/`body`/ordinary report `div`/`section`/`article`/`blockquote`; `pre-line` collapses spaces, `pre-wrap` retains each space and soft-wraps, `pre` retains each space and source break without auto-wrap; tab stops fail `FPDF1305` in preserving modes |
 | letter-spacing | Supported report text and inline spans: `normal`, nonnegative 0–24pt print lengths, or scoped `em` (own computed font) / `rem` (computed root); resolved to fixed points before real PDF glyph advances, wrapping, centring and decorations; negative/%/calc unsupported |
@@ -1751,7 +1752,7 @@ painting/fragmentation apply identically.
 
 This is **not** general CSS background shorthand support: images, URL loading,
 gradients, positioning, repeats, size, multiple layers and function colours
-are still rejected with FPDF1202, apart from the narrowly supported opaque rgb()/rgba() colours described below. There is no change to old PDF bytes unless
+are still rejected with FPDF1202, apart from the rgb()/rgba() colours (opaque or translucent) described below. There is no change to old PDF bytes unless
 the caller actually uses the newly accepted shorthand. A malformed or
 unsupported declaration still leaves existing output files intact.
 
@@ -1769,8 +1770,8 @@ and page-fragment painting match the existing hex path. This applies to
 `color`, `background`/`background-color`, `border-color` and its four
 longhands, and solid `border` and per-side shorthands.
 
-This does **not** implement CSS alpha compositing: `rgba(...,0)`,
-`rgba(...,0.5)`, `rgb(r g b / 50%)`, fractional numeric RGB channels,
+Alpha other than 1 paints with PDF constant alpha, as described in
+[translucent colours](#translucent-colours). Fractional numeric RGB channels,
 gradients, colour mixing and nested `calc()` are
 rejected with `FPDF1202`. Rejected conversions preserve existing outputs;
 no CSS color-scheme, new colour spaces or implicit image loading is added.
@@ -1778,6 +1779,50 @@ See `OpaqueRgbCssTests.cs` and the real Linux Native AOT run of
 `examples/report-print-spacing.html` with an independent hex projection.
 This is a source-preview feature, not a public release or general CSS colour
 conformance statement.
+
+## Translucent colours
+
+Every colour FactsPDF paints accepts alpha: `color`, `background` and
+`background-color`, `border-color` and the border shorthands (solid, dashed,
+dotted and rounded), `outline-color`, `text-decoration-color` and the list
+markers that follow the text colour. The accepted spellings are:
+
+- `rgba()`/`rgb()` and `hsla()`/`hsl()` with a comma alpha or a space-form
+  `/ alpha`, the alpha being a number or a percentage
+  (`rgba(164, 176, 195, 0.2)`, `rgb(35 68 107 / 50%)`, `hsl(210 50% 40% / .25)`);
+- `#rgba` and `#rrggbbaa` (`#23446b80`, `#abc8`);
+- `transparent`, now also for `color`, `text-decoration-color` and
+  `outline-color`.
+
+As in CSS, alpha is clamped to 0–1. It is then rounded to one byte (n/255) the
+way Chrome's renderer rounds paint alpha, so `rgba(35,68,107,0.5)`,
+`rgb(35 68 107 / 50%)` and `#23446b80` produce identical PDF bytes.
+
+Each translucent paint is enclosed in `q`/`Q` and selects a constant-alpha
+graphics state, `/Ann gs`, where `nn` is the alpha byte in hex. The page's
+`/Resources` declare each alpha the page uses once, inline, as
+`/ExtGState << /A80 << /CA 0.502 /ca 0.502 >> >>` (`/CA` for strokes, `/ca` for
+fills). The colour therefore composites over whatever is already painted
+below it (backgrounds, borders, images, text), as in Chrome. Within one box the
+background is painted first and the border edges, which never overlap, over it.
+
+- **Alpha 1** (`rgba(…,1)`, `/ 100%`, `#…ff`, or an alpha that rounds to 255
+  such as `0.999` or `2`) produces exactly the bytes of the opaque colour, and
+  a page without translucent colours has no `/ExtGState` entry, so existing
+  PDFs are byte-identical.
+- **Alpha 0** (`transparent`, `rgba(…,0)`, `#…00`, or an alpha that rounds to 0)
+  paints nothing and adds no graphics state: no background rectangle, border
+  stroke, outline, decoration or marker, and no glyphs for text. The text keeps
+  its place in layout, and its own `text-decoration-color` still paints. A
+  zero-alpha background on inline text is dropped like `background:transparent`.
+- A translucent text run is enclosed in `q`/`Q` too, which also restores the
+  character spacing (`Tc`); the next run sets its own tracking again.
+
+`opacity` other than 1, blend modes and colour management are not implemented
+and still fail `FPDF1202`, as do alpha written as `none` or with a unit
+(`rgba(1,2,3,none)`, `rgb(1 2 3 / 1px)`). FactsPDF has no PDF/A or other
+output mode that forbids transparency. Page furniture colours remain opaque
+`#rrggbb`. See `TranslucentColourTests.cs`.
 
 ## Current-source computed report line-height
 
