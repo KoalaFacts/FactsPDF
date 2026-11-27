@@ -456,13 +456,16 @@ internal static class TableLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (placement.Alignment == CellVerticalAlign.Top) continue;
+                var defaulted = placement.Alignment == CellVerticalAlign.DefaultMiddle;
+                // The user-agent middle never fails a row that may split: that row keeps its cells at the top.
+                if (defaulted && (canSplit || uncertain)) continue;
                 if (canSplit)
                     throw Geometry("vertical-align:middle/bottom requires an unsplit table row.", placement.SourceOffset);
                 if (uncertain) ambiguousVerticalOffsets.Add(placement.SourceOffset);
                 var free = rowHeight - placement.NaturalHeight;
                 if (!double.IsFinite(free) || free < -0.000001)
                     throw Geometry("Table cell vertical alignment has invalid row geometry.", placement.SourceOffset);
-                var shift = Math.Max(0, free) * (placement.Alignment == CellVerticalAlign.Middle ? .5 : 1);
+                var shift = Math.Max(0, free) * (placement.Alignment == CellVerticalAlign.Bottom ? 1 : .5);
                 for (var i = placement.RunStart; i < placement.RunEnd; i++)
                     runs[i] = runs[i] with { Baseline = runs[i].Baseline - shift };
                 for (var i = placement.ImageStart; i < placement.ImageEnd; i++)
