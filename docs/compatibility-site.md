@@ -640,7 +640,11 @@ partial (partial 252, rejected 114; their failure codes are `FPDF1201/FPDF1202/F
 the `FPDF1102` search is unchanged); `gap`, `row-gap` and `column-gap` stay partial with
 lengths accepted, the `display` limitation names `flex`, and the inventory note gains twelve
 names (accepted CSS property names 384 to 396).
+Generated content moves the `::before/::after/::marker` and `content` rows from rejected to
+partial (partial 254, rejected 112; failure codes `FPDF1201/FPDF1202/FPDF1203` and
+`FPDF1201/FPDF1202`, so the `FPDF1102` search is unchanged); pseudo-classes stay rejected, and
+the inventory note gains `content` (accepted CSS property names 396 to 397).
 Current dataset SHA-256:
-`1716424400f39f47f8745eaf461af0ea2308c6eab54fc881361b2e48d4300082`; English
-layer `site/src/audit-english-flex-layout.mjs`, ordered source-text
-SHA-256 `b39e89a4893e805865e50f0394d30b401619e0d4752a3515c1a077b11e9e63a5`.
+`239cd308a5cf7afc1999951ad4904772d6a66af812f4229ed2dd5107d0c77383`; English
+layer `site/src/audit-english-generated-content.mjs`, ordered source-text
+SHA-256 `ae2eaea7cd2ddb8e74666130b39b997532207526060629458dc6f21d4252c1cc`.
