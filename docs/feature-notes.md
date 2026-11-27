@@ -1211,6 +1211,16 @@ explicitly, preserving the existing PDF destination.
 **no preview binary, NuGet publication, commercial grant or human PDF
 approval** follows from this change.
 
+### HTML `type` on ordered clauses
+
+Legal and contract templates write `<ol type="1"><li>Clause<ol type="a"><li>Sub-clause</li></ol></li></ol>`.
+`type` on `ol` (`1`, `a`, `A`, `i`, `I`, case-sensitive), `ul` (`disc`, `circle`,
+`square`, `none`) and `li` (either set) is a presentational hint for
+`list-style-type`: byte-identical to the matching `list-style-type` on that
+element, and any author `list-style-type` or `list-style` on it wins. Other
+values and other elements fail `FPDF1103` ([contract](lists.md#html-type-attribute),
+`ListTypeAttributeTests.cs`).
+
 ### Current-source report list continuation and numbering
 
 Ordered business report actions can continue from `<ol start="21">`,
@@ -1223,7 +1233,7 @@ Unstyled lists retain byte-identical PDF output.
 This is a **bounded subset**: only ASCII positive ordinals 1–999999,
 only direct `ol > li` value overrides, and one existing marker kind or
 CSS-wide keyword per `list-style`. No arbitrary CSS Lists semantics,
-inside/position/images/counters, HTML `type`, negative ordinals or
+inside/position/images/counters, negative ordinals or
 list-item `value` on `ul`; invalid inputs fail without overwriting
 a destination. See the
 [77-entry pagination example](../examples/report-list-continuations.html)

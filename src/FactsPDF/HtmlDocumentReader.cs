@@ -430,6 +430,7 @@ internal static class HtmlDocumentReader
             var linkRel = false;
             int? listStart = null, listValue = null;
             var listReversed = false;
+            ListMarkerKind? listTypeHint = null;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
@@ -457,6 +458,9 @@ internal static class HtmlDocumentReader
                             "ol reversed accepts only an empty boolean attribute or 'reversed'.", token.Offset);
                     listReversed = true;
                 }
+                // A presentational hint below every author declaration (see CssStylesheets.Compute).
+                else if (attribute == "type" && name is "ol" or "ul" or "li")
+                    listTypeHint = ListMarkerTypes.TypeAttribute(name, value, token.Offset);
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 // Named and Open Graph metadata (viewport, description, author, generator, og:title)
                 // is document metadata a static page render never reads. color-scheme is the one
@@ -521,7 +525,7 @@ internal static class HtmlDocumentReader
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
-                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden);
+                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "html") rootFontSize = style.FontSize;
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }

@@ -628,7 +628,10 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
+place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
+so no count moves.
 Current dataset SHA-256:
-`b9581aae0697b3df0f7caa9d511e2d9f0b55dd944774c0a885ab483d6d139d80`; English
-layer `site/src/audit-english-table-part-display.mjs`, ordered source-text
-SHA-256 `60069eb3830d06aad5354a4f0b7b738e3ad59475cdca74ec1c682dc238e70fed`.
+`8589964ba83487abd1a4098a2c9ffa7fe79d84fff3ee3ad1fc57e63dd4b519fb`; English
+layer `site/src/audit-english-list-type.mjs`, ordered source-text
+SHA-256 `a86e772e9d3abd1455cd282d01ed59d2fa8d683bf071cdb969e8442d720fdd28`.

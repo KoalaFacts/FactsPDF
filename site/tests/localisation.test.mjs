@@ -881,3 +881,14 @@ test('table parts accept the display value they already render, in English', asy
   for (const row of [display, tfoot])
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test('lists accept the HTML type attribute as a list-style-type hint, in English', async () => {
+  const { englishFeature } = await localisation();
+  for (const id of ['html.li', 'html.ol', 'html.ul']) {
+    const row = englishFeature(data.features.find(x => x.id === id));
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /HTML type is a presentational hint for list-style-type/);
+    assert.doesNotMatch(row.limitations, /No ul start or ul-li value, HTML type/);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+  }
+});
