@@ -100,7 +100,9 @@ public sealed class PageObjectAllocationTests
     [TestCase(true, "2 0 obj\n<< /Type /Pages /Count 3 /Kids [9 0 R 11 0 R 13 0 R] >>\nendobj\n")]
     public void PagesAndLinkObjectsKeepTheirBytes(bool embedFont, string expectedPages)
     {
-        var html = "<p style=\"break-after:page\"><a href=\"https://example.com/a?x=1&amp;y=(2)\">AB</a></p>"
+        // The pinned rectangles predate the user-agent sheet: no body margin, 8pt below a paragraph and
+        // a 1.2 line height (the supplied font's normal line height differs).
+        var html = "<style>html,body{margin:0;line-height:1.2}p{margin:0 0 8pt}</style><p style=\"break-after:page\"><a href=\"https://example.com/a?x=1&amp;y=(2)\">AB</a></p>"
             + "<p style=\"break-after:page;font-size:7.3pt;margin-left:3.1415pt\"><a href=\"mailto:a.b+c@example.com\">AB</a></p><p>AB</p>";
         var options = new PdfOptions { PageWidth = 200, PageHeight = 300, Margin = 10, Fonts = embedFont ? [Font] : [], SubsetFonts = embedFont };
         using var output = new MemoryStream();
