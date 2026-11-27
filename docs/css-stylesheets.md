@@ -644,7 +644,8 @@ source `7afae6b56ba8ddbaad2f434cfb4a9d35f8b7a2dd`, not a new private candidate, 
 
 The existing `min-width`, `max-width` and `box-sizing` CSS subset now
 also applies to explicitly supplied standalone images and direct fixed-column
-cell images. `max-width:100%` caps the **actual PDF content/image matrix**
+cell images, and `min-width`/`max-width` to a table's used width
+([table width constraints](tables.md#table-width-constraints)). `max-width:100%` caps the **actual PDF content/image matrix**
 to available parent/cell content width, and `box-sizing:border-box`
 includes the image's padding/borders in the used width. `min-width`
 can enlarge the used image width and wins above `max-width` when both
@@ -2678,8 +2679,9 @@ with the margins around it.
 
 Remaining differences from Chrome: a `li` whose first content is a nested list
 still takes a marker-only line (Chrome puts its marker on the first nested line);
-lists inside table cells fail `FPDF1101`; the printed 1em of `p` and headings
-differs (above). Every distance above was measured against Chrome's printed PDF
+the printed 1em of `p` and headings differs (above). A list in a table cell lays
+out as a [cell list](tables.md#lists-in-cells): its margins collapse inside the
+cell and stay there. Every distance above was measured against Chrome's printed PDF
 and is pinned by `BlockMarginCollapseTests`.
 
 ## Current-source grid columns
@@ -2720,8 +2722,8 @@ auto-sized rows as needed (CSS Grid Layout with auto-placement only):
   `min-content`/`max-content` tracks, named lines, explicit placement, spans,
   named areas, explicit rows, `dense` or column flow, sized implicit tracks and
   `inline-grid` (`FPDF1202`); grid on `html`, paragraphs or inside tables, a
-  grid container with `height` or `min-height`, `break-inside:avoid` on one and
-  tables as grid items (`FPDF1201`); columns whose fixed sizes and content
+  grid container with `height` or `min-height` and `break-inside:avoid` on one
+  (`FPDF1201`); columns whose fixed sizes and content
   minimums cannot fit (`FPDF1302`). See
   [`GridLayoutTests`](../tests/FactsPDF.Tests/GridLayoutTests.cs).
 
@@ -2779,7 +2781,8 @@ Box Layout §9 for a single-line, row-direction container:
   them becomes its own item, so `<li><span>Label</span><span>Value</span></li>`
   is a two-item row; whitespace-only text between items is dropped. A flex
   `li` is no longer a list item: it has no marker and is not numbered. A table
-  as a flex item fails `FPDF1201`.
+  is a flex item of its own, sized by its width and content
+  ([tables as flex and grid items](tables.md#tables-as-flex-and-grid-items)).
 - **Main axis.** The flex base size comes from `flex-basis` (length,
   percentage of the container's content width, `em`/`rem`, `content`, or
   `auto`), else a definite `width`, else the item's max-content width measured
@@ -2819,7 +2822,8 @@ Box Layout §9 for a single-line, row-direction container:
   `FPDF1201`.
 - **Not supported:** `flex-wrap` other than `nowrap` and `flex-direction`
   other than `row` (`FPDF1202`), `inline-flex` (`FPDF1202`), `display:flex` on
-  `p`/`pre`/headings, lists or inside tables (`FPDF1201`), `break-inside:avoid`
+  `p`/`pre`/headings, lists or inside tables, except on the items of a list in a
+  table cell (`FPDF1201`), `break-inside:avoid`
   on a flex container (`FPDF1201`), percentage vertical margins on flex items
   and a percentage `text-indent` in a content-sized item (`FPDF1201`).
 
