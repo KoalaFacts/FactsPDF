@@ -3,12 +3,12 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// The CSS-wide keywords revert and revert-layer (no cascade layers exist, so revert-layer reverts like
-/// revert) roll the author origin back for a property: the element renders as if no author declaration
-/// had been written for it, so the user-agent defaults (heading sizes, paragraph gaps) or inheritance
-/// apply. Like Chrome 158, the presentational hints of that property go too: the list type attribute
-/// for list-style-type and the hidden attribute for display. Accepted in both modes; also as a var()
-/// fallback or substituted value.
+/// The CSS-wide keywords revert and revert-layer (no cascade layers exist) roll the author styles back
+/// for a property: the element renders as if no author declaration had been written for it, so the
+/// user-agent defaults (heading sizes, paragraph gaps) or inheritance apply. Like Chrome 158, revert
+/// also drops the presentational hints of that property (the list type attribute for list-style-type,
+/// the hidden attribute for display), while revert-layer keeps them. Accepted in both modes; also as a
+/// var() fallback or substituted value.
 /// </summary>
 [TestFixture]
 public sealed class RevertKeywordTests
@@ -47,6 +47,16 @@ public sealed class RevertKeywordTests
     {
         Assert.That(Writer.ToBytes(Document("ol{list-style-type:revert}", "<ol type='a'><li>x</li><li>y</li></ol>")),
             Is.EqualTo(Writer.ToBytes(Document("", "<ol><li>x</li><li>y</li></ol>"))));
+    }
+
+    // Chrome 158: getComputedStyle reports lower-alpha and none for these.
+    [Test]
+    public void RevertLayerKeepsThePresentationalHints()
+    {
+        Assert.That(Writer.ToBytes(Document("ol{list-style-type:revert-layer}", "<ol type='a'><li>x</li><li>y</li></ol>")),
+            Is.EqualTo(Writer.ToBytes(Document("", "<ol type='a'><li>x</li><li>y</li></ol>"))));
+        Assert.That(Writer.ToBytes(Document("div{display:revert-layer}", "<p>a</p><div hidden>gone</div>")),
+            Is.EqualTo(Writer.ToBytes(Document("", "<p>a</p>"))));
     }
 
     [Test]

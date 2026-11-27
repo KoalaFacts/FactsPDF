@@ -337,7 +337,7 @@ public sealed class NonStrictCssTests
         Assert.That(lines, Is.EqualTo(new[]
         {
             "warning FPDF1201: CSS property 'colr' is not supported. Location: line 2, column 3.",
-            "warning FPDF1202: Use #rgb, #rrggbb or an opaque standard CSS named color. Location: line 3, column 10.",
+            "warning FPDF1202: Use #rgb, #rgba, #rrggbb, #rrggbbaa or a standard CSS named color. Location: line 3, column 10.",
             $"Wrote 1 page(s), {output.Length} bytes.",
         }));
         Assert.That(output, Is.EqualTo(Pdf.Write().ToBytes(html.Replace("p{colr:red}", "", StringComparison.Ordinal).Replace("h1{color:bogus}", "", StringComparison.Ordinal))));

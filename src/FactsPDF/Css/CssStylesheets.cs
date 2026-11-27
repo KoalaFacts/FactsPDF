@@ -477,15 +477,15 @@ internal sealed class CssStylesheets
                     .Add(new(declaration.Shared, declaration.Order, declaration.Offset, isInline, specificity));
                 return;
             }
-            if (TablePartDisplay(declaration)) return;
-            // revert (and revert-layer, stored as revert) rolls the author origin back: the winner is
-            // discarded after the cascade, so nothing the element would apply needs checking here.
-            if (declaration.Value == "revert")
+            // revert and revert-layer roll the author origin back: the winner is discarded after the
+            // cascade, so nothing the element would apply needs checking here.
+            if (declaration.Value is "revert" or "revert-layer")
             {
                 var reverting = new Winner(declaration, isInline, specificity); var current = winners[(int)declaration.Property];
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
             }
+            if (TablePartDisplay(declaration)) return;
             // baseline is the initial value. Outside cells inline text (and a br or img) already
             // sits on its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
@@ -771,11 +771,14 @@ internal sealed class CssStylesheets
         // A winning revert computes the property as if the author origin declared nothing for it: the
         // user-agent defaults below apply, or inheritance. Chrome 158 also discards the presentational
         // hints (the list type attribute, the hidden attribute's display:none) for such a property.
+        // With no cascade layers, revert-layer rolls back to the unlayered author styles below the
+        // declaration, where Chrome keeps those hints, so it only drops the winner.
         var displayReverted = false;
         for (var index = 0; index < winners.Length; index++)
         {
-            if (winners[index] is not { Declaration.Value: "revert" }) continue;
+            if (winners[index] is not { Declaration.Value: "revert" or "revert-layer" } reverted) continue;
             winners[index] = null;
+            if (reverted.Declaration.Value == "revert-layer") continue;
             if (index == (int)CssProperty.Display) displayReverted = true;
             if (index == (int)CssProperty.ListStyleType) listTypeHint = null;
         }
