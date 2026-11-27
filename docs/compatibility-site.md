@@ -634,7 +634,13 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `orphans`, `widows` and `Widows / orphans` rows move from rejected to partial: both
+properties are inherited positive integers placed at Chrome's printed breaks, while paragraphs
+that no declaration reaches keep the existing line-by-line breaks. The three rows share one new
+scope, limitation and evidence string; the former `Widows / orphans` scope and limitation are
+removed, and the CSS inventory note records 384 to 386 accepted CSS property names
+(partial 247, rejected 119).
 Current dataset SHA-256:
-`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
-layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
-SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
+`093794329c671dc9e9560ab04e34ff4cd8f022978cd29cf20c94a0d0b9455391`; English
+layer `site/src/audit-english-orphans-widows.mjs`, ordered source-text
+SHA-256 `f85cc10f1f49152f8e46847b648504e8a1136be8b05359c9fe1c132920bd4a5f`.
