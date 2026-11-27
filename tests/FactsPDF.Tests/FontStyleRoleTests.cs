@@ -22,8 +22,11 @@ public sealed class FontStyleRoleTests
         ItalicFonts = [Font(600)], BoldItalicFonts = [Font(800)]
     };
 
+    // Layout positions are measured from the page margin, so the user-agent body and paragraph margins are reset.
+    private const string Neutral = "<style>body{margin:0}p{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html, PdfOptions options)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, options, default), options, default);
 
     private static byte[] Pdf(string html, PdfOptions options)
     {
@@ -172,17 +175,19 @@ public sealed class FontStyleRoleTests
         Assert.That(mixed[0].Baseline, Is.EqualTo(plain[0].Baseline).Within(0.00001));
         Assert.That(mixed[1].Baseline, Is.EqualTo(plain[0].Baseline).Within(0.00001));
         Assert.That(mixed[2].Baseline, Is.EqualTo(plain[1].Baseline).Within(0.00001));
-        Assert.That(mixed[0].Baseline, Is.EqualTo(options.PageHeight - options.Margin - 13.2).Within(0.00001));
+        Assert.That(mixed[0].Baseline, Is.EqualTo(options.PageHeight - options.Margin - 14.25).Within(0.00001));
+        // line-height:normal of the first italic font: ascent 1.2em and descent 0.2em of 16px round to 19px
+        // and 3px, a 16.5pt line whose half-leading puts the baseline 14.25pt below the line top.
     }
 
     [Test]
     public void ActualRoleAdvancesControlWrappingAndDoNotCreateWordBreaks()
     {
         var options = AllRoles() with { PageWidth = 72, Margin = 12 };
-        Fails("<p>AAAA<b>AAAAAAAAA</b></p>", options, "FPDF1302");
+        Fails(Neutral + "<p>AAAA<b>AAAAAAAAA</b></p>", options, "FPDF1302");
         var runs = Layout("<p>A <b>AAAAAAAAA</b></p>", options)[0].Runs;
         Assert.That(runs[0].Baseline, Is.GreaterThan(runs[^1].Baseline));
-        Fails("<p>A&#160;<b>AAAAAAAAA</b></p>", options, "FPDF1302");
+        Fails(Neutral + "<p>A&#160;<b>AAAAAAAAA</b></p>", options, "FPDF1302");
     }
 
     [Test]

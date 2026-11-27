@@ -14,8 +14,12 @@ public sealed class GridLayoutTests
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
     private const double FirstBaseline = 500 - 20 - 10.8;
 
+    // The tests measure grid geometry from the content-box origin, so the user-agent body and
+    // paragraph margins are reset.
+    private const string Neutral = "<style>body{margin:0}p{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, Page, default), Page, default);
 
     private static PlacedText Run(List<LayoutPage> pages, string text, int page = 0)
         => pages[page].Runs.Single(run => run.Text == text);

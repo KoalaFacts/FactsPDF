@@ -42,7 +42,7 @@ public sealed class ParagraphChildTests
     public void ElementParagraphsAndDirectTextKeepTheirAnonymity()
     {
         var tree = HtmlDocumentReader.ReadTree("<div>before<p>inside</p>after</div>", new PdfOptions(), default);
-        var div = (BlockNode)tree.Children.Single();
+        var div = (BlockNode)((BlockNode)tree.Children.Single()).Children.Single(); // inside the implied body
         Assert.That(div.Children, Has.Count.EqualTo(3));
         var before = (Paragraph)div.Children[0];
         var p = (BlockNode)div.Children[1];
@@ -58,7 +58,7 @@ public sealed class ParagraphChildTests
     public void AHiddenBlockResumesTheAnonymousParagraph()
     {
         var tree = HtmlDocumentReader.ReadTree("<div>a<div style=\"display:none\">x</div>b</div>", new PdfOptions(), default);
-        var div = (BlockNode)tree.Children.Single();
+        var div = (BlockNode)((BlockNode)tree.Children.Single()).Children.Single(); // inside the implied body
         var text = (Paragraph)div.Children.Single();
         Assert.That(text.IsAnonymous, Is.True);
         Assert.That(string.Concat(text.Runs.Select(r => r.Text)), Does.Contain("a").And.Contain("b"));
