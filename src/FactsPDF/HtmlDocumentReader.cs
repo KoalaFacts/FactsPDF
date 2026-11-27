@@ -257,6 +257,8 @@ internal static class HtmlDocumentReader
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
         var result = new DocumentRoot { PageRules = sheets.PageRules };
         Paragraph? current = null;
+        // The box of the open cell paragraph when it has padding; cell paragraphs have no other box.
+        BoxStyle? currentPadding = null;
         TableMarkup? table = null;
         var anonymous = false;
         var elements = 0; var insideStyle = false; var baseSeen = false;
@@ -282,7 +284,7 @@ internal static class HtmlDocumentReader
                     // Formatting whitespace and empty inline wrappers are not
                     // anonymous flow items. Explicit p margins are retained.
                     if (!anonymous || current.Runs.HasBreak() || TextLines.HasTextContent(current, cancellation))
-                        cell.Contents.Add(new TableCellText(current));
+                        cell.Contents.Add(currentPadding is null ? new TableCellText(current) : new PaddedTableCellText(current, currentPadding));
                 }
                 else
                 {
@@ -291,6 +293,7 @@ internal static class HtmlDocumentReader
                 }
             }
             current = null;
+            currentPadding = null;
             anonymous = false;
         }
         void Pop()
@@ -780,6 +783,9 @@ internal static class HtmlDocumentReader
             {
                 current = new Paragraph(style, token.Offset, RunCount(tokens, t + 1, name));
                 anonymous = false;
+                if (table?.Cell is not null && (boxStyle.PaddingTop.Value != 0 || boxStyle.PaddingRight.Value != 0
+                    || boxStyle.PaddingBottom.Value != 0 || boxStyle.PaddingLeft.Value != 0))
+                    currentPadding = boxStyle;
             }
             if (before is BlockNode beforeBox) children.Add(beforeBox);
             else if (before is GeneratedText beforeText) Add(beforeText.Text, beforeText.Style);

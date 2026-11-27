@@ -30,6 +30,16 @@
 // inline-replaced-baseline — an existing example with an img or svg renders a
 // different PDF on both sides: default-inline images sit on the baseline of
 // their line box with the strut's descent below them, as in Chrome.
+// list-default-margin — an existing example with a ul, ol or menu renders a
+// different PDF on both sides (or a decorated bottom edge now (no longer) fits):
+// those lists take Chrome's user-agent margin of 1em above and below, none when
+// nested, so the content after each list moves.
+// block-margin-collapse — an existing example with block containers (div, section,
+// li, hr, table ...) and no list renders a different PDF on both sides (or a decorated
+// bottom edge now (no longer) fits): vertical margins collapse as in CSS 2 (siblings,
+// parent and first or last child, empty blocks), padding and borders keep them apart,
+// margins adjoining an unforced page break are truncated, and a painted parent
+// excludes the margin that collapses out through its edge.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -60,10 +70,15 @@ export interface Difference {
   reason: string;
   /** The known kind of an intended change this difference is, or null. */
   kind: ExpectedKind | null;
+  /** Every known kind that explains it (kind is the first); defaults to [kind] when omitted. */
+  kinds?: ExpectedKind[];
 }
 
+const kindsOf = (difference: Difference): ExpectedKind[] =>
+  difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
+
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -189,6 +204,14 @@ const locationLine = /^Location: line \d+, column \d+\.$/;
 
 const wroteLine = /^Wrote \d+ page\(s\), \d+ bytes\.$/m;
 const withoutWrote = (stderr: string) => stderr.replace(/\r\n/g, '\n').replace(wroteLine, 'Wrote');
+/** Both sides render a different PDF with the same diagnostics, or one side fails only at a decorated bottom edge. */
+function rendersDifferently(base: RunResult, head: RunResult): boolean {
+  const rendered = base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
+    head.pdf.subarray(0, 5).toString('latin1') === '%PDF-' && !base.pdf.equals(head.pdf) &&
+    withoutWrote(base.stderr) === withoutWrote(head.stderr);
+  return rendered || decoratedOverflow(base, head) || decoratedOverflow(head, base);
+}
+
 const decoratedFailure = /^FPDF1302: Decorated box fragment exceeds the usable page area\.$/m;
 
 /** Whether one side renders and the other fails only at a decorated box's bottom edge. */
@@ -199,38 +222,54 @@ function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
 
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
 export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false,
-  hasReplaced = false): ExpectedKind | null {
+  hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind | null {
+  return classifyDifferences(base, head, newExample, hasTh, hasReplaced, hasList, hasBlock)[0] ?? null;
+}
+
+/**
+ * Every known kind that explains two differing runs, most specific first. A difference is
+ * accepted when any of them is declared, so a broad kind never hides a narrower one that a
+ * later change declares on its own (a page with both a th and a div stays th-default-centred).
+ */
+export function classifyDifferences(base: RunResult, head: RunResult, newExample = false, hasTh = false,
+  hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind[] {
+  const kinds: ExpectedKind[] = [];
   if (hasTh && !newExample && base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
-    return 'th-default-centred';
+    kinds.push('th-default-centred');
   }
   if (newExample && base.exitCode === 3 && base.pdf === null &&
       head.exitCode === 0 && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
-    return 'new-example-rendered';
+    kinds.push('new-example-rendered');
   }
   const rendered = base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
     head.pdf.subarray(0, 5).toString('latin1') === '%PDF-' && !base.pdf.equals(head.pdf) &&
     withoutWrote(base.stderr) === withoutWrote(head.stderr);
   if (hasReplaced && !newExample && rendered) {
-    return 'inline-replaced-baseline';
+    kinds.push('inline-replaced-baseline');
   }
   if (!newExample && (rendered || decoratedOverflow(base, head) || decoratedOverflow(head, base))) {
-    return 'orphans-widows-initial-2';
+    kinds.push('orphans-widows-initial-2');
   }
-  if (base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
-    return null;
+  if (!newExample && rendersDifferently(base, head)) {
+    if (hasList) kinds.push('list-default-margin');
+    if (hasBlock) kinds.push('block-margin-collapse');
+  }
+  if (kinds.length > 0 || base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
+    return kinds;
   }
   const baseLines = base.stderr.split('\n');
   const headLines = head.stderr.split('\n');
   if (baseLines.some((line) => locationLine.test(line))) {
-    return null;
+    return kinds;
   }
   const remaining = headLines.filter((line) => !locationLine.test(line));
   if (remaining.length === headLines.length || remaining.length !== baseLines.length) {
-    return null;
+    return kinds;
   }
-  return remaining.every((line, i) => line === baseLines[i]) ? 'location-added' : null;
+  if (remaining.every((line, i) => line === baseLines[i])) kinds.push('location-added');
+  return kinds;
 }
 
 /** The expected kinds declared by "Parity-Expect: <kind>" trailers in a commit message. */
@@ -251,8 +290,8 @@ export function trailerKinds(message: string): ExpectedKind[] {
 /** What fails the run: differences of no declared kind, and declared kinds never observed. */
 export function failures(differences: readonly Difference[], expect: readonly ExpectedKind[]): { unexpected: Difference[]; unobserved: ExpectedKind[] } {
   return {
-    unexpected: differences.filter((difference) => difference.kind === null || !expect.includes(difference.kind)),
-    unobserved: expect.filter((kind) => !differences.some((difference) => difference.kind === kind)),
+    unexpected: differences.filter((difference) => !kindsOf(difference).some((kind) => expect.includes(kind))),
+    unobserved: expect.filter((kind) => !differences.some((difference) => kindsOf(difference).includes(kind))),
   };
 }
 
@@ -362,7 +401,10 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       if (reason !== null) {
         const isNewExample = !baseExamples.has(example);
         const source = readFileSync(input, 'utf8');
-        const kind = classifyDifference(base, head, isNewExample, /<th[\s>]/i.test(source), /<(img|svg)[\s>]/i.test(source));
+        const kinds = classifyDifferences(base, head, isNewExample, /<th[\s>]/i.test(source), /<(img|svg)[\s>]/i.test(source),
+          /<(ul|ol|menu)[\s>]/i.test(source),
+          /<(div|section|article|header|footer|main|nav|aside|blockquote|figure|figcaption|address|dl|dt|dd|li|hr|table)[\s>]/i.test(source));
+        const kind = kinds[0] ?? null;
         if (isNewExample && kind === null) {
           // A new fixture is not silently exempt from parity: report why
           // its expected old-error to real-PDF conversion was not classified.
@@ -371,7 +413,7 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
             `head exit=${head.exitCode}, head PDF prefix=${head.pdf?.subarray(0, 5).toString('latin1') ?? 'none'}, ` +
             `head stderr bytes=${head.stderr.length}`);
         }
-        differences.push({ example, set: set.name, reason, kind });
+        differences.push({ example, set: set.name, reason, kind, kinds });
       }
     });
     for (const set of sets) {
@@ -417,8 +459,8 @@ if (import.meta.main) {
       console.log(`parity: ${set} exit codes ${JSON.stringify(tally)}`);
     }
     for (const difference of differences) {
-      const accepted = difference.kind !== null && expect.includes(difference.kind);
-      console.error(`${difference.example} [${difference.set}]: ${accepted ? `expected ${difference.kind}: ` : ''}${difference.reason}`);
+      const accepted = kindsOf(difference).find((kind) => expect.includes(kind));
+      console.error(`${difference.example} [${difference.set}]: ${accepted ? `expected ${accepted}: ` : ''}${difference.reason}`);
     }
     const { unexpected, unobserved } = failures(differences, expect);
     for (const kind of unobserved) {

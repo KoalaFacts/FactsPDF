@@ -668,7 +668,7 @@ test('zero table-part and list-item margins are translated for every margin row'
   const { englishFeature } = await localisation();
   for (const id of ['css.margin', 'css.margin-top', 'css.margin-bottom', 'css.margin-left', 'css.margin-right', 'css.margin-inline', 'css.margin-block']) {
     const english = englishFeature(data.features.find(x => x.id === id));
-    assert.match(english.limitations, /A zero margin on li and on table rows, row groups, columns, column groups and cells \(tr\/thead\/tbody\/col\/colgroup\/td\/th\) is the initial value/, id);
+    assert.match(english.limitations, /A zero margin on table rows, row groups, columns, column groups and cells \(tr\/thead\/tbody\/col\/colgroup\/td\/th\) is the initial value/, id);
     assert.match(english.limitations, /cells \(tr\/thead\/tbody\/col\/colgroup\/td\/th\)[^.]*; nonzero values still fail FPDF1201\./, id);
     assert.doesNotMatch(english.limitations, han, id);
   }
@@ -678,7 +678,7 @@ test('zero ul, ol, table and br margins and zero table-part padding are translat
   const { englishFeature } = await localisation();
   for (const id of ['css.margin', 'css.margin-top', 'css.margin-bottom', 'css.margin-left', 'css.margin-right', 'css.margin-inline', 'css.margin-block']) {
     const english = englishFeature(data.features.find(x => x.id === id));
-    assert.match(english.limitations, /A zero margin on ul, ol, table and br is the initial value and is accepted with no change to output; nonzero values and inherit still fail FPDF1201\.$/, id);
+    assert.match(english.limitations, /A zero margin on br and svg is accepted with no change to output; margin-top and margin-bottom on li, ul, ol, menu and table are real outside margins \(see applicability\), and a table accepts only a zero left or right margin \(a nonzero value, auto included, fails FPDF1201\)\.$/, id);
     assert.doesNotMatch(english.limitations, han, id);
   }
   for (const id of ['css.padding', 'css.padding-top', 'css.padding-right', 'css.padding-bottom', 'css.padding-left', 'css.padding-inline', 'css.padding-block']) {

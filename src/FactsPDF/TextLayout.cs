@@ -10,7 +10,8 @@ internal static class TextLayout
         bool HasParagraphDescendant = false, bool TopConsumed = false,
         double MarginTop = 0, double MinimumOuterHeight = 0,
         int OpeningMarginPage = -1, int OpeningPaddingPage = -1,
-        double? FixedOuterHeight = null, bool AvoidBreakInside = false);
+        double? FixedOuterHeight = null, bool AvoidBreakInside = false,
+        bool TopPending = false, double CommittedStrut = 0, bool ClosesEdges = false);
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -57,8 +58,14 @@ internal static class TextLayout
     {
         var pages = new List<LayoutPage> { new() };
         resolved ??= new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
-        var y = o.MarginTop; var after = 0d; var breakNext = false;
-        var trimNextMargin = false;
+        // strut is the collapsible margin adjoining the cursor: the largest of the adjoining margins
+        // (CSS 2 section 8.3.1), so siblings, a parent and its first or last child and an empty block
+        // all share one. Padding and borders separate margins: a margin that padding or a border
+        // keeps from collapsing with the next one is committed into the pending padding sums.
+        var y = o.MarginTop; var strut = 0d; var breakNext = false;
+        // The cursor is at the top of a page an unforced break started and nothing, not even padding,
+        // has been placed yet: the margins that would collapse there adjoin the break and are truncated.
+        var breakTop = false;
         // The last placed text was a break-after:avoid heading. A break before the paragraph that
         // follows it would violate that avoid, which Chrome ranks below breaking its orphans.
         var followsKeptHeading = false;
@@ -101,7 +108,7 @@ internal static class TextLayout
         void NewPage(int sourceOffset)
         {
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.", sourceOffset);
-            pages.Add(new()); y = o.MarginTop; after = 0; closedBoxOccupied = false;
+            pages.Add(new()); y = o.MarginTop; strut = 0; closedBoxOccupied = false;
         }
         // Deferred margins on still-open ancestors must not count as page
         // content for a second explicit break on an otherwise empty page.
@@ -116,17 +123,47 @@ internal static class TextLayout
         bool CurrentPageOccupied() => HasRetainedPageContent()
             || pendingClosedPadding > 0;
 
-        bool HasUnconsumedPanelTopMargin() => opened.Any(scope => scope.MarginTop > 0 &&
-            scope.ContentEpoch == contentEpoch && !scope.TopConsumed &&
-            !scope.HasOccupiedDescendant);
+        // The space an open block's content would start after: padding, borders, committed margins and
+        // the collapsible margin.
+        double Gap() => pendingTopPadding + pendingClosedPadding + strut;
 
-        double MoveUnconsumedBlocksToNewPage(bool apply = true)
+        // Whether a margin added now would adjoin an unforced page break, where browsers truncate it.
+        bool AdjoinsBreak() => breakTop && pendingTopPadding == 0 && pendingClosedPadding == 0;
+
+        void AddMargin(double margin)
+        {
+            if (!AdjoinsBreak()) strut = Math.Max(strut, margin);
+        }
+
+        // The top margin of a paragraph about to be placed, with the break truncation applied. A paragraph
+        // with its own padding sits inside that padding, so only what lies above its box counts.
+        double BeforeMargin(double margin)
+        {
+            var own = opened.Count > 0 && opened[^1].IsParagraph && opened[^1].ContentEpoch == contentEpoch
+                && !opened[^1].TopPending;
+            var ownLead = own ? opened[^1].Top + opened[^1].CommittedStrut : 0;
+            return breakTop && pendingTopPadding - ownLead <= 0 && pendingClosedPadding == 0 ? 0 : margin;
+        }
+
+        // Open blocks with no padding or border above their content share the margin that collapses
+        // through their top edge, so their border boxes start where that margin ends.
+        void ResolveOpenTops(double top)
+        {
+            for (var i = 0; i < opened.Count; i++)
+                if (opened[i].TopPending) opened[i] = opened[i] with { StartY = top, TopPending = false };
+        }
+
+        // A break moves the still-unplaced open blocks to the new page. Margins adjoining an unforced
+        // break are truncated; after a forced break (forced: break-before or break-after) the opening
+        // margins of those blocks stay, as in a browser.
+        double MoveUnconsumedBlocksToNewPage(bool forced = false, bool apply = true)
         {
             // Recompute leading space from its owning scopes, not the old
             // page's aggregate. A continued painted box (and consumed scopes
             // within it) has already used its top padding on the first page.
             // A genuinely new child still moves with its own leading space.
             var leading = 0d;
+            var keptStrut = 0d;
             var continuedPanel = false;
             for (var i = 0; i < opened.Count; i++)
             {
@@ -153,16 +190,19 @@ internal static class TextLayout
                 // unpainted scopes outside any continuing painted ancestor.
                 // An unconsumed first fragment retains its outside top margin
                 // when moving to a fresh page; a continued fragment never does.
-                var firstMargin = scope.HasOccupiedDescendant ? 0 : scope.MarginTop;
+                var firstMargin = (forced || leading > 0) && !scope.HasOccupiedDescendant ? scope.MarginTop : 0;
+                keptStrut = Math.Max(keptStrut, firstMargin);
                 // An empty padded descendant may occupy deferred space without
                 // consuming this ancestor's own first-fragment top. Only a
                 // genuinely reserved minimum (marked TopConsumed at closure)
                 // or actual laid-out content can consume that opening top.
                 var firstPadding = scope.Top;
+                var commits = firstPadding > 0 || scope.ClosesEdges;
                 if (apply) opened[i] = scope with
                 {
+                    CommittedStrut = commits ? keptStrut : 0,
                     StartPage = pages.Count - 1,
-                    StartY = o.MarginTop + leading + firstMargin,
+                    StartY = o.MarginTop + leading + keptStrut,
                     // StartPage can be rebased for an unpainted continuation.
                     // Already occupied opening margins/padding belong to their
                     // original page, even when the box has not emitted text.
@@ -172,10 +212,21 @@ internal static class TextLayout
                     // empty child already occupied its own box geometry.
                     OpeningPaddingPage = pages.Count - 1
                 };
-                leading += firstMargin + firstPadding;
+                // Only padding and borders separate a margin from the next one.
+                if (commits)
+                {
+                    leading += keptStrut + firstPadding;
+                    keptStrut = 0;
+                }
             }
-            if (apply) pendingTopPadding = leading;
-            return leading;
+            if (apply)
+            {
+                pendingTopPadding = leading;
+                pendingClosedPadding = 0;
+                strut = keptStrut;
+                breakTop = !forced;
+            }
+            return leading + keptStrut;
         }
         // Places one measured flex line or grid row whole at the cursor, after rowGap from the
         // previous row of the same grid (dropped when the row starts a new page).
@@ -190,12 +241,11 @@ internal static class TextLayout
                 if (HasRetainedPageContent())
                 {
                     NewPage(sourceOffset);
-                    MoveUnconsumedBlocksToNewPage();
-                    pendingClosedPadding = 0;
+                    MoveUnconsumedBlocksToNewPage(forced: true);
                 }
             }
             breakNext = false;
-            var rowLead = after + pendingTopPadding + pendingClosedPadding + rowGap;
+            var rowLead = Gap() + rowGap;
             if (y + rowLead + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
             {
                 // A browser moves a row of short items whole to the next page but splits taller
@@ -206,13 +256,15 @@ internal static class TextLayout
                         sourceOffset);
                 NewPage(sourceOffset);
                 MoveUnconsumedBlocksToNewPage();
-                rowLead = pendingTopPadding;
+                rowLead = Gap();
             }
             if (y + rowLead + measured.Height > bottom + 0.000001)
                 throw new FactsPdfException("FPDF1302",
                     "A flex or grid row and its required leading decoration cannot fit on one page; these rows are not split across pages.",
                     sourceOffset);
+            ResolveOpenTops(y + rowLead);
             y += rowLead;
+            breakTop = false;
             foreach (var run in measured.Runs)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -234,7 +286,7 @@ internal static class TextLayout
                 pages[^1].Discs.Add(disc with { Y = o.PageHeight - y + disc.Y });
             }
             y += measured.Height;
-            pendingTopPadding = pendingClosedPadding = after = 0;
+            pendingTopPadding = pendingClosedPadding = strut = 0;
             contentEpoch++;
             for (var i = 0; i < opened.Count; i++)
                 opened[i] = opened[i] with { HasOccupiedDescendant = true };
@@ -245,18 +297,12 @@ internal static class TextLayout
             if (step is LayoutHeadingGroup group)
             {
                 var first = (BlockNode)group.Children[group.Start];
-                // Moving a fresh panel retains both its outside margin and the
-                // first heading's authored margin. A normally moved heading
-                // still discards its top margin as before.
-                var retainFirstHeadingMargin = HasUnconsumedPanelTopMargin();
                 if (!breakNext && !first.Style.BreakBefore && CurrentPageOccupied() &&
-                    HeadingKeep.ShouldMove(group, o, bottom - y, after, pendingTopPadding, pendingClosedPadding,
+                    HeadingKeep.ShouldMove(group, o, bottom - y, strut, pendingTopPadding, pendingClosedPadding,
                         resolved, ensureDisplayCommands, cancellation))
                 {
                     NewPage(first.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
-                    pendingClosedPadding = 0;
-                    trimNextMargin = !retainFirstHeadingMargin;
                 }
                 continue;
             }
@@ -309,23 +355,24 @@ internal static class TextLayout
                             "Kept report card requires nonempty text.", node.SourceOffset);
                     previousAfter = keptParagraph.Style.MarginAfter;
                 }
-                intrinsic += previousAfter;
-                // Reserve the closing outside margin with this indivisible card.
-                // Otherwise a card can fit on the old page while its
-                // closing margin disappears at the next page boundary.
-                var fresh = keep.MarginTop + firstBefore + intrinsic + keep.MarginBottom;
-                if (fresh > usable + 0.000001)
+                // The last paragraph's bottom margin lies inside the card only when its bottom padding
+                // or border keeps it from collapsing with the card's own.
+                if (keep.Bottom > 0) intrinsic += previousAfter;
+                // Margins adjoining the break that moves a card are truncated, so a fresh page holds
+                // just the card's box.
+                if (intrinsic > usable + 0.000001)
                     throw new FactsPdfException("FPDF1302",
                         "Kept report card cannot fit intact on one page.",
                         keep.Node.SourceOffset);
-                var neededHere = keep.MarginTop + Math.Max(after, firstBefore) +
-                    intrinsic + keep.MarginBottom + pendingTopPadding + pendingClosedPadding;
+                var topMargin = keep.Top > 0
+                    ? Math.Max(strut, keep.MarginTop) + firstBefore
+                    : Math.Max(strut, Math.Max(keep.MarginTop, firstBefore));
+                var neededHere = topMargin + intrinsic + pendingTopPadding + pendingClosedPadding;
                 if (!breakNext && !keep.Node.BoxStyle.BreakBefore &&
                     CurrentPageOccupied() && y + neededHere > bottom + 0.000001)
                 {
                     NewPage(keep.Node.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
-                    pendingClosedPadding = 0;
                 }
                 continue;
             }
@@ -352,12 +399,10 @@ internal static class TextLayout
                     if (HasRetainedPageContent())
                     {
                         NewPage(begin.SourceOffset);
-                        MoveUnconsumedBlocksToNewPage();
-                        pendingClosedPadding = 0;
+                        MoveUnconsumedBlocksToNewPage(forced: true);
                     }
-                    // If the break is suppressed on an empty page, retain
-                    // still-open ancestor margins in pendingClosedPadding.
-                    // They belong to the first visible box and its paint.
+                    // If the break is suppressed on an empty page, still-open
+                    // ancestor margins stay with the first visible box and its paint.
                     breakNext = false;
                 }
                 // A void rule or other empty decorated box must fit in one
@@ -366,7 +411,7 @@ internal static class TextLayout
                 // Blank paragraph spacing shares the deferred preceding gap.
                 // Discount only that overlap, never a fixed/minimum box height.
                 double ResolveRequiredHeight() => Math.Max(Math.Max(
-                    begin.RequiredRuleHeight - Math.Min(after, begin.DeferredBlankParagraphMargin),
+                    begin.RequiredRuleHeight - Math.Min(strut, begin.DeferredBlankParagraphMargin),
                     begin.MinimumOuterHeight), begin.FixedOuterHeight ?? 0);
                 var requiredHeight = ResolveRequiredHeight();
                 // An empty percentage-margin panel must keep its closing
@@ -386,14 +431,13 @@ internal static class TextLayout
                             requiredHeight, begin.Style, begin.TextColor, paintOrder);
                         EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
                     }
-                    var ruleGap = pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
+                    var ruleGap = pendingTopPadding + pendingClosedPadding + Math.Max(strut, begin.MarginTop);
                     if (y + ruleGap + completeEmptyFootprint > bottom + 0.000001 &&
                         CurrentPageOccupied())
                     {
                         NewPage(begin.SourceOffset);
                         MoveUnconsumedBlocksToNewPage();
-                        pendingClosedPadding = 0;
-                        ruleGap = pendingTopPadding + begin.MarginTop;
+                        ruleGap = Gap();
                         // NewPage clears the preceding gap, so its overlap no
                         // longer reduces the blank panel's fresh-page footprint.
                         requiredHeight = ResolveRequiredHeight();
@@ -415,7 +459,13 @@ internal static class TextLayout
                 if (begin.IsParagraph)
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { HasParagraphDescendant = true };
-                var start = y + pendingTopPadding + pendingClosedPadding + after + begin.MarginTop;
+                // A formatting-context root (a flex or grid container, or the root of a flex item's own
+                // layout) keeps its children's margins inside, and so does padding or a border.
+                var closesEdges = begin.Style.HasItems || end is not null && opened.Count == 0;
+                var closesTop = begin.PaddingTop > 0 || closesEdges;
+                AddMargin(begin.MarginTop);
+                var start = y + pendingTopPadding + pendingClosedPadding + strut;
+                var committedStrut = closesTop ? strut : 0;
                 opened.Add(new(begin.PaddingTop, contentEpoch, begin.Style,
                     begin.X, begin.OuterWidth, begin.TextColor, begin.SourceOffset,
                     pages.Count - 1, start, paintOrder++, begin.IsParagraph,
@@ -423,10 +473,18 @@ internal static class TextLayout
                     OpeningMarginPage: pages.Count - 1,
                     OpeningPaddingPage: pages.Count - 1,
                     FixedOuterHeight: begin.FixedOuterHeight,
-                    AvoidBreakInside: begin.Style.AvoidBreakInside));
-                // Outside the border: only first-page placement and the
-                // containing ancestor's occupied content change, never paint.
-                pendingClosedPadding += begin.MarginTop;
+                    AvoidBreakInside: begin.Style.AvoidBreakInside,
+                    TopPending: true, CommittedStrut: committedStrut,
+                    ClosesEdges: closesEdges));
+                if (closesTop)
+                {
+                    // Padding, a border or a formatting-context edge keeps this margin from
+                    // collapsing with the first child's: the box starts below it. Like the padding,
+                    // the margin stays with the open box until its first content is placed.
+                    ResolveOpenTops(start);
+                    pendingTopPadding += strut;
+                    strut = 0;
+                }
                 pendingTopPadding += begin.PaddingTop;
                 continue;
             }
@@ -434,6 +492,19 @@ internal static class TextLayout
             {
                 var scope = opened[^1];
                 opened.RemoveAt(opened.Count - 1);
+                // The margin that collapsed through an empty block's top edge lies above its box. A block
+                // keeps its last child's bottom margin inside only when bottom padding, a border, a
+                // height or a formatting-context edge separates the two; otherwise that margin
+                // collapses out through the block's bottom edge.
+                var edgeTop = y + Gap();
+                if (scope.TopPending) scope = scope with { StartY = edgeTop, TopPending = false };
+                if (!scope.IsParagraph && (closing.PaddingBottom > 0 || scope.MinimumOuterHeight > 0 ||
+                    scope.FixedOuterHeight.HasValue || scope.ClosesEdges))
+                {
+                    ResolveOpenTops(edgeTop);
+                    pendingClosedPadding += strut;
+                    strut = 0;
+                }
                 // Preflight moves a short minimum-height panel to a fresh
                 // page before opening. A panel that actually spans pages has
                 // already occupied the bounded single-page minimum.
@@ -454,7 +525,7 @@ internal static class TextLayout
                     // A deferred preceding margin must be counted only once,
                     // including the opening geometry of nested empty panels.
                     var naturalEnd = Math.Max(scope.StartY + scope.Top,
-                        y + pendingTopPadding + pendingClosedPadding + after)
+                        y + pendingTopPadding + pendingClosedPadding)
                         + closing.PaddingBottom;
                     var requiredOuterHeight = Math.Max(scope.MinimumOuterHeight, scope.FixedOuterHeight ?? 0);
                     if (scope.FixedOuterHeight.HasValue &&
@@ -467,11 +538,8 @@ internal static class TextLayout
                 {
                     // The fragment's root box ends at its border-box bottom, painted or not,
                     // with the same geometry the paint below would use.
-                    var rootBottomMargin = !scope.IsParagraph &&
-                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
-                         scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) ? after : 0d;
                     end.RootBlockEnd = Math.Max(scope.StartPage == pages.Count - 1 ? scope.StartY + scope.Top : o.MarginTop,
-                        y + pendingTopPadding + pendingClosedPadding + rootBottomMargin) + closing.PaddingBottom + minimumExtra;
+                        y + pendingTopPadding + pendingClosedPadding) + closing.PaddingBottom + minimumExtra;
                 }
                 if (minimumExtra > 0)
                 {
@@ -485,13 +553,6 @@ internal static class TextLayout
                 var emittedPaint = false;
                 if (scope.Style.HasPaint)
                 {
-                    // Paragraph margins are outside their own border box,
-                    // while the last child's bottom margin is within a
-                    // containing block's content height.
-                    var childBottomMargin = !scope.IsParagraph &&
-                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
-                         scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue)
-                        ? after : 0d;
                     var finalPage = pages.Count - 1;
                     // A paint-only outline must not promote an otherwise valid
                     // empty/padded panel into an extra page. The unpainted panel
@@ -511,7 +572,7 @@ internal static class TextLayout
                     var minimumEnd = scope.StartPage == finalPage
                         ? scope.StartY + scope.Top : o.MarginTop;
                     var finish = Math.Max(minimumEnd,
-                        y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
+                        y + pendingTopPadding + pendingClosedPadding);
                     finish += closing.PaddingBottom + minimumExtra;
                     if (budget.DisplayCommands == o.MaxDisplayCommands)
                     {
@@ -611,10 +672,12 @@ internal static class TextLayout
                 {
                     // No laid-out text or retained first fragment consumed
                     // this top padding. Closure now makes it trailing space.
-                    pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top);
-                    pendingClosedPadding += scope.Top;
+                    pendingTopPadding = Math.Max(0, pendingTopPadding - scope.Top - scope.CommittedStrut);
+                    pendingClosedPadding += scope.Top + scope.CommittedStrut;
                 }
-                pendingClosedPadding += closing.PaddingBottom + closing.MarginBottom + minimumExtra;
+                pendingClosedPadding += closing.PaddingBottom + minimumExtra;
+                var marginBeforeClosing = strut;
+                AddMargin(closing.MarginBottom);
                 // An unpainted empty child can still consume page geometry
                 // through padding, borders or margins. If it has already
                 // occupied space on a page, a painted ancestor cannot be
@@ -629,7 +692,7 @@ internal static class TextLayout
                     (paddingOnThisPage && scope.Top > 0) ||
                     (marginOnThisPage && scope.MarginTop > 0) ||
                     closing.PaddingBottom > 0 || closing.MarginBottom > 0 ||
-                    minimumExtra > 0 || (scope.IsParagraph && after > 0);
+                    minimumExtra > 0 || (scope.IsParagraph && marginBeforeClosing > 0);
                 if (occupiesSpace)
                 {
                     closedBoxOccupied = true;
@@ -649,28 +712,29 @@ internal static class TextLayout
                     if (HasRetainedPageContent())
                     {
                         NewPage(image.Node.SourceOffset);
-                        MoveUnconsumedBlocksToNewPage();
-                        pendingClosedPadding = 0;
+                        MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                 }
                 breakNext = false;
-                var imageGap = after + pendingTopPadding + pendingClosedPadding;
+                var imageGap = Gap();
                 if (y + imageGap + image.OuterHeight > bottom + 0.000001 && CurrentPageOccupied())
                 {
                     NewPage(image.Node.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
-                    imageGap = pendingTopPadding;
+                    imageGap = Gap();
                 }
                 if (y + imageGap + image.OuterHeight > bottom + 0.000001)
                     throw new FactsPdfException("FPDF1302", "Image and required leading decoration cannot fit on a page.", image.Node.SourceOffset);
+                ResolveOpenTops(y + imageGap);
                 y += imageGap;
+                breakTop = false;
                 var painted = new PaintedBox(image.X, y, image.OuterWidth, image.OuterHeight,
                     image.Node.BoxStyle, image.Node.Style.Color, paintOrder++, SourceOffset: image.Node.SourceOffset);
                 ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
                 if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
                 pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height, image.Node.Vector));
                 y += image.OuterHeight;
-                pendingTopPadding = pendingClosedPadding = after = 0;
+                pendingTopPadding = pendingClosedPadding = strut = 0;
                 contentEpoch++;
                 followsKeptHeading = false;
                 for (var i = 0; i < opened.Count; i++)
@@ -704,12 +768,12 @@ internal static class TextLayout
                     if (HasRetainedPageContent())
                     {
                         NewPage(table.Node.SourceOffset);
-                        MoveUnconsumedBlocksToNewPage();
-                        pendingClosedPadding = 0;
+                        MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                 }
                 breakNext = false;
-                var tableGap = after + pendingTopPadding + pendingClosedPadding;
+                AddMargin(table.MarginTop);
+                var tableGap = Gap();
                 if (measured.Height > bottom - o.MarginTop + 0.000001)
                 {
                     var header = measured.Rows[0].IsHeader ? measured.Rows[0] : null;
@@ -729,7 +793,8 @@ internal static class TextLayout
                         {
                             NewPage(table.Node.SourceOffset);
                             MoveUnconsumedBlocksToNewPage();
-                            tableGap = pendingTopPadding;
+                            if (first) AddMargin(table.MarginTop);
+                            tableGap = Gap();
                             plan = affected ? TablePagination.FitWithContinuations(measured, cursor,
                                 bottom - y - tableGap, freshSpace, first, cancellation) : null;
                             fragment = affected ? new TablePagination.Fragment(plan!.Next.RowIndex, plan.Height)
@@ -740,7 +805,9 @@ internal static class TextLayout
                             throw new FactsPdfException("FPDF1302",
                                 "Table row, repeated header and required decoration cannot fit on a page.",
                                 measured.Rows[rowIndex].SourceOffset);
+                        ResolveOpenTops(y + tableGap);
                         y += tableGap;
+                        breakTop = false;
                         var last = fragment.EndRow == measured.Rows.Count;
                         // The caption stays with the first fragment, above the table box.
                         var captionHeight = first ? measured.CaptionHeight : 0;
@@ -891,7 +958,7 @@ internal static class TextLayout
                                 if (half.CommandCount > 0) pages[^1].PaintBoxes.Add(half);
                             }
                         y += fragment.Height;
-                        pendingTopPadding = pendingClosedPadding = after = 0;
+                        pendingTopPadding = pendingClosedPadding = strut = 0;
                         contentEpoch++;
                         followsKeptHeading = false;
                         for (var i = 0; i < opened.Count; i++)
@@ -901,20 +968,24 @@ internal static class TextLayout
                         {
                             NewPage(table.Node.SourceOffset);
                             MoveUnconsumedBlocksToNewPage();
-                            tableGap = pendingTopPadding;
+                            tableGap = Gap();
                         }
                     }
+                    strut = table.MarginBottom;
                     continue;
                 }
                 if (y + tableGap + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
                 {
                     NewPage(table.Node.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
-                    tableGap = pendingTopPadding;
+                    AddMargin(table.MarginTop);
+                    tableGap = Gap();
                 }
                 if (y + tableGap + measured.Height > bottom + 0.000001)
                     throw new FactsPdfException("FPDF1302", "Table and required leading decoration cannot fit on a page.", table.Node.SourceOffset);
+                ResolveOpenTops(y + tableGap);
                 y += tableGap;
+                breakTop = false;
                 foreach (var run in measured.Runs)
                 {
                     cancellation.ThrowIfCancellationRequested();
@@ -931,7 +1002,8 @@ internal static class TextLayout
                     pages[^1].Images.Add(cellImage with { X = table.X + cellImage.X, Top = y + cellImage.Top });
                 }
                 y += measured.Height;
-                pendingTopPadding = pendingClosedPadding = after = 0;
+                pendingTopPadding = pendingClosedPadding = 0;
+                strut = table.MarginBottom;
                 contentEpoch++;
                 followsKeptHeading = false;
                 for (var i = 0; i < opened.Count; i++)
@@ -940,8 +1012,7 @@ internal static class TextLayout
             }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
-            var marginBefore = trimNextMargin ? 0 : paragraph.Style.MarginBefore;
-            trimNextMargin = false;
+            var marginBefore = paragraph.Style.MarginBefore;
             // Fit failures name the list item or the paragraph's element.
             var paragraphOffset = item.Marker?.SourceOffset ?? paragraph.SourceOffset;
             // Do not allocate the next paragraph's glyph/line lists after an
@@ -971,31 +1042,31 @@ internal static class TextLayout
                     if (HasRetainedPageContent())
                     {
                         NewPage(paragraphOffset);
-                        MoveUnconsumedBlocksToNewPage();
-                        pendingClosedPadding = 0;
+                        MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                     // An empty paragraph consumes a preceding section boundary
                     // exactly once. Its own break-after is scheduled below.
                     breakNext = false;
                 }
+                marginBefore = BeforeMargin(marginBefore);
                 if (opened.Count > 0 && opened[^1].IsParagraph &&
-                    opened[^1].ContentEpoch == contentEpoch &&
-                    (opened[^1].Style.HasLayoutPaint || opened[^1].Top > 0))
+                    opened[^1].ContentEpoch == contentEpoch && !opened[^1].TopPending)
                 {
-                    var before = Math.Max(after, marginBefore);
+                    // Padding or a border keeps this paragraph's margins from collapsing through it:
+                    // its top margin only grows the one already committed above the padding.
+                    var extra = Math.Max(0, marginBefore - opened[^1].CommittedStrut);
                     opened[^1] = opened[^1] with
                     {
-                        StartY = opened[^1].StartY + Math.Max(0, before - after)
+                        StartY = opened[^1].StartY + extra, CommittedStrut = opened[^1].CommittedStrut + extra
                     };
-                    pendingClosedPadding += before;
-                    after = paragraph.Style.MarginAfter;
+                    pendingTopPadding += extra;
+                    AddMargin(paragraph.Style.MarginAfter);
                 }
                 else
                 {
-                    // A blank, unpainted paragraph still contributes its outside top margin.
-                    // Keep the largest deferred gap: otherwise a percentage spacer loses
-                    // margin-top while a following text paragraph consumes only margin-bottom.
-                    after = Math.Max(Math.Max(after, marginBefore), paragraph.Style.MarginAfter);
+                    // A blank, unpainted paragraph collapses through: its top and bottom margins
+                    // join the neighbouring ones, so a percentage spacer loses neither.
+                    AddMargin(Math.Max(marginBefore, paragraph.Style.MarginAfter));
                 }
                 breakNext |= paragraph.Style.BreakAfter;
                 continue;
@@ -1005,15 +1076,22 @@ internal static class TextLayout
                 if (HasRetainedPageContent())
                 {
                     NewPage(paragraphOffset);
-                    MoveUnconsumedBlocksToNewPage();
-                    // Discard old-page trailing closed-box spacing only when
-                    // an actual page transition occurred; on a fresh page
-                    // the pending space can be an open ancestor's first margin.
-                    pendingClosedPadding = 0;
+                    MoveUnconsumedBlocksToNewPage(forced: true);
                 }
             }
             breakNext = false;
-            var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;
+            // A margin adjoining an unforced page break is truncated; padding or a border above the
+            // paragraph (an enclosing box's, or its own, whose margin lies outside that padding)
+            // separates the two.
+            marginBefore = BeforeMargin(marginBefore);
+            // A paragraph with padding or a border above it keeps its margin outside that padding:
+            // it only grows the margin committed there. Otherwise its margin collapses with the
+            // adjoining one.
+            var ownBox = opened.Count > 0 && opened[^1].IsParagraph && opened[^1].ContentEpoch == contentEpoch
+                && !opened[^1].TopPending;
+            var gap = ownBox
+                ? Gap() + Math.Max(0, marginBefore - opened[^1].CommittedStrut)
+                : pendingTopPadding + pendingClosedPadding + Math.Max(strut, marginBefore);
             // A paragraph that cannot leave its orphans here moves whole, as when its first line
             // does not fit, unless the break before it would separate a kept heading.
             var breaksOrphans = !followsKeptHeading
@@ -1024,24 +1102,15 @@ internal static class TextLayout
             {
                 // Existing padded/painted scopes sometimes have deferred paint
                 // even when no runs or boxes have been emitted yet. Preserve
-                // their established move-to-fresh-page behaviour. Only reject
-                // an unconsumed outside margin if it cannot fit on a fresh page
-                // with the actual first line, before MaxPages could mask FPDF1302.
-                var unconsumedMargin = HasUnconsumedPanelTopMargin();
-                // A new panel's outside margin and its first child's own
-                // non-collapsing top margin both belong on the fresh page.
-                // Previous-page trailing spacing still stays behind.
-                var firstChildMargin = unconsumedMargin ? marginBefore : 0d;
-                if (unconsumedMargin &&
-                    MoveUnconsumedBlocksToNewPage(apply: false) + firstChildMargin +
-                        lines.Current.Height > bottom - o.MarginTop + 0.000001)
-                    throw new FactsPdfException("FPDF1302",
-                        "Report panel top margin and first line cannot fit on a fresh page.", paragraphOffset);
+                // their established move-to-fresh-page behaviour. Margins adjoining
+                // this unforced break are truncated: the previous page keeps its
+                // trailing margins and the new page starts with padding only.
                 NewPage(paragraphOffset);
                 MoveUnconsumedBlocksToNewPage();
-                // The previous paragraph's trailing gap remains behind;
-                // first-fragment outside margins and padding travel with it.
-                gap = pendingTopPadding + firstChildMargin;
+                marginBefore = BeforeMargin(paragraph.Style.MarginBefore);
+                gap = ownBox
+                    ? Gap() + Math.Max(0, marginBefore - opened[^1].CommittedStrut)
+                    : pendingTopPadding + pendingClosedPadding + Math.Max(strut, marginBefore);
             }
             // A first line made taller than a page by an inline image names the image.
             if (lines.Current.Atoms is not null && lines.Current.Height > bottom - o.MarginTop)
@@ -1050,10 +1119,11 @@ internal static class TextLayout
             if (gap + lines.Current.Height > bottom - o.MarginTop)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
                     paragraphOffset);
-            if (opened.Count > 0 && opened[^1].IsParagraph &&
-                opened[^1].ContentEpoch == contentEpoch)
+            if (ownBox && opened.Count > 0 && opened[^1].IsParagraph && opened[^1].ContentEpoch == contentEpoch)
                 opened[^1] = opened[^1] with { StartY = y + gap - opened[^1].Top };
+            ResolveOpenTops(y + gap);
             y += gap;
+            breakTop = false;
             pendingTopPadding = 0;
             pendingClosedPadding = 0;
             contentEpoch++;
@@ -1113,10 +1183,10 @@ internal static class TextLayout
                 lineIndex++;
             }
             while (lines.MoveNext());
-            after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
+            strut = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
             followsKeptHeading = paragraph.Style.KeepWithNext;
         }
-        if (end is not null) end.EndY = y + pendingTopPadding + pendingClosedPadding + after;
+        if (end is not null) end.EndY = y + pendingTopPadding + pendingClosedPadding + strut;
         return pages;
     }
 

@@ -8,6 +8,8 @@ public sealed class ImageCompositionTests
 {
     private const string Body = "<body style='font-size:10pt;line-height:2'>";
     private const string Image = "<img src='chart' style='display:block;width:120pt'>";
+    // The user-agent list margins are not what these page-geometry tests are about.
+    private const string Flat = "<style>ul,ol{margin:0}</style>";
     private static PdfOptions Options(bool embedded = false)
     {
         var normal = embedded ? PdfFont.FromBytes(FontFixture.Create(listDigits: true)) : null;
@@ -27,7 +29,7 @@ public sealed class ImageCompositionTests
     [TestCase(true)]
     public void ImageExactlyFitsAfterListAndNextMarkerMovesWithItsBody(bool embedded)
     {
-        var pages = Layout("<ol><li>A</li></ol>" + Image + "<ol><li>B</li></ol>", Options(embedded));
+        var pages = Layout(Flat + "<ol><li>A</li></ol>" + Image + "<ol><li>B</li></ol>", Options(embedded));
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Select(r => r.Text), Is.EqualTo(new[] { "1.", "A" }));
         Assert.That(pages[0].Images.Single().Top, Is.EqualTo(30));
@@ -41,7 +43,7 @@ public sealed class ImageCompositionTests
     [TestCase(true)]
     public void ImageMovesAfterTwoListLinesAndNextListUsesRemainingSpace(bool embedded)
     {
-        var pages = Layout("<ol><li>A</li><li>B</li></ol>" + Image + "<ul><li>A</li></ul>", Options(embedded));
+        var pages = Layout(Flat + "<ol><li>A</li><li>B</li></ol>" + Image + "<ul><li>A</li></ul>", Options(embedded));
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Select(r => r.Text), Is.EqualTo(new[] { "1.", "A", "2.", "B" }));
         Assert.That(pages[0].Images, Is.Empty);
@@ -72,7 +74,7 @@ public sealed class ImageCompositionTests
     public void DecoratedAncestorSlicesAcrossImageAndFollowingNestedList(bool embedded)
     {
         var options = Options(embedded) with { PageHeight = 130 };
-        var pages = Layout("<section style='padding:4pt;border:1pt solid red'>"
+        var pages = Layout(Flat + "<section style='padding:4pt;border:1pt solid red'>"
             + "<ol><li>A</li><li>B</li></ol>" + Image
             + "<ol><li>A<ul><li>B</li></ul></li></ol></section>", options);
         Assert.That(pages, Has.Count.EqualTo(2));
@@ -90,7 +92,7 @@ public sealed class ImageCompositionTests
     public void MultiPageImageAndListResourceBudgetsFailBeforeDestinationChanges(bool embedded)
     {
         var options = Options(embedded);
-        var html = Body + "<ol><li>A</li></ol>" + Image + "<ol><li>B</li></ol></body>";
+        var html = Body + Flat + "<ol><li>A</li></ol>" + Image + "<ol><li>B</li></ol></body>";
         using var full = new MemoryStream();
         var result = PdfConverter.Convert(html, full, options);
         Assert.That(result.PageCount, Is.EqualTo(2));

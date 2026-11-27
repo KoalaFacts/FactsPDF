@@ -27,7 +27,14 @@ internal sealed record TableRow(bool IsHeader, int SourceOffset, bool AvoidBreak
     internal Rgb GroupColor { get; init; }
 }
 internal abstract record TableCellContent;
-internal sealed record TableCellText(Paragraph Paragraph) : TableCellContent;
+internal record TableCellText(Paragraph Paragraph) : TableCellContent
+{
+    /// <summary>The box of a cell paragraph with its own padding, else null.</summary>
+    internal BoxStyle? Padding => (this as PaddedTableCellText)?.Box;
+}
+/// <summary>A cell paragraph with padding: the one box property a flat cell paragraph keeps. A subclass, so
+/// the usual unpadded paragraph costs no extra field per cell.</summary>
+internal sealed record PaddedTableCellText(Paragraph Paragraph, BoxStyle Box) : TableCellText(Paragraph);
 internal sealed record TableCellImage(ImageNode Image) : TableCellContent;
 internal sealed record TableCell(TextStyle Style, BoxStyle BoxStyle, int SourceOffset, int ColumnSpan)
 {

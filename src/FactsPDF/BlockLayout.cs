@@ -15,7 +15,8 @@ internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, do
     double Width, double Height, double OuterWidth, double OuterHeight) : BlockLayoutStep;
 internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, int Start, int End,
     double ContentWidth) : BlockLayoutStep;
-internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
+internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth,
+    double MarginTop = 0, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutFlexLine(BlockNode Container, double X, double ContentWidth,
     double VerticalEdges) : BlockLayoutStep;
 internal sealed record LayoutGrid(BlockNode Container, double X, double ContentWidth) : BlockLayoutStep;
@@ -62,7 +63,9 @@ internal static class BlockLayout
             switch (frame.Children[frame.Index])
             {
                 case TableNode table:
-                    yield return new LayoutTable(table, frame.X, frame.ContentWidth);
+                    yield return new LayoutTable(table, frame.X, frame.ContentWidth,
+                        Checked(table.BoxStyle.MarginTop.Resolve(frame.ContentWidth), table.SourceOffset),
+                        Checked(table.BoxStyle.MarginBottom.Resolve(frame.ContentWidth), table.SourceOffset));
                     break;
                 case ImageNode image:
                 {
@@ -93,7 +96,7 @@ internal static class BlockLayout
                     containing = Math.Max(0, containing);
                     var (marginLeft, _, width) = ResolveMargins(style, containing, node.SourceOffset);
                     var x = frame.X + gutter + marginLeft;
-                    var markerRight = node.Name == "li" ? frame.X + gutter - frame.MarkerGap : frame.MarkerRightX;
+                    var markerRight = node.Name == "li" ? x - frame.MarkerGap : frame.MarkerRightX;
                     var box = ResolveBox(style, width, node.SourceOffset, containing);
                     // Margins live outside the painted box. They advance the
                     // vertical cursor once, unlike continuation-page padding.

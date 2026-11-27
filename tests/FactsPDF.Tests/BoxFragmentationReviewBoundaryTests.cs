@@ -41,7 +41,8 @@ public sealed class BoxFragmentationReviewBoundaryTests
         var pages = Layout("<section style='background-color:red;padding-top:20pt'>" +
             "<div style='padding:20pt 0'></div><p style='break-before:page'></p></section><p>B</p>");
         Assert.That(pages, Has.Count.EqualTo(2));
-        Assert.That(pages[1].PaintBoxes.Single().Height, Is.EqualTo(8).Within(0.00001));
+        // The empty paragraph's 8pt margin collapses out through the section's bottom edge.
+        Assert.That(pages[1].PaintBoxes.Single().Height, Is.Zero);
         var fresh = Layout("<p style='margin-top:8pt'>B</p>");
         Assert.That(pages[1].Runs.Single().Baseline,
             Is.EqualTo(fresh[0].Runs.Single().Baseline).Within(0.00001));

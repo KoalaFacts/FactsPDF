@@ -84,7 +84,8 @@ public sealed class HorizontalRuleTests
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].PaintBoxes, Is.Empty);
         Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
-        Assert.That(pages[1].PaintBoxes[0].Top, Is.EqualTo(35).Within(0.000001));
+        // The rule's 15pt top margin adjoins the unforced page break and is truncated.
+        Assert.That(pages[1].PaintBoxes[0].Top, Is.EqualTo(20).Within(0.000001));
         Assert.That(pages[1].PaintBoxes[0].Height, Is.EqualTo(2).Within(0.000001));
         Assert.That(pages.SelectMany(p => p.Runs).Any(r => r.Text == "AFTER-RULE"), Is.True);
         Assert.That(Render(html, options), Has.Length.GreaterThan(100));

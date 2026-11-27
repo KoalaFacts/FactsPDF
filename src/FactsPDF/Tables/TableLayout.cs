@@ -199,7 +199,10 @@ internal static class TableLayout
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
                 units.Clear();
                 var height = cellEdges.Top;
+                // pending is the margin still collapsing with the next one; committed is the bottom
+                // padding of the paragraph above it, which no margin collapses through.
                 var pending = 0d;
+                var committed = 0d;
                 CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
                 foreach (var content in cell.Contents)
                 {
@@ -208,9 +211,9 @@ internal static class TableLayout
                     {
                         var image = imageContent.Image;
                         var geometry = ImageLayout.Resolve(image, contentWidth);
-                        var gap = pending;
+                        var gap = committed + pending;
                         height += gap;
-                        pending = 0;
+                        pending = committed = 0;
                         CheckHeight(height + geometry.OuterHeight + cellEdges.Bottom, image.SourceOffset);
                         var imageX = x + cellEdges.Left + (cell.Style.Alignment switch
                         {
@@ -234,6 +237,13 @@ internal static class TableLayout
                         continue;
                     }
                     var paragraph = ((TableCellText)content).Paragraph;
+                    var padding = ((TableCellText)content).Padding;
+                    var padTop = padding?.PaddingTop.Value ?? 0;
+                    var padBottom = padding?.PaddingBottom.Value ?? 0;
+                    var padLeft = padding?.PaddingLeft.Value ?? 0;
+                    var paragraphWidth = contentWidth - padLeft - (padding?.PaddingRight.Value ?? 0);
+                    if (padding is not null && paragraphWidth <= 0)
+                        throw Geometry("Cell paragraph width must remain positive after padding.", paragraph.SourceOffset);
                     var offset = paragraph.SourceOffset;
                     var before = paragraph.Style.MarginBefore;
                     var after = paragraph.Style.MarginAfter;
@@ -256,15 +266,22 @@ internal static class TableLayout
                         }
                     if (!occupied)
                     {
-                        pending = Math.Max(pending, Math.Max(before, after));
-                        CheckHeight(height + pending + cellEdges.Bottom, offset);
-                        if (units.Count == 0 && height + pending > usableHeight + .000001)
+                        // An empty paragraph collapses through; its padding, if any, stays as space.
+                        if (padTop + padBottom > 0)
+                        {
+                            height += committed + Math.Max(pending, before);
+                            committed = padTop + padBottom;
+                            pending = after;
+                        }
+                        else pending = Math.Max(pending, Math.Max(before, after));
+                        CheckHeight(height + committed + pending + cellEdges.Bottom, offset);
+                        if (units.Count == 0 && height + committed + pending > usableHeight + .000001)
                             throw Geometry("Initial cell spacing exceeds usable page height.", offset);
                         continue;
                     }
-                    var paragraphGap = Math.Max(pending, before);
+                    var paragraphGap = committed + Math.Max(pending, before) + padTop;
                     height += paragraphGap;
-                    pending = 0;
+                    pending = committed = 0;
                     if (units.Count == 0 && height > usableHeight + .000001)
                         throw Geometry("Initial cell spacing exceeds usable page height.", offset);
                     CheckHeight(height + cellEdges.Bottom, offset);
@@ -273,15 +290,15 @@ internal static class TableLayout
                     try
                     {
                         var startsParagraph = true;
-                        foreach (var line in Wrap(paragraph, contentWidth, options, resolved, cancellation))
+                        foreach (var line in Wrap(paragraph, paragraphWidth, options, resolved, cancellation))
                         {
                             cancellation.ThrowIfCancellationRequested();
                             CheckHeight(height + line.Height + cellEdges.Bottom, offset);
                             // Match ordinary paragraph placement: the first logical line
                             // consumes the inset before alignment, including inherited
                             // text-indent from a report container outside the table.
-                            var lineWidth = contentWidth - line.FirstLineIndent;
-                            var alignedX = x + cellEdges.Left + line.FirstLineIndent +
+                            var lineWidth = paragraphWidth - line.FirstLineIndent;
+                            var alignedX = x + cellEdges.Left + padLeft + line.FirstLineIndent +
                                 ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
                                 {
                                     TextAlignment.Center => (lineWidth - line.Width) / 2,
@@ -305,8 +322,10 @@ internal static class TableLayout
                         throw new FactsPdfException(error.Code, error.Message[(error.Code.Length + 2)..], offset);
                     }
                     pending = after;
-                    CheckHeight(height + pending + cellEdges.Bottom, offset);
+                    committed = padBottom;
+                    CheckHeight(height + committed + pending + cellEdges.Bottom, offset);
                 }
+                pending += committed;
                 CheckHeight(height + pending + cellEdges.Bottom, cell.SourceOffset);
                 var naturalHeight = height + pending + cellEdges.Bottom;
                 rowHeight = Math.Max(rowHeight, naturalHeight);

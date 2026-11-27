@@ -318,13 +318,15 @@ internal static class TableAutoLayout
                 continue;
             }
             var paragraph = ((TableCellText)content).Paragraph;
+            var paragraphPadding = ((TableCellText)content).Padding is { } padded
+                ? padded.PaddingLeft.Value + padded.PaddingRight.Value : 0;
             if (paragraph.Style.FirstLineIndent.IsPercent && paragraph.Style.FirstLineIndent.Value != 0)
                 throw Geometry("Percentage text-indent is not supported in automatic table layout; give every column an explicit col width.", paragraph.SourceOffset);
             try
             {
                 var (paragraphMin, paragraphMax) = TextLines.IntrinsicWidths(paragraph, options, resolved, cancellation);
-                min = Math.Max(min, paragraphMin);
-                max = Math.Max(max, paragraphMax);
+                min = Math.Max(min, paragraphMin + paragraphPadding);
+                max = Math.Max(max, paragraphMax + paragraphPadding);
             }
             catch (FactsPdfException error) when (error.SourceOffset < 0)
             {

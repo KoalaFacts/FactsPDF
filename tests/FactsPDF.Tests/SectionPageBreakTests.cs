@@ -207,7 +207,8 @@ public sealed class SectionPageBreakTests
 
     [TestCase("padding-top:22pt;padding-bottom:5pt", 27d)]
     [TestCase("padding-bottom:13pt", 13d)]
-    [TestCase("margin-top:11pt;margin-bottom:4pt", 15d)]
+    // The empty block's own margins collapse through it, so the larger one is the space.
+    [TestCase("margin-top:11pt;margin-bottom:4pt", 11d)]
     public void BreakAfterMovesBeforeEmptyUnpaintedSuccessorAndKeepsItsSpace(
         string geometry, double reserved)
     {

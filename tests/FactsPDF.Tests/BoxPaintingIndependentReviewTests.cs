@@ -50,13 +50,15 @@ public sealed class BoxPaintingIndependentReviewTests
     }
 
     [Test]
-    public void EmptyLastChildMarginIsWithinDecoratedParentBackground()
+    public void EmptyChildMarginCollapsesThroughTheParentTopEdgeAboveItsBackground()
     {
+        // The empty paragraph's margins collapse through it into one, which adjoins the parent's
+        // top margin: the padded parent starts below it (a browser paints the same 40pt gap).
         const string html = "<div style='background-color:red;padding-bottom:10pt'>" +
             "<p style='margin-bottom:40pt'></p></div>";
         var box = Layout(html)[0].PaintBoxes.Single();
-        Assert.That(box.Top, Is.EqualTo(Page.Margin).Within(0.00001));
-        Assert.That(box.Height, Is.EqualTo(50).Within(0.00001));
+        Assert.That(box.Top, Is.EqualTo(Page.Margin + 40).Within(0.00001));
+        Assert.That(box.Height, Is.EqualTo(10).Within(0.00001));
     }
 
     [Test]
@@ -66,7 +68,8 @@ public sealed class BoxPaintingIndependentReviewTests
             "<p style='background-color:red;margin-bottom:40pt'></p></div>";
         var boxes = Layout(html)[0].PaintBoxes.OrderBy(x => x.Order).ToArray();
         Assert.That(boxes, Has.Length.EqualTo(2));
-        Assert.That(boxes[0].Height, Is.EqualTo(40).Within(0.00001));
+        // The margin collapses through both empty boxes and out of the parent: neither paints height.
+        Assert.That(boxes[0].Height, Is.Zero);
         Assert.That(boxes[1].Height, Is.Zero);
     }
 
