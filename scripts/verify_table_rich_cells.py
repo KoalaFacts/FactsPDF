@@ -31,6 +31,9 @@ COMMON = ('<style>table{width:200pt;font-size:10pt;line-height:1.2}'
           'td,th{padding:4pt;border:1pt solid #24445a;background-color:#e4f3f0}'
           'th{font-weight:normal}'
           'img{width:50%;padding:2pt;border:1pt solid #cc5500}</style>')
+# Courier 10pt at line-height 1.2: baselines sit 9pt into a 12pt line, so a line holding an
+# inline image extends the strut 3pt below the image's baseline (as in Chrome).
+STRUT_BELOW = 3
 COLUMNS = ('<colgroup><col style="width:40pt"><col style="width:60pt">'
            '<col style="width:100pt"></colgroup>')
 
@@ -88,22 +91,26 @@ def create(directory):
         '<p style="margin-top:4pt;margin-bottom:3pt">LAST</p>'),
         [text('FIRST', 41, 52), text('LAST', 41, 70), text('Z', 141, 50)], height=45)
     rich = '<p>FIRST</p><img src="sample"><p>LAST</p>'
-    add('rich-left', table(rich), [text('FIRST', 41, 50), text('LAST', 41, 98.5),
-        text('Z', 141, 50)], images=[image(44, 64)], height=78.5)
+    add('rich-left', table(rich), [text('FIRST', 41, 50), text('LAST', 41, 98.5 + STRUT_BELOW),
+        text('Z', 141, 50)], images=[image(44, 64)], height=78.5 + STRUT_BELOW)
     centered = rich.replace('<img src="sample">', '<img src="sample" style="background-color:#f3ead7">')
     add('rich-center', table(centered, cell_style='text-align:center'),
-        [text('FIRST', 71, 50), text('LAST', 74, 98.5), text('Z', 141, 50)],
-        images=[image(63.5, 64, background=[243, 234, 215])], height=78.5)
+        [text('FIRST', 71, 50), text('LAST', 74, 98.5 + STRUT_BELOW), text('Z', 141, 50)],
+        images=[image(63.5, 64, background=[243, 234, 215])], height=78.5 + STRUT_BELOW)
     add('percent-bases', table('<img src="sample" style="padding:10%;border:none">',
         cell_style='padding:5%;text-align:center'), [text('Z', 141, 50)],
-        images=[image(64, 50.8, 44, 22, padding=8.8, border=0)], height=51.6)
+        images=[image(64, 50.8, 44, 22, padding=8.8, border=0)], height=51.6 + STRUT_BELOW)
     add('empty-paragraphs', table('<p></p><p> </p>', sibling=''), [], height=18)
     add('bare-whitespace', table(' \n ', sibling=''), [], height=10)
     direct = 'BEFORE<img src="sample"><p>AFTER</p>TAIL'
+    # BEFORE and the inline image share one line: the image follows six 6pt Courier glyphs,
+    # and its 28.5pt margin box (22.5 + 2*2 padding + 2*1 border) sets that line's baseline.
+    line_bottom = 41 + 28.5 + STRUT_BELOW
     add('direct-around-items', table(direct) + '<p style="font-size:10pt">FOLLOWING</p>',
-        [text('BEFORE', 41, 50), text('AFTER', 41, 90.5), text('TAIL', 41, 110.5),
-         text('Z', 141, 50), text('FOLLOWING', 36, 127.5)],
-        images=[image(44, 56)], height=82.5)
+        [text('BEFORE', 41, 41 + 28.5), text('AFTER', 41, line_bottom + 9),
+         text('TAIL', 41, line_bottom + 12 + 8 + 9),
+         text('Z', 141, 50), text('FOLLOWING', 36, line_bottom + 12 + 8 + 12 + 5 + 9)],
+        images=[image(41 + 6 * 6 + 3, 44)], height=line_bottom + 12 + 8 + 12 + 5 - 36)
     header = ('<thead><tr><th colspan="3"><p style="margin-bottom:4pt">BRAND</p>'
               '<img src="sample" style="width:64pt">'
               '<p style="margin-top:2pt;margin-bottom:0">CAPTION</p></th></tr></thead>')
@@ -111,11 +118,14 @@ def create(directory):
         f'<tr style="line-height:2"><td>R{n:03}</td><td>X{n:03}</td><td>Y{n:03}</td></tr>'
         for n in range(1, 48)) + '</tbody></table>'
     add('repeated-header', repeated,
-        [t for page in range(3) for t in [text('BRAND', 41, 50, page), text('CAPTION', 41, 106, page)]],
-        images=[image(44, 60, 64, 32, page=page) for page in range(3)], pages=3,
+        # th centres its content in the 190pt content box: 5 and 7 Courier glyphs, a 70pt image box.
+        [t for page in range(3) for t in [text('BRAND', 41 + (190 - 30) / 2, 50, page),
+                                          text('CAPTION', 41 + (190 - 42) / 2, 106 + STRUT_BELOW, page)]],
+        images=[image(41 + (190 - 70) / 2 + 3, 60, 64, 32, page=page) for page in range(3)], pages=3,
         witnesses=[witness(76.5, 39, CELL, page) for page in range(3)]
                   + [witness(136.5, 39, CELL, page) for page in range(3)],
-        rowsPerPage=[23, 23, 1])
+        # The header's 3pt strut gap pushes row 23's bottom (132 + 3 + 22*30 + 12 = 807) past 805.89.
+        rowsPerPage=[22, 22, 3])
     move = copy.deepcopy(cases[2])
     move.update(name='whole-table-move', pages=2,
         html='<p style="font-size:10pt;line-height:2;margin-top:0;margin-bottom:0">'
@@ -237,12 +247,12 @@ def inspect(path, case, source_image, *, qpdf=None, raster=True):
     if 'rowsPerPage' in case:
         assert [v for _, v, _, _ in rows] == [f'R{n:03}' for n in range(1, 48)], 'body row loss/order/duplication'
         assert [sum(p == i for p, *_ in rows) for i in range(3)] == case['rowsPerPage'], 'whole-row pagination changed'
-        # 36 + 78 header + 5 edges + (9 + (20-12)/2) baseline = 132.
+        # 36 + 78 header + 3 strut gap under its image + 5 edges + (9 + (20-12)/2) baseline = 135.
         expected_cells = []
         row_number = 1
         for page, count in enumerate(case['rowsPerPage']):
             for n in range(count):
-                expected_cells.extend((page, f'{prefix}{row_number:03}', x, PAGE_HEIGHT - 132 - n * 30)
+                expected_cells.extend((page, f'{prefix}{row_number:03}', x, PAGE_HEIGHT - 132 - STRUT_BELOW - n * 30)
                                       for prefix, x in [('R', 41), ('X', 81), ('Y', 141)])
                 row_number += 1
         assert [(p, v) for p, v, _, _ in body_cells] == [(p, v) for p, v, _, _ in expected_cells], 'body sibling cell loss/order/duplication'

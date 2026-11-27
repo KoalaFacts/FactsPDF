@@ -28,13 +28,25 @@ def html(case):
             "<col style='width:400pt'></colgroup>" + header + '<tbody>' + rows + '</tbody></table>')
 
 
+def reading_order(page_words):
+    """Words grouped into lines by vertical midpoint (Latin and CJK boxes differ), then by x."""
+    lines = []
+    for word in sorted(page_words, key=lambda w: (w['yMin']+w['yMax'])/2):
+        middle = (word['yMin']+word['yMax'])/2
+        if lines and abs(middle-lines[-1][0]) < 6: lines[-1][1].append(word)
+        else: lines.append((middle, [word]))
+    return [word for _, line in lines for word in sorted(line, key=lambda w: w['xMin'])]
+
+
 def inspect(pdf, case, raster=True):
     run(tool('qpdf'), '--check', pdf)
     reader = PdfReader(pdf); page_words, bbox = words(pdf)
     assert len(reader.pages) == len(case['groups']), 'page count'
     next_id = 1
     for index, (page, count) in enumerate(zip(reader.pages, case['groups'])):
-        tokens = [w['text'] for w in page_words[index]]
+        # Geometric reading order (line, then x): centred header cells must not depend on
+        # pdftotext's column grouping, which pairs a centred "ID" with the body column below it.
+        tokens = [w['text'] for w in reading_order(page_words[index])]
         expected = (['LEAD'] * case['lead'] if index == 0 else [])
         if case['header']: expected += ['ID', 'DESCRIPTION']
         for i in range(next_id, next_id + count): expected += [f'R{i:03}', '记录' if case['bilingual'] else 'Record']

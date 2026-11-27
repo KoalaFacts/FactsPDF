@@ -1,3 +1,19 @@
 # Check out text as LF on every platform: evidence scripts hash and compare
 # authored files byte for byte, and the index already stores LF only.
 * text=auto eol=lf
+
+# Never convert binary formats, even when a file holds no NUL byte
+# (an all-ASCII PDF is otherwise auto-detected as text).
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.7z binary
+*.snk binary
