@@ -18,7 +18,7 @@ import tempfile
 import zipfile
 
 from private_five_finalization import EXPECTED, REQUIRED_CHECKS, frozen_contract_digest
-from verify_package import binary_reader, current_source, validate_package
+from verify_package import binary_reader, current_source, package_targets, validate_package
 
 VERSION = "0.1.0-preview.1"
 MANAGED = {
@@ -303,7 +303,9 @@ def verify(root: Path, candidate: Path, runner: Path, output: Path) -> dict:
             and inspector_record["bytes"] == inspector.stat().st_size,
             "Compiled inspector not source-bound")
     package_meta = validate_package(candidate / EXPECTED["package"], root, VERSION, head,
-                                    "net10.0", assembly_reader=binary_reader(inspector, "dotnet"))
+                                    package_targets(root, "net10.0"),
+                                    assembly_reader=binary_reader(inspector, "dotnet"))
+    package_meta["assembly"] = package_meta["assemblies"]["net10.0"]
     require(package_meta["assembly"] == unpacked["managed"]["FactsPDF.Cli/FactsPDF.dll"],
             "Inspected NuGet PE is not consumed assembly")
 

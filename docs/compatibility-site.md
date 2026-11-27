@@ -642,7 +642,11 @@ are still never resolved (partial 245, rejected 121; 43 records).
 The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
 place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
 so no count moves.
+The C# / .NET library row stays full; its limitation string is replaced in place to say that
+the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
+that compressed streams can differ between runtimes, with byte parity and hash pins
+authoritative on `net10.0` only, so no count moves.
 Current dataset SHA-256:
-`b69396a9c8b868a263968bc72bfaf5fc8343179fbe5644b87946b2b573104110`; English
-layer `site/src/audit-english-list-type.mjs`, ordered source-text
-SHA-256 `15c23da834a918f4f26fc7e63b33d9189e1840576bac70edf0316c873ca08983`.
+`b2e20a2bf73e03a469ae4325d38bb21382a38f9663e75dbbcf3d7c02e5384293`; English
+layer `site/src/audit-english-runtime-targets.mjs`, ordered source-text
+SHA-256 `adc467128d19d0c2394c9012cd93209db227523bad5da9e1b82fe15f9541c644`.

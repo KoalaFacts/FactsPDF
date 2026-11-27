@@ -28,6 +28,7 @@ public sealed class HtmlAttributeArrayTests
 
     // Measured on main 5d30f8a: 280 bytes per one-attribute start tag with a Dictionary per tag
     // (map, buckets and entries); 136 with the token, its HtmlAttributes and a one-pair array.
+    [AllocationBudget]
     [Test]
     public void AStartTagWithOneAttributeAllocatesNoHashMap()
     {

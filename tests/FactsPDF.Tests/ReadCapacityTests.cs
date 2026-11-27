@@ -52,6 +52,7 @@ public sealed class ReadCapacityTests
     // 20,000 paragraphs (60,000 tokens, far past the pooled list): on main the token list doubled
     // from 8,192 slots to 65,536 and each block node carried two int? ordinals. Measured
     // 9,970 KiB on main and 9,258 KiB after Z6h; the limit fails on main.
+    [AllocationBudget]
     [Test]
     public void ReadingManyParagraphsSizesTheTokenListOnce()
     {

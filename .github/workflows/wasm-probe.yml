@@ -42,7 +42,7 @@ jobs:
           /usr/bin/python3 scripts/font_style_fonts.py --sarasa-root artifacts/private-fonts --download --output artifacts/wasm-evidence/font-manifest.json
       - name: Test adapter and explicit resource loading
         run: |
-          dotnet test FactsPDF.slnx -c Release
+          dotnet test FactsPDF.slnx -c Release -f net10.0
           npm test --prefix scripts/wasm_probe
       - name: Publish actual non-AOT browser WASM host and CLI
         run: |

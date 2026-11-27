@@ -886,6 +886,17 @@ test('table parts accept the display value they already render, in English', asy
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
 
+test('the .NET library row names its three target frameworks and the compression caveat, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'runtime.dotnet'));
+  assert.equal(row.status, 'full');
+  assert.match(row.limitations, /net8\.0, net9\.0 and net10\.0/);
+  assert.match(row.limitations, /byte-identical for the same input, options and \.NET runtime version/);
+  assert.match(row.limitations, /different \.NET versions may produce different bytes .* with the same rendered content/);
+  assert.match(row.limitations, /authoritative on net10\.0 only/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
 test('break-inside and page-break-inside accept avoid on table rows, in English', async () => {
   const { englishFeature } = await localisation();
   const rows = ['css.break-inside', 'css.page-break-inside']

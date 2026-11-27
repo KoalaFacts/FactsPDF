@@ -336,14 +336,14 @@ internal static class HtmlTokens
     // Lower-case spellings of the tag and attribute names the reader and the CSS layer use. A name
     // found here is returned without a substring or lower-casing copy; any other name falls back to
     // the copy. Names are ASCII (NameCharacter), so the ignore-case match equals ToLowerInvariant.
-    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> KnownNames = new HashSet<string>([
+    private static readonly SpanStringSet KnownNames = new([
         "a", "abbr", "address", "article", "aside", "b", "base", "bdi", "blockquote", "body", "br", "caption", "cite", "code", "col", "colgroup", "data", "dd", "del", "dfn", "div",
         "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "img",
         "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "script", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "template", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
         "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "hidden", "href", "id", "lang", "name", "reversed",
         "property", "rel", "rowspan", "src", "start", "target", "type", "value", "width",
-    ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+    ]);
 
     private static string LowerName(string html, int start, int end) =>
         KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known) ? known : html[start..end].ToLowerInvariant();

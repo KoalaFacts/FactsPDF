@@ -22,6 +22,7 @@ public sealed class SubsetClosureAllocationTests
         return (GC.GetAllocatedBytesForCurrentThread() - before) / runs;
     }
 
+    [AllocationBudget]
     [Test]
     public void AFontsUnusedGlyphsAddOnlyTheGlyphMap()
     {

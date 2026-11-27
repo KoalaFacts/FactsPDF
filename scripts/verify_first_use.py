@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 from xml.etree import ElementTree as ET
-from verify_package import current_source, expected_contract, local_package, validate_package, validate_assembly_source
+from verify_package import current_source, expected_contract, local_package, package_targets, validate_package, validate_assembly_source
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -267,7 +267,7 @@ def main(*,strict_toolchain=False):
     version,framework=expected_contract(root)
     consumer_target=args.consumer_tfm or framework
     package=(args.package or local_package(root,version)).resolve()
-    metadata=validate_package(package,root,version,source_head,framework);assembly=metadata['assembly']
+    metadata=validate_package(package,root,version,source_head,package_targets(root,framework));assembly=metadata['assemblies'][framework]
     out.mkdir(parents=True,exist_ok=False)
     assert cli.is_file() and cli.with_suffix('.runtimeconfig.json').is_file() and cli.with_suffix('.deps.json').is_file(),'published CLI files'
     assert (cli.parent/'FactsPDF.dll').read_bytes()==assembly,'published CLI uses the newly packed assembly'
@@ -383,7 +383,7 @@ def main(*,strict_toolchain=False):
             consumerTargetFramework=consumer_target,
             consumerSdkConfig=dict(file='consumer.global.json',sha256=digest(sdkconfig),data=json.loads(sdkconfig)),
             consumerRuntimeConfig=dict(file='consumer.runtimeconfig.json',sha256=digest(runtimeconfig),data=runtimeconfig_data),
-            package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=metadata['targetFramework'],
+            package=dict(name=package.name,id=metadata['id'],version=version,targetFramework=framework,targetFrameworks=list(metadata['targetFrameworks']),
                 repository=metadata['repository'],sha256=digest(package.read_bytes()),assemblySha256=digest(assembly)),
             cliSha256=digest(cli.read_bytes()),cliAssembly=cli_identity,
             inputs={p.name:digest(p.read_bytes()) for p in (work/'consumer').iterdir() if p.is_file()},

@@ -38,6 +38,7 @@ public sealed class TableCellContentsTests
 
     // Measured on main e17e015: 1,708.6 bytes read per three-cell row with a List and its
     // four-slot array per cell; 1,468.6 with the item inline (80 bytes less per cell).
+    [AllocationBudget]
     [Test]
     public void ReadingOneItemCellsAllocatesNoContentListPerCell()
     {
