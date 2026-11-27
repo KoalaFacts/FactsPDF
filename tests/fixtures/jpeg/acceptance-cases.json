@@ -209,7 +209,7 @@
     },
     {
       "id": "D1-inline-refusal",
-      "html": "<p>Before<img src=\"chart\"></p>",
+      "html": "<p>Before<img src=\"chart\" style=\"display:block\"></p>",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -228,7 +228,7 @@
     },
     {
       "id": "D1-list-refusal",
-      "html": "<ul><li><div><img src=\"chart\"></div></li></ul>",
+      "html": "<ul><li><div><img src=\"chart\" style=\"display:block\"></div></li></ul>",
       "resources": {
         "chart": "rgb-420.jpg"
       },
