@@ -150,9 +150,8 @@ public sealed class TextDecorationPaintTests
     [TestCase("text-decoration:underline red blue", "FPDF1202")]
     [TestCase("text-decoration:underline line-through underline", "FPDF1202")]
     [TestCase("text-decoration:none red", "FPDF1202")]
-    [TestCase("text-decoration-color:transparent", "FPDF1202")]
     [TestCase("text-decoration-style:double", "FPDF1202")]
-    [TestCase("text-decoration:underline dashed rgba(255,0,0,0.4)", "FPDF1202")]
+    [TestCase("text-decoration:underline dashed rgba(255,0,0,none)", "FPDF1202")]
     public void UnsupportedDecorationValuesFailEvenInUnmatchedRulesWithoutTouchingDestination(string css, string code)
         => Reject("<style>.absent{" + css + "}</style><p>Safe output</p>", code);
 

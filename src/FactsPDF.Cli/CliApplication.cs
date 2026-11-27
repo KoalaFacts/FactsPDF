@@ -16,8 +16,8 @@ public static class CliApplication
         "--page-width and --page-height must be supplied together, each 72-14400pt in pt/px/mm/cm/in; do not combine with --page-size or --landscape.\n" +
         "--margin sets one uniform margin (0 or pt/px/mm/cm/in; default 36pt) in the selected physical page size.\n" +
         "--title/--author/--subject/--keywords set optional UTF-16 PDF Info metadata (1-1024 units each); never extracted from HTML.\n" +
-        "This does not implement CSS @page, asymmetric margins, printer bleed or content scaling.\n" +
-        "Only the CLI page geometry changes, not the CSS @page support or PDF content scaling.\n" +
+        "A CSS @page rule (size, margins, top/bottom margin boxes) applies when these options are omitted; an option that disagrees with it fails FPDF1206.\n" +
+        "Margin boxes cannot be combined with --page-furniture, --page-numbers, --header-text or --footer-text. No printer bleed or content scaling.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
         "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
@@ -177,8 +177,14 @@ public static class CliApplication
                 throw new ArgumentException("--margin must be less than half the shorter physical page dimension.");
             // Converts through the public SDK; engine defaults bound how much font/image data is read.
             var defaults = Pdf.Write().Options;
+            // Only page options given on the command line are explicit, so a CSS @page rule may set
+            // the others; an explicit option that disagrees with @page fails FPDF1206.
             var writer = Pdf.Write()
-                .WithPage(p => p.Size(pageWidth, pageHeight).Margin(margin))
+                .WithPage(p =>
+                {
+                    if (pageSize is not null || landscape || requestedPageWidth.HasValue) p.Size(pageWidth, pageHeight);
+                    if (requestedMargin.HasValue) p.Margin(margin);
+                })
                 .WithMetadata(m =>
                 {
                     if (title is not null) m.Title(title);

@@ -62,7 +62,7 @@ public sealed class CssClassListTests
     public void ManyClassesAreAllFoundOnce(int count)
     {
         var names = Enumerable.Range(0, count).Select(i => "c" + i).ToArray();
-        var html = "<p class=\"" + string.Join(' ', names) + " " + string.Join(' ', names.Reverse()) + "\">";
+        var html = "<p class=\"" + string.Join(' ', names) + " " + string.Join(' ', Enumerable.Reverse(names)) + "\">";
         var classes = Element(html).Classes;
         Assert.That(classes.Names.ToArray(), Is.EqualTo(names));
         foreach (var name in names) Assert.That(classes.Contains(name), Is.True, name);

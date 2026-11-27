@@ -31,6 +31,7 @@ public sealed class InlineDeclarationLookupTests
     }
 
     // Main 44356fd: 824.5 bytes per styled paragraph; with declarations on the token: 768.0.
+    [AllocationBudget]
     [Test]
     public void ReadingAStyledParagraphAddsNoOffsetMapEntry()
     {

@@ -39,6 +39,8 @@ internal static class PdfConverter
             throw new FactsPdfException("FPDF1001", "HTML and page text exceed MaxInputCharacters.");
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
+        // CSS @page sets the page geometry and margin boxes before any layout reads them.
+        if (document.PageRules is { } pageRules) options = pageRules.Apply(options, document.RootStyle);
         var pages = TextLayout.Layout(document, options, cancellationToken);
         long displayCommands = 0;
         foreach (var page in pages)

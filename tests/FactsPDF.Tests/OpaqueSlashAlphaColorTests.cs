@@ -7,7 +7,8 @@ namespace FactsPDF.Tests;
 /// <summary>
 /// CSS Color 4 syntax for opaque colours: rgba()/hsla() are aliases of rgb()/hsl(), the
 /// space form takes an optional "/ alpha", and the comma form an optional fourth alpha.
-/// Alpha must be exactly 1 or 100%; any other alpha still fails FPDF1202.
+/// Alpha that clamps or rounds to the opaque byte paints exactly as the opaque colour;
+/// translucent alpha is covered by TranslucentColourTests. Malformed alpha still fails FPDF1202.
 /// </summary>
 [TestFixture]
 public sealed class OpaqueSlashAlphaColorTests
@@ -41,16 +42,12 @@ public sealed class OpaqueSlashAlphaColorTests
     [TestCase("hsla(210 50% 40%)", "hsl(210,50%,40%)")]
     [TestCase("hsl(210, 50%, 40%, 1)", "hsl(210,50%,40%)")]
     [TestCase("hsla(210, 50%, 40%, 100%)", "hsl(210,50%,40%)")]
+    [TestCase("rgb(35 68 107 / 0.99999999999999999999999999999)", "#23446b")]
+    [TestCase("rgb(35 68 107 / 10)", "#23446b")]
+    [TestCase("rgb(35 68 107 / 1000%)", "#23446b")]
     public void OpaqueModernSyntaxPaintsLikeTheClassicForm(string modern, string classic) =>
         Assert.That(Render(Page(modern)), Is.EqualTo(Render(Page(classic))));
 
-    [TestCase("color:rgb(35 68 107 / 0.5)")]
-    [TestCase("color:rgb(35 68 107 / 0)")]
-    [TestCase("color:rgb(35 68 107 / 99%)")]
-    [TestCase("color:rgb(35 68 107 / 0.99999999999999999999999999999)")]
-    [TestCase("color:rgb(35 68 107 / 10)")]
-    [TestCase("color:rgb(35 68 107 / 1000%)")]
-    [TestCase("color:rgb(35 68 107 / -1)")]
     [TestCase("color:rgb(35 68 107 / 1px)")]
     [TestCase("color:rgb(35 68 107 / none)")]
     [TestCase("color:rgb(35 68 107 /)")]
@@ -58,11 +55,9 @@ public sealed class OpaqueSlashAlphaColorTests
     [TestCase("color:rgb(35 68 107 , 1)")]
     [TestCase("color:rgb(35, 68, 107 / 1)")]
     [TestCase("color:rgb(35 68 / 1)")]
-    [TestCase("color:rgba(35, 68, 107, 50%)")]
-    [TestCase("color:hsl(210 50% 40% / .5)")]
-    [TestCase("color:hsla(210, 50%, 40%, 0)")]
+    [TestCase("color:rgba(35, 68, 107, 50deg)")]
     [TestCase("color:hsl(210 50% 40% / 1 / 1)")]
-    public void TranslucentOrMalformedAlphaStillFails(string css)
+    public void MalformedAlphaStillFails(string css)
     {
         using var stream = new MemoryStream();
         var error = Assert.Throws<FactsPdfException>(

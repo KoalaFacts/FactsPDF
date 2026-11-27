@@ -229,6 +229,43 @@ image for the next fragment, rather than emitting a decoration-only final page.
 An atomic unit and its unavoidable final edges that cannot fit fresh fail
 `FPDF1302`. Already emitted pages are not reflowed.
 
+`tr{break-inside:avoid}` (or `page-break-inside:avoid`) and the same on `thead`
+change nothing for rows that already move whole, so such a page is
+byte-identical to the page without it. A kept body row that would qualify for
+continuation follows Chrome's printed pages instead of starting on the page
+tail: it first breaks before itself, so it starts on a fresh page under the
+repeated header, and only then continues at complete text-line and image
+boundaries. A kept first body row breaks before the whole table instead, which
+never leaves the header behind on its own. A kept row that already starts where
+a fresh page would place it (the first body row of a table at the top of a page,
+or the first row of a continuation fragment) splits exactly like the row without
+the declaration. A kept last row that fits a fresh fragment and is split only
+to carry the table's bottom padding and border still fails `FPDF1302`: Chrome
+keeps that row whole and paints the table's bottom padding past the page bottom
+into the margin and onto the next page (dropping a bottom border there), and
+FactsPDF never paints outside the usable page. See
+[CSS table rows](css-stylesheets.md#table-rows) and the
+[kept-row maintenance log](../examples/report-table-kept-rows.html).
+
+The Chrome evidence (Chrome 158 headless `page.pdf`, A4, 36pt margins, Arial
+10pt on 12pt lines, `border-spacing:0`, every text line located with PyMuPDF)
+for a kept row, with FactsPDF's page index of every line equal to Chrome's:
+
+| Case | Chrome lines per page | FactsPDF before | FactsPDF now |
+| --- | --- | --- | --- |
+| 20-line kept row, 38pt page tail | 0, 20 | 0, 20 | 0, 20 |
+| 100-line kept row after ten two-line rows | 0, 63, 37 | `FPDF1302` | 0, 63, 37 |
+| 100-line kept first row, table at page top | 63, 37 | `FPDF1302` | 63, 37 |
+| 62-line first row under 40pt table top padding, page top | 59, 3 | `FPDF1302` | 59, 3 |
+| the same after ten lines of text (table moves) | 0, 59, 3 | `FPDF1302` | 0, 59, 3 |
+| 60-line last row, 40pt bottom padding | 0, 60, then padding overflows | `FPDF1302` | `FPDF1302` |
+
+Matching lines differ by at most 0.71pt vertically (Chrome's pixel rounding);
+the split point is the same complete line in every case. Without the
+declaration Chrome also splits a row that fits a fresh page (3 lines on the
+tail, 17 on the next page), while FactsPDF moves it whole; that existing
+difference is unchanged.
+
 The [long service report](../examples/business-table-long-description.html)
 contains a long numbered description, an image and caption, a following service
 item and totals. Bind the same generated `brand-mark.png` as `logo`. Independent
@@ -245,7 +282,7 @@ PDFs must fail the corresponding content or geometry assertions.
 | `td`, `th` | Padding, solid borders, background-color, text properties and `vertical-align` (above); no width, margin or break declarations |
 | `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
 | `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root) |
-| `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only |
+| `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only; `tr` and `thead` also accept `break-inside`/`page-break-inside:auto\|avoid` (below) |
 
 Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. Each table part accepts the `display` value that names what it already renders, and nothing changes: `thead{display:table-header-group}`, `tbody` and `tfoot{display:table-row-group}`, `tr{display:table-row}` and `td,th{display:table-cell}`. `tfoot{display:table-footer-group}` fails `FPDF1202`, because footer rows are placed once and never repeated on each fragment; every other `display` value on a table part still fails. `table-layout` and cell heights are not implemented. `empty-cells:show` (empty cells always paint their background and borders) and `caption-side:top` (no `caption` element is accepted) are validated and dropped; other values fail `FPDF1202`. Cells use the separated border model with zero spacing, so only `border-collapse:separate` and `border-spacing` at one or two zero lengths are accepted (validated and dropped, on any element); `border-collapse:collapse` and non-zero spacing fail `FPDF1202`.
 

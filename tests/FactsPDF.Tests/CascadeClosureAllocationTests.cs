@@ -27,6 +27,7 @@ public sealed class CascadeClosureAllocationTests
 
     // Measured on main 27cae7d: 728 bytes read per paragraph with a closure per element;
     // 656 without it.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesNoCascadeClosure()
     {

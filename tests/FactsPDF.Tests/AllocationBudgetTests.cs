@@ -30,6 +30,7 @@ public sealed class AllocationBudgetTests
         return html.Append("</tbody></table>").ToString();
     }
 
+    [AllocationBudget]
     [Test]
     public void QuickStartStaysWithinItsAllocationBudget()
     {
@@ -39,6 +40,7 @@ public sealed class AllocationBudgetTests
         Assert.That(allocated, Is.LessThan(121 * 1024));
     }
 
+    [AllocationBudget]
     [Test]
     public void StyledTableStaysWithinItsAllocationBudget()
     {
@@ -48,6 +50,7 @@ public sealed class AllocationBudgetTests
     }
 
     // Serialization alone: page content streams are written straight from one reused builder.
+    [AllocationBudget]
     [TestCase(false, 83)]
     [TestCase(true, 116)]
     public void SerializingTheStyledTableStaysWithinItsAllocationBudget(bool embedFont, int budgetKiB)

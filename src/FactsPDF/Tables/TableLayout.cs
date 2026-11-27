@@ -9,7 +9,7 @@ internal sealed record MeasuredTable(double Width, double Height,
 // A row's paint range is known only after every row is measured; it is assigned once to the
 // row itself (SetBoxRange) instead of a second record copy per row.
 internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader, int SourceOffset,
-    int RunStart, int RunCount, int ImageStart, int ImageCount, MeasuredTableCell[] Cells, bool CanSplit = false, bool IsFirstBodyGroup = false)
+    int RunStart, int RunCount, int ImageStart, int ImageCount, MeasuredTableCell[] Cells, bool CanSplit = false, bool IsFirstBodyGroup = false, bool AvoidBreakInside = false)
 {
     internal int BoxStart { get; private set; }
     internal int BoxCount { get; private set; }
@@ -82,6 +82,9 @@ internal static class TableLayout
         // Defer aligned-cell failure until we know whether a later occupied
         // row makes that predecessor a complete nonterminal row.
         var ambiguousVerticalOffsets = new List<int>();
+        // A kept (break-inside:avoid) last row that fits a fresh page but is split only to carry the
+        // table's bottom decoration. Only a multi-page table splits rows.
+        var ambiguousAvoidOffset = -1;
         // One scratch list for every cell of this table; each cell keeps an
         // exact-size copy of its units.
         var units = new List<MeasuredCellUnit>();
@@ -91,7 +94,7 @@ internal static class TableLayout
         var firstBodyGroup = true;
         var headerHeight = 0d;
         var top = edges.Top;
-        var usableHeight = options.PageHeight - 2 * options.Margin;
+        var usableHeight = options.ContentHeight;
         var fresh = freshSpace ?? new(usableHeight, 0);
         bool measuringHeader = false;
         void CheckHeight(double height, int offset)
@@ -271,12 +274,14 @@ internal static class TableLayout
                 foreach (var index in ambiguous) RetainCellBoxes(index);
                 ambiguous.Clear();
                 ambiguousVerticalOffsets.Clear();
+                ambiguousAvoidOffset = -1;
             }
             var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
             var capacity = fresh.UsableHeight - headerHeight
                 - (isFirstBodyGroup ? edges.Top + fresh.FirstLeading : 0);
             var canSplit = !row.IsHeader && rowHeight > capacity + .000001;
             var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
+            if (uncertain && row.AvoidBreakInside && ambiguousAvoidOffset < 0) ambiguousAvoidOffset = row.SourceOffset;
             // When the complete row remains atomic, place its shorter cell
             // content within the shared painted row height. A fragmented body
             // row has independent cell cursors and cannot yet give middle/bottom
@@ -300,7 +305,8 @@ internal static class TableLayout
                     imageBoxes[i] = imageBoxes[i] with { Top = imageBoxes[i].Top + shift };
             }
             rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
-                runStart, runs.Count - runStart, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup));
+                runStart, runs.Count - runStart, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup,
+                !row.IsHeader && row.AvoidBreakInside));
             rowBoxes.Add(null);
             rowImageBoxes.Add(imageBoxes.Count == 0 ? [] : imageBoxes.ToArray());
             if (uncertain) ambiguous.Add(rows.Count - 1);
@@ -340,6 +346,7 @@ internal static class TableLayout
         }
         var outerHeight = top + edges.Bottom;
         CheckHeight(outerHeight, table.SourceOffset);
+        if (ambiguousAvoidOffset >= 0 && outerHeight > usableHeight + 0.000001) throw UnkeptRow(ambiguousAvoidOffset);
         var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0,
             SourceOffset: table.SourceOffset);
         // Preserve the E1 command order and bytes for every short table.
@@ -366,4 +373,9 @@ internal static class TableLayout
     }
 
     private static FactsPdfException Geometry(string message, int offset) => new("FPDF1302", message, offset);
+
+    // Chrome keeps such a row whole and lets the table's bottom padding and border overflow the page
+    // bottom into the margin and the next page; FactsPDF never paints outside the usable page.
+    private static FactsPdfException UnkeptRow(int offset) => Geometry(
+        "break-inside:avoid last table row must fit a fresh page with its repeated header and the table's bottom padding and border.", offset);
 }

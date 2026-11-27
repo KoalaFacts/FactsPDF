@@ -36,6 +36,7 @@ public sealed class TableRowRecordTests
         return (largeBytes - smallBytes) / (double)runs / 200;
     }
 
+    [AllocationBudget]
     [Test]
     public void APaintFreeTableRowAllocatesNoCellBoxesNorASecondRowRecord()
     {

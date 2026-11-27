@@ -42,7 +42,7 @@ internal sealed class CssStylesheets
     private const int MaxComputedBoxes = 256;
     private readonly Dictionary<int, ComputedBox> computedBoxes = [];
     private sealed record ComputedBox(string Element, BoxStyle ParentBox, double RootFontSize, double FontSize,
-        Rgb Color, CssDeclaration[] Writes, BoxStyle Box);
+        Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
     // Custom property and var() declarations an element matched, kept until every other declaration
@@ -65,6 +65,8 @@ internal sealed class CssStylesheets
     // attribute, its element). Bounded like the other per-conversion tables.
     private const int MaxSubstitutions = 256;
     private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), (CssDeclaration[] Declarations, FactsPdfException? Warning)> substitutions = [];
+    /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
+    internal CssPageRules? PageRules { get; private set; }
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
@@ -351,6 +353,12 @@ internal sealed class CssStylesheets
                     dropped.Add("FPDF1204", "Only block-form @media print/all is supported.", rule.Span.Start);
                     continue;
                 }
+                // Paged-media page context: size, margins and the six top/bottom margin boxes.
+                if (at.Name.Equals("page", StringComparison.OrdinalIgnoreCase))
+                {
+                    (PageRules ??= new()).Add(at, budget);
+                    continue;
+                }
                 // Bounded print-only conditionals: no device queries, nesting,
                 // imports or ignored rules. Reuse the exact same selector,
                 // declaration, cascade and resource budgets as top-level CSS.
@@ -365,10 +373,12 @@ internal sealed class CssStylesheets
                       || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
                     throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
                 var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", rule.Span.Start);
-                // A print stylesheet may carry @keyframes; ParseRules validates and drops them.
+                // A print stylesheet may carry @keyframes, which ParseRules validates and drops, and
+                // @page, which it compiles like a top-level one.
                 if (contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
                         && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
-                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)))))
+                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
+                            || nested.Name.Equals("page", StringComparison.OrdinalIgnoreCase)))))
                     throw new FactsPdfException("FPDF1204",
                         "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
                 ParseRules(contents.Cast<CssRuleNode>().ToArray());
@@ -418,7 +428,8 @@ internal sealed class CssStylesheets
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
-        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false)
+        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false,
+        ListMarkerKind? listTypeHint = null)
     {
         Array.Clear(winners); var element = path[^1];
         customDeclarations.Clear(); pendingDeclarations.Clear();
@@ -522,12 +533,14 @@ internal sealed class CssStylesheets
             // A keep-together card must be an ordinary top-level report panel.
             // Validate losing declarations too; nested/table/list/inline usage
             // must never be accepted as an unimplemented decoration.
-            if (declaration.Property == CssProperty.BreakInside &&
+            // A table row never splits when it fits a fresh fragment and the header never
+            // splits, so tr and thead keep avoid as a check in TableLayout, not a new behaviour.
+            if (declaration.Property == CssProperty.BreakInside && element.Name is not ("tr" or "thead") &&
                 (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                  || path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
-                    "break-inside is supported only on ordinary report panels outside lists/tables.", declaration.Offset);
+                    "break-inside is supported only on ordinary report panels outside lists/tables and on table rows (tr, thead).", declaration.Offset);
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
                 element.Name is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",
@@ -757,8 +770,9 @@ internal sealed class CssStylesheets
         };
         // UA list defaults are decimal for ol and disc for ul. Other elements
         // propagate the inherited marker type, including li and nested panels.
-        // Copy the box only when a marker setting actually differs.
-        var markerKind = element.Name switch
+        // Copy the box only when a marker setting actually differs. The HTML type attribute is a
+        // presentational hint: it replaces the default and loses to every author declaration.
+        var markerKind = listTypeHint ?? element.Name switch
         {
             "ol" => ListMarkerKind.Decimal,
             "ul" or "menu" => ListMarkerKind.Disc,
@@ -794,9 +808,9 @@ internal sealed class CssStylesheets
                 if (!boxChecked)
                 {
                     boxChecked = true;
-                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, index);
+                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
                     if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, element.Name,
-                        parentBox, rootFontSize, style.FontSize, style.Color, index))
+                        parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index))
                     {
                         box = computed.Box;
                         boxShared = true;
@@ -930,7 +944,7 @@ internal sealed class CssStylesheets
         }
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
-                BoxWrites(element.Name), box);
+                listTypeHint, BoxWrites(element.Name), box);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
@@ -1042,7 +1056,10 @@ internal sealed class CssStylesheets
         if (declaration.Value is "initial" or "unset") return declaration.Property is CssProperty.BackgroundColor
             or CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom or CssProperty.MarginLeft
             or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (declaration.Property == CssProperty.BackgroundColor) return declaration.Value == "transparent";
+        // A colour with zero alpha (#rgb0, #rrggbb00, rgba(..., 0) lowered to hex) paints nothing either.
+        if (declaration.Property == CssProperty.BackgroundColor)
+            return declaration.Value == "transparent" || declaration.Value is ['#', .. var hex]
+                && (hex.Length == 4 && hex[3] == '0' || hex.Length == 8 && hex.EndsWith("00", StringComparison.Ordinal));
         return declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.PaddingTop or CssProperty.PaddingRight
                 or CssProperty.PaddingBottom or CssProperty.PaddingLeft
@@ -1132,10 +1149,12 @@ internal sealed class CssStylesheets
         || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
 
-    private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color, int first)
+    private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,
+        ListMarkerKind? listTypeHint, int first)
     {
         var hash = new HashCode();
         hash.Add(element);
+        hash.Add(listTypeHint);
         hash.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(parentBox));
         hash.Add(rootFontSize);
         hash.Add(fontSize);
@@ -1150,10 +1169,11 @@ internal sealed class CssStylesheets
     }
 
     private bool SameBoxInputs(ComputedBox computed, string element, BoxStyle parentBox, double rootFontSize,
-        double fontSize, Rgb color, int first)
+        double fontSize, Rgb color, ListMarkerKind? listTypeHint, int first)
     {
         if (!string.Equals(computed.Element, element, StringComparison.Ordinal) || !ReferenceEquals(computed.ParentBox, parentBox)
-            || !computed.RootFontSize.Equals(rootFontSize) || !computed.FontSize.Equals(fontSize) || computed.Color != color) return false;
+            || !computed.RootFontSize.Equals(rootFontSize) || !computed.FontSize.Equals(fontSize) || computed.Color != color
+            || computed.ListTypeHint != listTypeHint) return false;
         var writes = computed.Writes; var count = 0;
         for (var index = first; index < winners.Length; index++)
         {

@@ -72,7 +72,7 @@ public sealed class BackgroundShorthandTests
 
     [TestCase("url(chart.png)")]
     [TestCase("linear-gradient(red,blue)")]
-    [TestCase("rgba(1,2,3,0.5)")]
+    [TestCase("rgba(1,2,3,none)")]
     [TestCase("#abc no-repeat")]
     [TestCase("red blue")]
     public void ImageGradientFunctionAndMultipleComponentBackgroundsFailBeforeOutput(string value)

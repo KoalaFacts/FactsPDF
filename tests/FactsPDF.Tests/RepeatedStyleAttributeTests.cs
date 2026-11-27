@@ -45,6 +45,7 @@ public sealed class RepeatedStyleAttributeTests
         return (large - small) / 1_000.0;
     }
 
+    [AllocationBudget]
     [Test]
     public void ARepeatedStyleTextIsNotParsedAgain()
     {
@@ -54,6 +55,7 @@ public sealed class RepeatedStyleAttributeTests
         Assert.That(repeated, Is.LessThan(1_600));
     }
 
+    [AllocationBudget]
     [Test]
     public void AReplayedDeclarationCopiesOnlyItsOrderAndOffset()
     {

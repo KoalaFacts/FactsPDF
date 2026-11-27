@@ -48,7 +48,7 @@ internal sealed class TableMarkup(TableNode node)
             case "tfoot": phase = Phase.Footer; break;
             case "tr":
                 coveredColumns = 0;
-                row = new(phase == Phase.Header, offset);
+                row = new(phase == Phase.Header, offset, box.AvoidBreakInside);
                 if (row.IsHeader) headerRows++;
                 else if (phase == Phase.Footer) footerRows++;
                 else bodyRows++;

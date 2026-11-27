@@ -60,7 +60,8 @@ public sealed class BoxFragmentationReviewBoundaryTests
         var fragment = new PaintedBox(20, 20, 100, 0, style, new Rgb(0, 0, 0), 0,
             IsFirstFragment: first, IsLastFragment: last);
         var content = new StringBuilder();
-        PdfPaintSerializer.Append(content, [fragment], Page.PageHeight, 1000, default);
+        var alpha = new PdfAlphaStates();
+        PdfPaintSerializer.Append(content, [fragment], Page.PageHeight, 1000, default, ref alpha);
         Assert.That(content.Length, Is.Zero);
         Assert.That(fragment.CommandCount, Is.Zero);
     }

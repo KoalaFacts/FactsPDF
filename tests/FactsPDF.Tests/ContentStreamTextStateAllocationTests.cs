@@ -47,6 +47,7 @@ public sealed class ContentStreamTextStateAllocationTests
     // Every run below changes the letter spacing. On main each change formatted its number and
     // the `Tc` text into two strings: 108 (Courier) and 144 (subset font) serialize bytes per run,
     // 43 and 80 after Z2c (the rest is per-page objects). The limits fail on main.
+    [AllocationBudget]
     [TestCase(false, 55)]
     [TestCase(true, 95)]
     public void LetterSpacingChangesAllocateNoStringPerRun(bool embedFont, int limit)
@@ -66,6 +67,7 @@ public sealed class ContentStreamTextStateAllocationTests
 
     // Each patterned edge compared four formatted endpoint strings on main: 711 serialize bytes
     // per dashed box (four edges), 247 after Z2c. The limit fails on main.
+    [AllocationBudget]
     [Test]
     public void PatternedBorderEdgesAllocateNoEndpointStrings()
     {

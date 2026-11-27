@@ -41,7 +41,7 @@ document corpus.
 | Unicode CSS identifiers and escapes | Parses | Supported only where existing selector/property decoder can interpret them |
 | Numbers, dimensions, %, strings and functions | Parses | Existing documented value grammar only |
 | Unknown property `display:grid` | Retains declaration | Rejects `FPDF1201` |
-| `@media print`, `@page` | Retains at-rule | Rejects `FPDF1204` |
+| `@media print`, `@page` | Retains at-rule | Applies `@media print`/`all` and `@page` (size, margins, top/bottom margin boxes); other media and page forms fail `FPDF1204` |
 | `calc()` / `var()` | Retains nested function tree | `var()` and custom properties are substituted by the cascade; `calc()` is not evaluated |
 | Nested CSS rules | Retains ordered rule/declaration contents | Does not evaluate nesting |
 | Comments and malformed constructs | Tokenizes/recovery diagnostics | Strict mode rejects recovered errors |

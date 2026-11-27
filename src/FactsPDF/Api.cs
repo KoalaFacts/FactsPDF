@@ -9,6 +9,21 @@ internal sealed record PdfOptions
     public double PageHeight { get; init; } = 841.89;
     /// <summary>Margin on all four sides in points. Must be nonnegative and less than half the shorter page side. The default is 36pt.</summary>
     public double Margin { get; init; } = 36;
+    /// <summary>Per-side margins from a CSS <c>@page</c> rule whose sides differ; null uses <see cref="Margin"/> on every side.</summary>
+    internal PageMargins? SideMargins { get; init; }
+    /// <summary>The writer set the paper size or orientation explicitly (<see cref="PdfPageSetup"/>), so a CSS <c>@page</c> size must agree.</summary>
+    internal bool PageSizeExplicit { get; init; }
+    /// <summary>The writer set the margin explicitly (<see cref="PdfPageSetup.Margin"/>), so CSS <c>@page</c> margins must agree.</summary>
+    internal bool MarginExplicit { get; init; }
+    internal double MarginTop => SideMargins?.Top ?? Margin;
+    internal double MarginRight => SideMargins?.Right ?? Margin;
+    internal double MarginBottom => SideMargins?.Bottom ?? Margin;
+    internal double MarginLeft => SideMargins?.Left ?? Margin;
+    // Uniform margins keep the original single-subtraction expressions, so their output bytes are unchanged.
+    internal double ContentWidth => SideMargins is { } sides ? PageWidth - sides.Left - sides.Right : PageWidth - 2 * Margin;
+    internal double ContentHeight => SideMargins is { } sides ? PageHeight - sides.Top - sides.Bottom : PageHeight - 2 * Margin;
+    /// <summary>The left edge that centres <paramref name="width"/> on the page area, as CSS centre margin boxes are.</summary>
+    internal double CenterX(double width) => SideMargins is { } sides ? sides.Left + (ContentWidth - width) / 2 : (PageWidth - width) / 2;
     /// <summary>Optional PDF Info document title; null omits the field.</summary>
     public string? Title { get; init; }
     /// <summary>Optional PDF Info author (visible to PDF recipients).</summary>
@@ -78,6 +93,9 @@ internal sealed record PdfOptions
     /// <summary>The warning collector of the conversion in progress: set by the converter on its own copy of the options when <see cref="Strict"/> is false.</summary>
     internal CssWarnings? CssWarnings { get; init; }
 }
+
+/// <summary>Page margins in points, one per side.</summary>
+internal readonly record struct PageMargins(double Top, double Right, double Bottom, double Left);
 
 /// <summary>Outcome of a successful <see cref="PdfWriter"/> write.</summary>
 /// <param name="PageCount">Number of pages in the generated PDF.</param>
