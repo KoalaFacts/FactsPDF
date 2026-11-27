@@ -418,11 +418,19 @@ declared kind that is never observed fails the run. Kinds:
 `location-added`: a failing run's stderr gains `Location: line L, column C.`
 lines and is otherwise identical, with the same exit code and no PDF on either
 side. `new-example-rendered`: a newly added example the old CLI rejects and the
-new CLI renders. `orphans-widows-initial-2`: both CLIs render an existing
-example with identical stderr but different PDF bytes, declared once by the
-change that gave every paragraph the CSS initial `orphans:2;widows:2` (its PR
-lists every such example and set). Any other PDF byte or exit-code change has
-no kind and always fails.
+new CLI renders. `th-default-centred`: both CLIs render an existing example
+that contains a `th`, with different PDF bytes (header text centred as in
+Chrome). `inline-replaced-baseline`: both CLIs render an existing example with
+an `img` or `svg`, with different PDF bytes (default-inline images on the line
+box baseline, with the strut's descent below, as in Chrome).
+`orphans-widows-initial-2`: both CLIs render an existing example with the same
+stderr apart from the page and byte counts of the `Wrote` line but different
+PDF bytes, or one side renders and the other fails only with `FPDF1302:
+Decorated box fragment exceeds the usable page area.` (the moved break leaves
+a decorated box's bottom padding and border without room, or now gives them
+room); declared once by the change that gave every paragraph the CSS initial
+`orphans:2;widows:2` (its PR lists every such example and set). Any other PDF
+byte or exit-code change has no kind and always fails.
 
 CI runs it on every pull request against the PR's base (the merge commit's
 first parent). A PR that changes output on purpose fails this job by design:

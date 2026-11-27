@@ -22,6 +22,14 @@
 // each) and the PDF bytes differ: the declared change of paragraph page
 // breaks when CSS orphans/widows take their initial value 2 everywhere. Each
 // such example is listed in the PR and its pages are reviewed against Chrome.
+// The page and byte counts in the CLI's "Wrote" line may differ with the
+// bytes. A decorated box whose bottom padding and border no longer fit (or
+// now fit) on the page the moved break leaves fails (or renders) instead, so
+// a run changing between exit 0 and FPDF1302 "Decorated box fragment exceeds
+// the usable page area." is this kind too.
+// inline-replaced-baseline — an existing example with an img or svg renders a
+// different PDF on both sides: default-inline images sit on the baseline of
+// their line box with the strut's descent below them, as in Chrome.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -54,7 +62,8 @@ export interface Difference {
   kind: ExpectedKind | null;
 }
 
-export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2'] as const;
+export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
+  'inline-replaced-baseline'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -178,8 +187,19 @@ export function compareRuns(base: RunResult, head: RunResult): string | null {
 
 const locationLine = /^Location: line \d+, column \d+\.$/;
 
+const wroteLine = /^Wrote \d+ page\(s\), \d+ bytes\.$/m;
+const withoutWrote = (stderr: string) => stderr.replace(/\r\n/g, '\n').replace(wroteLine, 'Wrote');
+const decoratedFailure = /^FPDF1302: Decorated box fragment exceeds the usable page area\.$/m;
+
+/** Whether one side renders and the other fails only at a decorated box's bottom edge. */
+function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
+  return rendered.exitCode === 0 && rendered.pdf !== null && failed.exitCode === 3 && failed.pdf === null &&
+    decoratedFailure.test(failed.stderr.replace(/\r\n/g, '\n'));
+}
+
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
-export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false): ExpectedKind | null {
+export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false,
+  hasReplaced = false): ExpectedKind | null {
   if (hasTh && !newExample && base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     return 'th-default-centred';
@@ -189,8 +209,13 @@ export function classifyDifference(base: RunResult, head: RunResult, newExample 
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     return 'new-example-rendered';
   }
-  if (base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
-      base.stderr === head.stderr && !base.pdf.equals(head.pdf)) {
+  const rendered = base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
+    head.pdf.subarray(0, 5).toString('latin1') === '%PDF-' && !base.pdf.equals(head.pdf) &&
+    withoutWrote(base.stderr) === withoutWrote(head.stderr);
+  if (hasReplaced && !newExample && rendered) {
+    return 'inline-replaced-baseline';
+  }
+  if (!newExample && (rendered || decoratedOverflow(base, head) || decoratedOverflow(head, base))) {
     return 'orphans-widows-initial-2';
   }
   if (base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
@@ -336,7 +361,8 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       const reason = compareRuns(base, head);
       if (reason !== null) {
         const isNewExample = !baseExamples.has(example);
-        const kind = classifyDifference(base, head, isNewExample, /<th[\s>]/i.test(readFileSync(input, 'utf8')));
+        const source = readFileSync(input, 'utf8');
+        const kind = classifyDifference(base, head, isNewExample, /<th[\s>]/i.test(source), /<(img|svg)[\s>]/i.test(source));
         if (isNewExample && kind === null) {
           // A new fixture is not silently exempt from parity: report why
           // its expected old-error to real-PDF conversion was not classified.

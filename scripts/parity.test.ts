@@ -128,11 +128,29 @@ test('th-default-centred accepts only rendered PDFs of existing examples with a 
   const before = ok('%PDF-1.7 left');
   const after = ok('%PDF-1.7 centred');
   assert.equal(classifyDifference(before, after, false, true), 'th-default-centred');
-  assert.equal(classifyDifference(before, after), null, 'an example without a th must stay identical');
+  assert.notEqual(classifyDifference(before, after), 'th-default-centred', 'an example without a th is never this kind');
   assert.equal(classifyDifference(before, after, true, true), null, 'a new example is not an existing one');
   assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, true), null);
   assert.equal(classifyDifference({ exitCode: 3, stderr: 'FPDF1507\n', pdf: null }, after, false, true), null);
   assert.equal(classifyDifference(before, ok('not a PDF'), false, true), null);
+});
+
+test('inline-replaced-baseline accepts only rendered PDFs of existing examples with an img or svg', () => {
+  const before = ok('%PDF-1.7 block');
+  const after = ok('%PDF-1.7 baseline');
+  assert.equal(classifyDifference(before, after, false, false, true), 'inline-replaced-baseline');
+  assert.notEqual(classifyDifference(before, after), 'inline-replaced-baseline', 'an example without an image is never this kind');
+  assert.equal(classifyDifference(before, after, true, false, true), null, 'a new example is not an existing one');
+  assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, true), null);
+});
+
+test('a page count in the Wrote line and a moved decorated bottom edge are the orphans/widows kind', () => {
+  const wrote = (pages: number, bytes: number, body: string) => ({ ...ok(body), stderr: `Wrote ${pages} page(s), ${bytes} bytes.\r\n` });
+  assert.equal(classifyDifference(wrote(3, 10, '%PDF-1.7 a'), wrote(4, 12, '%PDF-1.7 b')), 'orphans-widows-initial-2');
+  const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\nLocation: line 1, column 1.\n', pdf: null };
+  assert.equal(classifyDifference(ok('%PDF-1.7 a'), failed), 'orphans-widows-initial-2');
+  assert.equal(classifyDifference(failed, ok('%PDF-1.7 a')), 'orphans-widows-initial-2');
+  assert.equal(classifyDifference(ok('%PDF-1.7 a'), { ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }), null);
 });
 
 test('reads Parity-Expect trailers and rejects unknown kinds', () => {
