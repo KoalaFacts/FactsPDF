@@ -137,11 +137,10 @@ public sealed class CurrentColorReportTests
     }
 
     [TestCase("color:currentcolor(1)")]
-    [TestCase("color:transparent")]
     [TestCase("background:currentcolor no-repeat")]
     [TestCase("background-color:currentcolor red")]
     [TestCase("background:linear-gradient(currentcolor,blue)")]
-    [TestCase("background:rgba(1,2,3,0.5)")]
+    [TestCase("background:rgba(1,2,3,none)")]
     public void UnsupportedColourSyntaxFailsBeforeChangingPdf(string css) => Reject(css);
 
     private static string FindRoot()

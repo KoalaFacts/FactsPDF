@@ -87,8 +87,9 @@ public sealed class BoxPaintingIndependentReviewTests
         var one = new PaintedBox(20, 20, 100, 20, style, new Rgb(0, 0, 0), 0);
         var boxes = Enumerable.Repeat(one, 1000).ToArray();
         var content = new StringBuilder();
+        var alpha = new PdfAlphaStates();
         var error = Assert.Throws<FactsPdfException>(() =>
-            PdfPaintSerializer.Append(content, boxes, Page.PageHeight, 128, default));
+            PdfPaintSerializer.Append(content, boxes, Page.PageHeight, 128, default, ref alpha));
         Assert.That(error!.Code, Is.EqualTo("FPDF1401"));
         Assert.That(content.Length, Is.LessThan(256),
             "The painter must never build thousands of commands after the budget has already been exceeded.");

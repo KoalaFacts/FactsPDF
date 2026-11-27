@@ -150,9 +150,9 @@ internal static class CssSyntaxAdapter
                 ValidateInteractionOnly(name, node);
                 continue;
             }
-            // Only opaque RGB functions are lowered to their equivalent hex
-            // colour. All downstream cascade, box paint and PDF serializers
-            // therefore use exactly the already audited solid-colour path.
+            // RGB and HSL functions are lowered to their equivalent hex colour
+            // (#rrggbb, or #rrggbbaa when translucent), so the cascade, box paint
+            // and PDF serializers share one colour path.
             var canonical = CanonicalValues(node);
             var terms = Terms(canonical);
             var valueTokens = NonWhitespaceTokens(canonical.Values);
@@ -544,7 +544,7 @@ internal static class CssSyntaxAdapter
                 continue;
             }
             // Bounded text-decoration shorthand: a nonempty line set and
-            // optional opaque colour, bounded thickness and solid/dashed/dotted stroke. Lower all
+            // optional colour, bounded thickness and solid/dashed/dotted stroke. Lower all
             // four longhands through the normal CSS winner/cascade pipeline,
             // so a later !important longhand can override one component and a
             // new shorthand resets omitted components rather than ignoring them.
@@ -552,7 +552,7 @@ internal static class CssSyntaxAdapter
             {
                 if (terms.Count > 6)
                     throw new FactsPdfException("FPDF1202",
-                        "Text decoration accepts up to three lines, one stroke, thickness and opaque colour.", node.Span.Start);
+                        "Text decoration accepts up to three lines, one stroke, thickness and colour.", node.Span.Start);
                 if (terms.Count == 1 && Wide(terms[0]))
                 {
                     var wideOffset = valueTokens[0].Token.Span.Start;
@@ -1739,15 +1739,15 @@ internal static class CssSyntaxAdapter
     };
 
     // The AST retains CSS functions rather than accepting arbitrary raw text.
-    // Fail closed on alpha blending, unsupported units, arithmetic and nested functions:
-    // only bounded opaque colour values can be painted as PDF RGB.
-    private static CssSyntaxComponent CanonicalOpaqueColor(CssSyntaxComponent component)
+    // Fail closed on unsupported units, arithmetic and nested functions: only bounded
+    // rgb()/hsl() colours (with optional alpha) can be painted as PDF RGB.
+    private static CssSyntaxComponent CanonicalColor(CssSyntaxComponent component)
     {
         if (component is not CssFunctionComponent function) return component;
         var name = function.Name.ToLowerInvariant();
         if (name is not ("rgb" or "rgba" or "hsl" or "hsla"))
             throw new FactsPdfException("FPDF1202",
-                "Only opaque rgb()/rgba() and bounded hsl()/hsla() colours are supported.", function.Span.Start);
+                "Only rgb()/rgba() and bounded hsl()/hsla() colour functions are supported.", function.Span.Start);
 
         var tokens = new List<CssSyntaxToken>();
         var spaced = new List<bool>();
@@ -1769,7 +1769,7 @@ internal static class CssSyntaxAdapter
         // CSS Color 4 makes rgba()/hsla() aliases of rgb()/hsl(). Both accept the
         // legacy comma form (three channels, optional comma alpha) and the modern
         // space form (three space-separated channels, optional "/ alpha"). Alpha
-        // must be exactly 1 or exactly 100%: no alpha compositing is painted.
+        // is clamped to [0, 1] and painted with PDF constant alpha.
         var commaForm = tokens.Count is 5 or 7;
         if (commaForm)
             for (var i = 1; i < tokens.Count; i += 2)
@@ -1778,21 +1778,19 @@ internal static class CssSyntaxAdapter
             (tokens.Count == 3 || tokens[3] is { Kind: CssSyntaxTokenKind.Delim, Value: "/" });
         if (!commaForm && !spaceForm)
             throw new FactsPdfException("FPDF1202", name is "hsl" or "hsla"
-                    ? "hsl() needs hue and two percentages, comma- or space-separated, with optional opaque alpha."
-                    : "rgb() needs three same-unit channels, comma- or space-separated, with optional opaque alpha.",
+                    ? "hsl() needs hue and two percentages, comma- or space-separated, with optional alpha."
+                    : "rgb() needs three same-unit channels, comma- or space-separated, with optional alpha.",
                 function.Span.Start);
         CssSyntaxToken Channel(int index) => tokens[commaForm ? 2 * index : index];
-        if (tokens.Count > 3 + (commaForm ? 2 : 0))
+        var alphaByte = tokens.Count > 3 + (commaForm ? 2 : 0) ? AlphaByte(tokens[^1]) : 255;
+        // A translucent colour lowers to #rrggbbaa; an opaque one keeps the exact #rrggbb token.
+        CssTokenComponent Lowered(string hex)
         {
-            var alpha = tokens[^1];
-            if (!(alpha.Kind == CssSyntaxTokenKind.Number && IsExactlyOne(alpha.Value) ||
-                  alpha.Kind == CssSyntaxTokenKind.Percentage && IsExactlyOne(alpha.Value, 2)))
-                throw new FactsPdfException("FPDF1202",
-                    "Alpha compositing is not supported; colour alpha must be exactly 1 or 100%.",
-                    alpha.Span.Start);
+            if (alphaByte != 255) hex += alphaByte.ToString("x2", System.Globalization.CultureInfo.InvariantCulture);
+            return new CssTokenComponent(new CssSyntaxToken(CssSyntaxTokenKind.Hash, hex, "#" + hex, function.Span));
         }
 
-        // Independently authored HSL report colours share the existing opaque RGB
+        // Independently authored HSL report colours share the existing RGB
         // PDF paint path. The bounded subset accepts numbers or deg hue in
         // [-3600,3600] and saturation/lightness percentages. No colour-space or
         // blending fallback.
@@ -1853,9 +1851,7 @@ internal static class CssSyntaxAdapter
             };
             static byte Byte(decimal channel) =>
                 (byte)decimal.Round(channel * 255m, 0, MidpointRounding.AwayFromZero);
-            var hslHex = $"{Byte(red + m):x2}{Byte(green + m):x2}{Byte(blue + m):x2}";
-            return new CssTokenComponent(new CssSyntaxToken(
-                CssSyntaxTokenKind.Hash, hslHex, "#" + hslHex, function.Span));
+            return Lowered($"{Byte(red + m):x2}{Byte(green + m):x2}{Byte(blue + m):x2}");
         }
 
         // Accept uniform percent-channel RGB in controlled print colours.
@@ -1883,47 +1879,25 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202",
                     "RGB channels must be all integers 0–255 or all percentages 0–100%.", token.Span.Start);
         }
-        var hex = $"{channels[0]:x2}{channels[1]:x2}{channels[2]:x2}";
-        return new CssTokenComponent(new CssSyntaxToken(
-            CssSyntaxTokenKind.Hash, hex, "#" + hex, function.Span));
+        return Lowered($"{channels[0]:x2}{channels[1]:x2}{channels[2]:x2}");
     }
 
-    // Compare the decimal Number token without binary/decimal rounding. After
-    // removing zero digits, exactly one significant digit (1) must remain;
-    // its decimal position plus the explicit exponent must equal the power of
-    // ten asked for (0 for 1, 2 for 100).
-    private static bool IsExactlyOne(string value, int powerOfTen = 0)
+    // CSS clamps colour alpha (a number or a percentage) to [0, 1]. Chrome paints it as one
+    // byte, rounded in single precision exactly as Skia's SkPaint::getAlpha does, so the same
+    // byte drives the PDF /ca and /CA values.
+    private static int AlphaByte(CssSyntaxToken alpha)
     {
-        var number = value.AsSpan();
-        if (number.Length > 0 && number[0] == '+') number = number[1..];
-        if (number.Length == 0 || number[0] == '-') return false;
-        var exponentIndex = number.IndexOfAny('e', 'E');
-        var exponent = 0;
-        if (exponentIndex >= 0)
-        {
-            if (!int.TryParse(number[(exponentIndex + 1)..],
-                System.Globalization.NumberStyles.AllowLeadingSign,
-                System.Globalization.CultureInfo.InvariantCulture, out exponent)) return false;
-            number = number[..exponentIndex];
-        }
-        var decimalIndex = number.IndexOf('.');
-        var integerDigits = decimalIndex < 0 ? number.Length : decimalIndex;
-        var digitIndex = 0;
-        var oneIndex = -1;
-        foreach (var digit in number)
-        {
-            if (digit == '.') continue;
-            if (digit != '0')
-            {
-                if (digit != '1' || oneIndex >= 0) return false;
-                oneIndex = digitIndex;
-            }
-            digitIndex++;
-        }
-        return oneIndex >= 0 && exponent == oneIndex + 1 - integerDigits + powerOfTen;
+        if (alpha.Kind is not (CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage) ||
+            !double.TryParse(alpha.Value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var value) || double.IsNaN(value))
+            throw new FactsPdfException("FPDF1202",
+                "Colour alpha must be a number or a percentage.", alpha.Span.Start);
+        if (alpha.Kind == CssSyntaxTokenKind.Percentage) value /= 100;
+        var clamped = (float)Math.Clamp(value, 0d, 1d);
+        return (int)MathF.Floor(clamped * 255f + 0.5f);
     }
 
-    // The declaration with opaque colour functions lowered (see CanonicalOpaqueColor); the node
+    // The declaration with colour functions lowered (see CanonicalColor); the node
     // itself when it has no function value.
     private static CssDeclarationNode CanonicalValues(CssDeclarationNode node)
     {
@@ -1932,7 +1906,7 @@ internal static class CssSyntaxAdapter
         {
             if (values[i] is not CssFunctionComponent) continue;
             var lowered = new CssSyntaxComponent[values.Count];
-            for (var j = 0; j < lowered.Length; j++) lowered[j] = CanonicalOpaqueColor(values[j]);
+            for (var j = 0; j < lowered.Length; j++) lowered[j] = CanonicalColor(values[j]);
             return node with { Values = lowered };
         }
         return node;
