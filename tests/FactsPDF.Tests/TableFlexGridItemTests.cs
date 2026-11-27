@@ -12,7 +12,7 @@ namespace FactsPDF.Tests;
 public sealed class TableFlexGridItemTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
-    private const string Css = "<style>html,body{margin:0;padding:0}body{font-size:10pt;line-height:20pt}table{border-collapse:separate;border-spacing:0}td{padding:0}</style>";
+    private const string Css = "<style>html,body{margin:0;padding:0}body{font-size:10pt;line-height:20pt}table{border-collapse:separate;border-spacing:0}td{padding:0;vertical-align:top}p{margin:0}</style>";
     private const string Cells = "<tr><td>T1</td><td>T2</td></tr>";
     private const string Start = "display:flex;align-items:flex-start;";
 
