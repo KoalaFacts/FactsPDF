@@ -61,8 +61,6 @@ public sealed class TableStructureTests
     [TestCase("<table>" + Columns + "<tbody></tbody></table>")]
     [TestCase("<table>" + Columns + "<tbody><tr></tr></tbody></table>")]
     [TestCase("<table>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody></table>")]
-    [TestCase("<table>" + Columns + "<tbody><tr><th>A</th></tr></tbody></table>")]
-    [TestCase("<table>" + Columns + "<thead><tr><td>A</td></tr></thead><tbody><tr><td>B</td></tr></tbody></table>")]
     [TestCase("<table>" + Columns + "<thead></thead><tbody><tr><td>B</td></tr></tbody></table>")]
     [TestCase("<table>" + Columns + "<thead><tr><th>A</th></tr><tr><th>B</th></tr></thead><tbody><tr><td>C</td></tr></tbody></table>")]
     [TestCase("<table>" + Columns + Columns + "<tbody><tr><td>A</td></tr></tbody></table>")]
@@ -107,7 +105,7 @@ public sealed class TableStructureTests
         => Fails(One.Replace("<td>", "<td " + attribute + ">"), "FPDF1103");
 
     [TestCase("col", "color:red")][TestCase("col", "padding:1pt")]
-    [TestCase("colgroup", "width:100pt")][TestCase("tbody", "background:red")]
+    [TestCase("colgroup", "width:100pt")][TestCase("tbody", "padding:2pt")]
     [TestCase("tr", "border:1pt solid red")][TestCase("td", "min-width:100pt")]
     [TestCase("td", "margin-top:1pt")][TestCase("td", "break-before:page")]
     [TestCase("table", "margin-top:1pt")][TestCase("table", "table-layout:fixed")]

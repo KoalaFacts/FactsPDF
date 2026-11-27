@@ -666,7 +666,10 @@ limitation strings are replaced in place for automatic column widths (no `colgro
 elements without widths), so no count moves. The `<table>` scope and limitation are replaced
 again when `colspan` joins automatic layout, and with the `<col>`, `<td>` and `<th>` rows
 when `col` and cell widths join it.
+The `<th>`, `<tr>`, `<thead>` and `<tfoot>` rows and the `background-color` row stay partial;
+their strings are replaced in place for `th`/`td` cells in any row and row and row group
+backgrounds, so no count moves.
 Current dataset SHA-256:
-`98496c6a4e19439271a5da1cc2dcce1f6ff07b0926b2920db4bb02011de29693`; English
-layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
-SHA-256 `adfc1d5aa0a35e5015b43c3ac6cf4ba364676e1e5ed1a73c5804982e09279159`.
+`954e10a6e68c61fa0f88a157ccb6c4332e0dbc652a27fbbc5914db6268e8187d`; English
+layer `site/src/audit-english-table-row-details.mjs`, ordered source-text
+SHA-256 `885dc1f4c7123bfbab2ef216cb06c764203b7f523abf843c6209791ce81993f4`.

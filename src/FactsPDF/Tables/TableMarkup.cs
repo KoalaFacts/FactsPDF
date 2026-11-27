@@ -14,6 +14,8 @@ internal sealed class TableMarkup(TableNode node)
     private int headerRows, bodyRows, footerRows;
     private int coveredColumns;
     private TableRow? row;
+    // The backgrounds of the open row group and row, painted under cells without their own.
+    private Rgb? groupBackground, rowBackground;
     // True while the first row of a table without colgroup is open: it sets the column count.
     private bool countingColumns;
     internal TableNode Node { get; } = node;
@@ -39,7 +41,8 @@ internal sealed class TableMarkup(TableNode node)
                 "colgroup" => name == "col" && Node.Columns.Count < MaxColumns,
                 "thead" => name == "tr" && headerRows == 0,
                 "tbody" or "tfoot" => name == "tr",
-                "tr" => row is not null && name == (row.IsHeader ? "th" : "td") && RemainingColumns > 0,
+                // Any row may hold th and td cells, as in HTML (label/value rows: th then td).
+                "tr" => row is not null && name is "th" or "td" && RemainingColumns > 0,
                 _ => false
             };
         if (!valid) throw Invalid("Unsupported table structure, placement or cell content.", offset);
@@ -53,15 +56,18 @@ internal sealed class TableMarkup(TableNode node)
             case "col": Node.Columns.Add(new(box.Width, offset)); break;
             case "thead":
                 if (phase == Phase.NeedColumns) countingColumns = true;
+                groupBackground = box.BackgroundColor;
                 phase = Phase.Header; break;
             case "tbody":
                 if (phase == Phase.NeedColumns) countingColumns = true;
+                groupBackground = box.BackgroundColor;
                 phase = Phase.Body; break;
             // Footer rows are ordinary body rows placed after the tbody rows,
             // where the source already puts them; they are not repeated per page.
-            case "tfoot": phase = Phase.Footer; break;
+            case "tfoot": groupBackground = box.BackgroundColor; phase = Phase.Footer; break;
             case "tr":
                 coveredColumns = 0;
+                rowBackground = box.BackgroundColor;
                 row = new(phase == Phase.Header, offset, box.AvoidBreakInside);
                 if (row.IsHeader) headerRows++;
                 else if (phase == Phase.Footer) footerRows++;
@@ -72,6 +78,11 @@ internal sealed class TableMarkup(TableNode node)
                 if (columnSpan > RemainingColumns)
                     throw Invalid("Cell span exceeds the remaining table columns.", offset);
                 coveredColumns += columnSpan;
+                // With separated borders and no spacing a row's cells cover the row exactly, so a
+                // row or group background painted under them shows only through cells without
+                // their own: the same paint as giving those cells the background.
+                if (box.BackgroundColor is null && (rowBackground ?? groupBackground) is { } inherited)
+                    box = box with { BackgroundColor = inherited };
                 Cell = new(style, box, offset, columnSpan);
                 row!.Cells.Add(Cell);
                 break;
