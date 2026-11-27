@@ -661,7 +661,10 @@ A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
+The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
+limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
+elements without widths), so no count moves.
 Current dataset SHA-256:
-`6c73120721e0e1bee2201e50b6ad2ce40695f572fd73f6387f80acaa15c88d72`; English
-layer `site/src/audit-english-table-row-kept-split.mjs`, ordered source-text
-SHA-256 `0e4408a1cc3960189e84bf82d58ef78837b36b031e35f0157e7052edd0c45602`.
+`ef3d39adfc3d7af6c82c9ab5befaa46e5ee4dd7c44d65484b0214973cd57d281`; English
+layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
+SHA-256 `0d04065cef83cbcb6b354c4b06d05c17b9db472dc2ad2b96bfac476b84f61b44`.

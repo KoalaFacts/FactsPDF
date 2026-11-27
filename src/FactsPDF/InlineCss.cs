@@ -160,10 +160,10 @@ internal static class InlineCss
                 // Emergency breaking applies only to the whole report
                 // paragraph/heading, never a silently ignored inline span.
                 // CSS Text 3: anywhere breaks exactly like break-word and differs
-                // only in min-content sizing, which no FactsPDF layout computes.
-                style.BreakWords = value switch
+                // only in min-content sizing (automatic table column widths).
+                (style.BreakWords, style.BreakAnywhere) = value switch
                 {
-                    "normal" => false, "break-word" or "anywhere" => true,
+                    "normal" => (false, false), "break-word" => (true, false), "anywhere" => (true, true),
                     _ => throw Invalid("overflow-wrap supports only normal, break-word and anywhere.", offset)
                 };
                 break;

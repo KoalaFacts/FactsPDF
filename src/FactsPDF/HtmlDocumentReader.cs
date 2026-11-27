@@ -461,7 +461,8 @@ internal static class HtmlDocumentReader
                 }
                 else if (name == "a" && attribute == "rel") AnchorRelations(value, token.Offset);
                 else if (attribute == "colspan" && name is "td" or "th")
-                    columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count, token.Offset, cancellation);
+                    columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count == 0 ? TableMarkup.MaxColumns : table.Node.Columns.Count,
+                        token.Offset, cancellation);
                 else if (attribute == "start" && name == "ol")
                     listStart = ParseListOrdinal(value, token.Offset, cancellation);
                 else if (attribute == "value" && name == "li" && stack[^1].Name == "ol")

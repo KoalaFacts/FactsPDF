@@ -86,7 +86,7 @@ public sealed class TableLayoutTests
         Assert.That(page.Runs, Is.Empty);
     }
 
-    [TestCase("")] [TestCase("width:auto")] [TestCase("width:0")] [TestCase("width:99pt")] [TestCase("width:100.0011pt")]
+    [TestCase("width:0")] [TestCase("width:99pt")] [TestCase("width:100.0011pt")]
     public void MissingZeroAndMismatchedColumnWidthsFailBeforeWriting(string width)
         => TableStructureTests.Fails(Table(colStyle: width), "FPDF1302");
 

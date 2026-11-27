@@ -1157,6 +1157,20 @@ two-level nesting limit (mixable with `ul`/`ol`), `list-style` and the CSS
 cascade, and pagination; every invalid shape fails with the same code as the
 `ul` spelling (`MenuElementTests.cs`). It adds no toolbar-menu semantics.
 
+### Automatic table column widths
+
+A table without a `colgroup`, or whose `col` elements all lack a width, now
+sizes its columns from its cells' min-content and max-content widths the way
+browsers do, instead of failing: a table without a width shrinks to its
+content, a wider or explicit width is shared out by each column's content
+range, and long text wraps inside its column. The first row sets the column
+count. Measured cell edges and widths match Chrome 158 within 0.1pt on ten
+synthetic fixtures with the same font (`TableAutoLayoutTests.cs`,
+`scripts/table-auto-layout-oracle.ts`). `colspan`, percentage cell padding or
+image sizes, and mixed explicit/automatic `col` widths in such tables fail
+`FPDF1302`; fixed-column tables are unchanged. See
+[automatic column widths](tables.md#automatic-column-widths).
+
 ### Table footer rows
 
 A `<tfoot>` directly after the `tbody` holds one or more ordinary `td` rows,

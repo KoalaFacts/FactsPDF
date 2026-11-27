@@ -56,6 +56,8 @@ internal sealed record TextStyle
     public bool BreakAll { get; set; }
     /// <summary>word-break:break-word, which wraps like overflow-wrap:anywhere whatever overflow-wrap computes to.</summary>
     public bool BreakWordsByWordBreak { get; set; }
+    /// <summary>overflow-wrap:anywhere: wraps like break-word, but its breaks also count for min-content.</summary>
+    public bool BreakAnywhere { get; set; }
     /// <summary>Whether a token too wide for a fresh line may break between glyphs (overflow-wrap:break-word/anywhere or word-break:break-word).</summary>
     public bool EmergencyBreak => BreakWords || BreakWordsByWordBreak;
     public string? LinkUri { get; set; }
