@@ -127,7 +127,6 @@ def authored(count, sources, furniture=True, keep=True):
             width = sum(sources.width(sources.font('normal', c), c, 11) for c in marker)
             line(0, top, 52.5-width, marker)
         line(0, top, x, text)
-    box(0, 36, 200, 250, 130)
     line(0, 330+gap, 36, 'CHART-01 合成示意 / Synthetic chart')
     line(0, 352+gap, 36, '记录明细 / Record details', 12, 'bold')
     line(0, 376+gap, 36, '逐行核对 / Review every row')
@@ -149,6 +148,9 @@ def authored(count, sources, furniture=True, keep=True):
                     x += width
                 top += height
         final_top = top
+    # The inline chart image paints its border with the line content, after every
+    # block background and border of its page (CSS painting order, as in Chrome).
+    box(0, 36, 200, 250, 130)
     final = len(pages)-1
     # Counterfactual auto drops only the closing heading onto the 10-row first page.
     line(0 if count == 10 and not keep else final, 772+gap if count == 10 and not keep else final_top,
@@ -262,7 +264,8 @@ def inspect(pdf,count,sources,jpeg,furniture=True,keep=True,raster=True):
             for sx,sy in [(15,10),(304,10),(15,148),(304,148),(160,20)]:
                 pixel=image.getpixel((round((41+(sx+.5)*240/320)*96/72),round((205+(sy+.5)*120/160)*96/72)))
                 assert max(abs(a-b) for a,b in zip(pixel,original.getpixel((sx,sy))))<=12,'rendered JPEG color/orientation'
-            for x,y,color in [(38,96,(238,244,250)),(38,400,(220,233,242)),(36.4,410,(36,68,90))]:
+            gap=sources.image_line_gap()
+            for x,y,color in [(38,96,(238,244,250)),(38,400+gap,(220,233,242)),(36.4,410+gap,(36,68,90))]:
                 pixel=image.getpixel((int(x*96/72),int(y*96/72)))
                 assert max(abs(a-b) for a,b in zip(pixel,color))<=4,'rendered panel/table paint'
         result['pageImages']=[dict(page=i+1,file=p.name,sha256=sha(p.read_bytes())) for i,p in enumerate(pngs)]
@@ -281,9 +284,14 @@ def mutation_checks(pdf,count,sources,jpeg,out):
         'wrong-counter':'authored text/order','detached-heading':'authored text baseline/position',
         'text-ctm':'text graphics transform','occluded-records':'painting after text','restored-text-color':'authored text color'}
     results=[]
+    # First-page header cell fill, below the inline chart image's line gap.
+    header_cell=[36,H-398-sources.image_line_gap()-32,80,32]
+    def is_header_cell(values,op):
+        return op==b're' and all(abs(float(a)-b)<.002 for a,b in zip(values,header_cell))
     for mode in ['rewrite-control',*reasons]:
         reader=PdfReader(pdf);writer=PdfWriter();writer.append_pages_from_reader(reader)
-        pageno=1 if mode in ('missing-repeated-header','wrong-counter','detached-heading','text-ctm','occluded-records','restored-text-color') else 0
+        # The closing heading sits on the last page; the other page-two mutants need any continuation page.
+        pageno=len(writer.pages)-1 if mode=='detached-heading' else 1 if mode in ('missing-repeated-header','wrong-counter','text-ctm','occluded-records','restored-text-color') else 0
         page=writer.pages[pageno];stream=ContentStream(page.get_contents(),writer);ops=stream.operations
         mappings={key:sources.check_embedded(ref.get_object()) for key,ref in page['/Resources']['/Font'].items()}
         blocks=[];start=None;font=None
@@ -320,7 +328,7 @@ def mutation_checks(pdf,count,sources,jpeg,out):
             i=next(i for i,(_,op) in enumerate(ops) if op==b'cm');ops[i][0][0]=FloatObject(241)
         elif mode=='image-data':next(iter(page['/Resources']['/XObject'].values())).get_object()._data+=b'X'
         elif mode in ('unpainted-cell','white-header'):
-            i=next(i for i,(v,op) in enumerate(ops) if op==b're' and list(map(float,v))==[36,411.89,80,32])
+            i=next(i for i,(v,op) in enumerate(ops) if is_header_cell(v,op))
             if mode=='unpainted-cell':ops[i+1]=([],b'n')
             else:ops[i-1]=([FloatObject(1)]*3,b'rg')
         elif mode=='restored-text-color':
@@ -332,7 +340,7 @@ def mutation_checks(pdf,count,sources,jpeg,out):
                 if op==b'ET':active=False
             stream.operations=changed
         elif mode=='reordered-cell-paint':
-            i=next(i for i,(v,op) in enumerate(ops) if op==b're' and list(map(float,v))==[36,411.89,80,32])-2
+            i=next(i for i,(v,op) in enumerate(ops) if is_header_cell(v,op))-2
             assert ops[i][1]==b'q' and ops[i+4][1]==b'Q', 'paint mutation group'
             ops[i:i+25]=ops[i+5:i+25]+ops[i:i+5]
         elif mode=='text-ctm':

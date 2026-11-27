@@ -136,7 +136,12 @@ def inspect_geometry(pdf, case):
             cell_words = [w for w in pages[cell['page']-1] if cell['x'] <= (w['xMin']+w['xMax'])/2 < cell['x']+cell['width']
                           and cell['top'] <= (w['yMin']+w['yMax'])/2 < cell['top']+cell['height']]
             assert compact(''.join(w['text'] for w in cell_words)) == compact(row[col]), 'cell exact text'
-            assert abs(cell_words[0]['xMin']-(x+6.75)) < .02, 'cell text origin'
+            if row_index == 0:
+                # Header th text is centred by default; padding and border are symmetric.
+                left, right = min(w['xMin'] for w in cell_words), max(w['xMax'] for w in cell_words)
+                assert abs((left+right)/2-(x+cell['width']/2)) < .05, 'header text centred'
+            else:
+                assert abs(cell_words[0]['xMin']-(x+6.75)) < .02, 'cell text origin'
             for word in cell_words:
                 assert x+6.73 <= word['xMin'] < word['xMax'] <= x+cell['width']-6.73, 'cell content width'
                 assert top+.73 <= word['yMin'] < word['yMax'] <= top+cell['height']-.73, 'cell content height'
