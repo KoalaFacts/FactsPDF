@@ -173,7 +173,7 @@ internal sealed class CssPageRules
                 throw new FactsPdfException("FPDF1202",
                     "@page size lengths need pt, px, mm, cm, in, pc or q; a length cannot be combined with a page-size keyword or orientation.",
                     offset);
-            if (length.Value is < 72 or > 14_400)
+            if (!double.IsFinite(length.Value) || length.Value is < 72 or > 14_400)
                 throw new FactsPdfException("FPDF1202", "@page size sides must be from 72 to 14400 points.", offset);
             lengths[i] = length.Value;
         }
@@ -275,7 +275,7 @@ internal sealed class CssPageRules
             sides[i] = options.Margin;
             if (margins[i] is not { } declaration || declaration.Value is "initial" or "unset" or "inherit" or "revert") continue;
             if (!CssBoxValues.TryLength(declaration.Value, out var length, out _, context.FontSize, allowRem: true,
-                    context.FontSize, allowEm: true) || length.IsPercent)
+                    context.FontSize, allowEm: true) || length.IsPercent || !double.IsFinite(length.Value) || length.Value < 0)
                 throw new FactsPdfException("FPDF1202",
                     "@page margins need a nonnegative length in pt, px, mm, cm, in, pc, q, em or rem.", declaration.Offset);
             if (options.MarginExplicit && Math.Abs(length.Value - options.Margin) > Tolerance)

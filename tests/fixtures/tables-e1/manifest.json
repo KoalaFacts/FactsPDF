@@ -99,7 +99,44 @@
       "sha256": "8b011e5ac157bef6495a72ae5c6b2f70ff79da57a963f5dbafa483a3df6dd648",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
-        "code": "FPDF1302"
+        "pages": 1,
+        "table_width": 480,
+        "column_outer_widths": [
+          80,
+          140,
+          260
+        ],
+        "cell_padding": 4,
+        "cell_border": 1,
+        "content_widths": [
+          70,
+          130,
+          250
+        ],
+        "row_line_counts": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            2
+          ]
+        ],
+        "line_height": 18,
+        "row_heights": [
+          28,
+          28,
+          46
+        ],
+        "table_height": 102
       }
     },
     {

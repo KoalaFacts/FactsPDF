@@ -1,6 +1,6 @@
-# Fixed-column tables (E1 / E2)
+# Tables: fixed and automatic columns (E1 / E2)
 
-The existing converter, CLI, Native AOT and browser WASM adapter share this table path. Supply explicit columns; the renderer does not infer or shrink them. Tables that fit an empty usable page remain indivisible, preserving E1 placement. In taller tables, rows that fit a fresh page remain whole; oversized body rows continue at complete text-line and image boundaries. Each table fragment repeats the optional header.
+The existing converter, CLI, Native AOT and browser WASM adapter share this table path. Supply explicit columns, or leave the widths out and let [automatic table layout](#automatic-column-widths) size the columns from their content, as a browser does. Tables that fit an empty usable page remain indivisible, preserving E1 placement. In taller tables, rows that fit a fresh page remain whole; oversized body rows continue at complete text-line and image boundaries. Each table fragment repeats the optional header.
 
 ```html
 <style>
@@ -24,13 +24,13 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 ## Structure and placement
 
 - Tables are standalone blocks in the document/body or ordinary block containers. They cannot appear in paragraphs, headings, inline elements, list items or another table.
-- A table contains exactly one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, exactly one `tbody` with at least one `tr`, and optionally one `tfoot` with at least one `tr`, in that order.
-- Every row covers the same explicit columns, using consecutive cells and optional `colspan`. Header rows contain `th`; body and footer rows contain `td`. Footer rows are laid out, painted and paginated exactly like body rows placed after the `tbody` rows, once; they are not repeated on each fragment. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
+- A table contains optionally one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, exactly one `tbody` with at least one `tr`, and optionally one `tfoot` with at least one `tr`, in that order. Without a `colgroup`, the cells of the first row (with their `colspan`) set the column count, at most 16.
+- Every row covers the same columns, using consecutive cells and optional `colspan`. Header rows contain `th`; body and footer rows contain `td`. Footer rows are laid out, painted and paginated exactly like body rows placed after the `tbody` rows, once; they are not repeated on each fragment. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
 - Cells accept an ordered flat flow of text/inline runs, direct `p` paragraphs and direct images. Text uses `span`, `b/strong`, `i/em`, `br`. Lists, nested tables, headings/containers inside cells, captions and `rowspan` are unsupported.
 
 ## Widths, rows and paint
 
-Every column needs a positive CSS `width` in an accepted print length, percentage, or bounded `em`/`rem`. Percentages use the resolved table **content** width; `em` uses the column's inherited computed font size (from `colgroup`/table), and `rem` uses the computed HTML root font size. A column's own `font-size` declaration remains unsupported. Resolved columns must sum to the table content width within **0.001pt**; accepted differences are not redistributed. Missing/auto/zero widths, incompatible sums and insufficient content width are errors.
+A table uses fixed columns when every `col` has a width and no cell has one, and [automatic column widths](#automatic-column-widths) otherwise. A fixed column needs a positive CSS `width` in an accepted print length, percentage, or bounded `em`/`rem`. Percentages use the resolved table **content** width; `em` uses the column's inherited computed font size (from `colgroup`/table), and `rem` uses the computed HTML root font size. A column's own `font-size` declaration remains unsupported. Resolved fixed columns must sum to the table content width within **0.001pt**; accepted differences are not redistributed. Zero widths, incompatible sums and insufficient content width are errors.
 
 An explicit table width describes its content box. Table `width` and padding accept bounded `em` (the table's final computed font size) and `rem` (the computed HTML root font size), alongside existing print lengths and percentages. Its own padding/borders sit **outside** that content width and the outer box must fit its parent. As for existing blocks, omitted/auto table width fills the parent with the outer box, subtracting the table's own padding/borders to find its content width. Neither font-relative values nor percentages trigger automatic track redistribution; overwide outer boxes fail rather than paint approximately.
 
@@ -45,6 +45,92 @@ Only a table taller than the usable page height enters multi-page pagination. It
 The table's own background and side borders continue across page fragments; top padding/border occurs only on the first fragment and bottom padding/border only on the last, matching existing sliced block decoration. A continuing table fragment extends its background/side borders to the usable page bottom. Whole rows retain complete cell borders; continued rows use sliced cell borders. Ancestor decoration and following content use the existing block pagination rules.
 
 A header, atomic line/image or required leading/terminal decoration that cannot fit its fresh fragment fails `FPDF1302` before destination output. A complete short table still stays indivisible even when ancestor leading padding makes it impossible to place. General keep-together and page furniture are separate features.
+
+## Automatic column widths
+
+A table without a `colgroup`, with a `col` that lacks a width (or sets
+`width:auto`), or with a `td`/`th` `width`, sizes its columns from their content
+and those widths with the automatic table layout browsers use:
+
+```html
+<style>td,th { padding:3pt 5pt; border:1px solid #5b6b78 } th { font-weight:normal }</style>
+<table>
+  <thead><tr><th>Item</th><th>Description</th><th>Amount</th></tr></thead>
+  <tbody><tr><td>A100</td><td>Paper, box of 5 reams</td><td>72.40</td></tr></tbody>
+  <tfoot><tr><td>Total</td><td>One line</td><td>72.40</td></tr></tfoot>
+</table>
+```
+
+1. Every cell has a **min-content** width (its widest unbreakable piece: a word,
+   or under `word-break:break-all`, `word-break:break-word` or
+   `overflow-wrap:anywhere` a single character, or a whole line under
+   `white-space:nowrap`; a direct image's outer width) and a **max-content**
+   width (its widest line when only `br`, paragraph ends and preserved newlines
+   break lines), each plus the cell's horizontal padding and borders. They use
+   the same font advances, letter/word spacing and break opportunities (spaces
+   and CJK characters) as cell wrapping, so a column is never too narrow for its
+   own text. A cell's first-line `text-indent` counts on its first line.
+   `overflow-wrap:break-word` does not change either width, as in CSS.
+2. A column's minimum and maximum are the largest of its single-column cells'
+   widths. Then each `colspan` cell, narrowest spans first and in source order
+   within one span, widens the columns it covers: its min-content width is
+   shared out over their minimums and maximums exactly as a table width is in
+   step 4, and each column keeps the larger minimum; its max-content width then
+   raises their maximums the same way.
+3. The table's content width is its explicit width, or with `width:auto` the
+   sum of the column maximums capped at the available width (the table shrinks
+   to its content). It never drops below the sum of the minimums: an explicit
+   width that is too small grows to that sum, and when the sum does not fit the
+   containing block the table fails `FPDF1302` with both numbers.
+4. At the sum of the minimums every column gets its minimum. Between the two
+   sums each column gets its minimum plus a share of the extra width in
+   proportion to its own max-minus-min range, and exactly its maximum when the
+   width equals the sum of the maximums. Above the sum of the maximums the extra
+   width goes to the columns in proportion to their maximums (equally when every
+   maximum is zero). The last column absorbs any rounding remainder.
+
+Rows, cell content, alignment, pagination, repeated headers, `tfoot` and long
+row continuation then work exactly as for fixed columns. A column whose cells
+are all empty and undecorated is zero wide; a table whose every column is zero
+wide (and has no padding or borders) fails `FPDF1302` like any zero-width table,
+where Chrome would draw nothing. The explicit table width keeps its
+content-box meaning (border-box with `box-sizing:border-box`).
+
+Measured against Chrome 158 with the same TrueType font on both sides (kerning
+and ligatures off in Chrome, which FactsPDF does not apply), every cell's left
+edge and width in the 26 synthetic fixtures under
+`tests/fixtures/tables-auto/` agree within **0.15pt** (largest measured
+difference 0.11pt, where a percentage column sets the table width and so
+multiplies Chrome's 1/64px rounding; every other fixture is within 0.08pt). Run the comparison with
+`node scripts/table-auto-layout-oracle.ts --cli <FactsPDF.Cli> --chrome <chrome> --font <regular.ttf> --font-bold <bold.ttf>`.
+Two browser behaviours fall outside this contract: Chrome rounds border widths
+to whole device pixels (so `1pt` borders, 1.33px, draw 1px wide there), and it
+breaks lines after hyphens and some punctuation, where FactsPDF does not, so
+FactsPDF's min-content can be wider for such text.
+
+Explicit widths join in as in browsers. A `col` or cell `width` in pt, px or
+another print length makes its column *constrained*: a `col` width is the
+column's starting minimum and maximum, and a cell width (a content width plus
+the cell's padding and borders, or the border box with `box-sizing:border-box`)
+is that cell's maximum; a constrained column ignores the maximums of cells
+without a width. A percentage `col` or cell `width` asks for that share of the
+table (the largest per column; a running total past 100% is cut to what is
+left), and an auto-width table widens until percentage columns get their share
+and the other columns their maximums. The table width is then shared out in
+Chrome's order: minimums; percentage columns up to their share; constrained
+columns up to their maximums; auto columns up to theirs; then any extra to auto
+columns by their maximums, else to constrained columns by their maximums, else
+to percentage columns by their percentages. A `colspan` cell's widths spread
+the same way over the columns it covers, except that past their maximums its
+extra goes to percentage columns before constrained ones, as in Chrome.
+
+Automatic layout fails `FPDF1302` for percentage cell padding, image sizes or
+`text-indent` (they would depend on the width being computed) and for a
+`colspan` cell with its own `width`. Cell `em`/`rem` widths and `min-width`/
+`max-width` fail `FPDF1201`. `table-layout` is not implemented and fails
+`FPDF1201`: `fixed` sizes columns from the first row alone and lets wider
+content overflow its column, which FactsPDF would have to clip or reject.
+[Example report](../examples/report-auto-table-layout.html).
 
 ## Vertical alignment in whole table rows
 
@@ -134,7 +220,7 @@ runs the same cases through actual Native AOT and browser conversion.
 
 `colspan` is accepted on `td` and `th`. Omitted means one column. After trimming
 HTML formatting whitespace, its value must contain only ASCII digits and name
-1 through the table's explicit column count. Leading zeros are accepted; signs,
+1 through the table's column count (with no `colgroup`, up to 16 in the first row). Leading zeros are accepted; signs,
 decimals, zero, non-ASCII digits and out-of-range values fail `FPDF1103`. Every
 row must cover exactly all columns; overfill or underfill fails `FPDF1101`.
 A spanned cell paints one rectangle across the covered tracks, without an
@@ -279,9 +365,9 @@ PDFs must fail the corresponding content or geometry assertions.
 | Element | Supported CSS |
 | --- | --- |
 | `table` | Existing container width and padding (including computed em/rem), solid borders, background-color and inherited text properties |
-| `td`, `th` | Padding, solid borders, background-color, text properties and `vertical-align` (above); no width, margin or break declarations |
+| `td`, `th` | Padding, solid borders, background-color, text properties, `vertical-align` (above) and print-length or percentage `width` (automatic layout); no `em`/`rem` width, min/max width, margin or break declarations |
 | `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
-| `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root) |
+| `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root), or no width on every `col` for automatic layout |
 | `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only; `tr` and `thead` also accept `break-inside`/`page-break-inside:auto\|avoid` (below) |
 
 Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. Each table part accepts the `display` value that names what it already renders, and nothing changes: `thead{display:table-header-group}`, `tbody` and `tfoot{display:table-row-group}`, `tr{display:table-row}` and `td,th{display:table-cell}`. `tfoot{display:table-footer-group}` fails `FPDF1202`, because footer rows are placed once and never repeated on each fragment; every other `display` value on a table part still fails. `table-layout` and cell heights are not implemented. `empty-cells:show` (empty cells always paint their background and borders) and `caption-side:top` (no `caption` element is accepted) are validated and dropped; other values fail `FPDF1202`. Cells use the separated border model with zero spacing, so only `border-collapse:separate` and `border-spacing` at one or two zero lengths are accepted (validated and dropped, on any element); `border-collapse:collapse` and non-zero spacing fail `FPDF1202`.
@@ -299,10 +385,10 @@ the caller's destination.
 
 | Code | Table-specific cause |
 | --- | --- |
-| `FPDF1101` | Invalid structure/placement, incorrect column coverage or more than 16 columns |
+| `FPDF1101` | Invalid structure/placement, incorrect column coverage (every row must cover the `colgroup` columns or the first row's count) or more than 16 columns |
 | `FPDF1103` | Invalid/misplaced `colspan`, unsupported attributes including `rowspan` |
 | `FPDF1201` | Unsupported CSS or tag-specific applicability |
-| `FPDF1302` | Missing/invalid resolved widths, cell content too narrow, table too wide, or an unplaceable short table/header/atomic unit/required-decoration combination |
+| `FPDF1302` | Invalid resolved widths, automatic-layout input it does not support, automatic columns wider than the available width, cell content too narrow, table too wide, or an unplaceable short table/header/atomic unit/required-decoration combination |
 | `FPDF1303` | Table movement or continuation would exceed MaxPages |
 | `FPDF1401` | Display-command or serialized output budget exceeded |
 | `FPDF1507` | A required bold/italic/bold-italic font chain is missing |

@@ -235,7 +235,7 @@ internal static class CssDeclarations
             case CssProperty.TextDecorationThickness: style.DecorationThickness = source.DecorationThickness; break;
             case CssProperty.TextUnderlineOffset: style.UnderlineOffset = source.UnderlineOffset; break;
             case CssProperty.WhiteSpace: style.NoWrap = source.NoWrap; style.PreserveLineBreaks = source.PreserveLineBreaks; style.PreserveSpaces = source.PreserveSpaces; break;
-            case CssProperty.OverflowWrap: style.BreakWords = source.BreakWords; break;
+            case CssProperty.OverflowWrap: style.BreakWords = source.BreakWords; style.BreakAnywhere = source.BreakAnywhere; break;
             case CssProperty.WordBreak: style.BreakAll = source.BreakAll; style.BreakWordsByWordBreak = source.BreakWordsByWordBreak; break;
             case CssProperty.TextIndent: style.FirstLineIndent = source.FirstLineIndent; break;
             case CssProperty.LetterSpacing: style.LetterSpacing = source.LetterSpacing; break;
