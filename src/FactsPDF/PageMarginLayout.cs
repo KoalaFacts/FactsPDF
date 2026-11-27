@@ -45,7 +45,7 @@ internal static class PageMarginLayout
                 }
                 var paragraph = new Paragraph(Style);
                 paragraph.Runs.Add(new(text, Style));
-                using var lines = Wrap(paragraph, options.PageWidth - 2 * options.Margin,
+                using var lines = Wrap(paragraph, options.ContentWidth,
                     options, resolved, cancellation).GetEnumerator();
                 if (!lines.MoveNext()) throw new InvalidOperationException("Missing page text line.");
                 // Wrap lends its glyph buffer. Detect wrapping before appending or
@@ -53,7 +53,7 @@ internal static class PageMarginLayout
                 var line = lines.Current with { Glyphs = [.. lines.Current.Glyphs] };
                 if (lines.MoveNext()) throw Geometry();
                 var ascent = line.Ascent; var descent = line.Descent;
-                var x = (options.PageWidth - line.Width) / 2;
+                var x = options.CenterX(line.Width);
                 var advance = 0d;
                 foreach (var glyph in line.Glyphs)
                 {
@@ -71,10 +71,11 @@ internal static class PageMarginLayout
                         throw Geometry();
                     advance += glyph.Width;
                 }
-                if (ascent + descent + 2 * Clearance > options.Margin + Epsilon) throw Geometry();
+                var band = topMargin ? options.MarginTop : options.MarginBottom;
+                if (ascent + descent + 2 * Clearance > band + Epsilon) throw Geometry();
                 var baseline = topMargin
-                    ? options.PageHeight - (options.Margin - ascent - descent) / 2 - ascent
-                    : (options.Margin - ascent - descent) / 2 + descent;
+                    ? options.PageHeight - (band - ascent - descent) / 2 - ascent
+                    : (band - ascent - descent) / 2 + descent;
                 var bodyEdge = topMargin ? baseline - descent : baseline + ascent;
                 void CheckBody(double top, double bottom)
                 {

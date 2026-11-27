@@ -83,7 +83,7 @@ jobs:
       - name: Install existing independent PDF verification dependencies
         run: python3 scripts/ubuntu_packages.py packages poppler-utils qpdf fonts-droid-fallback fonts-dejavu-core python3-munkres python3-fonttools
       - name: Run managed regression tests
-        run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
+        run: dotnet test FactsPDF.slnx -c Release -f net10.0 --logger "console;verbosity=normal"
       - name: Pack the declared preview and inspect actual assembly metadata
         shell: bash
         run: |

@@ -94,7 +94,7 @@ internal readonly record struct CssAttributeMatch(
     string Name, CssAttributeOperator Operator, string? Value, bool IgnoreCase);
 
 // :first-child is :nth-child(1), :last-of-type is :nth-last-of-type(1), and so on.
-internal enum CssPseudoKind : byte { NthChild, NthLastChild, NthOfType, NthLastOfType, OnlyChild, OnlyOfType, Empty, Not }
+internal enum CssPseudoKind : byte { NthChild, NthLastChild, NthOfType, NthLastOfType, OnlyChild, OnlyOfType, Empty, Not, Root }
 
 /// <summary>A pseudo-class. The nth kinds match the positions A×n+B for n ≥ 0; Not matches an
 /// element that none of its compounds match.</summary>
@@ -252,8 +252,10 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 : Keyword(name.Text, "last-of-type") ? new CssPseudoClass(CssPseudoKind.NthLastOfType, 0, 1)
                 : Keyword(name.Text, "only-of-type") ? new CssPseudoClass(CssPseudoKind.OnlyOfType)
                 : Keyword(name.Text, "empty") ? new CssPseudoClass(CssPseudoKind.Empty)
+                : Keyword(name.Text, "root") ? new CssPseudoClass(CssPseudoKind.Root)
                 : throw CssTokens.Invalid($"Unsupported pseudo-class ':{name.Text}'.", colon);
-            structural = true;
+            // :root needs only the element's place in the ancestor path, not sibling positions.
+            structural |= simple.Kind != CssPseudoKind.Root;
             return simple;
         }
         if (name.Kind != CssTokenKind.Function)
@@ -401,7 +403,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
 
     internal bool Matches(IReadOnlyList<CssElement> path, CssBudget budget, HtmlElementPositions? positions = null)
     {
-        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], budget, positions)) return false;
+        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], path.Count == 1, budget, positions)) return false;
         if (parts.Length == 1) return true;
         if (parts.Length > path.Count) return false;
         // Dynamic programming preserves all possible ancestors in mixed child/descendant chains.
@@ -416,14 +418,15 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             {
                 budget.Work(offset); below |= candidates[n + 1];
                 var reachable = parts[p + 1].ChildOfPrevious ? candidates[n + 1] : below;
-                if (reachable && MatchesCompound(parts[p], path[n], budget, positions)) { next[n] = true; any = true; }
+                if (reachable && MatchesCompound(parts[p], path[n], n == 0, budget, positions)) { next[n] = true; any = true; }
             }
             if (!any) return false;
             next.CopyTo(candidates);
         }
         return true;
     }
-    private bool MatchesCompound(CssCompound part, in CssElement element, CssBudget budget, HtmlElementPositions? positions)
+    // first: the element is the first entry of the ancestor path, the document's root element.
+    private bool MatchesCompound(CssCompound part, in CssElement element, bool first, CssBudget budget, HtmlElementPositions? positions)
     {
         budget.Work(offset);
         if (part.Type is not null && !part.Type.Equals(element.Name, StringComparison.OrdinalIgnoreCase)) return false;
@@ -437,29 +440,28 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 return false;
         }
         foreach (var pseudo in part.PseudoClasses)
-            if (!MatchesPseudoClass(pseudo, element, budget, positions)) return false;
+            if (!MatchesPseudoClass(pseudo, element, first, budget, positions)) return false;
         return true;
     }
 
-    private bool MatchesPseudoClass(CssPseudoClass pseudo, in CssElement element, CssBudget budget, HtmlElementPositions? positions)
+    private bool MatchesPseudoClass(CssPseudoClass pseudo, in CssElement element, bool first, CssBudget budget, HtmlElementPositions? positions)
     {
         budget.Work(offset);
+        // :root is the html element with no parent: the first entry of the ancestor path, which the
+        // reader always fills with html (implied by the HTML parser when the markup omits it).
+        if (pseudo.Kind == CssPseudoKind.Root) return first && element.Name.Equals("html", StringComparison.Ordinal);
         if (pseudo.Kind == CssPseudoKind.Not)
         {
             foreach (var compound in pseudo.Not!)
-                if (MatchesCompound(compound, element, budget, positions)) return false;
+                if (MatchesCompound(compound, element, first, budget, positions)) return false;
             return true;
         }
         if (positions is null)
             throw new InvalidOperationException("Structural pseudo-classes need the document's element positions.");
         var position = positions[element.Token];
-        if (!position.Known)
-            throw CssTokens.Invalid("Structural pseudo-classes need a document whose html, head and body tags " +
-                "the HTML parser keeps: each at most once, at document level, in that order.", offset);
         return pseudo.Kind switch
         {
-            CssPseudoKind.Empty => position.EmptyKnown ? position.Empty
-                : throw CssTokens.Invalid("':empty' cannot be decided for body: the HTML parser moves whitespace after </body> into it.", offset),
+            CssPseudoKind.Empty => position.Empty,
             CssPseudoKind.NthChild => Nth(pseudo, position.Index),
             CssPseudoKind.NthLastChild => Nth(pseudo, position.Count - position.Index + 1),
             CssPseudoKind.NthOfType => Nth(pseudo, position.TypeIndex),

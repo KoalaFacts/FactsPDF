@@ -30,6 +30,7 @@ public sealed class ReaderFrameAllocationTests
     }
 
     // Measured 498 bytes per nested div when each frame was its own object, 442 as a value.
+    [AllocationBudget]
     [Test]
     public void OpeningAnElementAllocatesNoFrameObject()
     {

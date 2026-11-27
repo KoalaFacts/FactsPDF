@@ -11,7 +11,11 @@ internal enum CssProperty
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
-    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast,
+    // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
+    // supported property whose value holds var() (Payload CssPendingValue), which the cascade
+    // compiles for each element after substitution.
+    Custom, Pending
 }
 /// <summary>
 /// One compiled declaration: what it says (property, name, value, importance) plus its cascade
@@ -32,11 +36,16 @@ internal abstract class CssDeclaration
     internal int Offset { get; private set; }
     internal static CssDeclaration Create(CssProperty property, string name, string value, bool important, int order, int offset) =>
         new Compiled(property, name, value, important, order, offset);
+    internal static CssDeclaration Create(CssProperty property, string name, string value, bool important, int order, int offset, object payload) =>
+        new Deferred(property, name, value, important, order, offset, payload);
+    /// <summary>The <see cref="CssCustomValue"/> or <see cref="CssPendingValue"/> of a
+    /// <see cref="CssProperty.Custom"/> or <see cref="CssProperty.Pending"/> declaration.</summary>
+    internal object? Payload => (Source as Deferred)?.Carried;
     /// <summary>The compiled declaration this one says the same as; never a <see cref="Slot"/>.</summary>
     internal CssDeclaration Shared => Source;
     private protected abstract Compiled Source { get; }
 
-    private protected sealed class Compiled(CssProperty property, string name, string value, bool important, int order, int offset)
+    private protected class Compiled(CssProperty property, string name, string value, bool important, int order, int offset)
         : CssDeclaration(order, offset)
     {
         internal override CssProperty Property { get; } = property;
@@ -44,6 +53,13 @@ internal abstract class CssDeclaration
         internal override string Value { get; } = value;
         internal override bool Important { get; } = important;
         private protected override Compiled Source => this;
+    }
+
+    // A custom property or var() declaration; a separate type so ordinary declarations stay as small.
+    private sealed class Deferred(CssProperty property, string name, string value, bool important, int order, int offset, object payload)
+        : Compiled(property, name, value, important, order, offset)
+    {
+        internal object Carried { get; } = payload;
     }
 
     /// <summary>

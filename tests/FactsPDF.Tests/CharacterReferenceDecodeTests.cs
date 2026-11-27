@@ -46,6 +46,7 @@ public sealed class CharacterReferenceDecodeTests
     // On main 67951a9 decoding this 59-character text allocated a StringBuilder, its chunk, one
     // name substring per reference and a string per numeric reference: 568 bytes per call. Now
     // only the 29-character result (80 bytes) is allocated.
+    [AllocationBudget]
     [Test]
     public void DecodingAllocatesOnlyTheResult()
     {

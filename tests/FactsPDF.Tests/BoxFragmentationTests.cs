@@ -81,7 +81,8 @@ public sealed class BoxFragmentationTests
             var fragment = new PaintedBox(20, 20, 100, 80, style, new Rgb(0, 0, 0), 0,
                 IsFirstFragment: first, IsLastFragment: last);
             var output = new StringBuilder();
-            PdfPaintSerializer.Append(output, [fragment], Small.PageHeight, 10000, default);
+            var alpha = new PdfAlphaStates();
+            PdfPaintSerializer.Append(output, [fragment], Small.PageHeight, 10000, default, ref alpha);
             return output.ToString();
         }
         var first = Paint(true, false);
@@ -246,7 +247,8 @@ public sealed class BoxFragmentationTests
         string Painted(PaintedBox box)
         {
             var content = new StringBuilder();
-            PdfPaintSerializer.Append(content, [box], 100, 10000, default);
+            var alpha = new PdfAlphaStates();
+            PdfPaintSerializer.Append(content, [box], 100, 10000, default, ref alpha);
             return content.ToString();
         }
         var a = Painted(first);

@@ -114,6 +114,10 @@ Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webk
 
 Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behavior:none`, `-webkit-overflow-scrolling:touch` or `scrollbar-width:thin`. A PDF page never scrolls, so `scroll-behavior`, `overscroll-behavior` (and its `-x`/`-y`/`-inline`/`-block` longhands), `overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept one keyword and are dropped; other values fail `FPDF1202` (`ScrollOnlyPropertyTests.cs`). Docs and utility stylesheets offset anchored headings with `scroll-margin-top:4rem` or `scroll-padding-top:80px`; a PDF page is never scrolled to an anchor, so `scroll-margin` and `scroll-padding` with their side and axis longhands accept well-formed lengths (and `auto` or percentages for padding) and are dropped, while malformed values fail `FPDF1202`; carousel and slider CSS adds `scroll-snap-type:x mandatory`, `scroll-snap-align:start` and `scroll-snap-stop:always`, whose keywords are dropped the same way. Mobile resets add `-webkit-tap-highlight-color:transparent` (or `rgba(0,0,0,0)`), forms `accent-color`/`caret-color`, and app shells `scrollbar-color`/`scrollbar-gutter:stable`; these accept `auto`, their keywords or a well-formed colour, alpha included, and are dropped (`UiColourPropertyTests.cs`). Modern stylesheets also declare `color-scheme:light dark` and `forced-color-adjust:none`; a PDF page has no preferred or forced colour scheme, so well-formed values are dropped and malformed ones fail `FPDF1202` (`ColorSchemeHintTests.cs`).
 
+### The `:root` pseudo-class
+
+Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). A page without an `html` tag matches through the implied `html` element. Pseudo-classes other than the structural ones and `:not()`, and pseudo-elements, still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
+
 ### Structural pseudo-classes and :not()
 
 Report stylesheets stripe and edge their tables with
@@ -129,11 +133,26 @@ its most specific argument). Every element counts as a sibling, including
 counted where the HTML parser puts it. `:empty` treats whitespace as content,
 as Chrome does. The `of S` form, complex `:not()` arguments, other
 pseudo-classes, pseudo-elements and An+B values beyond ±1,000,000,000 fail
-`FPDF1203`, as does a document whose `html`, `head` or `body` tags the parser
-would ignore or merge; a matched rule's unsupported declaration still fails as
+`FPDF1203`; a matched rule's unsupported declaration still fails as
 before (`tr{background-color}` `FPDF1201`, `gap:1rem` `FPDF1202`)
 ([exact contract](css-stylesheets.md#structural-pseudo-classes-and-not),
 `StructuralPseudoClassTests.cs`).
+
+### Implied html, head and body
+
+A page without `html`, `head` or `body` tags still has those elements, as the
+HTML parser builds them: `body > p`, `html body p`, `:root p` and
+`body{color:navy}` now match such a page (and content after `</body>`) as in
+Chrome, where before they silently matched nothing. `meta`, `link` and `base`
+before body content go into the implied `head` instead of failing `FPDF1101`.
+An implied `body` without box declarations adds no box, so unstyled pages render
+unchanged; a repeated or misplaced `html`/`head`/`body` tag with attributes
+fails `FPDF1101` ([exact contract](css-stylesheets.md#implied-html-head-and-body),
+`ImpliedDocumentElementTests.cs`).
+
+### Custom properties and var()
+
+Design-token stylesheets declare colours, font sizes and spacing once as custom properties (`:root{--brand-700:#b3261e;--brand:var(--brand-700);--space-6:12pt}`) and use them everywhere with `var()`: `font-size:var(--font-3) !important`, `padding:var(--space-3) var(--space-6)`, `border-top:2px solid var(--brand)`, `style="padding: 0 var(--space-6)"`. Custom properties cascade, inherit and accept `inherit`/`initial`/`unset`; `var()` works in every supported property, shorthands included, with fallbacks and nested references, and the page renders byte-identical to the same page with the values written out ([example](../examples/report-custom-properties.html) with 71 tokens and its [literal oracle](../examples/report-custom-properties-oracle.html)). Where a browser would quietly unset a declaration (a reference with no value and no fallback, a used reference cycle, a value the property does not accept after substitution) FactsPDF fails with `FPDF1202` at that declaration; doubling or deep reference chains fail with `FPDF1205` ([custom properties](css-stylesheets.md#custom-properties-and-var), `CustomPropertyTests.cs`).
 
 ### Print-only stylesheet rules for business reports (source-only)
 
@@ -149,7 +168,7 @@ Reusable report stylesheets can now wrap existing supported CSS in **`@media pri
 <section class="invoice"><p>Inspection completed</p></section>
 ```
 
-Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import`, `@page` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
+Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
 
 The [44-record multi-page print report](../examples/report-print-media.html) is compared against a [separately written inline-style PDF oracle](../examples/report-print-media-oracle.html), with NUnit, supplied TrueType, managed CLI, Native AOT qpdf/Poppler and protected failure/retry checks. Bounded engine source [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403). This is not full CSS Media Queries, a public package, new private binary, human PDF approval or a customer licence.
 
@@ -249,7 +268,22 @@ distribution remain separate.
 
 ### Opaque `rgb()` and `rgba(…,1)` colours (source-only)
 
-Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders, and hex with a fully opaque alpha (`#23446bff`, `#abcf`) wherever hex is accepted (other alpha values fail `FPDF1202`; `OpaqueAlphaHexColorTests.cs`). These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](../examples/report-print-spacing.html).
+Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders, and hex with a fully opaque alpha (`#23446bff`, `#abcf`) wherever hex is accepted (`OpaqueAlphaHexColorTests.cs`). These produce the same painted PDF as matching hex colours; gradients still fail explicitly.
+
+### Translucent colours
+
+A translucent colour such as `border-top:1px solid rgba(164, 176, 195, 0.2)` no
+longer fails the page. `rgba()`/`hsla()` (comma alpha or `/ alpha`, a number or
+a percentage), `#rgba`/`#rrggbbaa` and `transparent` paint everywhere FactsPDF
+paints a colour: text, backgrounds, solid/dashed/dotted and rounded borders,
+outlines, text decorations and list markers. Alpha is clamped to 0–1 and
+rounded to one byte as Chrome rounds paint alpha; each translucent paint selects
+a constant-alpha ExtGState (`/ca` fill, `/CA` stroke) that the page declares
+once per alpha, so it composites over what is painted below it as in Chrome.
+Alpha 1 keeps the opaque PDF bytes; alpha 0 paints nothing (`color:transparent`
+and `outline-color:transparent` are accepted for that). `opacity` and malformed
+alpha (`none`, a unit) still fail `FPDF1202` (`TranslucentColourTests.cs`,
+[exact contract](css-stylesheets.md#translucent-colours)). See [bounded CSS colours](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](../examples/report-print-spacing.html).
 For a fontless case-formatting example with a preserved proper-name span, see the
 [report case labels](../examples/report-case-labels.html).
 
@@ -569,6 +603,17 @@ types and a missing or empty `rel`,
 `media` and `style` fail `FPDF1103`; a link outside the head fails `FPDF1101`; links count toward
 `MaxElements` (`LinkMetadataTests.cs`).
 
+One `<base>` in the head, such as the `<base href="/">` that server-side frameworks emit, is
+accepted and changes nothing: the PDF is byte-identical to the page without it. `base` only sets
+the URL that relative URLs resolve against and the default link target, and FactsPDF resolves no
+relative URL (an `a` `href` must already be absolute HTTPS or mailto, and images are named
+resources), so its `href` is never read and takes any value, including an empty one. `target`
+follows the `a` rule (`_blank`, `_self`, `_parent`, `_top` or a name). A relative `a` `href`
+still fails `FPDF1103` exactly as without a `base`. A `base` with neither `href` nor `target`,
+other attributes such as `media`, `style` and `hidden`, and an empty or other underscore `target`
+fail `FPDF1103`; a second `base`, a `base` outside the head and a `</base>` end tag fail
+`FPDF1101`; a `base` counts toward `MaxElements` (`BaseElementTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
@@ -734,7 +779,7 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ### Inherited report text flow (source-only)
 
-The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all|break-word`
+The existing bounded `overflow-wrap:normal|break-word|anywhere`, `word-break:normal|break-all|break-word`
 and nonnegative `text-indent` values can now be declared on `html`, `body`
 or ordinary report `div`/`section`/`article`/`blockquote` containers.
 Their computed values inherit into descendant paragraphs and headings and
@@ -848,7 +893,7 @@ Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` 
 
 ### `overflow-wrap:break-word` for long identifiers (source-only)
 
-Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
+Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). `overflow-wrap:anywhere` (and `word-wrap:anywhere`, which Chromium, Firefox and WebKit all accept) is accepted wherever `break-word` is, so a report stylesheet's `.ledger td { overflow-wrap: anywhere; }` renders: CSS Text 3 makes the two differ only in min-content sizing, which FactsPDF never computes (fixed table columns, explicit or containing-block widths), so the PDF is byte-identical to `break-word` in paragraphs, headings, inherited containers, list items, table cells and multi-page ledgers (`OverflowWrapAnywhereTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
 
 ### Full-width invoice identifier wrapping (source-only)
 
@@ -1232,6 +1277,16 @@ explicitly, preserving the existing PDF destination.
 **no preview binary, NuGet publication, commercial grant or human PDF
 approval** follows from this change.
 
+### HTML `type` on ordered clauses
+
+Legal and contract templates write `<ol type="1"><li>Clause<ol type="a"><li>Sub-clause</li></ol></li></ol>`.
+`type` on `ol` (`1`, `a`, `A`, `i`, `I`, case-sensitive), `ul` (`disc`, `circle`,
+`square`, `none`) and `li` (either set) is a presentational hint for
+`list-style-type`: byte-identical to the matching `list-style-type` on that
+element, and any author `list-style-type` or `list-style` on it wins. Other
+values and other elements fail `FPDF1103` ([contract](lists.md#html-type-attribute),
+`ListTypeAttributeTests.cs`).
+
 ### Current-source report list continuation and numbering
 
 Ordered business report actions can continue from `<ol start="21">`,
@@ -1244,7 +1299,7 @@ Unstyled lists retain byte-identical PDF output.
 This is a **bounded subset**: only ASCII positive ordinals 1–999999,
 only direct `ol > li` value overrides, and one existing marker kind or
 CSS-wide keyword per `list-style`. No arbitrary CSS Lists semantics,
-inside/position/images/counters, HTML `type`, negative ordinals or
+inside/position/images/counters, negative ordinals or
 list-item `value` on `ul`; invalid inputs fail without overwriting
 a destination. See the
 [77-entry pagination example](../examples/report-list-continuations.html)
@@ -1276,7 +1331,8 @@ block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
 `_parent`, `_top` or a name) and hyperlink `rel` types (`noopener`, `noreferrer`,
 `nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a
 PDF link always opens outside the document; an empty or other underscore `target`
-and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`).
+and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`). A `<base>` in the
+head never makes a relative `href` acceptable (`BaseElementTests.cs`).
 Clickable linked images, `download`, fragments, local-page destinations and full HTML anchor
 semantics are not implemented. Links are external PDF actions, not embedded
 content or a claim that target addresses are trusted.
@@ -1371,6 +1427,41 @@ See [exact source contract](css-stylesheets.md#current-source-bounded-report-dis
 Source implementation is not a published NuGet binary or customer licence.
 
 ## Pages, pagination and document properties
+
+### Paper, margins and running footers from CSS `@page`
+
+Templates written for Chrome print can keep their `@page` rule, at top level
+or inside `@media print`/`all`:
+
+```css
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 20mm 15mm 25mm 30mm;
+    @top-left { content: 'Inspection report'; color: #336699; }
+    @bottom-center { content: counter(page) ' / ' counter(pages); font-size: 0.8em; }
+  }
+}
+```
+
+`size` takes the page-size keywords (A5, A4, A3, B5, B4, JIS-B5, JIS-B4,
+letter, legal, ledger) with or without `portrait`/`landscape`, an orientation
+alone, or one or two physical lengths. `margin` and its four longhands set
+each side, so margins can differ per side; the body moves, wraps and paginates
+inside them. The six top and bottom margin boxes take strings,
+`counter(page)`, `counter(pages)` or `none`, with `color`, `font-size`,
+`font-weight` and `font-style` inherited from the html element as in Chrome,
+and render through the structured page furniture; a later
+`@page { @bottom-center { content: none } }` removes an earlier footer.
+
+An explicit writer or CLI page size or margin must agree with `@page`, and
+margin boxes cannot be combined with `--page-furniture`, `--page-numbers`,
+`--header-text`, `--footer-text` or their API equivalents: `FPDF1206`. Page
+selectors (`:first`), named pages, corner and side margin boxes fail
+`FPDF1204`; other properties `FPDF1201`; other values `FPDF1202`. Page sizes,
+margins and footer placement are within 0.8pt of Chrome printing the same page
+([contract, precedence and the measured differences](css-stylesheets.md#css-page-paper-margins-and-margin-boxes),
+`CssPageRuleTests.cs`).
 
 ### A4/Letter and landscape pages from the CLI (source-only)
 
@@ -1494,8 +1585,11 @@ and the existing cascade apply. No new page for a card that fits.
 too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
 fragment with the repeated header already move whole and the header never
 splits, so the page is byte-identical to the page without it. A kept row that
-FactsPDF would split (taller than a fresh fragment, or split only to carry the
-table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
+must split (taller than a fresh fragment, or a first row split only for the
+table's top decoration) starts on a fresh page, or moves the table there, and
+then continues at line boundaries, on the same pages as Chrome prints it; a
+kept last row split only for the table's bottom padding/border fails
+`FPDF1302` (Chrome paints that decoration past the page bottom). `tbody`, `tfoot`, `td` and
 `th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
 [exact contract](css-stylesheets.md#table-rows)).
 
@@ -1542,6 +1636,19 @@ See the [API guide](development.md#library-api). Source implemented at
 `b81fdb12c6207a0f815227491876ac8ce2a40407`; it replaces the earlier
 `PdfConverter.Convert`/`PdfOptions` entry point and is not part of the older
 retained private preview.
+
+### .NET 8 and .NET 9 apps (source-only)
+
+The library targets `net8.0`, `net9.0` and `net10.0`, so .NET 8 and .NET 9 apps
+reference it directly; the CLI stays on `net10.0`. The same source compiles on
+every target: on `net8.0` two span helpers stand in for members that arrived in
+.NET 9, with identical results (`SpanCompatibilityTests`). Output is
+byte-identical for the same input, options and .NET runtime version; different
+.NET versions may produce different bytes (for example in compressed streams:
+fonts, images, page content, because each ships its own zlib) with the same
+rendered content, so byte parity and hash pins are authoritative on `net10.0`
+only. See
+[Run from source](development.md#run-from-source).
 
 ## Diagnostics
 

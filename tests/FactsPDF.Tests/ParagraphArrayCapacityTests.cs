@@ -25,6 +25,7 @@ public sealed class ParagraphArrayCapacityTests
     }
 
     // Measured on main 7ecab3f: 600 bytes read per paragraph; 552 with exact arrays.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphKeepsExactArrays()
     {

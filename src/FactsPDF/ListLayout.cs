@@ -27,6 +27,38 @@ internal static class ListMarkerTypes
             "list-style-type supports disc, circle, square, decimal, lower/upper-alpha, lower/upper-roman or none.", offset)
     };
 
+    // The HTML rendering section's presentational hints for the type attribute: ol[type="1"],
+    // [type=a s], [type=A s], [type=i s], [type=I s] match case-sensitively; ul[type=disc i],
+    // circle, square and none match ASCII case-insensitively; li takes both sets. Any other value
+    // maps to nothing in a browser, so it fails rather than silently keeping the default marker.
+    internal static ListMarkerKind TypeAttribute(string element, string value, int offset)
+    {
+        if (element != "ul")
+        {
+            switch (value)
+            {
+                case "1": return ListMarkerKind.Decimal;
+                case "a": return ListMarkerKind.LowerAlpha;
+                case "A": return ListMarkerKind.UpperAlpha;
+                case "i": return ListMarkerKind.LowerRoman;
+                case "I": return ListMarkerKind.UpperRoman;
+            }
+        }
+        if (element != "ol")
+        {
+            if (value.Equals("disc", StringComparison.OrdinalIgnoreCase)) return ListMarkerKind.Disc;
+            if (value.Equals("circle", StringComparison.OrdinalIgnoreCase)) return ListMarkerKind.Circle;
+            if (value.Equals("square", StringComparison.OrdinalIgnoreCase)) return ListMarkerKind.Square;
+            if (value.Equals("none", StringComparison.OrdinalIgnoreCase)) return ListMarkerKind.None;
+        }
+        throw new FactsPdfException("FPDF1103", element switch
+        {
+            "ol" => "ol type accepts only 1, a, A, i or I (case-sensitive).",
+            "ul" => "ul type accepts only disc, circle, square or none.",
+            _ => "li type accepts only 1, a, A, i, I (case-sensitive), disc, circle, square or none."
+        }, offset);
+    }
+
     internal static string? MarkerText(ListMarkerKind kind, int ordinal, int offset)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ordinal);

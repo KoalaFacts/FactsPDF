@@ -115,7 +115,7 @@ public sealed class StructuralPseudoClassTests
     [TestCase("p::before{color:red}")]
     [TestCase("p:first-child::before{color:red}")]
     [TestCase("p:before{color:red}")]
-    [TestCase("p:root{color:red}")]
+    [TestCase("p:root(){color:red}")]
     [TestCase("p:is(.a){color:red}")]
     [TestCase("p:where(.a){color:red}")]
     [TestCase("p:has(.a){color:red}")]
@@ -223,12 +223,24 @@ public sealed class StructuralPseudoClassTests
         Assert.That(Runs("<style>body:first-child p{color:#f00}</style><body><p>A</p></body>"), Is.EqualTo(new[] { Black }));
     }
 
-    [TestCase("<style>p:first-child{color:red}</style><p>A</p><body><p>B</p></body>")]
-    [TestCase("<html><body><p>A</p></body></html><body><p>B</p></body><style>p:first-child{color:red}</style>")]
-    [TestCase("<style>p:first-child{color:red}</style><div><body><p>A</p></body></div>")]
-    [TestCase("<html><head><style>p:not(:empty){color:red}</style></head><body><div><html><p>A</p></html></div></body></html>")]
-    public void IgnoredOrMergedDocumentTagsFailInsteadOfGuessingPositions(string html)
-        => Fails(html, "FPDF1203");
+    // The HTML parser ignores a repeated or misplaced html/head/body tag without attributes, so its
+    // content stays where it is (Chrome: B is A's next sibling in body).
+    [Test]
+    public void IgnoredDocumentTagsDoNotMoveSiblings()
+    {
+        Assert.That(Runs("<style>p:first-child{color:#f00}p:last-child{color:#00f}</style><p>A</p><body><p>B</p></body>"),
+            Is.EqualTo(new[] { Red, Blue }));
+        Assert.That(Runs("<html><body><p>A</p></body></html><body><p>B</p></body><style>p:nth-child(2){color:#f00}</style>"),
+            Is.EqualTo(new[] { Black, Red }));
+        Assert.That(Runs("<style>div > p:only-child{color:#f00}</style><div><body><p>A</p></body></div>"), Is.EqualTo(new[] { Red }));
+        Assert.That(Runs("<style>div > p:only-child{color:#f00}</style><div><html><head><p>A</p></head></html></div>"), Is.EqualTo(new[] { Red }));
+    }
+
+    [TestCase("<p>A</p><body class=x><p>B</p></body>")]
+    [TestCase("<html><head></head><body><div><html lang=en><p>A</p></html></div></body></html>")]
+    [TestCase("<p>A</p><head id=h></head>")]
+    public void IgnoredDocumentTagsWithAttributesFail(string html)
+        => Fails("<style>p:first-child{color:red}</style>" + html, "FPDF1101");
 
     [Test]
     public void EmptyMatchesNoChildElementsOrTextIncludingWhitespaceLikeChrome()
@@ -275,13 +287,26 @@ public sealed class StructuralPseudoClassTests
         sheets.TrackPositions(tokens, default);
         var element = tokens.FindIndex(t => t.Kind == HtmlTokenKind.Start && t.Attributes!.TryGetValue("id", out var id) && id == "e");
         var position = sheets.Positions![element];
-        Assert.That(position.Known && position.EmptyKnown, Is.True);
         Assert.That(position.Empty, Is.EqualTo(empty));
     }
 
     [Test]
-    public void EmptyOnBodyFailsBecauseTheParserMovesTrailingWhitespaceIntoIt()
-        => Fails("<html><head><style>body:not(:empty) p{color:red}</style></head><body><p>A</p></body></html>", "FPDF1203");
+    public void EmptyOnBodyCountsWhitespaceAfterTheBodyEndTag()
+    {
+        // Chrome appends the line feed after </body> to body, so body is not empty.
+        Assert.That(Runs("<html><head><style>body:not(:empty) p{color:#f00}</style></head><body><p>A</p></body>\n</html>"),
+            Is.EqualTo(new[] { Red }));
+        static bool BodyEmpty(string html)
+        {
+            var tokens = new List<HtmlToken>();
+            var sheets = CssStylesheets.Collect(html, new PdfOptions(), tokens, default);
+            sheets.TrackPositions(tokens, default);
+            return sheets.Positions![tokens.FindIndex(t => t.Kind == HtmlTokenKind.Start && t.Value == "body")].Empty;
+        }
+        Assert.That(BodyEmpty("<style>:empty{color:red}</style><body></body>"), Is.True);
+        Assert.That(BodyEmpty("<style>:empty{color:red}</style><body></body>\n"), Is.False);
+        Assert.That(BodyEmpty("<style>:empty{color:red}</style>"), Is.True);
+    }
 
     [Test]
     public void SelectorSupportDoesNotHideUnsupportedDeclarations()

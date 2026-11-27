@@ -142,9 +142,9 @@ public sealed class OverflowWrapTests
 
     [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
     [TestCase("<ul style='overflow-wrap:break-word'><li>A</li></ul>", "FPDF1201")]
-    [TestCase("<p style='overflow-wrap:anywhere'>A</p>", "FPDF1202")]
+    [TestCase("<p style='overflow-wrap:auto'>A</p>", "FPDF1202")]
     [TestCase("<p style='overflow-wrap:break-all'>A</p>", "FPDF1202")]
-    [TestCase("<style>#absent{overflow-wrap:anywhere}</style><p>A</p>", "FPDF1202")]
+    [TestCase("<style>#absent{overflow-wrap:auto}</style><p>A</p>", "FPDF1202")]
     [TestCase("<p style='overflow-wrap:break-word normal'>A</p>", "FPDF1202")]
     [TestCase("<p style='overflow-wrap:calc(1)'>A</p>", "FPDF1202")]
     public void UnsupportedContextsAndValuesFailExplicitly(string html, string code)
