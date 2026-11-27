@@ -165,7 +165,8 @@ A summary only. **For any specific property or value, look it up on
 - Automatic table column widths, `rowspan` and nested tables.
 - System font discovery, CSS `font-family` matching, synthetic bold/italic,
   complex-script shaping, right-to-left and vertical text.
-- Transparency, gradients, SVG, interlaced or 16-bit PNG and APNG.
+- Transparency, gradients, SVG image files, SVG text and `use`, interlaced or
+  16-bit PNG and APNG (inline `svg` shapes and paths are drawn as vectors).
 
 Unsupported input is rejected with a diagnostic, never silently ignored. The
 only declarations accepted without effect are those that cannot change the page

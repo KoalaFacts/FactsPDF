@@ -661,7 +661,13 @@ A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
+Inline `svg` moves to partial: it is drawn as PDF vector paths. Its new scope, limitation and
+evidence strings are inserted where its old ones were, so the `<math>` row's feature name moves
+ahead of the scope and limitation strings the two rows shared, and the `<math>` scope no longer
+names SVG (replaced in place); the namespace-selector, custom
+property and image limitations are replaced in place (partial 248, rejected 118; its failure codes
+still include `FPDF1102`, so the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`6c73120721e0e1bee2201e50b6ad2ce40695f572fd73f6387f80acaa15c88d72`; English
-layer `site/src/audit-english-table-row-kept-split.mjs`, ordered source-text
-SHA-256 `0e4408a1cc3960189e84bf82d58ef78837b36b031e35f0157e7052edd0c45602`.
+`39f5a23fdb80507ccc8dd8f488052afe815ad77e2465b2c4e39bb9a8798c41eb`; English
+layer `site/src/audit-english-inline-svg.mjs`, ordered source-text
+SHA-256 `0b6d179c8f711c8bcf33fd19e1b0830bf60a3b6a2afe6f11b8361383a6acaae8`.

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Inline SVG reference</title>
+<!-- Synthetic Chrome comparison fixture for inline svg vector paths (docs/images.md#inline-svg).
+     The clip-path in the first svg names an id that no element has, so nothing is clipped. -->
+<style>:root{--brand-red:#c8102e}*{margin:0;padding:0;box-sizing:border-box}svg{display:block}</style>
+</head>
+<body>
+<div><svg width="216" height="72" viewBox="0 0 485 164" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g clip-path="url(#clip0_1)">
+    <path d="M12.3 45.6C40 10 80 10 120 45.6L120 140H12.3Z" fill="#2c323c"/>
+    <path d="M160 20h120v124h-120z M190 50v64h60V50z" fill-rule="evenodd" fill="var(--brand-red)"/>
+    <path d="M300 82a80 80 0 1 0 200 0" stroke="#2c323c" stroke-width="10"/>
+  </g>
+</svg></div>
+<div><svg width="300" height="150" viewBox="0 0 200 100">
+  <path d="m10,10 l30,0 0,30 -30,0 z M50 10 h30 v30 h-30 Z" fill="teal"/>
+  <path d="M90 40 C90 10 120 10 120 40 S150 70 150 40" stroke="navy" stroke-width="3" fill="none"/>
+  <path d="M10 90 Q 30 50 50 90 T 90 90 t 40 0" stroke="purple" stroke-width="2.5e0" fill="none"/>
+  <path d="M140 90 a20 10 30 1 1 40 -20 A15 15 0 0 0 160 95z" fill="orange" stroke="black" stroke-width="1.5"/>
+  <path d="M155 10l.5e1 1E1-1.5-5 8 2z" fill="green"/>
+</svg></div>
+<div><svg width="320" height="110" viewBox="0 0 320 110" stroke="#334" stroke-width="6">
+  <rect x="10" y="10" width="70" height="50" rx="12" fill="#9cf"/>
+  <circle cx="125" cy="35" r="25" fill="gold"/>
+  <ellipse cx="200" cy="35" rx="35" ry="20" fill="pink" stroke="none"/>
+  <line x1="10" y1="90" x2="110" y2="90" stroke-linecap="round" stroke="crimson" stroke-width="12"/>
+  <polyline points="130,100 160,70 190,100 220,70" fill="none" stroke-linejoin="round"/>
+  <polygon points="250,20 300,40 290,95 245,80" fill="hsl(120, 50%, 50%)" stroke-linejoin="bevel"/>
+</svg></div>
+<div style="color:#0a7"><svg width="300" height="80" viewBox="0 0 100 50" preserveAspectRatio="xMinYMid meet">
+  <defs><clipPath id="keep"><circle cx="25" cy="25" r="22"/></clipPath></defs>
+  <rect width="100" height="50" fill="#eee"/>
+  <g transform="translate(5 5) rotate(10 20 20)" clip-path="url(#keep)">
+    <rect width="40" height="40" fill="currentColor"/>
+    <rect x="20" width="40" height="40" fill="rgb(200 30 30)" transform="scale(1 0.5)"/>
+  </g>
+  <rect x="60" y="10" width="30" height="30" fill="none" stroke="currentColor" stroke-width="4" transform="skewX(15)"/>
+</svg></div>
+</body></html>
