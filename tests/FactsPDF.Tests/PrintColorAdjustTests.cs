@@ -36,6 +36,12 @@ public sealed class PrintColorAdjustTests
     [TestCase("color-adjust:exact")]
     [TestCase("color-adjust:economy;-webkit-print-color-adjust:exact;print-color-adjust:exact")]
     [TestCase("COLOR-ADJUST:EXACT")]
+    [TestCase("background-color-adjust:exact")]
+    [TestCase("background-color-adjust:economy")]
+    [TestCase("Background-Color-Adjust:EXACT")]
+    [TestCase("background-color-adjust:exact !important")]
+    [TestCase("background-color-adjust:initial")]
+    [TestCase("print-color-adjust:exact !important;color-adjust:exact !important;background-color-adjust:exact !important")]
     public void KeywordValuesRenderLikeThePageWithoutThem(string declarations)
     {
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
@@ -46,6 +52,9 @@ public sealed class PrintColorAdjustTests
     [TestCase("-webkit-print-color-adjust:1")]
     [TestCase("print-color-adjust:'exact'")]
     [TestCase("color-adjust:auto")]
+    [TestCase("background-color-adjust:auto")]
+    [TestCase("background-color-adjust:exact economy")]
+    [TestCase("background-color-adjust:'exact'")]
     public void OtherValuesFail(string declaration)
     {
         var html = $"<p style=\"{declaration}\">A</p>";
@@ -55,10 +64,32 @@ public sealed class PrintColorAdjustTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(':') + 1));
     }
 
-    [Test]
-    public void UnaliasedPrefixedNamesStillFail()
+    [TestCase("-moz-print-color-adjust:exact")]
+    [TestCase("-webkit-background-color-adjust:exact")]
+    public void UnaliasedPrefixedNamesStillFail(string declaration)
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='-moz-print-color-adjust:exact'>A</p>"));
+        var error = Assert.Throws<FactsPdfException>(() => Pdf($"<p style='{declaration}'>A</p>"));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
+    }
+
+    [Test]
+    public void TheUniversalPrintResetRendersLikeThePageWithoutIt()
+    {
+        const string reset = "<style>*{print-color-adjust:exact !important;color-adjust:exact !important;background-color-adjust:exact !important}</style>";
+        var page = Report("");
+        Assert.That(Pdf(reset + page), Is.EqualTo(Pdf(page)));
+    }
+
+    [Test]
+    public void TheFirstInvalidDeclarationIsReportedInSourceOrder()
+    {
+        const string html = "<style>p{background-color-adjust:auto;print-color-adjust:auto}</style><p>A</p>";
+        var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
+        Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("auto", StringComparison.Ordinal)));
+
+        const string unsupportedFirst = "<style>p{mask-border:none;background-color-adjust:auto}</style><p>A</p>";
+        error = Assert.Throws<FactsPdfException>(() => Pdf(unsupportedFirst));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 
@@ -66,7 +97,7 @@ public sealed class PrintColorAdjustTests
     public void TheSdkAcceptsPrintColorAdjust()
     {
         const string page = "<p style='background-color:#eef'>Paid</p>";
-        var bytes = FactsPDF.Pdf.Write().ToBytes($"<style>p{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>{page}");
+        var bytes = FactsPDF.Pdf.Write().ToBytes($"<style>p{{-webkit-print-color-adjust:exact;print-color-adjust:exact;background-color-adjust:exact}}</style>{page}");
         Assert.That(bytes, Is.EqualTo(FactsPDF.Pdf.Write().ToBytes(page)));
     }
 }

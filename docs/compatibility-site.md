@@ -628,7 +628,10 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+The non-standard `background-color-adjust` joins `color-adjust` as an alias of
+`print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
+since no feature row covers it (accepted CSS property names 383 to 384).
 Current dataset SHA-256:
-`b9581aae0697b3df0f7caa9d511e2d9f0b55dd944774c0a885ab483d6d139d80`; English
-layer `site/src/audit-english-table-part-display.mjs`, ordered source-text
-SHA-256 `60069eb3830d06aad5354a4f0b7b738e3ad59475cdca74ec1c682dc238e70fed`.
+`2167c34d79275f3615393d0a5b71f1aab9be830623b3454b0cc7d4f36bf7b2d9`; English
+layer `site/src/audit-english-background-color-adjust.mjs`, ordered source-text
+SHA-256 `5515dd2b34a8d714e74aafc3b447c2c171ef0233fb6686f539a6df51bf2de7f7`.
