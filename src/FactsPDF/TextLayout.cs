@@ -616,7 +616,7 @@ internal static class TextLayout
                     {
                         cancellation.ThrowIfCancellationRequested();
                         var plan = affected ? TablePagination.FitWithContinuations(measured, cursor,
-                            bottom - y - tableGap, freshSpace, first, cancellation) : null;
+                            bottom - y - tableGap, freshSpace, first, cancellation, !first || !CurrentPageOccupied()) : null;
                         var fragment = affected ? new TablePagination.Fragment(plan!.Next.RowIndex, plan.Height)
                             : TablePagination.Fit(measured, rowIndex, bottom - y - tableGap, first, cancellation);
                         var noProgress = affected ? plan!.Parts.Count == 0 : fragment.EndRow == rowIndex;

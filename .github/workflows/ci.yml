@@ -527,11 +527,13 @@ jobs:
           print('Pinned ILLink.Tasks 10.0.14 archive checksum verified for offline extracted-source restore')
           PY
           printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<configuration><packageSources><clear /><add key="verified-local" value="'"$source_feed"'" /></packageSources></configuration>' > "$offline_config"
+          # The library also targets net8.0 and net9.0, whose reference packs are not in
+          # this verified feed; the CLI is net10.0, so restore and build only net10.0.
           (
             cd "$source_root"
             export NUGET_PACKAGES="$RUNNER_TEMP/factspdf-private-source-packages"
-            dotnet restore src/FactsPDF.Cli/FactsPDF.Cli.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.14
-            dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.14
+            dotnet restore src/FactsPDF.Cli/FactsPDF.Cli.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.14 -p:TargetFrameworks=net10.0
+            dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.14 -p:TargetFrameworks=net10.0
             dotnet restore tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --configfile "$offline_config" -p:RuntimeFrameworkVersion=10.0.14
             dotnet build tools/FactsPDF.PackageInspector/FactsPDF.PackageInspector.csproj --no-restore -c Release -p:SourceRevisionId="$source_head" -p:ContinuousIntegrationBuild=true -p:RuntimeFrameworkVersion=10.0.14
             dotnet src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli.dll examples/quick-start.html "$RUNNER_TEMP/factspdf-private-source-rebuilt.pdf"

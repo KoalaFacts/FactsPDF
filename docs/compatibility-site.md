@@ -652,13 +652,22 @@ The pseudo-class row moves to partial for `:root` (the root `html` element, pseu
 specificity); its own feature name, scope and limitation strings are replaced in place and the
 attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
 `FPDF1102` search is unchanged).
+The custom property / `var()` row moves to partial: custom properties cascade and inherit and
+`var()` is substituted into every supported property, while a reference without a value or
+fallback fails `FPDF1202` instead of being unset. Its scope and limitation strings are replaced in
+place and its stage becomes the existing `语义/渲染`, so the `仅语法可表示` stage it shared with the
+value-function row moves after that row's strings (partial 247, rejected 119; `FPDF1202`).
+A kept table row that must split now paginates like Chrome (it starts on a fresh
+page, or moves the table there, and continues), so those two limitation strings
+are replaced in place again and a kept last row split only for the table's bottom
+decoration is the remaining `FPDF1302`; no count moves.
 The `@page` row moves to partial: `size`, per-side margins and the six top/bottom margin
 boxes with `counter(page)`/`counter(pages)`, with page selectors and the other margin boxes
 still failing `FPDF1204` and conflicts with explicit writer page options failing `FPDF1206`.
 Its scope and limitation strings are replaced in place, its new evidence string is inserted
-and the `@media` limitation no longer lists `@page` (partial 247, rejected 119; 877 ordered
+and the `@media` limitation no longer lists `@page` (partial 248, rejected 118; 877 ordered
 strings; the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`d7b7174920ebb91c4718ae22834afe5cfe5adb91d0f3a939eedad792a7689eb4`; English
+`7143f97d06112e76e25fb2dedd0c3b6b1983cf83f70ffee180a6c6228405501f`; English
 layer `site/src/audit-english-page-rule.mjs`, ordered source-text
-SHA-256 `3fdf1edd14866a5c47db9b068e86550bdf367a8feed2fa62d2c3ac2020e7e6b0`.
+SHA-256 `e1f2bd849730e4c2d1ef87051223501ec9c8be22b835ae981f7eb87cffa315aa`.

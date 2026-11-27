@@ -1,10 +1,10 @@
-import { englishAudit as previous } from './audit-english-root-pseudo-class.mjs';
+import { englishAudit as previous } from './audit-english-table-row-kept-split.mjs';
 
 // The @page row moves to partial: its scope and limitation (indices 620 and 621, used by no other
 // row) are replaced and its new evidence string is inserted at 622. The @media limitation (index
 // 618) no longer lists @page among the rejected at-rules.
 if (previous.length !== 876) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = '3fdf1edd14866a5c47db9b068e86550bdf367a8feed2fa62d2c3ac2020e7e6b0';
+export const sourceDigest = 'e1f2bd849730e4c2d1ef87051223501ec9c8be22b835ae981f7eb87cffa315aa';
 const changes = new Map([
   [618, 'Only one print or all media type per rule. Screen, media conditions, comma lists, nested @media, @supports, @container and @import reject with FPDF1204 (@page and @keyframes are allowed inside); malformed or unmatched declarations still reject with FPDF1202. Not full CSS Media Queries.'],
   [620, '@page at the top level of an embedded <style> or inside @media print/all: size (the A5/A4/A3/B5/B4/JIS-B5/JIS-B4/letter/legal/ledger keywords with or without portrait/landscape, an orientation alone, or one or two physical lengths), margin and its four longhands (real asymmetric margins that move, narrow and repaginate the body), and the six @top-left/center/right and @bottom-left/center/right margin boxes: content strings, counter(page), counter(pages) and none, with color/font-size/font-weight/font-style inherited from the html element, drawn through the structured page furniture; the rules cascade by !important and source order.'],

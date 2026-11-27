@@ -1363,13 +1363,16 @@ No new release or human page approval is implied.
 `.report-table tr{break-inside:avoid;page-break-inside:avoid}`. A table row
 that fits a fresh page fragment with the repeated header already moves whole,
 and the header never splits, so the page renders byte-identical to the page
-without the declaration. A kept row that FactsPDF would split fails
-`FPDF1302` at the row: a row taller than a fresh fragment with its header, a
-first body row split only to carry the table's top padding/border (or the
-leading decoration of its container), and a last row split only to carry the
-table's bottom padding/border. A browser would move such a row to a fresh
-page or break before it instead. Rows without the declaration keep splitting
-as described in [tables](tables.md#long-descriptions-across-pages).
+without the declaration. A kept row that FactsPDF must split (taller than a
+fresh fragment with its header, or a first body row split only to carry the
+table's top padding/border or its container's leading decoration) breaks before
+itself as Chrome does, or before the whole table when it is the first body row,
+and then continues from the fresh page at line boundaries; where it already
+starts where a fresh page would put it, it splits like the row without the
+declaration. A kept last row split only to carry the table's bottom
+padding/border fails `FPDF1302` at the row, because Chrome keeps it whole and
+paints that decoration past the page bottom. Rows without the declaration keep
+splitting as described in [tables](tables.md#long-descriptions-across-pages).
 `tbody`, `tfoot`, `td`, `th` and `table` still fail `FPDF1201`;
 `avoid-page`, `avoid-column` and other values fail `FPDF1202`
 (`TableRowBreakInsideTests.cs`).
@@ -1463,9 +1466,21 @@ HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitiv
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes, selector functions and custom properties remain unsupported.
+No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes and selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
 `:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` element has no root element in FactsPDF's tree, so `:root` matches nothing there, exactly like `html{}`. Every other pseudo-class or pseudo-element (`:hover`, `:first-child`, `::before`, `:not()`) still fails with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+
+## Custom properties and var()
+
+A declaration whose name starts with two dashes (`--brand-700: #b3261e`) is a custom property. It is accepted on every element, in stylesheets and `style` attributes, with any value; the name is case-sensitive (`--Brand` and `--brand` differ), `--` alone is not a name (`FPDF1201`), and its value is the declared token sequence with leading and trailing white space trimmed (it may be empty: `--none:;`). Custom properties cascade by name like other declarations (`!important`, style attribute, specificity, source order), are inherited by default, and accept `initial` (the guaranteed-invalid value), `inherit` and `unset` (both the parent's value); `revert` and `revert-layer` fail `FPDF1202`.
+
+`var(--name)` and `var(--name, fallback)` may appear in the value of every supported property, including shorthands (`padding: 0 var(--space-6)`, `border-top: 2px solid var(--brand)`, `margin: var(--space-10) 0`), inside functions (`rgb(var(--r), 20, 30)`), with `!important`, and in custom properties (`--brand: var(--red-700)`). The function name is ASCII case-insensitive. For each element a declaration applies to, references are substituted with the element's computed custom properties (a custom property's own references are resolved first, in dependency order), the fallback is used when the referenced property has no value, and the substituted value is then parsed and checked exactly as the same literal value would be: the page renders byte-identical to the page with every `var()` written out ([example](../examples/report-custom-properties.html), [literal oracle](../examples/report-custom-properties-oracle.html), `CustomPropertyTests.cs`). A shorthand with `var()` expands into its longhands after substitution, at the shorthand's place in the cascade. `var()` in SVG presentation attributes, selectors or at-rule preludes is not supported.
+
+Syntax is checked while the stylesheet is parsed: a `var()` that is not `var(--name)` or `var(--name, fallback)` (`var(brand)`, `var(--a --b)`, `var()`) fails `FPDF1202` even in an unmatched rule, and an unsupported property still fails `FPDF1201` first. The rest of a value holding `var()` can only be checked after substitution, so an unmatched rule's value is not checked.
+
+**Invalid at computed-value time (decision).** A browser treats a declaration as unset when, after substitution, a reference has no value and no fallback (undefined, `initial`, part of a cycle, or itself invalid), the result is a CSS-wide keyword, or the property rejects the substituted value. FactsPDF fails instead, with `FPDF1202` (or the code the literal value would get, such as `FPDF1201` for padding on inline text) at the declaration that holds `var()`, and the message names the reference or shows the substituted value. Reason: the renderer already rejects invalid and inapplicable values that browsers drop, including in losing declarations, instead of rendering something that differs from the author's intent; silently unsetting would render a page that differs from the literal stylesheet without saying so. Like every other matched declaration, a losing declaration is substituted and checked too. What browsers handle without any visible effect is accepted: a custom property that is never used, an unused reference cycle, and a custom property that is invalid but only referenced with a fallback (the fallback applies, as in a browser).
+
+Limits (`FPDF1205`): each value after substitution (a custom property's computed value or a property value) holds at most `MaxCssSyntaxNodes` syntax nodes, a chain of references between custom properties is at most `MaxCssSyntaxDepth` deep, and every component placed by a substitution is charged to `MaxCssMatchOperations`. A doubling chain (`--b: var(--a) var(--a)`, `--c: var(--b) var(--b)`, …) therefore fails quickly with bounded memory instead of growing exponentially.
 
 ## Cascade and inheritance
 
@@ -2283,7 +2298,7 @@ Neither establishes a published version or new installable candidate.
 | MaxCssCharacters | 262144 across embedded and decoded inline CSS, including comments |
 | MaxCssSelectors | 4096 selector arms, including comma groups and empty blocks |
 | MaxCssDeclarations | 32768 across embedded and inline declarations |
-| MaxCssMatchOperations | 5000000 charged candidates, matching steps and offered declarations |
+| MaxCssMatchOperations | 5000000 charged candidates, matching steps, offered declarations and components placed by `var()` substitution |
 
 Each selector is limited to 32 compounds with at most 32 simple terms per compound. Rightmost ID/class/type indices reduce unrelated candidates; mixed combinators use bounded dynamic programming over ancestry, not exponential backtracking. Parsing uses two HTML scans rather than a retained full DOM: lower retained tree scope is traded against a second scan. This is an architectural choice, not a benchmark result or a constant-memory guarantee.
 
