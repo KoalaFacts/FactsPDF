@@ -33,7 +33,7 @@ internal sealed class TableMarkup(TableNode node)
     internal void CheckChild(string parent, string name, int offset)
     {
         var valid = Cell is not null
-            ? name is "p" or "img"
+            ? name is "p" or "img" or "svg"
                 ? parent is "td" or "th"
                 : HtmlDocumentReader.InlineTag(name) || name == "br"
             : parent switch

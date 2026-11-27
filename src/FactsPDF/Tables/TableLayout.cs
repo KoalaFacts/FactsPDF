@@ -211,9 +211,9 @@ internal static class TableLayout
                             TextAlignment.Right => contentWidth - geometry.OuterWidth,
                             _ => 0
                         });
-                        charge(1, image.SourceOffset);
+                        charge(image.CommandCount, image.SourceOffset);
                         images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
-                            geometry.Width, geometry.Height));
+                            geometry.Width, geometry.Height, image.Vector));
                         var imageIndex = images.Count - 1;
                         var decorationStart = imageBoxes.Count;
                         var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,

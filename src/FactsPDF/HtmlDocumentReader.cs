@@ -16,7 +16,7 @@ internal static class HtmlDocumentReader
     // indent of the HTML user-agent sheet (see CssStylesheets).
     private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
         or "main" or "nav" or "aside" or "hgroup" or "search" or "body" or "html" or "ol" or "ul" or "menu" or "li" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd";
-    private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th" or "caption"
+    private static bool BoxTag(string name) => name is "img" or "svg" or "hr" or "table" or "col" or "td" or "th" or "caption"
         || ParagraphTag(name) || Container(name) && name != "html";
 
     // Inline text elements: no box of their own, only a text style. code, kbd and samp keep the
@@ -243,6 +243,7 @@ internal static class HtmlDocumentReader
         TableMarkup? table = null;
         var anonymous = false;
         var elements = 0; var insideStyle = false; var baseSeen = false;
+        SvgDocument? svg = null;
 
         // Where the innermost open block's children begin in the child stack (0 for the root).
         int ChildStart(int fromFrame)
@@ -367,7 +368,7 @@ internal static class HtmlDocumentReader
                 insideStyle = true; continue;
             }
             if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
-                || name is "img" or "hr" or "br" or "head" or "title" or "meta" or "link" or "base"))
+                || name is "img" or "svg" or "hr" or "br" or "head" or "title" or "meta" or "link" or "base"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -392,7 +393,8 @@ internal static class HtmlDocumentReader
             if (name == "link")
                 foreach (var (attribute, value) in token.Attributes!)
                     if (attribute == "rel") LinkRelations(value, token.Offset);
-            if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "link" or "base" or "col"))
+            // An svg is foreign content, where a self-closing tag closes the element.
+            if (token.SelfClosing && name is not ("img" or "svg" or "hr" or "br" or "meta" or "link" or "base" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && (table is not null || AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
@@ -419,8 +421,10 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
             table?.CheckChild(stack[^1].Name, name, token.Offset);
-            if (name == "img" && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
-                throw new FactsPdfException("FPDF1101", "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
+            if (name is "img" or "svg" && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
+                throw new FactsPdfException("FPDF1101", name == "svg"
+                    ? "svg must be a standalone block outside paragraphs, inline elements and lists."
+                    : "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
             if (table is null && (ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
             if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
             if ((ParagraphTag(name) || Container(name)) && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name)))
@@ -529,6 +533,8 @@ internal static class HtmlDocumentReader
                 else if (name == "link" && attribute is "href" or "type" or "sizes" or "hreflang" or "crossorigin"
                     or "as" or "color" or "integrity" or "referrerpolicy") { }
                 else if (name == "img" && attribute is "src" or "alt") { }
+                // The svg's own attributes (size, viewBox, paint, accessibility) are read by SvgReader.
+                else if (name == "svg" && SvgReader.RootAttribute(attribute)) { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
                     || name == "q" && attribute == "cite") { }
                 // Every run is laid out left to right, so the left-to-right direction is already in
@@ -620,6 +626,16 @@ internal static class HtmlDocumentReader
                 else children.Add(imageNode);
                 path.RemoveAt(path.Count - 1); continue;
             }
+            if (name == "svg")
+            {
+                svg ??= new SvgDocument(options.MaxDisplayCommands, cancellation);
+                var graphic = SvgReader.Read(tokens, ref t, svg, sheets, path, stack.Count, options.MaxDepth, style.Color);
+                var svgNode = new ImageNode(null, style, SvgSizing(boxStyle, graphic), token.Offset, null, graphic);
+                Flush();
+                if (table?.Cell is { } svgCell) svgCell.Contents.Add(new TableCellImage(svgNode));
+                else children.Add(svgNode);
+                path.RemoveAt(path.Count - 1); continue;
+            }
             if (name == "hr")
             {
                 Flush();
@@ -657,9 +673,30 @@ internal static class HtmlDocumentReader
         }
         if (stack.Count > 1) throw new FactsPdfException("FPDF1101", $"Unclosed element '{stack[^1].Name}'.", html.Length);
         Flush();
+        svg?.Resolve(tokens);
         result.Children.TakeChildren(children, 0);
         return result;
     }
+    /// <summary>
+    /// An svg's width and height attributes are presentational hints: they become its CSS width
+    /// and height unless author CSS sets them. Without a viewBox (no intrinsic ratio) a missing
+    /// dimension takes the replaced-element default of 300 by 150 px; with one, a missing dimension
+    /// follows the viewBox ratio, and with neither attribute the svg fills its containing block's
+    /// width, as Chrome lays it out.
+    /// </summary>
+    private static BoxStyle SvgSizing(BoxStyle box, SvgGraphic graphic)
+    {
+        var width = box.Width ?? graphic.WidthHint;
+        var height = box.Height ?? (graphic.HeightHint is { } hint ? new CssLength(hint) : null);
+        if (graphic.ViewBox is null)
+        {
+            width ??= new CssLength(225);
+            height ??= new CssLength(112.5);
+        }
+        else if (width is null && height is null) width = new CssLength(100, IsPercent: true);
+        return width == box.Width && height == box.Height ? box : box with { Width = width, Height = height };
+    }
+
     // The runs a paragraph element opened just before `start` will hold: one per text token, one
     // per br and one per q start or end tag (its quotation mark) until its end tag, or until a block start or end that closes or rejects it. The
     // count is exact for a well-formed paragraph and only sizes the run list, so an input that

@@ -999,3 +999,19 @@ test('non-strict CSS recovery is partial and valid unsupported CSS still fails, 
   assert.match(variables.limitations, /applies as that keyword, as in Chrome 158/);
   assert.doesNotMatch(variables.limitations, /revert\/revert-layer fail/);
 });
+
+test('inline svg is partial vector rendering, with explicit failures, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'foreign.svg'));
+  assert.equal(row.status, 'partial');
+  assert.match(row.failure_code, /FPDF1102/);
+  assert.match(row.scope, /drawn as PDF vector paths, never rasterised/);
+  assert.match(row.scope, /a missing id or a non-clipPath element clips nothing/);
+  assert.match(row.limitations, /opacity\/fill-opacity\/stroke-opacity other than 1/);
+  assert.match(row.limitations, /MaxDisplayCommands \(FPDF1401\)/);
+  const math = englishFeature(data.features.find(x => x.id === 'foreign.math'));
+  assert.equal(math.status, 'none');
+  assert.equal(math.scope, 'MathML root elements are not currently accepted.');
+  assert.match(englishFeature(data.features.find(x => x.id === 'functions.var')).limitations, /var\(\) in SVG paint attributes is substituted/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});

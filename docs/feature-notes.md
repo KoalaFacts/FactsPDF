@@ -1094,6 +1094,10 @@ A separate, strictly one-page fixed-`height` panel subset is documented above.
 
 ## Images
 
+### Inline SVG logos as vector paths
+
+Report templates embed the company logo as an inline `svg`. It is now drawn as PDF vector paths (never rasterised) in a block box sized from its `width`/`height` attributes, `viewBox` and CSS, with `g`, `defs`, a one-shape `clipPath`, `path` with the full path data grammar (arcs and quadratics become cubic Béziers), `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, transforms, and inherited `fill`/`stroke` paint in any opaque CSS colour, `currentColor` or `var()`. A `clip-path="url(#id)"` naming an id that no element has clips nothing, as in Chrome. Transparency, dashes, gradients, `text`, `use` and other content fail explicitly (`FPDF1102`/`FPDF1103`); svg content counts toward `MaxDisplayCommands`. A synthetic comparison page differs from Chrome 158 in 0.02% of its ink pixels ([inline SVG](images.md#inline-svg), `InlineSvgTests.cs`).
+
 ### Computed `em/rem` image geometry in business reports (candidate)
 
 A bound JPEG/PNG logo or evidence photo may size its PDF image matrix with
