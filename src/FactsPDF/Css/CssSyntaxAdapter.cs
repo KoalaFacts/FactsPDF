@@ -1101,9 +1101,9 @@ internal static class CssSyntaxAdapter
         // choice) and none (never kern) are already honoured; normal asks for kerning and fails.
         "font-kerning" => term is "auto" or "none",
         "quotes" => term is "auto" or "none" or "match-parent",
-        // Legacy text-decoration-skip: objects skips atomic inlines, and no image or other atomic
-        // inline can sit inside a line here; none and auto ask for no skipping. ink, spaces, edges
-        // and box-decoration ask for gaps the renderer never draws, so they still fail.
+        // Legacy text-decoration-skip, which Chrome does not implement: an inline image never
+        // carries its parent's decoration (objects), and Chrome paints none and auto the same way.
+        // ink, spaces, edges and box-decoration ask for gaps the renderer never draws, so they fail.
         "text-decoration-skip" => term is "none" or "auto" or "objects",
         "scroll-snap-type" => term is "none" or "x" or "y" or "block" or "inline" or "both",
         "scroll-snap-align" => term is "none" or "start" or "end" or "center",
@@ -2096,10 +2096,12 @@ internal static class CssSyntaxAdapter
         }
         else if (name == "vertical-align")
         {
-            // baseline passes here; the cascade drops it outside cells and rejects it on td/th.
-            if (token is not ("top" or "middle" or "bottom" or "baseline"))
+            // baseline passes here; the cascade drops it outside cells and img/svg and rejects it
+            // on td/th. text-top, text-bottom and lengths pass for inline img/svg; the cascade
+            // rejects them on td/th.
+            if (!InlineVerticalAlign.TryParse(token, out _))
                 throw new FactsPdfException("FPDF1202",
-                    "Table-cell vertical-align supports only top, middle and bottom.", offset);
+                    "vertical-align supports baseline, middle, top, bottom, text-top, text-bottom, lengths and percentages (table cells: top, middle and bottom).", offset);
         }
         else if (name == "outline-width") _ = CssPaintValues.OutlineWidth(token, offset);
         else if (name == "outline-offset") _ = CssPaintValues.OutlineOffset(token, offset);

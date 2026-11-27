@@ -7,30 +7,85 @@ namespace FactsPDF;
 
 internal static class TextLines
 {
+    // An inline img or svg is one atomic glyph: its Scalar is -(run index + 2) in its paragraph
+    // (-1 stays "no glyph" for the break scans) and Width1000 holds its outer width in points;
+    // letter- and word-spacing never apply to it.
     internal readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000, int SourceOffset = -1)
     {
+        internal bool IsAtom => Scalar < -1;
+        internal int AtomRun => -Scalar - 2;
         // PDF Tc adds fixed character spacing after each shown glyph, across
         // ASCII and embedded CID TrueType font runs. Layout must count the
         // identical advance before wrapping, centring or underlining.
-        public double Width => Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
+        public double Width => IsAtom ? Width1000 : Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
             + (Scalar == 32 ? Style.WordSpacing : 0);
     }
-    // Glyph storage is borrowed until the next MoveNext. Each consumer copies
+    // An inline image placed on a line: its geometry and the height of its outer box's top above
+    // the line's baseline, in the line's glyph order.
+    internal readonly record struct InlineAtom(ImageNode Node, ImageLayout.Geometry Geometry, double Top, string? LinkUri);
+    // Glyph and atom storage is borrowed until the next MoveNext. Each consumer copies
     // every placed text run before advancing; the iterator reuses its glyph storage.
     internal readonly record struct Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent,
-        double FirstLineIndent = 0, TextAlignment? AlignmentOverride = null);
+        double FirstLineIndent = 0, TextAlignment? AlignmentOverride = null, List<InlineAtom>? Atoms = null);
 
-    internal static void AppendLine(Line line, double x, double baseline, List<PlacedText> target,
-        Action<int, int> charge, CancellationToken cancellation, int sourceOffset = -1)
+    /// <summary>
+    /// The used box of an inline img or svg in a line whose containing block is
+    /// <paramref name="containingWidth"/> wide; NaN measures it for automatic table layout, where a
+    /// percentage size has nothing to resolve against.
+    /// </summary>
+    internal static ImageLayout.Geometry AtomGeometry(ImageNode image, double containingWidth)
     {
+        if (!double.IsNaN(containingWidth)) return ImageLayout.Resolve(image, containingWidth);
+        var style = image.BoxStyle;
+        if (style.Width is { IsPercent: true } || style.MinWidth is { IsPercent: true } || style.MaxWidth is { IsPercent: true }
+            || style.Height is { IsPercent: true } || style.MinHeight is { IsPercent: true } || style.MaxHeight is { IsPercent: true }
+            || style.PaddingLeft.IsPercent || style.PaddingRight.IsPercent || style.PaddingTop.IsPercent || style.PaddingBottom.IsPercent)
+            throw new FactsPdfException("FPDF1302",
+                "Percentage image sizes are not supported in automatic table layout; give every column an explicit col width.", image.SourceOffset);
+        // Without percentages the outer width does not depend on the containing width; the largest
+        // supported length only lets the fit check pass.
+        return ImageLayout.Resolve(image, 14_400);
+    }
+
+    /// <summary>
+    /// Appends a line's text runs and inline images. Images go to <paramref name="images"/> with
+    /// their top measured downward from <paramref name="topOrigin"/> (the page height for page
+    /// coordinates, 0 for a table's relative ones), as the baseline is measured upward from it.
+    /// </summary>
+    internal static void AppendLine(Line line, double x, double baseline, List<PlacedText> target,
+        Action<int, int> charge, CancellationToken cancellation, int sourceOffset = -1,
+        List<PlacedImage>? images = null, double topOrigin = 0)
+    {
+        var atom = 0;
         for (var start = 0; start < line.Glyphs.Count;)
         {
             var first = line.Glyphs[start];
+            if (first.IsAtom)
+            {
+                var placed = line.Atoms![atom++];
+                var node = placed.Node;
+                if (images is null) throw new InvalidOperationException("A line with inline images needs an image target.");
+                var geometry = placed.Geometry;
+                var outerTop = topOrigin - baseline - placed.Top;
+                // The image's own padding, border and background travel with it and paint just
+                // before it, above the block backgrounds (inline content is above them).
+                var commands = PaintedBox.CountCommands(geometry.OuterWidth, geometry.OuterHeight, node.BoxStyle);
+                charge(commands, node.SourceOffset);
+                var decoration = commands == 0 ? null : new PaintedBox(-geometry.Left, -geometry.Top,
+                    geometry.OuterWidth, geometry.OuterHeight, node.BoxStyle, node.Style.Color, 0, SourceOffset: node.SourceOffset);
+                charge(node.CommandCount + (placed.LinkUri is null ? 0 : 1), node.SourceOffset);
+                images.Add(new PlacedImage(node.Image, x + geometry.Left, outerTop + geometry.Top,
+                    geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration));
+                x += first.Width;
+                start++;
+                continue;
+            }
             // Charge each real decoration path before retaining the run;
             // a combined underline/strike/overline uses up to three commands.
             charge(1 + TextDecorationCommands.Count(first.Style.Decoration)
                 + (first.Style.LinkUri is null ? 0 : 1), sourceOffset); var width = 0d; var end = start; var utf16Length = 0;
-            while (end < line.Glyphs.Count && line.Glyphs[end].Style == first.Style && ReferenceEquals(line.Glyphs[end].Font, first.Font))
+            while (end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
+                && ReferenceEquals(line.Glyphs[end].Font, first.Font))
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
                 var glyph = line.Glyphs[end++];
@@ -62,6 +117,7 @@ internal static class TextLines
         foreach (var run in paragraph.Runs)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (run is InlineImageRun) return true;
             if (run.IsBreak) continue;
             foreach (var character in run.Text)
             {
@@ -90,7 +146,7 @@ internal static class TextLines
     {
         var style = paragraph.Style;
         var indent = style.FirstLineIndent.Value;
-        var reader = new GlyphReader(paragraph, options, resolved, cancellation);
+        var reader = new GlyphReader(paragraph, options, resolved, cancellation, double.NaN);
         double min = 0, max = 0, line = 0, segment = 0;
         var firstLine = true;
         var firstSegment = true;
@@ -182,6 +238,8 @@ internal static class TextLines
 
         private readonly List<Glyph> current = [];
         private readonly List<Glyph> word = [];
+        // Created by the first line with an inline image, so text-only wrapping allocates nothing more.
+        private List<InlineAtom>? atoms;
         private bool rented;
         private int rental;
         private State state;
@@ -238,6 +296,7 @@ internal static class TextLines
             state = State.Done;
             current.Clear();
             word.Clear();
+            atoms?.Clear();
             paragraph = null!; options = null!; resolved = null!; firstMarker = null;
             cursor = default; Current = default; space = null; cancellation = default;
             if (current.Capacity <= MaxPooledGlyphs && word.Capacity <= MaxPooledGlyphs) pooled = this;
@@ -253,7 +312,7 @@ internal static class TextLines
                     // The consumer finishes a borrowed line before MoveNext clears it.
                     // Retained page strings/paint and the PDF buffer are unchanged: this
                     // is line-at-a-time wrapping, not a streaming document serializer.
-                    cursor = new GlyphReader(paragraph, options, resolved, cancellation);
+                    cursor = new GlyphReader(paragraph, options, resolved, cancellation, available);
                     hasGlyph = cursor.MoveNext();
                     break;
                 case State.AfterBreak:
@@ -437,7 +496,7 @@ internal static class TextLines
             var tooWide = false;
             var tooWideOffset = -1;
             var firstSegment = true;
-            var reader = new GlyphReader(paragraph, options, resolved, cancellation);
+            var reader = new GlyphReader(paragraph, options, resolved, cancellation, available);
             while (reader.MoveNext())
             {
                 var glyph = reader.Current;
@@ -541,15 +600,87 @@ internal static class TextLines
                 ascent = Math.Max(ascent, markerAscent);
                 descent = Math.Max(descent, markerDescent);
             }
+            var hasAtoms = false;
             foreach (var glyph in current)
             {
+                // An inline image's parent inline box contributes its own leading-adjusted
+                // height, as an empty inline box does in standards mode.
                 var (glyphAscent, glyphDescent) = Metrics(glyph.Style, glyph.SourceOffset);
                 ascent = Math.Max(ascent, glyphAscent);
                 descent = Math.Max(descent, glyphDescent);
+                hasAtoms |= glyph.IsAtom;
             }
+            atoms?.Clear();
+            if (hasAtoms) (ascent, descent) = PlaceAtoms(ascent, descent);
             return new(current, paintedWidth, ascent + descent, ascent, descent,
                 firstLine ? firstIndent : 0,
-                softWrapped ? null : paragraph.Style.LastLineAlignment);
+                softWrapped ? null : paragraph.Style.LastLineAlignment, hasAtoms ? atoms : null);
+        }
+
+        // CSS 2.1 §10.8: each inline image's outer box is aligned to its parent's baseline,
+        // x-height or text box, which extends the line's ascent and descent; top and bottom
+        // images are then aligned to the line box itself, growing it only when taller than it.
+        private (double Ascent, double Descent) PlaceAtoms(double ascent, double descent)
+        {
+            var atoms = this.atoms ??= [];
+            var deferred = false;
+            foreach (var glyph in current)
+            {
+                if (!glyph.IsAtom) continue;
+                var image = ((InlineImageRun)paragraph.Runs[glyph.AtomRun]).Image;
+                var geometry = AtomGeometry(image, available);
+                var height = geometry.OuterHeight;
+                var align = image.BoxStyle.InlineAlign;
+                var top = align.Kind switch
+                {
+                    InlineAlignKind.Shift => height + (align.IsPercent
+                        ? align.Shift / 100 * (glyph.Style.AbsoluteLineHeight ?? glyph.Style.FontSize * glyph.Style.LineHeight)
+                        : align.Shift),
+                    InlineAlignKind.Middle => (height + XHeight(glyph.Style, glyph.SourceOffset)) / 2,
+                    InlineAlignKind.TextTop => FontBox(glyph.Style, glyph.SourceOffset).Ascent,
+                    InlineAlignKind.TextBottom => height - FontBox(glyph.Style, glyph.SourceOffset).Descent,
+                    _ => height,
+                };
+                if (align.Kind is InlineAlignKind.Top or InlineAlignKind.Bottom) deferred = true;
+                else
+                {
+                    ascent = Math.Max(ascent, top);
+                    descent = Math.Max(descent, height - top);
+                }
+                atoms.Add(new(image, geometry, top, glyph.Style.LinkUri));
+            }
+            if (!deferred) return (ascent, descent);
+            for (var i = 0; i < atoms.Count; i++)
+            {
+                var kind = atoms[i].Node.BoxStyle.InlineAlign.Kind;
+                var height = atoms[i].Geometry.OuterHeight;
+                if (kind == InlineAlignKind.Top && height > ascent + descent) descent = height - ascent;
+                else if (kind == InlineAlignKind.Bottom && height > ascent + descent) ascent = height - descent;
+            }
+            for (var i = 0; i < atoms.Count; i++)
+            {
+                var kind = atoms[i].Node.BoxStyle.InlineAlign.Kind;
+                if (kind == InlineAlignKind.Top) atoms[i] = atoms[i] with { Top = ascent };
+                else if (kind == InlineAlignKind.Bottom) atoms[i] = atoms[i] with { Top = atoms[i].Geometry.OuterHeight - descent };
+            }
+            return (ascent, descent);
+        }
+
+        // The first available font's ascent and descent at the style's size, without leading: the
+        // text box text-top and text-bottom align to.
+        private (double Ascent, double Descent) FontBox(TextStyle style, int sourceOffset)
+        {
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
+            var size = style.FontSize;
+            return fonts.Count == 0 ? (size * 0.8, size * 0.2)
+                : (size * fonts[0].Ascent1000 / 1000, size * -fonts[0].Descent1000 / 1000);
+        }
+
+        // The first available font's x-height (Courier's 426/1000 for the built-in font).
+        private double XHeight(TextStyle style, int sourceOffset)
+        {
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
+            return style.FontSize * (fonts.Count == 0 ? 0.426 : fonts[0].XHeight1000 / 1000);
         }
     }
 
@@ -582,8 +713,10 @@ internal static class TextLines
 
     // Reads a paragraph's glyphs after HTML whitespace collapsing, line-break handling and
     // text-transform. A mutable value: the line wrapper keeps it as a field, so a pass costs no object.
+    // containingWidth sizes inline images (NaN: automatic table layout, see AtomGeometry).
     private struct GlyphReader(Paragraph paragraph, PdfOptions options,
-        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
+        double containingWidth)
     {
         private int runIndex;
         private int textIndex;
@@ -601,11 +734,20 @@ internal static class TextLines
         // MoveNext so font diagnostics keep their order relative to the space.
         private int queuedScalar = -1;
         private TextRun? queuedRun;
+        // An inline image read right after a pending collapsed space.
+        private Glyph? queuedAtom;
 
         internal Glyph Current { get; private set; }
 
         internal bool MoveNext()
         {
+            if (queuedAtom is { } atom)
+            {
+                Current = atom;
+                afterText = true;
+                queuedAtom = null;
+                return true;
+            }
             if (queuedScalar >= 0)
             {
                 Current = Resolve(queuedScalar, queuedRun!.Style, queuedRun.SourceOffset, options, resolved);
@@ -629,6 +771,26 @@ internal static class TextLines
                         insideAsciiWord = false;
                         runIndex++;
                         Current = new Glyph(10, run.Style, null, 0, run.SourceOffset);
+                        return true;
+                    }
+                    if (run is InlineImageRun image)
+                    {
+                        // An atomic inline: a collapsed space before it is kept, one after it
+                        // collapses as after text, and it ends any ASCII word.
+                        previousCarriageReturn = false;
+                        insideAsciiWord = false;
+                        var glyph = new Glyph(-(runIndex + 2), run.Style, null,
+                            AtomGeometry(image.Image, containingWidth).OuterWidth, run.SourceOffset);
+                        runIndex++;
+                        if (pendingSpace.HasValue)
+                        {
+                            Current = pendingSpace.Value;
+                            pendingSpace = null;
+                            queuedAtom = glyph;
+                            return true;
+                        }
+                        Current = glyph;
+                        afterText = true;
                         return true;
                     }
                     insideRun = true; textIndex = 0;
@@ -754,6 +916,9 @@ internal static class TextLines
         or >= 0xac00 and <= 0xd7a3 or >= 0xf900 and <= 0xfaff or >= 0xff01 and <= 0xff65 or >= 0x20000 and <= 0x323af;
     private static bool CanBreak(int previous, int next)
     {
+        // CSS Text: a soft wrap opportunity before and after every atomic inline, even beside a
+        // no-break space.
+        if (previous < -1 || next < -1) return true;
         if (previous == 160 || next == 160) return false;
         const string opening = "（〔［｛〈《「『【〖〘〚‘“([{", closing = "、。，．？！：；）》」』】〕］｝〗〙〛’”!?;:.,)]}";
         if (previous <= 65535 && opening.Contains((char)previous) || next <= 65535 && closing.Contains((char)next)) return false;

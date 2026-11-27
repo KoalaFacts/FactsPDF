@@ -19,9 +19,12 @@ internal static class SvgReader
     // The computed SVG properties an element passes to its children (fill, stroke and their
     // details, color, visibility and clip-rule inherit) plus what applies to its own subtree: the
     // accumulated transform, the clip references and whether it is rendered at all.
+    // fill-opacity and stroke-opacity inherit; Opacity is the element's own opacity (not inherited)
+    // until its attributes are read, when it becomes a group around the element's subtree.
     private readonly record struct State(Paint Fill, SvgFillRule FillRule, Paint Stroke, double StrokeWidth,
         byte LineCap, byte LineJoin, double MiterLimit, Rgb Color, bool CssColor, bool Visible,
-        SvgFillRule ClipRule, bool Render, SvgMatrix Transform, SvgClipReference? Clips);
+        SvgFillRule ClipRule, bool Render, SvgMatrix Transform, SvgClipReference? Clips,
+        double FillOpacity = 1, double StrokeOpacity = 1, double Opacity = 1, SvgOpacityGroup? Group = null);
 
     private sealed record Frame(string Name, State State, int TokenIndex, int Offset, List<SvgClip>? ClipShapes);
 
@@ -100,6 +103,8 @@ internal static class SvgReader
                     break;
             }
         }
+        document.Groups.Clear();
+        state = Grouped(state, offset, document);
         var shapes = new List<SvgShape>();
         if (root.SelfClosing)
             return document.Add(new SvgGraphic { WidthHint = widthHint, HeightHint = heightHint, ViewBox = viewBox,
@@ -130,8 +135,11 @@ internal static class SvgReader
                 // The svg element itself stays on the path for the HTML reader to remove.
                 else if (frames.Count > 0) path.RemoveAt(path.Count - 1);
                 if (frames.Count == 0)
+                {
+                    foreach (var group in document.Groups) group.Check(document.Limits.Cancellation);
                     return document.Add(new SvgGraphic { WidthHint = widthHint, HeightHint = heightHint, ViewBox = viewBox,
                         Align = align, Slice = slice, Shapes = [.. shapes] });
+                }
                 continue;
             }
             if (metadata > 0)
@@ -173,13 +181,20 @@ internal static class SvgReader
                     top.ClipShapes!.Add(new([.. segments], element.ClipRule, element.Transform));
                 else if (element.Render && element.Visible && segments.Exists(s => s.Kind != SvgSegmentKind.Move))
                 {
-                    // A line encloses no area, so only its stroke paints.
-                    var fill = name == "line" ? null : Resolve(element.Fill, element, token.Offset);
-                    var stroke = element.StrokeWidth > 0 ? Resolve(element.Stroke, element, token.Offset) : null;
+                    // A line encloses no area, so only its stroke paints. Each paint's alpha is its
+                    // colour's alpha times its fill- or stroke-opacity times every enclosing
+                    // opacity (exact because each opacity group's paints never overlap, see
+                    // SvgOpacityGroup); a paint whose alpha rounds to 0 paints nothing.
+                    var groupAlpha = 1d;
+                    for (var group = element.Group; group is not null; group = group.Outer) groupAlpha *= group.Opacity;
+                    var fill = Translucent(name == "line" ? null : Resolve(element.Fill, element, token.Offset),
+                        element.FillOpacity * groupAlpha);
+                    var stroke = Translucent(element.StrokeWidth > 0 ? Resolve(element.Stroke, element, token.Offset) : null,
+                        element.StrokeOpacity * groupAlpha);
                     if (fill is not null || stroke is not null)
                     {
                         document.Limits.Command(token.Offset);
-                        shapes.Add(new SvgShape
+                        var shape = new SvgShape
                         {
                             Path = [.. segments],
                             Transform = element.Transform,
@@ -192,7 +207,10 @@ internal static class SvgReader
                             MiterLimit = element.MiterLimit,
                             Clips = element.Clips,
                             SourceOffset = token.Offset,
-                        });
+                        };
+                        if (shape.SplitPaint) document.Limits.Command(token.Offset, 1 + shape.Path.Length);
+                        shapes.Add(shape);
+                        for (var group = element.Group; group is not null; group = group.Outer) group.Add(shape);
                     }
                 }
             }
@@ -236,7 +254,8 @@ internal static class SvgReader
         var offset = token.Offset;
         // Clip references and the clipPath's transform are relative to the element's own user
         // space, so they are applied after the transform; transform does not inherit.
-        var state = parent;
+        // opacity is not inherited: each element starts without one of its own.
+        var state = parent with { Opacity = 1 };
         if (inClip)
             state = state with { Transform = SvgMatrix.Identity, Clips = null };
         else if (name == "clippath")
@@ -284,7 +303,24 @@ internal static class SvgReader
         }
         if (clipPath is not null && Keyword(clipPath) != "none")
             state = state with { Clips = new(ClipId(clipPath, offset), state.Transform, state.Clips) };
-        return state;
+        return inClip ? state with { Opacity = 1 } : Grouped(state, offset, document);
+    }
+
+    // An element's opacity below 1 groups its subtree's paints (see SvgOpacityGroup).
+    private static State Grouped(State state, int offset, SvgDocument document)
+    {
+        if (state.Opacity >= 1) return state;
+        var group = new SvgOpacityGroup(state.Opacity, offset, state.Group);
+        document.Groups.Add(group);
+        return state with { Opacity = 1, Group = group };
+    }
+
+    // The colour with its alpha multiplied by an opacity; null when nothing would paint.
+    private static Rgb? Translucent(Rgb? color, double opacity)
+    {
+        if (color is not { } paint) return null;
+        var alpha = paint with { A = paint.A * opacity };
+        return PdfAlphaStates.AlphaByte(alpha) == 0 ? null : alpha;
     }
 
     private static FactsPdfException Unsupported(string attribute, string element, int offset) =>
@@ -342,9 +378,12 @@ internal static class SvgReader
                 if (limit < 1) throw new FactsPdfException("FPDF1103", "stroke-miterlimit must be at least 1.", offset);
                 return state with { MiterLimit = limit };
             }
-            case "opacity" or "fill-opacity" or "stroke-opacity":
-                Opaque(value, attribute, offset);
-                return state;
+            case "opacity":
+                return state with { Opacity = AlphaValue(value, attribute, offset) };
+            case "fill-opacity":
+                return state with { FillOpacity = AlphaValue(value, attribute, offset) };
+            case "stroke-opacity":
+                return state with { StrokeOpacity = AlphaValue(value, attribute, offset) };
             case "stroke-dasharray":
                 if (keyword != "none")
                     throw new FactsPdfException("FPDF1103", "Dashed SVG strokes (stroke-dasharray) are not supported.", offset);
@@ -390,16 +429,17 @@ internal static class SvgReader
         _ => throw new FactsPdfException("FPDF1103", $"{attribute} must be nonzero or evenodd.", offset)
     };
 
-    // No transparency group or soft mask is painted, so only full opacity is accepted.
-    private static void Opaque(string value, string attribute, int offset)
+    // An alpha value: a number or a percentage, clamped to 0–1 as CSS clamps it.
+    private static double AlphaValue(string value, string attribute, int offset)
     {
         var text = value.Trim();
         var percent = text.EndsWith('%');
         if (percent) text = text[..^1];
         var position = 0;
         var number = Scan(text, ref position, offset, attribute);
-        if (position != text.Length || number != (percent ? 100 : 1))
-            throw new FactsPdfException("FPDF1103", $"SVG {attribute} other than 1 is not supported; transparency is not painted.", offset);
+        if (position != text.Length)
+            throw new FactsPdfException("FPDF1103", $"SVG {attribute} must be a number or a percentage.", offset);
+        return Math.Clamp(percent ? number / 100 : number, 0, 1);
     }
 
     private static string ClipId(string value, int offset)
@@ -688,6 +728,8 @@ internal sealed class SvgDocument(int maxCommands, CancellationToken cancellatio
     private readonly Dictionary<string, Rgb> colors = new(StringComparer.Ordinal);
     internal SvgLimits Limits { get; } = new(maxCommands, cancellation);
     internal Dictionary<int, SvgClip> Clips { get; } = [];
+    // The opacity groups of the svg being read, checked when it closes.
+    internal List<SvgOpacityGroup> Groups { get; } = [];
 
     internal SvgGraphic Add(SvgGraphic graphic)
     {
@@ -738,8 +780,10 @@ internal sealed class SvgDocument(int maxCommands, CancellationToken cancellatio
                     shape.ResolvedClips = [.. resolved];
                 }
                 if (!shape.Visible) continue;
-                commands += 1 + shape.Path.Length;
-                foreach (var (clip, _) in shape.ResolvedClips) commands += clip.Path.Length;
+                var shapeCommands = 1L + shape.Path.Length;
+                foreach (var (clip, _) in shape.ResolvedClips) shapeCommands += clip.Path.Length;
+                // A fill and a stroke of different alpha are painted as two shapes.
+                commands += shape.SplitPaint ? 2 * shapeCommands : shapeCommands;
             }
             graphic.CommandCount = (int)Math.Min(int.MaxValue, Math.Max(1, commands));
         }

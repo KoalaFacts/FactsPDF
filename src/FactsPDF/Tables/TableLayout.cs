@@ -281,10 +281,11 @@ internal static class TableLayout
                                     _ => 0
                                 });
                             var lineStart = runs.Count;
+                            var lineImageStart = images.Count;
                             AppendLine(line, alignedX, -top - height - line.Ascent,
-                                runs, charge, cancellation, offset);
-                            units.Add(new(TableCellUnitKind.TextLine, offset, top + height, line.Height,
-                                paragraphGap, units.Count == 0, lineStart, runs.Count - lineStart, -1, 0, 0));
+                                runs, charge, cancellation, offset, images);
+                            units.Add(MeasuredCellUnit.Line(offset, top + height, line.Height, paragraphGap, units.Count == 0,
+                                lineStart, runs.Count - lineStart, lineImageStart, images.Count - lineImageStart));
                             paragraphGap = 0;
                             height += line.Height;
                         }

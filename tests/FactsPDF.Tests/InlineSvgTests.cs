@@ -359,13 +359,19 @@ public sealed class InlineSvgTests
     [Test]
     public void BoxDecorationAndResetsApplyLikeAnImage()
     {
-        // display:block is how the svg is laid out already; a zero margin is its initial value.
+        // A lone svg taller than the line's strut has its top at the line top either way, so with
+        // nothing after it display:block paints the same page; a zero margin is its initial value.
         const string plain = "<svg width='40' height='20'><rect width='4' height='4'/></svg>";
         Assert.That(Pdf("<style>*{margin:0;padding:0;box-sizing:border-box}svg{display:block}</style>" + plain),
             Is.EqualTo(Pdf(plain)));
+        // An inline svg's padding, border and background travel with it as its decoration.
         var page = TableLayoutTests.Layout("<svg width='40' height='20' style='padding:2pt;border:1pt solid red'></svg>").Single();
         Assert.That(page.Images.Single().X, Is.EqualTo(39));
-        Assert.That(page.PaintBoxes.Single().Width, Is.EqualTo(36));
+        Assert.That(page.Images.Single().Decoration!.Width, Is.EqualTo(36));
+        Assert.That(page.PaintBoxes, Is.Empty);
+        var block = TableLayoutTests.Layout("<svg width='40' height='20' style='display:block;padding:2pt;border:1pt solid red'></svg>").Single();
+        Assert.That(block.Images.Single().X, Is.EqualTo(39));
+        Assert.That(block.PaintBoxes.Single().Width, Is.EqualTo(36));
     }
 
     // Failure codes -------------------------------------------------------------------------------
@@ -380,8 +386,8 @@ public sealed class InlineSvgTests
     [TestCase("<math></math>")]
     public void UnsupportedSvgElementsFailFpdf1102(string html) => Reject(html, "FPDF1102");
 
-    [TestCase("<svg><path d='M0 0h1v1z' fill-opacity='0.5'/></svg>")]
-    [TestCase("<svg opacity='50%'></svg>")]
+    [TestCase("<svg><path d='M0 0h1v1z' fill-opacity='half'/></svg>")]
+    [TestCase("<svg opacity='50%%'></svg>")]
     [TestCase("<svg><path d='M0 0h1v1z' fill='url(#gradient)'/></svg>")]
     [TestCase("<svg><path d='M0 0h1v1z' stroke='red' stroke-dasharray='2 1'/></svg>")]
     [TestCase("<svg xmlns='http://www.w3.org/1999/xhtml'></svg>")]
@@ -405,9 +411,9 @@ public sealed class InlineSvgTests
     [TestCase("<svg><path d='M0 0h1v1z' fill='red !important'/></svg>")]
     public void UnsupportedSvgAttributesAndValuesFailFpdf1103(string html) => Reject(html, "FPDF1103");
 
-    [TestCase("<p>Logo <svg width='4' height='4'></svg></p>")]
-    [TestCase("<div><span><svg></svg></span></div>")]
-    [TestCase("<ul><li><svg></svg></li></ul>")]
+    [TestCase("<p>Logo <svg width='4' height='4' style='display:block'></svg></p>")]
+    [TestCase("<div><span><svg style='display:block'></svg></span></div>")]
+    [TestCase("<ul><li><svg style='display:block'></svg></li></ul>")]
     [TestCase("<svg><g></svg>")]
     [TestCase("<svg><g>")]
     [TestCase("<svg><title><g/></title></svg>")]
@@ -429,9 +435,11 @@ public sealed class InlineSvgTests
             Is.EqualTo(Pdf("<style>*{margin:0;padding:0;font-size:20pt}</style>" + plain)));
     }
 
-    [Test]
-    public void TranslucentColoursFailFpdf1202()
-        => Reject("<svg><path d='M0 0h1v1z' fill='rgba(255, 0, 0, 0.5)'/></svg>", "FPDF1202");
+    [TestCase("<p>Logo <svg width='4' height='4'></svg></p>")]
+    [TestCase("<div><span><svg width='4' height='4'></svg></span></div>")]
+    [TestCase("<ul><li><svg width='4' height='4'></svg></li></ul>")]
+    public void DefaultInlineSvgRendersInsideParagraphsInlineElementsAndListItems(string html)
+        => Assert.That(TableLayoutTests.Layout(html).Single().Images.Single().Vector, Is.Not.Null);
 
     [Test]
     public void SvgNestingCountsTowardsMaxDepth()

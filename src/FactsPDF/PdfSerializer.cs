@@ -55,7 +55,7 @@ internal static class PdfSerializer
                 alpha.Clear();
                 PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha);
                 PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
-                images.Append(contents, pages[i], o, cancellation);
+                images.Append(contents, pages[i], o, cancellation, ref alpha);
                 // PDF character spacing is persistent graphics text state
                 // across BT/ET. Restore zero explicitly after a tracked run,
                 // but preserve byte-identical legacy PDFs that never track.

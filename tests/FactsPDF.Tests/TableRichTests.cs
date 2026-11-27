@@ -90,7 +90,7 @@ public sealed class TableRichTests
     public void EmptyParagraphMarginsFoldWithoutPhantomLines(string content, double height)
         => Assert.That(TableLayoutTests.Layout(Rich(content).Replace("<td>Z</td>", "<td></td>")).Single().PaintBoxes.Single().Height, Is.EqualTo(height));
     [TestCase("<p><p>A</p></p>")][TestCase("<p>A</td>")][TestCase("<span><p>A</p></span>")]
-    [TestCase("<p><img src='logo'></p>")][TestCase("<span><img src='logo'></span>")]
+    [TestCase("<p><img src='logo' style='display:block'></p>")][TestCase("<span><img src='logo' style='display:block'></span>")]
     [TestCase("<h1>A</h1>")][TestCase("<div>A</div>")][TestCase("<section>A</section>")]
     [TestCase("<ul><li>A</li></ul>")][TestCase(TableStructureTests.One)]
     public void ParentRulesRejectWithoutOrdinaryParagraphRepair(string content)

@@ -966,6 +966,38 @@ test('custom properties and var() are partial, failing instead of unsetting, in 
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
 
+test('inline svg is partial vector rendering, with explicit failures, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'foreign.svg'));
+  assert.equal(row.status, 'partial');
+  assert.match(row.failure_code, /FPDF1102/);
+  assert.match(row.scope, /drawn as PDF vector paths, never rasterised/);
+  assert.match(row.scope, /a missing id or a non-clipPath element clips nothing/);
+  assert.match(row.limitations, /opacity over overlapping paints or a shape that both fills and strokes/);
+  assert.match(row.limitations, /MaxDisplayCommands \(FPDF1401\)/);
+  const math = englishFeature(data.features.find(x => x.id === 'foreign.math'));
+  assert.equal(math.status, 'none');
+  assert.equal(math.scope, 'MathML root elements are not currently accepted.');
+  assert.match(englishFeature(data.features.find(x => x.id === 'functions.var')).limitations, /var\(\) in SVG paint attributes is substituted/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('img and svg are inline replaced boxes by default and svg paints transparency, in English', async () => {
+  const { englishFeature } = await localisation();
+  const english = id => englishFeature(data.features.find(x => x.id === id));
+  const svg = english('foreign.svg');
+  assert.match(svg.scope, /by default an atomic inline in the line boxes/);
+  assert.match(svg.scope, /translucent colours, fill-opacity\/stroke-opacity and opacity over non-overlapping shapes paint with PDF constant alpha/);
+  assert.doesNotMatch(svg.limitations, /descender gap|translucent colours FPDF1202/);
+  const img = english('html.img');
+  assert.match(img.scope, /By default an atomic inline/);
+  assert.match(img.limitations, /display:block image cannot have paragraph\/inline\/list ancestors \(FPDF1101\)/);
+  assert.match(english('css.vertical-align').scope, /Inline img\/svg accept baseline, middle, top, bottom, text-top, text-bottom/);
+  assert.match(english('css.display').limitations, /inline\/inline-block on img\/svg/);
+  for (const row of [svg, img, english('css.vertical-align'), english('css.display')])
+    for (const field of ['scope', 'limitations']) assert.doesNotMatch(row[field], han, field);
+});
+
 test('translucent colours paint with PDF constant alpha, in English', async () => {
   const { englishFeature } = await localisation();
   const english = id => englishFeature(data.features.find(x => x.id === id));
@@ -998,20 +1030,4 @@ test('non-strict CSS recovery is partial and valid unsupported CSS still fails, 
   const variables = englishFeature(data.features.find(x => x.id === 'functions.var'));
   assert.match(variables.limitations, /applies as that keyword, as in Chrome 158/);
   assert.doesNotMatch(variables.limitations, /revert\/revert-layer fail/);
-});
-
-test('inline svg is partial vector rendering, with explicit failures, in English', async () => {
-  const { englishFeature } = await localisation();
-  const row = englishFeature(data.features.find(x => x.id === 'foreign.svg'));
-  assert.equal(row.status, 'partial');
-  assert.match(row.failure_code, /FPDF1102/);
-  assert.match(row.scope, /drawn as PDF vector paths, never rasterised/);
-  assert.match(row.scope, /a missing id or a non-clipPath element clips nothing/);
-  assert.match(row.limitations, /opacity\/fill-opacity\/stroke-opacity other than 1/);
-  assert.match(row.limitations, /MaxDisplayCommands \(FPDF1401\)/);
-  const math = englishFeature(data.features.find(x => x.id === 'foreign.math'));
-  assert.equal(math.status, 'none');
-  assert.equal(math.scope, 'MathML root elements are not currently accepted.');
-  assert.match(englishFeature(data.features.find(x => x.id === 'functions.var')).limitations, /var\(\) in SVG paint attributes is substituted/);
-  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });

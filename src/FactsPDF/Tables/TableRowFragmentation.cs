@@ -3,9 +3,20 @@ namespace FactsPDF;
 internal enum TableCellUnitKind { TextLine, Image }
 // A value, kept inline in its cell's exact-size array: one cell line is one unit,
 // so a per-unit object and a growable list per cell dominated table measurement.
+// A text line's inline images are ImageIndex onwards, ImageBoxCount of them (a line has no image
+// decoration boxes); see LineImageStart and LineImageCount.
 internal readonly record struct MeasuredCellUnit(TableCellUnitKind Kind, int SourceOffset, double Top,
     double Height, double LeadingGap, bool IsInitialGap, int RunStart, int RunCount,
-    int ImageIndex, int ImageBoxStart, int ImageBoxCount);
+    int ImageIndex, int ImageBoxStart, int ImageBoxCount)
+{
+    internal static MeasuredCellUnit Line(int sourceOffset, double top, double height, double leadingGap,
+        bool isInitialGap, int runStart, int runCount, int imageStart, int imageCount)
+        => new(TableCellUnitKind.TextLine, sourceOffset, top, height, leadingGap, isInitialGap, runStart, runCount,
+            imageCount == 0 ? -1 : imageStart, 0, imageCount);
+
+    internal int LineImageStart => Kind == TableCellUnitKind.TextLine ? ImageIndex : -1;
+    internal int LineImageCount => Kind == TableCellUnitKind.TextLine ? ImageBoxCount : 0;
+}
 internal sealed record MeasuredTableCell(double X, double Width, double ContentX, double ContentWidth,
     double TopEdge, double BottomEdge, double InitialGap, double TerminalGap,
     BoxStyle BoxStyle, Rgb TextColor, int SourceOffset, MeasuredCellUnit[] Units);

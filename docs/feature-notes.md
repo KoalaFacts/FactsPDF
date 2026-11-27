@@ -1094,6 +1094,14 @@ A separate, strictly one-page fixed-`height` panel subset is documented above.
 
 ## Images
 
+### Inline images and svgs on the line, as in Chrome
+
+A logo header (`<header><svg …></svg></header>`) was about 4px shorter than in Chrome: FactsPDF laid every `img` and `svg` out as a block, while Chrome puts a default (`display:inline`) image on a line box whose strut leaves the text's descender space below it. An `img` or `svg` is now an atomic inline in its paragraph's line boxes: its bottom sits on the baseline, the line keeps the strut, `vertical-align` (`baseline`, `middle`, `top`, `bottom`, `text-top`, `text-bottom`, lengths and percentages) moves it, it wraps as one unit with a wrap opportunity on each side, it can sit between words in a paragraph, `span`, link (whose annotation covers its box) or list item, and a line holding a tall image moves to the next page as a unit. Padding, borders and a background paint with it; margins fail `FPDF1201`. `display:block` (and `display:inline-block`, which is the same as inline for an image) is accepted on `img` and `svg`, and `display:block` keeps the old block layout byte for byte. Pages whose images were default-inline now have the gap below them, like Chrome ([inline images in line boxes](images.md#inline-images-in-line-boxes), `InlineReplacedElementTests.cs`).
+
+### Transparency in inline SVG
+
+`fill-opacity`, `stroke-opacity`, translucent colours and `opacity` in an inline `svg` used to fail (or, for a translucent colour after translucent colours reached CSS, paint opaque). They now paint with the same PDF constant-alpha states as the rest of FactsPDF; a fill and stroke of different alpha paint as two paths. Group `opacity` is painted by multiplying it into each paint's alpha, which is exact only when the group's paints do not overlap, so overlapping paints or a shape that both fills and strokes under `opacity` below 1 fail `FPDF1103` ([inline SVG transparency](images.md#inline-svg)).
+
 ### Inline SVG logos as vector paths
 
 Report templates embed the company logo as an inline `svg`. It is now drawn as PDF vector paths (never rasterised) in a block box sized from its `width`/`height` attributes, `viewBox` and CSS, with `g`, `defs`, a one-shape `clipPath`, `path` with the full path data grammar (arcs and quadratics become cubic Béziers), `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, transforms, and inherited `fill`/`stroke` paint in any opaque CSS colour, `currentColor` or `var()`. A `clip-path="url(#id)"` naming an id that no element has clips nothing, as in Chrome. Transparency, dashes, gradients, `text`, `use` and other content fail explicitly (`FPDF1102`/`FPDF1103`); svg content counts toward `MaxDisplayCommands`. A synthetic comparison page differs from Chrome 158 in 0.02% of its ink pixels ([inline SVG](images.md#inline-svg), `InlineSvgTests.cs`).

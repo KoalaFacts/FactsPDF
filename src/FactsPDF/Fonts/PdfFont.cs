@@ -29,6 +29,7 @@ public sealed class PdfFont
     internal double Ascent1000 { get; }
     internal double Descent1000 { get; }
     internal double CapHeight1000 { get; }
+    internal double XHeight1000 { get; }
     internal double XMin1000 { get; }
     internal double YMin1000 { get; }
     internal double XMax1000 { get; }
@@ -89,6 +90,12 @@ public sealed class PdfFont
             Need(offset >= previous && offset <= glyf.Length && (offset == previous || offset - previous >= 10 || i == 0), "Invalid loca/glyf range."); previous = offset;
         }
         cmap = new UnicodeCmap(sfnt.Table("cmap", 4), glyphs, cancellation);
+        // The x-height vertical-align:middle centres on, as Skia reads it: OS/2 sxHeight, else the
+        // ink top of the "x" glyph, else Blink's 0.56 of the ascent.
+        var x = cmap.GlyphFor('x');
+        XHeight1000 = version >= 2 && S16(os2, 86) > 0 ? S16(os2, 86) * scale
+            : x != 0 && GlyphVerticalBounds1000(x).MaxY > 0 ? GlyphVerticalBounds1000(x).MaxY
+            : Ascent1000 * 0.56;
         PostScriptName = ReadName(sfnt.Table("name", 6));
     }
 

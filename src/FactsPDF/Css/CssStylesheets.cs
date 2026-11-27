@@ -489,13 +489,14 @@ internal sealed class CssStylesheets
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
             }
-            if (TablePartDisplay(declaration)) return;
-            // baseline is the initial value. Outside cells inline text (and a br or img) already
-            // sits on its baseline and blocks ignore vertical-align, so resets such as
+            if (TablePartDisplay(declaration) && element.Name is not ("img" or "svg")) return;
+            // baseline is the initial value. Outside cells inline text (and a br) already sits on
+            // its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
-            // A cell's baseline row alignment is not implemented (rejected below).
+            // A cell's baseline row alignment is not implemented (rejected below). An img or svg
+            // keeps it, since it can win over another alignment of the image.
             if (declaration.Property == CssProperty.VerticalAlign && declaration.Value == "baseline"
-                && element.Name is not ("td" or "th"))
+                && element.Name is not ("td" or "th" or "img" or "svg"))
                 return;
             // A br has no width, height or children, so box-sizing (validated when parsed) changes
             // nothing there and *{box-sizing:border-box} does not fail on a line break.
@@ -511,14 +512,18 @@ internal sealed class CssStylesheets
                 || TablePartMargin(element.Name, declaration) || UnusedZeroInset(element.Name, declaration))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
-            // An svg is laid out as a block box (no line box around it), which is exactly how a
-            // browser lays out svg{display:block}; the declaration is validated and dropped.
-            if (declaration.Property == CssProperty.Display && declaration.Value == "block" && element.Name == "svg")
-                return;
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
             // resource contracts; their display declarations fail explicitly.
-            if (declaration.Property == CssProperty.Display &&
+            // An img or svg is an inline replaced box by default and a block box with display:block;
+            // inline-block lays a replaced element out exactly like inline. display:none fails.
+            if (declaration.Property == CssProperty.Display && element.Name is "img" or "svg")
+            {
+                if (declaration.Value is not ("block" or "inline" or "inline-block"))
+                    throw new FactsPdfException("FPDF1201",
+                        "display on img and svg supports block, inline and inline-block.", declaration.Offset);
+            }
+            else if (declaration.Property == CssProperty.Display &&
                 (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
@@ -586,12 +591,12 @@ internal sealed class CssStylesheets
                 element.Name is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
-            if (declaration.Property == CssProperty.VerticalAlign)
+            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg"))
             {
                 if (element.Name is not ("td" or "th"))
                     throw new FactsPdfException("FPDF1201",
-                        "vertical-align applies only to fixed-column table td/th cells (elsewhere only its initial value baseline is accepted).", declaration.Offset);
-                if (declaration.Value == "baseline")
+                        "vertical-align applies only to table td/th cells and inline img/svg (elsewhere only its initial value baseline is accepted).", declaration.Offset);
+                if (declaration.Value is not ("top" or "middle" or "bottom" or "inherit" or "initial" or "unset"))
                     throw new FactsPdfException("FPDF1202",
                         "Table-cell vertical-align supports only top, middle and bottom.", declaration.Offset);
             }
@@ -882,7 +887,9 @@ internal sealed class CssStylesheets
                     }
                 }
             }
-            if (declaration.Property == CssProperty.Display)
+            if (declaration.Property == CssProperty.Display && element.Name is "img" or "svg")
+                Own().DisplayBlock = declaration.Value == "block";
+            else if (declaration.Property == CssProperty.Display)
                 Own().DisplayNone = declaration.Value == "none";
             else if (declaration.Property == CssProperty.ListStyleType)
                 Own().MarkerKind = declaration.Value switch
@@ -899,6 +906,12 @@ internal sealed class CssStylesheets
                     "inside" => true,
                     _ => throw new InvalidOperationException("Unvalidated list marker position.")
                 };
+            else if (declaration.Property == CssProperty.VerticalAlign && element.Name is "img" or "svg")
+                Own().InlineAlign = declaration.Value is "inherit" ? parentBox.InlineAlign
+                    : declaration.Value is "initial" or "unset" ? default
+                    : InlineVerticalAlign.TryParse(declaration.Value, out var inlineAlign, style.FontSize, rootFontSize)
+                        ? inlineAlign
+                        : throw new InvalidOperationException("Unvalidated inline vertical alignment.");
             else if (declaration.Property == CssProperty.VerticalAlign)
                 Own().VerticalAlign = declaration.Value switch
                 {
@@ -1242,7 +1255,9 @@ internal sealed class CssStylesheets
     {
         var host = element.ToLowerInvariant();
         if ((host, value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
-            or ("tr", "table-row") or ("td" or "th", "table-cell") or ("caption", "table-caption"))
+            or ("tr", "table-row") or ("td" or "th", "table-cell") or ("caption", "table-caption")
+            // An img or svg is an inline replaced box already, and inline-block lays it out the same.
+            or ("img" or "svg", "inline" or "inline-block"))
             return null;
         return (host, value) is ("tfoot", "table-footer-group")
             ? "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported."

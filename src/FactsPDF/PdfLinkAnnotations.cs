@@ -49,6 +49,24 @@ internal sealed class PdfLinkAnnotations
                 entries.Add(new(id, left, bottom, right, top, uri));
                 pageIds[page].Add(id);
             }
+            // An inline image inside a link is clickable over its box, as Chrome's link
+            // rectangles cover the image fragment.
+            foreach (var image in pages[page].Images)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (image.LinkUri is not { } uri) continue;
+                var left = Math.Max(0, image.X);
+                var right = Math.Min(options.PageWidth, image.X + image.Width);
+                var bottom = Math.Max(0, options.PageHeight - image.Top - image.Height);
+                var top = Math.Min(options.PageHeight, options.PageHeight - image.Top);
+                if (!double.IsFinite(left) || !double.IsFinite(right) || !double.IsFinite(bottom) || !double.IsFinite(top)
+                    || left >= right || bottom >= top)
+                    throw new FactsPdfException("FPDF1302",
+                        "A linked image must have a visible bounded PDF annotation rectangle.", image.SourceOffset);
+                var id = checked(firstId + entries.Count);
+                entries.Add(new(id, left, bottom, right, top, uri));
+                pageIds[page].Add(id);
+            }
         }
     }
 

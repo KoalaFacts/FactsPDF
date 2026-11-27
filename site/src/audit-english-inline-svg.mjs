@@ -1,18 +1,18 @@
-import { englishAudit as previous } from './audit-english-table-row-kept-split.mjs';
+import { englishAudit as previous } from './audit-english-auto-table-layout.mjs';
 
 // Inline svg moves to partial. Its new scope, limitation and evidence strings are inserted at index
 // 136, so the <math> row's feature name (index 138), which now first appears after them, moves
 // with them ahead of the scope and limitation the two rows used to share (indices 136 and 137, now
 // first used by <math>, whose scope no longer names SVG). The namespace-selector limitation
-// (index 591), the custom property limitation (index 631) and the image limitation (index 845) are
+// (index 591), the custom property limitation (index 632) and the image limitation (index 846) are
 // replaced in place.
-if (previous.length !== 876) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = '0b6d179c8f711c8bcf33fd19e1b0830bf60a3b6a2afe6f11b8361383a6acaae8';
+if (previous.length !== 877) throw new Error('Earlier English audit cardinality changed.');
+export const sourceDigest = '96d9c22fb0d44728066605e81ccde7d4dbcc1f845a836d4726830a779259fade';
 const entries = [...previous];
 const math = previous[138];
-entries.splice(845, 1,
+entries.splice(846, 1,
   'No unsupported PNG/JPEG modes, SVG image resources (inline svg is drawn as vector paths; see the svg element row), implicit URL/path/data loading, unconstrained auto-shrink or image fragments. Resource and geometry budgets, intrinsic-ratio checks and output protection apply. Image height percentages, calc, negatives, object-fit, implicit resource loading and image splitting remain unsupported. Structural table/col/cell em/rem sizing remains rejected; invalid value or unplaceable geometry fails while preserving prior PDF. Candidate only.');
-entries.splice(631, 1,
+entries.splice(632, 1,
   'Where a browser would unset the declaration at computed-value time (a reference with no value and no fallback, a used reference cycle, a substituted CSS-wide keyword, a value the property rejects after substitution) FactsPDF fails with FPDF1202 (or the code the literal value would get); losing declarations are substituted and checked too; malformed var() fails FPDF1202 at parse time; revert/revert-layer fail FPDF1202; each substituted value holds at most MaxCssSyntaxNodes syntax nodes, reference chains are at most MaxCssSyntaxDepth deep and substitution work counts against MaxCssMatchOperations (FPDF1205); var() in SVG paint attributes is substituted from the svg element\'s computed custom properties; no var() in selectors or at-rule preludes, and no @property registration.');
 entries.splice(591, 1, 'Inline svg now renders, but svg|… namespace selectors and @namespace are still unsupported.');
 entries.splice(138, 1);
@@ -23,7 +23,7 @@ entries.splice(136, 0,
   math);
 entries.splice(140, 1, 'MathML root elements are not currently accepted.');
 export const englishAudit = Object.freeze(entries);
-if (englishAudit.length !== 879 || englishAudit[139] !== '<math> (foreign namespace)' ||
+if (englishAudit.length !== 880 || englishAudit[139] !== '<math> (foreign namespace)' ||
   englishAudit[140] !== 'MathML root elements are not currently accepted.' || englishAudit[141] !== previous[137] || englishAudit[142] !== previous[139] ||
   englishAudit.some(value => typeof value !== 'string' || !value.trim() || /[㐀-鿿]/u.test(value)))
   throw new Error('Incomplete inline svg English audit.');
