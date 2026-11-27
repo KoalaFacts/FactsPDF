@@ -890,7 +890,8 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
   for (const row of rows) {
     assert.equal(row.status, 'partial');
     assert.match(row.limitations, /tr and thead/);
-    assert.match(row.limitations, /would split .*FPDF1302/);
+    assert.match(row.limitations, /must split .*fresh page/);
+    assert.match(row.limitations, /bottom .*FPDF1302/);
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
 });

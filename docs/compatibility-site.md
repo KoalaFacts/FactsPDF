@@ -634,7 +634,11 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+A kept table row that must split now paginates like Chrome (it starts on a fresh
+page, or moves the table there, and continues), so those two limitation strings
+are replaced in place again and a kept last row split only for the table's bottom
+decoration is the remaining `FPDF1302`; no count moves.
 Current dataset SHA-256:
-`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
-layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
-SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
+`a59f0bf86a88e5b57bb3850cf2640386ff86ee18d2d219bf989ad4e2487b051c`; English
+layer `site/src/audit-english-table-row-kept-split.mjs`, ordered source-text
+SHA-256 `0fba5ce7a8a30c050f2d3558180e7827053eb74f3eddd73ad0bef4ad71d175df`.

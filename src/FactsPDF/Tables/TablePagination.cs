@@ -37,8 +37,10 @@ internal static class TablePagination
         return new(end, height);
     }
 
+    // freshStart: this fragment begins where a fresh page would place it, so breaking before a kept
+    // row cannot give it more room.
     internal static TableFragmentPlan FitWithContinuations(MeasuredTable table, TableCursor cursor,
-        double available, TableFreshSpace freshSpace, bool first, CancellationToken cancellation)
+        double available, TableFreshSpace freshSpace, bool first, CancellationToken cancellation, bool freshStart = true)
     {
         var header = table.Rows[0].IsHeader ? table.Rows[0].Height : 0;
         var height = header + (first ? table.Top : 0);
@@ -72,6 +74,9 @@ internal static class TablePagination
                 continue;
             }
             var continuation = nextCursor.Continuation ?? new(new int[row.Cells.Length], true);
+            // Like Chrome, a kept row taller than a fresh fragment first breaks before itself (before
+            // the table for the first body row) and only then continues from the fresh page.
+            if (row.AvoidBreakInside && continuation.IsFirstFragment && (parts.Count > 0 || !freshStart)) break;
             // Logical group identity survives positive heights that round away
             // when accumulated into table-local coordinates.
             var firstCapacity = freshSpace.UsableHeight - header
