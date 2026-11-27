@@ -441,13 +441,13 @@ def main():
             raise AssertionError('Native AOT accepted out-of-range relative font size')
         if sample_pdf.read_bytes() != b'keep-existing':
             raise AssertionError('Invalid relative font size modified the destination')
-        bad.write_text("<div style='background:rgba(1,2,3,0.5)'>Invalid alpha</div>", encoding='utf-8')
+        bad.write_text("<div style='background:rgba(1,2,3,5px)'>Invalid alpha</div>", encoding='utf-8')
         proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
                               capture_output=True, timeout=120)
         if proc.returncode != 3 or b'FPDF1202' not in proc.stderr or proc.stdout:
-            raise AssertionError('Native AOT accepted unsupported alpha channel')
+            raise AssertionError('Native AOT accepted a malformed alpha channel')
         if sample_pdf.read_bytes() != b'keep-existing':
-            raise AssertionError('Unsupported RGB alpha modified the destination')
+            raise AssertionError('Malformed RGB alpha modified the destination')
         # A rejected decoration cannot corrupt a previous PDF, even in AOT.
         bad.write_text("<p style='text-decoration:underline wavy'>Unsupported</p>", encoding='utf-8')
         proc = subprocess.run([str(exe), str(bad), str(sample_pdf), '--overwrite'],
