@@ -701,3 +701,8 @@ The integrated strict/non-strict CSS, table row details, captions and collapsed 
 `8a5d77cfd1327babc9490fabefb235d6a10f342599e26e6e56cc2d3bc8b3f858`; English
 layer `site/src/audit-english-integrated-features.mjs`, ordered source-text
 SHA-256 `8a4070b56fb2a1b941b3168f04e19c4aa0c521b2c4b66a5897e6a12dcf06261d`.
+
+The `html.tbody`, `html.html` and `html.body` limitations are replaced in place for the implied `tbody`, the `html` canvas background and the shrinking flex-item `body`; no status or count moves. Current dataset SHA-256:
+`52c2327ebdd267b16b8c5f41121b5be1a20c4afcb8dd9c5a55b687f3d33f53fa`; English
+layer `site/src/audit-english-implied-tbody-canvas.mjs`, ordered source-text
+SHA-256 `26bbe810b9dac052ed4de99c773f8b36359f5c3371fd338097c11e8b0259b159`.
