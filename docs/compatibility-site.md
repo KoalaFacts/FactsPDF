@@ -635,6 +635,6 @@ The `break-inside` and `page-break-inside` rows stay partial; their limitation s
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
 Current dataset SHA-256:
-`73c5e9a7f895e2774ae45cb3259e7f3f0c3af86fd219b25b1fa4879d411d2bdc`; English
+`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
 layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
 SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
