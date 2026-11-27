@@ -36,7 +36,7 @@ limitations and the tests that prove it. Check it before you write a template.
 
 You need Git and any **.NET 10 SDK** (10.0.100 or later). The package targets `net8.0`, `net9.0` and
 `net10.0` (the CLI is `net10.0` only) and also runs in .NET 11 apps: CI checks a `net11.0` consumer on
-the .NET 11 GA SDK and runtime, and that every example renders the same bytes on both runtimes.
+the .NET 11 GA SDK and runtime, and compares every example's bytes between .NET 10 and .NET 11.
 
 ```sh
 git clone https://github.com/KoalaFacts/FactsPDF.git

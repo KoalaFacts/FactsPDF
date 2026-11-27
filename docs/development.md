@@ -28,8 +28,9 @@ all three. The bounded-cost checks of the resource limits run everywhere.
 
 The `dotnet-11` CI job installs the .NET 11 GA SDK (11.0.100) and checks a `net11.0` consumer
 of the package's `net10.0` asset (`verify_first_use.py --consumer-tfm net11.0 --probe-sdk 11.0.100 --probe-runtime 11.0.0`),
-runs the whole test suite retargeted to `net11.0`, and requires every example PDF to be
-byte-identical on both runtimes. Adding a native `net11.0` build to the package is a separate,
+runs the whole test suite retargeted to `net11.0`, and compares every example PDF between
+the two runtimes (a `cmp` step that currently passes; a zlib change in a later .NET 11
+runtime would fail that step, not the product). Adding a native `net11.0` build to the package is a separate,
 reviewed change to the package contract in `scripts/verify_package.py`. From the repository root:
 
 ```sh

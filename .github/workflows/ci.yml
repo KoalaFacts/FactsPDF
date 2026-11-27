@@ -40,7 +40,8 @@ jobs:
         run: |
           node --test scripts/check-docs.test.ts
           node scripts/check-docs.ts
-      - run: dotnet test FactsPDF.slnx -c Release --logger "console;verbosity=normal"
+      # One target framework at a time keeps the timing-bounded cancellation tests off a shared CPU.
+      - run: dotnet test FactsPDF.slnx -c Release -p:TestTfmsInParallel=false --logger "console;verbosity=normal"
   byte-parity:
     # Renders every example with the CLI from the PR's base and from the PR,
     # with three option sets, and fails on any exit-code, stderr or byte change.
