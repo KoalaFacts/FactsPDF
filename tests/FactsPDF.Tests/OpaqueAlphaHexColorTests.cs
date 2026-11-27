@@ -32,7 +32,7 @@ public sealed class OpaqueAlphaHexColorTests
     }
 
     [TestCase("color:#23446")]
-    [TestCase("color:#2344")]
+    [TestCase("color:#23446b4")]
     [TestCase("color:#23446bfff")]
     public void MalformedHexStillFails(string css)
     {

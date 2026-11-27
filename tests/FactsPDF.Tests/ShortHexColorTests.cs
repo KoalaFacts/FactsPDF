@@ -13,11 +13,12 @@ public sealed class ShortHexColorTests
     [TestCase("#AbC", "#aabbcc")]
     [TestCase("#f0a", "#ff00aa")]
     [TestCase("#123", "#112233")]
+    [TestCase("#7899", "#77889999")]
     public void ShortFormEqualsItsLongForm(string shortForm, string longForm)
         => Assert.That(InlineCss.Color(shortForm, 0), Is.EqualTo(InlineCss.Color(longForm, 0)));
 
     [TestCase("#78")]
-    [TestCase("#7899")]
+    [TestCase("#78990")]
     [TestCase("#78g")]
     [TestCase("#+78")]
     [TestCase("#7 8")]

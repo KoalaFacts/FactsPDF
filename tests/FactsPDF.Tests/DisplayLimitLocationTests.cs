@@ -201,7 +201,7 @@ public sealed class ListMarkerByteLimitLocationTests
         var before = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < count; i++) discs[i] = new PlacedDisc(i, 2, 3, color, ListMarkerKind.Square, i);
         var perDisc = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)count;
-        Assert.That(perDisc, Is.EqualTo(72).Within(0.5));
+        Assert.That(perDisc, Is.EqualTo(56).Within(0.5));
         Assert.That(discs[^1].SourceOffset, Is.EqualTo(count - 1));
     }
 }
