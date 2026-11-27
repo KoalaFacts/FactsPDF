@@ -14,11 +14,31 @@ internal enum TextDecorationPattern { Solid, Dashed, Dotted }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
-// A is the CSS alpha quantised to one byte (n/255), as Chrome's PDF backend stores paint alpha.
-// 1 is opaque and paints through the legacy opaque PDF path byte for byte; 0 paints nothing.
-internal readonly record struct Rgb(double R, double G, double B, double A = 1)
+// Each channel is held as one byte (n/255): every colour CSS gives FactsPDF is a byte per channel,
+// and A is the CSS alpha quantised to one byte, as Chrome's PDF backend stores paint alpha. Four
+// bytes keep a colour smaller than the three doubles it replaced, so alpha costs no style or
+// placed-marker allocation. A of 1 is opaque and paints through the legacy opaque PDF path byte
+// for byte; 0 paints nothing.
+internal readonly record struct Rgb
 {
-    internal bool IsInvisible => A <= 0;
+    private readonly byte r, g, b, a;
+
+    internal Rgb(double r, double g, double b, double a = 1)
+    {
+        this.r = Quantise(r);
+        this.g = Quantise(g);
+        this.b = Quantise(b);
+        this.a = Quantise(a);
+    }
+
+    internal double R => r / 255d;
+    internal double G => g / 255d;
+    internal double B => b / 255d;
+    internal double A => a / 255d;
+    internal bool IsInvisible => a == 0;
+
+    private static byte Quantise(double value) =>
+        (byte)Math.Round(Math.Clamp(value, 0, 1) * 255, MidpointRounding.AwayFromZero);
 }
 // Computed text style. Treat every published instance as immutable: the root style, a parent's
 // style and any style stored in the document model or a run are shared, and adjacent runs with
@@ -191,7 +211,7 @@ internal sealed record LocatedText(string Text, double X, double Baseline, TextS
 {
     internal override int SourceOffset => Offset;
 }
-// SourceOffset is the list item's; it packs beside Kind, so a disc stays 72 bytes.
+// SourceOffset is the list item's; it packs beside Kind, so a disc stays 56 bytes.
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
     int SourceOffset = -1);
 internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
