@@ -631,7 +631,10 @@ to say that table parts accept the display value they already render and that
 The non-standard `background-color-adjust` joins `color-adjust` as an alias of
 `print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
 since no feature row covers it (accepted CSS property names 383 to 384).
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
 Current dataset SHA-256:
-`2167c34d79275f3615393d0a5b71f1aab9be830623b3454b0cc7d4f36bf7b2d9`; English
-layer `site/src/audit-english-background-color-adjust.mjs`, ordered source-text
-SHA-256 `5515dd2b34a8d714e74aafc3b447c2c171ef0233fb6686f539a6df51bf2de7f7`.
+`988a1aaf19b42be4227ac6460f22cd2caad96c88be76275cc388082cb8aad1b9`; English
+layer `site/src/audit-english-overflow-wrap-anywhere.mjs`, ordered source-text
+SHA-256 `6cf6e1d481a4f2864ddfd080e69fc7085e2d8df452a777c9320fd7e031891e4e`.

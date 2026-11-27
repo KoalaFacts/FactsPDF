@@ -141,7 +141,10 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'fa7531e4e3c7dd0f1199916537d885dc164bf2ab');
+  assert.equal(display.last_audited_commit,'990e4d080b39463bc7e83f79d9dc1af6a3c9319f');
+  assert.match(display.scope,/normal\/break-word\/anywhere/);
+  assert.match(display.scope,/anywhere[^.]*min-content[^.]*byte-identical to overflow-wrap:break-word/);
+  assert.doesNotMatch(display.limitations,/No anywhere/);
   assert.match(display.scope,/flat cell paragraphs/);
   assert.match(display.scope,/legacy word-wrap alias/);
   assert.match(display.scope,/outside lists\/tables/);
