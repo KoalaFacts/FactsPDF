@@ -12,10 +12,25 @@ public sealed class ReportHyperlinksTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 280, PageHeight = 170, Margin = 12 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, options ?? Page);
+        PdfConverter.Convert(Neutral(html), stream, options ?? Page);
         return stream.ToArray();
     }
 
@@ -25,7 +40,7 @@ public sealed class ReportHyperlinksTests
         original.Write("customer-original"u8);
         original.Position = 3;
         var ex = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert(html, original, options ?? Page));
+            PdfConverter.Convert(Neutral(html), original, options ?? Page));
         Assert.Multiple(() =>
         {
             Assert.That(ex!.Code, Is.EqualTo(code));
@@ -53,7 +68,7 @@ public sealed class ReportHyperlinksTests
             "<p>Order: <a href='https://example.com/order'>View order</a></p>", Page, default);
         var run = TextLayout.Layout(tree, Page, default).Single().Runs.Single(x => x.Style.LinkUri is not null);
         Assert.That(run.Text, Is.EqualTo("View order"));
-        Assert.That(run.Style.Color, Is.EqualTo(new Rgb(0, 0, 0.8)));
+        Assert.That(run.Style.Color, Is.EqualTo(new Rgb(0, 0, 238 / 255d)), "UA link colour is #0000ee.");
         Assert.That(run.Style.Decoration, Is.EqualTo(TextDecoration.Underline));
         Assert.That(run.Width, Is.GreaterThan(0));
     }
@@ -139,7 +154,7 @@ public sealed class ReportHyperlinksTests
         var font = PdfFont.FromBytes(sourceFont);
         var options = Page with { Fonts = [font] };
         const string html = "<p><a href='https://example.com/ink'>A</a></p>";
-        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), options, default), options, default);
         var run = pages.Single().Runs.Single(x => x.Style.LinkUri is not null);
         var pdf = Encoding.Latin1.GetString(Pdf(html, options));
         var match = Regex.Match(pdf, @"/Subtype /Link /Rect \[([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)\]");

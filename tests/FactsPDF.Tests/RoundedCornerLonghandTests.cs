@@ -8,15 +8,30 @@ public sealed class RoundedCornerLonghandTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 240, Margin = 20 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Pdf(string html)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, Page);
+        PdfConverter.Convert(Neutral(html), output, Page);
         return output.ToArray();
     }
 
     private static BlockNode Panel(string html) =>
-        (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        (BlockNode)HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single();
 
     private static (double TL, double TR, double BR, double BL) Corners(BlockNode node) =>
         (node.BoxStyle.CornerRadius, node.BoxStyle.CornerTopRightRadius,
@@ -111,7 +126,7 @@ public sealed class RoundedCornerLonghandTests
         using var target = new MemoryStream();
         target.Write("KEEP-EXISTING-CUSTOMER-PDF"u8);
         target.Position = 4;
-        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, target, Page));
+        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), target, Page));
         Assert.That(ex!.Code, Is.EqualTo(code));
         Assert.That(target.ToArray(), Is.EqualTo("KEEP-EXISTING-CUSTOMER-PDF"u8.ToArray()));
         Assert.That(target.Position, Is.EqualTo(4));
