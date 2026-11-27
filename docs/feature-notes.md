@@ -1451,6 +1451,22 @@ See the [scoped CSS contract](css-stylesheets.md#current-source-html-horizontal-
 [independently authored painted-box oracle](../examples/report-horizontal-rules-oracle.html).
 This source feature is not a public NuGet/CLI release or a new private binary.
 
+### Current-source single-line flex rows
+
+Report header bars, label/value rows and toolbars written with
+`display:flex` now render: `.flex{display:flex;justify-content:space-between}`
+with text and logo blocks, `ul.list-info li{display:flex;justify-content:space-between;column-gap:10pt}`
+with a label and a value `span`, and inline
+`style="display:flex;align-items:flex-start"` rows. Items are sized from their
+real glyph widths and laid out with `flex-grow`, `flex-shrink`, `flex-basis`,
+`justify-content`, `align-items`/`align-self` (including `baseline` and
+stretched boxes and images), gaps, `auto` margins and `order`. A row stays
+whole on one page: rows of short items move to the next page, and rows a
+browser would split fail `FPDF1302`. Multi-line (`flex-wrap:wrap`) and column
+flex containers fail `FPDF1202`. Against Chrome print output with the same
+fonts, word origins differ by at most 0.28pt horizontally. See the
+[flex contract](css-stylesheets.md#current-source-single-line-flex-rows).
+
 ### Current-source print-only report sections (bounded display)
 
 Use `display:none` to omit a draft, internal note, or unused ordinary
@@ -1478,8 +1494,9 @@ value that names what they already render and change nothing:
 `thead{display:table-header-group}`, `tbody`/`tfoot{display:table-row-group}`,
 `tr{display:table-row}` and `td,th{display:table-cell}`;
 `tfoot{display:table-footer-group}` (a footer repeated on every fragment) and
-any other pairing still fail `FPDF1202` (`TablePartDisplayTests.cs`). CSS-wide display keywords,
-inline/flex/grid layout, image/`hr`/table/list suppression, JavaScript and
+any other pairing still fail `FPDF1202` (`TablePartDisplayTests.cs`). `display:flex` lays out
+[single-line flex rows](#current-source-single-line-flex-rows). CSS-wide display keywords,
+inline/grid layout, image/`hr`/table/list suppression, JavaScript and
 media-query display switches are not supported.
 
 See [exact source contract](css-stylesheets.md#current-source-bounded-report-display-suppression),

@@ -95,7 +95,7 @@ public sealed class TablePartDisplayTests
         using var output = new MemoryStream();
         var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, Page));
         Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
-        Assert.That(error.Message, Does.Contain("only block and none"));
+        Assert.That(error.Message, Does.Contain("only block, flex and none"));
         Assert.That(output.Length, Is.Zero);
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(at, StringComparison.Ordinal) + "display:".Length));
     }

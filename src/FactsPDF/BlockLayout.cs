@@ -16,6 +16,8 @@ internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, do
 internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, int Start, int End,
     double ContentWidth) : BlockLayoutStep;
 internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
+internal sealed record LayoutFlexLine(BlockNode Container, double X, double ContentWidth,
+    double VerticalEdges) : BlockLayoutStep;
 internal sealed record LayoutKeepPanel(BlockNode Node, double ContentWidth,
     double Top, double Bottom, double MarginTop, double MarginBottom) : BlockLayoutStep;
 
@@ -36,6 +38,8 @@ internal static class BlockLayout
     {
         ArgumentNullException.ThrowIfNull(root);
         var frames = new Stack<Frame>();
+        if (root.FlexRootOffset >= 0)
+            FlexLayout.CheckRootFlexNoOp(root, options, cancellation);
         frames.Push(new(root.Children, 0, options.MarginLeft, options.ContentWidth, 0, true));
         while (frames.Count > 0)
         {
@@ -66,6 +70,9 @@ internal static class BlockLayout
                         geometry.Width, geometry.Height, geometry.OuterWidth, geometry.OuterHeight);
                     break;
                 }
+                case FlexLine line:
+                    yield return new LayoutFlexLine(line.Container, frame.X, frame.ContentWidth, line.VerticalEdges);
+                    break;
                 case Paragraph paragraph:
                     yield return new LayoutParagraph(
                         ResolveParagraphMargins(paragraph, frame.ParagraphMarginBasis ?? frame.ContentWidth, options),
@@ -166,6 +173,11 @@ internal static class BlockLayout
                             > usablePageHeight + 0.000001)
                         throw new FactsPdfException("FPDF1302",
                             "Empty report box and percentage outside margins cannot fit on a page.", node.SourceOffset);
+                    // A flex row is already kept whole on one page; a kept flex panel would also
+                    // need its padding and borders kept with it, which is not implemented.
+                    if (style.AvoidBreakInside && style.IsFlexContainer)
+                        throw new FactsPdfException("FPDF1201",
+                            "break-inside:avoid is not supported on a flex container.", node.SourceOffset);
                     if (style.AvoidBreakInside)
                     {
                         // Only a root-level flat text card has the bounded,
@@ -203,7 +215,10 @@ internal static class BlockLayout
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
                         indivisibleClosingMargin,
                         DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0);
-                    frames.Push(new(lists?.Children(node) ?? node.Children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
+                    IReadOnlyList<BlockChild> children = style.IsFlexContainer
+                        ? (node.Children.Count == 0 ? node.Children : [new FlexLine(node, box.Top + box.Bottom)])
+                        : lists?.Children(node) ?? node.Children;
+                    frames.Push(new(children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" or "menu" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
                         ParagraphMarginBasis: node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"

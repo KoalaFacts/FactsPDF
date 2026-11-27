@@ -133,11 +133,16 @@ internal sealed class ListLayout
             // Both forward and reverse sequence positions advance for every
             // direct li, including marker-free items. Nested lists compute
             // their own counters. The parsed tree remains immutable.
-            long ordinal = list.ListStart ?? (list.ListReversed ? list.Children.Count : 1);
+            // A display:flex li is no longer a list item: it has no marker and does not count.
+            var listItems = 0;
+            for (var index = 0; index < list.Children.Count; index++)
+                if (!((BlockNode)list.Children[index]).BoxStyle.IsFlexContainer) listItems++;
+            long ordinal = list.ListStart ?? (list.ListReversed ? listItems : 1);
             for (var index = 0; index < list.Children.Count; index++)
             {
                 cancellation.ThrowIfCancellationRequested();
                 var item = (BlockNode)list.Children[index];
+                if (item.BoxStyle.IsFlexContainer) continue;
                 if (item.ListValue.HasValue) ordinal = item.ListValue.Value;
                 if (ordinal < 1 || ordinal > ListMarkerTypes.MaxOrdinal)
                     throw new FactsPdfException("FPDF1103",

@@ -12,6 +12,8 @@ internal enum CssProperty
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
+    FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
+    ColumnGap, RowGap, Order,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.
@@ -256,7 +258,8 @@ internal static class CssDeclarations
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
-        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset;
+        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
+        || CssFlexValues.IsFlexProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -289,6 +292,11 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : BoxStyle.Initial;
 
+        if (CssFlexValues.IsFlexProperty(property))
+        {
+            CssFlexValues.Apply(current, parent, declaration, rootFontSize, elementFontSize);
+            return current;
+        }
         if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
             or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius)
         {

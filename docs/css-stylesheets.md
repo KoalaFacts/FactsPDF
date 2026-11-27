@@ -2620,10 +2620,71 @@ native `verify_stylesheets.py` acceptance block. Exact final-head CI,
 independent review, human reference approval, private software and
 commercial distribution rights are **separate**.
 
+## Current-source single-line flex rows
+
+`display:flex` lays out the children of an ordinary report panel (`div`,
+`section`, `article`, `header`, `footer`, `main`, `nav`, `aside`, `hgroup`,
+`search`, `blockquote`, `figure`, `figcaption`, `address`, `dl`, `dt`,
+`dd`), an `li` or `body` as **one row of flex items**, following CSS Flexible
+Box Layout §9 for a single-line, row-direction container:
+
+- **Items.** Every child block, image and paragraph element is a flex item.
+  Each inline child (`span`, `strong`, `a`, …) and each run of text between
+  them becomes its own item, so `<li><span>Label</span><span>Value</span></li>`
+  is a two-item row; whitespace-only text between items is dropped. A flex
+  `li` is no longer a list item: it has no marker and is not numbered. A table
+  as a flex item fails `FPDF1201`.
+- **Main axis.** The flex base size comes from `flex-basis` (length,
+  percentage of the container's content width, `em`/`rem`, `content`, or
+  `auto`), else a definite `width`, else the item's max-content width measured
+  with the same glyph advances, letter/word spacing and break opportunities the
+  line wrapper uses. Items grow by `flex-grow` or shrink by `flex-shrink` ×
+  base size through the flexible-length loop, clamped by `min-width`/
+  `max-width` and by the automatic minimum (the min-content width, or a
+  smaller `width`). `auto` margins take the free space first; `justify-content`
+  then places the items: `normal`, `flex-start`, `start`, `left`, `stretch`,
+  `flex-end`, `end`, `right`, `center`, `space-between`, `space-around` and
+  `space-evenly`. `column-gap` (or the `gap` shorthand's second value) inserts
+  a fixed gap between items; `row-gap` has no effect on a single line. `order`
+  reorders items (stable for equal values). The `flex` shorthand accepts
+  `none`, `auto`, one number (grow, with shrink 1 and a `0%` basis), and
+  `grow shrink basis` in the CSS grammar; `flex-flow` accepts `row` and
+  `nowrap`.
+- **Cross axis.** Each item is laid out by the ordinary block layout at its
+  resolved width. The line is as tall as its tallest item (or the
+  baseline-aligned extent), or the container's `height`, or at least its
+  `min-height`. `align-items` and `align-self` accept `normal`/`stretch`
+  (a box or image without a `height` is laid out again at the line height),
+  `flex-start`/`start`/`self-start`, `flex-end`/`end`/`self-end`, `center` and
+  `baseline` (first text baselines; an item without text uses its border-box
+  bottom). `align-content` is validated and dropped: a single line fills the
+  container.
+- **Pagination.** A flex row is placed whole. When it does not fit the rest of
+  the page it moves to the next page only if every item is a single paragraph
+  of at most three lines — which a browser also moves whole under the default
+  `orphans`/`widows` of 2 — and otherwise fails `FPDF1302`, because a browser
+  would split taller items between pages. A row taller than a page, items that
+  cannot shrink to the container and items taller than a fixed-height container
+  fail `FPDF1302`.
+- **`html{display:flex}`** only centres a body narrower than a browser window.
+  It (with its `justify-content`, `align-items`, gaps and `width:100%`) is
+  accepted where `body` is the single item and its max-content width fills the
+  page, which makes it exactly the block layout; a narrower body fails
+  `FPDF1201`.
+- **Not supported:** `flex-wrap` other than `nowrap` and `flex-direction`
+  other than `row` (`FPDF1202`), `inline-flex` (`FPDF1202`), `display:flex` on
+  `p`/`pre`/headings, lists or inside tables (`FPDF1201`), `break-inside:avoid`
+  on a flex container (`FPDF1201`), percentage vertical margins on flex items
+  and a percentage `text-indent` in a content-sized item (`FPDF1201`).
+
+Flex properties on elements that are not flex containers or items change
+nothing, as in a browser. See [`FlexLayoutTests`](../tests/FactsPDF.Tests/FlexLayoutTests.cs).
+
 ## Current-source bounded report display suppression
 
 This source-only print-report subset accepts `display:none` and
-`display:block` (single identifier each) on ordinary `p`/`h1`–`h6`,
+`display:block` (single identifier each; `display:flex` is described in
+[single-line flex rows](#current-source-single-line-flex-rows)) on ordinary `p`/`h1`–`h6`,
 `div`/`section`/`article` and `blockquote`, outside lists/tables.
 A winning `none` suppresses the entire parsed block subtree. `block`
 retains that element's existing block formatting. No other formatting
@@ -2635,7 +2696,7 @@ does not inherit; a descendant `display:block` cannot resurrect an
 ancestor whose whole subtree has been suppressed. CSS-wide `inherit`,
 `initial`, `unset` are deliberately rejected (`FPDF1202`): their full
 standard computed behavior would include unsupported inline formatting.
-Unknown `display` values (`inline`, `flex`, `grid`, `contents`, etc.),
+Unknown `display` values (`inline`, `inline-flex`, `grid`, `contents`, etc.),
 multi-token values and functions also reject `FPDF1202`, including unmatched
 selectors. All applicable declarations are validated even if they lose the
 cascade. `html`/`body`, spans/emphasis, `img`, `hr`, all list/table

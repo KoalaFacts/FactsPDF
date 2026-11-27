@@ -422,13 +422,49 @@ internal sealed record BoxStyle
     // Ordinary fill and border paint can anchor a box's leading layout across
     // page breaks. An outside outline is ink only: it must not consume padding
     // or change the page on which a panel's first text is placed.
+    // display:flex and the flex container and item properties, one shared reference so a box
+    // without any of them keeps the initial instance and costs no extra object.
+    public FlexStyle Flex { get; set; } = FlexStyle.Initial;
+    public bool IsFlexContainer => Flex.Display == BoxDisplay.Flex;
     public bool HasLayoutPaint => BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
     public bool HasPaint => HasLayoutPaint || Outline.EffectiveWidth > 0;
 }
 
+internal enum BoxDisplay { Block, Flex }
+// Main-axis distribution of a single-line, row-direction flex container.
+internal enum FlexJustify { Start, End, Center, SpaceBetween, SpaceAround, SpaceEvenly }
+// Cross-axis placement of a flex item; Stretch is also the computed normal.
+internal enum FlexAlign { Stretch, Start, End, Center, Baseline }
+
+// Computed display and flex properties. None is inherited. Treat every published instance as
+// immutable, like BoxStyle: CSS computing assigns only its own private copy.
+internal sealed record FlexStyle
+{
+    internal static readonly FlexStyle Initial = new();
+
+    public BoxDisplay Display { get; set; }
+    public FlexJustify JustifyContent { get; set; }
+    public FlexAlign AlignItems { get; set; }
+    // null is align-self:auto, which takes the container's align-items.
+    public FlexAlign? AlignSelf { get; set; }
+    public double Grow { get; set; }
+    public double Shrink { get; set; } = 1;
+    // null is flex-basis:auto; BasisContent is flex-basis:content.
+    public CssLength? Basis { get; set; }
+    public bool BasisContent { get; set; }
+    // null is gap normal, which is zero in a flex container.
+    public CssLength? ColumnGap { get; set; }
+    public CssLength? RowGap { get; set; }
+    public int Order { get; set; }
+}
+
 internal abstract record BlockChild;
+
+// The single flex line of a flex container, standing in for the container's children in block
+// layout. Never part of the parsed tree.
+internal sealed record FlexLine(BlockNode Container, double VerticalEdges) : BlockChild;
 
 internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChildList
 {
@@ -591,4 +627,7 @@ internal sealed class DocumentRoot
     public CssPageRules? PageRules { get; set; }
     /// <summary>The html element's computed text style, which the page context inherits; null without an html element.</summary>
     public TextStyle? RootStyle { get; set; }
+    // Source offset of an html element computed as display:flex, or -1. Layout accepts it only
+    // where its single body item fills the page width, which makes it a block layout no-op.
+    public int FlexRootOffset { get; set; } = -1;
 }

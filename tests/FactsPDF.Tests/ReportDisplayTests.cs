@@ -120,7 +120,7 @@ public sealed class ReportDisplayTests
     }
 
     [TestCase("display:grid", "FPDF1202")]
-    [TestCase("display:flex", "FPDF1202")]
+    [TestCase("display:inline-flex", "FPDF1202")]
     [TestCase("display:inline", "FPDF1202")]
     [TestCase("display:inherit", "FPDF1202")]
     [TestCase("display:initial", "FPDF1202")]
@@ -131,7 +131,7 @@ public sealed class ReportDisplayTests
 
     [Test]
     public void UnmatchedDisplayRuleStillRejectsUnsupportedValues()
-        => Reject("<style>.missing{display:flex}</style><p>VALID</p>", "FPDF1202");
+        => Reject("<style>.missing{display:inline-flex}</style><p>VALID</p>", "FPDF1202");
 
     [TestCase("<span style='display:none'>A</span>")]
     [TestCase("<body style='display:none'><p>A</p></body>")]

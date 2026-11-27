@@ -43,10 +43,20 @@ internal static class TextLayout
         return offset;
     }
 
-    private static List<LayoutPage> LayoutCore(IEnumerable<BlockLayoutStep> steps, PdfOptions o, CancellationToken cancellation)
+    // Lays out a self-contained fragment (a flex item) on one page of the given options, sharing
+    // the caller's font cache and display-command budget; end receives where the fragment ends.
+    internal static List<LayoutPage> LayoutFragment(DocumentRoot fragment, PdfOptions o,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, LayoutBudget budget,
+        FragmentEnd end, CancellationToken cancellation)
+        => LayoutCore(BlockLayout.Steps(fragment, o, cancellation, ListLayout.Prepare(fragment, o, cancellation)),
+            o, cancellation, resolved, budget, end);
+
+    private static List<LayoutPage> LayoutCore(IEnumerable<BlockLayoutStep> steps, PdfOptions o, CancellationToken cancellation,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>? resolved = null,
+        LayoutBudget? budget = null, FragmentEnd? end = null)
     {
         var pages = new List<LayoutPage> { new() };
-        var resolved = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
+        resolved ??= new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
         var y = o.MarginTop; var after = 0d; var breakNext = false;
         var trimNextMargin = false;
         // The last placed text was a break-after:avoid heading. A break before the paragraph that
@@ -66,10 +76,10 @@ internal static class TextLayout
         var closedBoxOccupied = false;
         var opened = new List<OpenBlock>();
         var contentEpoch = 0; var paintOrder = 0;
-        var displayCommands = 0;
+        budget ??= new LayoutBudget();
         void EnsureDisplayCommands(int count, int sourceOffset)
         {
-            if (count > o.MaxDisplayCommands - displayCommands)
+            if (count > o.MaxDisplayCommands - budget.DisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.", sourceOffset);
         }
         void ChargeDisplayCommands(int count, int sourceOffset = -1)
@@ -78,7 +88,7 @@ internal static class TextLayout
             // entry points. Subtraction avoids overflowing at an int.MaxValue
             // limit; zero-area fragments retain their existing zero cost.
             EnsureDisplayCommands(count, sourceOffset);
-            displayCommands += count;
+            budget.DisplayCommands += count;
         }
         // One delegate per layout, not one per placed line or block.
         Action<int, int> chargeDisplayCommands = ChargeDisplayCommands;
@@ -194,7 +204,7 @@ internal static class TextLayout
                 // block exhausted the command budget, fail before decoding or
                 // wrapping this card's future text (as ordinary paragraphs do).
                 // This is a check, not a charge: real rendering counts once.
-                if (displayCommands == o.MaxDisplayCommands)
+                if (budget.DisplayCommands == o.MaxDisplayCommands)
                     EnsureDisplayCommands(1, keep.Node.SourceOffset);
                 // Preflight only the exact bounded flat card shape validated
                 // by BlockLayout. Measure with the same font/glyph wrap and
@@ -308,7 +318,7 @@ internal static class TextLayout
                     // Match the established paint-budget precedence before
                     // rejecting an oversized empty box. A zero-width/zero-paint
                     // preview must not manufacture a display command.
-                    if (displayCommands == o.MaxDisplayCommands)
+                    if (budget.DisplayCommands == o.MaxDisplayCommands)
                     {
                         var preview = new PaintedBox(begin.X, o.MarginTop, begin.OuterWidth,
                             requiredHeight, begin.Style, begin.TextColor, paintOrder);
@@ -327,7 +337,7 @@ internal static class TextLayout
                         requiredHeight = ResolveRequiredHeight();
                         completeEmptyFootprint = requiredHeight +
                             (begin.IndivisibleEmptyClosingMargin ?? 0);
-                        if (displayCommands == o.MaxDisplayCommands)
+                        if (budget.DisplayCommands == o.MaxDisplayCommands)
                         {
                             var preview = new PaintedBox(begin.X, o.MarginTop, begin.OuterWidth,
                                 requiredHeight, begin.Style, begin.TextColor, paintOrder);
@@ -391,6 +401,16 @@ internal static class TextLayout
                             "Fixed-height report panel content exceeds available height.", scope.SourceOffset);
                     minimumExtra = Math.Max(0, scope.StartY + requiredOuterHeight - naturalEnd);
                 }
+                if (end is not null && opened.Count == 0)
+                {
+                    // The fragment's root box ends at its border-box bottom, painted or not,
+                    // with the same geometry the paint below would use.
+                    var rootBottomMargin = !scope.IsParagraph &&
+                        (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
+                         scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) ? after : 0d;
+                    end.RootBlockEnd = Math.Max(scope.StartPage == pages.Count - 1 ? scope.StartY + scope.Top : o.Margin,
+                        y + pendingTopPadding + pendingClosedPadding + rootBottomMargin) + closing.PaddingBottom + minimumExtra;
+                }
                 if (minimumExtra > 0)
                 {
                     // This empty minimum has reserved real space after the
@@ -431,7 +451,7 @@ internal static class TextLayout
                     var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom + minimumExtra;
-                    if (displayCommands == o.MaxDisplayCommands)
+                    if (budget.DisplayCommands == o.MaxDisplayCommands)
                     {
                         // With no allowance left, a definitely nonzero paint
                         // command must fail before later geometry validation.
@@ -591,6 +611,68 @@ internal static class TextLayout
                 pendingTopPadding = pendingClosedPadding = after = 0;
                 contentEpoch++;
                 followsKeptHeading = false;
+                for (var i = 0; i < opened.Count; i++)
+                    opened[i] = opened[i] with { HasOccupiedDescendant = true };
+                continue;
+            }
+            if (step is LayoutFlexLine flex)
+            {
+                var measured = FlexLayout.Measure(flex, o, resolved, budget, cancellation);
+                // A flex container without items has no line; its box keeps any minimum height.
+                if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0 &&
+                    measured.Images.Count == 0 && measured.Discs.Count == 0)
+                    continue;
+                if (breakNext)
+                {
+                    if (HasRetainedPageContent())
+                    {
+                        NewPage(flex.Container.SourceOffset);
+                        MoveUnconsumedBlocksToNewPage();
+                        pendingClosedPadding = 0;
+                    }
+                }
+                breakNext = false;
+                var flexGap = after + pendingTopPadding + pendingClosedPadding;
+                if (y + flexGap + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
+                {
+                    // A browser moves a row of short items whole to the next page but splits taller
+                    // items between their lines or blocks; FactsPDF keeps every flex row whole.
+                    if (!measured.KeepWhole && measured.Height <= bottom - o.Margin + 0.000001)
+                        throw new FactsPdfException("FPDF1302",
+                            "A flex row that does not fit the rest of the page would be split by a browser; FactsPDF keeps flex rows whole, so only rows of single short items can move to the next page.",
+                            flex.Container.SourceOffset);
+                    NewPage(flex.Container.SourceOffset);
+                    MoveUnconsumedBlocksToNewPage();
+                    flexGap = pendingTopPadding;
+                }
+                if (y + flexGap + measured.Height > bottom + 0.000001)
+                    throw new FactsPdfException("FPDF1302",
+                        "A flex row and its required leading decoration cannot fit on one page; flex rows are not split across pages.",
+                        flex.Container.SourceOffset);
+                y += flexGap;
+                foreach (var run in measured.Runs)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    pages[^1].Runs.Add(run with { Baseline = o.PageHeight - y + run.Baseline });
+                }
+                foreach (var box in measured.PaintBoxes)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    pages[^1].PaintBoxes.Add(box with { Top = y + box.Top, Order = paintOrder++ });
+                }
+                foreach (var flexImage in measured.Images)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    pages[^1].Images.Add(flexImage with { Top = y + flexImage.Top });
+                }
+                foreach (var disc in measured.Discs)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    pages[^1].Discs.Add(disc with { Y = o.PageHeight - y + disc.Y });
+                }
+                y += measured.Height;
+                pendingTopPadding = pendingClosedPadding = after = 0;
+                contentEpoch++;
                 for (var i = 0; i < opened.Count; i++)
                     opened[i] = opened[i] with { HasOccupiedDescendant = true };
                 continue;
@@ -854,7 +936,7 @@ internal static class TextLayout
             // earlier paragraph or box has used the exact command allowance.
             // Blank/whitespace/break-only paragraphs can still affect geometry
             // without emitting text commands and must retain that behavior.
-            if (displayCommands == o.MaxDisplayCommands && (item.Marker is not null || HasTextContent(paragraph, cancellation)))
+            if (budget.DisplayCommands == o.MaxDisplayCommands && (item.Marker is not null || HasTextContent(paragraph, cancellation)))
                 ChargeDisplayCommands(1, paragraphOffset);
             var insideMarkerInset = item.Marker is { Inside: true } inside
                 ? inside.Width + 0.5 * inside.Style.FontSize : 0d;
@@ -1022,7 +1104,28 @@ internal static class TextLayout
             after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
             followsKeptHeading = paragraph.Style.KeepWithNext;
         }
+        if (end is not null) end.EndY = y + pendingTopPadding + pendingClosedPadding + after;
         return pages;
     }
 
+}
+
+/// <summary>The display commands charged so far in one conversion, shared with fragment layouts.</summary>
+internal sealed class LayoutBudget
+{
+    public int DisplayCommands;
+
+    internal void Charge(int count, int sourceOffset, PdfOptions options)
+    {
+        if (count > options.MaxDisplayCommands - DisplayCommands)
+            throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.", sourceOffset);
+        DisplayCommands += count;
+    }
+}
+
+/// <summary>Where a fragment layout ended: its root box's border-box bottom and the flow cursor.</summary>
+internal sealed class FragmentEnd
+{
+    public double RootBlockEnd = -1;
+    public double EndY;
 }
