@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 public sealed class ImageCompositionTests
 {
     private const string Body = "<body style='font-size:10pt;line-height:2'>";
-    private const string Image = "<img src='chart' style='width:120pt'>";
+    private const string Image = "<img src='chart' style='display:block;width:120pt'>";
     private static PdfOptions Options(bool embedded = false)
     {
         var normal = embedded ? PdfFont.FromBytes(FontFixture.Create(listDigits: true)) : null;
@@ -56,7 +56,7 @@ public sealed class ImageCompositionTests
     {
         var options = Options(true);
         var pages = Layout("<ol style='font-weight:bold'><li><p style='margin-top:0;margin-bottom:0;break-after:page'>A</p></li></ol>"
-            + "<img src='chart' style='width:160pt'>"
+            + "<img src='chart' style='display:block;width:160pt'>"
             + "<ol style='font-style:italic'><li>B</li></ol>", options);
         Assert.That(pages, Has.Count.EqualTo(3));
         Assert.That(pages[1].Runs, Is.Empty); Assert.That(pages[1].Images, Has.Count.EqualTo(1));

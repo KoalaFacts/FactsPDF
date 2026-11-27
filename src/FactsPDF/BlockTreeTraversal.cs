@@ -33,6 +33,9 @@ internal static class BlockTreeTraversal
                 case ImageNode:
                     break; // The compatibility projection contains text only.
                 case TableNode table:
+                    if (table.Caption is { } caption)
+                        foreach (var content in caption.Contents)
+                            if (content is TableCellText text) yield return text.Paragraph;
                     foreach (var row in table.Rows)
                         foreach (var cell in row.Cells)
                         {

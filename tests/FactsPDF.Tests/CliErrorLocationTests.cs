@@ -20,12 +20,12 @@ public sealed class CliErrorLocationTests
     private static FactsPdfException CoreError(string html)
         => Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, new MemoryStream()))!;
 
-    [TestCase("<p style=\"display:flex\">x</p>", 1, 19)]
-    [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p style=\"display:flex\">x</p>", 3, 21)]
-    [TestCase("<h1>Title</h1>\r\n<p>ok</p>\r\n<p style=\"display:flex\">x</p>", 3, 19)]
-    [TestCase("<p>a</p>\n<!-- 😀😀 --><p style=\"display:flex\">x</p>", 2, 30)]
-    [TestCase("<h1>Title</h1>\r<p>ok</p>\r<p style=\"display:flex\">x</p>", 3, 19)]
-    [TestCase("<h1>Title</h1>\r\n\n\r<p style=\"display:flex\">x</p>", 4, 19)]
+    [TestCase("<p style=\"display:inline-flex\">x</p>", 1, 19)]
+    [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p style=\"display:inline-flex\">x</p>", 3, 21)]
+    [TestCase("<h1>Title</h1>\r\n<p>ok</p>\r\n<p style=\"display:inline-flex\">x</p>", 3, 19)]
+    [TestCase("<p>a</p>\n<!-- 😀😀 --><p style=\"display:inline-flex\">x</p>", 2, 30)]
+    [TestCase("<h1>Title</h1>\r<p>ok</p>\r<p style=\"display:inline-flex\">x</p>", 3, 19)]
+    [TestCase("<h1>Title</h1>\r\n\n\r<p style=\"display:inline-flex\">x</p>", 4, 19)]
     public void SourceDiagnosticsReportLineAndColumnOfTheCoreOffset(string html, int line, int column)
     {
         var core = CoreError(html);
@@ -67,7 +67,7 @@ public sealed class CliErrorLocationTests
     [Test]
     public void LocationNeverEchoesInputText()
     {
-        const string html = "<p>SECRET-CUSTOMER-NAME</p>\n<p style=\"display:flex\">SECRET-CUSTOMER-NAME</p>";
+        const string html = "<p>SECRET-CUSTOMER-NAME</p>\n<p style=\"display:inline-flex\">SECRET-CUSTOMER-NAME</p>";
         var (_, lines) = Run(html);
         Assert.That(string.Join("\n", lines), Does.Not.Contain("SECRET"));
     }

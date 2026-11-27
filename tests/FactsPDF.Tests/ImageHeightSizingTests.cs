@@ -49,10 +49,10 @@ public sealed class ImageHeightSizingTests
     public void BorderBoxHeightCountsVerticalEdgesExactlyOnce()
     {
         const string actual =
-            "<img src=chart style='height:50pt;box-sizing:border-box;" +
+            "<img src=chart style='display:block;height:50pt;box-sizing:border-box;" +
             "padding:2pt;border:1pt solid red;background:white'>";
         const string control =
-            "<img src=chart style='width:88pt;padding:2pt;" +
+            "<img src=chart style='display:block;width:88pt;padding:2pt;" +
             "border:1pt solid red;background:white'>";
         SamePdf(actual, control);
         var page = TableLayoutTests.Layout(actual, Options()).Single();
@@ -109,17 +109,17 @@ public sealed class ImageHeightSizingTests
     {
         SamePdf(
             "<style>img.logo{height:36pt!important}img{height:18pt}</style>" +
-            "<img src=chart class=logo style='height:20pt'>",
-            "<img src=chart style='width:72pt'>");
+            "<img src=chart class=logo style='display:block;height:20pt'>",
+            "<img src=chart style='display:block;width:72pt'>");
         SamePdf(
-            "<img src=chart style='height:36pt;height:auto'>",
-            "<img src=chart>");
+            "<img src=chart style='display:block;height:36pt;height:auto'>",
+            "<img src=chart style='display:block'>");
         SamePdf(
-            "<section style='height:36pt'><img src=chart style='height:inherit'></section>",
-            "<section style='height:36pt'><img src=chart style='width:72pt'></section>");
+            "<section style='height:36pt'><img src=chart style='display:block;height:inherit'></section>",
+            "<section style='height:36pt'><img src=chart style='display:block;width:72pt'></section>");
         const string cell =
             "<table style='width:160pt'><colgroup><col style='width:160pt'></colgroup>" +
-            "<tbody><tr><td><img src=chart style='height:36pt'></td></tr></tbody></table>";
+            "<tbody><tr><td><img src=chart style='display:block;height:36pt'></td></tr></tbody></table>";
         SamePdf(cell, cell.Replace("height:36pt", "width:72pt", StringComparison.Ordinal));
     }
 

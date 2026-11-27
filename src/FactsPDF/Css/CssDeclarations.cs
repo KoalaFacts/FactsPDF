@@ -11,7 +11,9 @@ internal enum CssProperty
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
-    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast,
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
+    FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
+    ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.
@@ -218,7 +220,8 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
+            or CssProperty.Orphans or CssProperty.Widows;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         switch (property)
         {
@@ -229,6 +232,9 @@ internal static class CssDeclarations
             case CssProperty.LineHeight: style.LineHeight = source.LineHeight; style.AbsoluteLineHeight = source.AbsoluteLineHeight; break;
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
             case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
+            case CssProperty.BorderCollapse: style.CollapseBorders = source.CollapseBorders; break;
+            case CssProperty.Orphans: style.Orphans = source.Orphans; break;
+            case CssProperty.Widows: style.Widows = source.Widows; break;
             case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
             case CssProperty.TextDecorationColor: style.DecorationColor = source.DecorationColor; break;
             case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;
@@ -252,7 +258,8 @@ internal static class CssDeclarations
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
-        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset;
+        or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
+        || CssFlexValues.IsFlexOrGridProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -285,6 +292,11 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : BoxStyle.Initial;
 
+        if (CssFlexValues.IsFlexOrGridProperty(property))
+        {
+            CssFlexValues.Apply(current, parent, declaration, rootFontSize, elementFontSize);
+            return current;
+        }
         if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
             or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius)
         {
@@ -467,6 +479,7 @@ internal static class CssDeclarations
             1 => old with
             {
                 Solid = wide ? inherited.Solid : value is not ("none" or "hidden"),
+                Hidden = wide ? inherited.Hidden : value == "hidden",
                 Pattern = wide ? inherited.Pattern : CssPaintValues.EdgeStyle(value, declaration.Offset)
             },
             2 => old with

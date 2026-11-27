@@ -16,10 +16,10 @@ internal sealed class PdfImageWriter
             foreach (var placed in page.Images)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (indices.TryAdd(placed.Image, images.Count))
+                if (placed.Image is { } image && indices.TryAdd(image, images.Count))
                 {
-                    images.Add((placed.Image, false));
-                    if (placed.Image.HasAlpha) images.Add((placed.Image, true));
+                    images.Add((image, false));
+                    if (image.HasAlpha) images.Add((image, true));
                 }
             }
     }
@@ -30,12 +30,14 @@ internal sealed class PdfImageWriter
     /// </summary>
     internal void AppendResources(StringBuilder output, LayoutPage page, int firstObject, int limit, CancellationToken cancellation)
     {
-        if (page.Images.Count == 0) return;
+        // An inline svg is painted in the content stream itself and needs no XObject.
+        if (!page.Images.Exists(placed => placed.Image is not null)) return;
         var start = output.Length;
         output.Append(" /XObject <<"); var seen = new HashSet<int>();
         foreach (var placed in page.Images)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (placed.Image is null) continue;
             var index = indices[placed.Image];
             if (seen.Add(index)) output.Append(" /Im").Append(index + 1).Append(' ').Append(firstObject + index).Append(" 0 R");
             Check(output.Length - start, limit);
@@ -43,14 +45,24 @@ internal sealed class PdfImageWriter
         output.Append(" >>");
     }
 
-    internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation)
+    internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation,
+        ref PdfAlphaStates alpha)
     {
         foreach (var placed in page.Images)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (placed.Decoration is { } decoration)
+                PdfPaintSerializer.Append(content,
+                    [decoration with { X = placed.X + decoration.X, Top = placed.Top + decoration.Top }],
+                    options.PageHeight, options.MaxOutputBytes, cancellation, ref alpha);
+            if (placed.Vector is { } vector)
+            {
+                SvgPainter.Append(content, vector, placed, options, ref alpha);
+                continue;
+            }
             content.Append("q ").AppendInvariant(placed.Width, Number).Append(" 0 0 ").AppendInvariant(placed.Height, Number).Append(' ')
                 .AppendInvariant(placed.X, Number).Append(' ').AppendInvariant(options.PageHeight - placed.Top - placed.Height, Number)
-                .Append(" cm /Im").Append(indices[placed.Image] + 1).Append(" Do Q\n");
+                .Append(" cm /Im").Append(indices[placed.Image!] + 1).Append(" Do Q\n");
             Check(content.Length, options.MaxOutputBytes);
         }
     }

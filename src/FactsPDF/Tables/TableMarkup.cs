@@ -2,7 +2,7 @@ namespace FactsPDF;
 
 /// <summary>Strict table shape validation; no HTML table repair.</summary>
 /// <remarks>
-/// Columns come from one <c>colgroup</c> of <c>col</c> elements or, without a <c>colgroup</c>, from
+/// An optional <c>caption</c> comes first. Columns come from one <c>colgroup</c> of <c>col</c> elements or, without a <c>colgroup</c>, from
 /// the cells of the first row; every later row must cover the same number of columns.
 /// </remarks>
 internal sealed class TableMarkup(TableNode node)
@@ -14,6 +14,12 @@ internal sealed class TableMarkup(TableNode node)
     private int headerRows, bodyRows, footerRows;
     private int coveredColumns;
     private TableRow? row;
+    // The backgrounds of the open row group and row, painted under cells without their own.
+    private Rgb? groupBackground, rowBackground;
+    // The open row group's box, text colour and index, kept on its rows for collapsed borders.
+    private BoxStyle groupBox = BoxStyle.Initial;
+    private Rgb groupColor;
+    private int groupIndex;
     // True while the first row of a table without colgroup is open: it sets the column count.
     private bool countingColumns;
     internal TableNode Node { get; } = node;
@@ -22,24 +28,26 @@ internal sealed class TableMarkup(TableNode node)
     /// <summary>The columns a cell may still span: the rest of the row's columns, or of <see cref="MaxColumns"/> while the first row sets the count.</summary>
     internal int RemainingColumns => (countingColumns ? MaxColumns : Node.Columns.Count) - coveredColumns;
 
-    internal static bool IsTag(string name) => name is "table" or "colgroup" or "col" or "thead" or "tbody" or "tfoot" or "tr" or "th" or "td";
+    internal static bool IsTag(string name) => name is "table" or "caption" or "colgroup" or "col" or "thead" or "tbody" or "tfoot" or "tr" or "th" or "td";
 
     internal void CheckChild(string parent, string name, int offset)
     {
         var valid = Cell is not null
-            ? name is "p" or "img"
+            ? name is "p" or "img" or "svg"
                 ? parent is "td" or "th"
                 : HtmlDocumentReader.InlineTag(name) || name == "br"
             : parent switch
             {
-                "table" => name == "colgroup" && phase == Phase.NeedColumns
+                "table" => name == "caption" && phase == Phase.NeedColumns && Node.Caption is null && Node.Columns.Count == 0
+                    || name == "colgroup" && phase == Phase.NeedColumns
                     || name == "thead" && phase is Phase.NeedColumns or Phase.AfterColumns
                     || name == "tbody" && phase is Phase.NeedColumns or Phase.AfterColumns or Phase.AfterHeader
                     || name == "tfoot" && phase == Phase.Complete,
                 "colgroup" => name == "col" && Node.Columns.Count < MaxColumns,
                 "thead" => name == "tr" && headerRows == 0,
                 "tbody" or "tfoot" => name == "tr",
-                "tr" => row is not null && name == (row.IsHeader ? "th" : "td") && RemainingColumns > 0,
+                // Any row may hold th and td cells, as in HTML (label/value rows: th then td).
+                "tr" => row is not null && name is "th" or "td" && RemainingColumns > 0,
                 _ => false
             };
         if (!valid) throw Invalid("Unsupported table structure, placement or cell content.", offset);
@@ -49,20 +57,34 @@ internal sealed class TableMarkup(TableNode node)
     {
         switch (name)
         {
+            case "caption":
+                // Laid out above the table at the table's width (TableLayout); its own width,
+                // margins and caption-side:bottom are not implemented.
+                if (box.Width is not null)
+                    throw new FactsPdfException("FPDF1201", "caption width is not supported; a caption takes its table's width.", offset);
+                Cell = new(style, box, offset, 1);
+                Node.Caption = Cell;
+                break;
             case "colgroup": phase = Phase.Columns; break;
             case "col": Node.Columns.Add(new(box.Width, offset)); break;
             case "thead":
                 if (phase == Phase.NeedColumns) countingColumns = true;
+                OpenGroup(style, box);
                 phase = Phase.Header; break;
             case "tbody":
                 if (phase == Phase.NeedColumns) countingColumns = true;
+                OpenGroup(style, box);
                 phase = Phase.Body; break;
             // Footer rows are ordinary body rows placed after the tbody rows,
             // where the source already puts them; they are not repeated per page.
-            case "tfoot": phase = Phase.Footer; break;
+            case "tfoot": OpenGroup(style, box); phase = Phase.Footer; break;
             case "tr":
                 coveredColumns = 0;
-                row = new(phase == Phase.Header, offset, box.AvoidBreakInside);
+                rowBackground = box.BackgroundColor;
+                row = new(phase == Phase.Header, offset, box.AvoidBreakInside)
+                {
+                    Box = box, Color = style.Color, Group = groupIndex, GroupBox = groupBox, GroupColor = groupColor
+                };
                 if (row.IsHeader) headerRows++;
                 else if (phase == Phase.Footer) footerRows++;
                 else bodyRows++;
@@ -72,6 +94,11 @@ internal sealed class TableMarkup(TableNode node)
                 if (columnSpan > RemainingColumns)
                     throw Invalid("Cell span exceeds the remaining table columns.", offset);
                 coveredColumns += columnSpan;
+                // With separated borders and no spacing a row's cells cover the row exactly, so a
+                // row or group background painted under them shows only through cells without
+                // their own: the same paint as giving those cells the background.
+                if (box.BackgroundColor is null && (rowBackground ?? groupBackground) is { } inherited)
+                    box = box with { BackgroundColor = inherited };
                 Cell = new(style, box, offset, columnSpan);
                 row!.Cells.Add(Cell);
                 break;
@@ -82,6 +109,8 @@ internal sealed class TableMarkup(TableNode node)
     {
         switch (name)
         {
+            case "caption":
+                Cell = null; break;
             case "colgroup":
                 if (Node.Columns.Count == 0) throw Invalid("colgroup requires at least one explicit column.", offset);
                 phase = Phase.AfterColumns; break;
@@ -113,9 +142,18 @@ internal sealed class TableMarkup(TableNode node)
                 Cell = null; break;
             case "table":
                 if (phase is not (Phase.Complete or Phase.AfterFooter))
-                    throw Invalid("table requires an optional colgroup, an optional one-row thead and one nonempty tbody in order, then an optional tfoot.", offset);
+                    throw Invalid("table requires an optional caption, an optional colgroup, an optional one-row thead and one nonempty tbody in order, then an optional tfoot.", offset);
+                if (Node.Style.CollapseBorders) TableBorderCollapse.Apply(Node);
                 break;
         }
+    }
+
+    private void OpenGroup(TextStyle style, BoxStyle box)
+    {
+        groupBackground = box.BackgroundColor;
+        groupBox = box;
+        groupColor = style.Color;
+        groupIndex++;
     }
 
     private static FactsPdfException Invalid(string message, int offset) => new("FPDF1101", message, offset);

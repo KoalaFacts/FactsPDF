@@ -21,6 +21,163 @@ dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --imag
 
 Repeat `--image name=path` for up to 16 resources. The first `=` separates the name; quote arguments with spaces. Relative paths use the process working directory. Extensions are not format evidence. Each file is read through the bounded loader; no network download is provided. Output paths cannot equal the supplied HTML, font or image path. Existing CLI temporary-file, stdout and exit-code rules still apply, including the documented trusted-directory limitation for filesystem aliases.
 
+## Inline SVG
+
+An inline `svg` element (a company logo in a report header, an icon in a table
+cell) is drawn as PDF vector paths, not as a raster image: it stays sharp at any
+zoom and adds no image object. No resource binding is needed.
+
+```html
+<header>
+  <svg width="108" height="36" viewBox="0 0 485 164" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clip-path="url(#clip0_1)">
+      <path d="M12.3 45.6C40 10 80 10 120 45.6L120 140H12.3Z" fill="#2c323c"/>
+      <path d="M160 20h120v124h-120z M190 50v64h60V50z" fill-rule="evenodd" fill="var(--brand-red)"/>
+    </g>
+  </svg>
+</header>
+```
+
+**Placement and size.** The svg is a replaced box placed like `img` (see
+[Inline images in line boxes](#inline-images-in-line-boxes)): by default an
+atomic inline on its paragraph's line, with `display:block` a block box. Its `width` and `height`
+attributes (numbers or `px`; `width` may be a percentage) are presentational
+hints: they set the CSS width and height unless author CSS does, so
+`style="width:162pt"` replaces the width and keeps the attribute height, and
+`max-width` shrinks only the width, as in Chrome. With a `viewBox`, a missing
+dimension follows the viewBox ratio, and with neither attribute the svg fills
+its containing block's width. Without a `viewBox`, a missing dimension takes
+the replaced-element default of 300 by 150 px. One user unit is one CSS px
+(0.75pt) without a viewBox; with one, `preserveAspectRatio` (default
+`xMidYMid meet`; every alignment, `meet`, `slice` and `none`) maps it into the
+content box, and the content box clips the drawing, as a browser clips an
+outer svg's overflow.
+
+**Content.** `g`, `defs` (not rendered), `clipPath`, `path`, `rect` (with
+`rx`/`ry`), `circle`, `ellipse`, `line`, `polyline`, `polygon`, and `title`
+and `desc` (never rendered). Path data takes the whole SVG grammar: every
+command in absolute and relative form (`M L H V C S Q T A Z`), implicit
+repeats, commas, signs, fractions and exponents (`.5e1`) and compact arc
+flags. Quadratic curves become cubic Béziers exactly; each elliptical arc
+becomes at most four cubic Béziers after the out-of-range radius corrections
+of the SVG specification. `transform` lists (`matrix`, `translate`, `scale`,
+`rotate` with or without a centre, `skewX`, `skewY`) compose through groups.
+
+**Paint.** The presentation attributes `fill`, `fill-rule`, `stroke`,
+`stroke-width`, `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit`,
+`color`, `visibility` and `clip-rule` inherit as in SVG (`display="none"` hides
+a subtree). Paint values are `none`, `transparent`, `currentColor` (the
+element's colour: the svg's computed CSS `color` or a `color` attribute) and
+any CSS colour the `color` property accepts (names in any case, `#rgb`,
+`rgb()`, `hsl()`), including `var(--name)` and `var(--name, fallback)`
+substituted from the svg element's computed custom properties, as Chrome does
+for presentation attributes. A shape is filled then stroked (`f`, `f*`, `S`,
+`B`, `B*`), with the SVG default miter limit 4.
+
+**Transparency.** Translucent colours (`rgba()`, `hsla()`, `#rgba`,
+`#rrggbbaa`), `fill-opacity` and `stroke-opacity` (inherited; a number or a
+percentage, clamped to 0–1) paint with PDF constant alpha like the rest of
+FactsPDF: the paint's alpha is the colour's alpha times its opacity, rounded to
+one byte, and selects the page's `/A`*nn* ExtGState inside the shape's `q`/`Q`.
+A fill and a stroke whose alpha bytes differ are painted as two paths (`f`, then
+`S`), so each gets its own state. `opacity` (on a shape, a `g` or the svg
+element) is group opacity: the subtree is composited, then faded. FactsPDF
+paints no transparency group; it multiplies the opacity into each paint's
+alpha, which is exactly the group result only when no two of the group's paints
+overlap. So `opacity` below 1 is accepted when every shape under it either
+fills or strokes (not both: a stroke overlaps its own fill) and their bounding
+boxes (control points, widened by the stroke's reach: half its width times the
+miter limit or a square cap's diagonal) are pairwise disjoint, for at most 256
+shapes; anything else fails `FPDF1103`. Alpha that rounds to 0 paints nothing.
+
+**Clipping.** `clip-path="url(#id)"` names the first element in the document
+with that id, wherever it is (later in the page, or in another svg). When that
+element is a `clipPath`, its shape clips in the referencing element's user
+space (`clip-rule` applies; an empty `clipPath` hides the element). When no
+element has the id, or it is not a `clipPath`, nothing is clipped: the logo
+above renders whole, as it does in Chrome.
+
+**What fails.** Every other element (`text`, `use`, `image`, gradients,
+patterns, `mask`, `filter`, `marker`, `symbol`, a nested `svg`, a `style`
+inside an svg) fails `FPDF1102`. `FPDF1103`: `opacity` over overlapping
+paints or over a shape that both fills and strokes (see Transparency),
+malformed opacity values, `stroke-dasharray`, `url()` paint, percentage or unit lengths inside the svg,
+a percentage height, a `clipPath` with more than one shape or
+`objectBoundingBox` units, `transform` or `clip-path` on the svg element
+itself, unknown attributes, and malformed path data (a browser renders the
+valid prefix; FactsPDF fails rather than drop part of a logo). CSS that would change svg content fails
+`FPDF1201`: `color` on content where `currentColor` paints, `display`,
+`width`/`height` on a `rect`, custom properties declared on content, and
+SVG-only properties such as `fill` in a stylesheet. Declarations that cannot
+change svg content (universal margin, padding, box-sizing or font resets) are
+ignored there. An svg with `display:block` inside a paragraph, inline element
+or list fails `FPDF1101`.
+
+**Bounds.** Every number is within ±1,000,000 user units (`FPDF1103`). Each path
+segment, painted shape and applied clip segment is one display command: the
+document's svgs fail `FPDF1401` once they exceed `MaxDisplayCommands`, before
+layout. svg content counts toward `MaxElements` (`FPDF1002`) and its nesting
+toward `MaxDepth` (`FPDF1003`).
+
+**Evidence.** `InlineSvgTests.cs` covers the path grammar, the emitted PDF
+operators, sizing and every failure code. Chrome 158 printed
+[`examples/css-visual/svg-inline.html`](../examples/css-visual/svg-inline.html)
+(the logo above with a missing clip id, every path command, every basic shape,
+transforms, a clipPath, `currentColor`, `var()` and `preserveAspectRatio`);
+both PDFs rasterised by MuPDF at 120 DPI and compared with
+`scripts/css_visual_metrics.py` (`compare`, after `align_raster_canvases`), the
+FactsPDF page and the Chrome page have the same ink bounds and differ in 40 of
+187,748 ink pixels (0.02%, anti-aliasing at curve edges; maximum channel
+difference 60/255).
+
+## Inline images in line boxes
+
+An `img` or `svg` with the default `display:inline` (or `inline-block`, which
+lays a replaced element out the same) is an atomic inline in its paragraph's
+line boxes, as in Chrome. It can stand alone in a block (a logo header), sit in
+a paragraph, `span`, link or list item between words, or fill a table cell.
+
+```html
+<header><svg width="160" height="48" viewBox="0 0 485 164">…</svg></header>
+<p>Status <img src="ok-icon" style="width:10pt;vertical-align:middle"> passed.</p>
+```
+
+- **Baseline and line height.** The image's bottom edge sits on the text
+  baseline, and the line box always holds the paragraph's strut. So a 36px-high
+  logo alone in a `div` with 10pt Arial text leaves the strut's descent below
+  it (about 4px), exactly as Chrome does; FactsPDF used to lay the logo out as
+  a block without that gap.
+- **`vertical-align`** on the `img`/`svg`: `baseline` (initial), `middle` (the
+  box's midpoint at half the parent's x-height above the baseline; the font's
+  OS/2 `sxHeight`, else the ink top of its `x`), `text-top` and `text-bottom`
+  (the parent font's ascent and descent), `top` and `bottom` (the line box,
+  which grows only if the image is taller than it), and lengths (`pt`, `px`,
+  `em`, `rem` and the other report units; negative lowers) and percentages of
+  the line-height, which raise the bottom above the baseline. `sub`, `super`
+  and `calc()` fail `FPDF1202`; other elements still accept only `baseline`
+  (`FPDF1201`), and table cells only `top`, `middle` and `bottom` (`FPDF1202`).
+- **Wrapping.** There is a soft wrap opportunity before and after every image,
+  even next to a word (CSS Text); an image never splits. Collapsed spaces around
+  it stay, one on each side. `text-align` and `text-indent` place it like text.
+- **Box.** Width, height and their limits, padding, borders and a background
+  work as for a block image; the padding, border and background paint with the
+  image, above the block backgrounds. Margins, rounded corners and outlines on
+  an inline image fail `FPDF1201`; use `display:block`.
+- **Links.** An image inside `<a href>` gets a link annotation covering its box.
+- **Pagination.** A line with a tall image moves to the next page as a unit; a
+  line taller than a page fails `FPDF1302` at the image.
+- **Tables.** In automatic table layout an inline image needs a non-percentage
+  size (`FPDF1302`), as a block image in a cell does.
+- **Block.** `display:block` keeps the block layout (no line box, no descender
+  gap); such an image or svg inside a paragraph, inline element or list fails
+  `FPDF1101`. `display:none` fails `FPDF1201`; display values other than
+  `block`, `inline` and `inline-block` fail `FPDF1202`, as does `display:inline`
+  in a rule whose selector could reach elements other than `img` and `svg`.
+
+`InlineReplacedElementTests.cs` covers the descender gap, every `vertical-align`
+value against the built-in Courier metrics, wrapping, links, decoration,
+pagination, `display` and the failures.
+
 ## Font-relative image boxes for reports (candidate source, PR #196)
 
 Explicitly bound JPEG/PNG images now consume scoped `em` and `rem` in
@@ -170,9 +327,9 @@ JPEG requires a first JFIF APP0, 8-bit SOF0, one complete interleaved sequential
 
 Progressive/multiscan, CMYK/RGB-coded JPEG, arithmetic/lossless, ICC/Adobe transforms, non-square density, thumbnails and unsupported markers fail explicitly. Exif may omit orientation or specify 1; rotations/flips fail. Only bounded TIFF IFD0 ranges and the orientation field are interpreted; child IFD semantics are not validated. COM and bounded supported metadata are retained in the original DCT stream. DeviceRGB/Gray output does not claim color management or full image sanitization.
 
-`img` is a void block at the root/body or inside ordinary supported containers, or a direct image item in a [table cell](tables.md#rich-and-spanning-cells). Paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
+`img` is an inline replaced box by default (see [Inline images in line boxes](#inline-images-in-line-boxes)), and with `display:block` a void block at the root/body or inside ordinary supported containers, or a direct image item in a [table cell](tables.md#rich-and-spanning-cells). A block image's paragraph/inline/list ancestors, `</img>`, HTML width/height, srcset and CSS height are rejected. `alt` is metadata only; it is neither a fallback nor Tagged PDF. Existing id/class/style selectors apply.
 
-CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Standalone images remain left-aligned. Cell images use their cell's text alignment and available content width, including any covered tracks from `colspan`. Paragraphs and images may share a cell as separate vertical items. No unrequested automatic shrinking, percentage/em/rem image height, object-fit, transforms, floats, text wrapping around images, or inline/list images are implemented. Scoped physical image height is documented above.
+CSS width controls content width; percentages use the parent content width. Natural size uses 96 dpi (`pixels × .75pt`) regardless of density metadata. Height preserves the pixel aspect ratio. Padding, solid borders, background and currentColor work through the existing box model. Block images remain left-aligned; inline images follow `text-align`. Block cell images use their cell's text alignment and available content width, including any covered tracks from `colspan`. Paragraphs and images may share a cell as separate vertical items. No unrequested automatic shrinking, percentage/em/rem image height, object-fit, transforms, floats or text wrapping around images are implemented. Scoped physical image height is documented above.
 
 The complete image outer box moves to the next page if necessary. An image plus required leading ancestor decoration that cannot fit an empty page fails `FPDF1302`. Its own padding/borders never split; ancestor decorations retain existing slice behavior. Each image draw costs one display command, plus normal decoration commands.
 
@@ -214,8 +371,9 @@ ancillary metadata, including gamma/chromaticity, density, background, Exif and
 text, is ignored after framing/type/CRC validation; compressed metadata is not
 inflated. This does not implement color management or automatic Exif rotation.
 
-16-bit samples, Adam7 interlacing, APNG and SVG remain unsupported and fail
-explicitly. PNG and JPEG share standalone and direct-cell-item placement. The
+16-bit samples, Adam7 interlacing, APNG and SVG image resources (SVG bytes
+passed to `PdfImage`) remain unsupported and fail explicitly; inline `svg`
+elements are drawn as vectors (see [Inline SVG](#inline-svg)). PNG and JPEG share standalone and direct-cell-item placement. The
 engine does not fetch images from the network or bundle fonts.
 
 ### Generate the brand-report sample

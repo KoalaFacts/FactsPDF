@@ -4,7 +4,7 @@
     {
       "id": "points",
       "file": "points.html",
-      "sha256": "442a8ffb0a38b34e36e0507716e55878cc2e19f31dc6fa282c71524557402a8b",
+      "sha256": "e5eba9c76249e8624ff5db0fae504b0407342b6ca6738b222cfa9cc7dbac32dc",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,
@@ -50,7 +50,7 @@
     {
       "id": "percentages",
       "file": "percentages.html",
-      "sha256": "a1f63437e887c952188ce566665040ebf57ade78892352443260fbf747342357",
+      "sha256": "ae3345815cfb8330c5f45845be418e6534d56e7402d7494ebaf079054d3c4541",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,
@@ -96,7 +96,7 @@
     {
       "id": "missing-width",
       "file": "missing-width.html",
-      "sha256": "8b011e5ac157bef6495a72ae5c6b2f70ff79da57a963f5dbafa483a3df6dd648",
+      "sha256": "8642413a99a08e4c4fe47333d8ac4131e9f4641352a8fd8f701b07ce75797b59",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,
@@ -187,10 +187,47 @@
     {
       "id": "missing-body",
       "file": "missing-body.html",
-      "sha256": "170507c13262f1bcd87b88a0e8029591d371c9e8947ed10a84d5fc51a33d451a",
+      "sha256": "ef955d094a525c8464245413e15702235a26099e84f9e5df0c3c84909c8ce3a2",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
-        "code": "FPDF1101"
+        "pages": 1,
+        "table_width": 480,
+        "column_outer_widths": [
+          80,
+          140,
+          260
+        ],
+        "cell_padding": 4,
+        "cell_border": 1,
+        "content_widths": [
+          70,
+          130,
+          250
+        ],
+        "row_line_counts": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            2
+          ]
+        ],
+        "line_height": 18,
+        "row_heights": [
+          28,
+          28,
+          46
+        ],
+        "table_height": 102
       }
     },
     {

@@ -27,9 +27,10 @@ def reference_status(): return 'pending-user-review'
 def row_height(number): return 54 if number % 10 == 0 else 32
 
 
-def row_groups(count):
-    # Authored 362pt introduction + 32pt repeating header. Whole-row greedy fill.
-    groups = [[]]; top = 398 + 32
+def row_groups(count, image_gap):
+    # Authored 362pt introduction, plus the line gap under the inline chart image,
+    # + 32pt repeating header. Whole-row greedy fill.
+    groups = [[]]; top = 398 + image_gap + 32
     for number in range(1, count + 1):
         height = row_height(number)
         if top + height > H - 36:
@@ -61,6 +62,12 @@ class Sources:
         a, d = (metric.sTypoAscender, metric.sTypoDescender) if metric is os2 else (metric.ascent, metric.descent)
         return size + (a + d) * size / (2 * font['head'].unitsPerEm)  # line-height:2
 
+    def image_line_gap(self):
+        # The chart <img> is inline: it sits on the baseline of the body's 11pt,
+        # line-height:2 strut, so its line box extends below the image by the
+        # strut's descent plus half-leading.
+        return 22 - self.ascent('normal', 11)
+
     def check_embedded(self, resource):
         name = re.sub(r'^[A-Z]{6}\+', '', str(resource['/BaseFont']).lstrip('/'))
         assert name in self.fonts, 'unknown source font'
@@ -90,7 +97,8 @@ class Sources:
 
 
 def authored(count, sources, furniture=True, keep=True):
-    pages = [[] for _ in row_groups(count)]; rectangles = [[] for _ in pages]
+    gap = sources.image_line_gap()
+    pages = [[] for _ in row_groups(count, gap)]; rectangles = [[] for _ in pages]
     page_text = [[] for _ in pages]
 
     def line(page, top, x, text, size=11, role='normal', segments=None, baseline=None, color=INK):
@@ -119,28 +127,33 @@ def authored(count, sources, furniture=True, keep=True):
             width = sum(sources.width(sources.font('normal', c), c, 11) for c in marker)
             line(0, top, 52.5-width, marker)
         line(0, top, x, text)
-    box(0, 36, 200, 250, 130)
-    line(0, 330, 36, 'CHART-01 合成示意 / Synthetic chart')
-    line(0, 352, 36, '记录明细 / Record details', 12, 'bold')
-    line(0, 376, 36, '逐行核对 / Review every row')
-    groups = row_groups(count); final_top = 0
+    line(0, 330+gap, 36, 'CHART-01 合成示意 / Synthetic chart')
+    line(0, 352+gap, 36, '记录明细 / Record details', 12, 'bold')
+    line(0, 376+gap, 36, '逐行核对 / Review every row')
+    groups = row_groups(count, gap); final_top = 0
     for page, rows in enumerate(groups):
-        top = 398 if page == 0 else 36
+        top = 398+gap if page == 0 else 36
         if rows:
             for index, cells, height in [(0, ['ID','状态 / Status','说明 / Description'],32)] + [
                 (n, [f'R{n:03}', '通过 / Pass', f'检查 {n:03} / Check {n:03}'], row_height(n)) for n in rows]:
                 x = 36
                 for column, (width, text) in enumerate(zip((80,160,280),cells)):
                     box(page,x,top,width,height,(220/255,233/255,242/255) if index == 0 else (1,1,1))
-                    line(page,top+5,x+5,text,role='bold' if index == 0 else 'normal')
+                    role = 'bold' if index == 0 else 'normal'
+                    # th defaults to text-align:center; td cells stay start-aligned.
+                    indent = (width-10-sum(sources.width(sources.font(role,c),c,11) for c in text))/2 if index == 0 else 0
+                    line(page,top+5,x+5+indent,text,role=role)
                     if index and index % 10 == 0 and column == 2:
                         line(page,top+27,x+5,f'NOTE-{index:03} 已复核 / reviewed')
                     x += width
                 top += height
         final_top = top
+    # The inline chart image paints its border with the line content, after every
+    # block background and border of its page (CSS painting order, as in Chrome).
+    box(0, 36, 200, 250, 130)
     final = len(pages)-1
     # Counterfactual auto drops only the closing heading onto the 10-row first page.
-    line(0 if count == 10 and not keep else final, 772 if count == 10 and not keep else final_top,
+    line(0 if count == 10 and not keep else final, 772+gap if count == 10 and not keep else final_top,
          36, '复核结论 / Review decision',12,'bold')
     paragraph_top = 36 if count == 10 and not keep else final_top+24
     line(final,paragraph_top,36,'记录完整 / Records complete')
@@ -251,7 +264,8 @@ def inspect(pdf,count,sources,jpeg,furniture=True,keep=True,raster=True):
             for sx,sy in [(15,10),(304,10),(15,148),(304,148),(160,20)]:
                 pixel=image.getpixel((round((41+(sx+.5)*240/320)*96/72),round((205+(sy+.5)*120/160)*96/72)))
                 assert max(abs(a-b) for a,b in zip(pixel,original.getpixel((sx,sy))))<=12,'rendered JPEG color/orientation'
-            for x,y,color in [(38,96,(238,244,250)),(38,400,(220,233,242)),(36.4,410,(36,68,90))]:
+            gap=sources.image_line_gap()
+            for x,y,color in [(38,96,(238,244,250)),(38,400+gap,(220,233,242)),(36.4,410+gap,(36,68,90))]:
                 pixel=image.getpixel((int(x*96/72),int(y*96/72)))
                 assert max(abs(a-b) for a,b in zip(pixel,color))<=4,'rendered panel/table paint'
         result['pageImages']=[dict(page=i+1,file=p.name,sha256=sha(p.read_bytes())) for i,p in enumerate(pngs)]
@@ -270,9 +284,14 @@ def mutation_checks(pdf,count,sources,jpeg,out):
         'wrong-counter':'authored text/order','detached-heading':'authored text baseline/position',
         'text-ctm':'text graphics transform','occluded-records':'painting after text','restored-text-color':'authored text color'}
     results=[]
+    # First-page header cell fill, below the inline chart image's line gap.
+    header_cell=[36,H-398-sources.image_line_gap()-32,80,32]
+    def is_header_cell(values,op):
+        return op==b're' and all(abs(float(a)-b)<.002 for a,b in zip(values,header_cell))
     for mode in ['rewrite-control',*reasons]:
         reader=PdfReader(pdf);writer=PdfWriter();writer.append_pages_from_reader(reader)
-        pageno=1 if mode in ('missing-repeated-header','wrong-counter','detached-heading','text-ctm','occluded-records','restored-text-color') else 0
+        # The closing heading sits on the last page; the other page-two mutants need any continuation page.
+        pageno=len(writer.pages)-1 if mode=='detached-heading' else 1 if mode in ('missing-repeated-header','wrong-counter','text-ctm','occluded-records','restored-text-color') else 0
         page=writer.pages[pageno];stream=ContentStream(page.get_contents(),writer);ops=stream.operations
         mappings={key:sources.check_embedded(ref.get_object()) for key,ref in page['/Resources']['/Font'].items()}
         blocks=[];start=None;font=None
@@ -309,7 +328,7 @@ def mutation_checks(pdf,count,sources,jpeg,out):
             i=next(i for i,(_,op) in enumerate(ops) if op==b'cm');ops[i][0][0]=FloatObject(241)
         elif mode=='image-data':next(iter(page['/Resources']['/XObject'].values())).get_object()._data+=b'X'
         elif mode in ('unpainted-cell','white-header'):
-            i=next(i for i,(v,op) in enumerate(ops) if op==b're' and list(map(float,v))==[36,411.89,80,32])
+            i=next(i for i,(v,op) in enumerate(ops) if is_header_cell(v,op))
             if mode=='unpainted-cell':ops[i+1]=([],b'n')
             else:ops[i-1]=([FloatObject(1)]*3,b'rg')
         elif mode=='restored-text-color':
@@ -321,7 +340,7 @@ def mutation_checks(pdf,count,sources,jpeg,out):
                 if op==b'ET':active=False
             stream.operations=changed
         elif mode=='reordered-cell-paint':
-            i=next(i for i,(v,op) in enumerate(ops) if op==b're' and list(map(float,v))==[36,411.89,80,32])-2
+            i=next(i for i,(v,op) in enumerate(ops) if is_header_cell(v,op))-2
             assert ops[i][1]==b'q' and ops[i+4][1]==b'Q', 'paint mutation group'
             ops[i:i+25]=ops[i+5:i+25]+ops[i:i+5]
         elif mode=='text-ctm':
@@ -407,7 +426,7 @@ def main():
             evidence['cases'].append(dict(name=name,records=count,variant=variant,inputSha256=sha(input_path.read_bytes()),
                 api=meta,apiCliNativeBytesEqual=True,**result))
         positive=out/f'report-{count}-positive-native.pdf';plain=out/f'report-{count}-body-native.pdf'
-        inspect_margins(positive,plain,dict(pages=len(row_groups(count)),header=HEADER,footer=FOOTER,numbers=True),sources.metrics,False)
+        inspect_margins(positive,plain,dict(pages=len(row_groups(count,sources.image_line_gap())),header=HEADER,footer=FOOTER,numbers=True),sources.metrics,False)
         for a,b in zip(sorted(out.glob(positive.stem+'-*.png')),sorted(out.glob(plain.stem+'-*.png'))):
             with Image.open(a) as x,Image.open(b) as y:
                 crop=(0,48,x.width,round((H-36)*96/72))

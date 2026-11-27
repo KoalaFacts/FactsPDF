@@ -50,7 +50,7 @@ internal struct PdfAlphaStates
         page.Append(" >>");
     }
 
-    private static int AlphaByte(Rgb color) =>
+    internal static int AlphaByte(Rgb color) =>
         (int)Math.Round(Math.Clamp(color.A, 0, 1) * 255, MidpointRounding.AwayFromZero);
 
     private const string Number = "0.####";

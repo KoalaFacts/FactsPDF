@@ -54,10 +54,10 @@ public sealed class ResponsiveImageSizingTests
     public void BorderBoxWidthAndConstraintsCountPaddingAndBordersOnce()
     {
         const string constrained =
-            "<img src='chart' style='width:180pt;max-width:96pt;box-sizing:border-box;" +
+            "<img src='chart' style='display:block;width:180pt;max-width:96pt;box-sizing:border-box;" +
             "padding:2pt;border:1pt solid red;background:white'>";
         const string control =
-            "<img src='chart' style='width:90pt;padding:2pt;border:1pt solid red;background:white'>";
+            "<img src='chart' style='display:block;width:90pt;padding:2pt;border:1pt solid red;background:white'>";
         SamePdf(constrained, control);
         var item = TableLayoutTests.Layout(constrained, Options()).Single();
         Assert.That(item.Images.Single().Width, Is.EqualTo(90).Within(0.000001));

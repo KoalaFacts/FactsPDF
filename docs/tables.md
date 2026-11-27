@@ -25,8 +25,8 @@ This fontless example explicitly resets header weight to normal. A `th` otherwis
 
 - Tables are standalone blocks in the document/body or ordinary block containers. They cannot appear in paragraphs, headings, inline elements, list items or another table.
 - A table contains optionally one `colgroup` with 1–16 void `col` elements, optionally one `thead` with exactly one `tr`, exactly one `tbody` with at least one `tr`, and optionally one `tfoot` with at least one `tr`, in that order. Without a `colgroup`, the cells of the first row (with their `colspan`) set the column count, at most 16.
-- Every row covers the same columns, using consecutive cells and optional `colspan`. Header rows contain `th`; body and footer rows contain `td`. Footer rows are laid out, painted and paginated exactly like body rows placed after the `tbody` rows, once; they are not repeated on each fragment. Table-related closing tags must be explicit. Structural whitespace and comments are allowed.
-- Cells accept an ordered flat flow of text/inline runs, direct `p` paragraphs and direct images. Text uses `span`, `b/strong`, `i/em`, `br`. Lists, nested tables, headings/containers inside cells, captions and `rowspan` are unsupported.
+- Every row covers the same columns, using consecutive cells and optional `colspan`. Any row may mix `th` and `td` cells, so a body row can pair a label `th` with a value `td`; `th` text is bold by default (it needs a bold font chain) and, as in Chrome's user-agent stylesheet (`text-align:-internal-center`), centred unless its parent's computed `text-align` is set: a `tr`, row group, `table` or ancestor `text-align` other than `start` is inherited instead, and `text-align` on the `th` itself wins. Footer rows are laid out, painted and paginated exactly like body rows placed after the `tbody` rows, once; they are not repeated on each fragment. Rows written directly in the `table` (or after its `colgroup`, `caption` or `thead`) go into a `tbody` the HTML parser implies, closed by the next row group or the table's end, so they render exactly like an explicit `tbody`. Other table-related closing tags must be explicit. Structural whitespace and comments are allowed.
+- Cells accept an ordered flat flow of text/inline runs, direct `p` paragraphs and direct images. Text uses `span`, `b/strong`, `i/em`, `br`. Lists, nested tables, headings/containers inside cells and `rowspan` are unsupported. An optional `caption` may come first; see [captions](#captions).
 
 ## Widths, rows and paint
 
@@ -352,6 +352,13 @@ declaration Chrome also splits a row that fits a fresh page (3 lines on the
 tail, 17 on the next page), while FactsPDF moves it whole; that existing
 difference is unchanged.
 
+Each cell of a row that splits keeps its paragraphs' `orphans` and `widows`
+(initial value 2) as Chrome prints them: a later paragraph of a cell that cannot
+keep its orphans moves to the next page within its cell, a paragraph that starts
+its cell's fragment and cannot keep them makes the whole row break before itself
+when content precedes it on the page, and every break moves earlier for the
+widows. See [orphans and widows](css-stylesheets.md#orphans-and-widows).
+
 The [long service report](../examples/business-table-long-description.html)
 contains a long numbered description, an image and caption, a following service
 item and totals. Bind the same generated `brand-mark.png` as `logo`. Independent
@@ -368,9 +375,66 @@ PDFs must fail the corresponding content or geometry assertions.
 | `td`, `th` | Padding, solid borders, background-color, text properties, `vertical-align` (above) and print-length or percentage `width` (automatic layout); no `em`/`rem` width, min/max width, margin or break declarations |
 | `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
 | `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root), or no width on every `col` for automatic layout |
-| `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only; `tr` and `thead` also accept `break-inside`/`page-break-inside:auto\|avoid` (below) |
+| `colgroup`, `thead`, `tbody`, `tfoot`, `tr` | Inherited text properties; on `thead`, `tbody`, `tfoot` and `tr` also `background-color`, painted under every cell of the row or group that has no background of its own (the row's colour before its group's), exactly where Chrome paints row and group backgrounds with separated borders, and repeated with the header; borders only in a [collapsed-border table](#collapsed-borders); no padding; `tr` and `thead` also accept `break-inside`/`page-break-inside:auto\|avoid` (below) |
+| `caption` | Text properties (centred by default), padding, solid/dashed/dotted borders, background-color, zero margins, `display:table-caption`; no width or non-zero margins |
 
-Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. Each table part accepts the `display` value that names what it already renders, and nothing changes: `thead{display:table-header-group}`, `tbody` and `tfoot{display:table-row-group}`, `tr{display:table-row}` and `td,th{display:table-cell}`. `tfoot{display:table-footer-group}` fails `FPDF1202`, because footer rows are placed once and never repeated on each fragment; every other `display` value on a table part still fails. `table-layout` and cell heights are not implemented. `empty-cells:show` (empty cells always paint their background and borders) and `caption-side:top` (no `caption` element is accepted) are validated and dropped; other values fail `FPDF1202`. Cells use the separated border model with zero spacing, so only `border-collapse:separate` and `border-spacing` at one or two zero lengths are accepted (validated and dropped, on any element); `border-collapse:collapse` and non-zero spacing fail `FPDF1202`.
+Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. Each table part accepts the `display` value that names what it already renders, and nothing changes: `thead{display:table-header-group}`, `tbody` and `tfoot{display:table-row-group}`, `tr{display:table-row}` and `td,th{display:table-cell}`. `tfoot{display:table-footer-group}` fails `FPDF1202`, because footer rows are placed once and never repeated on each fragment; every other `display` value on a table part still fails. `table-layout` and cell heights are not implemented. `empty-cells:show` (empty cells always paint their background and borders) and `caption-side:top` (a caption is always above its table) are validated and dropped; other values fail `FPDF1202`. Cells use the separated border model with zero spacing by default, so `border-spacing` is accepted only at one or two zero lengths (validated and dropped, on any element) and non-zero spacing fails `FPDF1202`, also in a collapsed table where Chrome ignores it. `border-collapse:collapse` selects the [collapsing border model](#collapsed-borders).
+
+## Captions
+
+```html
+<table>
+  <caption style="font-weight:bold;padding:3pt;border-top:1pt solid #24445a">Quarterly totals</caption>
+  <thead><tr><th>Item</th><th>Amount</th></tr></thead>
+  <tbody><tr><td>Paper roll</td><td>18.40</td></tr></tbody>
+</table>
+```
+
+A `caption`, as the table's first child (at most one), is laid out as Chrome lays out
+`caption-side:top`: a block above the table, as wide as the table's border box, with its own
+padding, borders and background inside that width and its inline text (`span`, `b/strong`,
+`i/em`, `br`) wrapped and aligned like cell text. Like `th` it is centred unless its parent's
+`text-align` is set. The caption belongs to the table's first page fragment: a short table
+moves to the next page with it, and a long table places it once, above the first fragment,
+without repeating it. `caption-side:bottom` fails `FPDF1202`; `width` and non-zero margins on
+a caption fail `FPDF1201`; a `p` or image inside it, a second caption or a caption after the
+`colgroup` fails `FPDF1101`. Chrome widens a table to a caption's min-content width; FactsPDF
+fails such a caption with `FPDF1302` instead.
+
+## Collapsed borders
+
+`border-collapse:collapse` on the table (it is inherited, and only the table's computed value
+counts) switches to the CSS 2.1 collapsing border model as Chrome implements it:
+
+1. Every edge of the cell grid takes one border from the boxes that share it: the cells on
+   either side, their rows, the row groups (`thead`, `tbody`, `tfoot`) at the group's first and
+   last row and on its sides, and the table on its outer edges. `border-style:hidden` on any of
+   them removes the edge; otherwise `none` loses to everything, the wider border wins, then
+   `solid` over `dashed` over `dotted`; a remaining tie goes to the cell, then the row, the row
+   group and the table, and between two cells (or rows, or groups) to the one further left or
+   further up. A colour left as `currentcolor` takes the owning box's text colour.
+2. Each cell lays out with half of each winning edge as its border (the widest segment along a
+   spanning cell's edge) and the table with half of the widest outer edge on each side; table
+   padding is ignored, as in Chrome. The column widths, automatic layout and row heights use
+   those halves.
+3. The borders are painted after the cell backgrounds, centred on the grid lines: a horizontal
+   segment reaches over half of the widest vertical border at each end, and a vertical segment
+   covers a joint when it is at least as wide as the horizontal borders there.
+
+Zebra rules such as `tbody tr{border-bottom:1px solid #d8dee9}` with a heavier rule under the
+last row therefore look as they do in Chrome. Across pages the table keeps Chrome's fragments:
+a fragment that ends between two rows paints the upper half of the line between them and the
+next fragment its lower half (below its top edge, or in full under a repeated header), and a
+repeated header repeats the table's top border with it. A row that must split across pages
+fails `FPDF1302` in a collapsed table, `col`/`colgroup` borders fail `FPDF1201`, and Chrome's
+rounding of border widths to whole device pixels is not copied (FactsPDF paints the exact
+width).
+
+The automatic-layout oracle fixtures `e1` to `e6` (collapsed borders) and `f1`, `f2`
+(captions) in `tests/fixtures/tables-auto/` compare every caption and cell rectangle with
+Chrome; in a collapsed table a cell's rectangle runs from grid line to grid line, as Chrome
+reports it. [A collapsed zebra table with a caption](../examples/report-table-caption-collapse.html)
+shows both features.
 
 ## Limits and diagnostics
 

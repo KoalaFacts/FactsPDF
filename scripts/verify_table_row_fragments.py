@@ -43,6 +43,11 @@ def text(value, x, top, page=0, cell='main'):
     return {'value': value, 'x': x, 'top': top, 'page': page, 'cell': cell}
 
 
+def head(margin, top, page):
+    """th text is centred by default: four 6pt Courier glyphs across every 200pt test table."""
+    return text('HEAD', margin + (200 - 4 * 6) / 2, top, page, 'header')
+
+
 def mark(x, top, color, page=0, reason='cell/table occupied edge'):
     return {'x': x, 'top': top, 'color': color, 'page': page, 'reason': reason}
 
@@ -72,7 +77,9 @@ def table(cells, tracks=(100, 100), *, header='HEAD', edges=False, bottom=0,
     width = sum(tracks) if table_width is None else table_width
     style = ('<style>table{font-size:10pt;line-height:1.2;background-color:#f3daac;'
              f'width:{width}pt;padding-top:{top}pt;padding-bottom:{bottom}pt}}'
-             'td,th{padding:0;background-color:#e4f3f0;'
+             # Row-fragment mechanics in isolation, as TableRowFragmentationTests does: the
+             # orphans/widows initial value 2 in cells has its own evidence (OrphansWidowsTests).
+             'td,th{padding:0;background-color:#e4f3f0;orphans:1;widows:1;'
              + ('border:1pt solid #24445a' if edges else 'border:none') + '}'
              'th{font-weight:normal}p{margin-top:0;margin-bottom:0}img{width:24pt;padding:2pt;'
              'border:1pt solid #cc5500}</style>')
@@ -111,7 +118,7 @@ def create(directory):
                      (40, 120, 40), edges=True)
         expected, witnesses, rectangles, number = [], [], [], 1
         for page, n in enumerate(per_page):
-            expected += [text('HEAD', margin + 1, margin + 10, page, 'header')]
+            expected += [head(margin, margin + 10, page)]
             if page == 0:
                 expected += [text('ID', margin + 1, starts[page], page, 'id'),
                              text('9', margin + 161, starts[page], page, 'price')]
@@ -145,7 +152,7 @@ def create(directory):
         if blank:
             right = right.replace('B2<br>B3', 'B2<br><br>B3')
         html = table('<td style="line-height:2">' + lines('A', 4) + '</td><td>' + right + '</td>')
-        expected = [text('HEAD', 10, 19, p, 'header') for p in range(2)]
+        expected = [head(10, 19, p) for p in range(2)]
         expected += [text(f'A{i+1}', 10, 35 + 20 * i, 0, 'left') for i in range(3)] + [text('A4', 10, 35, 1, 'left')]
         right_pages = [[(1,31),(2,43),(3,67),(4,79)], [(5,31),(6,43),(7,55),(8,67),(9,79)]] if blank else [
             [(1,31),(2,43),(3,55),(4,67),(5,79)], [(6,31),(7,43),(8,55),(9,67)]]
@@ -160,18 +167,24 @@ def create(directory):
         html = table('<td>' + lines('A', n, 3 if a4 else 0) + '<img src="sample">TAIL</td><td>'
                      + ('ID' if a4 else lines('B', 7)) + '</td>')
         margin, body_top = (36, 48) if a4 else (10, 22)
-        expected = [text('HEAD', margin, margin + 9, p, 'header') for p in range(2)]
-        expected += [text(f'A{i+1:0{3 if a4 else 0}}', margin, body_top + 9 + 12*i, 0, 'left') for i in range(n)]
-        expected += [text('TAIL', margin, body_top + 39, 1, 'left')]
+        expected = [head(margin, margin + 9, p) for p in range(2)]
+        # The inline image shares the last A line with TAIL; that 30pt line (24 + 2*2 + 2*1 image box,
+        # baseline at its bottom) no longer fits the first page, so it opens the continuation.
+        last = f'A{n:0{3 if a4 else 0}}'; last_width = 6 * len(last)
+        expected += [text(f'A{i+1:0{3 if a4 else 0}}', margin, body_top + 9 + 12*i, 0, 'left') for i in range(n - 1)]
+        expected += [text(last, margin, body_top + 30, 1, 'left'),
+                     text('TAIL', margin + last_width + 30, body_top + 30, 1, 'left')]
         if a4:
             expected += [text('ID', margin + 100, body_top + 9, 0, 'right')]
         else:
             expected += [text(f'B{i+1}', 110, 31 + 12*i, 0, 'right') for i in range(5)]
             expected += [text('B6', 110, 31, 1, 'right'), text('B7', 110, 43, 1, 'right')]
-        add(name, html, expected, 2, a4=a4, images=[picture(margin + 3, body_top + 3)],
-            witnesses=[mark(margin+95, body_top + (744 if a4 else 60) - 1, CELL),
-                       mark(margin+95, body_top + (744 if a4 else 60) + 1, TABLE),
-                       mark(margin+95, body_top + 41, CELL, 1), mark(margin+95, body_top+43, WHITE, 1)])
+        add(name, html, expected, 2, a4=a4, images=[picture(margin + last_width + 3, body_top + 3)],
+            # First fragment: A2's n-1 lines, or S3's five B lines; continuation: the 30pt image
+            # line plus the strut's 3pt below its baseline.
+            witnesses=[mark(margin+95, body_top + (12 * (n - 1) if a4 else 60) - 1, CELL),
+                       mark(margin+95, body_top + (12 * (n - 1) if a4 else 60) + 1, TABLE),
+                       mark(margin+95, body_top + 32, CELL, 1), mark(margin+95, body_top + 34, WHITE, 1)])
 
     # S4/A3: terminal table padding discriminates exact fit from last-unit rollback.
     for a4, n, bottom_exact, bottom_short in [(False, 6, 19, 20), (True, 76, 8.89, 9.89)]:
@@ -209,7 +222,7 @@ def create(directory):
             html = '<div style="padding-top:10pt">' + html + '</div>'
         pressured = pressure != 'none'
         counts = [2,2] if pressured else [3,1]
-        expected = [text('HEAD', 10, 29 if pressured else 19, 0, 'header'), text('HEAD', 10, 19, 1, 'header')]
+        expected = [head(10, 29 if pressured else 19, 0), head(10, 19, 1)]
         number = 1
         for page, count in enumerate(counts):
             expected += [text(f'L{i}', 10, (45 if pressured and page==0 else 35) + 20*k, page)
@@ -220,23 +233,24 @@ def create(directory):
     # S6: colspan outer width100, content88; 50% source pixels44pt square.
     html = table('<td colspan="2" style="padding:5%;border:1pt solid #24445a">'
                  + lines('S', 8) + '<img src="sample" style="width:50%">END</td><td>Z</td>', (40,60,100))
-    expected = [text('HEAD',10,19,p,'header') for p in range(3)]
+    expected = [head(10, 19, p) for p in range(3)]
     expected += [text(f'S{i}',16,37+12*(i-1),0,'span') for i in range(1,6)]
-    expected += [text(f'S{i}',16,31+12*(i-6),1,'span') for i in range(6,9)]
-    expected += [text('END',16,81,2,'span'),text('Z',110,31,0,'right')]
-    # Final span: image outer50, END12, bottom6 =>68 fits body68 exactly.
-    span_image = picture(19,25,page=2,size=44)
+    expected += [text(f'S{i}',16,31+12*(i-6),1,'span') for i in range(6,8)]
+    # S8, the inline image (outer 50) and END share the final 50pt line, baseline 22+50; with the
+    # strut's 3pt below it that line no longer fits under S7, so it opens the third page.
+    expected += [text('S8',16,72,2,'span'),text('END',16+12+50,72,2,'span'),text('Z',110,31,0,'right')]
+    span_image = picture(16+12+3,25,page=2,size=44)
     add('S6-span',html,expected,3,images=[span_image],witnesses=[
         mark(50.5,24,CELL,p,'no internal span boundary') for p in range(3)])
 
     # Eight-point paragraph gap stays on same fragment, trims at continuation.
     html = table('<td><p style="margin-bottom:8pt">P1</p><p style="margin-top:4pt">P2</p>'
                  '<p>' + lines('R',6) + '</p></td><td>Z</td>')
-    expected = [text('HEAD',10,19,p,'header') for p in range(2)] + [text('P1',10,31),text('P2',10,51),text('Z',110,31,cell='right')]
+    expected = [head(10, 19, p) for p in range(2)] + [text('P1',10,31),text('P2',10,51),text('Z',110,31,cell='right')]
     expected += [text('R1',10,63),text('R2',10,75),text('R3',10,87)] + [text(f'R{i}',10,31+12*(i-4),1) for i in range(4,7)]
     add('S6-margins',html,expected,2)
     html = table('<td>' + lines('Q',5) + '<p style="margin-top:8pt">NEXT</p></td><td>Z</td>')
-    expected = [text('HEAD',10,19,p,'header') for p in range(2)] + [text(f'Q{i}',10,31+12*(i-1)) for i in range(1,6)]
+    expected = [head(10, 19, p) for p in range(2)] + [text(f'Q{i}',10,31+12*(i-1)) for i in range(1,6)]
     expected += [text('NEXT',10,31,1),text('Z',110,31,cell='right')]
     add('S6-trim',html,expected,2)
 
@@ -259,7 +273,7 @@ def create(directory):
         cases.append(extra)
 
     html=table('<td><p style="margin-top:56pt">FIT</p></td><td>'+lines('B',9)+'</td>')
-    expected=[text('HEAD',10,19,p,'header') for p in range(2)]+[text('FIT',10,87,0,'left')]
+    expected=[head(10, 19, p) for p in range(2)]+[text('FIT',10,87,0,'left')]
     expected += [text(f'B{i}',110,31+12*(i-1),0,'right') for i in range(1,6)]
     expected += [text(f'B{i}',110,31+12*(i-6),1,'right') for i in range(6,10)]
     add('S5-initial-exact',html,expected,2,witnesses=[mark(105,89,CELL),mark(105,91,WHITE)])
@@ -357,8 +371,13 @@ def inspect(path, case, source_image, *, qpdf=None, raster=True):
         for image in case['images']:
             before=[e for e in case['text'] if e['cell'] in ('left','span') and e['value']!='TAIL' and e['value']!='END']
             after=[e for e in case['text'] if e['value'] in ('TAIL','END')]
-            assert all(e['page']<image['page'] or e['page']==image['page'] and e['top']<image['top'] for e in before), 'text/image source order differs'
-            assert all(e['page']>image['page'] or e['page']==image['page'] and e['top']>image['top']+image['height'] for e in after), 'image/text source order differs'
+            # The inline image sits on its line's baseline: text sharing that line orders by x.
+            baseline=image['top']+image['height']+image['padding']+image['border']
+            same_line=lambda e: e['page']==image['page'] and abs(e['top']-baseline)<=.002
+            assert all(e['page']<image['page'] or e['page']==image['page'] and e['top']<image['top']
+                       or same_line(e) and e['x']<image['x'] for e in before), 'text/image source order differs'
+            assert all(e['page']>image['page'] or e['page']==image['page'] and e['top']>image['top']+image['height']
+                       or same_line(e) and e['x']>image['x']+image['width'] for e in after), 'image/text source order differs'
     if raster:
         for page in range(case['pages']):
             prefix=path.parent/(path.stem+f'-page-{page+1}')

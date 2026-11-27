@@ -30,7 +30,8 @@ public sealed class LastLineAlignmentReportTests
                 html.Append("<p style='width:60pt'>Alpha Beta</p>")
                     .Append("<p style='width:60pt;text-align:center'>Gamma</p>");
             else
-                html.Append("<p style='width:60pt;text-align-last:center'>Alpha Beta Gamma</p>");
+                // orphans/widows 1: the control's one-line paragraphs may break between the two lines.
+                html.Append("<p style='width:60pt;text-align-last:center;orphans:1;widows:1'>Alpha Beta Gamma</p>");
         }
         return html.Append("</article>").ToString();
     }

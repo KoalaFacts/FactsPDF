@@ -42,8 +42,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos
-other than `:root`, sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, unsupported
+pseudo-classes, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -1378,6 +1378,56 @@ splitting as described in [tables](tables.md#long-descriptions-across-pages).
 `avoid-page`, `avoid-column` and other values fail `FPDF1202`
 (`TableRowBreakInsideTests.cs`).
 
+## Orphans and widows
+
+`orphans` and `widows` (CSS Fragmentation 3) are accepted with the CSS
+inherited cascade, `!important` and `inherit`/`initial`/`unset`, as in
+`p, h2, h3 { orphans: 3; widows: 3; }`. They act on the line boxes of every
+paragraph FactsPDF paginates: `p`, `pre`, `h1`–`h6`, anonymous text in report
+panels, list items (the marker moves with the first line) and paragraphs in
+table cells of rows that split across pages. A value is a positive CSS
+`<integer>` (`3`, `+3`, `03`); values above 32767 compute to 32767, as Chrome
+stores them. `0`, negative numbers, `3.0`, `3e0`, lengths, keywords other than
+the CSS-wide ones and `calc()` fail `FPDF1202`.
+
+**Every paragraph uses the CSS initial value `orphans:2;widows:2`**, as Chrome
+does. Earlier versions broke a paragraph wherever the page ended, keeping a
+single line at the bottom of a page or at the top of the next; such pages now
+move that line as Chrome prints them (`orphans:1;widows:1` restores the old
+breaks).
+
+Placement matches Chrome, verified by printing synthetic pages in Chrome:
+
+- A paragraph that cannot leave at least `orphans` lines on the current page
+  moves whole to the next page, with its panel's leading padding and border,
+  when the page already holds content. At the top of a page, or when the move
+  would separate it from a `break-after:avoid` heading, it breaks where the
+  page runs out instead.
+- Otherwise the break moves earlier so that at least `widows` lines start the
+  next page, but never before `orphans` lines: when a paragraph has fewer lines
+  than both need, orphans are kept and widows are not.
+- The same rules apply on every page of a paragraph longer than a page; each
+  continued page counts its own lines. A paragraph's painted box ends at the
+  page bottom when its text breaks early, as in Chrome.
+- A `break-after:avoid` heading group moves to the next page exactly when the
+  paragraph after it cannot leave its orphans after the headings, even when
+  the group is taller than a page; otherwise the paragraph breaks inside and the
+  heading stays ([heading pagination](heading-pagination.md)).
+- A `break-inside:avoid` card never breaks inside, so its paragraphs never
+  apply orphans or widows. Forced `break-before`/`break-after` come first.
+- In a fixed-column table row that splits across pages, each cell continues
+  independently and each cell paragraph keeps its orphans and widows: a later
+  paragraph of a cell that cannot keep its orphans moves to the next page within
+  its cell, and a paragraph that starts a cell's fragment and cannot keep them
+  makes the whole row break before itself when content precedes it on the page.
+  Rows that fit a fresh page still move whole (an existing difference from
+  Chrome, which also splits those; see [tables](tables.md)).
+- Inline text, `br`, `img`, `hr` and `col` hold no line box of their own and no
+  block can nest in them, so the declaration is validated and dropped there.
+
+Tests: `OrphansWidowsTests.cs` (Chrome's printed page splits for paragraphs,
+lists, headings and table cells, byte equality, `FPDF1202`).
+
 ## Current-source print section page boundaries
 
 For controlled LTR reports, standalone `div`, `section`, `article` and
@@ -1461,25 +1511,121 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Descendants | `.report p`, `.report .accent` |
 | Direct children | `.report > p`, mixed child/descendant chains |
 | Root pseudo-class | `:root`, `:root p`, `:root > body`, `html:root` |
+| Structural pseudo-classes | `tr:nth-of-type(even)`, `li:first-child`, `p:last-of-type`, `.divider:empty` ([contract](#structural-pseudo-classes-and-not)) |
+| Negation | `.divider:not(:empty)`, `p:not(.note, #summary)` (compound arguments only) |
+| Pseudo-elements | `.note::before`, `.divider::after`, legacy `:before`/`:after` with string `content` |
 | Inline declarations | Existing `style="..."` attributes with the same supported values |
 
 HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. CSS identifiers in this increment are ASCII; escaped and non-ASCII selector syntax is rejected. A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes and selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
+No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements other than `::before`/`::after` ([generated content](#current-source-before-and-after-generated-content)), nesting, escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
-`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` element has no root element in FactsPDF's tree, so `:root` matches nothing there, exactly like `html{}`. Every other pseudo-class or pseudo-element (`:hover`, `:first-child`, `::before`, `:not()`) still fails with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` tag has the implied `html` element as its root, so `:root` matches it there too, exactly like `html{}` (see [implied html, head and body](#implied-html-head-and-body)). `:root` composes with the structural pseudo-classes and `:not()` (`:root:first-child`, `:not(:root)`); other pseudo-classes and pseudo-elements (`:hover`, `::before`) still fail with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+
+### Structural pseudo-classes and :not()
+
+`:first-child`, `:last-child`, `:only-child`, `:first-of-type`, `:last-of-type`,
+`:only-of-type`, `:nth-child()`, `:nth-last-child()`, `:nth-of-type()`,
+`:nth-last-of-type()`, `:empty` and `:not()` match as Chrome matches them
+(`StructuralPseudoClassTests.cs`), so report stylesheets can write zebra rows
+(`.table tbody tr:nth-of-type(even) td`) and first/last row rules.
+
+- Names are ASCII case-insensitive and count as one class in specificity.
+  `:not()` takes the specificity of its most specific argument, so
+  `p:not(.a, #b)` is (1,0,1).
+- The nth arguments use the CSS Syntax An+B grammar: `odd`, `even`, `B`, `An`
+  and `An+B`, with its sign and whitespace rules (`2n + 1` and `-n+3` are valid,
+  `- n+3`, `+ n` and `2n+ +1` fail). Values beyond ±1,000,000,000 fail: Chrome
+  stops matching some valid selectors near the 32-bit limits. The `of S` form
+  fails.
+- Every element counts as a sibling, as in the browser's DOM: `style`, `br`,
+  `hr`, `col`, and `script` and `template` elements that are dropped before
+  rendering. Implied `p` and `li` end tags close siblings as the HTML parser
+  does, and the [document structure](#implied-html-head-and-body) is the one
+  the HTML parser builds.
+- `:empty` matches an element with no child element and no text. As in Chrome,
+  whitespace-only text is content and a comment is not; the line feed the HTML
+  parser drops after `<pre>` does not count.
+- `:not()` takes a list of compound selectors (`:not(.a, p.b:first-child)`,
+  `:not(:root)`, nested `:not()` up to 32 levels and 32 arguments, `FPDF1205`
+  beyond). A combinator inside it fails, although Chrome accepts complex
+  arguments.
+
+Matching is charged to `MaxCssMatchOperations` (`FPDF1205`); positions are
+computed in one pass over the reader's own tokens with the reader's own implied
+end tags, only when a stylesheet uses a structural pseudo-class. Invalid An+B,
+empty or complex `:not()` arguments, `:is()`, `:where()`, `:has()`, `:hover`
+and other pseudo-classes, and pseudo-elements (`::before`, `:before`) fail
+`FPDF1203`. A matched rule still fails like any other when its declaration is
+unsupported on the element: `tr:nth-of-type(even){background-color:#f7f7f7}`
+fails `FPDF1201` and `.divider:not(:empty){gap:1rem}` `FPDF1202`, as without
+the pseudo-class.
+
+### Implied html, head and body
+
+Every page has the `html`, `head` and `body` elements the HTML parser builds,
+written or not (`ImpliedDocumentElementTests.cs`), so `body > p`, `html body p`,
+`:root p` and `body{color:navy}` match a page without those tags as in Chrome.
+An omitted `html` is implied first; `style`, `script`, `template`, `title`,
+`meta`, `link` and `base` before any body content go into `head` (also after an
+explicit `</head>`, as the parser reopens it); the first other element or
+non-whitespace text implies `body`; content after `</body>` or `</html>` is
+appended to `body`. Implied elements count against no element or depth limit
+and carry no source position, and an implied `body` without box declarations
+adds no box, so such a page's read tree and PDF are unchanged unless a rule
+styles it. A repeated or misplaced `html`, `head` or `body` start tag is ignored
+as the parser ignores it; with attributes, which the parser would merge into
+the existing element, it fails `FPDF1101`.
+
+A `tr` directly in a `table` (or after its `colgroup`, `caption` or `thead`) is put in a `tbody` the parser implies (the HTML "in table" insertion mode), closed by the next `thead`, `tbody` or `tfoot` or the table's end tag; it takes part in selectors like an explicit `tbody`.
+
+`background-color` on `html` is the page canvas: as Chrome prints it, it covers each whole sheet, margins included, under every other paint. Opaque white and transparent paint nothing; other box properties on `html` still fail `FPDF1201`. With `html{display:flex}` the `body` is a flex item, so a `body` wider than the page content box shrinks to it (`flex-shrink` 1, never below its min-content width) and lays out like an auto-width body; a `body` that cannot shrink (`flex-shrink:0`, a `min-width`, or min-content wider than the page) fails `FPDF1201`.
 
 ## Custom properties and var()
 
-A declaration whose name starts with two dashes (`--brand-700: #b3261e`) is a custom property. It is accepted on every element, in stylesheets and `style` attributes, with any value; the name is case-sensitive (`--Brand` and `--brand` differ), `--` alone is not a name (`FPDF1201`), and its value is the declared token sequence with leading and trailing white space trimmed (it may be empty: `--none:;`). Custom properties cascade by name like other declarations (`!important`, style attribute, specificity, source order), are inherited by default, and accept `initial` (the guaranteed-invalid value), `inherit` and `unset` (both the parent's value); `revert` and `revert-layer` fail `FPDF1202`.
+A declaration whose name starts with two dashes (`--brand-700: #b3261e`) is a custom property. It is accepted on every element, in stylesheets and `style` attributes, with any value; the name is case-sensitive (`--Brand` and `--brand` differ), `--` alone is not a name (`FPDF1201`), and its value is the declared token sequence with leading and trailing white space trimmed (it may be empty: `--none:;`). Custom properties cascade by name like other declarations (`!important`, style attribute, specificity, source order), are inherited by default, and accept `initial` (the guaranteed-invalid value), `inherit` and `unset` (both the parent's value); `revert` and `revert-layer` roll the author origin back, so a custom property inherits its parent's value, as with `unset` (Chrome 158).
 
 `var(--name)` and `var(--name, fallback)` may appear in the value of every supported property, including shorthands (`padding: 0 var(--space-6)`, `border-top: 2px solid var(--brand)`, `margin: var(--space-10) 0`), inside functions (`rgb(var(--r), 20, 30)`), with `!important`, and in custom properties (`--brand: var(--red-700)`). The function name is ASCII case-insensitive. For each element a declaration applies to, references are substituted with the element's computed custom properties (a custom property's own references are resolved first, in dependency order), the fallback is used when the referenced property has no value, and the substituted value is then parsed and checked exactly as the same literal value would be: the page renders byte-identical to the page with every `var()` written out ([example](../examples/report-custom-properties.html), [literal oracle](../examples/report-custom-properties-oracle.html), `CustomPropertyTests.cs`). A shorthand with `var()` expands into its longhands after substitution, at the shorthand's place in the cascade. `var()` in SVG presentation attributes, selectors or at-rule preludes is not supported.
 
 Syntax is checked while the stylesheet is parsed: a `var()` that is not `var(--name)` or `var(--name, fallback)` (`var(brand)`, `var(--a --b)`, `var()`) fails `FPDF1202` even in an unmatched rule, and an unsupported property still fails `FPDF1201` first. The rest of a value holding `var()` can only be checked after substitution, so an unmatched rule's value is not checked.
 
-**Invalid at computed-value time (decision).** A browser treats a declaration as unset when, after substitution, a reference has no value and no fallback (undefined, `initial`, part of a cycle, or itself invalid), the result is a CSS-wide keyword, or the property rejects the substituted value. FactsPDF fails instead, with `FPDF1202` (or the code the literal value would get, such as `FPDF1201` for padding on inline text) at the declaration that holds `var()`, and the message names the reference or shows the substituted value. Reason: the renderer already rejects invalid and inapplicable values that browsers drop, including in losing declarations, instead of rendering something that differs from the author's intent; silently unsetting would render a page that differs from the literal stylesheet without saying so. Like every other matched declaration, a losing declaration is substituted and checked too. What browsers handle without any visible effect is accepted: a custom property that is never used, an unused reference cycle, and a custom property that is invalid but only referenced with a fallback (the fallback applies, as in a browser).
+**CSS-wide keywords from substitution.** A substitution that yields exactly one CSS-wide keyword applies as that keyword, as in Chrome 158, in both modes: `color: var(--x, inherit)` renders like `color: inherit`, `var(--x, revert)` like `revert`, and a custom property whose own substitution yields a keyword takes it (`--c: var(--x, inherit)` inherits `--c`; `initial` makes it guaranteed-invalid). A keyword the property cannot render still fails like the literal (`display: var(--x, initial)` is `display: initial`, which computes to `inline`); a keyword next to other components (`var(--x, initial) red`) is invalid at computed-value time.
+
+**Invalid at computed-value time (decision).** A browser treats a declaration as unset when, after substitution, a reference has no value and no fallback (undefined, `initial`, part of a cycle, or itself invalid) or the property rejects the substituted value. In strict mode FactsPDF fails instead, with `FPDF1202` (or the code the literal value would get, such as `FPDF1201` for padding on inline text) at the declaration that holds `var()`, and the message names the reference or shows the substituted value. Reason: the renderer already rejects invalid and inapplicable values that browsers drop, including in losing declarations, instead of rendering something that differs from the author's intent; silently unsetting would render a page that differs from the literal stylesheet without saying so. Like every other matched declaration, a losing declaration is substituted and checked too. What browsers handle without any visible effect is accepted: a custom property that is never used, an unused reference cycle, and a custom property that is invalid but only referenced with a fallback (the fallback applies, as in a browser). [Non-strict mode](#strict-and-non-strict-css) treats a declaration that is invalid at computed-value time as `unset`, as a browser does, when the reference has no value or the substituted value is invalid per the specifications; a valid substituted value the renderer does not implement still fails.
+
+## Strict and non-strict CSS
+
+FactsPDF has one switch for CSS it rejects. **Strict mode is the default** and is exactly the behaviour described everywhere else on this page: every construct the renderer does not render exactly fails with a `FactsPdfException`. **Non-strict mode** is opt-in, `Pdf.Write().WithStrict(false)` in the SDK and `--strict false` (or `--strict=false`) in the CLI; `WithStrict(true)`, `--strict true` and `--strict=true` name the default. It changes one thing: CSS that is **invalid per the CSS specifications**, which a browser silently ignores, is ignored exactly as a browser ignores it, and each occurrence is reported as a warning carrying the code, message and source offset strict mode would have thrown. **Valid CSS FactsPDF does not implement still fails**, because ignoring it would render something different from a browser, and so does every resource limit.
+
+The table below is the contract (class A: invalid, dropped as a browser drops it; B: valid but unsupported, fails in both modes; C: limits, fail in both modes).
+
+| Class | Code | What | Non-strict mode |
+| --- | --- | --- | --- |
+| A | `FPDF1201` | A property name neither the CSS specifications nor Chrome know (`colr`, `-moz-transform`, `-o-user-select`, `--` alone) | The declaration is dropped |
+| A | `FPDF1202` | A value its property's grammar cannot match: an unknown keyword (`color:bogus`, `text-align:middle`, `float:lefty`), a value out of the grammar's range (`padding:-4pt`, `font-size:-1pt`, `font-weight:1001`), an unknown unit (`5foo`), too many or repeated components (five `margin` values, two border styles), a CSS-wide keyword with other components (`inherit red`), an empty value, an unknown function, or a malformed `var()` (`var(brand)`) | The declaration is dropped; a shorthand drops all of its longhands |
+| A | `FPDF1202` | A `var()` declaration invalid at computed-value time: a reference without a value and without a fallback (undefined, `initial`, in a cycle) or a substituted value its property's grammar cannot match (`--w:-2pt; padding:var(--w)`) | The declaration still wins the cascade and computes as `unset` (inherited or initial value), for each element it applies to |
+| A | `FPDF1203` | CSS Syntax errors: a bad string or URL, an unmatched `)`, `]` or `}`, a stray `}` at the top level, a name without a colon, a `{}` block mixed into a value; and a string, URL, block or comment still open at the end of the style | CSS Syntax error recovery: the declaration or rule the parser drops (a bad string drops its declaration up to `;`; a stray `}` starts a rule that never gets a block); constructs open at the end are closed and kept |
+| A | `FPDF1203` | An invalid selector list: an empty selector (`h1,,p`, a trailing comma), a leading, trailing or doubled combinator, `.` without a class name, an ID that is not an identifier (`#1a`), a malformed attribute selector (`[a b]`, `[a=b x]`), an unknown pseudo-class or pseudo-element (`:frobnicate`, `::frobnicate`), a page pseudo-class outside `@page` (`:first`, `:left`, `:right`), a compound selector after a pseudo-element | The whole style rule is dropped, declarations included |
+| A | `FPDF1203` | An unknown at-rule inside a style rule (`p{color:navy;@frobnicate;font-size:9pt}`) | The at-rule is dropped; the rule's declarations stay |
+| A | `FPDF1204` | An unknown at-rule at the top level or inside `@media` (`@frobnicate{…}`, `@frobnicate;`), and `@media` without a block (`@media print;`) | The at-rule is dropped with its block, or up to its `;` |
+| A | `FPDF1204` | A `style` element whose `type` is neither empty nor an ASCII case-insensitive match for `text/css`: HTML does not process it as a stylesheet (Chrome 158 ignores `text/less`, and also `text/css; charset=utf-8` and ` text/css`: parameters and white space are not stripped) | The whole element is ignored, with its other attributes |
+| A | `FPDF1204` | A malformed `@keyframes` rule (no name, `none` or a CSS-wide keyword as the name, a keyframe selector other than `from`, `to` or a percentage) | Dropped; keyframes never render, so the page is the same either way |
+| B | `FPDF1201` | A property the specifications or Chrome know but FactsPDF does not render (`grid-template-columns`, `table-layout`), and every applicability rule (box properties on inline text, list properties outside lists, margins in table cells, …) | Fails |
+| B | `FPDF1202` | A valid value FactsPDF does not render: `position:absolute`, `display:flex`, `font-style:oblique`, `transform:rotate(5deg)`, `background:url(…)`, a computed size outside the renderer's range, a CSS-wide keyword the property cannot render (`display:initial`, also from `var(--x, initial)`), and a `var()` declaration whose `unset` the renderer cannot render (`display:var(--missing)` computes to `inline`) | Fails |
+| B | `FPDF1203` | Valid selectors FactsPDF does not match: other pseudo-classes and pseudo-elements (`:hover`, `::before`, `:not(…)`), sibling combinators (`p + p`), nested style rules (`p{a{…}}`) | Fails |
+| B | `FPDF1204` | Known at-rules (`@font-face`, `@import`, `@supports`, `@layer`, `@container`, `@namespace`, `@charset`, …), `@page` forms outside [its supported subset](#css-page-paper-margins-and-margin-boxes) (page selectors such as `@page :first`), media queries other than one `print` or `all` (`@media screen`, also as a `style` element's `media`), declarations directly inside `@media`, and `link` stylesheets | Fails |
+| B | any | What cannot be proven invalid: values of properties without a grammar here (`box-shadow`, `background`, `transform`, `filter`, transitions, animations, grid, …), values holding a known function (`calc()`, `rgb()`), values that are valid in quirks mode (unitless lengths, hashless hex colours), arguments of functional pseudo-classes (`:is(…)`, `:nth-child(…)`), namespace prefixes and the nesting selector | Fails, as in strict mode |
+| C | `FPDF1205` and the other limit codes | Every resource limit (`MaxCssCharacters`, `MaxCssSelectors`, `MaxCssDeclarations`, `MaxCssMatchOperations`, `MaxCssSyntaxNodes`, `MaxCssSyntaxDepth`, element, depth, page and output limits) | Fails |
+
+**Declarations directly inside `@media` (decision: they keep failing).** CSS Syntax's current error recovery parses `@media print { color: red; p { … } }` as a dropped declaration followed by a valid rule, and FactsPDF's parser builds that tree, but Chrome 158 (whose `@media` block still uses the older rule-list parsing) drops `color: red; p { … }` together as one invalid rule, so the following rule never applies. Dropping only the declaration would render that rule where Chrome does not, and dropping both would contradict the specification and every other browser that follows it; the input fails `FPDF1204` in both modes instead.
+
+**How invalidity is decided.** A construct is dropped only when it is proven invalid. Property names come from Chrome 158's property list (every CSSOM property, alias and `-webkit-` spelling confirmed with `CSS.supports(name, "inherit")`) plus the properties of current CSS specifications Chrome does not implement; pseudo-classes, pseudo-elements and at-rules likewise. Values are matched against a grammar per property written as a superset of what the specifications and Chrome accept: Chrome-only and legacy `-webkit-` keywords, quirks-mode unitless lengths and hashless colours are accepted, and any known function may stand for any value type, so a value the grammar rejects is rejected by Chrome and by the specifications. Chrome 158 accepted none of the 25,957 property-value and selector vectors the grammars reject ([`NonStrictCssTests`](../tests/FactsPDF.Tests/NonStrictCssTests.cs) pins examples). Dropping never changes how the rest of the stylesheet parses: the parse tree is the one CSS Syntax error recovery produces in strict mode too.
+
+**Output.** A non-strict page renders byte-identical to the same page with every dropped declaration, rule or at-rule removed (a declaration invalid at computed-value time: with its value replaced by `unset`); warnings never change the output. A page without class A CSS renders identically in both modes.
+
+**Warnings.** `WithWarnings(handler)` receives a `PdfWarnings` once per successful conversion, before the output is written, for `ToBytes`, `ToStream`, `ToStreamAsync`, `ToBufferWriter`, `ToFile` and `ToFileAsync` alike (empty in strict mode). `Items` holds `PdfWarning(Code, Message, SourceOffset)` in source order; the message has no code prefix and `ToString()` returns `FPDF####: message`, the strict exception's message. A declaration dropped for several elements (an invalid `var()` substitution) is recorded once; a repeated `style` attribute is recorded for each element. At most `MaxCssWarnings` warnings (default 1,000, set with `WithLimits(l => l.MaxCssWarnings(n))`) are stored; later ones are only counted in `TotalCount`, so hostile input cannot allocate unbounded diagnostics. A failed conversion reports no warnings: its exception explains the failure. The CLI prints each warning to stderr as `warning FPDF####: message Location: line L, column C.`, then a count of any warnings past the limit, and still exits 0.
 
 Limits (`FPDF1205`): each value after substitution (a custom property's computed value or a property value) holds at most `MaxCssSyntaxNodes` syntax nodes and nests functions and blocks at most `MaxCssSyntaxDepth` deep (a spliced value keeps its own nesting), a chain of references between custom properties is at most `MaxCssSyntaxDepth` links long however it is resolved (a chain declared in resolution order counts the same as one resolved recursively), and every component placed by a substitution is charged to `MaxCssMatchOperations`. A doubling chain (`--b: var(--a) var(--a)`, `--c: var(--b) var(--b)`, …) therefore fails quickly with bounded memory instead of growing exponentially. A page may use at most `MaxCssCustomProperties` (default 4,096) distinct custom property names across its stylesheets and style attributes; a repeated name counts once.
 
@@ -1495,7 +1641,7 @@ Winners are selected independently for each property:
 
 Only actually matching arms of a grouped selector contribute specificity. Repeating a simple selector increases specificity. Duplicate declarations use the last winner at the appropriate importance. This author cascade sits above the renderer's existing defaults; it does not implement user-origin styles, cascade layers, animations or transitions.
 
-Inherited values are the parent's computed values; the parent's importance and selector specificity do not compete with declarations on a child. `inherit`, `initial` and `unset` are supported for the text properties below. `unset` resolves to inheritance or the initial value, not a lower-priority heading/paragraph default.
+Inherited values are the parent's computed values; the parent's importance and selector specificity do not compete with declarations on a child. `inherit`, `initial` and `unset` are supported for the text properties below. `revert` and `revert-layer` (with no cascade layers, the same) are accepted for every property, in stylesheets, `style` attributes and from `var()`: the property computes as if no author declaration had been written for it, so the renderer's user-agent defaults (heading sizes, paragraph gaps, list markers) or inheritance apply, and, as in Chrome 158, the presentational hints of that property are discarded too (`ol{list-style-type:revert}` ignores `type="a"`, `div{display:revert}` shows a `hidden` div) ([`RevertKeywordTests`](../tests/FactsPDF.Tests/RevertKeywordTests.cs)). `unset` resolves to inheritance or the initial value, not a lower-priority heading/paragraph default.
 
 Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(…))`, normally 12pt), line-height 1.2, black, left alignment, zero margins and automatic breaks. These are explicitly FactsPDF defaults, not a claim of browser initial font/theme behavior. Heading font-size multipliers and the default 8pt paragraph-after gap remain when no author declaration replaces them.
 
@@ -1519,6 +1665,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | margin (bounded shorthand) | Ordinary p/pre/headings and scoped div/section/article/blockquote panels; 1–4 TRBL values with nonnegative vertical print/rem/em/%/zero, horizontal print/rem/em/%/zero/`auto`. Vertical percentages use containing content width, not height. `margin:0 auto` centres explicit-width boxes; CSS-wide keywords and per-side cascade work. List/table paragraphs retain their restrictions. |
 | break-before, break-after; page-break-before/after aliases | Explicit p/pre/headings and ordinary div/section/article/blockquote report panels outside lists/tables; auto/page. Legacy aliases accept auto/always; heading-only break-after:avoid remains a bounded keep hint. Real page boundaries, not general CSS Fragmentation. [Precise print-section scope](#current-source-print-section-page-boundaries) and [heading pagination](heading-pagination.md) |
 | break-inside; page-break-inside alias | Only top-level div/section/article/blockquote cards with 1–8 direct nonempty p/pre/h1–h6 children. `auto` / `avoid`, CSS-wide keywords and `!important` share the actual PDF whole-card preflight and page move. Cannot exceed one page; nested/complex/fixed/minimum-height/inner forced-break inputs fail. [Exact scope](#current-source-keep-together-business-report-cards) |
+| orphans, widows | Positive integers, inherited, on any block (`html`, `body`, report panels, `p`/`pre`/headings, lists and list items, tables and cells), initial value 2 everywhere: the minimum number of a paragraph's lines kept at the bottom of a page before a break and at the top of the next page, placed as Chrome places them, including cell paragraphs of split table rows. Inline text, `br`, `img`, `hr` and `col` drop it. `0`, negative, non-integer and other values fail `FPDF1202`. [Exact contract](#orphans-and-widows) |
 | position, float, clear, overflow, overflow-x, overflow-y, visibility, z-index, opacity, box-shadow, text-shadow, transform, filter, background-image, clip-path, backdrop-filter, mix-blend-mode, isolation, font-feature-settings (also `-webkit-`/`-moz-`), font-variation-settings, font-variant-ligatures, font-variant-numeric, font-stretch, font-optical-sizing, font-size-adjust, font-variant, font-variant-caps, font-variant-east-asian, font-variant-alternates, font-variant-position, font-language-override, font-variant-emoji, font-palette, text-emphasis, text-emphasis-style, direction, unicode-bidi, writing-mode, text-orientation, text-combine-upright, column-count, column-width, columns, column-gap, row-gap, gap, column-span, column-fill, column-rule, column-rule-style, text-overflow, line-clamp (and `-webkit-`), box-decoration-break (and `-webkit-`), rotate, scale, translate, perspective, transform-style, mask, mask-image (both also `-webkit-`), shape-outside, hanging-punctuation, hyphenate-character, text-spacing-trim, text-underline-position, background-attachment, background-blend-mode, background-origin, container-type, container, aspect-ratio, mask-repeat, mask-size, mask-origin, mask-clip, mask-mode, mask-composite, mask-type, animation-composition, animation-timeline, animation-range, animation-range-start, animation-range-end, scroll-timeline, scroll-timeline-name, scroll-timeline-axis, view-timeline, view-timeline-name, view-timeline-axis, view-timeline-inset, timeline-scope, view-transition-name, view-transition-class, anchor-name, anchor-scope, position-area, position-try, position-try-fallbacks, position-try-order, overlay, interpolate-size, reading-flow, field-sizing, dynamic-range-limit, caret, caret-animation, caret-shape, text-wrap-style, text-box, text-box-trim, text-box-edge, paint-order, math-style, math-shift, contain-intrinsic-size, contain-intrinsic-width, contain-intrinsic-height, contain-intrinsic-block-size, contain-intrinsic-inline-size, transform-box, top, right, bottom, left, inset, inset-block, inset-inline, inset-block-start, inset-block-end, inset-inline-start, inset-inline-end, border-image, border-image-source, border-collapse, border-spacing, empty-cells, caption-side, offset-path, offset-rotate, offset-anchor, initial-letter, text-emphasis-color, zoom, contain, content-visibility, line-break, text-justify, image-rendering | Initial value only, on any element: `position:static`, `float:none`, `clear:none`, `overflow*:visible`, `visibility:visible`, `z-index:auto`, `opacity:1` or `100%`, `box-shadow`/`text-shadow`/`transform`/`filter`/`background-image`/`clip-path`/`backdrop-filter:none`, `mix-blend-mode:normal`, `isolation:auto`, `font-feature-settings`/`font-variation-settings`/`font-variant-ligatures`/`font-variant-numeric`/`font-stretch:normal`, `font-optical-sizing:auto`, `font-size-adjust:none`, `font-variant`/`font-variant-caps`/`font-variant-east-asian`/`font-variant-alternates`/`font-variant-position:normal`, `font-language-override`/`font-variant-emoji`/`font-palette:normal`, `text-emphasis`/`text-emphasis-style:none`, `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizontal-tb`, `text-orientation:mixed`, `text-combine-upright:none`, `column-count`/`column-width`/`columns:auto`, `column-gap:normal`, `column-span`/`column-rule`/`column-rule-style:none`, `column-fill:balance`, `text-overflow:clip`, `line-clamp`/`-webkit-line-clamp:none`, `box-decoration-break`/`-webkit-box-decoration-break:slice`, `rotate`/`scale`/`translate`/`perspective:none`, `transform-style:flat`, `mask`/`mask-image`/`-webkit-mask`/`-webkit-mask-image`/`shape-outside:none`, `hanging-punctuation:none`, `hyphenate-character`/`text-underline-position:auto`, `text-spacing-trim:normal`, `background-attachment:scroll`, `background-blend-mode:normal`, `background-origin:padding-box`, `container-type:normal`, `container:none`, `aspect-ratio:auto`, `mask-repeat:repeat`, `mask-size:auto`, `mask-origin`/`mask-clip:border-box`, `mask-mode:match-source`, `mask-composite:add`, `mask-type:luminance`, `animation-composition:replace`, `animation-timeline`/`view-timeline-inset:auto`, `animation-range`/`animation-range-start`/`animation-range-end:normal`, `scroll-timeline`/`scroll-timeline-name`/`view-timeline`/`view-timeline-name`/`timeline-scope`/`view-transition-name`/`view-transition-class:none`, `scroll-timeline-axis`/`view-timeline-axis:block`, `anchor-name`/`anchor-scope`/`position-area`/`position-try`/`position-try-fallbacks`/`overlay:none`, `position-try-order:normal`, `interpolate-size:numeric-only`, `reading-flow:normal`, `field-sizing:fixed`, `dynamic-range-limit:no-limit`, `caret`/`caret-animation`/`caret-shape:auto`, `text-wrap-style`/`text-box-edge:auto`, `text-box-trim:none`, `text-box`/`paint-order`/`math-style`/`math-shift:normal`, `contain-intrinsic-size` and its `-width`/`-height`/`-block-size`/`-inline-size` longhands at `none`, `transform-box:view-box`, `top`/`right`/`bottom`/`left`/`inset` and the logical `inset-block`/`inset-inline` (with `-start`/`-end`) at `auto` (only `position:static` is accepted, so offsets never move a box), `border-image`/`border-image-source:none`, `border-collapse:separate` and `border-spacing` at one or two zero lengths (`0`, `0 0`; table cells already paint separate border boxes that touch without spacing, so `collapse` and non-zero spacing fail `FPDF1202`), `empty-cells:show` (empty cells already paint their background and borders) and `caption-side:top` (no `caption` element is accepted), `offset-path:none`, `offset-rotate`/`offset-anchor:auto` (no box is placed along a motion path), `initial-letter:normal` (no drop cap is drawn) and `text-emphasis-color:currentcolor` (no emphasis mark is painted), `zoom:normal` (or `1`/`100%`), `contain:none`, `content-visibility:visible`, `line-break`/`text-justify`/`image-rendering:auto` (and CSS-wide keywords, which compute to it). Normal flow already lays out exactly this, so the declaration is validated and dropped and the PDF bytes equal the undeclared page; common reset rules in stylesheets therefore no longer fail. Every other value (`position:absolute`, `float:left`, `overflow:hidden`, `visibility:hidden`, `z-index:1`, `opacity:0.5`, `box-shadow:0 0 2pt #000`, `transform:rotate(90deg)`, `background-image:url(…)`, `font-feature-settings:'tnum'`, `font-stretch:condensed`, `zoom:2`, `contain:layout`, `line-break:anywhere`, `background-attachment:fixed`, `container-type:inline-size`, `aspect-ratio:16 / 9`, `mask-size:cover`, ...) fails `FPDF1202`; no positioning, floats, clipping, hiding, stacking, transparency, shadows, transforms, filters, background images, OpenType feature or variation-axis selection, optical sizing, aspect adjustment, font width selection, zoom, containment, content skipping, alternative line breaking or justification rules, image interpolation control, background blending, container queries or preferred aspect ratios are implemented ([`InitialValueNoOpTests`](../tests/FactsPDF.Tests/InitialValueNoOpTests.cs)) |
 | cursor, pointer-events, user-select (and its `-webkit-`/`-moz-`/`-ms-` spellings), resize, -webkit-user-drag, -webkit-touch-callout, -ms-overflow-style, speak, font-synthesis (and its `-weight`, `-style`, `-small-caps` and `-position` longhands), text-decoration-skip-ink, text-decoration-skip (and `-webkit-text-decoration-skip`), font-kerning, quotes | Any single keyword value, on any element: every CSS UI `cursor` keyword (`auto`, `default`, `pointer`, `text`, `not-allowed`, the `*-resize` cursors, ...), `pointer-events` (`auto`, `none` and the SVG keywords), `user-select` (`auto`, `text`, `none`, `contain`, `all`), `resize` (`none`, `both`, `horizontal`, `vertical`, `block`, `inline`), `-webkit-user-drag` (`auto`, `element`, `none`), `-webkit-touch-callout` (`default`, `none`) and `-ms-overflow-style` (`auto`, `none`, `scrollbar`, `-ms-autohiding-scrollbar`) and `speak` (`auto`, `never`, `always` and the CSS 2 aural `none`, `normal`, `spell-out` that icon-font stylesheets write), plus CSS-wide keywords. `text-decoration-skip-ink` accepts only `auto` or `none`, and `font-synthesis` and its four longhands only `none`: the renderer synthesizes no bold or italic face and never breaks an underline around descenders, which is what those values allow; `text-decoration-skip-ink:all` and other `font-synthesis` values (including `font-synthesis-weight:auto`) fail `FPDF1202`; the legacy `text-decoration-skip` (normalize.css 7 and Bootstrap 4 write `-webkit-text-decoration-skip:objects` on links) accepts `none`, `auto` or `objects`, since no image or other atomic inline can sit inside a line, while `ink`, `spaces`, `edges` and other values fail `FPDF1202`; `font-kerning` accepts only `auto` or `none`, since no glyph pair is ever kerned (no kern or GPOS data is read), while `font-kerning:normal` and other values fail `FPDF1202`; `quotes` accepts `auto`, `none`, `match-parent` or one or more pairs of strings, since no `q` element or `open-quote`/`close-quote` content is accepted and no quotation mark is ever inserted, while a single string and other values fail `FPDF1202`. They only change how a screen reacts to a pointer, a drag, a long press or a scrollbar, or how a screen reader speaks, or ask for nothing the renderer would do, so the declaration is validated and dropped and the PDF bytes equal the undeclared page. `-webkit-user-select`, `-moz-user-select` and `-ms-user-select` are aliases of `user-select`. Cursor images (`url(...)`), unknown keywords, several components and other prefixes (`-o-user-select`) still fail (`FPDF1202`, or `FPDF1201` for unknown names) ([`InteractionOnlyCssTests`](../tests/FactsPDF.Tests/InteractionOnlyCssTests.cs), [`ScreenGestureHintTests`](../tests/FactsPDF.Tests/ScreenGestureHintTests.cs)) |
 | font-family | A comma-separated list of family names (one string, or a sequence of identifiers) and generic families (`sans-serif`, `monospace`, `system-ui`, ...), any case, `!important` and CSS-wide keywords, on any element; validated and dropped. No font is ever discovered or matched by name: the supplied font chain (or the standard Courier fallback) is the only installed font, so every list falls back to it, as a browser does when none of the named families is installed, and the PDF is byte-identical to the page without it. `monospace` also uses that chain. Empty entries (`Arial,`), a string mixed with identifiers (`'Open' Sans`), lengths, functions such as `var()`, `default` and CSS-wide keywords inside a list fail `FPDF1202`. `@font-face` and the `font` shorthand remain unsupported. |
@@ -1538,11 +1685,11 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | caret-color; accent-color; -webkit-tap-highlight-color; scrollbar-color; scrollbar-gutter | On any element (and CSS-wide keywords): `caret-color` and `accent-color` `auto` or one colour; `-webkit-tap-highlight-color` one colour; `scrollbar-color` `auto` or two colours (thumb, track); `scrollbar-gutter` `auto`, `stable` or `stable both-edges`. A colour is a named colour, `transparent`, `currentColor`, `#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`, or `rgb()`/`rgba()`/`hsl()`/`hsla()` of three or four numbers, percentages or angles; alpha is allowed because nothing is painted. They only style a text caret, native form controls, the WebKit tap flash and scrollbars, which a PDF page does not have, so the declaration is validated and dropped. Other values fail `FPDF1202`; other prefixes fail `FPDF1201` (`UiColourPropertyTests.cs`). |
 | color-scheme; forced-color-adjust | On any element (and CSS-wide keywords): `color-scheme` `normal`, or one or more scheme names (`light`, `dark` or custom identifiers) with at most one `only` first or last; `forced-color-adjust` `auto`, `none` or `preserve-parent-color`. They only let a browser pick dark user-agent defaults or opt out of a forced high-contrast palette; a PDF page has no preferred or forced scheme and paints every colour as declared, so the declaration is validated and dropped (PDF bytes equal the undeclared page). `normal`, `only` or CSS-wide keywords inside a list, commas and other values fail `FPDF1202` ([`ColorSchemeHintTests`](../tests/FactsPDF.Tests/ColorSchemeHintTests.cs)) |
 
-These properties also accept `inherit`, `initial`, `unset` and `!important`. Paragraph-only breaks and text styles remain inapplicable on containers/spans, even for losing declarations; report-panel margins are a separate bounded exception. Styling `br` is unsupported; a matching declaration errors. Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
+These properties also accept `inherit`, `initial`, `unset` and `!important`. Paragraph-only breaks and text styles remain inapplicable on containers/spans, even for losing declarations; report-panel margins are a separate bounded exception. Styling `br` is unsupported; a matching declaration errors, except `orphans`/`widows` (validated and dropped: a `br` has no line box of its own). Head/title metadata remains non-rendering and does not acquire presentation from stylesheet rules. Inline styling of metadata is still rejected.
 
 This engine's bounded `text-indent` does **not** implement negative/hanging indentation, `each-line`, `hanging`, `calc()`, inline spans, direct table-cell paragraph declarations or arbitrary container declarations. Ordinary report containers and the document root may now declare inherited text-indent; a flat fixed-column cell paragraph can inherit it and position real PDF glyphs. It affects first-line wrapping and text placement, not painted box geometry; the scoped CSS cascade and wide-keyword resolution remain in effect.
 
-The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. That strict behavior deliberately differs from browser CSS error recovery; use the documented subset, not arbitrary website stylesheets.
+The original stylesheet increment and later box-layout increments are distinct; current block width/padding/paint scope is documented in [development](development.md), and C1 style selection in [font styles](font-styles.md). Selectors alone do not make new layout features available. Width/height, padding, borders, background fills, flex/grid, tables, images and font-family/@font-face are not added by this increment. Unsupported properties or values fail explicitly even in an unmatched selector. In strict mode (the default) that deliberately differs from browser CSS error recovery; [non-strict mode](#strict-and-non-strict-css) recovers from CSS that is invalid per the specifications as a browser does, but still fails on valid CSS outside the documented subset.
 
 ## Current-source inside/outside list marker placement
 
@@ -2478,10 +2625,155 @@ native `verify_stylesheets.py` acceptance block. Exact final-head CI,
 independent review, human reference approval, private software and
 commercial distribution rights are **separate**.
 
+## Current-source grid columns
+
+`display:grid` on an ordinary report panel, an `li` or `body` places its
+children — child blocks, images, paragraphs, and each inline child and text
+run — row by row into the columns of `grid-template-columns`, creating
+auto-sized rows as needed (CSS Grid Layout with auto-placement only):
+
+- **Columns.** `grid-template-columns` takes one track per value: a length or
+  percentage of the container's content width (`em`/`rem` too), `Nfr` or
+  `auto`; `none` (the initial value) is one `auto` column. Widths follow the
+  track sizing algorithm for single-span items: `auto` and `fr` tracks start at
+  their items' min-content contributions, `auto` tracks then grow to their
+  max-content contributions, `fr` tracks share the space left (a track whose
+  minimum exceeds its share keeps its minimum), and with `justify-content`
+  `normal` (or `stretch`) any space still free stretches the `auto` tracks.
+  Other `justify-content` values place the columns (`start`, `end`, `center`,
+  `space-between`, `space-around`, `space-evenly`).
+- **Gaps.** `column-gap` separates columns; `row-gap` separates rows (a
+  percentage row gap is zero, since the height is indefinite).
+- **Items.** `justify-items`/`justify-self` (`normal`, `stretch`, `start`,
+  `end`, `center`, `left`, `right`) place an item in its column: stretch fills
+  it unless the item has a `width`, the others use the fit-content width.
+  `align-items`/`align-self` place it in its row as in a flex line (`stretch`,
+  `start`, `end`, `center`, `baseline`). An image keeps its own size and starts
+  its area under the normal alignments. `order` changes the placement order. A
+  grid `li` is not a list item: no marker, not numbered.
+- **Pagination.** Each row is placed whole; a page may break between rows, and
+  the row gap at that break is dropped. A row that does not fit the rest of the
+  page moves to the next page when every item in it is a single paragraph of at
+  most three lines, and otherwise fails `FPDF1302`, like a flex row.
+- **Initial values accepted:** `grid-template-rows` and `grid-template-areas`
+  `none`, `grid-auto-flow:row`, `grid-auto-rows`/`grid-auto-columns` `auto`,
+  and `grid-column`, `grid-row`, `grid-area` and their `-start`/`-end`
+  longhands at `auto`.
+- **Not supported:** `repeat()`, `minmax()`, `fit-content()`,
+  `min-content`/`max-content` tracks, named lines, explicit placement, spans,
+  named areas, explicit rows, `dense` or column flow, sized implicit tracks and
+  `inline-grid` (`FPDF1202`); grid on `html`, paragraphs or inside tables, a
+  grid container with `height` or `min-height`, `break-inside:avoid` on one and
+  tables as grid items (`FPDF1201`); columns whose fixed sizes and content
+  minimums cannot fit (`FPDF1302`). See
+  [`GridLayoutTests`](../tests/FactsPDF.Tests/GridLayoutTests.cs).
+
+## Current-source `::before` and `::after` generated content
+
+A selector may end in `::before` or `::after` (also the legacy `:before` and
+`:after`, any case); the pseudo-element counts as a type selector for
+specificity. Its winning `content` and `display` decide whether it generates a
+box:
+
+- `content` accepts `none`, `normal` and one or more strings (joined, CSS
+  escapes decoded). `none` and `normal`, or `display:none`, generate nothing,
+  so rules without `content` — `*,*::before,*::after{box-sizing:border-box}` —
+  change nothing. `content` on an ordinary element changes nothing, as in a
+  browser, and an `img` generates no pseudo-element box.
+- By default the string is **inline text** at the start (`::before`) or end
+  (`::after`) of its element's content, on report blocks, list items,
+  paragraphs, inline text and table cells. It inherits from its element and
+  takes its own declarations (`font-weight`, `color`, …) like a `span`; box
+  properties on inline generated text fail `FPDF1201`.
+- In a `display:flex` container, or with `display:block` or `display:flex`
+  on the pseudo-element, it is a **block box** — a flex item in a flex
+  container — with the declarations of a `div`: `width`, `height`, `padding`,
+  borders, backgrounds, `flex-grow` and the rest of the flex item properties.
+  Block pseudo-elements are generated in report panels, list items and `body`
+  outside tables; in paragraphs and tables they fail `FPDF1201`.
+
+The centred divider of business templates works as written:
+
+```html
+<style>
+.divider{display:flex;align-items:center;white-space:nowrap;gap:1rem}
+.divider::before,.divider::after{content:"";flex-grow:1;height:1px;border-top:1px solid #edeff3}
+</style>
+<div class="divider">Account summary</div>
+```
+
+**Not supported:** `counter()`, `attr()`, `url()` and quotes (`open-quote`, …)
+in `content`, and `display` other than `inline`, `block`, `flex` and `none`
+(`FPDF1202`); `::marker`, `::first-line`, `::first-letter`, pseudo-classes
+(including `:not(:empty)`) and selectors that continue after a pseudo-element
+(`FPDF1203`); generated content on `hr`, `html`, `q` and table structure
+(`FPDF1201`). See [`GeneratedContentTests`](../tests/FactsPDF.Tests/GeneratedContentTests.cs).
+
+## Current-source single-line flex rows
+
+`display:flex` lays out the children of an ordinary report panel (`div`,
+`section`, `article`, `header`, `footer`, `main`, `nav`, `aside`, `hgroup`,
+`search`, `blockquote`, `figure`, `figcaption`, `address`, `dl`, `dt`,
+`dd`), an `li` or `body` as **one row of flex items**, following CSS Flexible
+Box Layout §9 for a single-line, row-direction container:
+
+- **Items.** Every child block, image and paragraph element is a flex item.
+  Each inline child (`span`, `strong`, `a`, …) and each run of text between
+  them becomes its own item, so `<li><span>Label</span><span>Value</span></li>`
+  is a two-item row; whitespace-only text between items is dropped. A flex
+  `li` is no longer a list item: it has no marker and is not numbered. A table
+  as a flex item fails `FPDF1201`.
+- **Main axis.** The flex base size comes from `flex-basis` (length,
+  percentage of the container's content width, `em`/`rem`, `content`, or
+  `auto`), else a definite `width`, else the item's max-content width measured
+  with the same glyph advances, letter/word spacing and break opportunities the
+  line wrapper uses. Items grow by `flex-grow` or shrink by `flex-shrink` ×
+  base size through the flexible-length loop, clamped by `min-width`/
+  `max-width` and by the automatic minimum (the min-content width, or a
+  smaller `width`). `auto` margins take the free space first; `justify-content`
+  then places the items: `normal`, `flex-start`, `start`, `left`, `stretch`,
+  `flex-end`, `end`, `right`, `center`, `space-between`, `space-around` and
+  `space-evenly`. `column-gap` (or the `gap` shorthand's second value) inserts
+  a fixed gap between items; `row-gap` has no effect on a single line. `order`
+  reorders items (stable for equal values). The `flex` shorthand accepts
+  `none`, `auto`, one number (grow, with shrink 1 and a `0%` basis), and
+  `grow shrink basis` in the CSS grammar; `flex-flow` accepts `row` and
+  `nowrap`.
+- **Cross axis.** Each item is laid out by the ordinary block layout at its
+  resolved width. The line is as tall as its tallest item (or the
+  baseline-aligned extent), or the container's `height`, or at least its
+  `min-height`. `align-items` and `align-self` accept `normal`/`stretch`
+  (a box or image without a `height` is laid out again at the line height),
+  `flex-start`/`start`/`self-start`, `flex-end`/`end`/`self-end`, `center` and
+  `baseline` (first text baselines; an item without text uses its border-box
+  bottom). `align-content` is validated and dropped: a single line fills the
+  container.
+- **Pagination.** A flex row is placed whole. When it does not fit the rest of
+  the page it moves to the next page only if every item is a single paragraph
+  of at most three lines — which a browser also moves whole under the default
+  `orphans`/`widows` of 2 — and otherwise fails `FPDF1302`, because a browser
+  would split taller items between pages. A row taller than a page, items that
+  cannot shrink to the container and items taller than a fixed-height container
+  fail `FPDF1302`.
+- **`html{display:flex}`** only centres a body narrower than a browser window.
+  It (with its `justify-content`, `align-items`, gaps and `width:100%`) is
+  accepted where `body` is the single item and its max-content width fills the
+  page, which makes it exactly the block layout; a narrower body fails
+  `FPDF1201`.
+- **Not supported:** `flex-wrap` other than `nowrap` and `flex-direction`
+  other than `row` (`FPDF1202`), `inline-flex` (`FPDF1202`), `display:flex` on
+  `p`/`pre`/headings, lists or inside tables (`FPDF1201`), `break-inside:avoid`
+  on a flex container (`FPDF1201`), percentage vertical margins on flex items
+  and a percentage `text-indent` in a content-sized item (`FPDF1201`).
+
+Flex properties on elements that are not flex containers or items change
+nothing, as in a browser. See [`FlexLayoutTests`](../tests/FactsPDF.Tests/FlexLayoutTests.cs).
+
 ## Current-source bounded report display suppression
 
 This source-only print-report subset accepts `display:none` and
-`display:block` (single identifier each) on ordinary `p`/`h1`–`h6`,
+`display:block` (single identifier each; `display:flex` is described in
+[single-line flex rows](#current-source-single-line-flex-rows)) on ordinary `p`/`h1`–`h6`,
 `div`/`section`/`article` and `blockquote`, outside lists/tables.
 A winning `none` suppresses the entire parsed block subtree. `block`
 retains that element's existing block formatting. No other formatting
@@ -2493,7 +2785,7 @@ does not inherit; a descendant `display:block` cannot resurrect an
 ancestor whose whole subtree has been suppressed. CSS-wide `inherit`,
 `initial`, `unset` are deliberately rejected (`FPDF1202`): their full
 standard computed behavior would include unsupported inline formatting.
-Unknown `display` values (`inline`, `flex`, `grid`, `contents`, etc.),
+Unknown `display` values (`inline`, `inline-flex`, `grid`, `contents`, etc.),
 multi-token values and functions also reject `FPDF1202`, including unmatched
 selectors. All applicable declarations are validated even if they lose the
 cascade. `html`/`body`, spans/emphasis, `img`, `hr`, all list/table

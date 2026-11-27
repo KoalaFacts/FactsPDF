@@ -696,3 +696,13 @@ The `functions.var` limitation is replaced in place to name the `MaxCssCustomPro
 `d4840b6ec1dd2ef0c0557568d7d95d9144318bb2996e9eb92013fb871e6405af`; English
 layer `site/src/audit-english-custom-property-budget.mjs`, ordered source-text
 SHA-256 `535a15b0ccf49e383667b29ca0e11fa33aef41f33c5317687f285ee823a36e72`.
+
+The integrated strict/non-strict CSS, table row details, captions and collapsed borders, inline svg, inline replaced elements, structural pseudo-classes, orphans/widows, flex, `::before`/`::after` and grid branches (R5df–R5do) update their rows together: `css.grid`, `css.grid-template-columns`, `css.grid-template-rows`, `css.grid-area`, `css.grid-column`, `css.grid-row` and `selector.logical` move from none to partial, `selector.pseudo` gains the structural pseudo-classes, and every other changed string is replaced in place (full 45, partial 270, none 95). Their per-branch English layers are folded into one chained layer. Current dataset SHA-256:
+`8a5d77cfd1327babc9490fabefb235d6a10f342599e26e6e56cc2d3bc8b3f858`; English
+layer `site/src/audit-english-integrated-features.mjs`, ordered source-text
+SHA-256 `8a4070b56fb2a1b941b3168f04e19c4aa0c521b2c4b66a5897e6a12dcf06261d`.
+
+The `html.tbody`, `html.html` and `html.body` limitations are replaced in place for the implied `tbody`, the `html` canvas background and the shrinking flex-item `body`; no status or count moves. Current dataset SHA-256:
+`52c2327ebdd267b16b8c5f41121b5be1a20c4afcb8dd9c5a55b687f3d33f53fa`; English
+layer `site/src/audit-english-implied-tbody-canvas.mjs`, ordered source-text
+SHA-256 `26bbe810b9dac052ed4de99c773f8b36359f5c3371fd338097c11e8b0259b159`.

@@ -18,7 +18,9 @@ def cases():
         ('tail', CSS+base+heading()+'<p>P1<br>P2</p>', [['LEAD']*30, ['TITLE','P1','P2']], False),
         ('fits', CSS+lead(28)+heading('TI<span>TLE</span>')+'<p>P1<br>P2</p>', [['LEAD']*28+['TITLE','P1','P2']], False),
         ('overflow', CSS+base+heading()+'<p>'+'<br>'.join(f'P{i}' for i in range(1,41))+'</p>',
-         [['LEAD']*30+['TITLE','P1'], [f'P{i}' for i in range(2,34)], [f'P{i}' for i in range(34,41)]], False),
+         # orphans:2 (initial value) cannot leave P1 alone at the page foot, so the paragraph
+         # moves and the break-after:avoid heading moves with it.
+         [['LEAD']*30, ['TITLE']+[f'P{i}' for i in range(1,32)], [f'P{i}' for i in range(32,41)]], False),
         ('chain-empty', CSS+base+heading('ONE')+'<p> </p>'+heading('TWO')+'<p><br></p><p>P1</p>',
          [['LEAD']*30, ['ONE','TWO','P1']], False),
         ('explicit', CSS+base+heading()+"<p style='break-before:page'>P1<br>P2</p>",

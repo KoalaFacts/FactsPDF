@@ -24,9 +24,13 @@ class CombinedReportTests(unittest.TestCase):
         self.assertTrue(source.exists(), 'F4 independent PDF inspector is missing')
         spec = importlib.util.spec_from_file_location('inspector', source)
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-        self.assertEqual(module.row_groups(10), [list(range(1, 11)), []])
-        self.assertEqual([len(g) for g in module.row_groups(30)], [11, 19])
-        self.assertEqual([len(g) for g in module.row_groups(100)], [11, 21, 21, 21, 21, 5])
+        # DejaVu Sans strut under the inline chart image: 11pt minus half of (1901-483)/2048em.
+        gap = 11 - (1901 - 483) * 11 / 4096
+        self.assertEqual(module.row_groups(10, gap), [list(range(1, 11)), []])
+        self.assertEqual([len(g) for g in module.row_groups(30, gap)], [10, 20, 0])
+        self.assertEqual([len(g) for g in module.row_groups(100, gap)], [10, 21, 21, 21, 21, 6])
+        # A block image (no gap) would keep one more row on the first page.
+        self.assertEqual([len(g) for g in module.row_groups(30, 0)], [11, 19])
         self.assertEqual(module.row_height(10), 54)
         self.assertEqual(module.row_height(11), 32)
         self.assertEqual(module.reference_status(), 'pending-user-review')

@@ -8,7 +8,6 @@ public sealed class BoundaryTests
 {
     [TestCase("&nbsp;", "FPDF1301")]
     [TestCase("\u2003", "FPDF1301")]
-    [TestCase("<html><head>lost text</head><body><p>A</p></body></html>", "FPDF1101")]
     [TestCase("<body><head><title>bad position</title></head><p>A</p></body>", "FPDF1101")]
     public void UnsupportedBoundaryInputCannotDisappearSilently(string html, string code)
     {
@@ -16,6 +15,18 @@ public sealed class BoundaryTests
         var exception = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output));
         Assert.That(exception!.Code, Is.EqualTo(code));
         Assert.That(output.Length, Is.Zero);
+    }
+
+    // Text in head ends head and starts the body, as the HTML parser (and Chrome) does, so it is
+    // rendered rather than lost.
+    [Test]
+    public void TextInHeadStartsTheBody()
+    {
+        using var output = new MemoryStream();
+        PdfConverter.Convert("<html><head>lost text</head><body><p>A</p></body></html>", output);
+        using var control = new MemoryStream();
+        PdfConverter.Convert("<html><head></head><body>lost text<p>A</p></body></html>", control);
+        Assert.That(output.ToArray(), Is.EqualTo(control.ToArray()));
     }
 
     [Test]

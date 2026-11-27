@@ -28,8 +28,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos
-other than `:root`, sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, unsupported
+pseudo-classes, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -116,11 +116,59 @@ Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behav
 
 ### The `:root` pseudo-class
 
-Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). Other pseudo-classes and pseudo-elements still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
+Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). A page without an `html` tag matches through the implied `html` element. Pseudo-classes other than the structural ones and `:not()`, and pseudo-elements, still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
+
+### Structural pseudo-classes and :not()
+
+Report stylesheets stripe and edge their tables with
+`.table tbody tr:nth-of-type(even) td`, `tr:first-of-type` and
+`tr:last-of-type`, and hide separators with `.divider:not(:empty)`; each such
+rule failed the whole page with `FPDF1203`. `:first-child`, `:last-child`,
+`:only-child`, `:first-of-type`, `:last-of-type`, `:only-of-type`,
+`:nth-child()`, `:nth-last-child()`, `:nth-of-type()`, `:nth-last-of-type()`
+(`odd`, `even` and An+B), `:empty` and `:not()` with compound arguments now
+match the elements Chrome matches, with class-level specificity (`:not()` takes
+its most specific argument). Every element counts as a sibling, including
+`style` and the dropped `script` and `template`, and document-level content is
+counted where the HTML parser puts it. `:empty` treats whitespace as content,
+as Chrome does. The `of S` form, complex `:not()` arguments, other
+pseudo-classes, pseudo-elements and An+B values beyond ±1,000,000,000 fail
+`FPDF1203`; a matched rule's unsupported declaration still fails as
+before (`tr{background-color}` `FPDF1201`, `gap:1rem` `FPDF1202`)
+([exact contract](css-stylesheets.md#structural-pseudo-classes-and-not),
+`StructuralPseudoClassTests.cs`).
+
+### Implied html, head and body
+
+A page without `html`, `head` or `body` tags still has those elements, as the
+HTML parser builds them: `body > p`, `html body p`, `:root p` and
+`body{color:navy}` now match such a page (and content after `</body>`) as in
+Chrome, where before they silently matched nothing. `meta`, `link` and `base`
+before body content go into the implied `head` instead of failing `FPDF1101`.
+An implied `body` without box declarations adds no box, so unstyled pages render
+unchanged; a repeated or misplaced `html`/`head`/`body` tag with attributes
+fails `FPDF1101` ([exact contract](css-stylesheets.md#implied-html-head-and-body),
+`ImpliedDocumentElementTests.cs`). Rows written directly in a `table` (or after
+its `colgroup`, `caption` or `thead`) go into a `tbody` the parser implies, so
+they render exactly like the same rows in an explicit `tbody` and match
+`tbody > tr` selectors. The `html` element's `background-color` is the page
+canvas: Chrome prints it over each whole sheet, margins included, and so does
+FactsPDF (white or transparent paints nothing). With `html{display:flex}` a
+`body` wider than the page (such as `width:210mm` on A4 with margins) shrinks to
+the page like a flex item, where before it failed `FPDF1302`
+(`ImpliedTableBodyAndCanvasTests.cs`).
 
 ### Custom properties and var()
 
 Design-token stylesheets declare colours, font sizes and spacing once as custom properties (`:root{--brand-700:#b3261e;--brand:var(--brand-700);--space-6:12pt}`) and use them everywhere with `var()`: `font-size:var(--font-3) !important`, `padding:var(--space-3) var(--space-6)`, `border-top:2px solid var(--brand)`, `style="padding: 0 var(--space-6)"`. Custom properties cascade, inherit and accept `inherit`/`initial`/`unset`; `var()` works in every supported property, shorthands included, with fallbacks and nested references, and the page renders byte-identical to the same page with the values written out ([example](../examples/report-custom-properties.html) with 71 tokens and its [literal oracle](../examples/report-custom-properties-oracle.html)). Where a browser would quietly unset a declaration (a reference with no value and no fallback, a used reference cycle, a value the property does not accept after substitution) FactsPDF fails with `FPDF1202` at that declaration; doubling or deep reference chains fail with `FPDF1205` ([custom properties](css-stylesheets.md#custom-properties-and-var), `CustomPropertyTests.cs`).
+
+### CSS-wide keywords: revert and substituted keywords
+
+`revert` and `revert-layer` work on every property in both modes: the element renders as if the author had declared nothing for that property, so the renderer's user-agent defaults or inheritance apply, and the presentational hint of that property is discarded as in Chrome (`ol{list-style-type:revert}` ignores `type="a"`). A `var()` fallback or substitution that yields one CSS-wide keyword applies as that keyword (`color: var(--x, inherit)`, `var(--x, revert)`), and a custom property set to `revert` or to a substituted `inherit` takes its parent's value ([cascade](css-stylesheets.md#cascade-and-inheritance), `RevertKeywordTests.cs`, `CustomPropertyTests.cs`).
+
+### Strict and non-strict CSS
+
+Strict mode stays the default: every CSS construct FactsPDF does not render exactly fails with its `FPDF` code. Non-strict mode (`Pdf.Write().WithStrict(false)`, CLI `--strict false` or `--strict=false`) drops CSS that is invalid per the CSS specifications exactly as a browser drops it, so a stylesheet written for browsers with a typo or a stray vendor prefix still renders: an unknown property (`colr:red`, `-moz-transform`) or at-rule (`@frobnicate`), a value its property cannot take (`color:bogus`, `padding:-4pt`, five `margin` values), an invalid selector list (the whole rule), CSS Syntax errors (bad strings, stray braces) and `var()` declarations invalid at computed-value time (which compute as `unset`). Each is reported as a `PdfWarning` with the code, message and location strict mode throws (`WithWarnings(handler)`; the CLI prints `warning FPDF1201: … Location: line 4, column 6.` and exits 0), in source order and bounded by `MaxCssWarnings`. A `style` element with a non-CSS `type` (`text/less`, `text/css; charset=utf-8`) is not a stylesheet in browsers, so non-strict mode ignores the whole element with a warning. Valid CSS FactsPDF does not implement (`position:absolute`, `:hover`, `@font-face`, `display:flex`) still fails in both modes, and declarations written directly inside `@media` keep failing because Chrome drops the following rule with them, and so does every limit. The page renders byte-identical to the same page with the dropped CSS removed. Invalidity is decided by superset grammars, Chrome's property list and the specifications' selector and at-rule names, checked against Chrome 158 (no vector the grammars reject is accepted by Chrome); what cannot be proven invalid fails as in strict mode ([contract](css-stylesheets.md#strict-and-non-strict-css), `NonStrictCssTests.cs`).
 
 ### Print-only stylesheet rules for business reports (source-only)
 
@@ -1086,6 +1134,18 @@ A separate, strictly one-page fixed-`height` panel subset is documented above.
 
 ## Images
 
+### Inline images and svgs on the line, as in Chrome
+
+A logo header (`<header><svg …></svg></header>`) was about 4px shorter than in Chrome: FactsPDF laid every `img` and `svg` out as a block, while Chrome puts a default (`display:inline`) image on a line box whose strut leaves the text's descender space below it. An `img` or `svg` is now an atomic inline in its paragraph's line boxes: its bottom sits on the baseline, the line keeps the strut, `vertical-align` (`baseline`, `middle`, `top`, `bottom`, `text-top`, `text-bottom`, lengths and percentages) moves it, it wraps as one unit with a wrap opportunity on each side, it can sit between words in a paragraph, `span`, link (whose annotation covers its box) or list item, and a line holding a tall image moves to the next page as a unit. Padding, borders and a background paint with it; margins fail `FPDF1201`. `display:block` (and `display:inline-block`, which is the same as inline for an image) is accepted on `img` and `svg`, and `display:block` keeps the old block layout byte for byte. Pages whose images were default-inline now have the gap below them, like Chrome ([inline images in line boxes](images.md#inline-images-in-line-boxes), `InlineReplacedElementTests.cs`).
+
+### Transparency in inline SVG
+
+`fill-opacity`, `stroke-opacity`, translucent colours and `opacity` in an inline `svg` used to fail (or, for a translucent colour after translucent colours reached CSS, paint opaque). They now paint with the same PDF constant-alpha states as the rest of FactsPDF; a fill and stroke of different alpha paint as two paths. Group `opacity` is painted by multiplying it into each paint's alpha, which is exact only when the group's paints do not overlap, so overlapping paints or a shape that both fills and strokes under `opacity` below 1 fail `FPDF1103` ([inline SVG transparency](images.md#inline-svg)).
+
+### Inline SVG logos as vector paths
+
+Report templates embed the company logo as an inline `svg`. It is now drawn as PDF vector paths (never rasterised) in a block box sized from its `width`/`height` attributes, `viewBox` and CSS, with `g`, `defs`, a one-shape `clipPath`, `path` with the full path data grammar (arcs and quadratics become cubic Béziers), `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, transforms, and inherited `fill`/`stroke` paint in any opaque CSS colour, `currentColor` or `var()`. A `clip-path="url(#id)"` naming an id that no element has clips nothing, as in Chrome. Transparency, dashes, gradients, `text`, `use` and other content fail explicitly (`FPDF1102`/`FPDF1103`); svg content counts toward `MaxDisplayCommands`. A synthetic comparison page differs from Chrome 158 in 0.02% of its ink pixels ([inline SVG](images.md#inline-svg), `InlineSvgTests.cs`).
+
 ### Computed `em/rem` image geometry in business reports (candidate)
 
 A bound JPEG/PNG logo or evidence photo may size its PDF image matrix with
@@ -1188,6 +1248,30 @@ Chrome: fixed widths constrain their column, percentages take their share.
 Percentage cell padding or image sizes in such tables fail `FPDF1302`;
 `table-layout` still fails `FPDF1201`; fixed-column tables are unchanged. See
 [automatic column widths](tables.md#automatic-column-widths).
+
+### Table captions, collapsed borders and centred th
+
+`th` cells are centred by default, as Chrome's user-agent stylesheet centres them, unless
+their parent's computed `text-align` is set (an author `text-align` on a `tr`, row group,
+`table` or ancestor is inherited instead). A `caption` as the table's first child renders
+above the table at its width, centred by default, with its own padding, borders and background,
+and stays with the table's first page fragment. `border-collapse:collapse` resolves shared
+borders with the CSS 2.1 rules Chrome uses (hidden, width, style, then cell over row, row group
+and table), lays cells out with half of each border, paints the winning borders centred on the
+grid lines and lets row and row group borders take part, so zebra rules look as in Chrome; a
+page break paints half of the broken line on each fragment. `caption-side:bottom`, caption
+margins and width, `col` borders and collapsed rows that must split across pages still fail
+(`TableCaptionCollapseTests.cs`). See [captions](tables.md#captions) and
+[collapsed borders](tables.md#collapsed-borders).
+
+### Label/value rows and row backgrounds
+
+Any table row may mix `th` and `td` cells, so a body row can pair a bold label
+`th` with its value (`<tr><th>Invoice number</th><td>INV 2041</td></tr>`).
+`background-color` on `tr`, `thead`, `tbody` and `tfoot` paints under every cell of
+the row or group without a background of its own, where Chrome paints it; the
+header keeps its background on every page. Row and group padding still fail, and their
+borders fail outside collapsed-border tables (`TableRowDetailsTests.cs`).
 
 ### Table footer rows
 
@@ -1375,6 +1459,44 @@ See the [scoped CSS contract](css-stylesheets.md#current-source-html-horizontal-
 [independently authored painted-box oracle](../examples/report-horizontal-rules-oracle.html).
 This source feature is not a public NuGet/CLI release or a new private binary.
 
+### Current-source grid columns
+
+Label/value lists written as
+`display:grid;grid-template-columns:1fr auto;gap:12pt;align-items:start`
+now render: auto-placed items fill fixed, percentage, `fr` and `auto`
+columns row by row, with the auto column as wide as its widest value and the
+`fr` column taking the rest. Pages break between rows. `repeat()`, `minmax()`
+and explicit placement fail `FPDF1202`. See the
+[grid contract](css-stylesheets.md#current-source-grid-columns).
+
+### Current-source `::before` and `::after` generated content
+
+Label prefixes and divider lines written with generated content now render:
+`.note::before{content:"Note: ";font-weight:bold}` puts bold text before a
+paragraph, and `.divider::before,.divider::after{content:"";flex-grow:1;height:1px;border-top:1px solid #edeff3}`
+draws growing lines either side of a centred flex title. Strings (joined,
+escapes decoded) become inline text, or a block box in a flex container or
+with `display:block`; `counter()`, `attr()`, `url()` and quotes fail
+`FPDF1202`. Against Chrome print output the divider lines differ by at most
+0.37pt. See the
+[generated content contract](css-stylesheets.md#current-source-before-and-after-generated-content).
+
+### Current-source single-line flex rows
+
+Report header bars, label/value rows and toolbars written with
+`display:flex` now render: `.flex{display:flex;justify-content:space-between}`
+with text and logo blocks, `ul.list-info li{display:flex;justify-content:space-between;column-gap:10pt}`
+with a label and a value `span`, and inline
+`style="display:flex;align-items:flex-start"` rows. Items are sized from their
+real glyph widths and laid out with `flex-grow`, `flex-shrink`, `flex-basis`,
+`justify-content`, `align-items`/`align-self` (including `baseline` and
+stretched boxes and images), gaps, `auto` margins and `order`. A row stays
+whole on one page: rows of short items move to the next page, and rows a
+browser would split fail `FPDF1302`. Multi-line (`flex-wrap:wrap`) and column
+flex containers fail `FPDF1202`. Against Chrome print output with the same
+fonts, word origins differ by at most 0.28pt horizontally. See the
+[flex contract](css-stylesheets.md#current-source-single-line-flex-rows).
+
 ### Current-source print-only report sections (bounded display)
 
 Use `display:none` to omit a draft, internal note, or unused ordinary
@@ -1402,8 +1524,9 @@ value that names what they already render and change nothing:
 `thead{display:table-header-group}`, `tbody`/`tfoot{display:table-row-group}`,
 `tr{display:table-row}` and `td,th{display:table-cell}`;
 `tfoot{display:table-footer-group}` (a footer repeated on every fragment) and
-any other pairing still fail `FPDF1202` (`TablePartDisplayTests.cs`). CSS-wide display keywords,
-inline/flex/grid layout, image/`hr`/table/list suppression, JavaScript and
+any other pairing still fail `FPDF1202` (`TablePartDisplayTests.cs`). `display:flex` lays out
+[single-line flex rows](#current-source-single-line-flex-rows). CSS-wide display keywords,
+inline/grid layout, image/`hr`/table/list suppression, JavaScript and
 media-query display switches are not supported.
 
 See [exact source contract](css-stylesheets.md#current-source-bounded-report-display-suppression),
@@ -1580,8 +1703,8 @@ kept last row split only for the table's bottom padding/border fails
 
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
-children, arbitrary children, left/right pages, or widows/orphans are not
-implemented. Inapplicable structures reject `FPDF1201`; unsupported values
+children, arbitrary children or left/right pages are not
+implemented (orphans and widows are below). Inapplicable structures reject `FPDF1201`; unsupported values
 reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-together-business-report-cards),
 [printable card](../examples/report-keep-together.html),
 [independently authored forced-page control](../examples/report-keep-together-oracle.html),
@@ -1589,6 +1712,24 @@ reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-t
 witness are provided for review. Source first implemented at
 `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
 private software, human PDF approval and customer rights are separate.
+
+### Orphans and widows
+
+`p, h2, h3 { orphans: 3; widows: 3; }` keeps at least three lines of a
+paragraph at the bottom of a page and three at the top of the next, placed as
+Chrome places them: a paragraph that cannot leave its orphans moves whole to
+the next page (with its panel's leading decoration, or with its
+`break-after:avoid` heading), the break otherwise moves earlier for the
+widows, and orphans win when a paragraph is too short for both. Any block
+accepts the inherited positive integer; lists move a too-short item with its
+marker, and cell paragraphs of table rows that split across pages keep theirs
+too (a cell paragraph that cannot keep its orphans moves within its cell or
+breaks before the row). Without a declaration every paragraph uses CSS's
+initial `orphans:2;widows:2`, so a page that used to end with a paragraph's
+first line, or start with its last line, now breaks as Chrome prints it;
+`orphans:1;widows:1` restores the old breaks. Non-positive or non-integer
+values fail `FPDF1202`
+([exact contract](css-stylesheets.md#orphans-and-widows), `OrphansWidowsTests.cs`).
 
 ## .NET SDK
 

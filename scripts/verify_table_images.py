@@ -55,9 +55,11 @@ def create(directory):
               + ''.join(f'<tr style="line-height:2"><td>ROW-{n:03}</td><td>Service item {n:03}</td></tr>'
                         for n in range(1, 46)) + '</tbody></table>')
     cases.append({'name': 'repeated-header', 'html': repeat, 'pages': 3,
-                  'images': [{'page': page, 'x': 45, 'top': 45, 'width': 66, 'height': 34,
+                  # th centres its inline image by default, like the explicit text-align:center case.
+                  'images': [{'page': page, 'x': 63, 'top': 45, 'width': 66, 'height': 34,
                               'background': [32, 64, 96]} for page in range(3)],
-                  'text': [{'page': page, 'value': 'BRANDED HEADER', 'x': 162, 'baseline': 790.89}
+                  # Centred th text: 14 Courier glyphs of 6pt in the 168pt content box from x=162.
+                  'text': [{'page': page, 'value': 'BRANDED HEADER', 'x': 162 + (168 - 14 * 6) / 2, 'baseline': 790.89}
                            for page in range(3)], 'rowsPerPage': [22, 22, 1]})
     manifest = {'image': image, 'cases': cases}
     (directory / 'table-images.json').write_text(json.dumps(manifest, separators=(',', ':')) + '\n')

@@ -4,6 +4,8 @@ internal sealed class CssBudget(PdfOptions options, CancellationToken token)
 {
     private long characters, selectors, declarations, work;
     internal CancellationToken Token => token;
+    /// <summary>The non-strict conversion's warnings; null in strict mode, where every rejected construct fails.</summary>
+    internal CssWarnings? Warnings => options.CssWarnings;
     /// <summary>Whether any compiled declaration is a custom property or holds var().</summary>
     internal bool UsesVariables { get; set; }
     internal void Characters(int count, int offset)

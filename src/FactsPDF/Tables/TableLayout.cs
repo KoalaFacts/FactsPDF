@@ -4,13 +4,27 @@ namespace FactsPDF;
 
 internal sealed record MeasuredTable(double Width, double Height,
     List<PlacedText> Runs, List<PaintedBox> PaintBoxes, List<PlacedImage> Images,
-    List<MeasuredTableRow> Rows, double Top, double Bottom);
+    List<MeasuredTableRow> Rows, double Top, double Bottom)
+{
+    /// <summary>The caption's height above the table box (0 without a caption). Its runs are the
+    /// first <see cref="CaptionRunCount"/> runs and its box, if painted, the first paint box.</summary>
+    internal double CaptionHeight { get; init; }
+    internal int CaptionRunCount { get; init; }
+    internal int CaptionBoxCount { get; init; }
+    /// <summary>Collapsed borders: the full painted segments of every horizontal grid line, in
+    /// table coordinates (null for separated borders). A fragment break paints half of a line.</summary>
+    internal List<PaintedBox>[]? CollapsedLines { get; init; }
+}
 
 // A row's paint range is known only after every row is measured; it is assigned once to the
 // row itself (SetBoxRange) instead of a second record copy per row.
 internal sealed record MeasuredTableRow(double Top, double Height, bool IsHeader, int SourceOffset,
     int RunStart, int RunCount, int ImageStart, int ImageCount, MeasuredTableCell[] Cells, bool CanSplit = false, bool IsFirstBodyGroup = false, bool AvoidBreakInside = false)
 {
+    // The collapsed table's top border half above a header row, inside the row so that it repeats
+    // with the header on every fragment, as in Chrome; the cells start below it.
+    internal double Lead { get; init; }
+
     internal int BoxStart { get; private set; }
     internal int BoxCount { get; private set; }
 
@@ -36,14 +50,16 @@ internal static class TableLayout
         Action<int, int> charge, Action<int, int> ensure, CancellationToken cancellation, TableFreshSpace? freshSpace = null)
     {
         var table = item.Node;
-        var style = table.BoxStyle;
+        var style = table.LayoutBox;
+        var grid = table.Collapsed;
         var edges = ResolveEdges(style, item.AvailableWidth, table.SourceOffset);
         // As for existing blocks, auto fills the parent's content area with
         // the outer box; an explicit width describes the table's content, or
-        // with box-sizing:border-box its outer box including padding and borders.
+        // with box-sizing:border-box its outer box including padding and borders. A collapsed
+        // table's width always includes the outer halves of its collapsed borders, as in Chrome.
         var specifiedWidth = style.Width is { } specified
             ? Checked(specified.Resolve(item.AvailableWidth)
-                - (style.BorderBoxSizing ? edges.Left + edges.Right : 0), table.SourceOffset)
+                - (style.BorderBoxSizing || grid is not null ? edges.Left + edges.Right : 0), table.SourceOffset)
             : (double?)null;
         var tracks = new double[table.Columns.Count];
         // Unless every column has an explicit width, columns use automatic layout;
@@ -59,13 +75,17 @@ internal static class TableLayout
             throw Geometry("Table outer width exceeds containing content width or is zero.", table.SourceOffset);
         if (!automatic)
         {
+            // A collapsed table's column widths are authored against its whole width; its columns
+            // share the width less the outer halves of its collapsed borders in proportion, which
+            // agrees with Chrome within its layout rounding (table-auto-layout-oracle e5).
+            var authored = grid is null || style.Width is null ? width : width + edges.Left + edges.Right;
             var totalWidth = 0d;
             for (var i = 0; i < tracks.Length; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
                 var column = table.Columns[i];
                 var length = column.Width!.Value;
-                tracks[i] = Checked(length.Resolve(width), column.SourceOffset);
+                tracks[i] = Checked(length.Resolve(authored), column.SourceOffset);
                 if (tracks[i] <= 0)
                     throw Geometry("Column width must be positive.", column.SourceOffset);
                 totalWidth += tracks[i];
@@ -73,15 +93,28 @@ internal static class TableLayout
             // Allow only floating-point roundoff at the inclusive decimal boundary.
             // One ULP per track plus the table width covers resolution/summation;
             // the actual tracks remain unchanged, with no width redistribution.
-            var scale = Math.Max(totalWidth, width);
+            var scale = Math.Max(totalWidth, authored);
             var roundoff = (Math.BitIncrement(scale) - scale) * (tracks.Length + 1);
-            if (Math.Abs(totalWidth - width) > 0.001 + roundoff)
+            if (Math.Abs(totalWidth - authored) > 0.001 + roundoff)
                 throw Geometry("Column widths must sum to the table content width within 0.001pt.", table.SourceOffset);
+            if (authored != width)
+                for (var i = 0; i < tracks.Length; i++) tracks[i] *= width / authored;
         }
 
         var runs = new List<PlacedText>();
         var boxes = new List<PaintedBox>();
         var images = new List<PlacedImage>();
+        var caption = table.Caption is { } captionCell
+            ? MeasureCaption(captionCell, outerWidth, options, resolved, charge, ensure, runs, boxes, cancellation)
+            : default;
+        // A collapsed table repeats the top half of its top border with its header (see Lead).
+        var headerLead = 0d;
+        if (grid is not null && table.Rows[0].IsHeader)
+        {
+            headerLead = edges.Top;
+            edges = edges with { Top = 0 };
+        }
+        var firstTop = caption.Height + edges.Top;
         var rows = new List<MeasuredTableRow>();
         // A row's retained cell boxes (null until its first box) and its image decorations
         // (an exact-size copy, the shared empty array for a row without any).
@@ -103,7 +136,7 @@ internal static class TableLayout
         var placements = new List<CellPlacement>();
         var firstBodyGroup = true;
         var headerHeight = 0d;
-        var top = edges.Top;
+        var top = firstTop;
         var usableHeight = options.ContentHeight;
         var fresh = freshSpace ?? new(usableHeight, 0);
         bool measuringHeader = false;
@@ -119,21 +152,23 @@ internal static class TableLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 // Count first: most cells paint nothing, so no box is created for them.
-                var commands = PaintedBox.CountCommands(cell.Width, measuredRow.Height, cell.BoxStyle);
+                var commands = PaintedBox.CountCommands(cell.Width, measuredRow.Height - measuredRow.Lead, cell.BoxStyle);
                 charge(commands, cell.SourceOffset);
                 if (commands > 0)
                     (rowBoxes[index] ??= new(measuredRow.Cells.Length)).Add(new PaintedBox(cell.X,
-                        measuredRow.Top, cell.Width, measuredRow.Height, cell.BoxStyle, cell.TextColor, 0,
-                        SourceOffset: cell.SourceOffset));
+                        measuredRow.Top + measuredRow.Lead, cell.Width, measuredRow.Height - measuredRow.Lead,
+                        cell.BoxStyle, cell.TextColor, 0, SourceOffset: cell.SourceOffset));
             }
         }
         // First and last decoration may belong to different pages.
-        CheckHeight(edges.Top, table.SourceOffset);
+        CheckHeight(firstTop, table.SourceOffset);
         CheckHeight(edges.Bottom, table.SourceOffset);
         foreach (var row in table.Rows)
         {
             cancellation.ThrowIfCancellationRequested();
             measuringHeader = row.IsHeader;
+            var lead = row.IsHeader ? headerLead : 0;
+            top += lead;
             var cells = new MeasuredTableCell[row.Cells.Count];
             var cellIndex = 0;
             var runStart = runs.Count;
@@ -183,9 +218,9 @@ internal static class TableLayout
                             TextAlignment.Right => contentWidth - geometry.OuterWidth,
                             _ => 0
                         });
-                        charge(1, image.SourceOffset);
+                        charge(image.CommandCount, image.SourceOffset);
                         images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
-                            geometry.Width, geometry.Height));
+                            geometry.Width, geometry.Height, image.Vector));
                         var imageIndex = images.Count - 1;
                         var decorationStart = imageBoxes.Count;
                         var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
@@ -237,6 +272,7 @@ internal static class TableLayout
                     if (hasText) ensure(1, offset);
                     try
                     {
+                        var startsParagraph = true;
                         foreach (var line in Wrap(paragraph, contentWidth, options, resolved, cancellation))
                         {
                             cancellation.ThrowIfCancellationRequested();
@@ -253,10 +289,13 @@ internal static class TableLayout
                                     _ => 0
                                 });
                             var lineStart = runs.Count;
+                            var lineImageStart = images.Count;
                             AppendLine(line, alignedX, -top - height - line.Ascent,
-                                runs, charge, cancellation, offset);
-                            units.Add(new(TableCellUnitKind.TextLine, offset, top + height, line.Height,
-                                paragraphGap, units.Count == 0, lineStart, runs.Count - lineStart, -1, 0, 0));
+                                runs, charge, cancellation, offset, images);
+                            units.Add(MeasuredCellUnit.Line(offset, top + height, line.Height, paragraphGap, units.Count == 0,
+                                lineStart, runs.Count - lineStart, lineImageStart, images.Count - lineImageStart,
+                                MeasuredCellUnit.TextLinePayload(paragraph.Style, startsParagraph)));
+                            startsParagraph = false;
                             paragraphGap = 0;
                             height += line.Height;
                         }
@@ -291,8 +330,9 @@ internal static class TableLayout
             }
             var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
             var capacity = fresh.UsableHeight - headerHeight
-                - (isFirstBodyGroup ? edges.Top + fresh.FirstLeading : 0);
+                - (isFirstBodyGroup ? firstTop + fresh.FirstLeading : 0);
             var canSplit = !row.IsHeader && rowHeight > capacity + .000001;
+            if (canSplit && grid is not null) throw UnsplitCollapsedRow(row.SourceOffset);
             var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
             if (uncertain && row.AvoidBreakInside && ambiguousAvoidOffset < 0) ambiguousAvoidOffset = row.SourceOffset;
             // When the complete row remains atomic, place its shorter cell
@@ -317,14 +357,14 @@ internal static class TableLayout
                 for (var i = placement.ImageBoxStart; i < placement.ImageBoxEnd; i++)
                     imageBoxes[i] = imageBoxes[i] with { Top = imageBoxes[i].Top + shift };
             }
-            rows.Add(new(top, rowHeight, row.IsHeader, row.SourceOffset,
+            rows.Add(new(top - lead, rowHeight + lead, row.IsHeader, row.SourceOffset,
                 runStart, runs.Count - runStart, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup,
-                !row.IsHeader && row.AvoidBreakInside));
+                !row.IsHeader && row.AvoidBreakInside) { Lead = lead });
             rowBoxes.Add(null);
             rowImageBoxes.Add(imageBoxes.Count == 0 ? [] : imageBoxes.ToArray());
             if (uncertain) ambiguous.Add(rows.Count - 1);
             else if (!canSplit) RetainCellBoxes(rows.Count - 1);
-            if (row.IsHeader) headerHeight = rowHeight;
+            if (row.IsHeader) headerHeight = rowHeight + lead;
             else if (rowHeight > 0) firstBodyGroup = false;
             top += rowHeight;
             CheckHeight(top, row.SourceOffset);
@@ -336,8 +376,19 @@ internal static class TableLayout
         if (ambiguousVerticalOffsets.Count > 0)
             throw Geometry("vertical-align:middle/bottom requires an unsplit terminal table row.",
                 ambiguousVerticalOffsets[0]);
+        if (grid is not null && ambiguous.Count > 0) throw UnsplitCollapsedRow(rows[ambiguous[0]].SourceOffset);
         foreach (var index in ambiguous)
             rows[index] = rows[index] with { CanSplit = true };
+        var collapsedLines = grid is null ? null : CollapsedLines(grid, rows, tracks, edges.Left, table.SourceOffset);
+        void AddCollapsed(List<PaintedBox> segments)
+        {
+            foreach (var segment in segments)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                charge(segment.CommandCount, table.SourceOffset);
+                boxes.Add(segment);
+            }
+        }
         // Assign stable paint ranges once in source order, without insertion or
         // shifting suffixes. Image decorations always follow all row cells.
         for (var i = 0; i < rows.Count; i++)
@@ -345,6 +396,17 @@ internal static class TableLayout
             cancellation.ThrowIfCancellationRequested();
             var start = boxes.Count;
             if (rowBoxes[i] is { } retained) boxes.AddRange(retained);
+            if (collapsedLines is not null)
+            {
+                // Each row paints its top grid line, then its vertical segments, and the last row the
+                // table's bottom line. A header paints the line below it as well, so the line
+                // repeats with the header; the first body row then leaves it out.
+                var header = rows[0].IsHeader;
+                if (!(i == 1 && header)) AddCollapsed(collapsedLines[i]);
+                AddCollapsed(VerticalSegments(grid!, rows, i, tracks, edges.Left, table.SourceOffset));
+                if (i == 0 && header) AddCollapsed(collapsedLines[1]);
+                if (i == rows.Count - 1) AddCollapsed(collapsedLines[rows.Count]);
+            }
             var imageStart = boxes.Count;
             boxes.AddRange(rowImageBoxes[i]);
             foreach (var cell in rows[i].Cells)
@@ -360,7 +422,7 @@ internal static class TableLayout
         var outerHeight = top + edges.Bottom;
         CheckHeight(outerHeight, table.SourceOffset);
         if (ambiguousAvoidOffset >= 0 && outerHeight > usableHeight + 0.000001) throw UnkeptRow(ambiguousAvoidOffset);
-        var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0,
+        var tableBox = new PaintedBox(0, caption.Height, outerWidth, outerHeight - caption.Height, style, table.Style.Color, 0,
             SourceOffset: table.SourceOffset);
         // Preserve the E1 command order and bytes for every short table.
         // Long tables charge their actual sliced decorations during placement.
@@ -369,8 +431,154 @@ internal static class TableLayout
             charge(tableBox.CommandCount, table.SourceOffset);
             if (tableBox.CommandCount > 0) boxes.Insert(0, tableBox);
         }
-        return new(outerWidth, outerHeight, runs, boxes, images, rows, edges.Top, edges.Bottom);
+        return new(outerWidth, outerHeight, runs, boxes, images, rows, firstTop, edges.Bottom)
+        {
+            CaptionHeight = caption.Height, CaptionRunCount = caption.RunCount, CaptionBoxCount = caption.BoxCount,
+            CollapsedLines = collapsedLines
+        };
     }
+
+    private readonly record struct CaptionLayout(double Height, int RunCount, int BoxCount);
+
+    // The caption is a block above the table box, as wide as the table's border box: its padding
+    // and borders inside that width, its text wrapped and aligned like cell text.
+    private static CaptionLayout MeasureCaption(TableCell caption, double width, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
+        Action<int, int> charge, Action<int, int> ensure, List<PlacedText> runs, List<PaintedBox> boxes,
+        CancellationToken cancellation)
+    {
+        // Chrome widens the table to a wider caption's min-content width instead.
+        var (minimum, _) = TableAutoLayout.CellWidths(caption, options, resolved, cancellation);
+        if (minimum > width + 0.000001)
+            throw Geometry("A caption wider than its table (its min-content width with padding and borders) is not supported.",
+                caption.SourceOffset);
+        var edges = ResolveEdges(caption.BoxStyle, width, caption.SourceOffset);
+        var contentWidth = width - edges.Left - edges.Right;
+        if (contentWidth <= 0)
+            throw Geometry("Caption content width must remain positive after padding and borders.", caption.SourceOffset);
+        var height = edges.Top;
+        foreach (var content in caption.Contents)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var paragraph = ((TableCellText)content).Paragraph;
+            var offset = paragraph.SourceOffset;
+            if (HasTextContent(paragraph, cancellation)) ensure(1, offset);
+            try
+            {
+                foreach (var line in Wrap(paragraph, contentWidth, options, resolved, cancellation))
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    var lineWidth = contentWidth - line.FirstLineIndent;
+                    var x = edges.Left + line.FirstLineIndent + ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
+                    {
+                        TextAlignment.Center => (lineWidth - line.Width) / 2,
+                        TextAlignment.Right => lineWidth - line.Width,
+                        _ => 0
+                    });
+                    AppendLine(line, x, -height - line.Ascent, runs, charge, cancellation, offset);
+                    height += line.Height;
+                }
+            }
+            catch (FactsPdfException error) when (error.SourceOffset < 0)
+            {
+                throw new FactsPdfException(error.Code, error.Message[(error.Code.Length + 2)..], offset);
+            }
+        }
+        height += edges.Bottom;
+        if (!double.IsFinite(height) || height > 14_400)
+            throw Geometry("Resolved table length exceeds supported bounds.", caption.SourceOffset);
+        var box = new PaintedBox(0, 0, width, height, caption.BoxStyle, caption.Style.Color, 0,
+            SourceOffset: caption.SourceOffset);
+        var commands = box.CommandCount;
+        charge(commands, caption.SourceOffset);
+        if (commands > 0) boxes.Add(box);
+        return new(height, runs.Count, commands > 0 ? 1 : 0);
+    }
+
+    // The y of a horizontal grid line in table coordinates: the top of its row (below a header's
+    // lead), or the bottom of the last row.
+    private static double LineY(List<MeasuredTableRow> rows, int line)
+        => line == rows.Count ? rows[^1].Top + rows[^1].Height : rows[line].Top + rows[line].Lead;
+
+    private static double GridX(double[] tracks, double left, int line)
+    {
+        var x = left;
+        for (var c = 0; c < line; c++) x += tracks[c];
+        return x;
+    }
+
+    // The widest vertical segment meeting horizontal grid line `line` at vertical line `column`.
+    private static double VerticalJoin(TableBorderGrid grid, int line, int column)
+        => Math.Max(line > 0 ? grid.Vertical(line - 1, column).Width : 0,
+            line < grid.Rows ? grid.Vertical(line, column).Width : 0);
+
+    // The widest horizontal segment meeting vertical line `column` on horizontal line `line`.
+    private static double HorizontalJoin(TableBorderGrid grid, int line, int column)
+        => Math.Max(column > 0 ? grid.Horizontal(line, column - 1).Width : 0,
+            column < grid.Columns ? grid.Horizontal(line, column).Width : 0);
+
+    // Every horizontal segment, centred on its grid line and reaching over half the widest vertical
+    // border at each end, as Chrome paints collapsed borders.
+    private static List<PaintedBox>[] CollapsedLines(TableBorderGrid grid, List<MeasuredTableRow> rows,
+        double[] tracks, double left, int sourceOffset)
+    {
+        var lines = new List<PaintedBox>[rows.Count + 1];
+        for (var line = 0; line <= rows.Count; line++)
+        {
+            var segments = new List<PaintedBox>();
+            lines[line] = segments;
+            var y = LineY(rows, line);
+            var x = left;
+            for (var c = 0; c < grid.Columns; c++)
+            {
+                var next = x + tracks[c];
+                var edge = grid.Horizontal(line, c);
+                if (edge.Paints)
+                {
+                    var start = x - VerticalJoin(grid, line, c) / 2;
+                    var end = next + VerticalJoin(grid, line, c + 1) / 2;
+                    segments.Add(new PaintedBox(start, y - edge.Width / 2, end - start, edge.Width,
+                        new BoxStyle { BorderTop = Stroke(edge) }, edge.Color, 0, SourceOffset: sourceOffset));
+                }
+                x = next;
+            }
+        }
+        return lines;
+    }
+
+    // A row's vertical segments, centred on their grid lines. A segment at least as wide as the
+    // widest horizontal border at a joint covers the joint; a narrower one stops at that border.
+    // Only the last row's segments reach down into the table's bottom border; the next row's
+    // segments cover the rest of an inner joint.
+    private static List<PaintedBox> VerticalSegments(TableBorderGrid grid, List<MeasuredTableRow> rows, int row,
+        double[] tracks, double left, int sourceOffset)
+    {
+        var segments = new List<PaintedBox>();
+        var top = LineY(rows, row);
+        var bottom = LineY(rows, row + 1);
+        for (var line = 0; line <= grid.Columns; line++)
+        {
+            var edge = grid.Vertical(row, line);
+            if (!edge.Paints) continue;
+            var above = HorizontalJoin(grid, row, line);
+            var below = HorizontalJoin(grid, row + 1, line);
+            var start = edge.Width >= above ? top - above / 2 : top + above / 2;
+            var end = edge.Width < below ? bottom - below / 2
+                : row == rows.Count - 1 ? bottom + below / 2 : bottom;
+            if (end <= start) continue;
+            var x = GridX(tracks, left, line);
+            segments.Add(new PaintedBox(x - edge.Width / 2, start, edge.Width, end - start,
+                new BoxStyle { BorderLeft = Stroke(edge) }, edge.Color, 0, SourceOffset: sourceOffset));
+        }
+        return segments;
+    }
+
+    private static BorderEdge Stroke(CollapsedEdge edge) => new(edge.Width, true, edge.Color) { Pattern = edge.Pattern };
+
+    // Chrome paints a collapsed row split across pages with cell fragments whose borders are not
+    // modelled here; fail rather than paint an approximation.
+    private static FactsPdfException UnsplitCollapsedRow(int offset) => Geometry(
+        "border-collapse:collapse is not implemented for a table row that must split across pages.", offset);
 
     private static bool HasCellWidth(TableNode table)
     {

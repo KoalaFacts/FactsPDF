@@ -111,9 +111,9 @@ class CorpusTests(unittest.TestCase):
         for count in (10, 30, 100):
             target = next(x for x in m['cases'] if x['id'] == f'T-table-{count}')
             self.assertEqual(target['initial_status'], 'unsupported')
-            self.assertEqual(target['entrypoints']['cli']['expected_code'], 'FPDF1101')
-            self.assertEqual(target['entrypoints']['api']['expected_code'], 'FPDF1101')
-            self.assertEqual(target['probe_scope'], 'missing-explicit-column-and-section-structure; positive E1/E2/F4 evidence is separate')
+            self.assertEqual(target['entrypoints']['cli']['expected_code'], 'FPDF1507')
+            self.assertEqual(target['entrypoints']['api']['expected_code'], 'FPDF1507')
+            self.assertEqual(target['probe_scope'], 'implied-tbody-with-missing-explicit-bold-resources; positive E1/E2/F4 evidence is separate')
             self.assertIn('repeat-header', target['requirements'])
             self.assertEqual(len(target['records']), count)
             html = (self.root / target['input_path']).read_text()

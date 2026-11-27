@@ -92,7 +92,12 @@ public sealed class StylesheetTests
     }
     [Test]
     public void SyntheticRootDoesNotMatchUniversalParent()
-        => Assert.That(HtmlDocumentReader.Read("<style>* > p{color:red}</style><p>A</p>", new(), default)[0].Style.Color, Is.EqualTo(Black));
+    {
+        // html has no parent element, so the reader's synthetic root never matches *.
+        Assert.That(HtmlDocumentReader.Read("<style>* > html{color:red}</style><p>A</p>", new(), default)[0].Style.Color, Is.EqualTo(Black));
+        // The implied body is p's parent, as in Chrome.
+        Assert.That(HtmlDocumentReader.Read("<style>* > p{color:red}</style><p>A</p>", new(), default)[0].Style.Color, Is.EqualTo(Red));
+    }
     [Test]
     public void ClassTokensAreDecodedAndSplitOnHtmlWhitespace()
         => Assert.That(Read(".b{color:red}", "<p class='a&#32;b\tc'>A</p>")[0].Style.Color, Is.EqualTo(Red));
@@ -166,7 +171,7 @@ public sealed class StylesheetTests
     [TestCase("p{color:red !oops}", "FPDF1202")] [TestCase("p{color:red", "FPDF1203")]
     [TestCase("p{color:red}/*unfinished", "FPDF1203")]
     [TestCase("@import 'https://example.invalid/x.css';", "FPDF1204")]
-    [TestCase(".never{display:flex}", "FPDF1202")]
+    [TestCase(".never{display:inline-flex}", "FPDF1202")]
     public void UnsupportedOrMalformedCssFailsWithoutOutput(string css, string code)
         => Fails("<style>" + css + "</style><p>A</p>", code);
     [TestCase("<style media=screen>p{color:red}</style><p>A</p>", "FPDF1204")]

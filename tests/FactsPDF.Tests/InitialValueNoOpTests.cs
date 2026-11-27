@@ -189,12 +189,9 @@ public sealed class InitialValueNoOpTests
     [TestCase("column-width:12em")]
     [TestCase("columns:2 auto")]
     [TestCase("columns:auto auto")]
-    [TestCase("column-gap:1em")]
-    [TestCase("gap:0")]
-    [TestCase("gap:1rem")]
-    [TestCase("gap:normal normal")]
-    [TestCase("row-gap:0")]
-    [TestCase("row-gap:10%")]
+    [TestCase("gap:1rem 2rem 3rem")]
+    [TestCase("row-gap:auto")]
+    [TestCase("column-gap:-1pt")]
     [TestCase("column-span:all")]
     [TestCase("column-fill:auto")]
     [TestCase("column-rule:1px solid #ccc")]
@@ -284,7 +281,6 @@ public sealed class InitialValueNoOpTests
     [TestCase("line-break:anywhere")]
     [TestCase("text-justify:inter-word")]
     [TestCase("image-rendering:pixelated")]
-    [TestCase("border-collapse:collapse")]
     [TestCase("border-spacing:2pt")]
     [TestCase("border-spacing:0 1px")]
     [TestCase("border-spacing:1e-999px")]
@@ -325,12 +321,9 @@ public sealed class InitialValueNoOpTests
     [TestCase("<p style='transform:rotate(90deg)'>A</p>", "transform supports only none", "rotate")]
     [TestCase("<style>.unused{background-image:url(a.png)}</style><p>A</p>", "background-image supports only none", "url")]
     [TestCase("<p style='opacity:calc(1)'>A</p>", "opacity supports only 1", "calc")]
-    [TestCase("<style>table{border-collapse:collapse}</style><p>A</p>", "border-collapse supports only separate", "collapse}")]
     [TestCase("<p style='border-spacing:2pt'>A</p>", "border-spacing supports only 0 (one or two zero lengths)", "2pt")]
     [TestCase("<style>td{empty-cells:hide}</style><p>A</p>", "empty-cells supports only show", "hide")]
     [TestCase("<p style='offset-rotate:reverse'>A</p>", "offset-rotate supports only auto", "reverse")]
-    [TestCase("<style>.grid{gap:1rem}</style><p>A</p>", "gap supports only normal", "1rem")]
-    [TestCase("<p style='row-gap:0'>A</p>", "row-gap supports only normal", "0")]
     [TestCase("<p style='initial-letter:2'>A</p>", "initial-letter supports only normal", "2")]
     public void FunctionValuesNameTheOnlySupportedValue(string html, string message, string at)
     {
@@ -361,7 +354,7 @@ public sealed class InitialValueNoOpTests
     [Test]
     public void OtherUnsupportedPropertiesStillFail()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='order:0'>A</p>"));
+        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='place-items:center'>A</p>"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 

@@ -11,6 +11,35 @@ internal static class TextDecorationCommands
         System.Numerics.BitOperations.PopCount((uint)decoration);
 }
 internal enum TextDecorationPattern { Solid, Dashed, Dotted }
+internal enum InlineAlignKind : byte { Baseline, Middle, Top, Bottom, TextTop, TextBottom, Shift }
+// An atomic inline's vertical-align. Shift raises the box's bottom above the baseline by an
+// absolute length in points (negative lowers it), or by a percentage of the line-height.
+internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double Shift = 0, bool IsPercent = false)
+{
+    internal static bool TryParse(string value, out InlineVerticalAlign result, double? elementFontSize = null,
+        double? rootFontSize = null)
+    {
+        result = value switch
+        {
+            "baseline" => new(InlineAlignKind.Baseline),
+            "middle" => new(InlineAlignKind.Middle),
+            "top" => new(InlineAlignKind.Top),
+            "bottom" => new(InlineAlignKind.Bottom),
+            "text-top" => new(InlineAlignKind.TextTop),
+            "text-bottom" => new(InlineAlignKind.TextBottom),
+            _ => default,
+        };
+        if (value is "baseline" or "middle" or "top" or "bottom" or "text-top" or "text-bottom") return true;
+        var negative = value.StartsWith('-');
+        var magnitude = negative || value.StartsWith('+') ? value[1..] : value;
+        if (magnitude.Length == 0 || magnitude[0] is '-' or '+'
+            || !CssBoxValues.TryLength(magnitude, out var length, out _, rootFontSize, allowRem: true,
+                elementFontSize, allowEm: true))
+            return false;
+        result = new(InlineAlignKind.Shift, negative ? -length.Value : length.Value, length.IsPercent);
+        return true;
+    }
+}
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
@@ -89,13 +118,26 @@ internal sealed record TextStyle
     public double? DecorationThickness { get; set; }
     public double? UnderlineOffset { get; set; }
     public TextAlignment? LastLineAlignment { get; set; }
+    /// <summary>
+    /// Computed CSS orphans and widows, or 0 for the initial value 2 (see
+    /// <see cref="LineBreakControl"/>), so the default style needs no assignment.
+    /// </summary>
+    public ushort Orphans { get; set; }
+    public ushort Widows { get; set; }
     // Retain relative outside margins until containing-block content width is known.
     public CssLength? PercentMarginBefore { get; set; }
     public CssLength? PercentMarginAfter { get; set; }
+    /// <summary>border-collapse:collapse (inherited); only a table's own computed value is read.</summary>
+    public bool CollapseBorders { get; set; }
 }
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
-internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
+internal record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
+// An img or svg with display:inline (the default): an atomic inline box in its paragraph's line
+// boxes. Style is the parent inline's style, whose baseline, x-height and link the box aligns to
+// and inherits; the image's own box style is on Image.
+internal sealed record InlineImageRun(ImageNode Image, TextStyle Style)
+    : TextRun("", Style, false, Image.SourceOffset);
 internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : BlockChild
 {
     private const uint AnonymousBit = 0x8000_0000;
@@ -214,7 +256,14 @@ internal sealed record LocatedText(string Text, double X, double Baseline, TextS
 // SourceOffset is the list item's; it packs beside Kind, so a disc stays 56 bytes.
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
     int SourceOffset = -1);
-internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
+// LinkUri: an inline image inside a link, whose box becomes the link annotation's rectangle.
+// Decoration: an inline image's own padding, border and background, painted just before it, with
+// X and Top relative to the image's (so moving the image moves it too).
+internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double Width, double Height,
+    SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null)
+{
+    internal int CommandCount => Vector?.CommandCount ?? 1;
+}
 internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];
@@ -279,6 +328,9 @@ internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
     // border-color: transparent keeps the edge's width in layout but paints
     // nothing; the background (painted to the border box) shows through.
     internal bool Transparent { get; init; }
+    // border-style:hidden paints nothing like none, but in the collapsing border model it
+    // suppresses every other border on the same edge.
+    internal bool Hidden { get; init; }
     internal static BorderEdge Initial => new(2.25, false, null); // CSS medium=3px
     internal double EffectiveWidth => Solid ? Width : 0;
 }
@@ -315,8 +367,13 @@ internal sealed record BoxStyle
     // Only ordinary block display:none is modelled. The parser removes the
     // complete validated subtree before any PDF layout or paint commands.
     public bool DisplayNone { get; set; }
+    // Only img and svg consume it: display:block lays them out as block boxes; the initial
+    // inline (and inline-block, identical for a replaced element) puts them in line boxes.
+    public bool DisplayBlock { get; set; }
     // Only td/th cells consume this property; rows needing fragmentation reject middle/bottom.
     public CellVerticalAlign VerticalAlign { get; set; } = CellVerticalAlign.Top;
+    // vertical-align of an inline img or svg within its line box.
+    public InlineVerticalAlign InlineAlign { get; set; }
     // Unlike painted box sides, list-style-type is inherited through li and
     // other containers. The ol/ul HTML defaults are applied in CSS computing.
     public ListMarkerKind MarkerKind { get; set; } = ListMarkerKind.Disc;
@@ -365,13 +422,61 @@ internal sealed record BoxStyle
     // Ordinary fill and border paint can anchor a box's leading layout across
     // page breaks. An outside outline is ink only: it must not consume padding
     // or change the page on which a panel's first text is placed.
+    // display:flex and the flex container and item properties, one shared reference so a box
+    // without any of them keeps the initial instance and costs no extra object.
+    public FlexStyle Flex { get; set; } = FlexStyle.Initial;
+    public bool IsFlexContainer => Flex.Display == BoxDisplay.Flex;
+    public bool IsGridContainer => Flex.Display == BoxDisplay.Grid;
+    // A flex or grid container: its children (inline ones and text runs too) are items.
+    public bool HasItems => Flex.Display != BoxDisplay.Block;
     public bool HasLayoutPaint => BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
     public bool HasPaint => HasLayoutPaint || Outline.EffectiveWidth > 0;
 }
 
+internal enum BoxDisplay { Block, Flex, Grid }
+// Main-axis distribution of a flex line or of grid columns. Normal (also stretch) packs flex items
+// at the start and stretches auto grid tracks.
+internal enum FlexJustify { Normal, Start, End, Center, SpaceBetween, SpaceAround, SpaceEvenly }
+// Cross-axis placement of a flex item; Stretch is also the computed normal.
+internal enum FlexAlign { Stretch, Start, End, Center, Baseline }
+
+// Computed display, flex and grid properties. None is inherited. Treat every published instance as
+// immutable, like BoxStyle: CSS computing assigns only its own private copy.
+internal sealed record FlexStyle
+{
+    internal static readonly FlexStyle Initial = new();
+
+    public BoxDisplay Display { get; set; }
+    public FlexJustify JustifyContent { get; set; }
+    public FlexAlign AlignItems { get; set; }
+    // null is align-self:auto, which takes the container's align-items.
+    public FlexAlign? AlignSelf { get; set; }
+    public double Grow { get; set; }
+    public double Shrink { get; set; } = 1;
+    // null is flex-basis:auto; BasisContent is flex-basis:content.
+    public CssLength? Basis { get; set; }
+    public bool BasisContent { get; set; }
+    // null is gap normal, which is zero in a flex container.
+    public CssLength? ColumnGap { get; set; }
+    public CssLength? RowGap { get; set; }
+    public int Order { get; set; }
+    // Explicit grid columns; null is grid-template-columns:none (one implicit auto column).
+    public GridTrack[]? GridColumns { get; set; }
+    public FlexAlign JustifyItems { get; set; }
+    // null is justify-self:auto, which takes the grid container's justify-items.
+    public FlexAlign? JustifySelf { get; set; }
+}
+
 internal abstract record BlockChild;
+
+// The single flex line of a flex container, standing in for the container's children in block
+// layout. Never part of the parsed tree.
+internal sealed record FlexLine(BlockNode Container, double VerticalEdges) : BlockChild;
+
+// The rows of a grid container, standing in for the container's children in block layout.
+internal sealed record GridRows(BlockNode Container) : BlockChild;
 
 internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChildList
 {
@@ -514,8 +619,17 @@ internal record BlockChildList : BlockChild, IReadOnlyList<BlockChild>
     }
 }
 
-internal sealed record ImageNode(PdfImage Image, TextStyle Style, BoxStyle BoxStyle,
-    int SourceOffset, string? Alt) : BlockChild;
+// A replaced element: a bound raster image, or an inline svg read into vector shapes (Vector).
+internal sealed record ImageNode(PdfImage? Image, TextStyle Style, BoxStyle BoxStyle,
+    int SourceOffset, string? Alt, SvgGraphic? Vector = null) : BlockChild
+{
+    // The intrinsic aspect ratio's terms: the pixel size, or the svg's viewBox size.
+    internal double RatioWidth => Vector?.RatioWidth ?? Image!.PixelWidth;
+    internal double RatioHeight => Vector?.RatioHeight ?? Image!.PixelHeight;
+    // The natural width in points (one CSS px is 0.75pt); an svg's default is 300px.
+    internal double NaturalWidth => Vector is null ? Image!.PixelWidth * 0.75 : 225;
+    internal int CommandCount => Vector?.CommandCount ?? 1;
+}
 
 internal sealed class DocumentRoot
 {
@@ -525,4 +639,12 @@ internal sealed class DocumentRoot
     public CssPageRules? PageRules { get; set; }
     /// <summary>The html element's computed text style, which the page context inherits; null without an html element.</summary>
     public TextStyle? RootStyle { get; set; }
+    /// <summary>The html element's background-color, which a browser prints over each whole sheet; null without one.</summary>
+    public Rgb? CanvasColor { get; set; }
+    // Source offset of an html element computed as display:flex, or -1. Layout accepts it only
+    // where its single body item fills the page width, which makes it a block layout no-op.
+    public int FlexRootOffset { get; set; } = -1;
+    // The body of an html flex container whose specified width exceeds the page content width:
+    // as a flex item (flex-shrink 1) it shrinks to that width, so layout ignores its width.
+    public BlockNode? ShrunkBody { get; set; }
 }

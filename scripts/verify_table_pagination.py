@@ -28,13 +28,25 @@ def html(case):
             "<col style='width:400pt'></colgroup>" + header + '<tbody>' + rows + '</tbody></table>')
 
 
+def reading_order(page_words):
+    """Words grouped into lines by vertical midpoint (Latin and CJK boxes differ), then by x."""
+    lines = []
+    for word in sorted(page_words, key=lambda w: (w['yMin']+w['yMax'])/2):
+        middle = (word['yMin']+word['yMax'])/2
+        if lines and abs(middle-lines[-1][0]) < 6: lines[-1][1].append(word)
+        else: lines.append((middle, [word]))
+    return [word for _, line in lines for word in sorted(line, key=lambda w: w['xMin'])]
+
+
 def inspect(pdf, case, raster=True):
     run(tool('qpdf'), '--check', pdf)
     reader = PdfReader(pdf); page_words, bbox = words(pdf)
     assert len(reader.pages) == len(case['groups']), 'page count'
     next_id = 1
     for index, (page, count) in enumerate(zip(reader.pages, case['groups'])):
-        tokens = [w['text'] for w in page_words[index]]
+        # Geometric reading order (line, then x): centred header cells must not depend on
+        # pdftotext's column grouping, which pairs a centred "ID" with the body column below it.
+        tokens = [w['text'] for w in reading_order(page_words[index])]
         expected = (['LEAD'] * case['lead'] if index == 0 else [])
         if case['header']: expected += ['ID', 'DESCRIPTION']
         for i in range(next_id, next_id + count): expected += [f'R{i:03}', '记录' if case['bilingual'] else 'Record']
@@ -58,7 +70,13 @@ def inspect(pdf, case, raster=True):
                 value = ('ID' if col == 0 else 'DESCRIPTION') if case['header'] and row == 0 else (
                     f'R{next_id+row-int(case["header"]):03}' if col == 0 else ('记录' if case['bilingual'] else 'Record'))
                 assert compact(''.join(w['text'] for w in cell_words)) == compact(value), 'cell text'
-                assert cell_words and abs(cell_words[0]['xMin']-(x+5))<.02, 'cell text origin'
+                assert cell_words, 'cell text'
+                if case['header'] and row == 0:
+                    # Header th text is centred by default; padding and border are symmetric.
+                    left, right = min(w['xMin'] for w in cell_words), max(w['xMax'] for w in cell_words)
+                    assert abs((left+right)/2-(x+width/2))<.05, 'header text centred'
+                else:
+                    assert abs(cell_words[0]['xMin']-(x+5))<.02, 'cell text origin'
                 assert all(w['xMax'] <= x+width-4.98 for w in cell_words), 'cell text bounds'
         next_id += count
     assert next_id == case['count'] + 1

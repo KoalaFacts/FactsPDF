@@ -1261,8 +1261,8 @@ def main():
                 raise AssertionError('Hidden report content leaked into the PDF: ' + forbidden)
         bad, existing = temp / 'bad.html', temp / 'existing.pdf'
         for html, code in (
-            ("<section style='display:flex'>BAD</section>", b'FPDF1202'),
-            ("<style>.unused{display:grid}</style><p>GOOD</p>", b'FPDF1202'),
+            ("<section style='display:inline-flex'>BAD</section>", b'FPDF1202'),
+            ("<style>.unused{display:inline-grid}</style><p>GOOD</p>", b'FPDF1202'),
             ("<span style='display:none'>BAD</span>", b'FPDF1201'),
             ("<section style='display:none'><img src=unknown /></section>", b'FPDF1604')
         ):

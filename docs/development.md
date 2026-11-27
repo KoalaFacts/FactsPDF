@@ -305,7 +305,8 @@ byte[] bytes = pdf.ToBytes("<h1>Example</h1><p>Hello PDF</p><img src=\"logo\">")
 | `WithMetadata(m => …)` | PDF Info `Title`, `Author`, `Subject`, `Keywords` |
 | `WithHeaderText`, `WithFooterText`, `WithPageNumbers` | Simple centred margin text; page numbers follow the footer as `text \| N` |
 | `WithPageFurniture(f => …)` | Six styled regions (`HeaderLeft` … `FooterRight`) with `{page}`/`{pages}`, plus `FirstPage(…)`; exclusive with the simple margin text |
-| `WithLimits(l => …)` | Every resource limit, such as `MaxPages`, `MaxElements`, `MaxOutputBytes` |
+| `WithLimits(l => …)` | Every resource limit, such as `MaxPages`, `MaxElements`, `MaxOutputBytes`, `MaxCssWarnings` |
+| `WithStrict(bool)`, `WithWarnings(handler)` | Strict CSS (default `true`) or non-strict CSS, which drops CSS invalid per the specifications as a browser does; the handler receives the `PdfWarnings` of each successful conversion ([contract](css-stylesheets.md#strict-and-non-strict-css)) |
 
 Each `With` method returns a new writer and leaves the original unchanged; invalid
 arguments fail immediately with `ArgumentException` naming the parameter. Outputs:
@@ -413,10 +414,23 @@ An intended change of a known kind is declared with `--expect <kind>`, or in CI
 with a `Parity-Expect: <kind>` trailer in the PR's head commit message (the
 `byte-parity` job passes `--expect-from HEAD^2`). A declared kind accepts only
 differences of exactly that kind, every other difference still fails, and a
-declared kind that is never observed fails the run. The one kind so far is
+declared kind that is never observed fails the run. Kinds:
 `location-added`: a failing run's stderr gains `Location: line L, column C.`
 lines and is otherwise identical, with the same exit code and no PDF on either
-side. A PDF byte or exit-code change has no kind and always fails.
+side. `new-example-rendered`: a newly added example the old CLI rejects and the
+new CLI renders. `th-default-centred`: both CLIs render an existing example
+that contains a `th`, with different PDF bytes (header text centred as in
+Chrome). `inline-replaced-baseline`: both CLIs render an existing example with
+an `img` or `svg`, with different PDF bytes (default-inline images on the line
+box baseline, with the strut's descent below, as in Chrome).
+`orphans-widows-initial-2`: both CLIs render an existing example with the same
+stderr apart from the page and byte counts of the `Wrote` line but different
+PDF bytes, or one side renders and the other fails only with `FPDF1302:
+Decorated box fragment exceeds the usable page area.` (the moved break leaves
+a decorated box's bottom padding and border without room, or now gives them
+room); declared once by the change that gave every paragraph the CSS initial
+`orphans:2;widows:2` (its PR lists every such example and set). Any other PDF
+byte or exit-code change has no kind and always fails.
 
 CI runs it on every pull request against the PR's base (the merge commit's
 first parent). A PR that changes output on purpose fails this job by design:

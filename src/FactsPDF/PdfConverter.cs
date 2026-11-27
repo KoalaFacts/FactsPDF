@@ -31,6 +31,7 @@ internal static class PdfConverter
         PageFurnitureLayout.Validate(options);
         options = FontRoles.Snapshot(options);
         options = ImageResources.Snapshot(options, cancellationToken);
+        if (!options.Strict) options = options with { CssWarnings = new CssWarnings(options.MaxCssWarnings) };
         if ((options.HeaderText?.Length ?? 0) > 1024 || (options.FooterText?.Length ?? 0) > 1024)
             throw new FactsPdfException("FPDF1001", "Each header/footer field is limited to 1024 UTF-16 units.");
         var furnitureCharacters = PageFurnitureLayout.ValidateInput(options);
@@ -46,13 +47,22 @@ internal static class PdfConverter
                 throw new FactsPdfException("FPDF1202", "@page produces invalid page options: " + problem.Message);
         }
         var pages = TextLayout.Layout(document, options, cancellationToken);
+        // The root background is the canvas: Chrome prints it over each whole sheet, margins
+        // included. Opaque white paints nothing visible on paper, so it adds no command.
+        if (document.CanvasColor is { IsInvisible: false } canvas && canvas != new Rgb(1, 1, 1))
+        {
+            var sheet = BoxStyle.Initial with { BackgroundColor = canvas };
+            foreach (var page in pages)
+                page.PaintBoxes.Insert(0, new PaintedBox(0, 0, options.PageWidth, options.PageHeight, sheet, canvas, int.MinValue));
+        }
         long displayCommands = 0;
         foreach (var page in pages)
         {
             cancellationToken.ThrowIfCancellationRequested();
             displayCommands += (long)page.Runs.Count + page.Runs.Sum(run => TextDecorationCommands.Count(run.Style.Decoration))
                 + page.Runs.Count(run => run.Style.LinkUri is not null)
-                + page.Discs.Count + page.Images.Count;
+                + page.Discs.Count;
+            foreach (var image in page.Images) displayCommands += image.CommandCount;
             foreach (var box in page.PaintBoxes) displayCommands += box.CommandCount;
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");
@@ -64,7 +74,11 @@ internal static class PdfConverter
         var pdf = pages.Any(p => p.Runs.Any(r => r.Font is not null))
             ? UnicodePdfSerializer.Build(pages, options, cancellationToken)
             : PdfSerializer.Build(pages, options, cancellationToken);
-        try { cancellationToken.ThrowIfCancellationRequested(); }
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            options.WarningHandler?.Invoke(options.CssWarnings?.Report() ?? new PdfWarnings([], 0));
+        }
         catch { pdf.Dispose(); throw; }
         pageCount = pages.Count;
         return pdf;
@@ -95,7 +109,7 @@ internal static class PdfConverter
             return (null, "Each margin must be nonnegative and the margins must leave a page area.");
         if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144)
             return (o.FontSize, "FontSize must be from 1 to 144 points.");
-        if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxCssCustomProperties < 1 || o.MaxDisplayCommands < 1
+        if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxCssCustomProperties < 1 || o.MaxDisplayCommands < 1 || o.MaxCssWarnings < 1
             || o.MaxImageResources < 1 || o.MaxTotalImageBytes < 1)
             return (null, "All resource limits must be positive.");
         return null;

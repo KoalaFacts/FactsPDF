@@ -159,8 +159,8 @@ internal static class CssVariables
     }
 
     /// <summary>The CSS-wide keyword a custom property declares, or null; <c>revert</c> and
-    /// <c>revert-layer</c> fail FPDF1202 like elsewhere in the renderer.</summary>
-    internal static string? Keyword(IReadOnlyList<CssSyntaxComponent> values, int offset)
+    /// <c>revert-layer</c> act as <c>unset</c>.</summary>
+    internal static string? Keyword(IReadOnlyList<CssSyntaxComponent> values)
     {
         CssSyntaxToken? only = null;
         for (var i = 0; i < values.Count; i++)
@@ -171,8 +171,8 @@ internal static class CssVariables
         }
         if (only is not { } keyword) return null;
         var text = keyword.Value.ToLowerInvariant();
-        if (text is "revert" or "revert-layer")
-            throw new FactsPdfException("FPDF1202", $"CSS-wide keyword '{text}' is not supported on custom properties.", offset);
+        // revert rolls the author origin back, and custom properties inherit, so it acts as unset.
+        if (text is "revert" or "revert-layer") return "unset";
         return text is "inherit" or "initial" or "unset" ? text : null;
     }
 
@@ -311,7 +311,12 @@ internal static class CssVariables
             var valid = CssVariables.Substitute(declared.Values, output, ref shape, offset, stack.Count, budget, limits,
                 (string reference, out CssVariableValue value) => TryLookup(reference, offset, out value), out _);
             stack.RemoveAt(stack.Count - 1); visiting.Remove(name); done.Add(name);
-            if (valid && !cyclic.Contains(name)) own[name] = new CssVariableValue(output.ToArray(), shape.Nodes, shape.Depth, shape.Chain);
+            var keyword = valid ? Keyword(output) : null;
+            // A substituted CSS-wide keyword applies as that keyword (Chrome 158): initial and an invalid
+            // value leave no value, inherit and unset fall back to the parent's layer.
+            if (!valid || cyclic.Contains(name) || keyword == "initial") own[name] = null;
+            else if (keyword is null) own[name] = new CssVariableValue(output.ToArray(), shape.Nodes, shape.Depth, shape.Chain);
+            else own.Remove(name);
         }
     }
 

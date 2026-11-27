@@ -202,7 +202,8 @@ public sealed class BoxPaintingTests
     public void StylingInlineSpansAndHtmlCanvasRemainsUnsupported()
     {
         Failure("<span style='border:1pt solid red'>X</span>", "FPDF1201");
-        Failure("<html style='background-color:red'><body>X</body></html>", "FPDF1201");
+        // The html background is now the page canvas (ImpliedTableBodyAndCanvasTests); its padding is not.
+        Failure("<html style='padding:2pt'><body>X</body></html>", "FPDF1201");
     }
 
     [Test]

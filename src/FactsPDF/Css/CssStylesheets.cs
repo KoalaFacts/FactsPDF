@@ -36,7 +36,11 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
+
+    /// <summary>The value of the text-align declaration that won the cascade for the element the
+    /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
+    internal string? LastTextAlign => winners[(int)CssProperty.TextAlign]?.Declaration.Value;
     // Boxes computed earlier in this conversion, keyed by everything their box declarations read
     // (see Compute). Bounded so a page of distinct styles keeps no more than a small table.
     private const int MaxComputedBoxes = 256;
@@ -45,6 +49,21 @@ internal sealed class CssStylesheets
         Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
+    // Whether a selector reads sibling positions or emptiness, and the script and template elements
+    // collection dropped (each with the token index it preceded), which still count as siblings.
+    private bool usesStructure;
+    private List<(int Token, string Name)>? dropped;
+
+    /// <summary>The document's element positions, built by <see cref="TrackPositions"/> only when a
+    /// selector needs them.</summary>
+    internal HtmlElementPositions? Positions { get; private set; }
+
+    /// <summary>Builds <see cref="Positions"/> from the collected tokens when a selector uses a
+    /// structural pseudo-class.</summary>
+    internal void TrackPositions(List<HtmlToken> tokens, CancellationToken cancellation)
+    {
+        if (usesStructure) Positions = HtmlElementPositions.Build(tokens, dropped, cancellation);
+    }
     // Custom property and var() declarations an element matched, kept until every other declaration
     // has been offered: custom properties cascade by name, then each var() declaration is compiled
     // against the element's computed custom properties and offered at its own cascade position.
@@ -65,7 +84,7 @@ internal sealed class CssStylesheets
     // attribute, its element). Bounded like the other per-conversion tables, by entries and by the
     // substituted syntax nodes the entries were compiled from (at most MaxCssSyntaxNodes in all).
     private const int MaxSubstitutions = 256;
-    private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), CssDeclaration[]> substitutions = [];
+    private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), (CssDeclaration[] Declarations, FactsPdfException? Warning)> substitutions = [];
     private long substitutionNodes;
     /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
     internal CssPageRules? PageRules { get; private set; }
@@ -88,12 +107,16 @@ internal sealed class CssStylesheets
         var depth = new HtmlDocumentReader.OpenElements(options.MaxDepth);
         // Sized once instead of doubling past the pooled capacity (each doubling copies every
         // reference so far). Within the element limit, so an input that fails it early pays for
-        // no more slots than it may hold.
-        tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2));
+        // no more slots than it may hold. Up to four more hold the html, head and body tags the HTML
+        // parser implies (HtmlImpliedElements).
+        tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2) + 4);
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
         var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
+        // A style element whose type is not CSS is not a stylesheet: non-strict mode ignores its text.
+        var ignoredStyle = false;
+        var shape = new HtmlImpliedElements();
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -112,7 +135,12 @@ internal sealed class CssStylesheets
                 // A declarative shadow root is rendered by browsers, so dropping it would lose content.
                 if (item.Attributes!.ContainsKey("shadowrootmode"))
                     throw new FactsPdfException("FPDF1103", "Declarative shadow DOM (template shadowrootmode) is not supported.", item.Offset);
-                if (templates++ == 0) templateOffset = item.Offset;
+                if (templates++ == 0)
+                {
+                    templateOffset = item.Offset;
+                    shape.Dropped(tokens, "template");
+                    (sheet.dropped ??= []).Add((tokens.Count, "template"));
+                }
                 continue;
             }
             if (templates > 0)
@@ -138,15 +166,21 @@ internal sealed class CssStylesheets
                 // would start a new column group; dropping the script would shift the columns.
                 if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
                 insideScript = true;
+                shape.Dropped(tokens, "script");
+                (sheet.dropped ??= []).Add((tokens.Count, "script"));
                 continue;
             }
-            tokens.Add(item);
+            var kept = shape.Add(tokens, item);
             if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title")
                 insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
             else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
                 insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
-            if (item.Kind == HtmlTokenKind.End) depth.Read(item);
-            if (item.Kind == HtmlTokenKind.StyleText)
+            // The parser holds an explicit </head> back until body content starts, but the early depth
+            // check closes head there: it may only under-count the reader's depth, never exceed it.
+            if (item.Kind == HtmlTokenKind.End && (kept || item.Value == "head")) depth.Read(item);
+            if (item.Kind == HtmlTokenKind.End && item.Value == "style") ignoredStyle = false;
+            if (item.Kind == HtmlTokenKind.StyleText && ignoredStyle) ignoredStyle = false;
+            else if (item.Kind == HtmlTokenKind.StyleText)
             {
                 sheet.budget.Characters(item.Value.Length, item.Offset);
                 sheet.ParseRules(sheet.ParseSource(item.Value, item.Offset, declarationsOnly: false).Rules);
@@ -154,8 +188,8 @@ internal sealed class CssStylesheets
             else if (item.Kind == HtmlTokenKind.Start)
             {
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
-                depth.Read(item);
-                if (item.Value == "style") ValidateStyleElement(item);
+                if (kept) depth.Read(item);
+                if (item.Value == "style") ignoredStyle = ValidateStyleElement(item, sheet.budget.Warnings);
                 else if (item is StyledHtmlToken styled)
                 {
                     var css = styled.Attributes!["style"];
@@ -165,6 +199,7 @@ internal sealed class CssStylesheets
             }
         }
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
+        shape.Finish(tokens);
         return sheet;
     }
     /// <summary>
@@ -196,9 +231,13 @@ internal sealed class CssStylesheets
             }
             return new InlineStyle(declarations, shift, firstOrder);
         }
+        var warned = budget.Warnings?.Total ?? 0;
         var nodes = ParseSource(css, valueOffset, declarationsOnly: true, originOffsets).Declarations;
         var output = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget, hostElement: element);
-        if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength)
+        // A text that produced non-strict warnings is compiled again for every element, so each
+        // element's dropped declarations are reported at its own offsets.
+        if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength
+            && (budget.Warnings?.Total ?? 0) == warned)
             compiledStyles.Add(css, (output, valueOffset));
         return new InlineStyle(output, 0, 0);
     }
@@ -220,14 +259,23 @@ internal sealed class CssStylesheets
         }
         return count;
     }
-    private static void ValidateStyleElement(HtmlToken token)
+    // Whether the style element is ignored. HTML processes a style element only when its type is
+    // absent, empty or an ASCII case-insensitive match for text/css (no parameters, no white space;
+    // Chrome 158 agrees), so any other type is not a stylesheet: strict mode fails FPDF1204 as it
+    // always has, and non-strict mode ignores the whole element (with its other attributes) and warns.
+    private static bool ValidateStyleElement(HtmlToken token, CssWarnings? warnings)
     {
         if (token.SelfClosing) throw new FactsPdfException("FPDF1101", "style requires an HTML end tag.", token.Offset);
+        if (warnings is not null && token.Attributes!.TryGetValue("type", out var type) && !CssType(type))
+        {
+            warnings.Add("FPDF1204", "Only text/css style elements are supported.", token.Offset);
+            return true;
+        }
         foreach (var (name, value) in token.Attributes!)
         {
             if (name == "type")
             {
-                if (value.Length != 0 && !value.Equals("text/css", StringComparison.OrdinalIgnoreCase))
+                if (!CssType(value))
                     throw new FactsPdfException("FPDF1204", "Only text/css style elements are supported.", token.Offset);
             }
             else if (name == "media")
@@ -240,7 +288,10 @@ internal sealed class CssStylesheets
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
+        return false;
     }
+
+    private static bool CssType(string type) => type.Length == 0 || type.Equals("text/css", StringComparison.OrdinalIgnoreCase);
     private CssSyntaxResult ParseSource(string css, int offset, bool declarationsOnly,
         IReadOnlyList<int>? originalOffsets = null)
     {
@@ -260,7 +311,11 @@ internal sealed class CssStylesheets
                     MaxQualifiedRules = budget.SelectorsLeft,
                     MaxDeclarations = budget.DeclarationsLeft,
                 });
-            CssSyntaxAdapter.ThrowIfRecovered(result);
+            // Non-strict mode keeps the tree CSS Syntax error recovery produced (the parser drops
+            // exactly the declaration, rule or at-rule a browser drops) and reports each error.
+            if (budget.Warnings is { } warnings)
+                foreach (var diagnostic in result.Diagnostics) warnings.Add("FPDF1203", diagnostic.Message, diagnostic.Span.Start);
+            else CssSyntaxAdapter.ThrowIfRecovered(result);
             return result;
         }
         catch (CssSyntaxLimitException error)
@@ -333,7 +388,18 @@ internal sealed class CssStylesheets
                 if (at.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
                     || at.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase))
                 {
-                    ValidateKeyframes(at);
+                    // A malformed @keyframes rule (or keyframe) is dropped by a browser; every
+                    // keyframe is dropped here anyway, so the page is the same either way.
+                    try { ValidateKeyframes(at); }
+                    catch (FactsPdfException error) when (budget.Warnings is { } warnings) { warnings.Add(error); }
+                    continue;
+                }
+                // An unknown at-rule, and @media without a block, are invalid: a browser drops
+                // the whole at-rule (to its semicolon or with its block).
+                if (budget.Warnings is { } dropped && (CssSpecValidity.UnknownAtRule(at.Name)
+                    || at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) && at.Contents is null))
+                {
+                    dropped.Add("FPDF1204", "Only block-form @media print/all is supported.", rule.Span.Start);
                     continue;
                 }
                 // Paged-media page context: size, margins and the six top/bottom margin boxes.
@@ -355,26 +421,38 @@ internal sealed class CssStylesheets
                     !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
                       || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
                     throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
+                var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", rule.Span.Start);
                 // A print stylesheet may carry @keyframes, which ParseRules validates and drops, and
                 // @page, which it compiles like a top-level one.
-                if (at.Contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
+                if (contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
                         && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
                             || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
                             || nested.Name.Equals("page", StringComparison.OrdinalIgnoreCase)))))
                     throw new FactsPdfException("FPDF1204",
                         "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
-                ParseRules(at.Contents.Cast<CssRuleNode>().ToArray());
+                ParseRules(contents.Cast<CssRuleNode>().ToArray());
                 continue;
             }
             if (rule is not CssQualifiedRuleNode qualified)
                 throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", rule.Span.Start);
-            var selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start);
-            if (qualified.Contents.Any(x => x is not CssDeclarationNode))
+            CssSelector[] selectors;
+            try { selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start); }
+            // An invalid selector list makes a browser drop the whole style rule, declarations included.
+            catch (FactsPdfException error) when (budget.Warnings is { } warnings && error.Code == "FPDF1203"
+                && CssSpecValidity.InvalidSelectorList(qualified.Prelude))
+            {
+                warnings.Add(error);
+                continue;
+            }
+            var ruleContents = WithoutUnknownAtRules(qualified.Contents, "Nested CSS rules are not supported by the PDF renderer.", "FPDF1203", rule.Span.Start);
+            if (ruleContents.Any(x => x is not CssDeclarationNode))
                 throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", rule.Span.Start);
             var declarations = CssSyntaxAdapter.CompileKnownDeclarations(
-                qualified.Contents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
+                ruleContents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
             foreach (var selector in selectors)
             {
+                usesStructure |= selector.UsesStructure;
+                if (selector.PseudoElement != CssPseudoElement.None) HasPseudoRules = true;
                 var entry = new Rule(selector, declarations);
                 var last = selector.Rightmost;
                 if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
@@ -383,6 +461,17 @@ internal sealed class CssStylesheets
                 else universal.Add(entry);
             }
         }
+    }
+
+    // Non-strict mode drops unknown at-rules nested in a block, as a browser does, reporting the
+    // error strict mode throws for the block; anything else in the block is left for the caller.
+    private IReadOnlyList<CssSyntaxContent> WithoutUnknownAtRules(IReadOnlyList<CssSyntaxContent> contents,
+        string message, string code, int offset)
+    {
+        if (budget.Warnings is not { } warnings || !contents.Any(x => x is CssAtRuleNode nested && CssSpecValidity.UnknownAtRule(nested.Name)))
+            return contents;
+        warnings.Add(code, message, offset);
+        return contents.Where(x => !(x is CssAtRuleNode nested && CssSpecValidity.UnknownAtRule(nested.Name))).ToArray();
     }
 
     private static void Add(Dictionary<string, List<Rule>> index, string key, Rule rule)
@@ -395,21 +484,58 @@ internal sealed class CssStylesheets
         return false;
     }
 
+    /// <summary>Whether any rule selects a ::before or ::after pseudo-element.</summary>
+    internal bool HasPseudoRules { get; private set; }
+
+    /// <summary>
+    /// The winning display and content values of an element's ::before or ::after, read before the
+    /// pseudo-element is computed: they decide whether a box is generated and of which kind.
+    /// </summary>
+    internal (string? Display, string? Content) PseudoKeys(IReadOnlyList<CssElement> path, CssPseudoElement pseudo)
+    {
+        Winner? display = null, content = null;
+        var element = path[^1];
+        void Scan(List<Rule> rules)
+        {
+            foreach (var rule in rules)
+            {
+                budget.Work(rule.Selector.Offset);
+                if (rule.Selector.PseudoElement != pseudo || !rule.Selector.Matches(path, budget, Positions)) continue;
+                foreach (var declaration in rule.Declarations)
+                {
+                    var candidate = new Winner(declaration, false, rule.Selector.Specificity);
+                    if (declaration.Property == CssProperty.Display)
+                    { if (display is not { } old || candidate.Beats(old)) display = candidate; }
+                    else if (declaration.Property == CssProperty.Content)
+                    { if (content is not { } old || candidate.Beats(old)) content = candidate; }
+                }
+            }
+        }
+        Scan(universal);
+        if (types.TryGetValue(element.Name, out var typeRules)) Scan(typeRules);
+        if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Scan(idRules);
+        foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Scan(classRules);
+        return (display?.Declaration.Value, content?.Declaration.Value);
+    }
+
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false,
-        ListMarkerKind? listTypeHint = null)
+        ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null)
     {
         Array.Clear(winners); var element = path[^1];
+        // A pseudo-element is matched through its originating element but validated and computed
+        // as the box it generates: an inline span or a block div.
+        var subject = pseudoName ?? element.Name;
         customDeclarations.Clear(); pendingDeclarations.Clear();
-        var cellParagraph = element.Name == "p" && AnyElement(path, e => e.Name is "td" or "th");
+        var cellParagraph = subject == "p" && AnyElement(path, e => e.Name is "td" or "th");
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
-        var cellTextIndentHost = element.Name is "td" or "th";
+        var cellTextIndentHost = subject is "td" or "th" or "caption";
         // These inherited text-flow controls can be authored on document or
         // ordinary report containers. Their computed state reaches the same
         // measured paragraph/heading renderer, not a separate box approximation.
         // Direct inline, list and table declarations remain unsupported.
-        var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+        var reportTextFlowHost = subject is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
             && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                 or "td" or "th" or "thead" or "tbody" or "tfoot");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
@@ -421,17 +547,29 @@ internal sealed class CssStylesheets
                     .Add(new(declaration.Shared, declaration.Order, declaration.Offset, isInline, specificity));
                 return;
             }
-            if (TablePartDisplay(declaration)) return;
-            // baseline is the initial value. Outside cells inline text (and a br or img) already
-            // sits on its baseline and blocks ignore vertical-align, so resets such as
+            // revert and revert-layer roll the author origin back: the winner is discarded after the
+            // cascade, so nothing the element would apply needs checking here.
+            if (declaration.Value is "revert" or "revert-layer")
+            {
+                var reverting = new Winner(declaration, isInline, specificity); var current = winners[(int)declaration.Property];
+                if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
+                return;
+            }
+            // content generates boxes only for ::before and ::after; on an element it changes
+            // nothing (as in a browser), so the validated value is dropped there.
+            if (declaration.Property == CssProperty.Content && pseudo == CssPseudoElement.None) return;
+            if (TablePartDisplay(declaration) && element.Name is not ("img" or "svg")) return;
+            // baseline is the initial value. Outside cells inline text (and a br) already sits on
+            // its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
-            // A cell's baseline row alignment is not implemented (rejected below).
+            // A cell's baseline row alignment is not implemented (rejected below). An img or svg
+            // keeps it, since it can win over another alignment of the image.
             if (declaration.Property == CssProperty.VerticalAlign && declaration.Value == "baseline"
-                && element.Name is not ("td" or "th"))
+                && subject is not ("td" or "th" or "img" or "svg"))
                 return;
             // A br has no width, height or children, so box-sizing (validated when parsed) changes
             // nothing there and *{box-sizing:border-box} does not fail on a line break.
-            if (declaration.Property == CssProperty.BoxSizing && element.Name == "br")
+            if (declaration.Property == CssProperty.BoxSizing && subject == "br")
                 return;
             // <html> and <body> lay out with no margin of their own (the page margin options frame
             // the content), and <html> with no padding, so the resets body{margin:0},
@@ -439,15 +577,40 @@ internal sealed class CssStylesheets
             // and dropped. Inline text has no box here, so a zero margin or padding and a transparent
             // background (normalize.css a{background-color:transparent}, *{margin:0;padding:0}) are
             // dropped there too. Any value that would move or paint the content still fails below.
-            if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration)
-                || TablePartMargin(element.Name, declaration) || UnusedZeroInset(element.Name, declaration))
+            if (RootZeroInset(subject, declaration) || InlineZeroBox(subject, declaration)
+                || TablePartMargin(subject, declaration) || UnusedZeroInset(subject, declaration))
+                return;
+            // orphans/widows count a block's line boxes. Inline text, br, img, hr and col hold no
+            // line box of their own and no block can nest in them (FPDF1101), so a value there
+            // reaches no paragraph, as in a browser: validated and dropped (*{orphans:3} passes).
+            if (declaration.Property is CssProperty.Orphans or CssProperty.Widows
+                && (HtmlDocumentReader.InlineTag(element.Name) || element.Name is "br" or "img" or "hr" or "col"))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
             // resource contracts; their display declarations fail explicitly.
-            if (declaration.Property == CssProperty.Display &&
-                (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+            // An img or svg is an inline replaced box by default and a block box with display:block;
+            // inline-block lays a replaced element out exactly like inline. display:none fails.
+            if (declaration.Property == CssProperty.Display && element.Name is "img" or "svg")
+            {
+                if (declaration.Value is not ("block" or "inline" or "inline-block"))
+                    throw new FactsPdfException("FPDF1201",
+                        "display on img and svg supports block, inline and inline-block.", declaration.Offset);
+            }
+            else if (declaration.Property == CssProperty.Display && declaration.Value is "flex" or "grid")
+            {
+                if (declaration.Value == "grid" && subject == "html")
+                    throw new FactsPdfException("FPDF1201", "display:grid is not supported on html.", declaration.Offset);
+                if (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav"
+                        or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address"
+                        or "dl" or "dt" or "dd" or "li" or "body" or "html")
+                    || AnyElement(path, e => e.Name is "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot"))
+                    throw new FactsPdfException("FPDF1201",
+                        "display:flex and display:grid are supported only on report panels, list items and body (flex also on html) outside tables.", declaration.Offset);
+            }
+            else if (declaration.Property == CssProperty.Display &&
+                (subject is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
@@ -457,7 +620,7 @@ internal sealed class CssStylesheets
             // list, image or inline formatting contexts.
             if (declaration.Property is (CssProperty.OutlineWidth or CssProperty.OutlineStyle
                     or CssProperty.OutlineColor or CssProperty.OutlineOffset) &&
-                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
+                (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
             {
@@ -479,7 +642,7 @@ internal sealed class CssStylesheets
             if (declaration.Property is (CssProperty.BorderRadius or CssProperty.BorderTopLeftRadius
                 or CssProperty.BorderTopRightRadius or CssProperty.BorderBottomRightRadius
                 or CssProperty.BorderBottomLeftRadius) &&
-                (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                (subject is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
@@ -490,9 +653,9 @@ internal sealed class CssStylesheets
             // Check every matching declaration, not only the cascade winner.
             if (declaration.Property is (CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight))
             {
-                var imageHeight = element.Name == "img";
+                var imageHeight = subject is "img" or "svg";
                 var panelHeight = declaration.Property != CssProperty.MaxHeight
-                    && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+                    && subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                     && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                         or "td" or "th" or "thead" or "tbody" or "tfoot");
                 if (!imageHeight && !panelHeight)
@@ -504,22 +667,22 @@ internal sealed class CssStylesheets
             // must never be accepted as an unimplemented decoration.
             // A table row never splits when it fits a fresh fragment and the header never
             // splits, so tr and thead keep avoid as a check in TableLayout, not a new behaviour.
-            if (declaration.Property == CssProperty.BreakInside && element.Name is not ("tr" or "thead") &&
-                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+            if (declaration.Property == CssProperty.BreakInside && subject is not ("tr" or "thead") &&
+                (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                  || AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "break-inside is supported only on ordinary report panels outside lists/tables and on table rows (tr, thead).", declaration.Offset);
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
-                element.Name is not ("ol" or "ul" or "menu" or "li"))
+                subject is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
-            if (declaration.Property == CssProperty.VerticalAlign)
+            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg"))
             {
-                if (element.Name is not ("td" or "th"))
+                if (subject is not ("td" or "th"))
                     throw new FactsPdfException("FPDF1201",
-                        "vertical-align applies only to fixed-column table td/th cells (elsewhere only its initial value baseline is accepted).", declaration.Offset);
-                if (declaration.Value == "baseline")
+                        "vertical-align applies only to table td/th cells and inline img/svg (elsewhere only its initial value baseline is accepted).", declaration.Offset);
+                if (declaration.Value is not ("top" or "middle" or "bottom" or "inherit" or "initial" or "unset"))
                     throw new FactsPdfException("FPDF1202",
                         "Table-cell vertical-align supports only top, middle and bottom.", declaration.Offset);
             }
@@ -527,12 +690,12 @@ internal sealed class CssStylesheets
             // padding or borders), so *{box-sizing:border-box} is accepted on it.
             // A td/th width takes part in automatic table layout only; TableLayout rejects it
             // in a table whose columns all have explicit widths.
-            if (element.Name == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing))
+            if (subject == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
             // hr has physical box geometry but no text. Its local font-size
             // can scale em lengths; colour supplies currentcolor borders.
             // Never pretend that text-only declarations rendered on a void rule.
-            if (element.Name == "hr" &&
+            if (subject == "hr" &&
                 declaration.Property is not (CssProperty.FontSize or CssProperty.Color
                     or CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight) &&
@@ -568,14 +731,14 @@ internal sealed class CssStylesheets
             if (declaration.Value.EndsWith("em", StringComparison.Ordinal)
                 && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth
                     or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft)
-                && (element.Name is ("tr" or "thead" or "tbody" or "tfoot")
-                    || element.Name is ("td" or "th")
+                && (subject is ("tr" or "thead" or "tbody" or "tfoot")
+                    || subject is ("td" or "th")
                         && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth)))
                 throw new FactsPdfException("FPDF1201",
                     "Relative em/rem box lengths are unsupported on table rows/groups and cell widths.", declaration.Offset);
-            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
+            if (subject is "img" or "svg" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
-            if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
+            if (declaration.Property == CssProperty.TextTransform && subject is "img" or "svg")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             // Direct, explicitly bound images now consume these constraints through
             // their measured outer box, including direct image items in cells.
@@ -585,7 +748,7 @@ internal sealed class CssStylesheets
             // padding and borders); on columns, rows, groups and cells no width with padding or
             // borders is accepted, so it changes nothing there and universal resets pass.
             if (declaration.Property is CssProperty.MinWidth or CssProperty.MaxWidth &&
-                (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
+                (subject is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
                 throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset
                     && declaration.Property != CssProperty.BoxSizing)
@@ -594,7 +757,7 @@ internal sealed class CssStylesheets
             // Last-line alignment belongs to a paragraph's line box, never
             // a single inline run (including losing CSS declarations).
             if (declaration.Property == CssProperty.TextAlignLast &&
-                HtmlDocumentReader.InlineTag(element.Name))
+                HtmlDocumentReader.InlineTag(subject))
                 throw new FactsPdfException("FPDF1201",
                     "text-align-last cannot be declared on inline text.", declaration.Offset);
             // Inline spans cannot independently align paragraph lines.
@@ -603,11 +766,11 @@ internal sealed class CssStylesheets
             // Do not key this off BoxTag/block: <html> inherits text alignment.
             if (declaration.Property == CssProperty.TextAlign
                 && declaration.Value is ("justify" or "start" or "end")
-                && HtmlDocumentReader.InlineTag(element.Name))
+                && HtmlDocumentReader.InlineTag(subject))
                 throw new FactsPdfException("FPDF1201", "text-align:justify/start/end cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
-                (!HeadingKeep.IsHeading(element.Name) || AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li")))
+                (!HeadingKeep.IsHeading(subject) || AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li")))
                 throw new FactsPdfException("FPDF1201", "break-after:avoid is supported only on headings outside lists.", declaration.Offset);
             // Report panels have real outside-the-border vertical margins.
             // Validate all matching declarations, even losing ones. Vertical
@@ -616,7 +779,7 @@ internal sealed class CssStylesheets
             // spacing resolves against the containing block content WIDTH at
             // layout time, not the page height. Vertical auto still fails.
             // CSS-wide inheritance/reset is resolved for the winner below.
-            var panelMargin = element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+            var panelMargin = subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
@@ -641,7 +804,7 @@ internal sealed class CssStylesheets
             // at its box boundary, not be delayed until its first text leaf.
             // No break-inside, avoid for whole panels or list/table breaks.
             var panelPageBreak = declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
-                && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+                && subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                 && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot");
             if (panelPageBreak && declaration.Value == "avoid")
@@ -658,8 +821,28 @@ internal sealed class CssStylesheets
             // non-replaced inline text (CSS Box Sizing: width and height do not apply), so the
             // universal reset *{box-sizing:border-box} is accepted there. It is still recorded on
             // the element's box so a child's box-sizing:inherit reads it, as in a browser.
+            // html lays out at the full page width, so width:100% (or auto) changes nothing there; its
+            // flex container properties are accepted with display:flex (see RootFlexNoOp).
+            if (subject == "html" && (RootFlexNoOp(declaration)
+                || declaration.Property == CssProperty.Width && declaration.Value is "100%" or "auto" or "initial" or "unset"))
+                return;
+            // gap at normal (or a CSS-wide keyword) places nothing on an element that is no flex or
+            // grid container, as in a browser, so resets such as *{gap:normal} are dropped there.
+            if (!block && declaration.Property is CssProperty.ColumnGap or CssProperty.RowGap
+                && declaration.Value is "normal" or "initial" or "unset" or "inherit")
+                return;
+            // A row or row group background paints under its cells (TableMarkup gives it to
+            // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
-                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name)))
+                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(subject))
+                // The root element's background is the page canvas (DocumentRoot.CanvasColor).
+                && !(declaration.Property == CssProperty.BackgroundColor && subject == "html")
+                && !(declaration.Property == CssProperty.BackgroundColor && subject is "tr" or "thead" or "tbody" or "tfoot")
+                // In the collapsing border model row and row group borders take part in the
+                // border conflict resolution (TableBorderCollapse); the table's computed
+                // border-collapse reaches them through inheritance.
+                && !(parent.CollapseBorders && subject is "tr" or "thead" or "tbody" or "tfoot"
+                    && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;
@@ -669,7 +852,7 @@ internal sealed class CssStylesheets
             foreach (var rule in rules)
             {
                 budget.Work(rule.Selector.Offset);
-                if (!rule.Selector.Matches(path, budget)) continue;
+                if (rule.Selector.PseudoElement != pseudo || !rule.Selector.Matches(path, budget, Positions)) continue;
                 foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity);
             }
         }
@@ -677,7 +860,7 @@ internal sealed class CssStylesheets
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
-        if (inlineDeclarations.Declarations is { } inline)
+        if (pseudo == CssPseudoElement.None && inlineDeclarations.Declarations is { } inline)
         {
             if (inlineDeclarations.FirstOrder == 0) foreach (var d in inline) Offer(d, true, default);
             else
@@ -704,6 +887,20 @@ internal sealed class CssStylesheets
                     Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
                 }
         }
+        // A winning revert computes the property as if the author origin declared nothing for it: the
+        // user-agent defaults below apply, or inheritance. Chrome 158 also discards the presentational
+        // hints (the list type attribute, the hidden attribute's display:none) for such a property.
+        // With no cascade layers, revert-layer rolls back to the unlayered author styles below the
+        // declaration, where Chrome keeps those hints, so it only drops the winner.
+        var displayReverted = false;
+        for (var index = 0; index < winners.Length; index++)
+        {
+            if (winners[index] is not { Declaration.Value: "revert" or "revert-layer" } reverted) continue;
+            winners[index] = null;
+            if (reverted.Declaration.Value == "revert-layer") continue;
+            if (index == (int)CssProperty.Display) displayReverted = true;
+            if (index == (int)CssProperty.ListStyleType) listTypeHint = null;
+        }
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared
@@ -713,7 +910,7 @@ internal sealed class CssStylesheets
         // Bounded report defaults. A quote is a real inset block rather
         // than an ignored tag; author CSS overrides each side normally.
         // CSS-wide initial resets to the zero-margin ordinary box initial.
-        var box = element.Name switch
+        var box = subject switch
         {
             "hr" => new BoxStyle
             {
@@ -742,7 +939,7 @@ internal sealed class CssStylesheets
         // propagate the inherited marker type, including li and nested panels.
         // Copy the box only when a marker setting actually differs. The HTML type attribute is a
         // presentational hint: it replaces the default and loses to every author declaration.
-        var markerKind = listTypeHint ?? element.Name switch
+        var markerKind = listTypeHint ?? subject switch
         {
             "ol" => ListMarkerKind.Decimal,
             "ul" or "menu" => ListMarkerKind.Disc,
@@ -772,14 +969,15 @@ internal sealed class CssStylesheets
         {
             if (winners[index] is not { } winner) continue;
             var declaration = winner.Declaration;
-            if (WritesBox(element.Name, declaration.Property))
+            if (declaration.Property == CssProperty.Content) continue;
+            if (WritesBox(subject, declaration.Property))
             {
                 if (boxShared) continue;
                 if (!boxChecked)
                 {
                     boxChecked = true;
-                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
-                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, element.Name,
+                    boxKey = BoxKey(subject, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
+                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, subject,
                         parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index))
                     {
                         box = computed.Box;
@@ -788,8 +986,14 @@ internal sealed class CssStylesheets
                     }
                 }
             }
-            if (declaration.Property == CssProperty.Display)
+            if (declaration.Property == CssProperty.Display && element.Name is "img" or "svg")
+                Own().DisplayBlock = declaration.Value == "block";
+            else if (declaration.Property == CssProperty.Display)
+            {
                 Own().DisplayNone = declaration.Value == "none";
+                var display = declaration.Value switch { "flex" => BoxDisplay.Flex, "grid" => BoxDisplay.Grid, _ => BoxDisplay.Block };
+                if (box.Flex.Display != display) box.Flex = box.Flex with { Display = display };
+            }
             else if (declaration.Property == CssProperty.ListStyleType)
                 Own().MarkerKind = declaration.Value switch
                 {
@@ -805,6 +1009,12 @@ internal sealed class CssStylesheets
                     "inside" => true,
                     _ => throw new InvalidOperationException("Unvalidated list marker position.")
                 };
+            else if (declaration.Property == CssProperty.VerticalAlign && element.Name is "img" or "svg")
+                Own().InlineAlign = declaration.Value is "inherit" ? parentBox.InlineAlign
+                    : declaration.Value is "initial" or "unset" ? default
+                    : InlineVerticalAlign.TryParse(declaration.Value, out var inlineAlign, style.FontSize, rootFontSize)
+                        ? inlineAlign
+                        : throw new InvalidOperationException("Unvalidated inline vertical alignment.");
             else if (declaration.Property == CssProperty.VerticalAlign)
                 Own().VerticalAlign = declaration.Value switch
                 {
@@ -814,7 +1024,7 @@ internal sealed class CssStylesheets
                     "bottom" => CellVerticalAlign.Bottom,
                     _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
                 };
-            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+            else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                 && declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter))
             {
                 var value = declaration.Value switch
@@ -839,7 +1049,7 @@ internal sealed class CssStylesheets
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
-            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+            else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
@@ -848,7 +1058,7 @@ internal sealed class CssStylesheets
                 // html font-size:rem refers to the initial size; other rem
                 // text metrics use the newly computed root font on html.
                 // FontSize precedes these properties in the fixed enum.
-                var computedRoot = element.Name == "html"
+                var computedRoot = subject == "html"
                     && declaration.Property is (CssProperty.LineHeight
                         or CssProperty.TextIndent or CssProperty.LetterSpacing
                         or CssProperty.WordSpacing or CssProperty.TextDecorationThickness
@@ -913,15 +1123,22 @@ internal sealed class CssStylesheets
                      ?? elementOffset);
         }
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
-            computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
-                listTypeHint, BoxWrites(element.Name), box);
+            computedBoxes[boxKey] = new ComputedBox(subject, parentBox, rootFontSize, style.FontSize, style.Color,
+                listTypeHint, BoxWrites(subject), box);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
-        if (hidden && winners[(int)CssProperty.Display] is null && !box.DisplayNone)
+        if (hidden && !displayReverted && winners[(int)CssProperty.Display] is null && !box.DisplayNone)
             box = box with { DisplayNone = true };
         return (style, box);
     }
+
+    // html{display:flex} only centres a body narrower than the page in a browser window; the
+    // layout accepts it where the body fills the page width, where every flex container property
+    // places nothing (one item, no free space, the line as tall as the item).
+    private static bool RootFlexNoOp(CssDeclaration declaration) =>
+        declaration.Property is CssProperty.JustifyContent or CssProperty.AlignItems or CssProperty.FlexDirection
+            or CssProperty.FlexWrap or CssProperty.ColumnGap or CssProperty.RowGap;
 
     private CssCustomEnvironment ResolveCustomProperties(CssCustomEnvironment parent)
     {
@@ -939,43 +1156,151 @@ internal sealed class CssStylesheets
     /// properties. A reference without a value or fallback, a CSS-wide keyword produced by
     /// substitution, or a substituted value the property does not accept fails with the error the
     /// literal value would give (FPDF1202 for values), located at the var() declaration: the
-    /// renderer fails rather than treating the declaration as unset as a browser would.
+    /// renderer fails rather than treating the declaration as unset as a browser would. Non-strict
+    /// mode treats a declaration that is invalid at computed-value time (a reference without a value
+    /// or fallback, or a substituted value that is invalid per the specifications) as unset, as a
+    /// browser does, and reports the strict error as a warning; a substituted CSS-wide keyword or a
+    /// valid value the renderer does not implement still fails.
     /// </summary>
     private CssDeclaration[] Substitute(Deferral pending, CssCustomEnvironment environment, string element)
     {
         var payload = (CssPendingValue)pending.Shared.Payload!;
         var key = (pending.Shared, environment, payload.Inline ? element : null);
-        if (substitutions.TryGetValue(key, out var cached)) return cached;
+        if (substitutions.TryGetValue(key, out var cached))
+        {
+            if (cached.Warning is not null) budget.Warnings?.Add(cached.Warning);
+            return cached.Declarations;
+        }
         var name = payload.Node.Name;
         var values = new List<CssSyntaxComponent>();
         var shape = new CssSubstitution();
         if (!CssVariables.Substitute(payload.Node.Values, values, ref shape, pending.Offset, 1, budget, syntaxLimits,
                 (string reference, out CssVariableValue value) => environment.TryGet(reference, budget, pending.Offset, out value), out var missing))
-            throw new FactsPdfException("FPDF1202",
+        {
+            var error = new FactsPdfException("FPDF1202",
                 $"var({missing}) in '{name}' has no value and no fallback: the custom property is not defined on this element or its ancestors, is initial, is part of a reference cycle or failed its own substitution.",
                 pending.Offset);
-        if (CssVariables.IsWideKeyword(values))
-            throw new FactsPdfException("FPDF1202",
-                $"var() in '{name}' substitutes the CSS-wide keyword '{CssVariables.Text(values)}', which is not supported.", pending.Offset);
+            return budget.Warnings is null ? throw error : Unset(pending, payload, element, key, error);
+        }
+        // A substituted CSS-wide keyword applies as that keyword (Chrome 158), so it compiles like the
+        // literal declaration below.
         CssDeclaration[] compiled;
         try
         {
             compiled = CssSyntaxAdapter.CompileKnownDeclarations([payload.Node with { Values = values.ToArray() }], budget,
-                payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1);
+                payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1, recover: false);
         }
         catch (FactsPdfException error) when (error.Code != "FPDF1205")
         {
             var reason = error.Message.StartsWith(error.Code + ": ", StringComparison.Ordinal)
                 ? error.Message[(error.Code.Length + 2)..] : error.Message;
-            throw new FactsPdfException(error.Code,
+            var substituted = new FactsPdfException(error.Code,
                 $"'{name}: {CssVariables.Text(values)}' after var() substitution: {reason}", pending.Offset);
+            if (budget.Warnings is null || error.Code is not ("FPDF1201" or "FPDF1202")
+                || !CssSpecValidity.InvalidDeclaration(name, CssSyntaxAdapter.CanonicalName(name.ToLowerInvariant()), values))
+                throw substituted;
+            return Unset(pending, payload, element, key, substituted);
         }
-        if (substitutions.Count < MaxSubstitutions && substitutionNodes + shape.Nodes <= syntaxLimits.MaxNodes)
-        {
-            substitutions[key] = compiled;
-            substitutionNodes += shape.Nodes;
-        }
+        Cache(key, compiled, null, shape.Nodes);
         return compiled;
+    }
+
+    private void Cache((CssDeclaration, CssCustomEnvironment, string?) key, CssDeclaration[] compiled, FactsPdfException? warning, long nodes)
+    {
+        if (substitutions.Count >= MaxSubstitutions || substitutionNodes + nodes > syntaxLimits.MaxNodes) return;
+        substitutions[key] = (compiled, warning);
+        substitutionNodes += nodes;
+    }
+
+    // A declaration invalid at computed-value time computes as unset (CSS Custom Properties 1,
+    // section 3.1): it still wins the cascade, and its longhands take their inherited or initial value.
+    private CssDeclaration[] Unset(Deferral pending, CssPendingValue payload, string element,
+        (CssDeclaration, CssCustomEnvironment, string?) key, FactsPdfException warning)
+    {
+        var unset = new CssTokenComponent(new CssSyntaxToken(CssSyntaxTokenKind.Ident, "unset", "unset", new CssSourceSpan(pending.Offset, 0)));
+        var compiled = CssSyntaxAdapter.CompileKnownDeclarations([payload.Node with { Values = [unset] }], budget,
+            payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1, recover: false);
+        budget.Warnings!.Add(warning);
+        Cache(key, compiled, warning, 0);
+        return compiled;
+    }
+
+    /// <summary>
+    /// The author declarations matching an element inside an svg (the last of
+    /// <paramref name="path"/>), by the source offset of the first one of each kind that reaches
+    /// SVG rendering, or -1. SVG content takes no CSS box, font or text layout, so every other
+    /// declaration a browser would apply there (the margin, padding and box-sizing of universal
+    /// resets, fonts, text alignment) changes nothing and is ignored. color reaches the paint
+    /// through currentColor, display can hide content, and width/height set a rect's geometry; a
+    /// declaration whose value holds var() counts as the property it declares. Custom properties
+    /// declared there fail: SVG paint attributes resolve var() against the svg element's own
+    /// computed custom properties (<see cref="SvgColor"/>).
+    /// </summary>
+    internal (int Color, int Display, int Size) SvgContent(IReadOnlyList<CssElement> path, InlineStyle inline)
+    {
+        var element = path[^1];
+        int color = -1, display = -1, size = -1;
+        void Note(CssDeclaration declaration, int offset)
+        {
+            budget.Work(offset);
+            var property = declaration.Property;
+            if (property == CssProperty.Custom)
+                throw new FactsPdfException("FPDF1201", "Custom properties declared on SVG content elements are not supported; declare them on the svg element or an ancestor.", offset);
+            if (property == CssProperty.Pending && declaration.Payload is CssPendingValue pending)
+                property = pending.Node.Name.ToLowerInvariant() switch
+                {
+                    "color" => CssProperty.Color,
+                    "display" => CssProperty.Display,
+                    "width" or "height" => CssProperty.Width,
+                    _ => property,
+                };
+            switch (property)
+            {
+                case CssProperty.Color when color < 0: color = offset; break;
+                case CssProperty.Display when display < 0: display = offset; break;
+                case CssProperty.Width or CssProperty.Height when size < 0: size = offset; break;
+            }
+        }
+        void Match(List<Rule> rules)
+        {
+            foreach (var rule in rules)
+            {
+                budget.Work(rule.Selector.Offset);
+                if (!rule.Selector.Matches(path, budget)) continue;
+                foreach (var declaration in rule.Declarations) Note(declaration, declaration.Offset);
+            }
+        }
+        Match(universal);
+        if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
+        if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
+        foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
+        if (inline.Declarations is { } declarations)
+            foreach (var declaration in declarations) Note(declaration, declaration.Offset + inline.OffsetShift);
+        return (color, display, size);
+    }
+
+    /// <summary>
+    /// An SVG paint or color presentation attribute value read as a CSS colour, with the same
+    /// syntax and limits as the color property: named colours, #rgb/#rrggbb (opaque alpha only),
+    /// rgb()/rgba() and hsl()/hsla() with alpha exactly 1. CSS-wide keywords and !important are
+    /// not attribute values. As in Chrome, var() is substituted from the computed custom
+    /// properties of the svg element, which is at <paramref name="svgDepth"/> on the element path
+    /// (SVG content declares none of its own; see <see cref="SvgContent"/>).
+    /// </summary>
+    internal Rgb SvgColor(string value, int offset, int svgDepth)
+    {
+        var nodes = ParseSource("color:" + value, offset, declarationsOnly: true).Declarations;
+        var compiled = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget);
+        if (compiled.Length == 1 && compiled[0].Property == CssProperty.Pending && !compiled[0].Important)
+        {
+            var environment = svgDepth < environments.Count ? environments[svgDepth] : CssCustomEnvironment.Empty;
+            compiled = Substitute(new Deferral(compiled[0].Shared, compiled[0].Order, compiled[0].Offset, false, default),
+                environment, "svg");
+        }
+        if (compiled.Length != 1 || compiled[0].Property != CssProperty.Color || compiled[0].Important
+            || compiled[0].Value is "inherit" or "initial" or "unset" or "currentcolor")
+            throw new FactsPdfException("FPDF1103", "SVG colour attributes take a single CSS colour value.", offset);
+        return InlineCss.Color(compiled[0].Value, offset);
     }
 
     // A zero margin on <html> or <body>, or a zero padding on <html>: their used insets are already
@@ -1034,13 +1359,15 @@ internal sealed class CssStylesheets
         return null;
     }
 
-    private const string UnsupportedDisplay = "Report display supports only block and none.";
+    private const string UnsupportedDisplay = "Report display supports only block, flex, grid and none.";
 
     private static string? TablePartDisplayError(string value, string element)
     {
         var host = element.ToLowerInvariant();
         if ((host, value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
-            or ("tr", "table-row") or ("td" or "th", "table-cell"))
+            or ("tr", "table-row") or ("td" or "th", "table-cell") or ("caption", "table-caption")
+            // An img or svg is an inline replaced box already, and inline-block lays it out the same.
+            or ("img" or "svg", "inline" or "inline-block"))
             return null;
         return (host, value) is ("tfoot", "table-footer-group")
             ? "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported."
@@ -1048,7 +1375,7 @@ internal sealed class CssStylesheets
     }
 
     private static bool TablePartDisplay(CssDeclaration declaration) =>
-        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block");
+        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block" or "flex" or "grid");
 
     // A zero margin is the initial value on list items and on table rows, row groups, columns,
     // column groups and cells (where CSS 2.1 §8.3 margins do not apply at all), so *{margin:0}
@@ -1061,11 +1388,11 @@ internal sealed class CssStylesheets
         var wide = declaration.Value is "initial" or "unset";
         var length = CssBoxValues.TryLength(declaration.Value, out var value, out _, rootFontSize: 16,
             allowRem: true, elementFontSize: 16, allowEm: true);
-        return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup"
+        return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "caption"
             && (wide || length && value.Value == 0);
     }
 
-    // ul, ol and table lay out with a zero margin (their initial value, used as is); rows, row groups,
+    // ul, ol, table and svg lay out with a zero margin (their initial value, used as is); rows, row groups,
     // columns and column groups take no padding (CSS 2.1 §8.4); a br lays out no box at all. So the
     // rest of *{margin:0;padding:0} changes nothing there and is dropped. inherit could carry a
     // parent panel's inset, and nonzero values would need real geometry, so both still fail.
@@ -1075,7 +1402,7 @@ internal sealed class CssStylesheets
             or CssProperty.MarginBottom or CssProperty.MarginLeft;
         var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
             or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (!(margin && element is "ul" or "menu" or "ol" or "table" or "br"
+        if (!(margin && element is "ul" or "menu" or "ol" or "table" or "br" or "svg"
             || padding && element is "tr" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "br")) return false;
         return declaration.Value is "initial" or "unset"
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,

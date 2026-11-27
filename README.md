@@ -63,6 +63,7 @@ stdin/stdout). Common options:
 | `--subset-fonts` | Embed only the glyphs used |
 | `--image name=path.png` | Bind an image resource, see [below](#fonts-and-images) |
 | `--overwrite` | Allow replacing an existing output file |
+| `--strict false` (or `--strict=false`) | Non-strict CSS: drop CSS that is invalid per the specifications, as a browser does, and print each as a warning (exit 0); default `true` ([contract](docs/css-stylesheets.md#strict-and-non-strict-css)) |
 | `--help`, `--version` | Show usage, or the exact build version and commit |
 
 Example with a header, footer and page numbers:
@@ -104,7 +105,9 @@ file only after the PDF is complete. Every method renders fully before writing,
 so a failed conversion writes nothing, and each accepts a `CancellationToken`.
 `WithFonts`, `WithImage`, `WithMetadata`, `WithPageFurniture` and `WithLimits`
 set fonts, images, document properties, styled headers and footers, and resource
-limits. See the [API guide](docs/development.md#library-api) and the
+limits. `WithStrict(false)` drops CSS that is invalid per the specifications, as
+a browser does, and `WithWarnings(handler)` receives what was dropped
+([strict and non-strict CSS](docs/css-stylesheets.md#strict-and-non-strict-css)). See the [API guide](docs/development.md#library-api) and the
 [local-package recipe](docs/development.md#first-use-from-local-artifacts).
 
 ## Fonts and images
@@ -153,7 +156,7 @@ A summary only. **For any specific property or value, look it up on
 | Colours | Hex, opaque `rgb()`/`rgba(…,1)`, `hsl()`, 148 named colours, `currentColor`; no transparency | [Colours](docs/feature-notes.md#colours) |
 | Text and fonts | Chinese and English text, normal/bold/italic/bold-italic roles, font size and weight, line height, letter/word spacing, `text-indent`, alignment and justification, ASCII `text-transform`, underline/overline/strike-through | [Fonts](docs/unicode-fonts.md), [typography](docs/feature-notes.md#text-fonts-and-typography) |
 | Wrapping | `white-space` `nowrap`/`pre`/`pre-line`/`pre-wrap`, `overflow-wrap:break-word`, `word-break:break-all` | [White space](docs/feature-notes.md#white-space-and-line-wrapping) |
-| Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
+| Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties, single-line `display:flex` rows, `display:grid` columns | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
 | Tables | Fixed column widths, `colspan`, paragraph/image cells, repeated headers, long rows continuing across pages, cell `vertical-align` | [Tables](docs/tables.md) |
 | Pages | Automatic pagination, `break-before`/`break-after`/`break-inside`, heading keeps, headers/footers, page numbers, paper size, margins, PDF metadata | [Pages](docs/feature-notes.md#pages-pagination-and-document-properties) |
 | Runtime | .NET library for `net8.0`, `net9.0` and `net10.0`, CLI for `net10.0`; Linux and Windows x64 Native AOT are tested. Output is byte-identical for the same input, options and .NET runtime version; different .NET versions may produce different bytes (for example in compressed streams: fonts, images, content streams) with the same rendered content, so byte parity is checked on .NET 10 | [Build and verification](docs/development.md#native-aot-and-verification) |
@@ -161,11 +164,12 @@ A summary only. **For any specific property or value, look it up on
 ## What is not supported
 
 - Arbitrary webpages, JavaScript, external stylesheets or any network loading.
-- Flexbox, grid, floats and positioning; CSS Paged Media beyond `@page` size, margins and the six top/bottom margin boxes.
+- Multi-line or column flexbox, explicit grid placement and rows, floats and positioning; CSS Paged Media beyond `@page` size, margins and the six top/bottom margin boxes.
 - Automatic table column widths, `rowspan` and nested tables.
 - System font discovery, CSS `font-family` matching, synthetic bold/italic,
   complex-script shaping, right-to-left and vertical text.
-- Transparency, gradients, SVG, interlaced or 16-bit PNG and APNG.
+- Transparency, gradients, SVG image files, SVG text and `use`, interlaced or
+  16-bit PNG and APNG (inline `svg` shapes and paths are drawn as vectors).
 
 Unsupported input is rejected with a diagnostic, never silently ignored. The
 only declarations accepted without effect are those that cannot change the page

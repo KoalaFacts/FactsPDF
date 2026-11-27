@@ -51,7 +51,7 @@ public sealed class TableRichTests
     public void OrderedFlowKeepsParagraphsInsideCellAndAnonymousCellStyle()
     {
         var options = TableImageTests.Options();
-        var html = "<p>BEFORE</p>" + Rich("<span style='text-align:left;color:red'>A</span><img src='logo'><p style='text-align:center'>B <span style='color:blue'>C</span></p>D<img src='logo'>E", Edges + ";text-align:right") + "<p>AFTER</p>";
+        var html = "<p>BEFORE</p>" + Rich("<span style='text-align:left;color:red'>A</span><img src='logo' style='display:block'><p style='text-align:center'>B <span style='color:blue'>C</span></p>D<img src='logo' style='display:block'>E", Edges + ";text-align:right") + "<p>AFTER</p>";
         var root = HtmlDocumentReader.ReadTree(html, options, default); Assert.That(root.Children, Has.Count.EqualTo(3));
         var paragraphs = BlockTreeTraversal.Paragraphs(root, default).ToArray();
         Assert.That(paragraphs.Select(p => string.Concat(p.Runs.Select(r => r.Text))), Is.EqualTo(new[] { "BEFORE", "A", "B C", "D", "E", "Z", "AFTER" }));
@@ -75,7 +75,7 @@ public sealed class TableRichTests
     [TestCase("left", 44)][TestCase("center", 63.5)][TestCase("right", 83)]
     public void ParagraphImageParagraphUsesSpanPercentagesAndLiteralGeometry(string align, double pixelX)
     {
-        var page = TableLayoutTests.Layout(Rich("<p>A</p><img src='logo' style='width:50%;padding:2pt;border:1pt solid blue;text-align:left'><p>B</p>", Edges + ";text-align:" + align), TableImageTests.Options()).Single();
+        var page = TableLayoutTests.Layout(Rich("<p>A</p><img src='logo' style='display:block;width:50%;padding:2pt;border:1pt solid blue;text-align:left'><p>B</p>", Edges + ";text-align:" + align), TableImageTests.Options()).Single();
         Assert.That(page.PaintBoxes.Select(b => b.Height), Is.EqualTo(new[] { 78.5, 28.5 }));
         Assert.That(page.PaintBoxes.Select(b => b.Width), Is.EqualTo(new[] { 100d, 51 }));
         var image = page.Images.Single(); Assert.That(image.X, Is.EqualTo(pixelX)); Assert.That(image.Top, Is.EqualTo(64));
@@ -90,7 +90,7 @@ public sealed class TableRichTests
     public void EmptyParagraphMarginsFoldWithoutPhantomLines(string content, double height)
         => Assert.That(TableLayoutTests.Layout(Rich(content).Replace("<td>Z</td>", "<td></td>")).Single().PaintBoxes.Single().Height, Is.EqualTo(height));
     [TestCase("<p><p>A</p></p>")][TestCase("<p>A</td>")][TestCase("<span><p>A</p></span>")]
-    [TestCase("<p><img src='logo'></p>")][TestCase("<span><img src='logo'></span>")]
+    [TestCase("<p><img src='logo' style='display:block'></p>")][TestCase("<span><img src='logo' style='display:block'></span>")]
     [TestCase("<h1>A</h1>")][TestCase("<div>A</div>")][TestCase("<section>A</section>")]
     [TestCase("<ul><li>A</li></ul>")][TestCase(TableStructureTests.One)]
     public void ParentRulesRejectWithoutOrdinaryParagraphRepair(string content)
@@ -113,11 +113,11 @@ public sealed class TableRichTests
     public void EmptyBoldHeaderParagraphsAndImageOnlyCellsHaveNoFontDemand()
     {
         var options = TableImageTests.Options() with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
-        var html = "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<thead><tr><th colspan='2' style='" + Edges + "'><p> </p><p></p><img src='logo'></th><th></th></tr></thead><tbody><tr><td colspan='3'>A</td></tr></tbody></table>";
+        var html = "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<thead><tr><th colspan='2' style='" + Edges + "'><p> </p><p></p><img src='logo' style='display:block'></th><th></th></tr></thead><tbody><tr><td colspan='3'>A</td></tr></tbody></table>";
         Assert.That(TableLayoutTests.Layout(html, options).Single().PaintBoxes.Single().Height, Is.EqualTo(30));
         Assert.That(TableLayoutTests.Pdf(html, options), Is.Not.Empty);
         Assert.That(HtmlDocumentReader.Read(TableLayoutTests.Table(""), new(), default), Has.Count.EqualTo(1));
-        Assert.That(HtmlDocumentReader.Read(TableLayoutTests.Table("<img src='logo'>"), options, default), Is.Empty);
+        Assert.That(HtmlDocumentReader.Read(TableLayoutTests.Table("<img src='logo' style='display:block'>"), options, default), Is.Empty);
     }
     [Test]
     public void DirectParagraphWithoutSpanIsCapturedInCell()
@@ -151,7 +151,8 @@ public sealed class TableRichTests
             + "<tr><td colspan='15'>A</td><td>B</td></tr><tr><td>A</td><td colspan='15'>B</td></tr></tbody></table>";
         var page = TableLayoutTests.Layout(html).Single();
         Assert.That(page.Runs.Select(r => r.Text), Is.EqualTo(new[] { "H", "A", "B", "A", "B" }));
-        Assert.That(page.Runs.Select(r => r.X), Is.EqualTo(new[] { 36d, 36, 186, 36, 46 }));
+        // th is centred, as in Chrome: H (6pt of 10pt Courier) in the 160pt table.
+        Assert.That(page.Runs.Select(r => r.X), Is.EqualTo(new[] { 36 + (160 - 6) / 2d, 36, 186, 36, 46 }));
         TableStructureTests.Fails(html.Replace("colspan='15'", "colspan='16'"), "FPDF1101");
     }
 
@@ -167,7 +168,7 @@ public sealed class TableRichTests
     public void EmptyWrappersAndFormattingWhitespaceDoNotSplitOrEscapeFlow()
     {
         var options = TableImageTests.Options();
-        var html = TableLayoutTests.Table("<span></span> <!-- a --> <img src='logo'><b> </b><img src='logo'> A<br>B") + "<p>AFTER</p>";
+        var html = TableLayoutTests.Table("<span></span> <!-- a --> <img src='logo' style='display:block'><b> </b><img src='logo' style='display:block'> A<br>B") + "<p>AFTER</p>";
         var paragraphs = HtmlDocumentReader.Read(html, options, default);
         Assert.That(paragraphs.Select(p => string.Concat(p.Runs.Select(r => r.Text))), Is.EqualTo(new[] { " AB", "AFTER" }));
         var page = TableLayoutTests.Layout(html, options).Single();
@@ -190,7 +191,7 @@ public sealed class TableRichTests
     private static string RichHeader()
         => "<style>td,th{padding:2pt;border:1pt solid red;background-color:blue}</style>"
         + "<table style='width:100pt;font-size:10pt;line-height:1.2'><colgroup><col style='width:40pt'><col style='width:60pt'></colgroup>"
-        + "<thead><tr><th colspan='2' style='font-weight:normal'><p style='margin-bottom:2pt'>H</p><img src='logo' style='width:16pt'><p style='margin-bottom:0;margin-top:2pt'>N</p></th></tr></thead><tbody>"
+        + "<thead><tr><th colspan='2' style='font-weight:normal'><p style='margin-bottom:2pt'>H</p><img src='logo' style='display:block;width:16pt'><p style='margin-bottom:0;margin-top:2pt'>N</p></th></tr></thead><tbody>"
         + string.Concat(Enumerable.Range(1, 5).Select(i => $"<tr><td colspan='2'>R{i}</td></tr>")) + "</tbody></table>";
 
     [Test]
