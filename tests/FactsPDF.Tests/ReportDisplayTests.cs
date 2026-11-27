@@ -119,7 +119,7 @@ public sealed class ReportDisplayTests
         Reject("<section style='display:none'><img src=missing /></section>", "FPDF1604");
     }
 
-    [TestCase("display:grid", "FPDF1202")]
+    [TestCase("display:inline-grid", "FPDF1202")]
     [TestCase("display:inline-flex", "FPDF1202")]
     [TestCase("display:inline", "FPDF1202")]
     [TestCase("display:inherit", "FPDF1202")]

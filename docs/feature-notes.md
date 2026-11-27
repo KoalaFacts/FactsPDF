@@ -1451,6 +1451,16 @@ See the [scoped CSS contract](css-stylesheets.md#current-source-html-horizontal-
 [independently authored painted-box oracle](../examples/report-horizontal-rules-oracle.html).
 This source feature is not a public NuGet/CLI release or a new private binary.
 
+### Current-source grid columns
+
+Label/value lists written as
+`display:grid;grid-template-columns:1fr auto;gap:12pt;align-items:start`
+now render: auto-placed items fill fixed, percentage, `fr` and `auto`
+columns row by row, with the auto column as wide as its widest value and the
+`fr` column taking the rest. Pages break between rows. `repeat()`, `minmax()`
+and explicit placement fail `FPDF1202`. See the
+[grid contract](css-stylesheets.md#current-source-grid-columns).
+
 ### Current-source `::before` and `::after` generated content
 
 Label prefixes and divider lines written with generated content now render:

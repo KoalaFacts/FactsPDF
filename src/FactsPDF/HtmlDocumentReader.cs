@@ -337,7 +337,7 @@ internal static class HtmlDocumentReader
             if (name == "img") return null;
             var (display, content) = sheets.PseudoKeys(path, pseudo);
             if (content is null || content[0] != '"' || display == "none") return null;
-            var block = box.IsFlexContainer || display is "block" or "flex";
+            var block = box.HasItems || display is "block" or "flex";
             if (display is not (null or "block" or "flex" or "inline"))
                 throw new FactsPdfException("FPDF1201",
                     "::before and ::after support only display inline, block, flex or none.", offset);
@@ -765,9 +765,9 @@ internal static class HtmlDocumentReader
                 // or close it first), which the child list keeps in its first slot without an array.
                 children.Add(box);
             }
-            // Each inline child of a flex container, and each run of text between them, is its own
-            // flex item: close the anonymous paragraph before and after the inline element.
-            var flexItem = InlineTag(name) && table is null && stack[^1].Box is { BoxStyle.IsFlexContainer: true };
+            // Each inline child of a flex or grid container, and each run of text between them, is its own
+            // item: close the anonymous paragraph before and after the inline element.
+            var flexItem = InlineTag(name) && table is null && stack[^1].Box is { BoxStyle.HasItems: true };
             if (flexItem) Flush();
             stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, alignStart, flexItem, after));
             if (name == "q") Add(Quote(stack, open: true, options), style);

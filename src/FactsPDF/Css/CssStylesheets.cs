@@ -36,7 +36,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Content + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
 
     /// <summary>The value of the text-align declaration that won the cascade for the element the
     /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
@@ -596,14 +596,16 @@ internal sealed class CssStylesheets
                     throw new FactsPdfException("FPDF1201",
                         "display on img and svg supports block, inline and inline-block.", declaration.Offset);
             }
-            else if (declaration.Property == CssProperty.Display && declaration.Value == "flex")
+            else if (declaration.Property == CssProperty.Display && declaration.Value is "flex" or "grid")
             {
+                if (declaration.Value == "grid" && subject == "html")
+                    throw new FactsPdfException("FPDF1201", "display:grid is not supported on html.", declaration.Offset);
                 if (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav"
                         or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address"
                         or "dl" or "dt" or "dd" or "li" or "body" or "html")
                     || AnyElement(path, e => e.Name is "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot"))
                     throw new FactsPdfException("FPDF1201",
-                        "display:flex is supported only on report panels, list items, body and html outside tables.", declaration.Offset);
+                        "display:flex and display:grid are supported only on report panels, list items and body (flex also on html) outside tables.", declaration.Offset);
             }
             else if (declaration.Property == CssProperty.Display &&
                 (subject is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
@@ -980,7 +982,7 @@ internal sealed class CssStylesheets
             else if (declaration.Property == CssProperty.Display)
             {
                 Own().DisplayNone = declaration.Value == "none";
-                var display = declaration.Value == "flex" ? BoxDisplay.Flex : BoxDisplay.Block;
+                var display = declaration.Value switch { "flex" => BoxDisplay.Flex, "grid" => BoxDisplay.Grid, _ => BoxDisplay.Block };
                 if (box.Flex.Display != display) box.Flex = box.Flex with { Display = display };
             }
             else if (declaration.Property == CssProperty.ListStyleType)
@@ -1348,7 +1350,7 @@ internal sealed class CssStylesheets
         return null;
     }
 
-    private const string UnsupportedDisplay = "Report display supports only block, flex and none.";
+    private const string UnsupportedDisplay = "Report display supports only block, flex, grid and none.";
 
     private static string? TablePartDisplayError(string value, string element)
     {
@@ -1364,7 +1366,7 @@ internal sealed class CssStylesheets
     }
 
     private static bool TablePartDisplay(CssDeclaration declaration) =>
-        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block" or "flex");
+        declaration.Property == CssProperty.Display && declaration.Value is not ("none" or "block" or "flex" or "grid");
 
     // A zero margin is the initial value on list items and on table rows, row groups, columns,
     // column groups and cells (where CSS 2.1 §8.3 margins do not apply at all), so *{margin:0}

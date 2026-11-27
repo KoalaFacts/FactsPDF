@@ -18,6 +18,7 @@ internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, in
 internal sealed record LayoutTable(TableNode Node, double X, double AvailableWidth) : BlockLayoutStep;
 internal sealed record LayoutFlexLine(BlockNode Container, double X, double ContentWidth,
     double VerticalEdges) : BlockLayoutStep;
+internal sealed record LayoutGrid(BlockNode Container, double X, double ContentWidth) : BlockLayoutStep;
 internal sealed record LayoutKeepPanel(BlockNode Node, double ContentWidth,
     double Top, double Bottom, double MarginTop, double MarginBottom) : BlockLayoutStep;
 
@@ -72,6 +73,9 @@ internal static class BlockLayout
                 }
                 case FlexLine line:
                     yield return new LayoutFlexLine(line.Container, frame.X, frame.ContentWidth, line.VerticalEdges);
+                    break;
+                case GridRows rows:
+                    yield return new LayoutGrid(rows.Container, frame.X, frame.ContentWidth);
                     break;
                 case Paragraph paragraph:
                     yield return new LayoutParagraph(
@@ -175,9 +179,13 @@ internal static class BlockLayout
                             "Empty report box and percentage outside margins cannot fit on a page.", node.SourceOffset);
                     // A flex row is already kept whole on one page; a kept flex panel would also
                     // need its padding and borders kept with it, which is not implemented.
-                    if (style.AvoidBreakInside && style.IsFlexContainer)
+                    if (style.AvoidBreakInside && style.HasItems)
                         throw new FactsPdfException("FPDF1201",
-                            "break-inside:avoid is not supported on a flex container.", node.SourceOffset);
+                            "break-inside:avoid is not supported on a flex or grid container.", node.SourceOffset);
+                    // Auto-sized implicit grid rows would stretch to a definite or minimum height.
+                    if (style.IsGridContainer && (style.Height.HasValue || style.MinHeight.HasValue))
+                        throw new FactsPdfException("FPDF1201",
+                            "height and min-height are not supported on a grid container.", node.SourceOffset);
                     if (style.AvoidBreakInside)
                     {
                         // Only a root-level flat text card has the bounded,
@@ -215,9 +223,10 @@ internal static class BlockLayout
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
                         indivisibleClosingMargin,
                         DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0);
-                    IReadOnlyList<BlockChild> children = style.IsFlexContainer
-                        ? (node.Children.Count == 0 ? node.Children : [new FlexLine(node, box.Top + box.Bottom)])
-                        : lists?.Children(node) ?? node.Children;
+                    IReadOnlyList<BlockChild> children = node.Children.Count != 0 && style.IsFlexContainer
+                        ? [new FlexLine(node, box.Top + box.Bottom)]
+                        : node.Children.Count != 0 && style.IsGridContainer ? [new GridRows(node)]
+                        : style.HasItems ? node.Children : lists?.Children(node) ?? node.Children;
                     frames.Push(new(children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
                         lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" or "menu" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,

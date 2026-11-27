@@ -150,6 +150,13 @@ internal static class CssSyntaxAdapter
                     CompileContent(node, budget, output);
                     continue;
                 }
+                // grid-template-columns: one track per length, percentage, fr or auto, kept as written
+                // and resolved when the winner is computed.
+                if (name == "grid-template-columns")
+                {
+                    CompileGridColumns(node, budget, output);
+                    continue;
+                }
                 // RGB and HSL functions are lowered to their equivalent hex colour
                 // (#rrggbb, or #rrggbbaa when translucent), so the cascade, box paint
                 // and PDF serializers share one colour path.
@@ -688,8 +695,8 @@ internal static class CssSyntaxAdapter
                     // can reach is the table part whose rendering it names; the cascade
                     // then drops it (CssStylesheets.TablePartDisplayError).
                     var displayError = valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
-                        ? "Report display supports only block, flex and none."
-                        : token is "none" or "block" or "flex" or "revert" or "revert-layer" ? null
+                        ? "Report display supports only block, flex, grid and none."
+                        : token is "none" or "block" or "flex" or "grid" or "revert" or "revert-layer" ? null
                         : CssStylesheets.TablePartDisplayError(token, hostSelectors, hostElement);
                     if (displayError is not null)
                         throw new FactsPdfException("FPDF1202", displayError, tokenOffset);
@@ -963,6 +970,13 @@ internal static class CssSyntaxAdapter
         "contain" => "none",
         "content-visibility" => "visible",
         "line-break" or "text-justify" or "image-rendering" => "auto",
+        // Grid placement and implicit tracks at their initial values: items are auto-placed row by
+        // row into auto-sized implicit rows (grid-template-columns is laid out); explicit lines,
+        // spans, areas, dense packing and sized implicit tracks still fail FPDF1202.
+        "grid-template-rows" or "grid-template-areas" => "none",
+        "grid-auto-flow" => "row",
+        "grid-auto-rows" or "grid-auto-columns" or "grid-column" or "grid-row" or "grid-area"
+            or "grid-column-start" or "grid-column-end" or "grid-row-start" or "grid-row-end" => "auto",
         // Empty cells already paint their background and borders (empty-cells:show), and a
         // caption is always placed above its table (caption-side:bottom is not implemented).
         "empty-cells" => "show",
@@ -1750,6 +1764,8 @@ internal static class CssSyntaxAdapter
         "align-self" => CssProperty.AlignSelf, "flex-grow" => CssProperty.FlexGrow,
         "flex-shrink" => CssProperty.FlexShrink, "flex-basis" => CssProperty.FlexBasis,
         "column-gap" => CssProperty.ColumnGap, "row-gap" => CssProperty.RowGap, "order" => CssProperty.Order,
+        "grid-template-columns" => CssProperty.GridTemplateColumns,
+        "justify-items" => CssProperty.JustifyItems, "justify-self" => CssProperty.JustifySelf,
         // Shorthands, lowered to their longhands where they are compiled.
         "flex" => CssProperty.FlexGrow, "flex-flow" => CssProperty.FlexDirection, "gap" => CssProperty.RowGap,
         "list-style-type" or "list-style" => CssProperty.ListStyleType,
@@ -2020,6 +2036,36 @@ internal static class CssSyntaxAdapter
             node.Important, budget.Declaration(start), start));
     }
 
+    private static void CompileGridColumns(CssDeclarationNode node, CssBudget budget, List<CssDeclaration> output)
+    {
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent)
+                throw new FactsPdfException("FPDF1202",
+                    "grid-template-columns supports lengths, percentages, fr and auto; repeat(), minmax(), fit-content() and named lines are not supported.",
+                    node.Values[i].Span.Start);
+        var terms = Terms(node);
+        if (terms.Count == 0) throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+        var tokens = NonWhitespaceTokens(node.Values);
+        var start = tokens[0].Token.Span.Start;
+        if (terms.Count == 1 && (Wide(terms[0]) || terms[0] == "none"))
+        {
+            output.Add(CssDeclaration.Create(CssProperty.GridTemplateColumns, "grid-template-columns", terms[0],
+                node.Important, budget.Declaration(start), start));
+            return;
+        }
+        for (var i = 0; i < terms.Count; i++)
+        {
+            if (Wide(terms[i]) || terms[i] == "none")
+                throw new FactsPdfException("FPDF1202", "none and CSS-wide keywords must be the only grid-template-columns value.",
+                    tokens[i].Token.Span.Start);
+            _ = CssGridValues.Track(terms[i], tokens[i].Token.Span.Start);
+        }
+        if (terms.Count > CssGridValues.MaxTracks)
+            throw new FactsPdfException("FPDF1202", $"grid-template-columns supports at most {CssGridValues.MaxTracks} tracks.", start);
+        output.Add(CssDeclaration.Create(CssProperty.GridTemplateColumns, "grid-template-columns", string.Join(' ', terms),
+            node.Important, budget.Declaration(start), start));
+    }
+
     private static void ValidateAlignContent(CssDeclarationNode node)
     {
         var tokens = NonWhitespaceTokens(node.Values);
@@ -2272,7 +2318,8 @@ internal static class CssSyntaxAdapter
             }
         }
         else if (name is "flex-direction" or "flex-wrap" or "justify-content" or "align-items" or "align-self"
-            or "flex-grow" or "flex-shrink" or "flex-basis" or "column-gap" or "row-gap" or "order")
+            or "flex-grow" or "flex-shrink" or "flex-basis" or "column-gap" or "row-gap" or "order"
+            or "justify-items" or "justify-self")
             CssFlexValues.Validate(name, token, offset);
         else if (name == "list-style-type")
             _ = ListMarkerTypes.Parse(token, offset);

@@ -16,7 +16,7 @@ internal sealed record MeasuredFlex(double Height, List<PlacedText> Runs, List<P
 /// is laid out by the ordinary block layout at its resolved width, on one page; a row is placed
 /// whole and is never split across pages.
 /// </summary>
-internal static class FlexLayout
+internal static partial class FlexLayout
 {
     private const double Epsilon = 0.000001;
 
@@ -32,6 +32,7 @@ internal static class FlexLayout
         public double Base, Hypothetical, Min, Max, Target;
         public bool Frozen;
         public double OuterHeight, Baseline, CrossOffset;
+        public double X; // the left edge of the item's margin box on the page
         public FlexAlign Align;
         public bool Unsplittable = true;
         public FragmentOutput? Output;
@@ -105,25 +106,19 @@ internal static class FlexLayout
         };
 
         // Lay every item out at its resolved width to find its height and baseline.
+        var x = line.X + leading;
         foreach (var item in ordered)
         {
             cancellation.ThrowIfCancellationRequested();
             item.Align = item.Box.Flex.AlignSelf ?? flex.AlignItems;
+            item.X = x;
+            x += item.Outer + gap + between;
             LayoutItem(item, options, resolved, usableHeight, stretchedHeight: null, cancellation);
         }
 
         // Cross size of the line: the tallest item, or the baseline-aligned extent, within the
         // container's definite height or above its minimum height.
-        var natural = 0d;
-        double maxAscent = 0, maxDescent = 0;
-        foreach (var item in ordered)
-        {
-            natural = Math.Max(natural, item.OuterHeight);
-            if (item.Align != FlexAlign.Baseline) continue;
-            maxAscent = Math.Max(maxAscent, item.Baseline);
-            maxDescent = Math.Max(maxDescent, item.OuterHeight - item.Baseline);
-        }
-        natural = Math.Max(natural, maxAscent + maxDescent);
+        var (natural, maxAscent) = NaturalCross(ordered);
         var containerBox = container.BoxStyle;
         var verticalEdges = line.VerticalEdges;
         double crossSize;
@@ -143,10 +138,32 @@ internal static class FlexLayout
         if (crossSize > usableHeight + Epsilon)
             throw new FactsPdfException("FPDF1302",
                 "A flex row is taller than the usable page height; flex rows are not split across pages.", container.SourceOffset);
+        AlignCross(ordered, crossSize, maxAscent, options, resolved, usableHeight, cancellation);
+        return Assemble(ordered, crossSize, options, budget, cancellation);
+    }
 
-        // Cross-axis placement; a stretched item is laid out again at the line's height so its own
-        // box (and any nested flex line) takes the definite size.
-        foreach (var item in ordered)
+    // The line's natural cross size: its tallest item, or the extent of its baseline-aligned
+    // items, and the largest baseline among them.
+    private static (double Natural, double MaxAscent) NaturalCross(List<Item> items)
+    {
+        double natural = 0, maxAscent = 0, maxDescent = 0;
+        foreach (var item in items)
+        {
+            natural = Math.Max(natural, item.OuterHeight);
+            if (item.Align != FlexAlign.Baseline) continue;
+            maxAscent = Math.Max(maxAscent, item.Baseline);
+            maxDescent = Math.Max(maxDescent, item.OuterHeight - item.Baseline);
+        }
+        return (Math.Max(natural, maxAscent + maxDescent), maxAscent);
+    }
+
+    // Cross-axis placement within the line; a stretched item is laid out again at the line's
+    // height so its own box (and any nested flex line) takes the definite size.
+    private static void AlignCross(List<Item> items, double crossSize, double maxAscent, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
+        double usableHeight, CancellationToken cancellation)
+    {
+        foreach (var item in items)
         {
             cancellation.ThrowIfCancellationRequested();
             switch (item.Align)
@@ -161,20 +178,23 @@ internal static class FlexLayout
                 case FlexAlign.Baseline: item.CrossOffset = maxAscent - item.Baseline; break;
             }
         }
+    }
 
-        // Assemble the line and charge its display commands, item by item.
+    // Assembles a line of laid-out items at their X positions and charges its display commands,
+    // item by item.
+    private static MeasuredFlex Assemble(List<Item> items, double crossSize, PdfOptions options,
+        LayoutBudget budget, CancellationToken cancellation)
+    {
         var runs = new List<PlacedText>();
         var boxes = new List<PaintedBox>();
         var images = new List<PlacedImage>();
         var discs = new List<PlacedDisc>();
-        var x = line.X + leading;
         var keepWhole = true;
-        for (var i = 0; i < ordered.Count; i++)
+        foreach (var item in items)
         {
             cancellation.ThrowIfCancellationRequested();
-            var item = ordered[i];
             keepWhole &= item.Unsplittable;
-            var itemX = x + item.MarginLeft;
+            var itemX = item.X + item.MarginLeft;
             if (item.Child is ImageNode imageNode)
             {
                 var top = item.CrossOffset + item.MarginTop;
@@ -195,7 +215,7 @@ internal static class FlexLayout
                 foreach (var box in page.PaintBoxes) commands += box.CommandCount;
                 budget.Charge(commands, item.SourceOffset, options);
                 // The fragment was laid out with the item's left margin at x = 0 and its top at y = 0.
-                var dx = x;
+                var dx = item.X;
                 var dy = item.CrossOffset;
                 foreach (var run in page.Runs)
                     runs.Add(run with { X = run.X + dx, Baseline = run.Baseline - output.PageHeight - dy });
@@ -206,7 +226,6 @@ internal static class FlexLayout
                 foreach (var disc in page.Discs)
                     discs.Add(disc with { X = disc.X + dx, Y = disc.Y - output.PageHeight - dy });
             }
-            x += item.Outer + (i < ordered.Count - 1 ? gap + between : 0);
         }
         return new(crossSize, runs, boxes, images, discs, keepWhole);
     }
@@ -625,6 +644,30 @@ internal static class FlexLayout
                 var list = new DocumentRoot { HasLists = true };
                 list.Children.Add(node);
                 gutter = ListLayout.Prepare(list, options, cancellation)?.Gutter(node) ?? 0;
+            }
+            if (node.BoxStyle.IsGridContainer)
+            {
+                // A grid is as wide as its columns: fixed tracks at their length (percentages of
+                // an indefinite width count as auto), other tracks at their items' contributions.
+                var tracks = node.BoxStyle.Flex.GridColumns ?? [new GridTrack(GridTrackKind.Auto)];
+                var columnMin = new double[tracks.Length];
+                var columnMax = new double[tracks.Length];
+                for (var i = 0; i < node.Children.Count; i++)
+                {
+                    var (childMin, childMax) = Of(node.Children[i], options, resolved, cancellation);
+                    if (double.IsNaN(childMax)) return (double.NaN, double.NaN);
+                    var column = i % tracks.Length;
+                    columnMin[column] = Math.Max(columnMin[column], childMin);
+                    columnMax[column] = Math.Max(columnMax[column], childMax);
+                }
+                var columnGap = node.BoxStyle.Flex.ColumnGap is { IsPercent: false } fixedColumnGap ? fixedColumnGap.Value : 0;
+                for (var c = 0; c < tracks.Length; c++)
+                {
+                    var fixedTrack = tracks[c].Kind == GridTrackKind.Fixed && !tracks[c].Length.IsPercent;
+                    min += (fixedTrack ? tracks[c].Length.Value : columnMin[c]) + (c > 0 ? columnGap : 0);
+                    max += (fixedTrack ? tracks[c].Length.Value : columnMax[c]) + (c > 0 ? columnGap : 0);
+                }
+                return (min, max);
             }
             if (node.BoxStyle.IsFlexContainer)
             {

@@ -13,7 +13,7 @@ internal enum CssProperty
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
-    ColumnGap, RowGap, Order, Content,
+    ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.
@@ -259,7 +259,7 @@ internal static class CssDeclarations
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
         or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
-        || CssFlexValues.IsFlexProperty(property);
+        || CssFlexValues.IsFlexOrGridProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
     // outside decorations. Paragraphs/headings retain TextStyle margins.
@@ -292,7 +292,7 @@ internal static class CssDeclarations
         var wide = value is "inherit" or "initial" or "unset";
         var from = value == "inherit" ? parent : BoxStyle.Initial;
 
-        if (CssFlexValues.IsFlexProperty(property))
+        if (CssFlexValues.IsFlexOrGridProperty(property))
         {
             CssFlexValues.Apply(current, parent, declaration, rootFontSize, elementFontSize);
             return current;

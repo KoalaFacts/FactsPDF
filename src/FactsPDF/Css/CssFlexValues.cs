@@ -9,8 +9,9 @@ namespace FactsPDF;
 /// </summary>
 internal static class CssFlexValues
 {
-    internal static bool IsFlexProperty(CssProperty property) =>
-        property is >= CssProperty.FlexDirection and <= CssProperty.Order;
+    internal static bool IsFlexOrGridProperty(CssProperty property) =>
+        property is >= CssProperty.FlexDirection and <= CssProperty.Order
+            or CssProperty.GridTemplateColumns or CssProperty.JustifyItems or CssProperty.JustifySelf;
 
     // Validates one keyword or number of a flex longhand, as written (CSS-wide keywords excluded).
     internal static void Validate(string name, string value, int offset)
@@ -34,15 +35,19 @@ internal static class CssFlexValues
             case "flex-basis": _ = Basis(value, offset, null, null); break;
             case "column-gap" or "row-gap": _ = Gap(value, offset, null, null); break;
             case "order": _ = Order(value, offset); break;
+            case "grid-template-columns": _ = CssGridValues.Columns(value, offset); break;
+            case "justify-items": _ = CssGridValues.Justify(value, offset, self: false); break;
+            case "justify-self": _ = CssGridValues.Justify(value, offset, self: true); break;
             default: throw new InvalidOperationException("Not a flex longhand.");
         }
     }
 
     internal static FlexJustify Justify(string value, int offset) => value switch
     {
-        // normal and stretch behave as flex-start in a flex container; left and right are the
-        // physical start and end of a left-to-right row.
-        "normal" or "flex-start" or "start" or "left" or "stretch" => FlexJustify.Start,
+        // normal and stretch behave as flex-start in a flex container and stretch auto grid
+        // tracks; left and right are the physical start and end of a left-to-right row.
+        "normal" or "stretch" => FlexJustify.Normal,
+        "flex-start" or "start" or "left" => FlexJustify.Start,
         "flex-end" or "end" or "right" => FlexJustify.End,
         "center" => FlexJustify.Center,
         "space-between" => FlexJustify.SpaceBetween,
@@ -128,6 +133,16 @@ internal static class CssFlexValues
                 flex.RowGap = wide ? from.RowGap : Gap(value, declaration.Offset, rootFontSize, elementFontSize); break;
             case CssProperty.Order:
                 flex.Order = wide ? from.Order : Order(value, declaration.Offset); break;
+            case CssProperty.GridTemplateColumns:
+                flex.GridColumns = wide ? from.GridColumns
+                    : CssGridValues.Columns(value, declaration.Offset, rootFontSize, elementFontSize);
+                break;
+            case CssProperty.JustifyItems:
+                flex.JustifyItems = wide ? from.JustifyItems : CssGridValues.Justify(value, declaration.Offset, self: false)!.Value;
+                break;
+            case CssProperty.JustifySelf:
+                flex.JustifySelf = wide ? from.JustifySelf : CssGridValues.Justify(value, declaration.Offset, self: true);
+                break;
             default: throw new InvalidOperationException("Expected a flex property.");
         }
         if (flex != current.Flex) current.Flex = flex;

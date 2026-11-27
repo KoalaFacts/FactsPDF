@@ -426,19 +426,23 @@ internal sealed record BoxStyle
     // without any of them keeps the initial instance and costs no extra object.
     public FlexStyle Flex { get; set; } = FlexStyle.Initial;
     public bool IsFlexContainer => Flex.Display == BoxDisplay.Flex;
+    public bool IsGridContainer => Flex.Display == BoxDisplay.Grid;
+    // A flex or grid container: its children (inline ones and text runs too) are items.
+    public bool HasItems => Flex.Display != BoxDisplay.Block;
     public bool HasLayoutPaint => BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
     public bool HasPaint => HasLayoutPaint || Outline.EffectiveWidth > 0;
 }
 
-internal enum BoxDisplay { Block, Flex }
-// Main-axis distribution of a single-line, row-direction flex container.
-internal enum FlexJustify { Start, End, Center, SpaceBetween, SpaceAround, SpaceEvenly }
+internal enum BoxDisplay { Block, Flex, Grid }
+// Main-axis distribution of a flex line or of grid columns. Normal (also stretch) packs flex items
+// at the start and stretches auto grid tracks.
+internal enum FlexJustify { Normal, Start, End, Center, SpaceBetween, SpaceAround, SpaceEvenly }
 // Cross-axis placement of a flex item; Stretch is also the computed normal.
 internal enum FlexAlign { Stretch, Start, End, Center, Baseline }
 
-// Computed display and flex properties. None is inherited. Treat every published instance as
+// Computed display, flex and grid properties. None is inherited. Treat every published instance as
 // immutable, like BoxStyle: CSS computing assigns only its own private copy.
 internal sealed record FlexStyle
 {
@@ -458,6 +462,11 @@ internal sealed record FlexStyle
     public CssLength? ColumnGap { get; set; }
     public CssLength? RowGap { get; set; }
     public int Order { get; set; }
+    // Explicit grid columns; null is grid-template-columns:none (one implicit auto column).
+    public GridTrack[]? GridColumns { get; set; }
+    public FlexAlign JustifyItems { get; set; }
+    // null is justify-self:auto, which takes the grid container's justify-items.
+    public FlexAlign? JustifySelf { get; set; }
 }
 
 internal abstract record BlockChild;
@@ -465,6 +474,9 @@ internal abstract record BlockChild;
 // The single flex line of a flex container, standing in for the container's children in block
 // layout. Never part of the parsed tree.
 internal sealed record FlexLine(BlockNode Container, double VerticalEdges) : BlockChild;
+
+// The rows of a grid container, standing in for the container's children in block layout.
+internal sealed record GridRows(BlockNode Container) : BlockChild;
 
 internal sealed record BlockNode(string Name, TextStyle Style, BoxStyle BoxStyle, int SourceOffset) : BlockChildList
 {
