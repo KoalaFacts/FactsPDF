@@ -437,6 +437,63 @@ first parent). A PR that changes output on purpose fails this job by design:
 its body lists each difference from `parity.json` and why, and the owner
 decides whether to merge it.
 
+### User-agent defaults against Chrome
+
+FactsPDF must start from the same element defaults as a browser's user-agent
+stylesheet. `tests/fixtures/ua-defaults/corpus.json` holds one synthetic probe
+per supported element plus the contexts that change a default (nested lists,
+`section > h1`, `th` and `td`, `caption`, `dt`/`dd`, `q` in `q`, the inline
+elements, `img`, `svg`, `hr`, `br`). Each probe is a tiny document with some
+text, the element with text and more text; only `font-family` is authored, so
+every value is a default. Two layers check it:
+
+- **Computed values, in every `dotnet test`, no browser**
+  (`UaDefaultsTests`): `chrome-computed.json` is a committed snapshot of
+  Chrome's `getComputedStyle` for each probe element (display, margins,
+  paddings, border widths and styles, font size, weight and style, line height,
+  text alignment and decoration, vertical alignment, list marker, white space,
+  in pt). The test parses each probe with FactsPDF and compares the element's
+  resolved defaults from the document model with the snapshot. A property that
+  FactsPDF does not model keeps its CSS initial value and differs only where
+  Chrome sets another one, recorded as "not modelled". A guard test fails when
+  an element that `HtmlDocumentReader` or `TableMarkup` supports has no probe.
+- **Rendered geometry, CI only** (`scripts/ua_defaults_browser_differential.py`,
+  workflow `ua-defaults-differential.yml`): prints every probe to
+  PDF with headless Chrome and with the CLI using the same DejaVu Sans faces,
+  and compares the first baseline, the baseline gaps before, at and after the
+  element, the x of text that starts a text run, and the font size and face.
+  The same run reads the live Chrome's computed values and fails with a diff
+  when they differ from the committed snapshot, which is how a Chrome change
+  or a stale snapshot is caught.
+
+`tests/fixtures/ua-defaults/known-differences.json` lists every difference that
+exists today, each with a one-line reason (`computed` entries: element,
+property, Chrome value, FactsPDF value; `geometry` entries: probe, metric,
+Chrome value, FactsPDF value). Both layers fail on a difference that is not
+listed and on a listed difference that no longer occurs, so the list can only
+shrink; a change that moves FactsPDF closer to Chrome deletes the entries it
+fixes. Run:
+
+```sh
+dotnet test tests/FactsPDF.Tests -c Release --filter FullyQualifiedName~UaDefaultsTests
+dotnet build src/FactsPDF.Cli -c Release
+python3 scripts/ua_defaults_browser_differential.py   --cli src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli --fonts-dir /usr/share/fonts/truetype/dejavu
+```
+
+The script needs Chrome or Chromium (found on `PATH`, or `--chrome`, or the
+`FACTSPDF_CHROME` environment variable), `pypdf`, and the four DejaVu Sans faces
+(`fonts-dejavu-core` and `fonts-dejavu-extra`; `--fonts-dir` or
+`FACTSPDF_DEJAVU_DIR`). To regenerate after a deliberate change:
+
+- Chrome snapshot: `--update-snapshot` rewrites `chrome-computed.json` from
+  the live Chrome (add `--snapshot-only` to skip the geometry layer); review
+  the diff before committing.
+- Known differences: `FACTSPDF_UA_UPDATE=1 dotnet test ... --filter
+  FullyQualifiedName~ComputedDefaultsMatchChromeExceptKnownDifferences`
+  rewrites the `computed` section and `--update-known` the `geometry` section.
+  Both keep the reason of a difference that still exists and write
+  `unclassified` for a new one, which the checks reject until it has a reason.
+
 ## Document map
 
 Guides that README and the pages above do not already link. Historical pages
