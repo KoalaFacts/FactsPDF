@@ -893,3 +893,15 @@ test(':root pseudo-class is partial and other pseudo-classes still fail, in Engl
   assert.match(englishFeature(data.features.find(x => x.id === 'selector.attribute')).limitations, /pseudo-classes other than :root/);
   for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test('custom properties and var() are partial, failing instead of unsetting, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'functions.var'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1202');
+  assert.match(row.scope, /var\(--name, fallback\)/);
+  assert.match(row.limitations, /would unset the declaration at computed-value time/);
+  assert.match(row.limitations, /MaxCssSyntaxNodes/);
+  assert.equal(englishFeature(data.features.find(x => x.id === 'functions.math')).stage, 'Syntax representation only');
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
