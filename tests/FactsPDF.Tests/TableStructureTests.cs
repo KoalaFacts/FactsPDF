@@ -84,14 +84,19 @@ public sealed class TableStructureTests
     [TestCase("<th>A</th>")]
     public void MalformedStructureFailsBeforeDestinationChanges(string html) => Fails(html, "FPDF1101");
 
-    [TestCase("p")][TestCase("span")][TestCase("h1")]
+    // A table start tag closes an open p, so the p's own end tag is then unmatched; a heading stays open
+    // around the table, which only an inline element in a block can be split around.
+    [TestCase("p")][TestCase("h1")]
     public void TableDoesNotRepairOrNestInsideTextElements(string tag)
         => Fails($"<{tag}>" + One + $"</{tag}>", "FPDF1101");
 
     [Test]
-    public void TableCannotBeInsideAListItem() => Fails("<ol><li>" + One + "</li></ol>", "FPDF1101");
+    public void TableCannotBeNestedInsideAnotherTableOrItsCell()
+    {
+        Fails(One.Replace("<td>A", "<td>" + One), "FPDF1101");
+    }
 
-    [TestCase("<div>A</div>")][TestCase("<ul><li>A</li></ul>")]
+    [TestCase("<div>A</div>")]
     [TestCase(One)]
     public void CellsRejectDeferredBlockContent(string content)
         => Fails(One.Replace("<td>A", "<td>" + content), "FPDF1101");

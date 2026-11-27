@@ -8,6 +8,12 @@ internal sealed record TableNode(TextStyle Style, BoxStyle BoxStyle, int SourceO
     internal List<TableRow> Rows { get; } = [];
     /// <summary>The optional caption, laid out above the table at its width.</summary>
     internal TableCell? Caption { get; set; }
+    /// <summary>The border-box width a flex or grid container has given the table as its item; a
+    /// copy of the node carries it into the item's own layout, ignoring width, min-width and max-width.</summary>
+    internal double? FixedOuterWidth { get; init; }
+    /// <summary>The border-box height a flex or grid container stretches the table item to; its body
+    /// rows take the extra height in proportion to their own heights (see TableLayout).</summary>
+    internal double? StretchHeight { get; init; }
     /// <summary>The resolved borders of a border-collapse:collapse table (null when separated).</summary>
     internal TableBorderGrid? Collapsed { get; set; }
     /// <summary>The box the table lays out and paints with: its own, or in the collapsing model
@@ -25,6 +31,8 @@ internal sealed record TableRow(bool IsHeader, int SourceOffset, bool AvoidBreak
     internal int Group { get; init; }
     internal BoxStyle GroupBox { get; init; } = BoxStyle.Initial;
     internal Rgb GroupColor { get; init; }
+    // A tfoot row: laid out like a body row after the tbody rows, but a stretched table keeps its height.
+    internal bool IsFooter { get; init; }
 }
 internal abstract record TableCellContent;
 internal record TableCellText(Paragraph Paragraph) : TableCellContent
@@ -36,6 +44,8 @@ internal record TableCellText(Paragraph Paragraph) : TableCellContent
 /// the usual unpadded paragraph costs no extra field per cell.</summary>
 internal sealed record PaddedTableCellText(Paragraph Paragraph, BoxStyle Box) : TableCellText(Paragraph);
 internal sealed record TableCellImage(ImageNode Image) : TableCellContent;
+/// <summary>A list (with its items) in a cell: block content laid out as one fragment (a formatting-context root).</summary>
+internal sealed record TableCellBlock(BlockNode Node) : TableCellContent;
 internal sealed record TableCell(TextStyle Style, BoxStyle BoxStyle, int SourceOffset, int ColumnSpan)
 {
     private TableCellContents contents;

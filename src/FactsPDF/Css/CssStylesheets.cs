@@ -484,6 +484,19 @@ internal sealed class CssStylesheets
         return false;
     }
 
+    // A list (or an item of one) inside a table cell: block content the cell lays out as a fragment,
+    // unlike the flat text of a cell paragraph. The nearest cell or list outward decides.
+    private static bool InCellList(IReadOnlyList<CssElement> path)
+    {
+        var list = false;
+        for (var i = path.Count - 1; i >= 0; i--)
+        {
+            if (path[i].Name is "ol" or "ul" or "menu") list = true;
+            else if (path[i].Name is "td" or "th") return list;
+        }
+        return false;
+    }
+
     /// <summary>Whether any rule selects a ::before or ::after pseudo-element.</summary>
     internal bool HasPseudoRules { get; private set; }
 
@@ -528,7 +541,7 @@ internal sealed class CssStylesheets
         // as the box it generates: an inline span or a block div.
         var subject = pseudoName ?? element.Name;
         customDeclarations.Clear(); pendingDeclarations.Clear();
-        var cellParagraph = subject == "p" && AnyElement(path, e => e.Name is "td" or "th");
+        var cellParagraph = subject == "p" && AnyElement(path, e => e.Name is "td" or "th") && !InCellList(path);
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
         var cellTextIndentHost = subject is "td" or "th" or "caption";
         // These inherited text-flow controls can be authored on document or
@@ -605,9 +618,10 @@ internal sealed class CssStylesheets
                 if (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav"
                         or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address"
                         or "dl" or "dt" or "dd" or "li" or "body" or "html")
-                    || AnyElement(path, e => e.Name is "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot"))
+                    || AnyElement(path, e => e.Name is "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot")
+                        && !InCellList(path))
                     throw new FactsPdfException("FPDF1201",
-                        "display:flex and display:grid are supported only on report panels, list items and body (flex also on html) outside tables.", declaration.Offset);
+                        "display:flex and display:grid are supported only on report panels, list items and body (flex also on html) outside tables, except on items of a list in a table cell.", declaration.Offset);
             }
             else if (declaration.Property == CssProperty.Display &&
                 (subject is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
@@ -747,9 +761,10 @@ internal sealed class CssStylesheets
             // box-sizing is supported on the table box itself (an explicit width then includes its
             // padding and borders); on columns, rows, groups and cells no width with padding or
             // borders is accepted, so it changes nothing there and universal resets pass.
+            // min-width and max-width also constrain a table's used width (TableLayout).
             if (declaration.Property is CssProperty.MinWidth or CssProperty.MaxWidth &&
-                (subject is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
-                throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
+                (subject is "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
+                throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks, tables and direct images.", declaration.Offset);
             // A cell paragraph keeps its own padding (the other box properties still need a block box);
             // percentages would need the paragraph's containing width, which the flat cell does not track.
             var cellPadding = cellParagraph && declaration.Property is (CssProperty.PaddingTop

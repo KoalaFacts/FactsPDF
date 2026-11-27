@@ -120,7 +120,7 @@ public sealed class BorderBoxSizingTests
     [TestCase("<img src='logo' style='box-sizing:padding-box'>", "FPDF1202")]
     [TestCase("<table style='box-sizing:padding-box'>", "FPDF1202")]
     [TestCase("<table style='box-sizing:border-box;width:10pt;padding:6pt'><colgroup><col style='width:1pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1302")]
-    [TestCase("<table style='box-sizing:border-box;min-width:10pt'>", "FPDF1201")]
+    [TestCase("<table><tr><td style='box-sizing:border-box;min-width:10pt'>A</td></tr></table>", "FPDF1201")]
     public void InvalidOrUnsupportedBoxSizingKeepsExistingOutput(string html, string error)
         => FailClosed(html, error);
 

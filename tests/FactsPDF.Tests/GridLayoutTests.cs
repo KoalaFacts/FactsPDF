@@ -153,7 +153,6 @@ public sealed class GridLayoutTests
     [TestCase("<p style='display:grid'>A</p>", "FPDF1201")]
     [TestCase("<div style='display:grid;min-height:50pt'><div>A</div></div>", "FPDF1201")]
     [TestCase("<div style='display:grid;break-inside:avoid'><div>A</div></div>", "FPDF1201")]
-    [TestCase("<div style='display:grid'><table><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>x</td></tr></tbody></table></div>", "FPDF1201")]
     [TestCase("<div style='display:grid;grid-template-columns:50pt 50pt 50pt 50pt 50pt 50pt'><div>A</div></div>", "FPDF1302")]
     [TestCase("<div style='display:grid'><div style='height:470pt'>A</div></div>", "FPDF1302")]
     public void UnsupportedGridInputFailsWithoutOutput(string html, string code) => Fails(html, code);

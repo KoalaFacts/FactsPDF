@@ -14,6 +14,9 @@ internal sealed record MeasuredTable(double Width, double Height,
     /// <summary>Collapsed borders: the full painted segments of every horizontal grid line, in
     /// table coordinates (null for separated borders). A fragment break paints half of a line.</summary>
     internal List<PaintedBox>[]? CollapsedLines { get; init; }
+    /// <summary>The list markers of cells that hold a list, in table coordinates like the runs (null
+    /// without any); a row's markers are those whose centre lies inside the row.</summary>
+    internal List<PlacedDisc>? Discs { get; init; }
 }
 
 // A row's paint range is known only after every row is measured; it is assigned once to the
@@ -43,11 +46,40 @@ internal static class TableLayout
     // shift the full-height shared cell paint or split-row continuation units.
     private readonly record struct CellPlacement(CellVerticalAlign Alignment, int SourceOffset,
         double NaturalHeight, int RunStart, int RunEnd, int ImageStart, int ImageEnd,
-        int ImageBoxStart, int ImageBoxEnd);
+        int ImageBoxStart, int ImageBoxEnd, int DiscStart, int DiscEnd);
 
     internal static MeasuredTable Measure(LayoutTable item, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
         Action<int, int> charge, Action<int, int> ensure, CancellationToken cancellation, TableFreshSpace? freshSpace = null)
+    {
+        if (item.Node.StretchHeight is not { } stretch)
+            return MeasureRows(item, options, resolved, charge, ensure, freshSpace, null, cancellation);
+        // A table stretched by a flex or grid container grows its body rows (not the header, footer
+        // or caption) by the extra height in proportion to their own heights, so the table is
+        // measured once to find them and again with each row's share added before its cells are
+        // aligned in it.
+        var natural = MeasureRows(item, options, resolved, static (_, _) => { }, static (_, _) => { }, freshSpace, null, cancellation);
+        var extra = stretch - natural.Height;
+        double[]? shares = null;
+        if (extra > 0.000001)
+        {
+            var growing = 0d;
+            for (var i = 0; i < natural.Rows.Count; i++)
+                if (!natural.Rows[i].IsHeader && !item.Node.Rows[i].IsFooter) growing += natural.Rows[i].Height;
+            if (growing > 0)
+            {
+                shares = new double[natural.Rows.Count];
+                for (var i = 0; i < shares.Length; i++)
+                    if (!natural.Rows[i].IsHeader && !item.Node.Rows[i].IsFooter) shares[i] = extra * natural.Rows[i].Height / growing;
+            }
+        }
+        return MeasureRows(item, options, resolved, charge, ensure, freshSpace, shares, cancellation);
+    }
+
+    private static MeasuredTable MeasureRows(LayoutTable item, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
+        Action<int, int> charge, Action<int, int> ensure, TableFreshSpace? freshSpace, double[]? rowExtra,
+        CancellationToken cancellation)
     {
         var table = item.Node;
         var style = table.LayoutBox;
@@ -57,18 +89,53 @@ internal static class TableLayout
         // the outer box; an explicit width describes the table's content, or
         // with box-sizing:border-box its outer box including padding and borders. A collapsed
         // table's width always includes the outer halves of its collapsed borders, as in Chrome.
-        var specifiedWidth = style.Width is { } specified
+        var specifiedWidth = table.FixedOuterWidth is { } given
+            ? Checked(given - edges.Left - edges.Right, table.SourceOffset)
+            : style.Width is { } specified
             ? Checked(specified.Resolve(item.AvailableWidth)
                 - (style.BorderBoxSizing || grid is not null ? edges.Left + edges.Right : 0), table.SourceOffset)
             : (double?)null;
+        // min-width and max-width limit the used width like the width itself (content-box unless
+        // border-box or collapsed), percentages of the containing block.
+        var constraintEdges = style.BorderBoxSizing || grid is not null ? edges.Left + edges.Right : 0;
+        double? minWidth = table.FixedOuterWidth is null && style.MinWidth is { } lower
+            ? Math.Max(0, Checked(lower.Resolve(item.AvailableWidth), table.SourceOffset) - constraintEdges) : null;
+        double? maxWidth = table.FixedOuterWidth is null && style.MaxWidth is { } upper
+            ? Math.Max(0, Checked(upper.Resolve(item.AvailableWidth), table.SourceOffset) - constraintEdges) : null;
         var tracks = new double[table.Columns.Count];
         // Unless every column has an explicit width, columns use automatic layout;
         // with auto table width the table then shrinks to its max-content width.
         // A cell width also takes automatic layout, where it constrains its column.
         var automatic = !table.Columns.TrueForAll(column => column.Width is not null) || HasCellWidth(table);
+        // A table whose columns all have explicit widths is as wide as their sum (or its width);
+        // a min-width or max-width that changes that width hands it to automatic layout, where the
+        // fixed columns are constrained columns that share the growth in proportion to their widths.
+        var constrainedWidth = specifiedWidth;
+        if (!automatic && (minWidth is not null || maxWidth is not null))
+        {
+            var fixedSum = 0d;
+            var allFixed = true;
+            foreach (var column in table.Columns)
+                if (column.Width is { IsPercent: false } fixedColumn) fixedSum += fixedColumn.Value;
+                else allFixed = false;
+            var natural = specifiedWidth ?? (allFixed ? fixedSum : item.AvailableWidth - edges.Left - edges.Right);
+            var limited = natural;
+            if (maxWidth is { } cap) limited = Math.Min(limited, cap);
+            if (minWidth is { } floor) limited = Math.Max(limited, floor);
+            if (Math.Abs(limited - natural) > 0.000001)
+            {
+                // Chrome shrinks fixed columns toward their content minimums; the columns here never
+                // go below their widths, so a narrower table would not match.
+                if (allFixed && limited < fixedSum - 0.000001)
+                    throw Geometry("A max-width narrower than the explicit column widths of a table is not supported.", table.SourceOffset);
+                automatic = true;
+                constrainedWidth = limited;
+            }
+            else if (specifiedWidth is null && allFixed) specifiedWidth = natural;
+        }
         var width = automatic
-            ? TableAutoLayout.Resolve(table, specifiedWidth, item.AvailableWidth - edges.Left - edges.Right, tracks,
-                options, resolved, cancellation)
+            ? TableAutoLayout.Resolve(table, constrainedWidth, item.AvailableWidth - edges.Left - edges.Right, tracks,
+                options, resolved, cancellation, minWidth, maxWidth)
             : specifiedWidth ?? item.AvailableWidth - edges.Left - edges.Right;
         var outerWidth = width + edges.Left + edges.Right;
         if (width <= 0 || outerWidth > item.AvailableWidth + 0.000001)
@@ -104,6 +171,7 @@ internal static class TableLayout
         var runs = new List<PlacedText>();
         var boxes = new List<PaintedBox>();
         var images = new List<PlacedImage>();
+        List<PlacedDisc>? discs = null;
         var caption = table.Caption is { } captionCell
             ? MeasureCaption(captionCell, outerWidth, options, resolved, charge, ensure, runs, boxes, cancellation)
             : default;
@@ -163,9 +231,11 @@ internal static class TableLayout
         // First and last decoration may belong to different pages.
         CheckHeight(firstTop, table.SourceOffset);
         CheckHeight(edges.Bottom, table.SourceOffset);
+        var rowNumber = -1;
         foreach (var row in table.Rows)
         {
             cancellation.ThrowIfCancellationRequested();
+            rowNumber++;
             measuringHeader = row.IsHeader;
             var lead = row.IsHeader ? headerLead : 0;
             top += lead;
@@ -176,6 +246,7 @@ internal static class TableLayout
             imageBoxes.Clear();
             placements.Clear();
             var rowHeight = 0d;
+            var rowHasBlock = false;
             var x = edges.Left;
             var track = 0;
             foreach (var cell in row.Cells)
@@ -184,6 +255,7 @@ internal static class TableLayout
                 var cellRunStart = runs.Count;
                 var cellImageStart = images.Count;
                 var cellImageBoxStart = imageBoxes.Count;
+                var cellDiscStart = discs?.Count ?? 0;
                 var cellWidth = 0d;
                 for (var j = 0; j < cell.ColumnSpan; j++)
                 {
@@ -204,7 +276,27 @@ internal static class TableLayout
                 var pending = 0d;
                 var committed = 0d;
                 CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
-                foreach (var content in cell.Contents)
+                // A cell with a list is laid out whole as one block-flow fragment (TableCellBlocks).
+                if (TableCellBlocks.Has(cell))
+                {
+                    rowHasBlock = true;
+                    var block = TableCellBlocks.Measure(cell, contentWidth, options, resolved, cancellation);
+                    var output = block.Page;
+                    var originX = x + cellEdges.Left;
+                    var originY = top + cellEdges.Top;
+                    charge(TableCellBlocks.Commands(output), cell.SourceOffset);
+                    foreach (var run in output.Runs)
+                        runs.Add(run with { X = run.X + originX, Baseline = run.Baseline - block.PageHeight - originY });
+                    foreach (var box in output.PaintBoxes.OrderBy(box => box.Order))
+                        imageBoxes.Add(box with { X = box.X + originX, Top = box.Top + originY });
+                    foreach (var image in output.Images)
+                        images.Add(image with { X = image.X + originX, Top = image.Top + originY });
+                    foreach (var disc in output.Discs)
+                        (discs ??= []).Add(disc with { X = disc.X + originX, Y = disc.Y - block.PageHeight - originY });
+                    height += block.Height;
+                    CheckHeight(height + cellEdges.Bottom, cell.SourceOffset);
+                }
+                else foreach (var content in cell.Contents)
                 {
                     cancellation.ThrowIfCancellationRequested();
                     if (content is TableCellImage imageContent)
@@ -331,13 +423,14 @@ internal static class TableLayout
                 rowHeight = Math.Max(rowHeight, naturalHeight);
                 placements.Add(new(cell.BoxStyle.VerticalAlign, cell.SourceOffset, naturalHeight,
                     cellRunStart, runs.Count, cellImageStart, images.Count,
-                    cellImageBoxStart, imageBoxes.Count));
+                    cellImageBoxStart, imageBoxes.Count, cellDiscStart, discs?.Count ?? 0));
                 cells[cellIndex++] = new(x, cellWidth, x + cellEdges.Left, contentWidth, cellEdges.Top,
                     cellEdges.Bottom, units.Count == 0 ? pending : units[0].LeadingGap, pending,
                     cell.BoxStyle, cell.Style.Color, cell.SourceOffset, units.ToArray());
                 x += cellWidth;
                 if (!double.IsFinite(x)) throw Geometry("Cell coordinate must remain finite.", cell.SourceOffset);
             }
+            if (rowExtra is not null) rowHeight += rowExtra[rowNumber];
             // Resolve a predecessor only after the next occupied row has been
             // measured. Until then its terminal bottom may make it splittable.
             if (!row.IsHeader && rowHeight > 0)
@@ -352,6 +445,7 @@ internal static class TableLayout
                 - (isFirstBodyGroup ? firstTop + fresh.FirstLeading : 0);
             var canSplit = !row.IsHeader && rowHeight > capacity + .000001;
             if (canSplit && grid is not null) throw UnsplitCollapsedRow(row.SourceOffset);
+            if (canSplit && rowHasBlock) throw UnsplitListRow(row.SourceOffset);
             var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
             if (uncertain && row.AvoidBreakInside && ambiguousAvoidOffset < 0) ambiguousAvoidOffset = row.SourceOffset;
             // When the complete row remains atomic, place its shorter cell
@@ -375,6 +469,8 @@ internal static class TableLayout
                     images[i] = images[i] with { Top = images[i].Top + shift };
                 for (var i = placement.ImageBoxStart; i < placement.ImageBoxEnd; i++)
                     imageBoxes[i] = imageBoxes[i] with { Top = imageBoxes[i].Top + shift };
+                for (var i = placement.DiscStart; i < placement.DiscEnd; i++)
+                    discs![i] = discs[i] with { Y = discs[i].Y - shift };
             }
             rows.Add(new(top - lead, rowHeight + lead, row.IsHeader, row.SourceOffset,
                 runStart, runs.Count - runStart, imageStart, images.Count - imageStart, cells, canSplit, isFirstBodyGroup,
@@ -397,7 +493,10 @@ internal static class TableLayout
                 ambiguousVerticalOffsets[0]);
         if (grid is not null && ambiguous.Count > 0) throw UnsplitCollapsedRow(rows[ambiguous[0]].SourceOffset);
         foreach (var index in ambiguous)
+        {
+            if (TableCellBlocks.Has(table.Rows[index])) throw UnsplitListRow(rows[index].SourceOffset);
             rows[index] = rows[index] with { CanSplit = true };
+        }
         var collapsedLines = grid is null ? null : CollapsedLines(grid, rows, tracks, edges.Left, table.SourceOffset);
         void AddCollapsed(List<PaintedBox> segments)
         {
@@ -453,7 +552,7 @@ internal static class TableLayout
         return new(outerWidth, outerHeight, runs, boxes, images, rows, firstTop, edges.Bottom)
         {
             CaptionHeight = caption.Height, CaptionRunCount = caption.RunCount, CaptionBoxCount = caption.BoxCount,
-            CollapsedLines = collapsedLines
+            CollapsedLines = collapsedLines, Discs = discs
         };
     }
 
@@ -596,6 +695,10 @@ internal static class TableLayout
 
     // Chrome paints a collapsed row split across pages with cell fragments whose borders are not
     // modelled here; fail rather than paint an approximation.
+    // A list's lines would break between page fragments cell by cell; only whole rows move.
+    private static FactsPdfException UnsplitListRow(int offset) => Geometry(
+        "A table row with a list in a cell that must split across pages is not supported; only rows that fit a page move to the next page whole.", offset);
+
     private static FactsPdfException UnsplitCollapsedRow(int offset) => Geometry(
         "border-collapse:collapse is not implemented for a table row that must split across pages.", offset);
 

@@ -350,6 +350,9 @@ internal sealed record BoxStyle
     public CssLength PaddingRight { get; set; }
     public CssLength PaddingBottom { get; set; }
     public CssLength PaddingLeft { get; set; }
+    // An author declaration set padding-left (also to zero): on a list it replaces the user-agent
+    // indentation, which FactsPDF models as the list's marker gutter (ListLayout).
+    public bool PaddingLeftAuthored { get; set; }
 
     // Report panel vertical margins are outside paint and have no general CSS
     // collapsing behaviour. Existing paragraph/heading vertical margins remain

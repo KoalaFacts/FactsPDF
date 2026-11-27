@@ -31,10 +31,13 @@ internal static partial class FlexLayout
         for (var i = 0; i < container.Children.Count; i++)
         {
             var child = container.Children[i];
-            if (child is TableNode table)
-                throw new FactsPdfException("FPDF1201",
-                    "A table cannot be a grid item; wrap it in a report panel.", table.SourceOffset);
-            var order = child switch { BlockNode node => node.BoxStyle.Flex.Order, ImageNode image => image.BoxStyle.Flex.Order, _ => 0 };
+            var order = child switch
+            {
+                BlockNode node => node.BoxStyle.Flex.Order,
+                ImageNode image => image.BoxStyle.Flex.Order,
+                TableNode table => table.LayoutBox.Flex.Order,
+                _ => 0
+            };
             children.Add((child, order, i));
         }
         var placed = children.OrderBy(entry => entry.Order).ThenBy(entry => entry.Index).Select(entry => entry.Child).ToList();
@@ -188,11 +191,11 @@ internal static partial class FlexLayout
         }
         else
         {
-            item.Edges = child is BlockNode
+            item.Edges = child is BlockNode or TableNode
                 ? Checked(box.PaddingLeft.Resolve(area), offset) + Checked(box.PaddingRight.Resolve(area), offset)
                     + box.BorderLeft.EffectiveWidth + box.BorderRight.EffectiveWidth
                 : 0;
-            var sizing = box.BorderBoxSizing ? item.Edges : 0;
+            var sizing = box.BorderBoxSizing || child is TableNode { Collapsed: not null } ? item.Edges : 0;
             double ContentOf(CssLength length) => Math.Max(0, Checked(length.Resolve(area), offset) - sizing);
             var available = Math.Max(0, area - item.MarginLeft - item.MarginRight - item.Edges);
             double target;
@@ -200,9 +203,12 @@ internal static partial class FlexLayout
             else if (justify == FlexAlign.Stretch && !item.AutoLeft && !item.AutoRight) target = available;
             else
             {
-                var (min, max) = child is BlockNode node
-                    ? Intrinsic.Content(node, options, resolved, cancellation)
-                    : Intrinsic.Of(child, options, resolved, cancellation);
+                var (min, max) = child switch
+                {
+                    BlockNode node => Intrinsic.Content(node, options, resolved, cancellation),
+                    TableNode table => Intrinsic.TableContent(table, options, resolved, cancellation),
+                    _ => Intrinsic.Of(child, options, resolved, cancellation)
+                };
                 target = Math.Min(max, Math.Max(min, available));
             }
             if (box.MaxWidth is { } upper) target = Math.Min(target, ContentOf(upper));
