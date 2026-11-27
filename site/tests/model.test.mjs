@@ -120,7 +120,7 @@ test('standalone horizontal rules are real scoped PDF separators, not full HTML/
   assert.equal(rule.status,'partial');
   assert.equal(rule.last_audited_commit,'8c1d475e92902572bf38d53cd2f7d0d5c48d2eca');
   assert.equal(rule.introduced_release,null);
-  assert.match(rule.scope,/1pt.*currentcolor/);
+  assert.match(rule.scope,/1px/);
   assert.match(rule.scope,/PDF/);
   assert.match(rule.limitations,/FPDF1101\/1103\/1201\/1202\/1302/);
   assert.match(rule.failure_code,/FPDF1302/);
@@ -607,8 +607,8 @@ test('bounded quoted report panels have one source-bound HTML feature and real P
   assert.equal(row.last_audited_commit,'16b235a85b57159b3b7ac2182b38487b6a22f6eb');
   assert.equal(row.introduced_release,null);
   assert.match(row.scope,/PDF/);
-  assert.match(row.scope,/8pt/);
-  assert.match(row.scope,/24pt/);
+  assert.match(row.scope,/1em/);
+  assert.match(row.scope,/40px/);
   assert.match(row.scope,/border-radius/);
   assert.match(row.limitations,/椭圆/);
   assert.match(row.limitations,/FPDF1101/);

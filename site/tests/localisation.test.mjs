@@ -228,7 +228,7 @@ test('English display describes a truly painted scoped horizontal rule', async (
   const display=englishFeature(raw);
   assert.equal(raw.status,'partial');
   assert.equal(display.status,'partial');
-  assert.match(display.scope,/1pt solid currentcolor/);
+  assert.match(display.scope,/four-sided 1px border/);
   assert.match(display.scope,/PDF/);
   assert.match(display.limitations,/FPDF1101\/1103\/1201\/1202\/1302/);
   assert.match(display.failure_code,/FPDF1302/);
@@ -263,8 +263,8 @@ test('new report blockquotes have English default text with bounded limits', asy
   const row=englishFeature(data.features.find(f=>f.id==='html.blockquote'));
   assert.equal(row.status,'partial');
   assert.equal(row.last_audited_commit,'16b235a85b57159b3b7ac2182b38487b6a22f6eb');
-  assert.match(row.scope,/8pt/);
-  assert.match(row.scope,/24pt/);
+  assert.match(row.scope,/1em/);
+  assert.match(row.scope,/40px/);
   assert.match(row.scope,/PDF/);
   assert.match(row.scope,/border-radius/);
   assert.match(row.limitations,/elliptical/);
@@ -642,11 +642,11 @@ test('box-sizing on the root, inline text and tables is translated with its tabl
   assert.doesNotMatch(english.scope + english.limitations + english.applicability, han);
 });
 
-test('zero root margins and html padding are translated without claiming body margin support', async () => {
+test('the body margin and zero html margins and padding are translated', async () => {
   const { englishFeature } = await localisation();
   for (const id of ['css.margin', 'css.margin-top', 'css.margin-left', 'css.margin-inline', 'css.margin-block']) {
     const english = englishFeature(data.features.find(x => x.id === id));
-    assert.match(english.limitations, /body.*accept only (a )?zero|zero margin on <html> or <body>/, id);
+    assert.match(english.limitations, /<body> (has|takes)|<body> margins|body takes margins/, id);
     assert.doesNotMatch(english.limitations, han, id);
   }
   const padding = englishFeature(data.features.find(x => x.id === 'css.padding'));
@@ -765,8 +765,8 @@ test('dl, dt and dd are partial block containers like div, in English', async ()
     assert.match(f.limitations, /end tags cannot be omitted/);
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(f[field], han, field);
   }
-  assert.match(dl.scope, /8pt top and bottom margins/);
-  assert.match(dd.scope, /24pt start indent/);
+  assert.match(dl.scope, /1em top and bottom margins/);
+  assert.match(dd.scope, /40px start indent/);
 });
 
 test('tfoot is a partial table footer of ordinary body rows, in English', async () => {

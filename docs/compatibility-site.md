@@ -416,6 +416,21 @@ Actual CI, independent review, human page approval and commercial
 distribution remain separate and must not be inferred from the audit.
 
 
+## The user-agent stylesheet
+
+A candidate change replaces strings in place for the `html.body`, `html.blockquote`, `html.figure`, `html.dl`,
+`html.dd`, `html.h1` to `html.h6`, `html.hr`, `html.menu`, `html.ol`, `html.ul`, `html.li`, `html.p`, `html.small`
+and `css.line-height` rows, the list marker rows and the `<body>` sentence shared by the margin rows: the
+supported elements take Chrome's user-agent defaults (the 8px `body` margin, 1em `p`, `dl` and block margins,
+`blockquote` and `figure` insets of 40px, heading sizes and a soft bold, 40px list padding with hanging markers,
+Chrome's `hr` bevel, `big`) and `line-height:normal` reads the first font's metrics. Twenty-one English strings are
+replaced in place, so no count or status moves (full 45, partial 270, none 95; 418 records, 52 accepted CSS property
+names unchanged). Current dataset SHA-256:
+`c44c5c6ae9ce0eb42398023c55d1dbf2344c440f4e0d06a0bba631cbdecfcdff`; English layer
+`site/src/audit-english-ua-stylesheet.mjs`, ordered source-text SHA-256
+`0d43261d3cdc6f82a884715970c4d5e715a6d70cbaf217388d2f0aadf7b979c9`. The older entries below describe the state at
+their own dates.
+
 ## Block margin collapsing, list and table margins and cell paragraph padding
 
 A candidate change replaces strings in place for the `css.margin`, `css.margin-top`,
