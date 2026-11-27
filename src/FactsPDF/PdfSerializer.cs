@@ -41,6 +41,7 @@ internal static class PdfSerializer
             Object(1, "<< /Type /Catalog /Pages 2 0 R >>");
             var contents = new StringBuilder();
             var page = new StringBuilder();
+            var alpha = new PdfAlphaStates();
             if (offsets.Count != 2) throw new InvalidOperationException("PDF object sequence is inconsistent.");
             offsets.Add(output.Position);
             page.Append("2 0 obj\n<< /Type /Pages /Count ").Append(pages.Count).Append(" /Kids [");
@@ -51,8 +52,9 @@ internal static class PdfSerializer
             {
                 cancellation.ThrowIfCancellationRequested();
                 contents.Clear();
-                PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation);
-                PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation);
+                alpha.Clear();
+                PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha);
+                PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
                 images.Append(contents, pages[i], o, cancellation);
                 // PDF character spacing is persistent graphics text state
                 // across BT/ET. Restore zero explicitly after a tracked run,
@@ -61,8 +63,16 @@ internal static class PdfSerializer
                 foreach (var run in pages[i].Runs)
                 {
                     var color = run.Style.Color;
+                    if (color.IsInvisible)
+                    {
+                        PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
+                        continue;
+                    }
+                    // A translucent run selects its alpha inside q/Q, which also restores Tc.
+                    var translucent = color.A < 1;
                     var tracked = previousTracking != run.Style.LetterSpacing;
-                    previousTracking = run.Style.LetterSpacing;
+                    if (!translucent) previousTracking = run.Style.LetterSpacing;
+                    if (translucent) alpha.BeginPaint(contents, color);
                     contents.Append("BT /F1 ").AppendInvariant(run.Style.FontSize, Number).Append(" Tf ");
                     if (tracked) contents.AppendInvariant(run.Style.LetterSpacing, Number).Append(" Tc ");
                     contents.AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ");
@@ -96,12 +106,14 @@ internal static class PdfSerializer
                         }
                         contents.Append("] TJ ET\n");
                     }
-                    PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes);
+                    if (translucent) contents.Append("Q\n");
+                    PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 page.Clear().Append(4 + 2 * i).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth, Number).Append(' ')
                     .AppendInvariant(o.PageHeight, Number).Append("] /Resources << /Font << /F1 3 0 R >>");
                 images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
+                alpha.AppendResources(page);
                 page.Append(" >> /Contents ").Append(5 + 2 * i).Append(" 0 R");
                 links.AppendPageEntry(page, i);
                 page.Append(" >>\nendobj\n");

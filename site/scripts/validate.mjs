@@ -4,7 +4,7 @@ import { validateDataset, counts } from '../src/model.mjs';
 const bytes=readFileSync(new URL('../data/compatibility.json',import.meta.url));
 const sha256=createHash('sha256').update(bytes).digest('hex');
 // Change only with a reviewed, intentional snapshot update and provenance docs.
-const expectedSha256='ef3d39adfc3d7af6c82c9ab5befaa46e5ee4dd7c44d65484b0214973cd57d281';
+const expectedSha256='b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db';
 if(sha256!==expectedSha256)throw new Error(`Compatibility snapshot SHA-256 mismatch: expected ${expectedSha256}, received ${sha256}`);
 const d=validateDataset(JSON.parse(bytes));
 console.log(JSON.stringify({dataset:d.dataset_version,audit_commit:d.commit,records:d.features.length,counts:counts(d.features),sha256},null,2));

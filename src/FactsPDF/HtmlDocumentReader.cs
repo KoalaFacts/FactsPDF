@@ -220,7 +220,7 @@ internal static class HtmlDocumentReader
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
-        var result = new DocumentRoot();
+        var result = new DocumentRoot { PageRules = sheets.PageRules };
         Paragraph? current = null;
         TableMarkup? table = null;
         var anonymous = false;
@@ -548,7 +548,7 @@ internal static class HtmlDocumentReader
                     ParagraphTag(name), BoxTag(name),
                     token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
-            if (name == "html") rootFontSize = style.FontSize;
+            if (name == "html") { rootFontSize = style.FontSize; result.RootStyle = style; }
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             if (name == "table")

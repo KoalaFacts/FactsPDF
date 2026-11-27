@@ -81,7 +81,6 @@ public sealed class CssNamedColorTests
         Assert.That(output.ToArray(), Is.EqualTo(Pdf(report, new())));
     }
 
-    [TestCase("color:transparent")]
     [TestCase("color:buttontext")]
     [TestCase("background:systemcolor")]
     [TestCase("background:darkishblue")]

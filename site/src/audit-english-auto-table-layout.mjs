@@ -1,9 +1,9 @@
-import { englishAudit as previous } from './audit-english-table-row-kept-split.mjs';
+import { englishAudit as previous } from './audit-english-translucent-colours.mjs';
 
 // Tables without colgroup, or whose col elements have no width, now use automatic column widths.
 // The col, colgroup, table and tbody strings, each used by no other row, are replaced; no string is added.
-if (previous.length !== 876) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = '0d04065cef83cbcb6b354c4b06d05c17b9db472dc2ad2b96bfac476b84f61b44';
+if (previous.length !== 877) throw new Error('Earlier English audit cardinality changed.');
+export const sourceDigest = '83f1c8f063ee14e27329f64aeac87913eaa84c93e3bc9f4c51621a2860044d86';
 const entries = [...previous];
 entries.splice(43, 1,
   'Only the width property applies to col. When every col omits its width (or sets auto), the whole table uses automatic column widths; some col elements with a width and some without fail FPDF1302. Zero widths, HTML width/span attributes, own font-size and padding/background decoration are unsupported.');
@@ -18,6 +18,6 @@ entries.splice(113, 1,
 entries.splice(117, 1,
   'Follows the optional colgroup and optional thead. No multiple tbody elements, implicit completion or rowspan. Continuation does not make images splittable.');
 export const englishAudit = Object.freeze(entries);
-if (englishAudit.length !== 876 ||
+if (englishAudit.length !== 877 ||
   englishAudit.some(value => typeof value !== 'string' || !value.trim() || /[㐀-鿿]/u.test(value)))
   throw new Error('Incomplete English audit layer.');

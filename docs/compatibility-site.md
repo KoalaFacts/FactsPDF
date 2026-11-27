@@ -661,10 +661,24 @@ A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
+The `@page` row moves to partial: `size`, per-side margins and the six top/bottom margin
+boxes with `counter(page)`/`counter(pages)`, with page selectors and the other margin boxes
+still failing `FPDF1204` and conflicts with explicit writer page options failing `FPDF1206`.
+Its scope and limitation strings are replaced in place, its new evidence string is inserted
+and the `@media` limitation no longer lists `@page` (partial 248, rejected 118; 877 ordered
+strings; the `FPDF1102` search is unchanged).
+Translucent colours (`rgba()`/`hsla()` and slash alpha, `#rgba`/`#rrggbbaa`, `color:transparent`
+and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colour strings of the
+`color`, `background-color`, `background`, `border`, `border-color` (and its four sides),
+`outline` and `text-decoration` rows and of the `value.color.rgbfunc`, `value.color.alphahex`,
+`value.background.transparent`, `value.background.currentcolor`, `value.border.transparent` and
+`value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
+since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
+stays partial.
 The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
 limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
 elements without widths), so no count moves.
 Current dataset SHA-256:
-`ef3d39adfc3d7af6c82c9ab5befaa46e5ee4dd7c44d65484b0214973cd57d281`; English
+`b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
 layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
-SHA-256 `0d04065cef83cbcb6b354c4b06d05c17b9db472dc2ad2b96bfac476b84f61b44`.
+SHA-256 `83f1c8f063ee14e27329f64aeac87913eaa84c93e3bc9f4c51621a2860044d86`.

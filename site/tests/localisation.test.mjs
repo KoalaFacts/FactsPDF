@@ -897,6 +897,19 @@ test(':root pseudo-class is partial and other pseudo-classes still fail, in Engl
   for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
 
+test('@page is partial with its precedence failure and @media no longer rejects it, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'rule.page'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1201 / FPDF1202 / FPDF1204 / FPDF1206');
+  assert.match(row.scope, /counter\(pages\)/);
+  assert.match(row.limitations, /disagrees with @page[^;]*FPDF1206/);
+  assert.match(row.limitations, /Page selectors \(:first/);
+  const media = englishFeature(data.features.find(x => x.id === 'rule.media'));
+  assert.match(media.limitations, /@page and @keyframes are allowed inside/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
 test('the .NET library row names its three target frameworks and the compression caveat, in English', async () => {
   const { englishFeature } = await localisation();
   const row = englishFeature(data.features.find(x => x.id === 'runtime.dotnet'));
@@ -951,4 +964,22 @@ test('custom properties and var() are partial, failing instead of unsetting, in 
   assert.match(row.limitations, /MaxCssSyntaxNodes/);
   assert.equal(englishFeature(data.features.find(x => x.id === 'functions.math')).stage, 'Syntax representation only');
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('translucent colours paint with PDF constant alpha, in English', async () => {
+  const { englishFeature } = await localisation();
+  const english = id => englishFeature(data.features.find(x => x.id === id));
+  for (const id of ['css.color', 'css.background-color', 'css.border', 'css.border-color', 'css.background']) {
+    const row = english(id);
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /clamped to 0–1, rounded to n\/255 as Chrome does and composited with PDF constant alpha/);
+    assert.doesNotMatch(row.limitations, /exactly 1 or 100%/);
+  }
+  assert.match(english('css.color').scope, /ExtGState \/ca and \/CA/);
+  assert.match(english('value.color.rgbfunc').scope, /rgba\(164,176,195,0\.2\)/);
+  assert.match(english('value.color.alphahex').scope, /0\/00 paints nothing/);
+  assert.match(english('value.border.transparent').limitations, /outline\/outline-color accept transparent and paint nothing/);
+  for (const id of ['css.color', 'css.outline', 'css.text-decoration', 'value.color.rgbfunc', 'value.color.alphahex',
+    'value.background.transparent', 'value.background.currentcolor', 'value.border.transparent', 'value.text.currentcolor'])
+    for (const field of ['scope', 'limitations', 'evidence_level']) assert.doesNotMatch(english(id)[field], han, field);
 });

@@ -353,22 +353,22 @@ public sealed class PdfPageSetup
         var w = Points(width, unit, nameof(width)); var h = Points(height, unit, nameof(height));
         if (w is < 72 or > 14_400) throw new ArgumentOutOfRangeException(nameof(width), width, "Page width must be from 1 to 200 inches.");
         if (h is < 72 or > 14_400) throw new ArgumentOutOfRangeException(nameof(height), height, "Page height must be from 1 to 200 inches.");
-        options = options with { PageWidth = w, PageHeight = h };
+        options = options with { PageWidth = w, PageHeight = h, PageSizeExplicit = true };
         return this;
     }
 
     /// <summary>Turns the paper so its longer side is horizontal, whatever order the size was set in.</summary>
-    public PdfPageSetup Landscape() { landscape = true; return this; }
+    public PdfPageSetup Landscape() { landscape = true; options = options with { PageSizeExplicit = true }; return this; }
 
     /// <summary>Turns the paper so its longer side is vertical, whatever order the size was set in.</summary>
-    public PdfPageSetup Portrait() { landscape = false; return this; }
+    public PdfPageSetup Portrait() { landscape = false; options = options with { PageSizeExplicit = true }; return this; }
 
     /// <summary>Sets the margin on all four sides; it must be less than half the shorter paper side. The default is 36pt.</summary>
     /// <param name="value">Margin size.</param>
     /// <param name="unit">Unit of <paramref name="value"/>.</param>
     public PdfPageSetup Margin(double value, PdfUnit unit = PdfUnit.Point)
     {
-        options = options with { Margin = Points(value, unit, nameof(value), allowZero: true) };
+        options = options with { Margin = Points(value, unit, nameof(value), allowZero: true), MarginExplicit = true };
         return this;
     }
 

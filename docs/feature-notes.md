@@ -136,7 +136,7 @@ Reusable report stylesheets can now wrap existing supported CSS in **`@media pri
 <section class="invoice"><p>Inspection completed</p></section>
 ```
 
-Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import`, `@page` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
+Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
 
 The [44-record multi-page print report](../examples/report-print-media.html) is compared against a [separately written inline-style PDF oracle](../examples/report-print-media-oracle.html), with NUnit, supplied TrueType, managed CLI, Native AOT qpdf/Poppler and protected failure/retry checks. Bounded engine source [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403). This is not full CSS Media Queries, a public package, new private binary, human PDF approval or a customer licence.
 
@@ -236,7 +236,22 @@ distribution remain separate.
 
 ### Opaque `rgb()` and `rgba(…,1)` colours (source-only)
 
-Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders, and hex with a fully opaque alpha (`#23446bff`, `#abcf`) wherever hex is accepted (other alpha values fail `FPDF1202`; `OpaqueAlphaHexColorTests.cs`). These produce the same painted PDF as matching hex colours; non-opaque alpha and gradients still fail explicitly. See [bounded CSS colours](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](../examples/report-print-spacing.html).
+Controlled report templates can use opaque `rgb(35, 68, 107)`, `rgb(35 68 107)` and `rgba(35,68,107,1)` for text, backgrounds and solid borders, and hex with a fully opaque alpha (`#23446bff`, `#abcf`) wherever hex is accepted (`OpaqueAlphaHexColorTests.cs`). These produce the same painted PDF as matching hex colours; gradients still fail explicitly.
+
+### Translucent colours
+
+A translucent colour such as `border-top:1px solid rgba(164, 176, 195, 0.2)` no
+longer fails the page. `rgba()`/`hsla()` (comma alpha or `/ alpha`, a number or
+a percentage), `#rgba`/`#rrggbbaa` and `transparent` paint everywhere FactsPDF
+paints a colour: text, backgrounds, solid/dashed/dotted and rounded borders,
+outlines, text decorations and list markers. Alpha is clamped to 0–1 and
+rounded to one byte as Chrome rounds paint alpha; each translucent paint selects
+a constant-alpha ExtGState (`/ca` fill, `/CA` stroke) that the page declares
+once per alpha, so it composites over what is painted below it as in Chrome.
+Alpha 1 keeps the opaque PDF bytes; alpha 0 paints nothing (`color:transparent`
+and `outline-color:transparent` are accepted for that). `opacity` and malformed
+alpha (`none`, a unit) still fail `FPDF1202` (`TranslucentColourTests.cs`,
+[exact contract](css-stylesheets.md#translucent-colours)). See [bounded CSS colours](css-stylesheets.md#current-source-opaque-rgb-colours-for-reports) and the [print report example](../examples/report-print-spacing.html).
 For a fontless case-formatting example with a preserved proper-name span, see the
 [report case labels](../examples/report-case-labels.html).
 
@@ -1394,6 +1409,41 @@ See [exact source contract](css-stylesheets.md#current-source-bounded-report-dis
 Source implementation is not a published NuGet binary or customer licence.
 
 ## Pages, pagination and document properties
+
+### Paper, margins and running footers from CSS `@page`
+
+Templates written for Chrome print can keep their `@page` rule, at top level
+or inside `@media print`/`all`:
+
+```css
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 20mm 15mm 25mm 30mm;
+    @top-left { content: 'Inspection report'; color: #336699; }
+    @bottom-center { content: counter(page) ' / ' counter(pages); font-size: 0.8em; }
+  }
+}
+```
+
+`size` takes the page-size keywords (A5, A4, A3, B5, B4, JIS-B5, JIS-B4,
+letter, legal, ledger) with or without `portrait`/`landscape`, an orientation
+alone, or one or two physical lengths. `margin` and its four longhands set
+each side, so margins can differ per side; the body moves, wraps and paginates
+inside them. The six top and bottom margin boxes take strings,
+`counter(page)`, `counter(pages)` or `none`, with `color`, `font-size`,
+`font-weight` and `font-style` inherited from the html element as in Chrome,
+and render through the structured page furniture; a later
+`@page { @bottom-center { content: none } }` removes an earlier footer.
+
+An explicit writer or CLI page size or margin must agree with `@page`, and
+margin boxes cannot be combined with `--page-furniture`, `--page-numbers`,
+`--header-text`, `--footer-text` or their API equivalents: `FPDF1206`. Page
+selectors (`:first`), named pages, corner and side margin boxes fail
+`FPDF1204`; other properties `FPDF1201`; other values `FPDF1202`. Page sizes,
+margins and footer placement are within 0.8pt of Chrome printing the same page
+([contract, precedence and the measured differences](css-stylesheets.md#css-page-paper-margins-and-margin-boxes),
+`CssPageRuleTests.cs`).
 
 ### A4/Letter and landscape pages from the CLI (source-only)
 

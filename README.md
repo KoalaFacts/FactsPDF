@@ -161,7 +161,7 @@ A summary only. **For any specific property or value, look it up on
 ## What is not supported
 
 - Arbitrary webpages, JavaScript, external stylesheets or any network loading.
-- Flexbox, grid, floats, positioning and CSS Paged Media (`@page`).
+- Flexbox, grid, floats and positioning; CSS Paged Media beyond `@page` size, margins and the six top/bottom margin boxes.
 - Automatic table column widths, `rowspan` and nested tables.
 - System font discovery, CSS `font-family` matching, synthetic bold/italic,
   complex-script shaping, right-to-left and vertical text.
