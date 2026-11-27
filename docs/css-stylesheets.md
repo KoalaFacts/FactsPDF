@@ -2314,6 +2314,49 @@ native `verify_stylesheets.py` acceptance block. Exact final-head CI,
 independent review, human reference approval, private software and
 commercial distribution rights are **separate**.
 
+## Current-source grid columns
+
+`display:grid` on an ordinary report panel, an `li` or `body` places its
+children — child blocks, images, paragraphs, and each inline child and text
+run — row by row into the columns of `grid-template-columns`, creating
+auto-sized rows as needed (CSS Grid Layout with auto-placement only):
+
+- **Columns.** `grid-template-columns` takes one track per value: a length or
+  percentage of the container's content width (`em`/`rem` too), `Nfr` or
+  `auto`; `none` (the initial value) is one `auto` column. Widths follow the
+  track sizing algorithm for single-span items: `auto` and `fr` tracks start at
+  their items' min-content contributions, `auto` tracks then grow to their
+  max-content contributions, `fr` tracks share the space left (a track whose
+  minimum exceeds its share keeps its minimum), and with `justify-content`
+  `normal` (or `stretch`) any space still free stretches the `auto` tracks.
+  Other `justify-content` values place the columns (`start`, `end`, `center`,
+  `space-between`, `space-around`, `space-evenly`).
+- **Gaps.** `column-gap` separates columns; `row-gap` separates rows (a
+  percentage row gap is zero, since the height is indefinite).
+- **Items.** `justify-items`/`justify-self` (`normal`, `stretch`, `start`,
+  `end`, `center`, `left`, `right`) place an item in its column: stretch fills
+  it unless the item has a `width`, the others use the fit-content width.
+  `align-items`/`align-self` place it in its row as in a flex line (`stretch`,
+  `start`, `end`, `center`, `baseline`). An image keeps its own size and starts
+  its area under the normal alignments. `order` changes the placement order. A
+  grid `li` is not a list item: no marker, not numbered.
+- **Pagination.** Each row is placed whole; a page may break between rows, and
+  the row gap at that break is dropped. A row that does not fit the rest of the
+  page moves to the next page when every item in it is a single paragraph of at
+  most three lines, and otherwise fails `FPDF1302`, like a flex row.
+- **Initial values accepted:** `grid-template-rows` and `grid-template-areas`
+  `none`, `grid-auto-flow:row`, `grid-auto-rows`/`grid-auto-columns` `auto`,
+  and `grid-column`, `grid-row`, `grid-area` and their `-start`/`-end`
+  longhands at `auto`.
+- **Not supported:** `repeat()`, `minmax()`, `fit-content()`,
+  `min-content`/`max-content` tracks, named lines, explicit placement, spans,
+  named areas, explicit rows, `dense` or column flow, sized implicit tracks and
+  `inline-grid` (`FPDF1202`); grid on `html`, paragraphs or inside tables, a
+  grid container with `height` or `min-height`, `break-inside:avoid` on one and
+  tables as grid items (`FPDF1201`); columns whose fixed sizes and content
+  minimums cannot fit (`FPDF1302`). See
+  [`GridLayoutTests`](../tests/FactsPDF.Tests/GridLayoutTests.cs).
+
 ## Current-source `::before` and `::after` generated content
 
 A selector may end in `::before` or `::after` (also the legacy `:before` and
