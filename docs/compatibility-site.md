@@ -416,6 +416,23 @@ Actual CI, independent review, human page approval and commercial
 distribution remain separate and must not be inferred from the audit.
 
 
+## Cell lists, table placement and table width limits
+
+A candidate change replaces strings in place for the `html.ul`, `html.ol`, `html.li` and
+`html.table` rows, the flex rows (`css.flex`, `css.flex-direction`, `css.flex-wrap`,
+`css.flex-grow`, `css.flex-shrink`, `css.flex-basis`, `css.align-items`,
+`css.justify-content`), the grid rows (`css.grid`, `css.grid-template-columns`,
+`css.grid-template-rows`, `css.grid-area`, `css.grid-column`, `css.grid-row`), `css.display`,
+`css.min-width` and `css.max-width`: a list may stand in a table cell, a table is a flex or grid
+item, a table may follow inline text or stand in a list item (an open `p` is closed by the table
+start tag), `min-width`/`max-width` limit a table's used width, and an author `padding-left` on a
+list replaces its marker gutter. No status or count moves (full 45, partial 270, none 95;
+418 records, 52 accepted CSS property names unchanged). Current dataset SHA-256:
+`b1175e63176b88451f200e2ed64f87d28482f1c88b4e9d6016d237c2d6b4bc52`; English layer
+`site/src/audit-english-cell-placement.mjs`, ordered source-text SHA-256
+`ec32e9e8abb49946aecda0f7381a9c0b237a65fad2950595b281cf27a56a4e8f`. The entries below
+describe the state at their own dates.
+
 ## Block margin collapsing, list and table margins and cell paragraph padding
 
 A candidate change replaces strings in place for the `css.margin`, `css.margin-top`,
@@ -425,8 +442,8 @@ margins of every block box collapse as in CSS 2 and are truncated at unforced pa
 breaks, `ul`, `ol`, `menu`, `li` and `table` accept `margin-top`/`margin-bottom` (the list
 default is Chrome's 1em, none when nested), a table accepts only zero horizontal margins,
 and flat table-cell paragraphs accept padding. No status or count moves (full 45,
-partial 270, none 95; 418 records, 52 accepted CSS property names unchanged). Current
-dataset SHA-256:
+partial 270, none 95; 418 records, 52 accepted CSS property names unchanged). Dataset
+SHA-256 at that change:
 `2370775838a4cc98c2697526e15761d12a4ca70f977ad19c6d9f3d9c32f1eeb7`; English layer
 `site/src/audit-english-block-margins.mjs`, ordered source-text SHA-256
 `9c26a2cf4c6ebe808d6f4b5565f1ae2fb6329b4a9e3ef3e1048e714a8b366777`. The older entries

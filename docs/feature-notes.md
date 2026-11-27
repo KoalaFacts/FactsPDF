@@ -1088,6 +1088,27 @@ paragraphs now take padding. Parity with `main` changes for pages with panels (k
 on a list or table and a nonzero horizontal table margin fail `FPDF1201`. See
 [block margin collapsing](css-stylesheets.md#current-source-block-margin-collapsing-and-list-and-table-margins).
 
+### Lists in table cells, tables beside and inside lists, and table width limits (source-only)
+
+Real report templates put lists in cells (`<td><ul class="x"><li><b>Label</b><span>Value</span></li>…</ul></td>`
+with `li{display:flex;justify-content:space-between}`), a table beside a block in a flex or grid
+row, a table after text in a list item or after an open `<p>`, and `min-width`/`max-width` on a
+table. All four now print as Chrome prints them (within 0.75pt on synthetic probes, strict and
+non-strict mode alike): a cell with a list is laid out as one block fragment, so markers, list
+and item margins (collapsing inside the cell, never out of it), flex rows, automatic column
+widths and row heights follow the ordinary block, list and flex rules; a table is a flex or grid
+item sized by its width and content, stretching its body rows when the line is taller; a table
+start tag closes an open `p`, splits inline elements around it and may stand in a list item;
+and `min-width`/`max-width` limit the table's used width (`min-width` wins). An author
+`padding-left` on a list, zero included, now replaces the marker gutter as it does in Chrome, so
+`*{margin:0;padding:0}` resets leave the items at the container's left edge. Explicit failures
+remain where Chrome cannot be matched: a row with a list that must split across pages (a row
+with a list moves whole, like any row), a marked list item that starts with a table, a
+`max-width` below the explicit column widths of a table, and a table inside another table,
+heading or `pre`. See [lists in cells](tables.md#lists-in-cells),
+[table width constraints](tables.md#table-width-constraints) and
+[tables as flex and grid items](tables.md#tables-as-flex-and-grid-items).
+
 ### `min-width` / `max-width` constraints (source-only)
 
 For source-built business reports, `min-width` and `max-width` now constrain
