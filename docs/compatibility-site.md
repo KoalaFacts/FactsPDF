@@ -433,6 +433,21 @@ list replaces its marker gutter. No status or count moves (full 45, partial 270,
 `ec32e9e8abb49946aecda0f7381a9c0b237a65fad2950595b281cf27a56a4e8f`. The entries below
 describe the state at their own dates.
 
+## Tables in cells, footer-only tables and free-text link targets
+
+A candidate change replaces strings in place for the `html.a`, `html.base`, `attr.12`
+(`href`/`target`/`rel`), `html.table`, `html.td`, `html.th`, `html.tfoot` and `pdf.tables` rows:
+a table may stand directly in a table cell (at most three levels), a table may be only a
+`tfoot`, a `thead` and a `tfoot`, or have its `tfoot` before the `tbody`, and in non-strict mode
+an `a href` that is not an absolute HTTPS or mailto URL draws its text as a link with no
+annotation and a warning. No status or count moves (full 45, partial 270, none 95; 418 records,
+52 accepted CSS property names unchanged). Dataset SHA-256 (LF bytes, as
+`git show :site/data/compatibility.json` prints them):
+`88a2d77651036388502b66ae04bf3e054f89aead39573562e454bf44d3cb4be1`; English layer
+`site/src/audit-english-nested-tables.mjs`, ordered source-text SHA-256
+`a7f0ad66cac08b0986ca75f7a64ba65cd76c1609913644a1924ca8f35bcc8ef2`. The entries below
+describe the state at their own dates.
+
 ## Block margin collapsing, list and table margins and cell paragraph padding
 
 A candidate change replaces strings in place for the `css.margin`, `css.margin-top`,
