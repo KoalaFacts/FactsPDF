@@ -675,7 +675,14 @@ and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colou
 `value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
 since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
 stays partial.
+The rendering-path CSS error recovery row (`syntax.recovery`) moves to partial: strict mode stays
+the default, and opt-in non-strict mode drops CSS that is invalid per the specifications (and
+`style` elements whose type is not CSS) as a browser does, while valid but unsupported CSS still
+fails. Its scope and limitation strings are replaced in place, its stage becomes the existing
+`语义/渲染`, and the `严格拒绝` stage only it used is replaced by its new evidence-level string
+(partial 248, rejected 117; `FPDF1201–1204`). The custom property row's limitation is replaced in
+place: a substituted CSS-wide keyword applies as that keyword and `revert` works.
 Current dataset SHA-256:
-`c91a3026eee6fd6ff8cd3354123d3c4ce13e2aefa656f7e20f8f5b341efa1705`; English
-layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
-SHA-256 `9030c98569c8dcc545bc3dd0dd3c3057b86c6f5e38507765bf1162ea998e90b1`.
+`e2e2d0c10d949c0763a14c8f3a4c6f6f9d5962e15c719a59715e93e035a70bfe`; English
+layer `site/src/audit-english-non-strict-css.mjs`, ordered source-text
+SHA-256 `6e37caedfbae54ecc5d9cbd6034e28830fc9675fc0550476f94f08ac7ef71b6b`.

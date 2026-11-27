@@ -983,3 +983,19 @@ test('translucent colours paint with PDF constant alpha, in English', async () =
     'value.background.transparent', 'value.background.currentcolor', 'value.border.transparent', 'value.text.currentcolor'])
     for (const field of ['scope', 'limitations', 'evidence_level']) assert.doesNotMatch(english(id)[field], han, field);
 });
+
+test('non-strict CSS recovery is partial and valid unsupported CSS still fails, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'syntax.recovery'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1201–1204');
+  assert.equal(row.stage, 'Semantics / rendering');
+  assert.match(row.scope, /WithStrict\(false\)/);
+  assert.match(row.scope, /style elements whose type is not CSS/);
+  assert.match(row.limitations, /position:absolute, :hover, @font-face, display:flex/);
+  assert.match(row.limitations, /MaxCssWarnings/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+  const variables = englishFeature(data.features.find(x => x.id === 'functions.var'));
+  assert.match(variables.limitations, /applies as that keyword, as in Chrome 158/);
+  assert.doesNotMatch(variables.limitations, /revert\/revert-layer fail/);
+});
