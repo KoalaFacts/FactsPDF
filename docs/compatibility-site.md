@@ -628,7 +628,9 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
 Current dataset SHA-256:
-`b9581aae0697b3df0f7caa9d511e2d9f0b55dd944774c0a885ab483d6d139d80`; English
-layer `site/src/audit-english-table-part-display.mjs`, ordered source-text
-SHA-256 `60069eb3830d06aad5354a4f0b7b738e3ad59475cdca74ec1c682dc238e70fed`.
+`32fad43a481c45fb5e171e0e9888b7268604f3e102352f60ed4e8816a217db6b`; English
+layer `site/src/audit-english-base.mjs`, ordered source-text
+SHA-256 `df4a5dc184691eb52b8c55804d795e4c0243764c9b2e813ba14b7fa4f68ee32c`.
