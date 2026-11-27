@@ -457,7 +457,7 @@ test('named CSS colours retain the independent source and English limitations', 
     assert.equal(row.introduced_release, null);
   }
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 384);
+  assert.equal(data.accepted_css_property_count, 396);
 });
 
 
@@ -465,7 +465,7 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   const { englishFeature, translate } = await localisation();
   const feature=englishFeature(data.features.find(x=>x.id==='css.border'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 384);
+  assert.equal(data.accepted_css_property_count, 396);
   assert.match(feature.scope,/border-inline/);
   assert.match(feature.scope,/border-block/);
   assert.match(feature.scope,/actual left\/right\/top\/bottom PDF strokes/);
@@ -476,12 +476,12 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   assert.doesNotMatch(translate(data.css_inventory_note),han);
 });
 
-test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count, 384);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
+test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count, 396);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
 
 test('bounded printable text decoration width is translated with exact limits',async()=>{
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(f=>f.id==='css.text-decoration'));
-  assert.equal(data.accepted_css_property_count, 384);
+  assert.equal(data.accepted_css_property_count, 396);
   assert.match(row.scope,/three distinct/);
   assert.match(row.scope,/0.2–12pt/);
   assert.match(row.scope,/resets omitted thickness to auto/);
@@ -499,7 +499,7 @@ test('bounded underline offset remains exact in verified English and Chinese', a
   assert.match(translate(data.css_inventory_note),/from 108 to 109/);
   assert.doesNotMatch(row.scope+row.limitations,/[\u3400-\u9fff]/u);
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 384);
+  assert.equal(data.accepted_css_property_count, 396);
 });
 
 test('English CLI diagnostic location record is source-bound and fully translated',async()=>{
@@ -528,7 +528,7 @@ test('bounded English last-line alignment audit retains source and error boundar
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(x=>x.id==='css.text-align'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 384);
+  assert.equal(data.accepted_css_property_count, 396);
   assert.match(row.scope,/text-align-last:auto\/left\/center\/right\/start\/end\/justify/);
   assert.match(row.limitations,/inline declarations/);
   assert.match(translate(data.css_inventory_note),/115 to 116/);
@@ -893,4 +893,21 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
     assert.match(row.limitations, /would split .*FPDF1302/);
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
+});
+
+test('single-line flex rows are partial with their own scope, in English', async () => {
+  const { englishFeature, translate } = await localisation();
+  const ids = ['css.flex', 'css.flex-direction', 'css.flex-wrap', 'css.flex-grow', 'css.flex-shrink',
+    'css.flex-basis', 'css.align-items', 'css.justify-content'];
+  for (const id of ids) {
+    const row = englishFeature(data.features.find(x => x.id === id));
+    assert.equal(row.status, 'partial', id);
+    assert.match(row.limitations, /never split across pages/);
+    assert.match(row.test_reference, /FlexLayoutTests\.cs/);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+  }
+  assert.match(englishFeature(data.features.find(x => x.id === 'css.justify-content')).scope, /space-evenly/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'css.column-gap')).scope, /between adjacent flex items/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'css.display')).limitations, /display:flex \(single-line/);
+  assert.match(translate(data.css_inventory_note), /display:flex lays out single-line[^.]*from 384 to 396/);
 });

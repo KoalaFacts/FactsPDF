@@ -153,7 +153,7 @@ A summary only. **For any specific property or value, look it up on
 | Colours | Hex, opaque `rgb()`/`rgba(…,1)`, `hsl()`, 148 named colours, `currentColor`; no transparency | [Colours](docs/feature-notes.md#colours) |
 | Text and fonts | Chinese and English text, normal/bold/italic/bold-italic roles, font size and weight, line height, letter/word spacing, `text-indent`, alignment and justification, ASCII `text-transform`, underline/overline/strike-through | [Fonts](docs/unicode-fonts.md), [typography](docs/feature-notes.md#text-fonts-and-typography) |
 | Wrapping | `white-space` `nowrap`/`pre`/`pre-line`/`pre-wrap`, `overflow-wrap:break-word`, `word-break:break-all` | [White space](docs/feature-notes.md#white-space-and-line-wrapping) |
-| Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
+| Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties, single-line `display:flex` rows | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
 | Tables | Fixed column widths, `colspan`, paragraph/image cells, repeated headers, long rows continuing across pages, cell `vertical-align` | [Tables](docs/tables.md) |
 | Pages | Automatic pagination, `break-before`/`break-after`/`break-inside`, heading keeps, headers/footers, page numbers, paper size, margins, PDF metadata | [Pages](docs/feature-notes.md#pages-pagination-and-document-properties) |
 | Runtime | .NET library and CLI; Linux and Windows x64 Native AOT are tested | [Build and verification](docs/development.md#native-aot-and-verification) |
@@ -161,7 +161,7 @@ A summary only. **For any specific property or value, look it up on
 ## What is not supported
 
 - Arbitrary webpages, JavaScript, external stylesheets or any network loading.
-- Flexbox, grid, floats, positioning and CSS Paged Media (`@page`).
+- Multi-line or column flexbox, grid, floats, positioning and CSS Paged Media (`@page`).
 - Automatic table column widths, `rowspan` and nested tables.
 - System font discovery, CSS `font-family` matching, synthetic bold/italic,
   complex-script shaping, right-to-left and vertical text.
