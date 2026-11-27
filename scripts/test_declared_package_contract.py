@@ -68,6 +68,53 @@ class DeclaredPackageContractTests(unittest.TestCase):
         path.write_text(path.read_text().replace('<PropertyGroup>', '<PropertyGroup Condition="x">'))
         with self.assertRaises(AssertionError): package_check.expected_contract(self.root)
 
+    def library(self, declaration):
+        project = self.root / package_check.LIBRARY_PROJECT
+        project.parent.mkdir(parents=True, exist_ok=True)
+        project.write_text(f'<Project><PropertyGroup><TargetFramework></TargetFramework>{declaration}</PropertyGroup></Project>')
+
+    def test_library_targets_are_one_reviewed_literal_list_ending_in_the_repository_target(self):
+        self.library('<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>')
+        self.assertEqual(package_check.package_targets(self.root, 'net10.0'), ('net8.0', 'net9.0', 'net10.0'))
+        with self.assertRaises(AssertionError): package_check.package_targets(self.root, 'net11.0')
+        for declaration in ['<TargetFrameworks>net8.0;net10.0</TargetFrameworks>',
+                            '<TargetFrameworks>net9.0;net8.0;net10.0</TargetFrameworks>',
+                            '<TargetFrameworks>net8.0;net9.0;net10.0;</TargetFrameworks>',
+                            '<TargetFrameworks>$(LibraryTargets)</TargetFrameworks>',
+                            '<TargetFrameworks Condition="x">net8.0;net9.0;net10.0</TargetFrameworks>',
+                            '<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks><TargetFrameworks>net10.0</TargetFrameworks>',
+                            '']:
+            self.library(declaration)
+            with self.subTest(declaration=declaration), self.assertRaises(AssertionError):
+                package_check.package_targets(self.root, 'net10.0')
+
+    def test_checked_in_library_declares_the_reviewed_target_set(self):
+        _, target = package_check.expected_contract(ROOT)
+        self.assertEqual(package_check.package_targets(ROOT, target), ('net8.0', 'net9.0', 'net10.0'))
+
+    def test_library_target_set_package_needs_every_declared_asset(self):
+        targets = ('net8.0', 'net9.0', 'net10.0')
+        def package(included):
+            path = self.root / 'FactsPDF.0.2.0.nupkg'
+            with ZipFile(path, 'w') as archive:
+                archive.writestr('FactsPDF.nuspec',
+                    '<package><metadata><id>FactsPDF</id><version>0.2.0</version>'
+                    '<license type="file">LICENSE.md</license><readme>README.md</readme>'
+                    '<repository type="git" url="https://github.com/KoalaFacts/FactsPDF" '
+                    f'commit="{SOURCE}" /><dependencies>'
+                    + ''.join(f'<group targetFramework="{t}" />' for t in included) + '</dependencies></metadata></package>')
+                for t in included:
+                    archive.writestr(f'lib/{t}/FactsPDF.dll', f'fixture {t} DLL'.encode())
+                    archive.writestr(f'lib/{t}/FactsPDF.xml', b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.Pdf" /></members></doc>')
+                archive.writestr('LICENSE.md', b'license'); archive.writestr('README.md', b'readme')
+            return path
+        result = package_check.validate_package(package(targets), self.root, '0.2.0', SOURCE, targets)
+        self.assertEqual(result['assemblies']['net8.0'], b'fixture net8.0 DLL')
+        self.assertEqual(result['targetFrameworks'], targets)
+        for included in [targets[1:], targets[:-1], targets + ('net11.0',)]:
+            with self.subTest(included=included), self.assertRaises(AssertionError):
+                package_check.validate_package(package(included), self.root, '0.2.0', SOURCE, targets)
+
     def test_local_selection_uses_expected_version_and_rejects_stale_extra_packages(self):
         self.declaration()
         packages = self.root / 'artifacts/packages'; packages.mkdir(parents=True)

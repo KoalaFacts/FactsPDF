@@ -34,6 +34,7 @@ public sealed class CssParserTokenListTests
         _ => c.GetType().Name,
     };
 
+    [AllocationBudget]
     [Test]
     public void ParsingAStyleAttributeDoesNotCopyItsTokens()
     {

@@ -31,6 +31,7 @@ public sealed class ShortHexColorTests
         Assert.That(error.SourceOffset, Is.EqualTo(12));
     }
 
+    [AllocationBudget]
     [Test]
     public void ReadingAShortHexColorAllocatesNothing()
     {

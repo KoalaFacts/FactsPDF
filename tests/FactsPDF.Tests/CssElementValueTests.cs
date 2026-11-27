@@ -26,6 +26,7 @@ public sealed class CssElementValueTests
 
     // Measured on main 0098a5f: 656 bytes read per paragraph with one 56-byte element object
     // each; 600 as a value.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesNoElementObject()
     {

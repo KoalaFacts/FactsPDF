@@ -631,16 +631,33 @@ to say that table parts accept the display value they already render and that
 The non-standard `background-color-adjust` joins `color-adjust` as an alias of
 `print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
 since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
+The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
+place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
+so no count moves.
+The C# / .NET library row stays full; its limitation string is replaced in place to say that
+the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
+that output is byte-identical for the same input, options and .NET runtime version while
+different .NET versions may produce different bytes (for example compressed streams) with the
+same rendered content, with byte parity and hash pins authoritative on `net10.0` only, so no
+count moves.
 The pseudo-class row moves to partial for `:root` (the root `html` element, pseudo-class
 specificity); its own feature name, scope and limitation strings are replaced in place and the
-attribute-selector limitation excepts `:root` (partial 245, rejected 121; `FPDF1203`, so the
+attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
 `FPDF1102` search is unchanged).
 The custom property / `var()` row moves to partial: custom properties cascade and inherit and
 `var()` is substituted into every supported property, while a reference without a value or
 fallback fails `FPDF1202` instead of being unset. Its scope and limitation strings are replaced in
 place and its stage becomes the existing `语义/渲染`, so the `仅语法可表示` stage it shared with the
-value-function row moves after that row's strings (partial 246, rejected 120; `FPDF1202`).
+value-function row moves after that row's strings (partial 247, rejected 119; `FPDF1202`).
 Current dataset SHA-256:
-`6001cd06359f04e6e183aec74d1e46a513473aba573d2727f393d4ff2cbb31cf`; English
+`59c9929a533f41bc48340676854c7d916d4594a9ba2c04e455c381b882d6d788`; English
 layer `site/src/audit-english-custom-properties.mjs`, ordered source-text
-SHA-256 `779497d2cfb1426bfc6d8a0c6fec66b4c27ba0cb451cb0da0e0822a70954b733`.
+SHA-256 `ec7b30b4a5fa54a67a3b88ec6bd96f45b142b120037d2592ebc09976018f5ab0`.

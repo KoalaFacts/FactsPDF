@@ -20,6 +20,7 @@ public sealed class DirectPlacedTextTests
         return p;
     }
 
+    [AllocationBudget]
     [Test]
     public void LongParagraphAllocatesFinalStringsWithoutPerRunBuilders()
     {
