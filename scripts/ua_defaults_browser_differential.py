@@ -464,13 +464,13 @@ def main(argv=None):
 
     chrome = find_chrome(args.chrome)
     cli = str(Path(args.cli).resolve())
-    fonts_dir = Path(args.fonts_dir)
+    fonts_dir = Path(args.fonts_dir).resolve()
     missing = [file for file in FACES if not (fonts_dir / file).is_file()]
     if missing:
         raise RuntimeError(f"Missing DejaVu faces in {fonts_dir}: {', '.join(missing)}")
     corpus = load_json("corpus.json")
     keep = tempfile.TemporaryDirectory(prefix="ua-defaults-") if not args.work else None
-    work = Path(args.work or keep.name)
+    work = Path(args.work or keep.name).resolve()
     work.mkdir(parents=True, exist_ok=True)
     failures = []
 
