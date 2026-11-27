@@ -639,7 +639,10 @@ no min-content sizing exists; its scope, limitation and evidence strings are rep
 so no count moves.
 `<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
 are still never resolved (partial 245, rejected 121; 43 records).
+The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
+place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
+so no count moves.
 Current dataset SHA-256:
-`9fb8bf69a77fb9c1dafe36547c78db36b2c4bb684bbfc9ba1132ec372c272b58`; English
-layer `site/src/audit-english-base.mjs`, ordered source-text
-SHA-256 `250ee351cb14f6884eb4441f8054f6cebc212dfb0a5cb05483b5717b2a0cf3a6`.
+`b69396a9c8b868a263968bc72bfaf5fc8343179fbe5644b87946b2b573104110`; English
+layer `site/src/audit-english-list-type.mjs`, ordered source-text
+SHA-256 `15c23da834a918f4f26fc7e63b33d9189e1840576bac70edf0316c873ca08983`.
