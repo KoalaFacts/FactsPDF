@@ -59,7 +59,7 @@ internal static class CssSyntaxAdapter
     // element whose style attribute holds them; a table-part display value is checked against them.
     internal static CssDeclaration[] CompileKnownDeclarations(
         IReadOnlyList<CssDeclarationNode> nodes, CssBudget budget,
-        CssSelector[]? hostSelectors = null, string? hostElement = null)
+        CssSelector[]? hostSelectors = null, string? hostElement = null, int fixedOrder = 0)
     {
         // One pooled scratch list per thread: shorthands expand into several declarations
         // (`border` into twelve), so a list sized to the nodes grew by doubling per declaration
@@ -71,6 +71,18 @@ internal static class CssSyntaxAdapter
         {
             var node = nodes[n];
             budget.Token.ThrowIfCancellationRequested();
+            // A custom property (--name, case-sensitive) holds any value; only its var() syntax and
+            // CSS-wide keyword are checked here. The cascade resolves it for each element.
+            if (CssVariables.IsCustomPropertyName(node.Name))
+            {
+                CssVariables.ValidateReferences(node.Values);
+                var keyword = CssVariables.Keyword(node.Values, node.Span.Start);
+                var values = node.Values as CssSyntaxComponent[] ?? [.. node.Values];
+                budget.UsesVariables = true;
+                output.Add(CssDeclaration.Create(CssProperty.Custom, node.Name, CssVariables.Text(values), node.Important,
+                    budget.Declaration(node.Span.Start), node.Span.Start, new CssCustomValue(values, keyword)));
+                continue;
+            }
             var originalName = node.Name.ToLowerInvariant();
             // Legacy print stylesheets use page-break-before/after:always.
             // Normalize only these known aliases into the existing cascade
@@ -131,6 +143,17 @@ internal static class CssSyntaxAdapter
             // functions or multiple tokens.
             var initialOnly = InitialOnlyValue(name);
             var property = initialOnly is null && !IsInteractionOnly(name) ? Property(name, node.Span.Start) : default;
+            // A supported property whose value holds var() can be checked only after substitution,
+            // for each element it applies to (CSS Custom Properties: valid at parse time when the
+            // var() syntax is). It keeps one cascade order for every declaration it expands into.
+            if (CssVariables.ContainsVar(node.Values))
+            {
+                CssVariables.ValidateReferences(node.Values);
+                budget.UsesVariables = true;
+                output.Add(CssDeclaration.Create(CssProperty.Pending, name, CssVariables.Text(node.Values), node.Important,
+                    budget.Declaration(node.Span.Start), node.Span.Start, new CssPendingValue(node, hostSelectors, hostElement is not null)));
+                continue;
+            }
             // Properties the report renderer does not implement, declared at the one value it
             // already lays out (position: static, float: none, opacity: 1, ...): the declaration
             // changes nothing, so it is validated and dropped. Every other value, including any
@@ -162,7 +185,7 @@ internal static class CssSyntaxAdapter
             void Emit(CssProperty target, string value, int offset = -1, string? targetName = null)
             {
                 var sourceOffset = offset < 0 ? node.Span.Start : offset;
-                var order = budget.Declaration(sourceOffset);
+                var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
                 output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
             }
             // Logical border component declarations use the existing *physical*

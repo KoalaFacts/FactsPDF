@@ -473,15 +473,15 @@ public sealed class PdfLimitsSetup
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssDeclarations(int value) => Set(value, o => o with { MaxCssDeclarations = value });
 
-    /// <summary>Work budget for selector matching and cascading (FPDF1205). Default 5,000,000.</summary>
+    /// <summary>Work budget for selector matching, cascading and var() substitution (FPDF1205). Default 5,000,000.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssMatchOperations(int value) => Set(value, o => o with { MaxCssMatchOperations = value });
 
-    /// <summary>Maximum number of CSS syntax nodes (FPDF1205). Default 131,072.</summary>
+    /// <summary>Maximum number of CSS syntax nodes in each parsed source and in each value after var() substitution (FPDF1205). Default 131,072.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSyntaxNodes(int value) => Set(value, o => o with { MaxCssSyntaxNodes = value });
 
-    /// <summary>Maximum nesting depth of CSS blocks and functions (FPDF1205). Default 64.</summary>
+    /// <summary>Maximum nesting depth of CSS blocks and functions, and of chained var() references (FPDF1205). Default 64.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSyntaxDepth(int value) => Set(value, o => o with { MaxCssSyntaxDepth = value });
 

@@ -61,11 +61,11 @@ internal sealed record PdfOptions
     public int MaxCssSelectors { get; init; } = 4_096;
     /// <summary>Maximum number of CSS declarations.</summary>
     public int MaxCssDeclarations { get; init; } = 32_768;
-    /// <summary>Work budget for matching selectors against elements and cascading values.</summary>
+    /// <summary>Work budget for matching selectors against elements, cascading values and substituting var().</summary>
     public int MaxCssMatchOperations { get; init; } = 5_000_000;
-    /// <summary>Maximum number of CSS syntax nodes (tokens, blocks and components) parsed.</summary>
+    /// <summary>Maximum number of CSS syntax nodes (tokens, blocks and components) parsed, and held by any value after var() substitution.</summary>
     public int MaxCssSyntaxNodes { get; init; } = 131_072;
-    /// <summary>Maximum nesting depth of CSS blocks and functions.</summary>
+    /// <summary>Maximum nesting depth of CSS blocks and functions, and of chained var() references.</summary>
     public int MaxCssSyntaxDepth { get; init; } = 64;
     /// <summary>Upper bound of text and primitive box paint operations, all pages.</summary>
     public int MaxDisplayCommands { get; init; } = 200_000;
