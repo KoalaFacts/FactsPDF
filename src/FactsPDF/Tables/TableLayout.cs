@@ -94,7 +94,7 @@ internal static class TableLayout
         var firstBodyGroup = true;
         var headerHeight = 0d;
         var top = edges.Top;
-        var usableHeight = options.PageHeight - 2 * options.Margin;
+        var usableHeight = options.ContentHeight;
         var fresh = freshSpace ?? new(usableHeight, 0);
         bool measuringHeader = false;
         void CheckHeight(double height, int offset)

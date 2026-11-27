@@ -661,7 +661,13 @@ A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
+The `@page` row moves to partial: `size`, per-side margins and the six top/bottom margin
+boxes with `counter(page)`/`counter(pages)`, with page selectors and the other margin boxes
+still failing `FPDF1204` and conflicts with explicit writer page options failing `FPDF1206`.
+Its scope and limitation strings are replaced in place, its new evidence string is inserted
+and the `@media` limitation no longer lists `@page` (partial 248, rejected 118; 877 ordered
+strings; the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`6c73120721e0e1bee2201e50b6ad2ce40695f572fd73f6387f80acaa15c88d72`; English
-layer `site/src/audit-english-table-row-kept-split.mjs`, ordered source-text
-SHA-256 `0e4408a1cc3960189e84bf82d58ef78837b36b031e35f0157e7052edd0c45602`.
+`7143f97d06112e76e25fb2dedd0c3b6b1983cf83f70ffee180a6c6228405501f`; English
+layer `site/src/audit-english-page-rule.mjs`, ordered source-text
+SHA-256 `e1f2bd849730e4c2d1ef87051223501ec9c8be22b835ae981f7eb87cffa315aa`.

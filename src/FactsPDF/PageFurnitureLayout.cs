@@ -122,7 +122,7 @@ internal static class PageFurnitureLayout
                     Line line;
                     try
                     {
-                        using var lines = Wrap(paragraph, options.PageWidth - 2 * options.Margin,
+                        using var lines = Wrap(paragraph, options.ContentWidth,
                             options, resolved, cancellation).GetEnumerator();
                         if (!lines.MoveNext()) continue;
                         line = lines.Current with { Glyphs = [.. lines.Current.Glyphs] };
@@ -136,9 +136,9 @@ internal static class PageFurnitureLayout
 
                     var x = alignment switch
                     {
-                        TextAlignment.Left => options.Margin,
-                        TextAlignment.Right => options.PageWidth - options.Margin - line.Width,
-                        _ => (options.PageWidth - line.Width) / 2
+                        TextAlignment.Left => options.MarginLeft,
+                        TextAlignment.Right => options.PageWidth - options.MarginRight - line.Width,
+                        _ => options.CenterX(line.Width)
                     };
                     var left = x;
                     var right = x + line.Width;
@@ -170,11 +170,12 @@ internal static class PageFurnitureLayout
                         throw Geometry(index, staged[i - 1].Name + "/" + staged[i].Name, "overlapping regions");
                 var ascentMax = staged.Max(item => item.Ascent);
                 var descentMax = staged.Max(item => item.Descent);
-                if (ascentMax + descentMax + 2 * Clearance > options.Margin + Epsilon)
+                var band = topMargin ? options.MarginTop : options.MarginBottom;
+                if (ascentMax + descentMax + 2 * Clearance > band + Epsilon)
                     throw Geometry(index, topMargin ? "Header" : "Footer", "margin is too shallow");
                 var baseline = topMargin
-                    ? options.PageHeight - (options.Margin - ascentMax - descentMax) / 2 - ascentMax
-                    : (options.Margin - ascentMax - descentMax) / 2 + descentMax;
+                    ? options.PageHeight - (band - ascentMax - descentMax) / 2 - ascentMax
+                    : (band - ascentMax - descentMax) / 2 + descentMax;
                 var bodyEdge = topMargin ? baseline - descentMax : baseline + ascentMax;
 
                 void CheckBody(double top, double bottom)

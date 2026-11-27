@@ -273,10 +273,12 @@ blocks still affect earlier document content.
 Both media types are active in this PDF-only renderer. All unsupported
 at-rules, `screen`, comma lists, expressions such as `(min-width:600px)`,
 nested media and at-rule blocks or loose declarations inside a media block
-fail `FPDF1204`, rather than silently being skipped. Invalid or
+fail `FPDF1204`, rather than silently being skipped; `@keyframes` (validated
+and dropped) and `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes))
+are the only at-rules allowed inside. Invalid or
 unsupported declarations in an unmatched nested selector still fail
 `FPDF1202`. No media feature evaluation, browser screen rendering,
-CSS `@page`, user-origin cascade, automatic fetching or full CSS Media
+user-origin cascade, automatic fetching or full CSS Media
 Queries is implied.
 
 The [44-entry printable register](../examples/report-print-media.html) and
@@ -286,6 +288,99 @@ negative input and output recovery. NUnit: `PrintMediaReportTests.cs`.
 Source implementation [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403).
 Exact-head CI and independent review, private software, licensing,
 human reference approval and publication are separate gates.
+
+## CSS `@page`: paper, margins and margin boxes
+
+An embedded `<style>` may hold `@page { ... }` at top level or inside
+`@media print`/`@media all`. Every `@page` rule applies to every page; its
+declarations cascade by `!important` and then source order, like element
+rules, and count toward the CSS declaration budget.
+
+```css
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1cm;
+    @bottom-center { content: counter(page) ' / ' counter(pages); font-size: 0.8em; }
+  }
+}
+@page { @bottom-center { content: none; } } /* a later rule removes the footer */
+```
+
+| Declaration | Accepted values |
+| --- | --- |
+| `size` | `auto`; a page-size keyword `A5`, `A4`, `A3`, `B5`, `B4`, `JIS-B5`, `JIS-B4`, `letter`, `legal`, `ledger` (ASCII case-insensitive), with or without `portrait`/`landscape` in either order; `portrait` or `landscape` alone, which turns the writer's paper; one length (square) or two lengths (width height) in `pt`, `px`, `mm`, `cm`, `in`, `pc` or `q`, each side 72–14400pt |
+| `margin`, `margin-top`, `margin-right`, `margin-bottom`, `margin-left` | A nonnegative length in `pt`, `px`, `mm`, `cm`, `in`, `pc`, `q`, `em` or `rem` (both relative to the html element's font size); `initial`, `unset`, `inherit` or `revert` keep the writer's margin on that side |
+| `@top-left`, `@top-center`, `@top-right`, `@bottom-left`, `@bottom-center`, `@bottom-right` | Page-margin boxes holding only declarations |
+| `content` (in a margin box) | `none` or `normal` (no box); otherwise a sequence of strings, `counter(page)` and `counter(pages)` (optionally `, decimal`) |
+| `color`, `font-size`, `font-weight`, `font-style`, `font-family` (in a margin box) | The values and errors the body accepts; `font-family` is validated and dropped, since fonts come from the writer's font chains |
+
+`A4` and `letter` are exactly the writer's `A4()` (595.28 × 841.89pt) and
+`Letter()` (612 × 792pt); the other keywords are their exact millimetre or inch
+sizes. A side that `@page` does not set keeps the writer's margin (36pt by
+default). Different sides are real asymmetric margins: the body starts at the
+left and top margins, wraps in the page width minus both side margins and
+paginates in the height between the top and bottom margins.
+
+Margin boxes are the [structured page furniture](page-furniture-cli.md) under
+another name: `@top-left`/`center`/`right` are `HeaderLeft`/`Center`/`Right`
+and the bottom boxes the footer regions, with the same single-line, glyph,
+clearance and collision rules (`FPDF1302`, `FPDF1305`). As in
+Chrome, the page context inherits from the `html` element: a margin box takes
+the html element's computed font size, colour, weight and style, and `em`, `%`
+and `larger`/`smaller` font sizes are relative to it. Left boxes start at the
+left margin, right boxes end at the right margin and centre boxes centre on the
+page area between the side margins; each band is centred vertically in its
+margin. Strings keep `{` and `}` literally; spaces collapse like normal white
+space. A box whose content is longer than 1024 UTF-16 units fails `FPDF1001`.
+
+Writer options never lose silently to `@page`, and `@page` never overrides
+them silently:
+
+- An explicit writer page size (`WithPage(p => p.Size/A4/Letter/Landscape/Portrait)`,
+  or the CLI's `--page-size`, `--landscape`, `--page-width`/`--page-height`)
+  together with a non-`auto` `@page` size must give the same paper, or the
+  conversion fails `FPDF1206`. The same holds for an explicit writer margin
+  (`p.Margin(...)`, `--margin`) and each margin side `@page` sets. A writer
+  option the page rule does not set still applies.
+- Margin boxes with content cannot be combined with writer page furniture,
+  page numbers or header/footer text (`WithPageFurniture`, `WithPageNumbers`,
+  `WithHeaderText`, `WithFooterText`, `--page-furniture`, `--page-numbers`,
+  `--header-text`, `--footer-text`): `FPDF1206`. When the cascade leaves every
+  box at `content:none`, writer page text applies normally.
+- Without page options the CLI sets none, so a template's `@page` decides; the
+  writer's defaults (A4, 36pt) apply to whatever `@page` leaves unset.
+
+Page selectors (`:first`, `:left`, `:right`, `:blank`) and named pages fail
+`FPDF1204`, as do the corner and side margin boxes (`@top-left-corner`,
+`@left-middle` and the others), other at-rules or nested rules inside `@page`,
+and `@page` inside `@media screen`. Other properties in `@page` (`padding`,
+`bleed`, `marks`, logical margins) or in a margin box (`text-align`,
+`vertical-align`, `width`, borders) fail `FPDF1201`. Other `size` forms,
+percentage or `auto` margins, margins that leave no page area, `counter()` of
+any other counter or style, `counters()`, `attr()`, `string()` and other
+content values fail `FPDF1202`. `CssPageRuleTests.cs` pins byte equality with
+the equivalent writer options and furniture, cascade, inheritance, geometry,
+precedence and every failure.
+
+Measured against Chrome 156 printing the same synthetic pages through
+Playwright `page.pdf({ preferCSSPageSize: true })`: Chrome rounds the page box
+to 1/300 inch, so its A4 is 594.96 × 841.92pt (FactsPDF 595.28 × 841.89), its
+A5 landscape 594.96 × 420pt (595.276 × 419.528) and 150mm × 100mm 425.04 ×
+282.96pt (425.197 × 283.465). Body and margin-box edges sit within 0.35pt of
+Chrome (Chrome snaps them to whole CSS pixels: a 1cm left margin starts text at
+28.50pt, FactsPDF 28.35pt). With Arial supplied to FactsPDF and named on the
+html element for Chrome, a 9.6pt `@bottom-center` in a 1cm margin has its
+baseline 10.74pt above the page edge (Chrome 10.92pt); 12pt top boxes in a
+20mm margin sit 32.42pt below the top edge (Chrome 32.25pt), a 9pt bottom box
+in a 25mm margin 32.22pt above the bottom edge (Chrome 33.00pt) and a 15pt bold
+top box in a 1cm margin 19.27pt below the top (Chrome 18.75pt): FactsPDF
+centres line height 1.2 and the font's declared glyph box, Chrome its
+line-height-normal box. Chrome draws margin boxes in the html element's
+`font-family` (Times when none is set); FactsPDF uses the writer's font chains.
+Without an `@page` margin Chrome uses the print call's margins (Playwright's
+default 0, which also leaves margin boxes no room); FactsPDF uses the writer's
+margin.
 
 ## LTR logical border component longhands (source-only)
 
@@ -1371,7 +1466,7 @@ HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitiv
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import`, `@media`, `@page` or other at-rules are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes and selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
+No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes and selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
 `:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` element has no root element in FactsPDF's tree, so `:root` matches nothing there, exactly like `html{}`. Every other pseudo-class or pseudo-element (`:hover`, `:first-child`, `::before`, `:not()`) still fails with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
 

@@ -897,6 +897,19 @@ test(':root pseudo-class is partial and other pseudo-classes still fail, in Engl
   for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
 
+test('@page is partial with its precedence failure and @media no longer rejects it, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'rule.page'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1201 / FPDF1202 / FPDF1204 / FPDF1206');
+  assert.match(row.scope, /counter\(pages\)/);
+  assert.match(row.limitations, /disagrees with @page[^;]*FPDF1206/);
+  assert.match(row.limitations, /Page selectors \(:first/);
+  const media = englishFeature(data.features.find(x => x.id === 'rule.media'));
+  assert.match(media.limitations, /@page and @keyframes are allowed inside/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
 test('the .NET library row names its three target frameworks and the compression caveat, in English', async () => {
   const { englishFeature } = await localisation();
   const row = englishFeature(data.features.find(x => x.id === 'runtime.dotnet'));
