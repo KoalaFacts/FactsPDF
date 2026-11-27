@@ -40,6 +40,11 @@
 // parent and first or last child, empty blocks), padding and borders keep them apart,
 // margins adjoining an unforced page break are truncated, and a painted parent
 // excludes the margin that collapses out through its edge.
+// ua-stylesheet — an existing example renders a different PDF on both sides (or a decorated
+// bottom edge now (no longer) fits): every element takes Chrome's user-agent defaults (the body
+// margin, 1em paragraph, heading and block margins, heading sizes, list padding, cell padding,
+// font-metric line height ...) below the author's rules, so the content moves. Each example's pages
+// are reviewed against Chrome; an author rule that sets the property keeps winning.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -78,7 +83,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
   difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -255,6 +260,7 @@ export function classifyDifferences(base: RunResult, head: RunResult, newExample
   if (!newExample && rendersDifferently(base, head)) {
     if (hasList) kinds.push('list-default-margin');
     if (hasBlock) kinds.push('block-margin-collapse');
+    kinds.push('ua-stylesheet');
   }
   if (kinds.length > 0 || base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return kinds;

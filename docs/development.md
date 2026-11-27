@@ -440,7 +440,10 @@ decides whether to merge it.
 ### User-agent defaults against Chrome
 
 FactsPDF must start from the same element defaults as a browser's user-agent
-stylesheet. `tests/fixtures/ua-defaults/corpus.json` holds one synthetic probe
+stylesheet, and does: they are the user-agent stylesheet in
+`src/FactsPDF/Css/UserAgentStyleSheet.cs`, the lowest cascade origin
+([css-stylesheets](css-stylesheets.md#user-agent-stylesheet)). This is the check
+that keeps it equal to Chrome's. `tests/fixtures/ua-defaults/corpus.json` holds one synthetic probe
 per supported element plus the contexts that change a default (nested lists,
 `section > h1`, `th` and `td`, `caption`, `dt`/`dd`, `q` in `q`, the inline
 elements, `img`, `svg`, `hr`, `br`). Each probe is a tiny document with some
@@ -467,7 +470,8 @@ every value is a default. Two layers check it:
   or a stale snapshot is caught.
 
 `tests/fixtures/ua-defaults/known-differences.json` lists every difference that
-exists today, each with a one-line reason (`computed` entries: element,
+exists today (six computed entries: the `hr` inset keyword, `tfoot` and `colgroup`;
+22 geometry entries, all the 2px table cell spacing), each with a one-line reason (`computed` entries: element,
 property, Chrome value, FactsPDF value; `geometry` entries: probe, metric,
 Chrome value, FactsPDF value). Both layers fail on a difference that is not
 listed and on a listed difference that no longer occurs, so the list can only

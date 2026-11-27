@@ -208,13 +208,64 @@ See [report link example](../examples/report-clickable-orders.html),
 `ReportHyperlinksTests.cs` and `verify_stylesheets.py`. Implementation source
 `9a19096a69f323bda3c7678c590a96b19ad98864` (unreleased source).
 
+## User-agent stylesheet
+
+Every supported element starts from Chrome's default style. The defaults are a real
+user-agent stylesheet, the subset of Chrome's `html.css` (the HTML Standard's rendering
+section) for the supported elements, written as CSS in `src/FactsPDF/Css/UserAgentStyleSheet.cs`,
+parsed and compiled once with the engine's own parser and applied as the lowest cascade
+origin: every author rule, style attribute, `!important` and presentational hint (the list `type`
+attribute) wins over it, and a winning `revert` computes the property as the sheet declares it.
+Nothing about an element's default look lives anywhere else.
+
+| Element | Default (Chrome's value, at a 12pt font) |
+| --- | --- |
+| `body` | margin 8px (6pt) on every side; it collapses with the first and last child's margin like any block margin. The writer's page margin is separate. |
+| `p`, `pre`, `dl` | margin 1em above and below; `pre` also `white-space:pre` |
+| `h1` to `h6` | bold; font size 2, 1.5, 1.17, 1, .83 and .67em; margins .67, .83, 1, 1.33, 1.67 and 2.33em above and below |
+| `blockquote`, `figure` | margin 1em above and below, 40px (30pt) left and right |
+| `dd` | margin-left 40px |
+| `ul`, `ol`, `menu` | margin 1em above and below (none when nested in a list), padding-left 40px (30pt); markers `disc` for `ul`/`menu`, `decimal` for `ol`, `circle` for a `ul`/`menu` nested in a list. The marker hangs outside the item, half an em left of its content; there is no extra gutter, so `ul{padding:0}` puts the text at the list's edge and the marker left of it |
+| `hr` | margin .5em above and below; a 1px border on all four sides painted as Chrome's inset shades (top and left `#9a9a9a`, bottom and right `#eee`), 1.5pt tall in all; `color:gray` |
+| `td`, `th` | padding 1px; `vertical-align:middle`; `th` is also bold and centred |
+| `tr`, `thead`, `tbody`, `tfoot` | `vertical-align:middle` |
+| `address`, `i`, `em`, `cite`, `var`, `dfn` | italic |
+| `b`, `strong` | bold |
+| `small`, `big` | `font-size:smaller` and `larger` (1/1.2 and 1.2 times the parent) |
+| `u`, `ins`; `s`, `del` | underline; line-through |
+| `a` | colour `#0000ee`, underline |
+| `abbr[title]` | dotted underline |
+
+The line height of every element is `line-height:normal`, as in Chrome: a line is as tall as the first
+font's ascent, descent and line gap (hhea, or the OS/2 typographic values when the font sets
+USE_TYPO_METRICS), each rounded to whole CSS pixels at the font size, with half the gap above
+the rounded ascent. At 12pt DejaVu Sans that is 15 + 4 pixels, 14.25pt. A unitless, length or
+percentage `line-height` overrides it, and the built-in font (no font supplied) keeps 1.2.
+
+What the sheet leaves to the document model, because every element has it by construction: the
+`display` of each element, the centring of `th` and `caption` (the user-agent `-internal-center`,
+which gives way to an inherited alignment), the quotation marks of `q`, and the metadata elements
+that render nothing. A heading's bold is soft: FactsPDF never synthesizes bold, and a heading without a
+bold font chain keeps its regular face instead of failing, whereas `b`, `strong`, `th` and an author's
+`font-weight:bold` still need the chain (`FPDF1507`).
+
+An unmodified `ul{padding:0}` or `*{margin:0;padding:0}` reset now behaves as in Chrome: the list text sits at the
+container's edge and the markers hang to its left, where earlier versions kept a marker gutter inside the list.
+
+Known differences from Chrome, each with its reason in
+`tests/fixtures/ua-defaults/known-differences.json` ([development](development.md#user-agent-defaults-against-chrome)):
+tables have no `border-spacing` geometry (Chrome's 2px between and around cells; zero is accepted),
+`hr` paints its inset border as flat edges of the two shades (author `border-style:inset`
+fails `FPDF1202`), `tfoot` is the last rows of the row group, `monospace` has no face of its own
+(`code`, `kbd`, `samp`, `pre` use the supplied font), and `mark`, `sub` and `sup` are not supported.
+
 ## Bounded semantic inline marks for business reports
 
-Exactly `small`, `u`, `s`, `del` and `ins` join the existing text-only
-inline tag scope. Small uses five-sixths of the computed parent font size;
+Exactly `small`, `big`, `u`, `s`, `del` and `ins` join the existing text-only
+inline tag scope. Small uses five-sixths of the computed parent font size and big six-fifths;
 u/ins use the current single underline; s/del use the current
-strike-through. These are real layout and painting defaults **before**
-the supported CSS cascade. CSS `font-size`, `text-decoration`, colour
+strike-through. These are real layout and painting defaults, the user-agent
+stylesheet above, **below** the supported CSS cascade. CSS `font-size`, `text-decoration`, colour
 and decoration style can override them, including stylesheet
 specificity, `!important`, `inherit`/`initial`/`unset`.
 
@@ -224,8 +275,8 @@ protection continue to apply. Out-of-range computed font sizes fail with
 `FPDF1202`, unsupported attributes including del/ins `datetime`/`cite`
 fail with `FPDF1103`, and block nesting fails with `FPDF1101`.
 Deleted text remains selectable and searchable, and is never a redaction.
-This is not a general HTML user-agent stylesheet, change-tracking
-annotation, auto-font support or PDF semantic history metadata.
+This is not change-tracking annotation, auto-font support or PDF
+semantic history metadata.
 
 `code`, `kbd`, `samp`, `var`, `cite` and `dfn` are inline text too, so
 documentation, runbook and citation pages render. `code`, `kbd` and `samp`
@@ -248,7 +299,7 @@ quotes when nested), drawn in the `q`'s own text style; normal text with no
 supplied font uses the ASCII `"` and `'`, and `cite` is metadata only
 (`QuoteElementTests.cs`). `bdi` renders like `span`: every run is laid out left
 to right, so it isolates nothing (`BdiElementTests.cs`). `mark`, `sub` and `sup`
-still fail `FPDF1102`.
+still fail `FPDF1102`; `big` is inline text with `font-size:larger`.
 
 The [44-change source](../examples/report-inline-changes.html)
 and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)
@@ -1064,7 +1115,7 @@ does not imply current package publication or human page approval.
 ## Current-source preformatted audit blocks
 
 The explicitly closed `<pre>` element is a bounded **standalone report
-paragraph**. It has the same default 8pt trailing paragraph margin as a
+paragraph**. It has the same default 1em margins as a
 plain `p`, but its default whitespace flags are equivalent to
 `white-space:pre`: authored U+0020 spaces (including leading, consecutive
 and trailing), CRLF/CR/LF/form-feed line breaks and explicit `<br>` become
@@ -1177,10 +1228,10 @@ human page approval remain separate gates.
 body/div/section/article/blockquote contexts. It accepts direct text,
 explicit paragraphs/headings and their existing permitted inline children,
 with the same block CSS properties and positional painting as a `div`.
-Its default outside margins (which collapse like any block margin) are **8pt top/bottom and 24pt
-left/right**. Those values are actual PDF layout insets, not ornamental
+Its default outside margins (which collapse like any block margin) are **1em top/bottom and 40px (30pt)
+left/right**, Chrome's. Those values are actual PDF layout insets, not ornamental
 metadata; an unstyled quote is byte-equivalent to a `div` using
-`margin:8pt 24pt`. The normal per-property cascade can override the
+`margin:1em 40px`. The normal per-property cascade can override the
 defaults with physical or LTR logical margin/padding declarations; explicit
 `initial`/ `unset` reset to zero and `inherit` reads the computed parent
 side. Inherited text colour/fonts, backgrounds, solid per-side borders,
@@ -1285,8 +1336,8 @@ remain separate merge gates; this is source, not a public binary release.
 ## Current-source HTML horizontal report rules
 
 A standalone void `<hr>` or `<hr />` in an ordinary report box now
-produces a **visible PDF separator**: 1pt solid `currentcolor` top border
-over the containing content width, with 8pt outside margins
+produces a **visible PDF separator**: a 1px border on all four sides in Chrome's
+inset shades (1.5pt tall in all) over the containing content width, with .5em outside margins
 above and below. Its box is really painted and affects following text
 positioning. The rule creates no text runs, new font resource or remote load.
 
@@ -1298,8 +1349,8 @@ A controlled rule accepts the existing scoped box `width`, `min-width`,
 from typography, as a scale for rule-local `em` values. The existing
 selector/inline cascade, importance and `inherit/initial/unset` apply.
 The rule's actual height is vertical padding plus effective top/bottom
-solid border widths. Explicit `border-top:none` removes the default
-ink; no minimum synthetic content height is added.
+solid border widths. `border-top:none` removes the top edge of the default
+ink and `border:0` all of it; no minimum synthetic content height is added.
 
 A separator moves as one box to a fresh page if it cannot fit after prior
 report content. A rule too tall for a fresh page fails `FPDF1302`
@@ -1672,7 +1723,7 @@ Only actually matching arms of a grouped selector contribute specificity. Repeat
 
 Inherited values are the parent's computed values; the parent's importance and selector specificity do not compete with declarations on a child. `inherit`, `initial` and `unset` are supported for the text properties below. `revert` and `revert-layer` (with no cascade layers, the same) are accepted for every property, in stylesheets, `style` attributes and from `var()`: the property computes as if no author declaration had been written for it, so the renderer's user-agent defaults (heading sizes, paragraph gaps, list markers) or inheritance apply, and, as in Chrome 158, the presentational hints of that property are discarded too (`ol{list-style-type:revert}` ignores `type="a"`, `div{display:revert}` shows a `hidden` div) ([`RevertKeywordTests`](../tests/FactsPDF.Tests/RevertKeywordTests.cs)). `unset` resolves to inheritance or the initial value, not a lower-priority heading/paragraph default.
 
-Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(…))`, normally 12pt), line-height 1.2, black, left alignment, zero margins and automatic breaks. These are explicitly FactsPDF defaults, not a claim of browser initial font/theme behavior. Heading font-size multipliers and the default 8pt paragraph-after gap remain when no author declaration replaces them.
+Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(…))`, normally 12pt), line-height normal (the first font's metrics, see the [user-agent stylesheet](#user-agent-stylesheet)), black, left alignment, zero margins and automatic breaks. The element defaults (body margin, paragraph and heading margins, heading sizes and weight, list padding and the rest) are the user-agent stylesheet's, which every author declaration overrides.
 
 ## Property scope
 
@@ -1681,7 +1732,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | font-size | pt/px/mm/cm/in lengths, positive parent-relative percentages and `em`, or positive `rem` relative to the computed `html` root font (configured initial font when absent); computed 1–144pt |
 | font-weight | normal/bold, numeric hundred steps 100–900 (100–500 normal role; 600–900 bold role), or bounded bolder/lighter (selects explicit bold/normal role, saturating at endpoints), including equivalent numeric CSS tokens; real matching font chains required, no synthetic intermediate weights |
 | font-style | normal/italic; explicit role resources required |
-| line-height | Unitless 1–10, `normal` (= default 1.2), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
+| line-height | Unitless 1–10, `normal` (the default: the first font's ascent, descent and line gap; 1.2 for the built-in font), positive `%`/`em` (at most 10× element font), positive `rem` (computed root font), or `pt/px/mm/cm/in` lengths; computed 0.1–1440pt, inherited as fixed points except unitless/normal |
 | color | #rgb/#rrggbb (and #rgba/#rrggbbaa); 148 named colours, transparent; bounded rgb()/rgba()/hsl()/hsla() with alpha ([translucent colours](#translucent-colours)) |
 | text-align | left/center/right; bounded `justify` distributes retained U+0020 spaces only on automatically wrapped report lines via measured PDF `TJ` gaps; final/explicit-break lines stay ragged; start/end, RTL and CJK inter-character justification unsupported |
 | white-space | `normal` (default), `nowrap`, scoped `pre-line`, bounded `pre-wrap` and unwrapped `pre` on explicit `p` / `h1`–`h6` or supported `<pre>`, inherited from `html`/`body`/ordinary report `div`/`section`/`article`/`blockquote`; `pre-line` collapses spaces, `pre-wrap` retains each space and soft-wraps, `pre` retains each space and source break without auto-wrap; tab stops fail `FPDF1305` in preserving modes |
@@ -2007,8 +2058,9 @@ output mode that forbids transparency. Page furniture colours remain opaque
 Business reports can specify `line-height:150%`, `line-height:1.5em`,
 `line-height:18pt`, `line-height:24px` or a physical print length
 such as `line-height:0.25in`. The renderer also accepts the existing
-unitless `1–10` multiplier and `normal` (this engine's 1.2 default,
-not an implementation of browser-dependent font normal metrics).
+unitless `1–10` multiplier and `normal`, the default, which takes the first
+font's ascent, descent and line gap rounded to whole CSS pixels as Chrome does
+(1.2 for the built-in font, which has no metrics to read).
 
 A percent or em line height is calculated **on the element where the winning
 declaration is applied**, after that element's computed font-size. The result,

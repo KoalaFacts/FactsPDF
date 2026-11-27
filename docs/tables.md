@@ -279,12 +279,12 @@ Cell paragraphs must be explicitly closed and cannot contain another paragraph,
 an image, a list, heading, block container or table.
 
 Cell paragraphs support text styling, `margin-top`/`margin-bottom` and padding on
-all four sides. An unstyled paragraph has top margin zero and bottom margin 8pt.
+all four sides. An unstyled paragraph has Chrome's 1em top and bottom margins (the [user-agent stylesheet](css-stylesheets.md#user-agent-stylesheet)).
 Between occupied items, the larger adjacent margin is used. The first top and
 final bottom margin remain inside the cell: a cell is its own formatting context,
 so no margin collapses through its edges. Empty paragraphs
 create no text line and combine their pending margins by maximum. Two empty
-unstyled paragraphs therefore contribute 8pt, not two blank lines. Explicit
+unstyled paragraphs therefore contribute 1em, not two blank lines. Explicit
 `initial` margin values retain the existing zero initial value. Paragraph padding
 (lengths, `em` and `rem`) adds to the cell's content height, narrows the
 paragraph and counts in automatic column widths; unlike margins it never
