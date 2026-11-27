@@ -225,7 +225,7 @@ public sealed class InheritedReportTextFlowTests
     [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
     [TestCase("<ul style='word-break:break-all'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<table style='text-indent:10pt'><colgroup><col style='width:80pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
-    [TestCase("<div style='overflow-wrap:anywhere'><p>A</p></div>", "FPDF1202")]
+    [TestCase("<div style='overflow-wrap:auto'><p>A</p></div>", "FPDF1202")]
     [TestCase("<section style='word-break:keep-all'><p>A</p></section>", "FPDF1202")]
     [TestCase("<article style='text-indent:-2pt'><p>A</p></article>", "FPDF1202")]
     [TestCase("<div style='text-indent:500pt'><p>LONG</p></div>", "FPDF1302")]

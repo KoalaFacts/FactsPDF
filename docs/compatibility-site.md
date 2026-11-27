@@ -628,10 +628,21 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+The non-standard `background-color-adjust` joins `color-adjust` as an alias of
+`print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
+since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
 The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
 place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
 so no count moves.
 Current dataset SHA-256:
-`8589964ba83487abd1a4098a2c9ffa7fe79d84fff3ee3ad1fc57e63dd4b519fb`; English
+`b69396a9c8b868a263968bc72bfaf5fc8343179fbe5644b87946b2b573104110`; English
 layer `site/src/audit-english-list-type.mjs`, ordered source-text
-SHA-256 `a86e772e9d3abd1455cd282d01ed59d2fa8d683bf071cdb969e8442d720fdd28`.
+SHA-256 `15c23da834a918f4f26fc7e63b33d9189e1840576bac70edf0316c873ca08983`.

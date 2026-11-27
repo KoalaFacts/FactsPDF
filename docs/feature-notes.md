@@ -96,7 +96,7 @@ Web stylesheets reused for reports often set `cursor:pointer`, `user-select:none
 
 Almost every copied stylesheet sets `font-family` (`body{font-family:"Helvetica Neue",Arial,sans-serif}`, normalize.css `pre{font-family:monospace,monospace}`). FactsPDF never discovers or matches fonts: the fonts you supply (or the standard Courier fallback) are the only installed fonts, so a well-formed family list is validated and dropped, and the text falls back to that chain exactly as a browser falls back when none of the named families is installed. The PDF is byte-identical to the page without the declaration; `monospace` uses the same chain. Malformed lists fail `FPDF1202` ([property scope](css-stylesheets.md#property-scope), `InteractionOnlyCssTests.cs`).
 
-Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `print-color-adjust:exact`) so browsers keep backgrounds when printing. FactsPDF always paints colours and backgrounds exactly as declared, so both names (and the deprecated `color-adjust`) accept `exact` or `economy` and drop the declaration; the PDF is byte-identical to the page without it (`PrintColorAdjustTests.cs`). Tailwind preflight and modern-normalize put `-moz-tab-size:4;tab-size:4` on `html`; no tab stop reaches a page (collapsed tabs become spaces, preserved tabs fail `FPDF1305`), so `tab-size` and `-moz-tab-size` accept a non-negative number or length and are dropped, while other values fail `FPDF1202` (`TabSizeTests.cs`).
+Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `print-color-adjust:exact`) so browsers keep backgrounds when printing. FactsPDF always paints colours and backgrounds exactly as declared, so both names (and the deprecated `color-adjust`) accept `exact` or `economy` and drop the declaration; the PDF is byte-identical to the page without it (`PrintColorAdjustTests.cs`). `economy` only permits a renderer to drop backgrounds or lighten colours to save ink; FactsPDF never does, so `economy` keeps every background, exactly as `exact` does. Print resets often add the non-standard `background-color-adjust:exact` next to them (`*{print-color-adjust:exact !important;color-adjust:exact !important;background-color-adjust:exact !important}`); it is a further alias with the same values and errors, while `-webkit-background-color-adjust` still fails `FPDF1201`. Tailwind preflight and modern-normalize put `-moz-tab-size:4;tab-size:4` on `html`; no tab stop reaches a page (collapsed tabs become spaces, preserved tabs fail `FPDF1305`), so `tab-size` and `-moz-tab-size` accept a non-negative number or length and are dropped, while other values fail `FPDF1202` (`TabSizeTests.cs`).
 
 CSS resets and site stylesheets commonly set `-webkit-font-smoothing:antialiased`, `-moz-osx-font-smoothing:grayscale` and `text-rendering:optimizeLegibility`. These only steer how a screen rasterises glyphs, which a PDF leaves to its viewer, so any keyword value of the three is accepted on any element and dropped; the PDF is byte-identical to the page without them. Other values fail `FPDF1202` (`FontSmoothingHintTests.cs`).
 
@@ -548,6 +548,17 @@ types and a missing or empty `rel`,
 `media` and `style` fail `FPDF1103`; a link outside the head fails `FPDF1101`; links count toward
 `MaxElements` (`LinkMetadataTests.cs`).
 
+One `<base>` in the head, such as the `<base href="/">` that server-side frameworks emit, is
+accepted and changes nothing: the PDF is byte-identical to the page without it. `base` only sets
+the URL that relative URLs resolve against and the default link target, and FactsPDF resolves no
+relative URL (an `a` `href` must already be absolute HTTPS or mailto, and images are named
+resources), so its `href` is never read and takes any value, including an empty one. `target`
+follows the `a` rule (`_blank`, `_self`, `_parent`, `_top` or a name). A relative `a` `href`
+still fails `FPDF1103` exactly as without a `base`. A `base` with neither `href` nor `target`,
+other attributes such as `media`, `style` and `hidden`, and an empty or other underscore `target`
+fail `FPDF1103`; a second `base`, a `base` outside the head and a `</base>` end tag fail
+`FPDF1101`; a `base` counts toward `MaxElements` (`BaseElementTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
@@ -713,7 +724,7 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ### Inherited report text flow (source-only)
 
-The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all|break-word`
+The existing bounded `overflow-wrap:normal|break-word|anywhere`, `word-break:normal|break-all|break-word`
 and nonnegative `text-indent` values can now be declared on `html`, `body`
 or ordinary report `div`/`section`/`article`/`blockquote` containers.
 Their computed values inherit into descendant paragraphs and headings and
@@ -827,7 +838,7 @@ Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` 
 
 ### `overflow-wrap:break-word` for long identifiers (source-only)
 
-Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
+Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). `overflow-wrap:anywhere` (and `word-wrap:anywhere`, which Chromium, Firefox and WebKit all accept) is accepted wherever `break-word` is, so a report stylesheet's `.ledger td { overflow-wrap: anywhere; }` renders: CSS Text 3 makes the two differ only in min-content sizing, which FactsPDF never computes (fixed table columns, explicit or containing-block widths), so the PDF is byte-identical to `break-word` in paragraphs, headings, inherited containers, list items, table cells and multi-page ledgers (`OverflowWrapAnywhereTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
 
 ### Full-width invoice identifier wrapping (source-only)
 
@@ -1265,7 +1276,8 @@ block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
 `_parent`, `_top` or a name) and hyperlink `rel` types (`noopener`, `noreferrer`,
 `nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a
 PDF link always opens outside the document; an empty or other underscore `target`
-and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`).
+and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`). A `<base>` in the
+head never makes a relative `href` acceptable (`BaseElementTests.cs`).
 Clickable linked images, `download`, fragments, local-page destinations and full HTML anchor
 semantics are not implemented. Links are external PDF actions, not embedded
 content or a claim that target addresses are trusted.
@@ -1478,6 +1490,15 @@ fit at the current page end, its whole painted box and text move to the next
 page. A card taller than one usable page rejects with `FPDF1302`, retaining
 the previous PDF. `auto`, `inherit/initial/unset`, `!important`
 and the existing cascade apply. No new page for a card that fits.
+
+`tr` and `thead` accept `break-inside:auto|avoid` (and `page-break-inside`)
+too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
+fragment with the repeated header already move whole and the header never
+splits, so the page is byte-identical to the page without it. A kept row that
+FactsPDF would split (taller than a fresh fragment, or split only to carry the
+table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
+`th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
+[exact contract](css-stylesheets.md#table-rows)).
 
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
