@@ -15,9 +15,11 @@ byte[] Convert(string input, PdfOptions settings)
 }
 var pdf = Convert(html, options);
 File.WriteAllBytes(args[1], pdf);
-const string simple = "<table style='width:100pt;font-size:10pt;line-height:2'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>A<br>B<br>C<br>D</td></tr></tbody></table>";
-const string empty = "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
-const string breakAfter = "<p style='break-after:page'>A</p>";
+// The probes pin the pre-user-agent shape (no body margin, paragraph margin or cell padding, cells at the top).
+const string reset = "<style>html,body{margin:0}p{margin:0}td{padding:0;vertical-align:top}</style>";
+const string simple = reset + "<table style='width:100pt;font-size:10pt;line-height:2'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>A<br>B<br>C<br>D</td></tr></tbody></table>";
+const string empty = reset + "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
+const string breakAfter = reset + "<p style='break-after:page'>A</p>";
 if (!Convert(breakAfter + empty, options with { MaxPages = 1 }).AsSpan().SequenceEqual(Convert(breakAfter, options)))
     throw new InvalidOperationException("Invisible table consumed a deferred break");
 var errors = new List<object>();

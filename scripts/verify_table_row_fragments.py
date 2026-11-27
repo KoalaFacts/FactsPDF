@@ -75,7 +75,7 @@ def box(page, x, top, width, height, *, first=True, last=True):
 def table(cells, tracks=(100, 100), *, header='HEAD', edges=False, bottom=0,
           top=0, second='', table_width=None):
     width = sum(tracks) if table_width is None else table_width
-    style = ('<style>table{font-size:10pt;line-height:1.2;background-color:#f3daac;'
+    style = ('<style>body{margin:0}table{font-size:10pt;line-height:1.2;background-color:#f3daac;'
              f'width:{width}pt;padding-top:{top}pt;padding-bottom:{bottom}pt}}'
              # Row-fragment mechanics in isolation, as TableRowFragmentationTests does: the
              # orphans/widows initial value 2 in cells has its own evidence (OrphansWidowsTests).
