@@ -117,7 +117,7 @@ public sealed class FlexLayoutTests
     [Test]
     public void InlineChildrenAndTextRunsAreSeparateFlexItems()
     {
-        var spans = Layout("<div style='display:flex;justify-content:space-between'><span>AB</span> <b>CD</b></div>");
+        var spans = Layout("<div style='display:flex;justify-content:space-between'><span>AB</span> <span>CD</span></div>");
         Assert.That(Run(spans, "AB").X, Is.EqualTo(20).Within(1e-9));
         Assert.That(Run(spans, "CD").X, Is.EqualTo(280 - 14.4).Within(1e-9));
         var text = Layout("<div style='display:flex;justify-content:space-between'>Label<span>VAL</span></div>");

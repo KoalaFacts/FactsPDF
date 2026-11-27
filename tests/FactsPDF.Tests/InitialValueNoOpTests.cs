@@ -356,7 +356,7 @@ public sealed class InitialValueNoOpTests
     [Test]
     public void OtherUnsupportedPropertiesStillFail()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='order:0'>A</p>"));
+        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='place-items:center'>A</p>"));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 
