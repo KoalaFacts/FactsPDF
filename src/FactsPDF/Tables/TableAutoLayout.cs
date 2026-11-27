@@ -34,6 +34,7 @@ internal static class TableAutoLayout
     {
         // tracks holds the column minimums while measuring; maximums are kept separately.
         var maximums = new double[tracks.Length];
+        List<(int Start, int Span, double Min, double Max)>? spanning = null;
         foreach (var row in table.Rows)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -41,18 +42,34 @@ internal static class TableAutoLayout
             foreach (var cell in row.Cells)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (cell.ColumnSpan != 1)
-                    throw Geometry("colspan is not supported in automatic table layout; give every column an explicit col width.", cell.SourceOffset);
                 var (min, max) = CellWidths(cell, options, resolved, cancellation);
-                tracks[column] = Math.Max(tracks[column], min);
-                maximums[column] = Math.Max(maximums[column], max);
-                column++;
+                if (cell.ColumnSpan == 1)
+                {
+                    tracks[column] = Math.Max(tracks[column], min);
+                    maximums[column] = Math.Max(maximums[column], max);
+                }
+                else (spanning ??= []).Add((column, cell.ColumnSpan, min, max));
+                column += cell.ColumnSpan;
+            }
+        }
+        for (var i = 0; i < tracks.Length; i++) maximums[i] = Math.Max(maximums[i], tracks[i]);
+        if (spanning is not null)
+        {
+            // Spanning cells widen the columns they cover, narrowest spans first (in source order
+            // within one span): the cell's minimum is shared out over the covered columns' minimums
+            // and maximums as a table width would be, and each column keeps the larger minimum;
+            // then the cell's maximum likewise raises the columns' maximums.
+            var shares = new double[TableMarkup.MaxColumns];
+            foreach (var (start, span, min, max) in spanning.OrderBy(static cell => cell.Span))
+            {
+                cancellation.ThrowIfCancellationRequested();
+                Widen(tracks.AsSpan(start, span), maximums.AsSpan(start, span), shares.AsSpan(0, span), min, raiseMaximums: false);
+                Widen(tracks.AsSpan(start, span), maximums.AsSpan(start, span), shares.AsSpan(0, span), max, raiseMaximums: true);
             }
         }
         double minimum = 0, maximum = 0;
         for (var i = 0; i < tracks.Length; i++)
         {
-            maximums[i] = Math.Max(maximums[i], tracks[i]);
             minimum += tracks[i];
             maximum += maximums[i];
         }
@@ -66,16 +83,39 @@ internal static class TableAutoLayout
         return target;
     }
 
+    // Raises the minimums (or, with raiseMaximums, the maximums) of the columns a spanning cell
+    // covers to the share each gets of the cell's width.
+    private static void Widen(Span<double> minimums, Span<double> maximums, Span<double> shares, double width, bool raiseMaximums)
+    {
+        double minimum = 0, maximum = 0;
+        for (var i = 0; i < minimums.Length; i++)
+        {
+            minimum += minimums[i];
+            maximum += maximums[i];
+        }
+        minimums.CopyTo(shares);
+        Distribute(shares, maximums, minimum, maximum, width);
+        for (var i = 0; i < minimums.Length; i++)
+        {
+            if (raiseMaximums) maximums[i] = Math.Max(maximums[i], shares[i]);
+            else
+            {
+                minimums[i] = Math.Max(minimums[i], shares[i]);
+                maximums[i] = Math.Max(maximums[i], minimums[i]);
+            }
+        }
+    }
+
     /// <summary>
     /// Shares <paramref name="target"/> out over columns with the given minimums (in
     /// <paramref name="tracks"/>, replaced by the result) and maximums.
     /// </summary>
-    internal static void Distribute(double[] tracks, double[] maximums, double minimum, double maximum, double target)
+    internal static void Distribute(Span<double> tracks, ReadOnlySpan<double> maximums, double minimum, double maximum, double target)
     {
         if (target <= minimum) return;
         if (target == maximum)
         {
-            maximums.CopyTo(tracks, 0);
+            maximums.CopyTo(tracks);
             return;
         }
         var last = tracks.Length - 1;

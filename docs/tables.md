@@ -71,7 +71,12 @@ layout browsers use:
    and CJK characters) as cell wrapping, so a column is never too narrow for its
    own text. A cell's first-line `text-indent` counts on its first line.
    `overflow-wrap:break-word` does not change either width, as in CSS.
-2. A column's minimum and maximum are the largest of its cells' widths.
+2. A column's minimum and maximum are the largest of its single-column cells'
+   widths. Then each `colspan` cell, narrowest spans first and in source order
+   within one span, widens the columns it covers: its min-content width is
+   shared out over their minimums and maximums exactly as a table width is in
+   step 4, and each column keeps the larger minimum; its max-content width then
+   raises their maximums the same way.
 3. The table's content width is its explicit width, or with `width:auto` the
    sum of the column maximums capped at the available width (the table shrinks
    to its content). It never drops below the sum of the minimums: an explicit
@@ -93,16 +98,16 @@ content-box meaning (border-box with `box-sizing:border-box`).
 
 Measured against Chrome 158 with the same TrueType font on both sides (kerning
 and ligatures off in Chrome, which FactsPDF does not apply), every cell's left
-edge and width in the ten synthetic fixtures under
+edge and width in the 17 synthetic fixtures under
 `tests/fixtures/tables-auto/` agree within **0.1pt** (largest measured
-difference 0.058pt). Run the comparison with
+difference 0.077pt). Run the comparison with
 `node scripts/table-auto-layout-oracle.ts --cli <FactsPDF.Cli> --chrome <chrome> --font <regular.ttf> --font-bold <bold.ttf>`.
 Two browser behaviours fall outside this contract: Chrome rounds border widths
 to whole device pixels (so `1pt` borders, 1.33px, draw 1px wide there), and it
 breaks lines after hyphens and some punctuation, where FactsPDF does not, so
 FactsPDF's min-content can be wider for such text.
 
-Automatic layout fails `FPDF1302` for `colspan`, for percentage cell padding,
+Automatic layout fails `FPDF1302` for percentage cell padding,
 image sizes or `text-indent` (they would depend on the width being computed),
 and for a mix of explicit and automatic `col` widths. `table-layout` and cell
 `width` remain unsupported (`FPDF1201`).
@@ -196,7 +201,7 @@ runs the same cases through actual Native AOT and browser conversion.
 
 `colspan` is accepted on `td` and `th`. Omitted means one column. After trimming
 HTML formatting whitespace, its value must contain only ASCII digits and name
-1 through the table's explicit column count. Leading zeros are accepted; signs,
+1 through the table's column count (with no `colgroup`, up to 16 in the first row). Leading zeros are accepted; signs,
 decimals, zero, non-ASCII digits and out-of-range values fail `FPDF1103`. Every
 row must cover exactly all columns; overfill or underfill fails `FPDF1101`.
 A spanned cell paints one rectangle across the covered tracks, without an

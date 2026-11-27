@@ -677,8 +677,14 @@ since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247
 stays partial.
 The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
 limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
-elements without widths), so no count moves.
+elements without widths), so no count moves. The `<table>` scope and limitation are replaced
+again when `colspan` joins automatic layout.
 Current dataset SHA-256:
 `b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
 layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
-SHA-256 `83f1c8f063ee14e27329f64aeac87913eaa84c93e3bc9f4c51621a2860044d86`.
+`55e91c973e3287cb768e4691ec7c4c39e0b3e535217b42436e836c7db6c6fe1b`; English
+layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
+Current dataset SHA-256:
+`2da2a667a72e07dc4d2ad5461cba0122b05afccba082af699d11cc78c0505dfa`; English
+layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
+SHA-256 `7b34a1512c993d13c73814fe0298b064b369f53243ea86efc63f00c9f6da4442`.

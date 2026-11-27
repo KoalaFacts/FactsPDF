@@ -76,6 +76,35 @@ public sealed class TableAutoLayoutTests
     }
 
     [Test]
+    public void SpanningCellWiderThanItsColumnsGrowsThemInProportionToTheirMaximums()
+    {
+        // Columns 12 and 24 wide; the 60pt spanning cell adds 24pt: 12 + 24 * 12 / 36 = 20 and 40.
+        var html = Table("<tr><td colspan=2>ABCDEFGHIJ</td></tr><tr><td>AB</td><td>ABCD</td></tr>");
+        var page = TableLayoutTests.Layout(html).Single();
+        Assert.That(page.PaintBoxes.Select(box => (box.X, box.Width)), Is.EqualTo(new[] { (36d, 60d), (36d, 20d), (56d, 40d) }));
+    }
+
+    [Test]
+    public void SpanningCellMinimumIsSharedByTheColumnsMaxMinusMinRanges()
+    {
+        // Minimums 12 and 24, maximums 30 and 54: the 42pt unbreakable spanning cell shares its 6pt
+        // over the ranges 18 and 30, so the minimums become 14.25 and 27.75.
+        var html = Table("<tr><td>AB CD</td><td>ABCD EFGH</td></tr><tr><td colspan=2>ABCDEFG</td></tr>", "font-size:10pt;width:10pt");
+        Assert.That(Widths(html), Is.EqualTo(new[] { 14.25, 27.75 }));
+        // At auto width the columns take their unchanged maximums.
+        Assert.That(Widths(Table("<tr><td>AB CD</td><td>ABCD EFGH</td></tr><tr><td colspan=2>ABCDEFG</td></tr>")), Is.EqualTo(new[] { 30d, 54d }));
+    }
+
+    [Test]
+    public void SpanningFooterTotalRendersUnderItsColumns()
+    {
+        var html = Cells + "<table style='font-size:10pt'><tbody><tr><td>A1</td><td>Paper</td><td>18.40</td></tr></tbody>"
+            + "<tfoot><tr><td colspan=2>Total</td><td>18.40</td></tr></tfoot></table>";
+        var boxes = TableLayoutTests.Layout(html).Single().PaintBoxes;
+        Assert.That(boxes.Select(box => (box.X, box.Width)), Is.EqualTo(new[] { (36d, 12d), (48d, 30d), (78d, 30d), (36d, 42d), (78d, 30d) }));
+    }
+
+    [Test]
     public void ExplicitWidthWiderThanTheContainerFailsAsATableWidthError()
     {
         var html = Table("<tr><td>A</td></tr>", "font-size:10pt;width:600pt");
@@ -175,7 +204,6 @@ public sealed class TableAutoLayoutTests
     }
 
     [TestCase("<colgroup><col style='width:30pt'><col></colgroup><tbody><tr><td>A</td><td>B</td></tr></tbody>", "explicit and automatic")]
-    [TestCase("<tbody><tr><td colspan=2>A</td></tr><tr><td>A</td><td>B</td></tr></tbody>", "colspan")]
     [TestCase("<tbody><tr><td style='padding:5%'>A</td></tr></tbody>", "Percentage cell padding")]
     [TestCase("<tbody><tr><td style='text-indent:10%'>A</td></tr></tbody>", "Percentage text-indent")]
     public void UnsupportedAutomaticLayoutFailsWithAClearMessage(string content, string message)
