@@ -1582,10 +1582,13 @@ the next page (with its panel's leading decoration, or with its
 `break-after:avoid` heading), the break otherwise moves earlier for the
 widows, and orphans win when a paragraph is too short for both. Any block
 accepts the inherited positive integer; lists move a too-short item with its
-marker. Paragraphs that no declaration reaches keep FactsPDF's line-by-line
-breaks rather than CSS's initial 2, so existing reports render unchanged. A
-split table row with a declared multi-line cell paragraph fails `FPDF1302`;
-non-positive or non-integer values fail `FPDF1202`
+marker, and cell paragraphs of table rows that split across pages keep theirs
+too (a cell paragraph that cannot keep its orphans moves within its cell or
+breaks before the row). Without a declaration every paragraph uses CSS's
+initial `orphans:2;widows:2`, so a page that used to end with a paragraph's
+first line, or start with its last line, now breaks as Chrome prints it;
+`orphans:1;widows:1` restores the old breaks. Non-positive or non-integer
+values fail `FPDF1202`
 ([exact contract](css-stylesheets.md#orphans-and-widows), `OrphansWidowsTests.cs`).
 
 ## .NET SDK

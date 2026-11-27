@@ -230,10 +230,8 @@ internal static class CssDeclarations
             case CssProperty.LineHeight: style.LineHeight = source.LineHeight; style.AbsoluteLineHeight = source.AbsoluteLineHeight; break;
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
             case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
-            // A CSS-wide keyword is still a declaration: where nothing above declared a value it
-            // computes to the initial 2, never to the undeclared line-by-line breaks.
-            case CssProperty.Orphans: style.Orphans = source.Orphans == 0 ? LineBreakControl.Initial : source.Orphans; break;
-            case CssProperty.Widows: style.Widows = source.Widows == 0 ? LineBreakControl.Initial : source.Widows; break;
+            case CssProperty.Orphans: style.Orphans = source.Orphans; break;
+            case CssProperty.Widows: style.Widows = source.Widows; break;
             case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
             case CssProperty.TextDecorationColor: style.DecorationColor = source.DecorationColor; break;
             case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;

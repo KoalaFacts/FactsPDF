@@ -15,7 +15,11 @@
 // same exit code and no PDF on either side. A new-example-rendered change
 // is limited to a newly added HTML example absent from the base tree, where
 // the old CLI rejects the template and the new CLI emits a real PDF.
-// Existing examples retain strict byte-for-byte parity.
+// orphans-widows-initial-2 — both CLIs render the example (exit 0, a PDF
+// each) and the PDF bytes differ: the declared change of paragraph page
+// breaks when CSS orphans/widows take their initial value 2 everywhere. Each
+// such example is listed in the PR and its pages are reviewed against Chrome.
+// Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
 // folder); each run builds in a new subfolder of it and nothing else there is
@@ -47,7 +51,7 @@ export interface Difference {
   kind: ExpectedKind | null;
 }
 
-export const expectedKinds = ['location-added', 'new-example-rendered'] as const;
+export const expectedKinds = ['location-added', 'new-example-rendered', 'orphans-widows-initial-2'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -177,6 +181,10 @@ export function classifyDifference(base: RunResult, head: RunResult, newExample 
       head.exitCode === 0 && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     return 'new-example-rendered';
+  }
+  if (base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
+      base.stderr === head.stderr && !base.pdf.equals(head.pdf)) {
+    return 'orphans-widows-initial-2';
   }
   if (base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return null;

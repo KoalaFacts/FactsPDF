@@ -413,10 +413,15 @@ An intended change of a known kind is declared with `--expect <kind>`, or in CI
 with a `Parity-Expect: <kind>` trailer in the PR's head commit message (the
 `byte-parity` job passes `--expect-from HEAD^2`). A declared kind accepts only
 differences of exactly that kind, every other difference still fails, and a
-declared kind that is never observed fails the run. The one kind so far is
+declared kind that is never observed fails the run. Kinds:
 `location-added`: a failing run's stderr gains `Location: line L, column C.`
 lines and is otherwise identical, with the same exit code and no PDF on either
-side. A PDF byte or exit-code change has no kind and always fails.
+side. `new-example-rendered`: a newly added example the old CLI rejects and the
+new CLI renders. `orphans-widows-initial-2`: both CLIs render an existing
+example with identical stderr but different PDF bytes, declared once by the
+change that gave every paragraph the CSS initial `orphans:2;widows:2` (its PR
+lists every such example and set). Any other PDF byte or exit-code change has
+no kind and always fails.
 
 CI runs it on every pull request against the PR's base (the merge commit's
 first parent). A PR that changes output on purpose fails this job by design:

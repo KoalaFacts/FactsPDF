@@ -54,13 +54,11 @@ internal static class HeadingKeep
     }
 
     internal static bool ShouldMove(LayoutHeadingGroup group, PdfOptions options, double remaining,
-        double after, double leading, double closed, double freshLeading, bool retainFirstHeadingMargin,
+        double after, double leading, double closed,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
         Action<int, int> ensureCommands, CancellationToken cancellation)
     {
         var here = new Cursor(after, leading, closed);
-        var fresh = new Cursor(0, freshLeading, 0);
-        var usable = options.ContentHeight;
         var commands = 0;
         try
         {
@@ -73,16 +71,15 @@ internal static class HeadingKeep
                 var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle, group.ContentWidth, node.SourceOffset);
                 var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset, group.ContentWidth);
                 var before = paragraph.Style.MarginBefore;
-                // The first heading's top margin is normally trimmed after a
-                // keep move, except when a new outer-margined panel moves too.
-                var freshBefore = i == group.Start && !retainFirstHeadingMargin ? 0 : before;
                 if (HasTextContent(paragraph, cancellation)) ensureCommands(commands + 1, node.SourceOffset);
                 var height = 0d;
                 var hasLines = false;
-                // The group ends with its first text paragraph. When that paragraph declares
-                // orphans/widows and cannot leave its orphans after the headings here, Chrome
-                // breaks before the first heading, even when the group cannot fit a fresh page.
-                var control = i == group.End - 1 ? LineBreakControl.Of(paragraph.Style) : null;
+                // The group ends with its first text paragraph. A break between the headings and
+                // it would violate break-after:avoid, so Chrome breaks before the first heading
+                // exactly when that paragraph cannot leave its orphans here, even when the group
+                // cannot fit a fresh page; otherwise it breaks inside the paragraph.
+                var last = i == group.End - 1;
+                var orphans = LineBreakControl.Of(paragraph.Style).Orphans;
                 var hereTop = here.Y + here.Gap(before, box.Top);
                 var linesHere = 0;
                 // Wrap can validate the whole current paragraph before its first
@@ -91,17 +88,11 @@ internal static class HeadingKeep
                 {
                     hasLines = true;
                     height += line.Height;
-                    if (control is { } kept)
+                    if (last)
                     {
-                        if (hereTop + height > remaining + 0.000001)
-                        {
-                            if (linesHere < kept.Orphans) return true;
-                            control = null;
-                        }
-                        else linesHere++;
+                        if (hereTop + height > remaining + 0.000001) return linesHere < orphans;
+                        linesHere++;
                     }
-                    if (fresh.Y + fresh.Gap(freshBefore, box.Top) + height + box.Bottom > usable + 0.000001)
-                        return false;
                     for (var g = 0; g < line.Glyphs.Count;)
                     {
                         var first = line.Glyphs[g++];
@@ -119,10 +110,8 @@ internal static class HeadingKeep
                 commands += paint.CommandCount;
                 ensureCommands(commands, node.SourceOffset);
                 here.Add(height, before, paragraph.Style.MarginAfter, box, node.BoxStyle.HasPaint, hasLines);
-                fresh.Add(height, freshBefore, paragraph.Style.MarginAfter, box, node.BoxStyle.HasPaint, hasLines);
-                if (fresh.Height > usable + 0.000001) return false;
             }
-            return here.Height > remaining + 0.000001;
+            return false;
         }
         catch (FactsPdfException)
         {

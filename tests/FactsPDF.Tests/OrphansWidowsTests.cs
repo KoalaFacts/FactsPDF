@@ -4,8 +4,8 @@ namespace FactsPDF.Tests;
 
 // CSS Fragmentation orphans and widows. Every expected page split below is what Chrome printed for
 // the same synthetic page (200pt square, 20pt margins, 20pt lines, so eight lines a page): the
-// numbered lines on each printed page, pages separated by '|'. A paragraph that no orphans/widows
-// declaration reaches keeps FactsPDF's line-by-line breaks, so existing documents are unchanged.
+// numbered lines on each printed page, pages separated by '|'. Without a declaration every
+// paragraph, list item and table cell paragraph uses the CSS initial value orphans:2;widows:2.
 public sealed class OrphansWidowsTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 200, PageHeight = 200, Margin = 20 };
@@ -98,6 +98,16 @@ public sealed class OrphansWidowsTests
             "F1 F2 F3 F4 | H1 G1 T1 T2 T3 T4 T5 T6");
         yield return Case("KeptHeadingAtTheTopIsNotSeparatedFromItsParagraph", "h2{break-after:avoid}",
             P("H", 1, tag: "h2") + P("T", 10, "orphans:9"), "H1 T1 T2 T3 T4 T5 T6 T7 | T8 T9 T10");
+        yield return Case("UndeclaredParagraphMovesWhenOneLineFits", "", P("F", 7) + P("T", 5),
+            "F1 F2 F3 F4 F5 F6 F7 | T1 T2 T3 T4 T5");
+        yield return Case("UndeclaredParagraphNeverLeavesOneLastLine", "", P("F", 4) + P("T", 5),
+            "F1 F2 F3 F4 T1 T2 T3 | T4 T5");
+        yield return Case("UndeclaredListItemMovesWithItsMarker", "", P("F", 7) + "<ul>" + P("T", 5, tag: "li") + "</ul>",
+            "F1 F2 F3 F4 F5 F6 F7 | T1 T2 T3 T4 T5");
+        yield return Case("KeptHeadingStaysWithTheLinesThatKeepItsOrphans", "h2{break-after:avoid}p.t{orphans:2}",
+            P("F", 3) + P("H", 1, tag: "h2") + P("T", 6).Replace("<p>", "<p class='t'>"), "F1 F2 F3 H1 T1 T2 T3 T4 | T5 T6");
+        yield return Case("KeptHeadingWithoutDeclarationsBreaksInsideItsParagraph", "h2{break-after:avoid}",
+            P("F", 3) + P("H", 1, tag: "h2") + P("T", 6), "F1 F2 F3 H1 T1 T2 T3 T4 | T5 T6");
         yield return Case("UnkeptHeadingStaysBehind", "", P("F", 5) + P("H", 1, tag: "h2") + P("T", 10, "orphans:3"),
             "F1 F2 F3 F4 F5 H1 | T1 T2 T3 T4 T5 T6 T7 T8 | T9 T10");
     }
@@ -106,21 +116,12 @@ public sealed class OrphansWidowsTests
     public void BreaksWhereChromeBreaks(string css, string body, string chrome)
         => Assert.That(Split(Doc(css, body)), Is.EqualTo(chrome));
 
-    // Chrome's initial value 2 would move these paragraphs or their last line; FactsPDF keeps one
-    // line on either side of a break unless orphans or widows is declared, so pages are unchanged.
-    [TestCase(7, 5, "F1 F2 F3 F4 F5 F6 F7 T1 | T2 T3 T4 T5")]
-    [TestCase(4, 5, "F1 F2 F3 F4 T1 T2 T3 T4 | T5")]
-    public void UndeclaredParagraphsKeepLineByLineBreaks(int filler, int lines, string expected)
-    {
-        Assert.That(Split(Doc("", P("F", filler) + P("T", lines))), Is.EqualTo(expected));
-        Assert.That(Pdf(Doc("", P("F", filler) + P("T", lines))),
-            Is.EqualTo(Pdf(Doc("", P("F", filler) + P("T", lines, "orphans:1;widows:1")))));
-    }
-
-    [Test]
-    public void UndeclaredListItemKeepsLineByLineBreaks()
-        => Assert.That(Split(Doc("", P("F", 7) + "<ul>" + P("T", 5, tag: "li") + "</ul>")),
-            Is.EqualTo("F1 F2 F3 F4 F5 F6 F7 T1 | T2 T3 T4 T5"));
+    // orphans:2;widows:2 is the initial value, so declaring it changes nothing.
+    [TestCase(7, 5)]
+    [TestCase(4, 5)]
+    public void DeclaringTheInitialValueChangesNothing(int filler, int lines)
+        => Assert.That(Pdf(Doc("", P("F", filler) + P("T", lines))),
+            Is.EqualTo(Pdf(Doc("", P("F", filler) + P("T", lines, "orphans:2;widows:2")))));
 
     [Test]
     public void MovedListItemDrawsItsMarkerOnTheNextPage()
@@ -188,7 +189,7 @@ public sealed class OrphansWidowsTests
     // reaches no paragraph: Chrome ignores it there and FactsPDF validates and drops it.
     [TestCase("span{orphans:5}")]
     [TestCase("u,br,hr{widows:4}")]
-    [TestCase("*{orphans:1;widows:1}")]
+    [TestCase("span,u,img,col{orphans:1;widows:9}")]
     public void DeclarationsWithoutLineBoxesChangeNothing(string css)
     {
         var body = P("F", 6) + "<p>T1<br><span>T2</span><br><u>T3</u><br>T4</p><hr>" + P("U", 3);
@@ -223,25 +224,70 @@ public sealed class OrphansWidowsTests
     public void MalformedDeclarationsFailFpdf1202(string css)
         => RejectWithoutOutput(Doc(css, P("T", 3)), "FPDF1202");
 
-    private static string Table(string css, int lines)
-        => Doc("td{padding:0}" + css, "<table style='width:160pt;font-size:10pt;line-height:20pt'><colgroup><col style='width:100%'></colgroup><tbody>"
-            + $"<tr><td>{string.Join("<br>", Enumerable.Range(1, lines).Select(i => $"C{i}"))}</td></tr>"
-            + "<tr><td>D1<br>D2</td></tr></tbody></table>");
+    private static string L(string label, int lines)
+        => string.Join("<br>", Enumerable.Range(1, lines).Select(i => $"{label}{i}"));
 
-    // Row continuation splits cell lines without counting them, so a declared multi-line cell
-    // paragraph in a row that splits fails instead of breaking where Chrome would not.
-    [Test]
-    public void SplitTableRowWithDeclaredCellParagraphFails()
+    private static string CellP(string label, int lines) => $"<p style='margin:0'>{L(label, lines)}</p>";
+
+    private static string[] Row(params string[] cells) => cells;
+
+    // One row per array; each cell's HTML in a column of equal width.
+    private static string Table(params string[][] rows)
     {
-        Assert.That(TableLayoutTests.Layout(Table("", 12), Page), Has.Count.EqualTo(2), "without the declaration the row splits");
-        RejectWithoutOutput(Table("td{orphans:3}", 12), "FPDF1302");
-        RejectWithoutOutput(Table("table{widows:2}", 12), "FPDF1302");
+        var columns = rows[0].Length;
+        var width = 160 / columns;
+        return $"<table style='width:{width * columns}pt;font-size:10pt;line-height:20pt'><colgroup>"
+            + string.Concat(Enumerable.Repeat($"<col style='width:{width}pt'>", columns)) + "</colgroup><tbody>"
+            + string.Concat(rows.Select(row => "<tr>" + string.Concat(row.Select(cell => $"<td>{cell}</td>")) + "</tr>"))
+            + "</tbody></table>";
     }
+
+    private const string TableCss = "table{border-spacing:0}td{padding:0;vertical-align:top}";
+
+    // Rows that split across pages continue each cell independently; every cell paragraph keeps
+    // its orphans and widows as Chrome prints them. With orphans:1;widows:1 the rows split
+    // exactly as before (Chrome agrees), so the other cases are what the initial value changes.
+    public static IEnumerable<TestCaseData> ChromeTableSplits()
+    {
+        TestCaseData Case(string name, string css, string body, string chrome)
+            => new TestCaseData(css, body, chrome).SetName(name);
+        yield return Case("CellLinesAsBeforeWithOneAndOne", "td{orphans:1;widows:1}", P("F", 7) + Table(Row(L("C", 12))),
+            "F1 F2 F3 F4 F5 F6 F7 C1 | C2 C3 C4 C5 C6 C7 C8 C9 | C10 C11 C12");
+        yield return Case("RowWhoseCellCannotKeepItsOrphansMovesWhole", "", P("F", 7) + Table(Row(L("C", 12))),
+            "F1 F2 F3 F4 F5 F6 F7 | C1 C2 C3 C4 C5 C6 C7 C8 | C9 C10 C11 C12");
+        yield return Case("CellWidowsAtTheTopOfAPage", "", Table(Row(L("C", 9))), "C1 C2 C3 C4 C5 C6 C7 | C8 C9");
+        yield return Case("OneViolatingCellMovesTheRow", "", P("F", 7) + Table(Row(L("A", 9), L("B", 13))),
+            "F1 F2 F3 F4 F5 F6 F7 | A1 A2 A3 A4 A5 A6 A7 B1 B2 B3 B4 B5 B6 B7 B8 | A8 A9 B9 B10 B11 B12 B13");
+        yield return Case("ViolatingCellMovesTheRowEvenWhenAnotherCellCouldBreak", "",
+            P("F", 7) + Table(Row(L("A", 9), CellP("X", 1) + CellP("B", 12))),
+            "F1 F2 F3 F4 F5 F6 F7 | A1 A2 A3 A4 A5 A6 A7 X1 B1 B2 B3 B4 B5 B6 B7 | A8 A9 B8 B9 B10 B11 B12");
+        yield return Case("ContinuedCellWidows", "", P("F", 1) + Table(Row(L("A", 4)), Row(L("C", 12))),
+            "F1 A1 A2 A3 A4 C1 C2 C3 | C4 C5 C6 C7 C8 C9 C10 | C11 C12");
+        yield return Case("DeclaredCellOrphansAndWidows", "td{orphans:3;widows:3}", P("F", 1) + Table(Row(L("A", 4)), Row(L("C", 12))),
+            "F1 A1 A2 A3 A4 C1 C2 C3 | C4 C5 C6 C7 C8 C9 | C10 C11 C12");
+        yield return Case("DeclaredCellOrphansMoveTheRow", "td{orphans:3;widows:3}", P("F", 6) + Table(Row(L("C", 12))),
+            "F1 F2 F3 F4 F5 F6 | C1 C2 C3 C4 C5 C6 C7 C8 | C9 C10 C11 C12");
+        yield return Case("LaterCellParagraphMovesWithinItsCell", "", P("F", 5) + Table(Row(CellP("P", 2) + CellP("Q", 9), L("B", 12))),
+            "F1 F2 F3 F4 F5 P1 P2 B1 B2 B3 | Q1 Q2 Q3 Q4 Q5 Q6 Q7 B4 B5 B6 B7 B8 B9 B10 | Q8 Q9 B11 B12");
+        yield return Case("LaterParagraphOfASingleCell", "", P("F", 5) + Table(Row(CellP("P", 2) + CellP("Q", 9))),
+            "F1 F2 F3 F4 F5 P1 P2 | Q1 Q2 Q3 Q4 Q5 Q6 Q7 | Q8 Q9");
+        yield return Case("CellWidowsPullBackOneCellOnly", "", P("F", 4) + Table(Row(L("A", 5), L("B", 12))),
+            "F1 F2 F3 F4 A1 A2 A3 B1 B2 B3 B4 | A4 A5 B5 B6 B7 B8 B9 B10 B11 B12");
+        yield return Case("EachCellKeepsItsOwnWidows", "", Table(Row(L("A", 9), L("B", 17))),
+            "A1 A2 A3 A4 A5 A6 A7 B1 B2 B3 B4 B5 B6 B7 B8 | A8 A9 B9 B10 B11 B12 B13 B14 B15 | B16 B17");
+        yield return Case("ShortCellsKeepTheirLines", "", P("F", 6) + Table(Row(L("A", 12), "B1")),
+            "F1 F2 F3 F4 F5 F6 A1 A2 B1 | A3 A4 A5 A6 A7 A8 A9 A10 | A11 A12");
+    }
+
+    [TestCaseSource(nameof(ChromeTableSplits))]
+    public void TableCellsBreakWhereChromeBreaks(string css, string body, string chrome)
+        => Assert.That(Split(Doc(TableCss + css, body)), Is.EqualTo(chrome));
 
     [TestCase("td{orphans:3;widows:3}")]
     [TestCase("*{orphans:3;widows:3}")]
     public void TableRowsThatDoNotSplitRenderAsWithoutTheDeclaration(string css)
-        => Assert.That(Pdf(Table(css, 3)), Is.EqualTo(Pdf(Table("", 3))));
+        => Assert.That(Pdf(Doc(TableCss + css, Table(Row(L("C", 3)), Row("D1<br>D2")))),
+            Is.EqualTo(Pdf(Doc(TableCss, Table(Row(L("C", 3)), Row("D1<br>D2"))))));
 
     [Test]
     public void FragmentEndUsesEachLineHeight()

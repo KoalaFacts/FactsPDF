@@ -68,9 +68,8 @@ internal sealed record TextStyle
     public double? UnderlineOffset { get; set; }
     public TextAlignment? LastLineAlignment { get; set; }
     /// <summary>
-    /// Computed CSS orphans and widows, or 0 where no orphans/widows declaration reaches this
-    /// element. A paragraph with both 0 keeps FactsPDF's line-by-line page breaks (see
-    /// <see cref="LineBreakControl"/>).
+    /// Computed CSS orphans and widows, or 0 for the initial value 2 (see
+    /// <see cref="LineBreakControl"/>), so the default style needs no assignment.
     /// </summary>
     public ushort Orphans { get; set; }
     public ushort Widows { get; set; }

@@ -58,8 +58,8 @@ Outside remains the byte-compatible default. The bounded `list-style`
 shorthand accepts a marker kind, a position, or one of each in either
 order; see the exact grammar below. Images, counters, custom glyphs,
 `::marker`, duplicate terms and whole-item keep remain unsupported;
-declared `orphans`/`widows` apply to each item's lines and move a too-short
-item with its marker ([orphans and widows](css-stylesheets.md#orphans-and-widows)). Invalid values reject `FPDF1202`, non-list
+`orphans`/`widows` (initial value 2) apply to each item's lines and move a
+too-short item with its marker ([orphans and widows](css-stylesheets.md#orphans-and-widows)). Invalid values reject `FPDF1202`, non-list
 targets reject `FPDF1201`, and errors preserve existing PDF output.
 Element/font limits, nesting and cancellation remain unchanged.
 
@@ -78,7 +78,7 @@ and Linux/Windows Native AOT Poppler/PDF-path evidence in
 is not the historical private 0.1.0-preview.1 candidate,
 a public NuGet release, or human approval.
 
-Other list CSS, counters, image/custom markers, marker pseudo-elements and whole-item keep remain unsupported; declared `orphans`/`widows` apply to item lines. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. Without `orphans`/`widows` a line can occur alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
+Other list CSS, counters, image/custom markers, marker pseudo-elements and whole-item keep remain unsupported; `orphans`/`widows` (initial value 2) apply to item lines. `ol/ul/li` retain container CSS applicability: margin and explicit page-break properties belong on an inner paragraph/heading. Only `orphans:1`/`widows:1` lets a line stand alone at a page edge. Unsupported CSS fails explicitly. Gutter/box width failures use `FPDF1302`, page limits `FPDF1303`, and marker text runs/discs count towards `MaxDisplayCommands` (`FPDF1401`). Existing font diagnostics, cancellation and output protection remain.
 
 The [design](superpowers/specs/2026-10-17-bounded-lists-design.md) specifies the precise acceptance contract. Local evidence includes 629 passing core tests and a five-page report from direct API, CLI and freshly built Linux Native AOT with identical PDF bytes. All five first-render pages were opened; independent qpdf/text/geometry/font checks and deliberately corrupted checker inputs passed. These are observed local results, not user reference approval or evidence of completed final-head CI/PR review. Protected browser results and final exact-head gates belong to the PR evidence.
 

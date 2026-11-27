@@ -224,6 +224,7 @@ internal static class TableLayout
                     if (hasText) ensure(1, offset);
                     try
                     {
+                        var startsParagraph = true;
                         foreach (var line in Wrap(paragraph, contentWidth, options, resolved, cancellation))
                         {
                             cancellation.ThrowIfCancellationRequested();
@@ -243,7 +244,9 @@ internal static class TableLayout
                             AppendLine(line, alignedX, -top - height - line.Ascent,
                                 runs, charge, cancellation, offset);
                             units.Add(new(TableCellUnitKind.TextLine, offset, top + height, line.Height,
-                                paragraphGap, units.Count == 0, lineStart, runs.Count - lineStart, -1, 0, 0));
+                                paragraphGap, units.Count == 0, lineStart, runs.Count - lineStart,
+                                MeasuredCellUnit.TextLinePayload(paragraph.Style, startsParagraph), 0, 0));
+                            startsParagraph = false;
                             paragraphGap = 0;
                             height += line.Height;
                         }
