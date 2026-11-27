@@ -6,12 +6,25 @@ internal sealed record TableNode(TextStyle Style, BoxStyle BoxStyle, int SourceO
 {
     internal List<TableColumn> Columns { get; } = [];
     internal List<TableRow> Rows { get; } = [];
+    /// <summary>The optional caption, laid out above the table at its width.</summary>
+    internal TableCell? Caption { get; set; }
+    /// <summary>The resolved borders of a border-collapse:collapse table (null when separated).</summary>
+    internal TableBorderGrid? Collapsed { get; set; }
+    /// <summary>The box the table lays out and paints with: its own, or in the collapsing model
+    /// no padding and half its outer collapsed borders, which paint nothing themselves.</summary>
+    internal BoxStyle LayoutBox => Collapsed?.TableBox ?? BoxStyle;
 }
 
 internal sealed record TableColumn(CssLength? Width, int SourceOffset);
 internal sealed record TableRow(bool IsHeader, int SourceOffset, bool AvoidBreakInside = false)
 {
     internal List<TableCell> Cells { get; } = [];
+    // The row's and its row group's own box and text colour; only collapsed borders read them.
+    internal BoxStyle Box { get; init; } = BoxStyle.Initial;
+    internal Rgb Color { get; init; }
+    internal int Group { get; init; }
+    internal BoxStyle GroupBox { get; init; } = BoxStyle.Initial;
+    internal Rgb GroupColor { get; init; }
 }
 internal abstract record TableCellContent;
 internal sealed record TableCellText(Paragraph Paragraph) : TableCellContent;

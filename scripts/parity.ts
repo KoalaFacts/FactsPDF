@@ -15,7 +15,10 @@
 // same exit code and no PDF on either side. A new-example-rendered change
 // is limited to a newly added HTML example absent from the base tree, where
 // the old CLI rejects the template and the new CLI emits a real PDF.
-// Existing examples retain strict byte-for-byte parity.
+// th-default-centred — an example that contains a th element renders a
+// different PDF on both sides (both exit 0): th text is centred by default as in
+// Chrome's user-agent stylesheet, so such pages move their header text.
+// Every other existing example retains strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
 // folder); each run builds in a new subfolder of it and nothing else there is
@@ -47,7 +50,7 @@ export interface Difference {
   kind: ExpectedKind | null;
 }
 
-export const expectedKinds = ['location-added', 'new-example-rendered'] as const;
+export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -172,7 +175,11 @@ export function compareRuns(base: RunResult, head: RunResult): string | null {
 const locationLine = /^Location: line \d+, column \d+\.$/;
 
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
-export function classifyDifference(base: RunResult, head: RunResult, newExample = false): ExpectedKind | null {
+export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false): ExpectedKind | null {
+  if (hasTh && !newExample && base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
+      head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
+    return 'th-default-centred';
+  }
   if (newExample && base.exitCode === 3 && base.pdf === null &&
       head.exitCode === 0 && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
@@ -321,7 +328,7 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       const reason = compareRuns(base, head);
       if (reason !== null) {
         const isNewExample = !baseExamples.has(example);
-        const kind = classifyDifference(base, head, isNewExample);
+        const kind = classifyDifference(base, head, isNewExample, /<th[\s>]/i.test(readFileSync(input, 'utf8')));
         if (isNewExample && kind === null) {
           // A new fixture is not silently exempt from parity: report why
           // its expected old-error to real-PDF conversion was not classified.

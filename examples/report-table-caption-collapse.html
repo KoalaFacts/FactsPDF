@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Collapsed table with caption</title>
+<style>
+  body { font-size: 10pt; line-height: 1.4; }
+  table { border-collapse: collapse; width: 100%; border-top: 2px solid #24445a; }
+  caption { padding: 4pt; font-size: 12pt; background-color: #eef3f7; border-top: 1px solid #24445a; }
+  th { font-weight: normal; padding: 4pt 6pt; background-color: #eef3f7; }
+  td { padding: 4pt 6pt; }
+  thead { border-bottom: 2px solid #24445a; }
+  tbody tr { border-bottom: 1px solid #d8dee9; }
+  tbody tr.last { border-bottom: 2px solid #ae0f1a; }
+  td.amount, th.amount { text-align: right; }
+</style>
+</head>
+<body>
+<p>Collapsed borders with a caption: the zebra rules under each row share one line with the
+next row, the last row carries the heavier rule, and the header text is centred as in Chrome.</p>
+<table>
+  <caption>Quarterly supplies</caption>
+  <thead><tr><th>Item</th><th>Supplier</th><th class="amount">Amount</th></tr></thead>
+  <tbody>
+    <tr><td>Paper roll</td><td>North Office Supply</td><td class="amount">18.40</td></tr>
+    <tr><td>Toner cartridge</td><td>Harbour Print</td><td class="amount">96.00</td></tr>
+    <tr><td>Desk lamp</td><td>Lumen and Co</td><td class="amount">240.00</td></tr>
+    <tr class="last"><td>Cable ties</td><td>North Office Supply</td><td class="amount">6.20</td></tr>
+  </tbody>
+</table>
+</body>
+</html>
