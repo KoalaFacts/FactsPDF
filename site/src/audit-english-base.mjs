@@ -1,10 +1,10 @@
-import { englishAudit as previous } from './audit-english-table-row-break-inside.mjs';
+import { englishAudit as previous } from './audit-english-overflow-wrap-anywhere.mjs';
 
 // base now accepts one element in head as a no-op. Its new scope and limitation enter at its row
 // (indices 25 and 26). Its stage string already exists but now first occurs at this row, so it
 // moves from index 65 to 27; its evidence string already occurs earlier. No string leaves the snapshot.
 if (previous.length !== 874) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = 'd08ec29e2a410f5f8182234f3006554be1fde2493d41110f7a33dcae58dcf151';
+export const sourceDigest = '250ee351cb14f6884eb4441f8054f6cebc212dfb0a5cb05483b5717b2a0cf3a6';
 const entries = [...previous];
 const [stage] = entries.splice(65, 1);
 entries.splice(25, 0,

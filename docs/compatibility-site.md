@@ -634,9 +634,12 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
 `<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
 are still never resolved (partial 245, rejected 121; 43 records).
 Current dataset SHA-256:
-`009c9f0587b2c6c9dacfdc34b0ae5a6091afa1752882e2a9f74d330e880ae2d2`; English
+`9fb8bf69a77fb9c1dafe36547c78db36b2c4bb684bbfc9ba1132ec372c272b58`; English
 layer `site/src/audit-english-base.mjs`, ordered source-text
-SHA-256 `d08ec29e2a410f5f8182234f3006554be1fde2493d41110f7a33dcae58dcf151`.
+SHA-256 `250ee351cb14f6884eb4441f8054f6cebc212dfb0a5cb05483b5717b2a0cf3a6`.
