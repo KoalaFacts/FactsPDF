@@ -631,11 +631,28 @@ to say that table parts accept the display value they already render and that
 The non-standard `background-color-adjust` joins `color-adjust` as an alias of
 `print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
 since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
+The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
+place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
+so no count moves.
+The C# / .NET library row stays full; its limitation string is replaced in place to say that
+the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
+that output is byte-identical for the same input, options and .NET runtime version while
+different .NET versions may produce different bytes (for example compressed streams) with the
+same rendered content, with byte parity and hash pins authoritative on `net10.0` only, so no
+count moves.
 The pseudo-class row moves to partial for `:root` (the root `html` element, pseudo-class
 specificity); its own feature name, scope and limitation strings are replaced in place and the
-attribute-selector limitation excepts `:root` (partial 245, rejected 121; `FPDF1203`, so the
+attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
 `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`8d94d49dd3a3a27ae744aac92b82b62c409ea75bf1eb2444c2499ae83c798f82`; English
+`3a0fd0e36cf2d0d1ebb172090e9bb020fcc735b173a432a8f1d829c65b7a5538`; English
 layer `site/src/audit-english-root-pseudo-class.mjs`, ordered source-text
-SHA-256 `d49621cad982107d3c06a0d4098b2917f9212e65cf7112aa0ed1a3b00a838359`.
+SHA-256 `cf4ff1dc6a955acf122bf49ed835dc2ffae7fc54835cde6a61420230ac3651f7`.

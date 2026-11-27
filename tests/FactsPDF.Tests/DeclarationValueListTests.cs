@@ -22,6 +22,7 @@ public sealed class DeclarationValueListTests
         _ => v.GetType().Name,
     })) + (d.Important ? "!" : "");
 
+    [AllocationBudget]
     [Test]
     public void ParsingADeclarationAllocatesOnlyItsExactSizeValueArray()
     {

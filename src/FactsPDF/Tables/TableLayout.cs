@@ -82,6 +82,10 @@ internal static class TableLayout
         // Defer aligned-cell failure until we know whether a later occupied
         // row makes that predecessor a complete nonterminal row.
         var ambiguousVerticalOffsets = new List<int>();
+        // The first kept (break-inside:avoid) row that pagination would split, and likewise a kept
+        // row that only the terminal decoration would split. Only a multi-page table splits rows.
+        var splitAvoidOffset = -1;
+        var ambiguousAvoidOffset = -1;
         // One scratch list for every cell of this table; each cell keeps an
         // exact-size copy of its units.
         var units = new List<MeasuredCellUnit>();
@@ -271,12 +275,15 @@ internal static class TableLayout
                 foreach (var index in ambiguous) RetainCellBoxes(index);
                 ambiguous.Clear();
                 ambiguousVerticalOffsets.Clear();
+                ambiguousAvoidOffset = -1;
             }
             var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
             var capacity = fresh.UsableHeight - headerHeight
                 - (isFirstBodyGroup ? edges.Top + fresh.FirstLeading : 0);
             var canSplit = !row.IsHeader && rowHeight > capacity + .000001;
             var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
+            if (canSplit && row.AvoidBreakInside && splitAvoidOffset < 0) splitAvoidOffset = row.SourceOffset;
+            if (uncertain && row.AvoidBreakInside && ambiguousAvoidOffset < 0) ambiguousAvoidOffset = row.SourceOffset;
             // When the complete row remains atomic, place its shorter cell
             // content within the shared painted row height. A fragmented body
             // row has independent cell cursors and cannot yet give middle/bottom
@@ -317,6 +324,7 @@ internal static class TableLayout
         if (ambiguousVerticalOffsets.Count > 0)
             throw Geometry("vertical-align:middle/bottom requires an unsplit terminal table row.",
                 ambiguousVerticalOffsets[0]);
+        if (splitAvoidOffset < 0) splitAvoidOffset = ambiguousAvoidOffset;
         foreach (var index in ambiguous)
             rows[index] = rows[index] with { CanSplit = true };
         // Assign stable paint ranges once in source order, without insertion or
@@ -340,6 +348,7 @@ internal static class TableLayout
         }
         var outerHeight = top + edges.Bottom;
         CheckHeight(outerHeight, table.SourceOffset);
+        if (splitAvoidOffset >= 0 && outerHeight > usableHeight + 0.000001) throw UnkeptRow(splitAvoidOffset);
         var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0,
             SourceOffset: table.SourceOffset);
         // Preserve the E1 command order and bytes for every short table.
@@ -366,4 +375,9 @@ internal static class TableLayout
     }
 
     private static FactsPdfException Geometry(string message, int offset) => new("FPDF1302", message, offset);
+
+    // A kept row FactsPDF would split fails, as a kept report card that cannot fit a page does:
+    // a browser would first move it to a fresh page or break before the header instead.
+    private static FactsPdfException UnkeptRow(int offset) => Geometry(
+        "break-inside:avoid table row must fit a fresh page with its repeated header and table decoration.", offset);
 }

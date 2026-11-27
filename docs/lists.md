@@ -17,7 +17,7 @@ Each list reserves a uniform marker gutter inside its content box: `max(2 × lis
 
 The marker stays with its item's first line and appears only once if that item continues across pages. Empty items still have a marker line and count in ordered numbering. An empty first paragraph gets a local strut line to hold its marker; an item starting with a nested list gets its own marker line before the child list. Separate lists restart numbering. Existing sliced backgrounds/borders apply to lists and items; the list background includes its marker gutter, while an item background starts after the gutter.
 
-Lists contain only direct `li` elements and whitespace. Items may contain existing supported text/blocks and nested lists. Optional `li` end tags work before siblings or a list end, without repairing unclosed inline/ordinary containers. Third-level lists, orphan items and invalid direct children fail with `FPDF1101`. Bounded `start`/`reversed` on `ol`, and `value` on a direct `ol > li`, now change the actual PDF sequence. Wrong attribute targets, invalid values and HTML `type` fail with `FPDF1103`. CSS is still validated before HTML structure.
+Lists contain only direct `li` elements and whitespace. Items may contain existing supported text/blocks and nested lists. Optional `li` end tags work before siblings or a list end, without repairing unclosed inline/ordinary containers. Third-level lists, orphan items and invalid direct children fail with `FPDF1101`. Bounded `start`/`reversed` on `ol`, and `value` on a direct `ol > li`, now change the actual PDF sequence. The HTML `type` attribute selects the marker kind (see below). Wrong attribute targets and invalid values fail with `FPDF1103`. CSS is still validated before HTML structure.
 
 ## Current-source CSS marker selection (bounded)
 
@@ -82,6 +82,31 @@ Other list CSS, counters, image/custom markers, marker pseudo-elements, whole-it
 The [design](superpowers/specs/2026-10-17-bounded-lists-design.md) specifies the precise acceptance contract. Local evidence includes 629 passing core tests and a five-page report from direct API, CLI and freshly built Linux Native AOT with identical PDF bytes. All five first-render pages were opened; independent qpdf/text/geometry/font checks and deliberately corrupted checker inputs passed. These are observed local results, not user reference approval or evidence of completed final-head CI/PR review. Protected browser results and final exact-head gates belong to the PR evidence.
 
 `scripts/verify_lists.py` checks the authored complete text, 17 decimal markers, two discs, nested gutter coordinates, actual font outlines/advances/permissions, page bounds and CLI/API/AOT parity. Its direct API host checks ten failure/cancellation cases and recovery; managed/native CLI checks cover stdout, existing files and new destinations. Browser verification uses the existing protected WASM workflow and normal PDF viewer interaction, with no printing or policy changes. The old nine-product-target denominator is unchanged; the small T-list smoke is only a candidate, and full C2 evidence is separate.
+
+## HTML `type` attribute
+
+`type` on `ol`, `ul` and `li` is the presentational hint the HTML rendering
+section defines: it sets `list-style-type` on that element below every author
+declaration, so a stylesheet or `style` attribute `list-style-type` or
+`list-style` (normal or `!important`, including `inherit` and `initial`) on the
+same element wins, as in a browser.
+
+| Element | Value | Marker |
+| --- | --- | --- |
+| `ol`, `li` | `1` | `decimal` |
+| `ol`, `li` | `a` / `A` | `lower-alpha` / `upper-alpha` |
+| `ol`, `li` | `i` / `I` | `lower-roman` / `upper-roman` |
+| `ul`, `li` | `disc`, `circle`, `square`, `none` | the same keyword |
+
+The `ol` values match case-sensitively (`a` and `A` differ); the `ul` keywords
+match in any ASCII case. `<ol type="a">` renders byte-identical to
+`<ol style="list-style-type:lower-alpha">` and `<ol type="1">` byte-identical
+to a plain `<ol>`. Like the CSS property, the hint inherits to the items, while
+a nested `ol`/`ul` without its own `type` keeps its default. Any other value
+(`b`, `""`, `01`, ` a`, `disc` on `ol`, `a` on `ul`, `decimal` on `li`) and
+`type` on any other element, including `menu`, fail `FPDF1103`. Attribute
+selectors on `type` remain unsupported (`FPDF1203`), and the two-level nesting
+limit is unchanged (`ListTypeAttributeTests.cs`).
 
 ## Current-source ordered-list sequencing and bounded shorthand
 

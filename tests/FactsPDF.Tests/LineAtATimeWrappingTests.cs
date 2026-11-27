@@ -20,6 +20,7 @@ public sealed class LineAtATimeWrappingTests
         return result;
     }
 
+    [AllocationBudget]
     [Test]
     public void LongParagraphReusesLineGlyphStorageAndRetainsAllText()
     {

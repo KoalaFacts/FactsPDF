@@ -104,6 +104,7 @@ public sealed class ChildStackTests
     }
 
     // Main ef83cbe: 312.4 bytes read per paragraph (the root's array doubled up to 2,048 slots).
+    [AllocationBudget]
     [Test]
     public void ReadingParagraphsAllocatesNoDoublingChildArrays()
     {
@@ -114,6 +115,7 @@ public sealed class ChildStackTests
     }
 
     // Main ef83cbe: 792.3 bytes per paragraph converted.
+    [AllocationBudget]
     [Test]
     public void ConvertingParagraphsKeepsTheExactChildArraySaving()
     {

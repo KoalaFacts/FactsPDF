@@ -552,6 +552,17 @@ types and a missing or empty `rel`,
 `media` and `style` fail `FPDF1103`; a link outside the head fails `FPDF1101`; links count toward
 `MaxElements` (`LinkMetadataTests.cs`).
 
+One `<base>` in the head, such as the `<base href="/">` that server-side frameworks emit, is
+accepted and changes nothing: the PDF is byte-identical to the page without it. `base` only sets
+the URL that relative URLs resolve against and the default link target, and FactsPDF resolves no
+relative URL (an `a` `href` must already be absolute HTTPS or mailto, and images are named
+resources), so its `href` is never read and takes any value, including an empty one. `target`
+follows the `a` rule (`_blank`, `_self`, `_parent`, `_top` or a name). A relative `a` `href`
+still fails `FPDF1103` exactly as without a `base`. A `base` with neither `href` nor `target`,
+other attributes such as `media`, `style` and `hidden`, and an empty or other underscore `target`
+fail `FPDF1103`; a second `base`, a `base` outside the head and a `</base>` end tag fail
+`FPDF1101`; a `base` counts toward `MaxElements` (`BaseElementTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
@@ -717,7 +728,7 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ### Inherited report text flow (source-only)
 
-The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all|break-word`
+The existing bounded `overflow-wrap:normal|break-word|anywhere`, `word-break:normal|break-all|break-word`
 and nonnegative `text-indent` values can now be declared on `html`, `body`
 or ordinary report `div`/`section`/`article`/`blockquote` containers.
 Their computed values inherit into descendant paragraphs and headings and
@@ -831,7 +842,7 @@ Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` 
 
 ### `overflow-wrap:break-word` for long identifiers (source-only)
 
-Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
+Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). `overflow-wrap:anywhere` (and `word-wrap:anywhere`, which Chromium, Firefox and WebKit all accept) is accepted wherever `break-word` is, so a report stylesheet's `.ledger td { overflow-wrap: anywhere; }` renders: CSS Text 3 makes the two differ only in min-content sizing, which FactsPDF never computes (fixed table columns, explicit or containing-block widths), so the PDF is byte-identical to `break-word` in paragraphs, headings, inherited containers, list items, table cells and multi-page ledgers (`OverflowWrapAnywhereTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
 
 ### Full-width invoice identifier wrapping (source-only)
 
@@ -1215,6 +1226,16 @@ explicitly, preserving the existing PDF destination.
 **no preview binary, NuGet publication, commercial grant or human PDF
 approval** follows from this change.
 
+### HTML `type` on ordered clauses
+
+Legal and contract templates write `<ol type="1"><li>Clause<ol type="a"><li>Sub-clause</li></ol></li></ol>`.
+`type` on `ol` (`1`, `a`, `A`, `i`, `I`, case-sensitive), `ul` (`disc`, `circle`,
+`square`, `none`) and `li` (either set) is a presentational hint for
+`list-style-type`: byte-identical to the matching `list-style-type` on that
+element, and any author `list-style-type` or `list-style` on it wins. Other
+values and other elements fail `FPDF1103` ([contract](lists.md#html-type-attribute),
+`ListTypeAttributeTests.cs`).
+
 ### Current-source report list continuation and numbering
 
 Ordered business report actions can continue from `<ol start="21">`,
@@ -1227,7 +1248,7 @@ Unstyled lists retain byte-identical PDF output.
 This is a **bounded subset**: only ASCII positive ordinals 1–999999,
 only direct `ol > li` value overrides, and one existing marker kind or
 CSS-wide keyword per `list-style`. No arbitrary CSS Lists semantics,
-inside/position/images/counters, HTML `type`, negative ordinals or
+inside/position/images/counters, negative ordinals or
 list-item `value` on `ul`; invalid inputs fail without overwriting
 a destination. See the
 [77-entry pagination example](../examples/report-list-continuations.html)
@@ -1259,7 +1280,8 @@ block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
 `_parent`, `_top` or a name) and hyperlink `rel` types (`noopener`, `noreferrer`,
 `nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a
 PDF link always opens outside the document; an empty or other underscore `target`
-and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`).
+and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`). A `<base>` in the
+head never makes a relative `href` acceptable (`BaseElementTests.cs`).
 Clickable linked images, `download`, fragments, local-page destinations and full HTML anchor
 semantics are not implemented. Links are external PDF actions, not embedded
 content or a claim that target addresses are trusted.
@@ -1473,6 +1495,15 @@ page. A card taller than one usable page rejects with `FPDF1302`, retaining
 the previous PDF. `auto`, `inherit/initial/unset`, `!important`
 and the existing cascade apply. No new page for a card that fits.
 
+`tr` and `thead` accept `break-inside:auto|avoid` (and `page-break-inside`)
+too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
+fragment with the repeated header already move whole and the header never
+splits, so the page is byte-identical to the page without it. A kept row that
+FactsPDF would split (taller than a fresh fragment, or split only to carry the
+table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
+`th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
+[exact contract](css-stylesheets.md#table-rows)).
+
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
 children, arbitrary children, left/right pages, or widows/orphans are not
@@ -1516,6 +1547,19 @@ See the [API guide](development.md#library-api). Source implemented at
 `b81fdb12c6207a0f815227491876ac8ce2a40407`; it replaces the earlier
 `PdfConverter.Convert`/`PdfOptions` entry point and is not part of the older
 retained private preview.
+
+### .NET 8 and .NET 9 apps (source-only)
+
+The library targets `net8.0`, `net9.0` and `net10.0`, so .NET 8 and .NET 9 apps
+reference it directly; the CLI stays on `net10.0`. The same source compiles on
+every target: on `net8.0` two span helpers stand in for members that arrived in
+.NET 9, with identical results (`SpanCompatibilityTests`). Output is
+byte-identical for the same input, options and .NET runtime version; different
+.NET versions may produce different bytes (for example in compressed streams:
+fonts, images, page content, because each ships its own zlib) with the same
+rendered content, so byte parity and hash pins are authoritative on `net10.0`
+only. See
+[Run from source](development.md#run-from-source).
 
 ## Diagnostics
 
