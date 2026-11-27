@@ -248,15 +248,27 @@ cell's text alignment. Formatting whitespace between items adds no paragraph;
 Cell paragraphs must be explicitly closed and cannot contain another paragraph,
 an image, a list, heading, block container or table.
 
-Cell paragraphs support text styling and `margin-top`/`margin-bottom`. An
-unstyled paragraph has top margin zero and bottom margin 8pt. Between occupied
-items, the larger adjacent margin is used. The first top and final bottom margin
-remain inside the cell; no margin collapses through cell edges. Empty paragraphs
+Cell paragraphs support text styling, `margin-top`/`margin-bottom` and padding on
+all four sides. An unstyled paragraph has top margin zero and bottom margin 8pt.
+Between occupied items, the larger adjacent margin is used. The first top and
+final bottom margin remain inside the cell: a cell is its own formatting context,
+so no margin collapses through its edges. Empty paragraphs
 create no text line and combine their pending margins by maximum. Two empty
 unstyled paragraphs therefore contribute 8pt, not two blank lines. Explicit
-`initial` margin values retain the existing zero initial value.
+`initial` margin values retain the existing zero initial value. Paragraph padding
+(lengths, `em` and `rem`) adds to the cell's content height, narrows the
+paragraph and counts in automatic column widths; unlike margins it never
+collapses with the margin above or below, so a 5pt margin followed by a paragraph
+with `padding-top:7pt` leaves 12pt (Chrome's distance). A percentage padding fails
+`FPDF1201`.
 
-Paragraph width, padding, borders, backgrounds and all break declarations are
+A table itself takes `margin-top`/`margin-bottom` (the margins collapse with those
+of the blocks around it, see
+[block margin collapsing](css-stylesheets.md#current-source-block-margin-collapsing-and-list-and-table-margins))
+and zero horizontal margins; a nonzero left or right margin, such as
+`margin:0 auto`, fails `FPDF1201`.
+
+Paragraph width, borders, backgrounds and all break declarations are
 unsupported inside cells and fail `FPDF1201`, including a matched declaration
 that another rule overrides. Apply decoration to the cell or image, and narrow
 global paragraph selectors when necessary. Ordinary paragraphs outside tables

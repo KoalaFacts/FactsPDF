@@ -416,6 +416,22 @@ Actual CI, independent review, human page approval and commercial
 distribution remain separate and must not be inferred from the audit.
 
 
+## Block margin collapsing, list and table margins and cell paragraph padding
+
+A candidate change replaces strings in place for the `css.margin`, `css.margin-top`,
+`css.margin-bottom`, `css.margin-block`, `html.ul`, `html.ol`, `html.li`, `html.table`
+and `css.padding` rows and the zero-inset sentence shared by the other margin rows: vertical
+margins of every block box collapse as in CSS 2 and are truncated at unforced page
+breaks, `ul`, `ol`, `menu`, `li` and `table` accept `margin-top`/`margin-bottom` (the list
+default is Chrome's 1em, none when nested), a table accepts only zero horizontal margins,
+and flat table-cell paragraphs accept padding. No status or count moves (full 45,
+partial 270, none 95; 418 records, 52 accepted CSS property names unchanged). Current
+dataset SHA-256:
+`2370775838a4cc98c2697526e15761d12a4ca70f977ad19c6d9f3d9c32f1eeb7`; English layer
+`site/src/audit-english-block-margins.mjs`, ordered source-text SHA-256
+`9c26a2cf4c6ebe808d6f4b5565f1ae2fb6329b4a9e3ef3e1048e714a8b366777`. The older entries
+below describe the state at their own dates.
+
 ## 29 October 2026: scoped vertical report-panel margins
 
 The newer `f5aba206ca30c86dca8bd4b465182d5cea436dcc` source extends the

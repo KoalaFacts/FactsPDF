@@ -1001,7 +1001,7 @@ multi-page text. `!important`, per-side cascade, CSS-wide reset and explicit
 `inherit` from a percentage-margined report panel share the same computation.
 Negative/vertical `auto`, `calc()`, list/table percentages and unplaceable
 margin geometry still reject, preserving the previous output bytes; there is
-no margin collapsing or RTL/Paged Media support. Source implementation
+no RTL/Paged Media support. Source implementation
 `0f6c58655d651ee934cfb2c95272dde54f4c477e`; [exact contract](css-stylesheets.md#current-source-paragraph-percentage-vertical-margins)
 and `ParagraphPercentageVerticalMarginTests.cs` provide HTML-to-PDF evidence.
 Exact-head CI, genuinely independent review, main merge and any public package
@@ -1031,7 +1031,7 @@ for the [logical-side example](../examples/report-logical-longhands.html).
 
 This is **LTR normal-flow mapping only**: inline-start = left, inline-end =
 right, block-start = top, block-end = bottom. `direction` other than `ltr`, RTL/vertical writing
-modes, negative values, CSS margin collapse, other logical properties,
+modes, negative values, other logical properties,
 `calc()` and unsupported elements remain outside scope. Body/list/table/
 image/inline margins remain rejected, as with their physical longhands.
 See the [CSS contract](css-stylesheets.md#current-source-ltr-logical-report-spacing)
@@ -1064,12 +1064,29 @@ For printed business reports, `div`, `section` and `article` now
 support nonnegative top/bottom margins alongside horizontal `margin:0 auto`.
 For example, `margin:12pt auto 7pt` centres a painted card and leaves
 12pt above and 7pt below its **outside** border, including nested/multipage
-PDF content without CSS margin collapsing.
+PDF content. The margins collapse with their neighbours as in CSS 2 (see
+[block margin collapsing](css-stylesheets.md#current-source-block-margin-collapsing-and-list-and-table-margins)).
 See the [50-entry sample](../examples/report-panel-vertical-margins.html),
 [independent fixed-spacer oracle](../examples/report-panel-vertical-margins-oracle.html)
 and [bounded CSS contract](css-stylesheets.md#current-source-real-vertical-report-panel-margins).
-Body, lists, tables, images and inline margins remain unsupported.
+Body, images and inline margins remain unsupported; lists and tables take vertical margins (below).
 No new installable candidate or human PDF approval is implied.
+
+### Block margin collapsing and list and table margins (source candidate)
+
+Vertical margins now collapse on every block box the way Chrome prints them: adjacent
+siblings (so two tables with 20pt margins sit 20pt apart), a parent and its first or
+last child when no padding or border separates them, and empty blocks passing through.
+`margin:20pt 0` on a `table` and margins on `ul`, `ol`, `menu` and `li` work (lengths,
+`em`/`rem`, CSS-wide keywords); `ul`, `ol` and `menu` take Chrome's 1em above and below, none
+when nested. A padded or bordered parent keeps its margins apart from its children's, and a margin
+that collapses out of a painted parent is not painted inside it. Margins adjoining an unforced page
+break are truncated; the `margin-top` after `break-before:page` / `break-after:page` is kept.
+Table cells, flex items and grid items keep their children's margins inside, and cell
+paragraphs now take padding. Parity with `main` changes for pages with panels (kind
+`block-margin-collapse`) and with lists (`list-default-margin`). A percentage vertical margin
+on a list or table and a nonzero horizontal table margin fail `FPDF1201`. See
+[block margin collapsing](css-stylesheets.md#current-source-block-margin-collapsing-and-list-and-table-margins).
 
 ### `min-width` / `max-width` constraints (source-only)
 
@@ -1432,7 +1449,7 @@ For example:
 This is a bounded quote **layout** feature, not citation metadata, Tagged PDF
 or browser-complete `blockquote` semantics. `cite` attributes, nesting inside
 lists/tables/inline elements, negative vertical margins (and percentage vertical margins on paragraphs),
-margin collapse, CSS `height`, arbitrary/per-corner rounded geometry and arbitrary HTML are
+CSS `height`, arbitrary/per-corner rounded geometry and arbitrary HTML are
 unsupported and explicitly rejected. The quote is source-only: it does not
 update the retained preview binaries or grant customer distribution rights.
 [Real 44-item quote report](../examples/report-blockquotes.html),
@@ -1442,7 +1459,7 @@ update the retained preview binaries or grant customer distribution rights.
 ### Current-source horizontal report dividers
 
 A standalone HTML `<hr>` now paints a real **1pt current-text-colour rule**
-with 8pt non-collapsing outside spacing above and below. `<hr />` is
+with 8pt outside spacing above and below. `<hr />` is
 equivalent. Templates may customise the separator through the existing
 bounded `width`, `min-width`, `max-width`, `margin` (nonnegative
 vertical lengths and horizontal `auto`), `padding`, `box-sizing`,
@@ -1452,7 +1469,7 @@ follows its containing width and moves intact to the next page when needed.
 
 This is a **void block separator**, not unrestricted HTML or CSS: no
 content, table/paragraph/list/inline nesting, arbitrary `height`,
-pseudo-elements, arbitrary/patterned rounded borders, margin collapse or resource URLs.
+pseudo-elements, arbitrary/patterned rounded borders or resource URLs.
 Unsupported declarations fail explicitly and preserve an existing output.
 See the [scoped CSS contract](css-stylesheets.md#current-source-html-horizontal-report-rules),
 [44-entry report](../examples/report-horizontal-rules.html), and the

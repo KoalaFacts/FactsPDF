@@ -1176,7 +1176,7 @@ human page approval remain separate gates.
 body/div/section/article/blockquote contexts. It accepts direct text,
 explicit paragraphs/headings and their existing permitted inline children,
 with the same block CSS properties and positional painting as a `div`.
-Its default non-collapsing outside margins are **8pt top/bottom and 24pt
+Its default outside margins (which collapse like any block margin) are **8pt top/bottom and 24pt
 left/right**. Those values are actual PDF layout insets, not ornamental
 metadata; an unstyled quote is byte-equivalent to a `div` using
 `margin:8pt 24pt`. The normal per-property cascade can override the
@@ -1188,7 +1188,7 @@ pagination reuse their already bounded element contracts.
 
 Unsupported: quote-in-list, quote-in-table/cell, quote-in-inline; `cite`
 and browser citation metadata; CSS generated quote marks; `q`/`cite`
-elements; RTL/vertical writing; margin collapse; negative margins; vertical
+elements; RTL/vertical writing; negative margins; vertical
 margin percentages/auto; height, arbitrary display, floating and elliptical/per-corner
 rounded border painting. A single physical radius with a uniform solid ring
 is separately supported. Existing unsupported CSS and unplaceable geometry reject
@@ -1237,7 +1237,8 @@ vertical `auto`/`%` margins or impossible geometry) fail with
 `FPDF1201/1202/1205/1302` as appropriate and preserve any existing
 output. This feature does **not** implement `direction` beyond `ltr`, RTL, vertical
 writing, logical properties beyond the eight scoped side longhands, general
-margin collapsing, `gap`, Flex/Grid or Paged Media.
+`gap`, Flex/Grid or Paged Media. Vertical margins collapse as in
+[block margin collapsing](#current-source-block-margin-collapsing-and-list-and-table-margins).
 
 [Logical 36-entry report](../examples/report-logical-spacing.html) and
 [separately specified physical-longhand oracle](../examples/report-logical-spacing-oracle.html)
@@ -1268,7 +1269,7 @@ RTL and vertical writing reject with the existing `FPDF1201/1202/1205` or
 unfit geometry `FPDF1302`, preserving any previous destination bytes. The
 existing physical length parser also rejects nonzero unit values that would
 round to zero in a floating-point conversion, rather than accepting them as
-accidental zero box lengths. No new CSS layout model, margin collapse, browser
+accidental zero box lengths. No new CSS layout model, browser
 logical properties or private software candidate is introduced.
 
 The [40-reference source report](../examples/report-logical-longhands.html)
@@ -1284,7 +1285,7 @@ remain separate merge gates; this is source, not a public binary release.
 
 A standalone void `<hr>` or `<hr />` in an ordinary report box now
 produces a **visible PDF separator**: 1pt solid `currentcolor` top border
-over the containing content width, with 8pt non-collapsing outside margins
+over the containing content width, with 8pt outside margins
 above and below. Its box is really painted and affects following text
 positioning. The rule creates no text runs, new font resource or remote load.
 
@@ -1310,7 +1311,7 @@ attributes fail `FPDF1103`. Text-only declarations such as
 `text-align`, `font-weight` or `line-height` reject with
 `FPDF1201`. Negative/percentage vertical margins, unsupported functions
 and unsupported dashed/rounded border combinations fail `FPDF1201/1202`. This does not
-implement margin collapsing, `height`, pseudo-elements, `display`,
+implement `height`, pseudo-elements, `display`,
 complex rules, table/inline separators or general CSS conformance.
 
 The [44-entry report](../examples/report-horizontal-rules.html) and
@@ -1660,7 +1661,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | word-spacing | Supported text and inline spans: `normal`, 0–24pt nonnegative print lengths or scoped `em` (own final font) / `rem` (root font); computed extra advance after each collapsed U+0020 affects real PDF placement, wrapping, alignment, decorations and pagination; negative/%/calc rejected. Not full CSS Text. |
 | text-indent | Explicit `p` / `h1`–`h6` outside table cells, or inherited from `html`/`body` and ordinary report containers (including flat fixed-column cell paragraphs): nonnegative `pt/px/mm/cm/in/%`, scoped `em` / `rem`, or zero; percentages use the final paragraph content width; only the first logical line indents (with cell alignment handled in glyph placement), later wrap/`br`/page fragments retain normal x; direct table-cell declarations still reject; unfit words fail `FPDF1302` without replacing the output |
 | text-decoration, text-decoration-line | none/underline/line-through as a single value; real PDF text-run decoration, current text colour, no full browser decoration features |
-| margin-top, margin-bottom | Ordinary p/pre/headings, div/section/article/blockquote report panels and standalone hr support nonnegative print/rem/em/% lengths or zero. Vertical percentage bases are containing content widths, affecting real PDF outside margins and pagination. Direct percentage margins in lists/tables, table-cell p rem/em and margin collapse remain unsupported. |
+| margin-top, margin-bottom | Ordinary p/pre/headings, div/section/article/blockquote report panels and standalone hr support nonnegative print/rem/em/% lengths or zero. Vertical percentage bases are containing content widths, affecting real PDF outside margins and pagination. Direct percentage margins in lists/tables and table-cell p rem/em remain unsupported. `ul`, `ol`, `menu`, `li` and `table` also take lengths, `em`/`rem` and CSS-wide keywords; vertical margins of all block boxes collapse as in CSS 2 and are truncated at unforced page breaks ([block margin collapsing](#current-source-block-margin-collapsing-and-list-and-table-margins)). |
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
 | margin (bounded shorthand) | Ordinary p/pre/headings and scoped div/section/article/blockquote panels; 1–4 TRBL values with nonnegative vertical print/rem/em/%/zero, horizontal print/rem/em/%/zero/`auto`. Vertical percentages use containing content width, not height. `margin:0 auto` centres explicit-width boxes; CSS-wide keywords and per-side cascade work. List/table paragraphs retain their restrictions. |
 | break-before, break-after; page-break-before/after aliases | Explicit p/pre/headings and ordinary div/section/article/blockquote report panels outside lists/tables; auto/page. Legacy aliases accept auto/always; heading-only break-after:avoid remains a bounded keep hint. Real page boundaries, not general CSS Fragmentation. [Precise print-section scope](#current-source-print-section-page-boundaries) and [heading pagination](heading-pagination.md) |
@@ -2146,10 +2147,10 @@ For example, `margin:2mm 5% 3mm 4mm`, `margin:5mm`, `margin:0 4mm`, and
 `unset` remain per-side; horizontal margins are not inherited by default.
 On flat table-cell paragraphs, only **explicit zero** horizontal margin values
 are allowed (preserving old vertical shorthand); `auto` or nonzero horizontal values error
-with `FPDF1201`, not silently ignored. General container **vertical** margins and span margins remain
-unsupported; the bounded horizontal report-panel exception is below. Scoped paragraph/heading root `rem` is described below.
-Negative margins, vertical `auto`/`%`, `calc()` and full browser margin
-collapsing are not implemented. A bounded `em` source slice below supports only paragraphs/headings. Geometry exceeding
+with `FPDF1201`, not silently ignored. Span margins remain
+unsupported; vertical margins on panels, lists and tables are described in
+[block margin collapsing](#current-source-block-margin-collapsing-and-list-and-table-margins) and the bounded horizontal report-panel exception is below. Scoped paragraph/heading root `rem` is described below.
+Negative margins, vertical `auto`/`%` and `calc()` are not implemented. A bounded `em` source slice below supports only paragraphs/headings. Geometry exceeding
 the containing content rectangle fails with `FPDF1302` and preserves output.
 Four-sided shorthand now counts four emitted declarations toward the existing
 CSS budget, rather than the earlier two when both horizontal sides were zero.
@@ -2161,8 +2162,8 @@ dotnet run --project src/FactsPDF.Cli -c Release -- \
 ```
 
 This is a renderer/source capability and not a public package release,
-general browser margin collapsing, automatic print/page sizing or support for
-general container vertical margins, `calc()`, negative or vertical `auto` margins.
+automatic print/page sizing or support for
+`calc()`, negative or vertical `auto` margins.
 The separate root-`rem` and element-`em` margin features cover only
 paragraphs/headings outside tables.
 Existing reports without these explicit new values retain their old rendering
@@ -2249,7 +2250,7 @@ paragraph margins, borders, `text-indent`, `letter-spacing`,
 unbounded and invalid lengths fail with `FPDF1201`/`FPDF1202`; content
 too wide for its resolved geometry fails with `FPDF1302`, leaving an
 existing PDF destination unchanged. This is not full CSS Values/Sizing
-or browser margin collapsing.
+or full browser layout.
 
 The source-owned [32-entry service report](../examples/report-em-layout.html)
 and its [independently authored point-value oracle](../examples/report-em-layout-oracle.html)
@@ -2275,8 +2276,8 @@ bounded kept cards.
 Direct percentages in list/table paragraphs fail `FPDF1201`;
 negative lengths, vertical `auto` and `calc()` fail `FPDF1202`;
 unplaceable percentage outside margins fail `FPDF1302`. Previous
-PDF bytes and stream position are protected. No margin collapsing,
-RTL or general Paged Media support. Actual HTML-to-PDF and recovery
+PDF bytes and stream position are protected. No RTL or general Paged
+Media support. Actual HTML-to-PDF and recovery
 tests: `tests/FactsPDF.Tests/ParagraphPercentageVerticalMarginTests.cs`,
 source implementation `0f6c58655d651ee934cfb2c95272dde54f4c477e`. This is candidate source,
 not proof of exact-head CI/review/main merge or a published binary.
@@ -2308,8 +2309,8 @@ to nonnegative 0–14400pt. Invalid/negative values, vertical
 are resolved by the source contract below. Oversized geometry
 rejects with `FPDF1302`. General container/inline margins and any `rem`/`em`
 margin inside table-cell paragraphs reject with `FPDF1201` even when
-another declaration could win. Existing vertical-spacing/collapse rules
-are unchanged; this is not general browser margin collapsing.
+another declaration could win. Vertical margins collapse as described in
+[block margin collapsing](#current-source-block-margin-collapsing-and-list-and-table-margins).
 
 The [32-entry printable report](../examples/report-rem-margins.html) and
 [independently authored point-value oracle](../examples/report-rem-margins-oracle.html)
@@ -2570,7 +2571,7 @@ These are actual outside-the-border PDF gaps: the first top margin advances
 the painted background/border and its text, and the bottom gap follows the
 last painted fragment. Nested percentages use each child's containing
 width; continued page fragments do not repeat margin. Sibling vertical
-margins add rather than collapse. Zero/default inputs preserve their prior
+margins collapse to the larger one. Zero/default inputs preserve their prior
 byte output. Another panel can explicitly inherit the percentage and
 resolve it in its own containing block.
 
@@ -2579,9 +2580,9 @@ vertical margin contract. Vertical percentages on paragraph/heading
 declarations fail `FPDF1202`; directly inheriting a percentage panel
 margin into a paragraph/heading fails `FPDF1201` rather than accidentally
 treating 10% as 10pt. Vertical `auto`, negative values, `calc()`,
-out-of-range or underflow lengths, nonzero body/html margins, list/table/image/inline margins,
-RTL/vertical writing, percentage panel margins inside list items,
-general margin collapse and Paged Media are not
+out-of-range or underflow lengths, nonzero body/html margins, image/inline margins,
+RTL/vertical writing, percentage margins on or inside lists and tables
+and Paged Media are not
 implemented. Geometry that cannot fit the PDF page fails `FPDF1302` and
 preserves an existing PDF destination.
 
@@ -2624,6 +2625,62 @@ AOT. Source `0518b51d7a34457798c748db6753c4270ce20996` adds `PercentagePanelMarg
 native `verify_stylesheets.py` acceptance block. Exact final-head CI,
 independent review, human reference approval, private software and
 commercial distribution rights are **separate**.
+
+## Current-source block margin collapsing and list and table margins
+
+Vertical margins on block boxes are laid out the way Chrome prints them. This
+covers `p`, headings, `pre`, `div` and the other report panels, `blockquote`,
+`ul`, `ol`, `menu`, `li`, `table` and `hr`. FactsPDF rejects negative lengths,
+so a collapsed margin is the **largest** of the adjoining margins (CSS 2
+section 8.3.1):
+
+- adjacent siblings: a table or list margin meets the paragraph or panel
+  margin beside it, so two tables with 20pt margins sit 20pt apart, not 40pt;
+- a parent and its first child, when no padding or border separates them, and
+  a parent and its last child, when none separates them and the parent's height
+  is `auto` (no `height`, no `min-height`);
+- an empty block, whose own top and bottom margins collapse through it.
+
+Padding and borders keep margins apart: a parent with `padding-top:5pt` keeps
+its own 20pt margin and its child's 10pt margin (20 + 5 + 10pt), and a parent
+with bottom padding keeps its last child's margin inside its background. A
+margin that collapses out through a parent's edge is not part of the parent's
+painted box, so a background starts and ends at the content, as in Chrome.
+
+Page breaks: margins adjoining an **unforced** break are truncated. A block
+moved to a new page starts at the page top without its `margin-top` and the
+trailing margins of the previous page are dropped; a margin that padding or a
+border separates from the break (a child inside a padded panel) is kept. After a
+**forced** break (`break-before:page`, `break-after:page`) the `margin-top` of
+the next block is kept.
+
+Table cells, flex items and grid items are formatting-context roots: the margins
+of their children never collapse with the cell or item edge and count inside its
+content height.
+
+`ul`, `ol`, `menu`, `li` and `table` accept `margin-top` and `margin-bottom`
+(lengths, `em`/`rem`, the `margin` shorthand and the CSS-wide keywords, as the
+panels do), and `margin-left`/`margin-right` on lists and list items; a
+percentage vertical margin on them fails `FPDF1201`. A table accepts only zero
+horizontal margins (`margin:20pt 0` is the usual template form); a nonzero left or
+right margin, including `margin:0 auto`, fails `FPDF1201`. `ul`, `ol` and
+`menu` take Chrome's user-agent margin of **1em** above and below (in the list's
+own font size) and none when nested inside another list, so their content
+moves relative to earlier output; author margins, `revert` and the CSS-wide
+keywords apply per side. Paragraph and heading user-agent margins (0 above, 8pt
+below) are unchanged.
+
+A table-cell paragraph keeps its own padding on all four sides (lengths, `em`
+and `rem`; a percentage, border or background still fails `FPDF1201`). The
+padding is added to the cell's content height and narrows the paragraph's
+width, counts in automatic column min/max content widths, and never collapses
+with the margins around it.
+
+Remaining differences from Chrome: a `li` whose first content is a nested list
+still takes a marker-only line (Chrome puts its marker on the first nested line);
+lists inside table cells fail `FPDF1101`; the printed 1em of `p` and headings
+differs (above). Every distance above was measured against Chrome's printed PDF
+and is pinned by `BlockMarginCollapseTests`.
 
 ## Current-source grid columns
 
