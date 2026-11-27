@@ -32,8 +32,8 @@ internal static class ImageLayout
         var width = style.Width is { } specified
             ? Resolve(specified) - (style.BorderBoxSizing ? edges : 0)
             : fixedHeight is { } h
-                ? h * image.Image.PixelWidth / image.Image.PixelHeight // clamp after min/max-width
-                : image.Image.PixelWidth * 0.75;
+                ? h * image.RatioWidth / image.RatioHeight // clamp after min/max-width
+                : image.NaturalWidth;
         var measure = style.BorderBoxSizing ? width + edges : width;
         if (style.MaxWidth is { } max) measure = Math.Min(measure, Resolve(max));
         if (style.MinWidth is { } min) measure = Math.Max(measure, Resolve(min));
@@ -42,7 +42,7 @@ internal static class ImageLayout
         // height. With auto height, limit the PDF matrix proportionally on
         // both axes; with explicit height, preserve the independent width.
         // The minimum wins over a contradictory maximum, as for width.
-        var unconstrainedHeight = fixedHeight ?? width * image.Image.PixelHeight / image.Image.PixelWidth;
+        var unconstrainedHeight = fixedHeight ?? width * image.RatioHeight / image.RatioWidth;
         var heightMeasure = unconstrainedHeight + (style.BorderBoxSizing ? verticalEdges : 0);
         if (style.MaxHeight is { } maxHeight)
             heightMeasure = Math.Min(heightMeasure, Resolve(maxHeight));
@@ -60,7 +60,7 @@ internal static class ImageLayout
             // Height:auto preserves pixel aspect even after a CSS width cap.
             // Reject mutually unsatisfiable min/max-width versus height bounds
             // rather than silently throwing away either author's constraint.
-            width = Checked(height * image.Image.PixelWidth / image.Image.PixelHeight, image.SourceOffset);
+            width = Checked(height * image.RatioWidth / image.RatioHeight, image.SourceOffset);
             var resultingWidth = width + (style.BorderBoxSizing ? edges : 0);
             // The existing width clamp applies max first, then min: when
             // min-width exceeds max-width the effective upper bound is the

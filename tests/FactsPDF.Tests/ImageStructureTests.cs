@@ -35,7 +35,7 @@ public sealed class ImageStructureTests
         var root = Tree(html); var children = ((BlockNode)root.Children.Single()).Children;
         Assert.That(children, Has.Count.EqualTo(3));
         var image = (ImageNode)children[1];
-        Assert.That(image.Image.PixelWidth, Is.EqualTo(320)); Assert.That(image.Alt, Is.EqualTo("Chart"));
+        Assert.That(image.Image!.PixelWidth, Is.EqualTo(320)); Assert.That(image.Alt, Is.EqualTo("Chart"));
         Assert.That(image.BoxStyle.Width!.Value.Resolve(200), Is.EqualTo(100));
         Assert.That(image.BoxStyle.PaddingTop.Resolve(200), Is.EqualTo(2));
         Assert.That(image.BoxStyle.BorderLeft.EffectiveWidth, Is.EqualTo(1));

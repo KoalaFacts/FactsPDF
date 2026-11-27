@@ -424,6 +424,10 @@ internal sealed class CssStylesheets
                 || TablePartMargin(element.Name, declaration) || UnusedZeroInset(element.Name, declaration))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
+            // An svg is laid out as a block box (no line box around it), which is exactly how a
+            // browser lays out svg{display:block}; the declaration is validated and dropped.
+            if (declaration.Property == CssProperty.Display && declaration.Value == "block" && element.Name == "svg")
+                return;
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
             // resource contracts; their display declarations fail explicitly.
@@ -471,7 +475,7 @@ internal sealed class CssStylesheets
             // Check every matching declaration, not only the cascade winner.
             if (declaration.Property is (CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight))
             {
-                var imageHeight = element.Name == "img";
+                var imageHeight = element.Name is "img" or "svg";
                 var panelHeight = declaration.Property != CssProperty.MaxHeight
                     && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                     && !path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
@@ -553,9 +557,9 @@ internal sealed class CssStylesheets
                         && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth)))
                 throw new FactsPdfException("FPDF1201",
                     "Relative em/rem box lengths are unsupported on table rows/groups and cell widths.", declaration.Offset);
-            if (element.Name == "img" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
+            if (element.Name is "img" or "svg" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
-            if (declaration.Property == CssProperty.TextTransform && element.Name == "img")
+            if (declaration.Property == CssProperty.TextTransform && element.Name is "img" or "svg")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             // Direct, explicitly bound images now consume these constraints through
             // their measured outer box, including direct image items in cells.
@@ -954,6 +958,84 @@ internal sealed class CssStylesheets
         return compiled;
     }
 
+    /// <summary>
+    /// The author declarations matching an element inside an svg (the last of
+    /// <paramref name="path"/>), by the source offset of the first one of each kind that reaches
+    /// SVG rendering, or -1. SVG content takes no CSS box, font or text layout, so every other
+    /// declaration a browser would apply there (the margin, padding and box-sizing of universal
+    /// resets, fonts, text alignment) changes nothing and is ignored. color reaches the paint
+    /// through currentColor, display can hide content, and width/height set a rect's geometry; a
+    /// declaration whose value holds var() counts as the property it declares. Custom properties
+    /// declared there fail: SVG paint attributes resolve var() against the svg element's own
+    /// computed custom properties (<see cref="SvgColor"/>).
+    /// </summary>
+    internal (int Color, int Display, int Size) SvgContent(IReadOnlyList<CssElement> path, InlineStyle inline)
+    {
+        var element = path[^1];
+        int color = -1, display = -1, size = -1;
+        void Note(CssDeclaration declaration, int offset)
+        {
+            budget.Work(offset);
+            var property = declaration.Property;
+            if (property == CssProperty.Custom)
+                throw new FactsPdfException("FPDF1201", "Custom properties declared on SVG content elements are not supported; declare them on the svg element or an ancestor.", offset);
+            if (property == CssProperty.Pending && declaration.Payload is CssPendingValue pending)
+                property = pending.Node.Name.ToLowerInvariant() switch
+                {
+                    "color" => CssProperty.Color,
+                    "display" => CssProperty.Display,
+                    "width" or "height" => CssProperty.Width,
+                    _ => property,
+                };
+            switch (property)
+            {
+                case CssProperty.Color when color < 0: color = offset; break;
+                case CssProperty.Display when display < 0: display = offset; break;
+                case CssProperty.Width or CssProperty.Height when size < 0: size = offset; break;
+            }
+        }
+        void Match(List<Rule> rules)
+        {
+            foreach (var rule in rules)
+            {
+                budget.Work(rule.Selector.Offset);
+                if (!rule.Selector.Matches(path, budget)) continue;
+                foreach (var declaration in rule.Declarations) Note(declaration, declaration.Offset);
+            }
+        }
+        Match(universal);
+        if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
+        if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
+        foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
+        if (inline.Declarations is { } declarations)
+            foreach (var declaration in declarations) Note(declaration, declaration.Offset + inline.OffsetShift);
+        return (color, display, size);
+    }
+
+    /// <summary>
+    /// An SVG paint or color presentation attribute value read as a CSS colour, with the same
+    /// syntax and limits as the color property: named colours, #rgb/#rrggbb (opaque alpha only),
+    /// rgb()/rgba() and hsl()/hsla() with alpha exactly 1. CSS-wide keywords and !important are
+    /// not attribute values. As in Chrome, var() is substituted from the computed custom
+    /// properties of the svg element, which is at <paramref name="svgDepth"/> on the element path
+    /// (SVG content declares none of its own; see <see cref="SvgContent"/>).
+    /// </summary>
+    internal Rgb SvgColor(string value, int offset, int svgDepth)
+    {
+        var nodes = ParseSource("color:" + value, offset, declarationsOnly: true).Declarations;
+        var compiled = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget);
+        if (compiled.Length == 1 && compiled[0].Property == CssProperty.Pending && !compiled[0].Important)
+        {
+            var environment = svgDepth < environments.Count ? environments[svgDepth] : CssCustomEnvironment.Empty;
+            compiled = Substitute(new Deferral(compiled[0].Shared, compiled[0].Order, compiled[0].Offset, false, default),
+                environment, "svg");
+        }
+        if (compiled.Length != 1 || compiled[0].Property != CssProperty.Color || compiled[0].Important
+            || compiled[0].Value is "inherit" or "initial" or "unset" or "currentcolor")
+            throw new FactsPdfException("FPDF1103", "SVG colour attributes take a single CSS colour value.", offset);
+        return InlineCss.Color(compiled[0].Value, offset);
+    }
+
     // A zero margin on <html> or <body>, or a zero padding on <html>: their used insets are already
     // zero. CSS-wide keywords compute to zero too (the initial value is 0 and html, the only parent
     // body can inherit from, never takes a non-zero inset).
@@ -1038,7 +1120,7 @@ internal sealed class CssStylesheets
             && (wide || length && value.Value == 0);
     }
 
-    // ul, ol and table lay out with a zero margin (their initial value, used as is); rows, row groups,
+    // ul, ol, table and svg lay out with a zero margin (their initial value, used as is); rows, row groups,
     // columns and column groups take no padding (CSS 2.1 §8.4); a br lays out no box at all. So the
     // rest of *{margin:0;padding:0} changes nothing there and is dropped. inherit could carry a
     // parent panel's inset, and nonzero values would need real geometry, so both still fail.
@@ -1048,7 +1130,7 @@ internal sealed class CssStylesheets
             or CssProperty.MarginBottom or CssProperty.MarginLeft;
         var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
             or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (!(margin && element is "ul" or "menu" or "ol" or "table" or "br"
+        if (!(margin && element is "ul" or "menu" or "ol" or "table" or "br" or "svg"
             || padding && element is "tr" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "br")) return false;
         return declaration.Value is "initial" or "unset"
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,

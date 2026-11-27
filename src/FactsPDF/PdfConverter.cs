@@ -45,7 +45,8 @@ internal static class PdfConverter
             cancellationToken.ThrowIfCancellationRequested();
             displayCommands += (long)page.Runs.Count + page.Runs.Sum(run => TextDecorationCommands.Count(run.Style.Decoration))
                 + page.Runs.Count(run => run.Style.LinkUri is not null)
-                + page.Discs.Count + page.Images.Count;
+                + page.Discs.Count;
+            foreach (var image in page.Images) displayCommands += image.CommandCount;
             foreach (var box in page.PaintBoxes) displayCommands += box.CommandCount;
             if (displayCommands > options.MaxDisplayCommands)
                 throw new FactsPdfException("FPDF1401", "PDF display command limit exceeded.");

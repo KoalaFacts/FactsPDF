@@ -187,7 +187,11 @@ internal sealed record LocatedText(string Text, double X, double Baseline, TextS
 // SourceOffset is the list item's; it packs beside Kind, so a disc stays 72 bytes.
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
     int SourceOffset = -1);
-internal sealed record PlacedImage(PdfImage Image, double X, double Top, double Width, double Height);
+internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double Width, double Height,
+    SvgGraphic? Vector = null)
+{
+    internal int CommandCount => Vector?.CommandCount ?? 1;
+}
 internal sealed class LayoutPage
 {
     public List<PlacedText> Runs { get; } = [];
@@ -487,8 +491,17 @@ internal record BlockChildList : BlockChild, IReadOnlyList<BlockChild>
     }
 }
 
-internal sealed record ImageNode(PdfImage Image, TextStyle Style, BoxStyle BoxStyle,
-    int SourceOffset, string? Alt) : BlockChild;
+// A replaced element: a bound raster image, or an inline svg read into vector shapes (Vector).
+internal sealed record ImageNode(PdfImage? Image, TextStyle Style, BoxStyle BoxStyle,
+    int SourceOffset, string? Alt, SvgGraphic? Vector = null) : BlockChild
+{
+    // The intrinsic aspect ratio's terms: the pixel size, or the svg's viewBox size.
+    internal double RatioWidth => Vector?.RatioWidth ?? Image!.PixelWidth;
+    internal double RatioHeight => Vector?.RatioHeight ?? Image!.PixelHeight;
+    // The natural width in points (one CSS px is 0.75pt); an svg's default is 300px.
+    internal double NaturalWidth => Vector is null ? Image!.PixelWidth * 0.75 : 225;
+    internal int CommandCount => Vector?.CommandCount ?? 1;
+}
 
 internal sealed class DocumentRoot
 {

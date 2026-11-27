@@ -551,7 +551,7 @@ internal static class TextLayout
             }
             if (step is LayoutImage image)
             {
-                ChargeDisplayCommands(1, image.Node.SourceOffset);
+                ChargeDisplayCommands(image.Node.CommandCount, image.Node.SourceOffset);
                 if (breakNext)
                 {
                     if (HasRetainedPageContent())
@@ -576,7 +576,7 @@ internal static class TextLayout
                     image.Node.BoxStyle, image.Node.Style.Color, paintOrder++, SourceOffset: image.Node.SourceOffset);
                 ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
                 if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
-                pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height));
+                pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height, image.Node.Vector));
                 y += image.OuterHeight;
                 pendingTopPadding = pendingClosedPadding = after = 0;
                 contentEpoch++;
