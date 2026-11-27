@@ -76,6 +76,18 @@ public sealed class TableAutoLayoutTests
     }
 
     [Test]
+    public void ExplicitWidthWiderThanTheContainerFailsAsATableWidthError()
+    {
+        var html = Table("<tr><td>A</td></tr>", "font-size:10pt;width:600pt");
+        TableStructureTests.Fails(html, "FPDF1302");
+        Assert.That(Assert.Throws<FactsPdfException>(() => TableLayoutTests.Layout(html))!.Message, Does.Contain("Table outer width"));
+    }
+
+    [Test]
+    public void TableOfEmptyUndecoratedColumnsFailsAsZeroWidth()
+        => TableStructureTests.Fails(Table("<tr><td></td><td></td></tr>"), "FPDF1302");
+
+    [Test]
     public void HeaderFooterBreaksParagraphsAndNoWrapCountTowardsTheirColumn()
     {
         var html = Cells + "<table style='font-size:10pt'><thead><tr><th>ABC</th><th>A</th></tr></thead><tbody>"

@@ -56,11 +56,12 @@ internal static class TableAutoLayout
             minimum += tracks[i];
             maximum += maximums[i];
         }
-        var target = Math.Max(minimum, specifiedWidth ?? Math.Min(availableWidth, maximum));
-        if (target > availableWidth + 0.000001)
+        // An explicit width wider than the container fails in the caller's table width check.
+        if (minimum > availableWidth + 0.000001)
             throw Geometry(string.Create(CultureInfo.InvariantCulture,
-                $"Automatic table columns need at least {target:0.###}pt, but only {availableWidth:0.###}pt is available."),
+                $"Automatic table columns need at least {minimum:0.###}pt, but only {availableWidth:0.###}pt is available."),
                 table.SourceOffset);
+        var target = Math.Max(minimum, specifiedWidth ?? Math.Min(availableWidth, maximum));
         Distribute(tracks, maximums, minimum, maximum, target);
         return target;
     }

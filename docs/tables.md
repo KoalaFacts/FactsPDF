@@ -86,7 +86,9 @@ layout browsers use:
 
 Rows, cell content, alignment, pagination, repeated headers, `tfoot` and long
 row continuation then work exactly as for fixed columns. A column whose cells
-are all empty and undecorated is zero wide. The explicit table width keeps its
+are all empty and undecorated is zero wide; a table whose every column is zero
+wide (and has no padding or borders) fails `FPDF1302` like any zero-width table,
+where Chrome would draw nothing. The explicit table width keeps its
 content-box meaning (border-box with `box-sizing:border-box`).
 
 Measured against Chrome 158 with the same TrueType font on both sides (kerning
