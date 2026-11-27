@@ -4,7 +4,7 @@ namespace FactsPDF.Tests;
 
 // Server-side frameworks put <base href="/"> in head. base only sets the URL that relative URLs
 // resolve against and the default link target; FactsPDF resolves no relative URL (links must be
-// absolute https or mailto, images are named resources), so a base in head changes nothing (R5cp).
+// absolute https or mailto, images are named resources), so a base in head changes nothing (R5cq).
 // Before, any base failed the whole page with FPDF1102.
 [TestFixture]
 public sealed class BaseElementTests
