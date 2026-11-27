@@ -19,6 +19,7 @@ public sealed class FontObjectAllocationTests
     // bytes per distinct character on main be6fac8, 220 and 346 after Z2g (the rest is the font's
     // code map and character list, the growing builders and, for the subset, the subsetter). The
     // limits (about 15% above) fail on main in both cases.
+    [AllocationBudget]
     [TestCase(false, 255)]
     [TestCase(true, 400)]
     public void SerializingAllocatesNoStringPerDistinctCharacter(bool subset, int limit)

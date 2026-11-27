@@ -27,6 +27,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of Z6g2b1 (552 bytes per paragraph, three 56-byte tokens each): 528 with
     // 48-byte tokens.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesSmallerTokens()
     {
@@ -56,6 +57,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of Z6g2b3 (496 bytes per paragraph, three 48-byte tokens each): 472 with
     // 40-byte tokens that store no attribute map.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesTokensWithoutAnAttributeField()
     {
@@ -69,6 +71,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of Z6g2b4 (472 bytes per paragraph, three 40-byte tokens each): 448 with a
     // one-byte token kind, which packs beside SelfClosing so a plain token is 32 bytes.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesTokensWithAOneByteKind()
     {
@@ -125,6 +128,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of main c10e703 (440 bytes per paragraph): 416 once a paragraph stores its runs
     // inline (an array and a count) instead of in a separate List object.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphKeepsItsRunsWithoutAListObject()
     {
@@ -138,6 +142,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of main 9d40e06 (416 bytes per paragraph): 392 once a block keeps its first
     // child in a slot of its child list instead of a List object plus a one-slot array.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphKeepsItsChildWithoutAnArray()
     {
@@ -152,6 +157,7 @@ public sealed class HtmlTokenSizeTests
     // The whole conversion, not only reading: layout must not give the saving back (LINQ's All over
     // the child list boxed its enumerator once per block). Measured on top of main 9d40e06: 896 bytes
     // per paragraph converted; 872 with the child slot and the index-loop All.
+    [AllocationBudget]
     [Test]
     public void ConvertingAParagraphKeepsTheReadSavingThroughLayout()
     {
@@ -196,6 +202,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of main d405f2d (392 bytes per paragraph): 360 once a paragraph keeps a lone
     // run in its run list's inline slot instead of a one-slot TextRun array.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphKeepsItsRunWithoutAnArray()
     {
@@ -208,6 +215,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // Layout must not give the inline-run saving back. Main d405f2d: 872 bytes per paragraph converted.
+    [AllocationBudget]
     [Test]
     public void ConvertingAParagraphKeepsTheInlineRunSaving()
     {
@@ -225,6 +233,7 @@ public sealed class HtmlTokenSizeTests
 
     // Measured on top of main 7c00672 (360 bytes per paragraph): 352 once a block node packs its
     // list start, item value and reversed flag into one int (a 56-byte node instead of 64).
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesACompactBlockNode()
     {
@@ -237,6 +246,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // Main 7c00672: 840 bytes per paragraph converted; the block node saving must survive layout.
+    [AllocationBudget]
     [Test]
     public void ConvertingAParagraphKeepsTheCompactBlockNodeSaving()
     {
@@ -254,6 +264,7 @@ public sealed class HtmlTokenSizeTests
 
     // Main 3e273b9: 352 read bytes per paragraph; a paragraph packs IsAnonymous beside its source
     // offset, so it is 40 bytes instead of 48 (Z6g2b10).
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesACompactParagraph()
     {
@@ -266,6 +277,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // Main 3e273b9: 832 bytes per paragraph converted; the paragraph saving must survive layout.
+    [AllocationBudget]
     [Test]
     public void ConvertingAParagraphKeepsTheCompactParagraphSaving()
     {
@@ -281,6 +293,7 @@ public sealed class HtmlTokenSizeTests
         Assert.That(perParagraph, Is.LessThan(828));
     }
 
+    [AllocationBudget]
     [Test]
     public void AParagraphIsFortyBytes()
     {
@@ -361,6 +374,7 @@ public sealed class HtmlTokenSizeTests
 
     // Main cd6f314: a BlockChildList kept a first-child slot, a later-children array and a count
     // (40 bytes); one field for the lone child or the array makes it 32.
+    [AllocationBudget]
     [Test]
     public void ABlockChildListIsThirtyTwoBytes()
     {
@@ -375,6 +389,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // Main cd6f314: 344.4 bytes read per paragraph (a <p> element's block node holds one child list).
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesACompactChildList()
     {
@@ -387,6 +402,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // Layout must not give the child-list saving back. Main cd6f314: 824.3 bytes per paragraph converted.
+    [AllocationBudget]
     [Test]
     public void ConvertingAParagraphKeepsTheCompactChildListSaving()
     {
@@ -432,6 +448,7 @@ public sealed class HtmlTokenSizeTests
 
     // Main 715a126: a block node (56 bytes) pointed at its own 32-byte BlockChildList, 88 bytes per
     // block. The node now derives from the list and owns its fields: 64 bytes and one object.
+    [AllocationBudget]
     [Test]
     public void ABlockNodeAndItsChildrenAreOneSixtyFourByteObject()
     {
@@ -478,6 +495,7 @@ public sealed class HtmlTokenSizeTests
 
     // Main 715a126: 336.4 bytes read per paragraph; the <p> element's block no longer allocates a
     // separate child list.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesNoSeparateChildList()
     {
@@ -490,6 +508,7 @@ public sealed class HtmlTokenSizeTests
     }
 
     // Layout must not give the saving back. Main 715a126: 816.3 bytes per paragraph converted.
+    [AllocationBudget]
     [Test]
     public void ConvertingAParagraphKeepsTheOwnedChildrenSaving()
     {

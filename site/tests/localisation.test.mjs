@@ -141,7 +141,10 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'fa7531e4e3c7dd0f1199916537d885dc164bf2ab');
+  assert.equal(display.last_audited_commit,'d7869cef096ee3869a0f8f2cc8aca5fbf1d98064');
+  assert.match(display.scope,/normal\/break-word\/anywhere/);
+  assert.match(display.scope,/anywhere[^.]*min-content[^.]*byte-identical to overflow-wrap:break-word/);
+  assert.doesNotMatch(display.limitations,/No anywhere/);
   assert.match(display.scope,/flat cell paragraphs/);
   assert.match(display.scope,/legacy word-wrap alias/);
   assert.match(display.scope,/outside lists\/tables/);
@@ -457,7 +460,7 @@ test('named CSS colours retain the independent source and English limitations', 
     assert.equal(row.introduced_release, null);
   }
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 386);
+  assert.equal(data.accepted_css_property_count, 384);
 });
 
 
@@ -465,7 +468,7 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   const { englishFeature, translate } = await localisation();
   const feature=englishFeature(data.features.find(x=>x.id==='css.border'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 386);
+  assert.equal(data.accepted_css_property_count, 384);
   assert.match(feature.scope,/border-inline/);
   assert.match(feature.scope,/border-block/);
   assert.match(feature.scope,/actual left\/right\/top\/bottom PDF strokes/);
@@ -476,12 +479,12 @@ test('English LTR logical border audit is complete and does not claim RTL suppor
   assert.doesNotMatch(translate(data.css_inventory_note),han);
 });
 
-test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count, 386);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
+test('English LTR component audit retains precise 18-name limits',async()=>{const {englishFeature,translate}=await localisation();const f=englishFeature(data.features.find(f=>f.id==='css.border'));assert.equal(data.accepted_css_property_count, 384);assert.match(f.scope,/18 additional scoped LTR logical border component names/);assert.match(f.limitations,/RTL, vertical writing/);assert.match(translate(data.css_inventory_note),/now 107/);assert.doesNotMatch(f.scope+f.limitations,han);});
 
 test('bounded printable text decoration width is translated with exact limits',async()=>{
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(f=>f.id==='css.text-decoration'));
-  assert.equal(data.accepted_css_property_count, 386);
+  assert.equal(data.accepted_css_property_count, 384);
   assert.match(row.scope,/three distinct/);
   assert.match(row.scope,/0.2–12pt/);
   assert.match(row.scope,/resets omitted thickness to auto/);
@@ -499,7 +502,7 @@ test('bounded underline offset remains exact in verified English and Chinese', a
   assert.match(translate(data.css_inventory_note),/from 108 to 109/);
   assert.doesNotMatch(row.scope+row.limitations,/[\u3400-\u9fff]/u);
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 386);
+  assert.equal(data.accepted_css_property_count, 384);
 });
 
 test('English CLI diagnostic location record is source-bound and fully translated',async()=>{
@@ -528,7 +531,7 @@ test('bounded English last-line alignment audit retains source and error boundar
   const {englishFeature,translate}=await localisation();
   const row=englishFeature(data.features.find(x=>x.id==='css.text-align'));
   assert.equal(data.features.length,418);
-  assert.equal(data.accepted_css_property_count, 386);
+  assert.equal(data.accepted_css_property_count, 384);
   assert.match(row.scope,/text-align-last:auto\/left\/center\/right\/start\/end\/justify/);
   assert.match(row.limitations,/inline declarations/);
   assert.match(translate(data.css_inventory_note),/115 to 116/);
@@ -883,6 +886,41 @@ test('table parts accept the display value they already render, in English', asy
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
 
+test(':root pseudo-class is partial and other pseudo-classes still fail, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'selector.pseudo'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1203');
+  assert.match(row.scope, /\(0,1,0\)/);
+  assert.match(row.limitations, /:first-child, :nth-child, :lang, :hover/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'selector.attribute')).limitations, /pseudo-classes other than :root/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('@page is partial with its precedence failure and @media no longer rejects it, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'rule.page'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1201 / FPDF1202 / FPDF1204 / FPDF1206');
+  assert.match(row.scope, /counter\(pages\)/);
+  assert.match(row.limitations, /disagrees with @page[^;]*FPDF1206/);
+  assert.match(row.limitations, /Page selectors \(:first/);
+  const media = englishFeature(data.features.find(x => x.id === 'rule.media'));
+  assert.match(media.limitations, /@page and @keyframes are allowed inside/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('the .NET library row names its three target frameworks and the compression caveat, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'runtime.dotnet'));
+  assert.equal(row.status, 'full');
+  assert.match(row.limitations, /net8\.0, net9\.0 and net10\.0/);
+  assert.match(row.limitations, /byte-identical for the same input, options and \.NET runtime version/);
+  assert.match(row.limitations, /different \.NET versions may produce different bytes .* with the same rendered content/);
+  assert.match(row.limitations, /authoritative on net10\.0 only/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
 test('break-inside and page-break-inside accept avoid on table rows, in English', async () => {
   const { englishFeature } = await localisation();
   const rows = ['css.break-inside', 'css.page-break-inside']
@@ -890,21 +928,58 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
   for (const row of rows) {
     assert.equal(row.status, 'partial');
     assert.match(row.limitations, /tr and thead/);
-    assert.match(row.limitations, /would split .*FPDF1302/);
+    assert.match(row.limitations, /must split .*fresh page/);
+    assert.match(row.limitations, /bottom .*FPDF1302/);
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
 });
 
-test('orphans and widows are partial with Chrome page breaks, in English', async () => {
-  const { englishFeature, translate } = await localisation();
-  const rows = ['css.orphans', 'css.widows', 'pdf.orphans']
-    .map(id => englishFeature(data.features.find(x => x.id === id)));
-  for (const row of rows) {
+test('base is partial: one base in head accepted, relative URLs still not resolved, in English', async () => {
+  const { englishFeature } = await localisation();
+  const base = englishFeature(data.features.find(x => x.id === 'html.base'));
+  assert.equal(base.status, 'partial');
+  assert.match(base.scope, /never resolves relative URLs/);
+  assert.match(base.limitations, /relative a href still fails FPDF1103/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(base[field], han, field);
+});
+
+test('lists accept the HTML type attribute as a list-style-type hint, in English', async () => {
+  const { englishFeature } = await localisation();
+  for (const id of ['html.li', 'html.ol', 'html.ul']) {
+    const row = englishFeature(data.features.find(x => x.id === id));
     assert.equal(row.status, 'partial');
-    assert.match(row.scope, /breaks Chrome prints/);
-    assert.match(row.limitations, /keep the existing line-by-line breaks/);
-    assert.match(row.limitations, /FPDF1302/);
+    assert.match(row.limitations, /HTML type is a presentational hint for list-style-type/);
+    assert.doesNotMatch(row.limitations, /No ul start or ul-li value, HTML type/);
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
-  assert.match(translate(data.css_inventory_note), /orphans and widows[^.]*from 384 to 386/);
+});
+
+test('custom properties and var() are partial, failing instead of unsetting, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'functions.var'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1202');
+  assert.match(row.scope, /var\(--name, fallback\)/);
+  assert.match(row.limitations, /would unset the declaration at computed-value time/);
+  assert.match(row.limitations, /MaxCssSyntaxNodes/);
+  assert.equal(englishFeature(data.features.find(x => x.id === 'functions.math')).stage, 'Syntax representation only');
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('translucent colours paint with PDF constant alpha, in English', async () => {
+  const { englishFeature } = await localisation();
+  const english = id => englishFeature(data.features.find(x => x.id === id));
+  for (const id of ['css.color', 'css.background-color', 'css.border', 'css.border-color', 'css.background']) {
+    const row = english(id);
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /clamped to 0–1, rounded to n\/255 as Chrome does and composited with PDF constant alpha/);
+    assert.doesNotMatch(row.limitations, /exactly 1 or 100%/);
+  }
+  assert.match(english('css.color').scope, /ExtGState \/ca and \/CA/);
+  assert.match(english('value.color.rgbfunc').scope, /rgba\(164,176,195,0\.2\)/);
+  assert.match(english('value.color.alphahex').scope, /0\/00 paints nothing/);
+  assert.match(english('value.border.transparent').limitations, /outline\/outline-color accept transparent and paint nothing/);
+  for (const id of ['css.color', 'css.outline', 'css.text-decoration', 'value.color.rgbfunc', 'value.color.alphahex',
+    'value.background.transparent', 'value.background.currentcolor', 'value.border.transparent', 'value.text.currentcolor'])
+    for (const field of ['scope', 'limitations', 'evidence_level']) assert.doesNotMatch(english(id)[field], han, field);
 });

@@ -4,7 +4,8 @@ FactsPDF now has a logically independent CSS Syntax Level 3 implementation in
 `src/FactsPDF/CssSyntax/`, compiled into the same shared renderer assembly.
 This is an **experimental syntax implementation**, not a browser CSS engine.
 It does not perform layout, network I/O, HTML parsing, CSS custom-property
-substitution or calculated-style resolution.
+substitution or calculated-style resolution; custom properties and `var()` are
+resolved by the renderer's cascade ([custom properties](css-stylesheets.md#custom-properties-and-var)).
 
 ## Two different levels of CSS support
 

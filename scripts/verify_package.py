@@ -51,6 +51,30 @@ def expected_contract(root):
             literal('TargetFramework', r'net[1-9][0-9]*\.0'))
 
 
+LIBRARY_PROJECT = 'src/FactsPDF/FactsPDF.csproj'
+# The library's reviewed target set: older runtimes first, the repository target last.
+LIBRARY_TARGET_SETS = {('net8.0', 'net9.0', 'net10.0')}
+
+
+def package_targets(root, target):
+    """Read the library project's explicit target list, never the package.
+
+    The list is one unconditional literal TargetFrameworks; its last entry is the
+    repository target from expected_contract. A new list needs a reviewed
+    LIBRARY_TARGET_SETS update rather than a guess.
+    """
+    doc = ET.parse(root / LIBRARY_PROJECT).getroot()
+    nodes = doc.findall('.//TargetFrameworks')
+    assert len(nodes) == 1, 'Expected one declared library TargetFrameworks'
+    node = nodes[0]
+    groups = [group for group in doc.findall('PropertyGroup') if node in list(group)]
+    assert len(groups) == 1 and not groups[0].attrib and not node.attrib, 'Expected unconditional TargetFrameworks'
+    targets = tuple((node.text or '').split(';'))
+    assert all(re.fullmatch(r'net[1-9][0-9]*\.0', t) for t in targets), 'Expected literal TargetFrameworks'
+    assert targets in LIBRARY_TARGET_SETS and targets[-1] == target, 'Declared library target set'
+    return targets
+
+
 def local_package(root, version):
     packages = list((root / 'artifacts/packages').glob('FactsPDF.*.nupkg'))
     expected = root / 'artifacts/packages' / f'FactsPDF.{version}.nupkg'
@@ -62,8 +86,8 @@ def validate_package(path, root, version, source, target, *, assembly_reader=Non
     targets = (target,) if isinstance(target, str) else tuple(target)
     assert targets and len(set(targets)) == len(targets), "Explicit unique target configuration"
     assert all(re.fullmatch(r"net[1-9][0-9]*\.0", t) for t in targets), "Target configuration"
-    assert len(targets) == 1 or targets == ("net10.0", "net11.0"), "Supported candidate target set"
-    assert len(targets) == 1 or callable(assembly_reader), "Candidate requires binary metadata reader"
+    assert len(targets) == 1 or targets == ("net10.0", "net11.0") or targets in LIBRARY_TARGET_SETS, "Supported candidate target set"
+    assert targets != ("net10.0", "net11.0") or callable(assembly_reader), "Candidate requires binary metadata reader"
     assert version and re.fullmatch(r'[0-9a-f]{40}', source), 'Expected package version/source'
     with ZipFile(path) as package:
         names = package.namelist()
@@ -149,10 +173,11 @@ def main():
     root = Path(__file__).resolve().parents[1]
     source = current_source(root)
     version, target = expected_contract(root)
-    validate_package(local_package(root, version), root, version, source, target,
+    targets = package_targets(root, target)
+    validate_package(local_package(root, version), root, version, source, targets,
                      assembly_reader=binary_reader(args.assembly_inspector, args.dotnet) if args.assembly_inspector else None)
     assert current_source(root) == source, 'Source changed during verification'
-    print(f'Local package identity, version, source, {target} assets, license/README and absence of dependencies verified. Nothing was published.')
+    print(f'Local package identity, version, source, {", ".join(targets)} assets, license/README and absence of dependencies verified. Nothing was published.')
 
 
 if __name__ == '__main__': main()

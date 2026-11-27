@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
-from verify_package import binary_reader, current_source, expected_contract, local_package, validate_package
+from verify_package import binary_reader, current_source, expected_contract, local_package, package_targets, validate_package
 
 
 def main():
@@ -18,9 +18,13 @@ def main():
     assert target == 'net10.0', 'This regression requires the existing net10 package'
     package = local_package(root, version)
     reader = binary_reader(args.assembly_inspector, args.dotnet)
-    validate_package(package, root, version, source, target, assembly_reader=reader)
+    targets = package_targets(root, target)
+    validate_package(package, root, version, source, targets, assembly_reader=reader)
     with ZipFile(package) as archive:
         files = {name: archive.read(name) for name in archive.namelist()}
+    # The forged candidate keeps only the real net10 assets, so the forged net11 label is the one defect.
+    older = [t for t in targets if t != target]
+    files = {name: data for name, data in files.items() if not any(name.startswith(f'lib/{t}/') for t in older)}
     original = files['lib/net10.0/FactsPDF.dll']
     assert original.count(b'.NETCoreApp,Version=v10.0') == 1, 'Unique original TFM attribute'
     # Deliberately invalid test asset: only an equal-length attribute string is
@@ -36,6 +40,8 @@ def main():
     namespace = document.tag.split('}')[0] + '}' if '}' in document.tag else ''
     dependencies = document.find('.//' + namespace + 'dependencies')
     assert dependencies is not None
+    for group in list(dependencies):
+        if group.attrib.get('targetFramework') in older: dependencies.remove(group)
     ET.SubElement(dependencies, namespace + 'group', targetFramework='net11.0')
     files[nuspec] = ET.tostring(document)
     with tempfile.TemporaryDirectory(prefix='factspdf-invalid-package-') as temporary:
@@ -49,7 +55,7 @@ def main():
         else:
             raise AssertionError('Accepted a net10 binary with a forged net11 label')
     assert current_source(root) == source, 'Source changed during verification'
-    print('Real net10 package accepted; retagged old binary rejected. No real net11 or AOT claim.')
+    print(f'Real {", ".join(targets)} package accepted; retagged old binary rejected. No real net11 or AOT claim.')
 
 
 if __name__ == '__main__': main()

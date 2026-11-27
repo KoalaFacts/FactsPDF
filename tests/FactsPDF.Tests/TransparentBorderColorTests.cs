@@ -107,9 +107,11 @@ public sealed class TransparentBorderColorTests
     }
 
     [Test]
-    public void OutlinesStillRejectTransparent()
+    public void TransparentOutlinesPaintNothing()
     {
-        Fails("<div style='outline:1pt solid transparent'>A</div>", "FPDF1202");
-        Fails("<div style='outline-color:transparent'>A</div>", "FPDF1202");
+        var plain = Render("<div>A</div>");
+        Assert.That(Render("<div style='outline:1pt solid transparent'>A</div>"), Is.EqualTo(plain));
+        Assert.That(Render("<div style='outline:1pt solid red;outline-color:transparent'>A</div>"), Is.EqualTo(plain));
+        Assert.That(Render("<div style='outline:2pt dashed rgba(255,0,0,0)'>A</div>"), Is.EqualTo(plain));
     }
 }

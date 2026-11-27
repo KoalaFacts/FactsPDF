@@ -14,7 +14,7 @@ internal static class PdfPaintSerializer
     private static readonly TextDecoration[] DecorationOrder =
         [TextDecoration.Underline, TextDecoration.LineThrough, TextDecoration.Overline];
     internal static void AppendDiscs(StringBuilder output, IReadOnlyList<PlacedDisc> discs,
-        int maxOutputBytes, CancellationToken cancellation)
+        int maxOutputBytes, CancellationToken cancellation, ref PdfAlphaStates alpha)
     {
         foreach (var disc in discs)
         {
@@ -25,9 +25,10 @@ internal static class PdfPaintSerializer
             // Every vector marker consumes exactly one retained paint command.
             // Keep the legacy disc byte path identical for unstyled reports.
             var color = disc.Color;
+            if (color.IsInvisible) continue;
             if (disc.Kind == ListMarkerKind.Square)
             {
-                output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ").AppendInvariant(x - r, Number).Append(' ').AppendInvariant(y - r, Number).Append(' ').AppendInvariant(2 * r, Number).Append(' ').AppendInvariant(2 * r, Number).Append(" re f Q\n");
+                alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ").AppendInvariant(x - r, Number).Append(' ').AppendInvariant(y - r, Number).Append(' ').AppendInvariant(2 * r, Number).Append(' ').AppendInvariant(2 * r, Number).Append(" re f Q\n");
             }
             else
             {
@@ -40,9 +41,9 @@ internal static class PdfPaintSerializer
                 var radius = hollow ? r * 0.8 : r;
                 var k = radius * 0.5522847498307936;
                 if (hollow)
-                    output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" RG ").AppendInvariant(r * 0.25, Number).Append(" w ").AppendInvariant(x + radius, Number).Append(' ').AppendInvariant(y, Number).Append(" m ");
+                    alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" RG ").AppendInvariant(r * 0.25, Number).Append(" w ").AppendInvariant(x + radius, Number).Append(' ').AppendInvariant(y, Number).Append(" m ");
                 else
-                    output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ").AppendInvariant(x + r, Number).Append(' ').AppendInvariant(y, Number).Append(" m ");
+                    alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ").AppendInvariant(x + r, Number).Append(' ').AppendInvariant(y, Number).Append(" m ");
                 output.AppendInvariant(x + radius, Number).Append(' ').AppendInvariant(y + k, Number).Append(' ').AppendInvariant(x + k, Number).Append(' ').AppendInvariant(y + radius, Number).Append(' ').AppendInvariant(x, Number).Append(' ').AppendInvariant(y + radius, Number).Append(" c ");
                 output.AppendInvariant(x - k, Number).Append(' ').AppendInvariant(y + radius, Number).Append(' ').AppendInvariant(x - radius, Number).Append(' ').AppendInvariant(y + k, Number).Append(' ').AppendInvariant(x - radius, Number).Append(' ').AppendInvariant(y, Number).Append(" c ");
                 output.AppendInvariant(x - radius, Number).Append(' ').AppendInvariant(y - k, Number).Append(' ').AppendInvariant(x - k, Number).Append(' ').AppendInvariant(y - radius, Number).Append(' ').AppendInvariant(x, Number).Append(' ').AppendInvariant(y - radius, Number).Append(" c ");
@@ -58,9 +59,10 @@ internal static class PdfPaintSerializer
     // One painted path per selected line is emitted for each measured run,
     // keeping Courier and embedded TrueType geometry consistent.
     internal static void AppendTextDecoration(StringBuilder output, PlacedText run,
-        int maxOutputBytes)
+        int maxOutputBytes, ref PdfAlphaStates alpha)
     {
-        if (run.Style.Decoration == TextDecoration.None || run.Width <= 0) return;
+        if (run.Style.Decoration == TextDecoration.None || run.Width <= 0 ||
+            (run.Style.DecorationColor ?? run.Style.Color).IsInvisible) return;
         var size = run.Style.FontSize;
         var thickness = run.Style.DecorationThickness ?? Math.Max(0.3, size * 0.06);
         foreach (var line in DecorationOrder)
@@ -81,7 +83,7 @@ internal static class PdfPaintSerializer
             {
                 // Keep the legacy opaque rectangle path byte-for-byte identical
                 // when neither new paint longhand is supplied.
-                output.Append("q ").AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ')
+                alpha.BeginPaint(output, c).AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ')
                     .AppendInvariant(c.B, Number).Append(" rg ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(y, Number)
                     .Append(' ').AppendInvariant(run.Width, Number).Append(' ').AppendInvariant(thickness, Number)
                     .Append(" re f Q\n");
@@ -93,7 +95,7 @@ internal static class PdfPaintSerializer
                 // no extension into neighbouring cells or outside the PDF panel.
                 if (run.Width < 0.001)
                     throw new FactsPdfException("FPDF1302", "Text decoration is too short to paint.", run.SourceOffset);
-                output.Append("q ").AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ')
+                alpha.BeginPaint(output, c).AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ')
                     .AppendInvariant(c.B, Number).Append(" RG ").AppendInvariant(thickness, Number).Append(" w ");
                 if (run.Style.DecorationPattern == TextDecorationPattern.Dashed)
                     output.Append('[').AppendInvariant(3 * thickness, Number).Append(' ')
@@ -115,7 +117,7 @@ internal static class PdfPaintSerializer
     }
 
     internal static void Append(StringBuilder output, IReadOnlyList<PaintedBox> boxes,
-        double pageHeight, int maxOutputBytes, CancellationToken cancellation)
+        double pageHeight, int maxOutputBytes, CancellationToken cancellation, ref PdfAlphaStates alpha)
     {
         foreach (var box in boxes.OrderBy(x => x.Order))
         {
@@ -129,11 +131,11 @@ internal static class PdfPaintSerializer
                 throw new InvalidOperationException("Invalid paint rectangle.");
             if (s.HasRoundedCorners)
             {
-                RoundedBox(output, box, pageHeight, maxOutputBytes);
+                RoundedBox(output, box, pageHeight, maxOutputBytes, ref alpha);
                 continue;
             }
             if (s.BackgroundColor.HasValue)
-                Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes, box.SourceOffset);
+                Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
 
             // Slice does not repeat horizontal borders on intermediate pages.
             // Short first/last fragments clip the border to their own bounds;
@@ -144,19 +146,19 @@ internal static class PdfPaintSerializer
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
                 Border(output, s.BorderTop, box.TextColor, x, y, width, top,
-                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset);
+                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
             if (bottom > 0)
                 Border(output, s.BorderBottom, box.TextColor, x, y + height - bottom, width, bottom,
-                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset);
+                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
             var middleTop = y + top;
             var middleHeight = Math.Max(0, height - top - bottom);
             if (left > 0)
                 Border(output, s.BorderLeft, box.TextColor, x, middleTop, left, middleHeight,
-                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset);
+                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
             if (right > 0)
                 Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
-                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset);
-            AppendOutline(output, box, pageHeight, maxOutputBytes);
+                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
+            AppendOutline(output, box, pageHeight, maxOutputBytes, ref alpha);
         }
     }
 
@@ -165,7 +167,7 @@ internal static class PdfPaintSerializer
     // Side strokes continue on every page; horizontal strokes are present
     // only on the first and last page fragment, respectively.
     private static void AppendOutline(StringBuilder output, PaintedBox box,
-        double pageHeight, int maxOutputBytes)
+        double pageHeight, int maxOutputBytes, ref PdfAlphaStates alpha)
     {
         var edge = box.Style.Outline;
         if (edge.EffectiveWidth <= 0 || box.Width <= 0 || box.Height <= 0) return;
@@ -178,7 +180,8 @@ internal static class PdfPaintSerializer
         if (!double.IsFinite(xLeft + xRight + yTop + yBottom))
             throw new FactsPdfException("FPDF1302", "Invalid report outline geometry.", box.SourceOffset);
         var ink = edge.Color ?? box.TextColor;
-        output.Append("q ").AppendInvariant(ink.R, Number).Append(' ').AppendInvariant(ink.G, Number).Append(' ')
+        if (ink.IsInvisible) return;
+        alpha.BeginPaint(output, ink).AppendInvariant(ink.R, Number).Append(' ').AppendInvariant(ink.G, Number).Append(' ')
             .AppendInvariant(ink.B, Number).Append(" RG ").AppendInvariant(thickness, Number).Append(" w ");
         if (edge.Pattern == BorderPattern.Dashed)
             output.Append('[').AppendInvariant(3 * thickness, Number).Append(' ')
@@ -239,7 +242,7 @@ internal static class PdfPaintSerializer
     // border ring. On continued boxes the top two radii belong only to the
     // first fragment; the bottom two belong only to the final fragment.
     private static void RoundedBox(StringBuilder output, PaintedBox box,
-        double pageHeight, int maxOutputBytes)
+        double pageHeight, int maxOutputBytes, ref PdfAlphaStates alpha)
     {
         if (box.Width <= 0 || box.Height <= 0) return;
         var style = box.Style;
@@ -270,9 +273,9 @@ internal static class PdfPaintSerializer
                 bottom ? style.CornerBottomLeftRadius : 0, w, h);
         }
 
-        if (style.BackgroundColor is Rgb bg)
+        if (style.BackgroundColor is Rgb { IsInvisible: false } bg)
         {
-            output.Append("q ").AppendInvariant(bg.R, Number).Append(' ').AppendInvariant(bg.G, Number).Append(' ')
+            alpha.BeginPaint(output, bg).AppendInvariant(bg.R, Number).Append(' ').AppendInvariant(bg.G, Number).Append(' ')
                 .AppendInvariant(bg.B, Number).Append(" rg ");
             RoundedPath(output, x, y, w, h, tl, tr, br, bl);
             output.Append("f Q\n");
@@ -283,7 +286,8 @@ internal static class PdfPaintSerializer
         var border = style.BorderLeft.EffectiveWidth;
         if (border <= 0 || style.BorderLeft.Transparent) return;
         var color = style.BorderLeft.Color ?? box.TextColor;
-        output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
+        if (color.IsInvisible) return;
+        alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
             .AppendInvariant(color.B, Number).Append(" rg ");
         RoundedPath(output, x, y, w, h, tl, tr, br, bl);
         var topInset = top ? Math.Min(border, h) : 0;
@@ -376,13 +380,14 @@ internal static class PdfPaintSerializer
     // side patterns restart on each retained page fragment (no CSS slice clone).
     private static void Border(StringBuilder output, BorderEdge edge, Rgb textColor,
         double x, double top, double width, double height, bool horizontal,
-        double pageHeight, int maxOutputBytes, int sourceOffset)
+        double pageHeight, int maxOutputBytes, int sourceOffset, ref PdfAlphaStates alpha)
     {
         if (width <= 0 || height <= 0 || edge.EffectiveWidth <= 0 || edge.Transparent) return;
         var color = edge.Color ?? textColor;
+        if (color.IsInvisible) return;
         if (edge.Pattern == BorderPattern.Solid)
         {
-            Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes, sourceOffset);
+            Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes, sourceOffset, ref alpha);
             return;
         }
         var stroke = horizontal ? height : width;
@@ -405,7 +410,7 @@ internal static class PdfPaintSerializer
             throw new InvalidOperationException("Invalid patterned border geometry.");
         if (SamePdfNumber(x1, x2) && SamePdfNumber(y1, y2))
             throw new FactsPdfException("FPDF1302", "Patterned border edge is too short to paint.", sourceOffset);
-        output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
+        alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
             .AppendInvariant(color.B, Number).Append(" RG ").AppendInvariant(stroke, Number).Append(" w ");
         if (edge.Pattern == BorderPattern.Dashed)
             output.Append('[').AppendInvariant(3 * stroke, Number).Append(' ').AppendInvariant(3 * stroke, Number).Append("] 0 d ");
@@ -425,11 +430,11 @@ internal static class PdfPaintSerializer
     }
 
     private static void Rect(StringBuilder output, Rgb color, double x, double top,
-        double width, double height, double pageHeight, int maxOutputBytes, int sourceOffset)
+        double width, double height, double pageHeight, int maxOutputBytes, int sourceOffset, ref PdfAlphaStates alpha)
     {
-        if (width <= 0 || height <= 0) return;
+        if (width <= 0 || height <= 0 || color.IsInvisible) return;
         var y = pageHeight - top - height;
-        output.Append("q ").AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
+        alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ')
             .AppendInvariant(color.B, Number).Append(" rg ").AppendInvariant(x, Number).Append(' ').AppendInvariant(y, Number)
             .Append(' ').AppendInvariant(width, Number).Append(' ').AppendInvariant(height, Number)
             .Append(" re f Q\n");

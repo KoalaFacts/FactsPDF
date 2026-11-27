@@ -32,7 +32,9 @@ scheduled task's prompt.
   size each item to merge within the run. Housekeeping is therefore due once per Sydney
   calendar day.
 - .NET 10 SDK: `curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir ~/.dotnet`,
-  then `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`.
+  then `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`. The tests also run on
+  `net8.0` and `net9.0`: add their runtimes with `--channel 8.0 --runtime dotnet` and
+  `--channel 9.0 --runtime dotnet` (same install dir).
 - Node 24 for `site/` and the TypeScript scripts; the existing Python `scripts/`
   tooling (for example `png_fixtures.py`) stays usable.
 - Fonts, images and environment traps: see `.claude/skills/verify-factspdf/SKILL.md`.

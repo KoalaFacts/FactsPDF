@@ -31,6 +31,7 @@ public sealed class WrapIteratorAllocationTests
     // reader iterator objects; 985 with the reader as a value (eb531d2). 873 once the line
     // iterator no longer holds a List enumerator and placing a line creates no charge delegate;
     // 385 once one line wrapper per thread is reused instead of a compiler iterator per paragraph.
+    [AllocationBudget]
     [Test]
     public void OneLineParagraphsAllocateNoGlyphReaderObjects()
     {

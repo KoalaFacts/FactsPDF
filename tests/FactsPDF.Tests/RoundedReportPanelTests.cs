@@ -87,7 +87,8 @@ public sealed class RoundedReportPanelTests
         string Drawing(PaintedBox box)
         {
             var builder = new StringBuilder();
-            PdfPaintSerializer.Append(builder, [box], Page.PageHeight, 20000, default);
+            var alpha = new PdfAlphaStates();
+            PdfPaintSerializer.Append(builder, [box], Page.PageHeight, 20000, default, ref alpha);
             return builder.ToString();
         }
         Assert.That(Drawing(painted[0]), Does.Contain(" c "));
@@ -190,7 +191,8 @@ public sealed class RoundedReportPanelTests
         Assert.That(Layout(asym).Single().Runs.Select(x => (x.X, x.Baseline)),
             Is.EqualTo(Layout(uniform).Single().Runs.Select(x => (x.X, x.Baseline))));
         var output = new StringBuilder();
-        PdfPaintSerializer.Append(output, [box], Page.PageHeight, 16000, default);
+        var alpha = new PdfAlphaStates();
+        PdfPaintSerializer.Append(output, [box], Page.PageHeight, 16000, default, ref alpha);
         var commands = output.ToString();
         Assert.That(commands.Split(" c ").Length - 1, Is.EqualTo(12),
             "Four distinct curves must be present in each background, outer ring and inner ring path.");
@@ -229,11 +231,12 @@ public sealed class RoundedReportPanelTests
         Assert.That(pages.Length, Is.GreaterThan(2));
         var boxes = pages.Select(p => p.PaintBoxes.Single()).ToArray();
         var first = new StringBuilder();
-        PdfPaintSerializer.Append(first, [boxes[0]], Page.PageHeight, 10000, default);
+        var alpha = new PdfAlphaStates();
+        PdfPaintSerializer.Append(first, [boxes[0]], Page.PageHeight, 10000, default, ref alpha);
         var middle = new StringBuilder();
-        PdfPaintSerializer.Append(middle, [boxes[1]], Page.PageHeight, 10000, default);
+        PdfPaintSerializer.Append(middle, [boxes[1]], Page.PageHeight, 10000, default, ref alpha);
         var last = new StringBuilder();
-        PdfPaintSerializer.Append(last, [boxes[^1]], Page.PageHeight, 10000, default);
+        PdfPaintSerializer.Append(last, [boxes[^1]], Page.PageHeight, 10000, default, ref alpha);
         Assert.That(first.ToString(), Does.Contain(" c "));
         Assert.That(middle.ToString(), Does.Not.Contain(" c "));
         Assert.That(last.ToString(), Does.Contain(" c "));

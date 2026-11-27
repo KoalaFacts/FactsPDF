@@ -9,6 +9,21 @@ internal sealed record PdfOptions
     public double PageHeight { get; init; } = 841.89;
     /// <summary>Margin on all four sides in points. Must be nonnegative and less than half the shorter page side. The default is 36pt.</summary>
     public double Margin { get; init; } = 36;
+    /// <summary>Per-side margins from a CSS <c>@page</c> rule whose sides differ; null uses <see cref="Margin"/> on every side.</summary>
+    internal PageMargins? SideMargins { get; init; }
+    /// <summary>The writer set the paper size or orientation explicitly (<see cref="PdfPageSetup"/>), so a CSS <c>@page</c> size must agree.</summary>
+    internal bool PageSizeExplicit { get; init; }
+    /// <summary>The writer set the margin explicitly (<see cref="PdfPageSetup.Margin"/>), so CSS <c>@page</c> margins must agree.</summary>
+    internal bool MarginExplicit { get; init; }
+    internal double MarginTop => SideMargins?.Top ?? Margin;
+    internal double MarginRight => SideMargins?.Right ?? Margin;
+    internal double MarginBottom => SideMargins?.Bottom ?? Margin;
+    internal double MarginLeft => SideMargins?.Left ?? Margin;
+    // Uniform margins keep the original single-subtraction expressions, so their output bytes are unchanged.
+    internal double ContentWidth => SideMargins is { } sides ? PageWidth - sides.Left - sides.Right : PageWidth - 2 * Margin;
+    internal double ContentHeight => SideMargins is { } sides ? PageHeight - sides.Top - sides.Bottom : PageHeight - 2 * Margin;
+    /// <summary>The left edge that centres <paramref name="width"/> on the page area, as CSS centre margin boxes are.</summary>
+    internal double CenterX(double width) => SideMargins is { } sides ? sides.Left + (ContentWidth - width) / 2 : (PageWidth - width) / 2;
     /// <summary>Optional PDF Info document title; null omits the field.</summary>
     public string? Title { get; init; }
     /// <summary>Optional PDF Info author (visible to PDF recipients).</summary>
@@ -61,15 +76,18 @@ internal sealed record PdfOptions
     public int MaxCssSelectors { get; init; } = 4_096;
     /// <summary>Maximum number of CSS declarations.</summary>
     public int MaxCssDeclarations { get; init; } = 32_768;
-    /// <summary>Work budget for matching selectors against elements and cascading values.</summary>
+    /// <summary>Work budget for matching selectors against elements, cascading values and substituting var().</summary>
     public int MaxCssMatchOperations { get; init; } = 5_000_000;
-    /// <summary>Maximum number of CSS syntax nodes (tokens, blocks and components) parsed.</summary>
+    /// <summary>Maximum number of CSS syntax nodes (tokens, blocks and components) parsed, and held by any value after var() substitution.</summary>
     public int MaxCssSyntaxNodes { get; init; } = 131_072;
-    /// <summary>Maximum nesting depth of CSS blocks and functions.</summary>
+    /// <summary>Maximum nesting depth of CSS blocks and functions, and of chained var() references.</summary>
     public int MaxCssSyntaxDepth { get; init; } = 64;
     /// <summary>Upper bound of text and primitive box paint operations, all pages.</summary>
     public int MaxDisplayCommands { get; init; } = 200_000;
 }
+
+/// <summary>Page margins in points, one per side.</summary>
+internal readonly record struct PageMargins(double Top, double Right, double Bottom, double Left);
 
 /// <summary>Outcome of a successful <see cref="PdfWriter"/> write.</summary>
 /// <param name="PageCount">Number of pages in the generated PDF.</param>
