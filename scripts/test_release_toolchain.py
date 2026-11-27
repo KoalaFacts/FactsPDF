@@ -53,7 +53,7 @@ class ReleaseToolchainTests(unittest.TestCase):
             with (mock.patch.object(sys, 'argv', argv),
                   mock.patch.object(first_use, 'current_source', return_value='a' * 40),
                   mock.patch.object(first_use, 'expected_contract', return_value=('0.1.0-dev', 'net10.0')),
-                  mock.patch.object(first_use, 'validate_package', return_value={'assembly': b'synthetic-core'}),
+                  mock.patch.object(first_use, 'validate_package', return_value={'assemblies': {'net10.0': b'synthetic-core'}}),
                   mock.patch.object(first_use, 'build_environment', side_effect=inspect_before_dotnet)):
                 with self.assertRaises(ObservedStrictRoute):
                     first_use.main(strict_toolchain=True)
@@ -110,7 +110,7 @@ class ReleaseToolchainTests(unittest.TestCase):
             with (mock.patch.object(sys, 'argv', argv),
                   mock.patch.object(first_use, 'current_source', return_value='a' * 40),
                   mock.patch.object(first_use, 'expected_contract', return_value=('0.1.0-dev', 'net10.0')),
-                  mock.patch.object(first_use, 'validate_package', return_value={'assembly': b'synthetic-core'}),
+                  mock.patch.object(first_use, 'validate_package', return_value={'assemblies': {'net10.0': b'synthetic-core'}}),
                   mock.patch.object(first_use, 'validate_assets'),
                   mock.patch.object(first_use, 'validate_imports', return_value=['independent-import']),
                   mock.patch.object(first_use, 'verify_package_bytes'),

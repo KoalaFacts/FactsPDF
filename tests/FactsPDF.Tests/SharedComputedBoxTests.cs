@@ -42,6 +42,7 @@ public sealed class SharedComputedBoxTests
         return (Read(2_000) - Read(1_000)) / 1_000.0;
     }
 
+    [AllocationBudget]
     [Test]
     public void ARepeatedBoxStyleIsNotCopiedAgain()
     {

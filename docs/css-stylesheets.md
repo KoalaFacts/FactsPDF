@@ -2,7 +2,7 @@
 
 Explicitly bounded `td/th` can declare `white-space`, `word-break` and `overflow-wrap` on the cell itself. Computed winners reach its anonymous text and flat `p` by inheritance; child paragraphs can override or reset them. Measured column content widths and existing `TextLines.Wrap` produce real PDF spaces, glyph positions, wraps, repeat headers and page breaks, rather than silently accepting declarations. This removes the need to insert a styled `p` in every table cell of a commercial report.
 
-Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word`. No break-spaces/keep-all/anywhere, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
+Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word/anywhere`. No break-spaces/keep-all, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
 
 A [24-row real report](../examples/report-cell-text-flow.html) and independent [paragraph-style control](../examples/report-cell-text-flow-oracle.html) are covered by [NUnit geometry, multipage, cascade and recovery tests](../tests/FactsPDF.Tests/TableCellTextFlowTests.cs). Engine source [19c6e35eb2987aa84fc7b5ff16b2ccad57630c60](https://github.com/KoalaFacts/FactsPDF/commit/19c6e35eb2987aa84fc7b5ff16b2ccad57630c60); exact CI, independent review, main verification and release are distinct. All three Can I Render records remain partial.
 
@@ -42,8 +42,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos,
-sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, pseudos
+other than `:root`, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -273,10 +273,12 @@ blocks still affect earlier document content.
 Both media types are active in this PDF-only renderer. All unsupported
 at-rules, `screen`, comma lists, expressions such as `(min-width:600px)`,
 nested media and at-rule blocks or loose declarations inside a media block
-fail `FPDF1204`, rather than silently being skipped. Invalid or
+fail `FPDF1204`, rather than silently being skipped; `@keyframes` (validated
+and dropped) and `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes))
+are the only at-rules allowed inside. Invalid or
 unsupported declarations in an unmatched nested selector still fail
 `FPDF1202`. No media feature evaluation, browser screen rendering,
-CSS `@page`, user-origin cascade, automatic fetching or full CSS Media
+user-origin cascade, automatic fetching or full CSS Media
 Queries is implied.
 
 The [44-entry printable register](../examples/report-print-media.html) and
@@ -286,6 +288,99 @@ negative input and output recovery. NUnit: `PrintMediaReportTests.cs`.
 Source implementation [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403).
 Exact-head CI and independent review, private software, licensing,
 human reference approval and publication are separate gates.
+
+## CSS `@page`: paper, margins and margin boxes
+
+An embedded `<style>` may hold `@page { ... }` at top level or inside
+`@media print`/`@media all`. Every `@page` rule applies to every page; its
+declarations cascade by `!important` and then source order, like element
+rules, and count toward the CSS declaration budget.
+
+```css
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1cm;
+    @bottom-center { content: counter(page) ' / ' counter(pages); font-size: 0.8em; }
+  }
+}
+@page { @bottom-center { content: none; } } /* a later rule removes the footer */
+```
+
+| Declaration | Accepted values |
+| --- | --- |
+| `size` | `auto`; a page-size keyword `A5`, `A4`, `A3`, `B5`, `B4`, `JIS-B5`, `JIS-B4`, `letter`, `legal`, `ledger` (ASCII case-insensitive), with or without `portrait`/`landscape` in either order; `portrait` or `landscape` alone, which turns the writer's paper; one length (square) or two lengths (width height) in `pt`, `px`, `mm`, `cm`, `in`, `pc` or `q`, each side 72–14400pt |
+| `margin`, `margin-top`, `margin-right`, `margin-bottom`, `margin-left` | A nonnegative length in `pt`, `px`, `mm`, `cm`, `in`, `pc`, `q`, `em` or `rem` (both relative to the html element's font size); `initial`, `unset`, `inherit` or `revert` keep the writer's margin on that side |
+| `@top-left`, `@top-center`, `@top-right`, `@bottom-left`, `@bottom-center`, `@bottom-right` | Page-margin boxes holding only declarations |
+| `content` (in a margin box) | `none` or `normal` (no box); otherwise a sequence of strings, `counter(page)` and `counter(pages)` (optionally `, decimal`) |
+| `color`, `font-size`, `font-weight`, `font-style`, `font-family` (in a margin box) | The values and errors the body accepts; `font-family` is validated and dropped, since fonts come from the writer's font chains |
+
+`A4` and `letter` are exactly the writer's `A4()` (595.28 × 841.89pt) and
+`Letter()` (612 × 792pt); the other keywords are their exact millimetre or inch
+sizes. A side that `@page` does not set keeps the writer's margin (36pt by
+default). Different sides are real asymmetric margins: the body starts at the
+left and top margins, wraps in the page width minus both side margins and
+paginates in the height between the top and bottom margins.
+
+Margin boxes are the [structured page furniture](page-furniture-cli.md) under
+another name: `@top-left`/`center`/`right` are `HeaderLeft`/`Center`/`Right`
+and the bottom boxes the footer regions, with the same single-line, glyph,
+clearance and collision rules (`FPDF1302`, `FPDF1305`). As in
+Chrome, the page context inherits from the `html` element: a margin box takes
+the html element's computed font size, colour, weight and style, and `em`, `%`
+and `larger`/`smaller` font sizes are relative to it. Left boxes start at the
+left margin, right boxes end at the right margin and centre boxes centre on the
+page area between the side margins; each band is centred vertically in its
+margin. Strings keep `{` and `}` literally; spaces collapse like normal white
+space. A box whose content is longer than 1024 UTF-16 units fails `FPDF1001`.
+
+Writer options never lose silently to `@page`, and `@page` never overrides
+them silently:
+
+- An explicit writer page size (`WithPage(p => p.Size/A4/Letter/Landscape/Portrait)`,
+  or the CLI's `--page-size`, `--landscape`, `--page-width`/`--page-height`)
+  together with a non-`auto` `@page` size must give the same paper, or the
+  conversion fails `FPDF1206`. The same holds for an explicit writer margin
+  (`p.Margin(...)`, `--margin`) and each margin side `@page` sets. A writer
+  option the page rule does not set still applies.
+- Margin boxes with content cannot be combined with writer page furniture,
+  page numbers or header/footer text (`WithPageFurniture`, `WithPageNumbers`,
+  `WithHeaderText`, `WithFooterText`, `--page-furniture`, `--page-numbers`,
+  `--header-text`, `--footer-text`): `FPDF1206`. When the cascade leaves every
+  box at `content:none`, writer page text applies normally.
+- Without page options the CLI sets none, so a template's `@page` decides; the
+  writer's defaults (A4, 36pt) apply to whatever `@page` leaves unset.
+
+Page selectors (`:first`, `:left`, `:right`, `:blank`) and named pages fail
+`FPDF1204`, as do the corner and side margin boxes (`@top-left-corner`,
+`@left-middle` and the others), other at-rules or nested rules inside `@page`,
+and `@page` inside `@media screen`. Other properties in `@page` (`padding`,
+`bleed`, `marks`, logical margins) or in a margin box (`text-align`,
+`vertical-align`, `width`, borders) fail `FPDF1201`. Other `size` forms,
+percentage or `auto` margins, margins that leave no page area, `counter()` of
+any other counter or style, `counters()`, `attr()`, `string()` and other
+content values fail `FPDF1202`. `CssPageRuleTests.cs` pins byte equality with
+the equivalent writer options and furniture, cascade, inheritance, geometry,
+precedence and every failure.
+
+Measured against Chrome 156 printing the same synthetic pages through
+Playwright `page.pdf({ preferCSSPageSize: true })`: Chrome rounds the page box
+to 1/300 inch, so its A4 is 594.96 × 841.92pt (FactsPDF 595.28 × 841.89), its
+A5 landscape 594.96 × 420pt (595.276 × 419.528) and 150mm × 100mm 425.04 ×
+282.96pt (425.197 × 283.465). Body and margin-box edges sit within 0.35pt of
+Chrome (Chrome snaps them to whole CSS pixels: a 1cm left margin starts text at
+28.50pt, FactsPDF 28.35pt). With Arial supplied to FactsPDF and named on the
+html element for Chrome, a 9.6pt `@bottom-center` in a 1cm margin has its
+baseline 10.74pt above the page edge (Chrome 10.92pt); 12pt top boxes in a
+20mm margin sit 32.42pt below the top edge (Chrome 32.25pt), a 9pt bottom box
+in a 25mm margin 32.22pt above the bottom edge (Chrome 33.00pt) and a 15pt bold
+top box in a 1cm margin 19.27pt below the top (Chrome 18.75pt): FactsPDF
+centres line height 1.2 and the font's declared glyph box, Chrome its
+line-height-normal box. Chrome draws margin boxes in the html element's
+`font-family` (Times when none is set); FactsPDF uses the writer's font chains.
+Without an `@page` margin Chrome uses the print call's margins (Playwright's
+default 0, which also leaves margin boxes no room); FactsPDF uses the writer's
+margin.
 
 ## LTR logical border component longhands (source-only)
 
@@ -880,7 +975,7 @@ resource limits and invalid values. That is scoped engineering evidence,
 
 ## Current-source inherited report text flow
 
-Existing bounded `overflow-wrap:normal|break-word`,
+Existing bounded `overflow-wrap:normal|break-word|anywhere`,
 `word-break:normal|break-all` and nonnegative `text-indent` may now be
 declared on `html`, `body` and ordinary `div`/`section`/`article`/`blockquote`
 report containers outside list/table structures. The computed values inherit
@@ -898,7 +993,7 @@ not indent again. Direct `text-indent` on the cell paragraph and CSS
 declarations on table/list structural elements or inline spans still reject
 with `FPDF1201`. Unsupported words/units and unfit glyph geometry keep the
 existing `FPDF1202/1302` protection. This does not implement general
-CSS Text, `word-break:keep-all`, `overflow-wrap:anywhere`, RTL or complex
+CSS Text, `word-break:keep-all`, RTL or complex
 Unicode shaping. The independent HTML-to-PDF coordinate, byte and
 failure-recovery tests are in
 [`InheritedReportTextFlowTests.cs`](../tests/FactsPDF.Tests/InheritedReportTextFlowTests.cs).
@@ -1269,13 +1364,16 @@ No new release or human page approval is implied.
 `.report-table tr{break-inside:avoid;page-break-inside:avoid}`. A table row
 that fits a fresh page fragment with the repeated header already moves whole,
 and the header never splits, so the page renders byte-identical to the page
-without the declaration. A kept row that FactsPDF would split fails
-`FPDF1302` at the row: a row taller than a fresh fragment with its header, a
-first body row split only to carry the table's top padding/border (or the
-leading decoration of its container), and a last row split only to carry the
-table's bottom padding/border. A browser would move such a row to a fresh
-page or break before it instead. Rows without the declaration keep splitting
-as described in [tables](tables.md#long-descriptions-across-pages).
+without the declaration. A kept row that FactsPDF must split (taller than a
+fresh fragment with its header, or a first body row split only to carry the
+table's top padding/border or its container's leading decoration) breaks before
+itself as Chrome does, or before the whole table when it is the first body row,
+and then continues from the fresh page at line boundaries; where it already
+starts where a fresh page would put it, it splits like the row without the
+declaration. A kept last row split only to carry the table's bottom
+padding/border fails `FPDF1302` at the row, because Chrome keeps it whole and
+paints that decoration past the page bottom. Rows without the declaration keep
+splitting as described in [tables](tables.md#long-descriptions-across-pages).
 `tbody`, `tfoot`, `td`, `th` and `table` still fail `FPDF1201`;
 `avoid-page`, `avoid-column` and other values fail `FPDF1202`
 (`TableRowBreakInsideTests.cs`).
@@ -1362,13 +1460,28 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Selector lists | `h1, h2, p.note` |
 | Descendants | `.report p`, `.report .accent` |
 | Direct children | `.report > p`, mixed child/descendant chains |
+| Root pseudo-class | `:root`, `:root p`, `:root > body`, `html:root` |
 | Inline declarations | Existing `style="..."` attributes with the same supported values |
 
 HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. CSS identifiers in this increment are ASCII; escaped and non-ASCII selector syntax is rejected. A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import`, `@media`, `@page` or other at-rules are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Attribute/sibling/pseudo selectors, nesting, escapes, custom properties and functions remain unsupported. Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes and selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
+
+`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` element has no root element in FactsPDF's tree, so `:root` matches nothing there, exactly like `html{}`. Every other pseudo-class or pseudo-element (`:hover`, `:first-child`, `::before`, `:not()`) still fails with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+
+## Custom properties and var()
+
+A declaration whose name starts with two dashes (`--brand-700: #b3261e`) is a custom property. It is accepted on every element, in stylesheets and `style` attributes, with any value; the name is case-sensitive (`--Brand` and `--brand` differ), `--` alone is not a name (`FPDF1201`), and its value is the declared token sequence with leading and trailing white space trimmed (it may be empty: `--none:;`). Custom properties cascade by name like other declarations (`!important`, style attribute, specificity, source order), are inherited by default, and accept `initial` (the guaranteed-invalid value), `inherit` and `unset` (both the parent's value); `revert` and `revert-layer` fail `FPDF1202`.
+
+`var(--name)` and `var(--name, fallback)` may appear in the value of every supported property, including shorthands (`padding: 0 var(--space-6)`, `border-top: 2px solid var(--brand)`, `margin: var(--space-10) 0`), inside functions (`rgb(var(--r), 20, 30)`), with `!important`, and in custom properties (`--brand: var(--red-700)`). The function name is ASCII case-insensitive. For each element a declaration applies to, references are substituted with the element's computed custom properties (a custom property's own references are resolved first, in dependency order), the fallback is used when the referenced property has no value, and the substituted value is then parsed and checked exactly as the same literal value would be: the page renders byte-identical to the page with every `var()` written out ([example](../examples/report-custom-properties.html), [literal oracle](../examples/report-custom-properties-oracle.html), `CustomPropertyTests.cs`). A shorthand with `var()` expands into its longhands after substitution, at the shorthand's place in the cascade. `var()` in SVG presentation attributes, selectors or at-rule preludes is not supported.
+
+Syntax is checked while the stylesheet is parsed: a `var()` that is not `var(--name)` or `var(--name, fallback)` (`var(brand)`, `var(--a --b)`, `var()`) fails `FPDF1202` even in an unmatched rule, and an unsupported property still fails `FPDF1201` first. The rest of a value holding `var()` can only be checked after substitution, so an unmatched rule's value is not checked.
+
+**Invalid at computed-value time (decision).** A browser treats a declaration as unset when, after substitution, a reference has no value and no fallback (undefined, `initial`, part of a cycle, or itself invalid), the result is a CSS-wide keyword, or the property rejects the substituted value. FactsPDF fails instead, with `FPDF1202` (or the code the literal value would get, such as `FPDF1201` for padding on inline text) at the declaration that holds `var()`, and the message names the reference or shows the substituted value. Reason: the renderer already rejects invalid and inapplicable values that browsers drop, including in losing declarations, instead of rendering something that differs from the author's intent; silently unsetting would render a page that differs from the literal stylesheet without saying so. Like every other matched declaration, a losing declaration is substituted and checked too. What browsers handle without any visible effect is accepted: a custom property that is never used, an unused reference cycle, and a custom property that is invalid but only referenced with a fallback (the fallback applies, as in a browser).
+
+Limits (`FPDF1205`): each value after substitution (a custom property's computed value or a property value) holds at most `MaxCssSyntaxNodes` syntax nodes, a chain of references between custom properties is at most `MaxCssSyntaxDepth` deep, and every component placed by a substitution is charged to `MaxCssMatchOperations`. A doubling chain (`--b: var(--a) var(--a)`, `--c: var(--b) var(--b)`, …) therefore fails quickly with bounded memory instead of growing exponentially.
 
 ## Cascade and inheritance
 
@@ -2230,7 +2343,7 @@ Neither establishes a published version or new installable candidate.
 | MaxCssCharacters | 262144 across embedded and decoded inline CSS, including comments |
 | MaxCssSelectors | 4096 selector arms, including comma groups and empty blocks |
 | MaxCssDeclarations | 32768 across embedded and inline declarations |
-| MaxCssMatchOperations | 5000000 charged candidates, matching steps and offered declarations |
+| MaxCssMatchOperations | 5000000 charged candidates, matching steps, offered declarations and components placed by `var()` substitution |
 
 Each selector is limited to 32 compounds with at most 32 simple terms per compound. Rightmost ID/class/type indices reduce unrelated candidates; mixed combinators use bounded dynamic programming over ancestry, not exponential backtracking. Parsing uses two HTML scans rather than a retained full DOM: lower retained tree scope is traded against a second scan. This is an architectural choice, not a benchmark result or a constant-memory guarantee.
 
@@ -2264,12 +2377,16 @@ its preceding collapsed space. Spaces still collapse, explicit `<br>` works
 and `white-space:nowrap` continues to prohibit automatic breaking.
 `overflow-wrap:normal` or omitted retains identical PDF drawing bytes.
 
-Only `normal`, `break-word` and single CSS-wide
-`inherit`/`initial`/`unset` values are accepted. The legacy `word-wrap` name is
+Only `normal`, `break-word`, `anywhere` and single CSS-wide
+`inherit`/`initial`/`unset` values are accepted. Per CSS Text 3, `anywhere`
+breaks exactly like `break-word` and differs only in min-content sizing;
+FactsPDF has no min-content sizing (table columns and boxes take explicit or
+containing-block widths), so `anywhere` wraps byte-for-byte like `break-word`
+in every context that accepts it (`OverflowWrapAnywhereTests.cs`). The legacy `word-wrap` name is
 an alias: it shares the `overflow-wrap` cascade slot (the later declaration
 wins), values and applicability. Explicit declarations on
 inline spans, unsupported container and table-element targets (ordinary report containers outside the table/list structure are now supported for inheritance),
-`anywhere`, `break-all`, hyphen insertion, grapheme/complex-script shaping
+`break-all`, hyphen insertion, grapheme/complex-script shaping
 and bidirectional text remain outside this scoped increment. A flat `p` inside
 a fixed-column table cell may opt in for its own text, but this does not add
 auto column widths or general table layout.

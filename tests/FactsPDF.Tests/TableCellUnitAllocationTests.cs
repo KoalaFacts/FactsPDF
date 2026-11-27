@@ -34,6 +34,7 @@ public sealed class TableCellUnitAllocationTests
     // Measured on main 53e7385: 4,873 bytes of layout per three-cell row with a unit object and a
     // list per cell; 4,633 with units as values in exact-size arrays; 3,961 on eb531d2 and 3,817
     // once the line iterator holds no List enumerator; 2,353 once the line wrapper is reused.
+    [AllocationBudget]
     [Test]
     public void OneLineCellsAllocateNoUnitObjectOrListOfTheirOwn()
     {

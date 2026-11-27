@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- The library also serves .NET 8 and .NET 9 apps; the CLI, tools and probes stay on the single
+         Directory.Build.props target. -->
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <IsAotCompatible>true</IsAotCompatible>
     <PackageId>FactsPDF</PackageId>
     <Description>Generate searchable business-report PDFs (invoices, inspection reports, quotes) from a controlled HTML and CSS subset, without a browser. Embedded TrueType fonts, tables, images, pagination and page numbers; no dependencies and Native AOT compatible.</Description>

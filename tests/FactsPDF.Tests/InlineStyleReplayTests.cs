@@ -35,6 +35,7 @@ public sealed class InlineStyleReplayTests
 
     // Main 38289de: 1,136 bytes per replayed 16-declaration block (16 replay objects of 32 bytes
     // plus their 152-byte array); with shared declarations and slots: 480.
+    [AllocationBudget]
     [Test]
     public void ReplayingAStyleAttributeAllocatesNoDeclarationPerElement()
     {

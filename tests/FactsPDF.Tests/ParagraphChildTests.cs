@@ -25,6 +25,7 @@ public sealed class ParagraphChildTests
 
     // Measured on top of Z6g2b2 (528 bytes per paragraph, including a 32-byte wrapper per
     // paragraph): 496 without the wrapper.
+    [AllocationBudget]
     [Test]
     public void ReadingAParagraphAllocatesNoWrapper()
     {

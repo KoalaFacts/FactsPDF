@@ -793,7 +793,7 @@ def main():
         bad, destination = temp / 'invalid.html', temp / 'prior.pdf'
         for html, code in (
             ("<p style='width:20pt;overflow-wrap:normal'>ABCDEFGHIJ</p>", b'FPDF1302'),
-            ("<p style='overflow-wrap:anywhere'>A</p>", b'FPDF1202'),
+            ("<p style='overflow-wrap:auto'>A</p>", b'FPDF1202'),
             ("<span style='overflow-wrap:break-word'>A</span>", b'FPDF1201'),
             ("<p style='font-size:100pt;width:20pt;overflow-wrap:break-word'>W</p>", b'FPDF1302')
         ):

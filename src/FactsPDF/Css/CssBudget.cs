@@ -4,6 +4,8 @@ internal sealed class CssBudget(PdfOptions options, CancellationToken token)
 {
     private long characters, selectors, declarations, work;
     internal CancellationToken Token => token;
+    /// <summary>Whether any compiled declaration is a custom property or holds var().</summary>
+    internal bool UsesVariables { get; set; }
     internal void Characters(int count, int offset)
     { token.ThrowIfCancellationRequested(); characters += count; Check(characters <= options.MaxCssCharacters, "CSS character budget exceeded.", offset); }
     internal void Selector(int offset)

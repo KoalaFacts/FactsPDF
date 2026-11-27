@@ -61,7 +61,7 @@ internal sealed record TextStyle
     public bool BreakAll { get; set; }
     /// <summary>word-break:break-word, which wraps like overflow-wrap:anywhere whatever overflow-wrap computes to.</summary>
     public bool BreakWordsByWordBreak { get; set; }
-    /// <summary>Whether a token too wide for a fresh line may break between glyphs (overflow-wrap or word-break:break-word).</summary>
+    /// <summary>Whether a token too wide for a fresh line may break between glyphs (overflow-wrap:break-word/anywhere or word-break:break-word).</summary>
     public bool EmergencyBreak => BreakWords || BreakWordsByWordBreak;
     public string? LinkUri { get; set; }
     public double? DecorationThickness { get; set; }
@@ -499,4 +499,8 @@ internal sealed class DocumentRoot
 {
     public BlockChildList Children { get; } = new();
     public bool HasLists { get; set; }
+    /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
+    public CssPageRules? PageRules { get; set; }
+    /// <summary>The html element's computed text style, which the page context inherits; null without an html element.</summary>
+    public TextStyle? RootStyle { get; set; }
 }

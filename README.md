@@ -2,7 +2,7 @@
 
 **Generate searchable business-report PDFs from HTML and CSS, without a browser.**
 
-FactsPDF is a .NET library (for .NET 10 and .NET 11) and command-line tool that turns a *controlled*
+FactsPDF is a .NET library (for .NET 8, 9, 10 and 11) and command-line tool that turns a *controlled*
 HTML/CSS template (an invoice, inspection report, quote or status summary)
 into a real PDF: selectable text, embedded TrueType fonts, vector borders and
 backgrounds, images, tables and page numbers. It does not start Chromium or any
@@ -34,9 +34,9 @@ limitations and the tests that prove it. Check it before you write a template.
 
 ## Quick start
 
-You need Git and any **.NET 10 SDK** (10.0.100 or later). The package targets `net10.0` and also runs
-in .NET 11 apps: CI checks a `net11.0` consumer on the .NET 11 GA SDK and runtime, and that every
-example renders the same bytes on both runtimes.
+You need Git and any **.NET 10 SDK** (10.0.100 or later). The package targets `net8.0`, `net9.0` and
+`net10.0` (the CLI is `net10.0` only) and also runs in .NET 11 apps: CI checks a `net11.0` consumer on
+the .NET 11 GA SDK and runtime, and renders every example twice on .NET 11 to check that the bytes repeat.
 
 ```sh
 git clone https://github.com/KoalaFacts/FactsPDF.git
@@ -147,7 +147,7 @@ A summary only. **For any specific property or value, look it up on
 
 | Area | Summary | Details |
 | --- | --- | --- |
-| HTML | Headings, paragraphs, `div`/`section`/`article`/`header`/`footer`/`main`/`nav`/`aside`/`hgroup`/`search` blocks, `span`, scoped clickable `a` links, `small`, `u`/`s`/`del`/`ins` edit marks, `code`/`kbd`/`samp`/`var`/`cite`/`dfn`/`abbr`/`time`/`data`/`q`/`bdi` inline text, inert `template` and `script` (dropped), head metadata (`meta` name/content, metadata `link`), `br`, `pre`, `blockquote`, `hr`, lists up to two levels (`ol`, `ul`, `menu`), tables, images | [Elements](docs/feature-notes.md#semantic-inline-change-marks-and-fine-print-source-only), [block tree](docs/block-box-tree.md) |
+| HTML | Headings, paragraphs, `div`/`section`/`article`/`header`/`footer`/`main`/`nav`/`aside`/`hgroup`/`search` blocks, `span`, scoped clickable `a` links, `small`, `u`/`s`/`del`/`ins` edit marks, `code`/`kbd`/`samp`/`var`/`cite`/`dfn`/`abbr`/`time`/`data`/`q`/`bdi` inline text, inert `template` and `script` (dropped), head metadata (`meta` name/content, metadata `link`, `base`), `br`, `pre`, `blockquote`, `hr`, lists up to two levels (`ol`, `ul`, `menu`), tables, images | [Elements](docs/feature-notes.md#semantic-inline-change-marks-and-fine-print-source-only), [block tree](docs/block-box-tree.md) |
 | CSS input | Inline `style` and embedded `<style>` rules (including `@media print`/`all` blocks) with documented selectors, specificity, `!important`, inheritance and `inherit`/`initial`/`unset` | [CSS contract](docs/css-stylesheets.md) |
 | Lengths | `pt px mm cm in pc q`, `%`, `em`, `rem` where documented | [Lengths and spacing](docs/feature-notes.md#lengths-margins-and-spacing) |
 | Colours | Hex, opaque `rgb()`/`rgba(…,1)`, `hsl()`, 148 named colours, `currentColor`; no transparency | [Colours](docs/feature-notes.md#colours) |
@@ -156,12 +156,12 @@ A summary only. **For any specific property or value, look it up on
 | Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
 | Tables | Fixed column widths, `colspan`, paragraph/image cells, repeated headers, long rows continuing across pages, cell `vertical-align` | [Tables](docs/tables.md) |
 | Pages | Automatic pagination, `break-before`/`break-after`/`break-inside`, heading keeps, headers/footers, page numbers, paper size, margins, PDF metadata | [Pages](docs/feature-notes.md#pages-pagination-and-document-properties) |
-| Runtime | .NET library and CLI; Linux and Windows x64 Native AOT are tested | [Build and verification](docs/development.md#native-aot-and-verification) |
+| Runtime | .NET library for `net8.0`, `net9.0` and `net10.0`, CLI for `net10.0`; Linux and Windows x64 Native AOT are tested. Output is byte-identical for the same input, options and .NET runtime version; different .NET versions may produce different bytes (for example in compressed streams: fonts, images, content streams) with the same rendered content, so byte parity is checked on .NET 10 | [Build and verification](docs/development.md#native-aot-and-verification) |
 
 ## What is not supported
 
 - Arbitrary webpages, JavaScript, external stylesheets or any network loading.
-- Flexbox, grid, floats, positioning and CSS Paged Media (`@page`).
+- Flexbox, grid, floats and positioning; CSS Paged Media beyond `@page` size, margins and the six top/bottom margin boxes.
 - Automatic table column widths, `rowspan` and nested tables.
 - System font discovery, CSS `font-family` matching, synthetic bold/italic,
   complex-script shaping, right-to-left and vertical text.
