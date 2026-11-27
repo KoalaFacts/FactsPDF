@@ -28,8 +28,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos,
-sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, pseudos
+other than `:root`, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -113,6 +113,10 @@ They also add `transition:all .2s ease` or `transition:none` to buttons, links a
 Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webkit-` spellings) accept a well-formed animation list, and a well-formed `@keyframes` / `@-webkit-keyframes` rule (one name; `from`, `to` or 0–100% keyframes holding declarations, at the top level or inside `@media print`) is dropped: a written PDF page shows no keyframe. Malformed animation values fail `FPDF1202` and malformed keyframes rules `FPDF1204` (`AnimationTests.cs`).
 
 Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behavior:none`, `-webkit-overflow-scrolling:touch` or `scrollbar-width:thin`. A PDF page never scrolls, so `scroll-behavior`, `overscroll-behavior` (and its `-x`/`-y`/`-inline`/`-block` longhands), `overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept one keyword and are dropped; other values fail `FPDF1202` (`ScrollOnlyPropertyTests.cs`). Docs and utility stylesheets offset anchored headings with `scroll-margin-top:4rem` or `scroll-padding-top:80px`; a PDF page is never scrolled to an anchor, so `scroll-margin` and `scroll-padding` with their side and axis longhands accept well-formed lengths (and `auto` or percentages for padding) and are dropped, while malformed values fail `FPDF1202`; carousel and slider CSS adds `scroll-snap-type:x mandatory`, `scroll-snap-align:start` and `scroll-snap-stop:always`, whose keywords are dropped the same way. Mobile resets add `-webkit-tap-highlight-color:transparent` (or `rgba(0,0,0,0)`), forms `accent-color`/`caret-color`, and app shells `scrollbar-color`/`scrollbar-gutter:stable`; these accept `auto`, their keywords or a well-formed colour, alpha included, and are dropped (`UiColourPropertyTests.cs`). Modern stylesheets also declare `color-scheme:light dark` and `forced-color-adjust:none`; a PDF page has no preferred or forced colour scheme, so well-formed values are dropped and malformed ones fail `FPDF1202` (`ColorSchemeHintTests.cs`).
+
+### The `:root` pseudo-class
+
+Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). Other pseudo-classes and pseudo-elements still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
 
 ### Print-only stylesheet rules for business reports (source-only)
 

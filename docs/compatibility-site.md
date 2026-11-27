@@ -644,9 +644,15 @@ place to say that the HTML `type` attribute is a presentational hint for `list-s
 so no count moves.
 The C# / .NET library row stays full; its limitation string is replaced in place to say that
 the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
-that compressed streams can differ between runtimes, with byte parity and hash pins
-authoritative on `net10.0` only, so no count moves.
+that output is byte-identical for the same input, options and .NET runtime version while
+different .NET versions may produce different bytes (for example compressed streams) with the
+same rendered content, with byte parity and hash pins authoritative on `net10.0` only, so no
+count moves.
+The pseudo-class row moves to partial for `:root` (the root `html` element, pseudo-class
+specificity); its own feature name, scope and limitation strings are replaced in place and the
+attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
+`FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`b2e20a2bf73e03a469ae4325d38bb21382a38f9663e75dbbcf3d7c02e5384293`; English
-layer `site/src/audit-english-runtime-targets.mjs`, ordered source-text
-SHA-256 `adc467128d19d0c2394c9012cd93209db227523bad5da9e1b82fe15f9541c644`.
+`3a0fd0e36cf2d0d1ebb172090e9bb020fcc735b173a432a8f1d829c65b7a5538`; English
+layer `site/src/audit-english-root-pseudo-class.mjs`, ordered source-text
+SHA-256 `cf4ff1dc6a955acf122bf49ed835dc2ffae7fc54835cde6a61420230ac3651f7`.
