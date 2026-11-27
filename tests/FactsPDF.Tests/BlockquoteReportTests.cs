@@ -39,11 +39,12 @@ public sealed class BlockquoteReportTests
         const string finish = "<p style='margin:0'>AFTER</p>";
         const string content = "<p style='margin:0'>A quoted service statement</p>";
         var actual = start + "<blockquote>" + content + "</blockquote>" + finish;
-        var oracle = start + "<div style='margin:8pt 24pt'>" + content + "</div>" + finish;
+        var oracle = start + "<div style='margin:12pt 30pt'>" + content + "</div>" + finish;
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
         var page = Layout(actual).Single();
         var quote = page.Runs.Single(run => run.Text.Contains("quoted"));
-        Assert.That(quote.X, Is.EqualTo(44).Within(0.000001));
+        // 20pt page margin + 6pt body margin + 30pt (40px) blockquote inset.
+        Assert.That(quote.X, Is.EqualTo(56).Within(0.000001));
         Assert.That(page.Runs.Select(run => run.Text),
             Is.EquivalentTo(new[] { "BEFORE", "A quoted service statement", "AFTER" }));
     }
@@ -107,7 +108,7 @@ public sealed class BlockquoteReportTests
             "<blockquote style='margin-top:inherit;margin-right:initial;margin-left:0'>" +
             "<p style='margin:0'>Inherited quote</p></blockquote></section>";
         const string oracle = "<section style='margin-top:13pt'>" +
-            "<div style='margin:13pt 0 8pt 0'><p style='margin:0'>Inherited quote</p></div></section>";
+            "<div style='margin:13pt 0 12pt 0'><p style='margin:0'>Inherited quote</p></div></section>";
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
     }
 

@@ -32,11 +32,14 @@ public sealed class ChildStackTests
     [TestCase(1_000, 1_000)]
     public void TheRootKeepsExactlyItsChildren(int paragraphs, int capacity)
     {
+        // The implied body is the root's only child and holds the paragraphs.
         var root = HtmlDocumentReader.ReadTree(Paragraphs(paragraphs), new PdfOptions(), default);
-        Assert.That(root.Children, Has.Count.EqualTo(paragraphs));
-        Assert.That(root.Children.Capacity, Is.EqualTo(capacity));
+        Assert.That(root.Children, Has.Count.EqualTo(1));
+        var body = (BlockNode)root.Children[0];
+        Assert.That(body.Children, Has.Count.EqualTo(paragraphs));
+        Assert.That(body.Children.Capacity, Is.EqualTo(capacity));
         for (var i = 0; i < paragraphs; i++)
-            Assert.That(((BlockNode)root.Children[i]).SourceOffset, Is.EqualTo(Paragraphs(i).Length));
+            Assert.That(((BlockNode)body.Children[i]).SourceOffset, Is.EqualTo(Paragraphs(i).Length));
     }
 
     [Test]
@@ -44,9 +47,10 @@ public sealed class ChildStackTests
     {
         const string html = "<div><p>A</p><div><p>B</p><p>C</p><p>D</p></div><p>E</p></div><p>F</p>";
         var root = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
-        Assert.That(root.Children, Has.Count.EqualTo(2));
-        Assert.That(root.Children.Capacity, Is.EqualTo(2));
-        var outer = (BlockNode)root.Children[0];
+        var body = (BlockNode)root.Children.Single();
+        Assert.That(body.Children, Has.Count.EqualTo(2));
+        Assert.That(body.Children.Capacity, Is.EqualTo(2));
+        var outer = (BlockNode)body.Children[0];
         Assert.That(outer.Children.Select(Name), Is.EqualTo(new[] { "p", "div", "p" }));
         Assert.That(outer.Children.Capacity, Is.EqualTo(3)); // 4 on main
         var inner = (BlockNode)outer.Children[1];
@@ -54,7 +58,7 @@ public sealed class ChildStackTests
         Assert.That(inner.Children.Capacity, Is.EqualTo(3));
         Assert.That(inner.Children.Select(Text), Is.EqualTo(new[] { "B", "C", "D" }));
         Assert.That(Text(outer.Children[2]), Is.EqualTo("E"));
-        Assert.That(Text(root.Children[1]), Is.EqualTo("F"));
+        Assert.That(Text(body.Children[1]), Is.EqualTo("F"));
     }
 
     [Test]
@@ -62,7 +66,7 @@ public sealed class ChildStackTests
     {
         const string html = "<div>Before <div style=\"display:none\"><p>X</p><div><p>Y</p></div></div>after<p>Z</p></div>";
         var root = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
-        var outer = (BlockNode)root.Children[0];
+        var outer = (BlockNode)((BlockNode)root.Children.Single()).Children[0];
         Assert.That(outer.Children, Has.Count.EqualTo(2));
         var resumed = (Paragraph)outer.Children[0];
         Assert.That(resumed.IsAnonymous, Is.True);

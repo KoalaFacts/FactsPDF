@@ -28,12 +28,13 @@ public sealed class HiddenBorderStyleTests
             Is.EqualTo(Render("<div style='background:#abc;border:4pt none red'>A</div>")));
 
     [Test]
+    // The table content width is 300 - 2*20 page margin - 2*6 body margin = 248pt.
     public void OneHiddenSideMatchesOneNoneSide()
     {
         Assert.That(Render("<div style='border:4pt solid red;border-left-style:hidden'>A</div>"),
             Is.EqualTo(Render("<div style='border:4pt solid red;border-left-style:none'>A</div>")));
-        Assert.That(Render("<style>td{border:1pt hidden #000}</style><table><colgroup><col style='width:260pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>"),
-            Is.EqualTo(Render("<style>td{border:1pt none #000}</style><table><colgroup><col style='width:260pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>")));
+        Assert.That(Render("<style>td{border:1pt hidden #000}</style><table><colgroup><col style='width:248pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>"),
+            Is.EqualTo(Render("<style>td{border:1pt none #000}</style><table><colgroup><col style='width:248pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>")));
     }
 
     [TestCase("outline:1pt hidden red")]

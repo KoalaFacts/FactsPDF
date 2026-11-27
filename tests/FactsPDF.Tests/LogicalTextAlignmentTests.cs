@@ -55,7 +55,7 @@ public sealed class LogicalTextAlignmentTests
         var expected = Layout(oracle).SelectMany(p => p.Runs).ToArray();
         Assert.That(actual.Select(r => r.X), Is.EqualTo(expected.Select(r => r.X)));
         var invoice = actual.First(r => r.Text.Contains("Invoice", StringComparison.Ordinal));
-        Assert.That(invoice.X, right ? Is.GreaterThan(50) : Is.EqualTo(18).Within(.001));
+        Assert.That(invoice.X, right ? Is.GreaterThan(50) : Is.EqualTo(18 + 6).Within(.001)); // page margin + 6pt body margin
     }
 
     [Test]
