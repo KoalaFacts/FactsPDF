@@ -640,7 +640,12 @@ The custom property / `var()` row moves to partial: custom properties cascade an
 fallback fails `FPDF1202` instead of being unset. Its scope and limitation strings are replaced in
 place and its stage becomes the existing `语义/渲染`, so the `仅语法可表示` stage it shared with the
 value-function row moves after that row's strings (partial 246, rejected 120; `FPDF1202`).
+The rendering-path CSS error recovery row (`syntax.recovery`) moves to partial: strict mode stays
+the default, and opt-in non-strict mode drops CSS that is invalid per the specifications as a
+browser does, while valid but unsupported CSS still fails. Its scope and limitation strings are
+replaced in place, its stage becomes the existing `语义/渲染`, and the `严格拒绝` stage only it used
+is replaced by its new evidence-level string (partial 247, rejected 119; `FPDF1201–1204`).
 Current dataset SHA-256:
-`6001cd06359f04e6e183aec74d1e46a513473aba573d2727f393d4ff2cbb31cf`; English
-layer `site/src/audit-english-custom-properties.mjs`, ordered source-text
-SHA-256 `779497d2cfb1426bfc6d8a0c6fec66b4c27ba0cb451cb0da0e0822a70954b733`.
+`1a3cda9ee581e2eef6f67ca61b4b1dfbc2aaf78dbebc1622fedcc7aa9a5bb645`; English
+layer `site/src/audit-english-non-strict-css.mjs`, ordered source-text
+SHA-256 `aef11b62ae75664f8a0372ff5b4b1884e9d689dba27a9c91469721cc785a5866`.

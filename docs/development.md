@@ -283,7 +283,8 @@ byte[] bytes = pdf.ToBytes("<h1>Example</h1><p>Hello PDF</p><img src=\"logo\">")
 | `WithMetadata(m => …)` | PDF Info `Title`, `Author`, `Subject`, `Keywords` |
 | `WithHeaderText`, `WithFooterText`, `WithPageNumbers` | Simple centred margin text; page numbers follow the footer as `text \| N` |
 | `WithPageFurniture(f => …)` | Six styled regions (`HeaderLeft` … `FooterRight`) with `{page}`/`{pages}`, plus `FirstPage(…)`; exclusive with the simple margin text |
-| `WithLimits(l => …)` | Every resource limit, such as `MaxPages`, `MaxElements`, `MaxOutputBytes` |
+| `WithLimits(l => …)` | Every resource limit, such as `MaxPages`, `MaxElements`, `MaxOutputBytes`, `MaxCssWarnings` |
+| `WithStrict(bool)`, `WithWarnings(handler)` | Strict CSS (default `true`) or non-strict CSS, which drops CSS invalid per the specifications as a browser does; the handler receives the `PdfWarnings` of each successful conversion ([contract](css-stylesheets.md#strict-and-non-strict-css)) |
 
 Each `With` method returns a new writer and leaves the original unchanged; invalid
 arguments fail immediately with `ArgumentException` naming the parameter. Outputs:

@@ -905,3 +905,16 @@ test('custom properties and var() are partial, failing instead of unsetting, in 
   assert.equal(englishFeature(data.features.find(x => x.id === 'functions.math')).stage, 'Syntax representation only');
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test('non-strict CSS recovery is partial and valid unsupported CSS still fails, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'syntax.recovery'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1201–1204');
+  assert.equal(row.stage, 'Semantics / rendering');
+  assert.match(row.scope, /WithStrict\(false\)/);
+  assert.match(row.scope, /--strict false/);
+  assert.match(row.limitations, /position:absolute, :hover, @page, display:flex/);
+  assert.match(row.limitations, /MaxCssWarnings/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
