@@ -634,7 +634,13 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+Translucent colours (`rgba()`/`hsla()` and slash alpha, `#rgba`/`#rrggbbaa`, `color:transparent`
+and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colour strings of the
+`color`, `background-color`, `background`, `border`, `border-color` (and its four sides),
+`outline` and `text-decoration` rows and of the `value.color.rgbfunc`, `value.color.alphahex`,
+`value.background.transparent`, `value.background.currentcolor`, `value.border.transparent` and
+`value.text.currentcolor` rows are replaced in place; every row stays partial, so no count moves.
 Current dataset SHA-256:
-`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
-layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
-SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
+`20b72b2cc90305b46bc695943f560836ab1fa330ee1658c17979b40641c4472f`; English
+layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
+SHA-256 `67b5be1a4ece3a838fa4a80620bab29db9678bb9085453df90e9dd5139e482f7`.

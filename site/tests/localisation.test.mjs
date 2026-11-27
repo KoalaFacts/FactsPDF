@@ -894,3 +894,21 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
 });
+
+test('translucent colours paint with PDF constant alpha, in English', async () => {
+  const { englishFeature } = await localisation();
+  const english = id => englishFeature(data.features.find(x => x.id === id));
+  for (const id of ['css.color', 'css.background-color', 'css.border', 'css.border-color', 'css.background']) {
+    const row = english(id);
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /clamped to 0–1, rounded to n\/255 as Chrome does and composited with PDF constant alpha/);
+    assert.doesNotMatch(row.limitations, /exactly 1 or 100%/);
+  }
+  assert.match(english('css.color').scope, /ExtGState \/ca and \/CA/);
+  assert.match(english('value.color.rgbfunc').scope, /rgba\(164,176,195,0\.2\)/);
+  assert.match(english('value.color.alphahex').scope, /0\/00 paints nothing/);
+  assert.match(english('value.border.transparent').limitations, /outline\/outline-color accept transparent and paint nothing/);
+  for (const id of ['css.color', 'css.outline', 'css.text-decoration', 'value.color.rgbfunc', 'value.color.alphahex',
+    'value.background.transparent', 'value.background.currentcolor', 'value.border.transparent', 'value.text.currentcolor'])
+    for (const field of ['scope', 'limitations', 'evidence_level']) assert.doesNotMatch(english(id)[field], han, field);
+});
