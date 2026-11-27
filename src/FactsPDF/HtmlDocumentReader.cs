@@ -7,14 +7,24 @@ internal static class HtmlDocumentReader
     // caption child turns into the user-agent centre (see ReadTree).
     private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box,
         int SourceOffset = -1, int ChildStart = 0, bool AlignStart = true);
-    private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
-    private static bool ListTag(string name) => name is "ol" or "ul" or "menu";
+    internal static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
+    internal static bool ListTag(string name) => name is "ol" or "ul" or "menu";
+
+    // The end tags the reader implies, shared with HtmlElementPositions so both build one tree.
+    // Before a start tag: a paragraph or block closes an open p (outside tables), an li an open li.
+    internal static bool StartClosesParagraph(string top, string name, bool inTable)
+        => !inTable && top == "p" && (ParagraphTag(name) || Container(name));
+    internal static bool StartClosesListItem(string top, string name) => name == "li" && top == "li";
+    // Before an end tag: a block's end tag closes an open p (outside tables), a list's an open li.
+    internal static bool EndClosesParagraph(string top, string name, bool inTable)
+        => !inTable && top == "p" && name != "p" && Container(name);
+    internal static bool EndClosesListItem(string top, string name) => ListTag(name) && top == "li";
     // header, footer, main, nav, aside, hgroup, search and figcaption are blocks with no user-agent style beyond
     // display:block, so they render exactly like div, section and article; figure renders like
     // blockquote (the HTML user-agent sheet gives both the same margins).
     // dl, dt and dd are blocks like div; dl adds the paragraph-like block margins and dd the start
     // indent of the HTML user-agent sheet (see CssStylesheets).
-    private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
+    internal static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
         or "main" or "nav" or "aside" or "hgroup" or "search" or "body" or "html" or "ol" or "ul" or "menu" or "li" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd";
     private static bool BoxTag(string name) => name is "img" or "svg" or "hr" or "table" or "col" or "td" or "th" or "caption"
         || ParagraphTag(name) || Container(name) && name != "html";
@@ -231,6 +241,7 @@ internal static class HtmlDocumentReader
         // Compile every source before computing styles: a later style block can affect earlier content.
         // The tokens are read once, here, and walked again below.
         var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
+        sheets.TrackPositions(tokens, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
         // The last shared th/caption default and its centred copy (see the user-agent centring below).
@@ -244,6 +255,9 @@ internal static class HtmlDocumentReader
         var anonymous = false;
         var elements = 0; var insideStyle = false; var baseSeen = false;
         SvgDocument? svg = null;
+        // html, head and body frames the HTML parser implied (HtmlImpliedElements): they are part of
+        // the tree selectors see, but no element or depth limit counts them.
+        var impliedOpen = 0; var impliedHead = false;
 
         // Where the innermost open block's children begin in the child stack (0 for the root).
         int ChildStart(int fromFrame)
@@ -333,7 +347,7 @@ internal static class HtmlDocumentReader
         {
             if (node.BoxStyle.DisplayBlock)
             {
-                if (stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
+                if (AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
                     throw new FactsPdfException("FPDF1101", name == "svg"
                         ? "An svg with display:block must be a standalone block outside paragraphs, inline elements and lists."
                         : "An img with display:block must be a standalone block outside paragraphs, inline elements and lists.", offset);
@@ -386,6 +400,9 @@ internal static class HtmlDocumentReader
                 continue;
             }
             var name = token.Value;
+            var implied = token is ImpliedHtmlToken;
+            if (implied && token.Kind == HtmlTokenKind.Start) { impliedOpen++; impliedHead |= name == "head"; }
+            else if (token.Kind == HtmlTokenKind.End && name == "head" && impliedHead) { impliedOpen--; impliedHead = false; }
             if (name == "style")
             {
                 if (ListTag(stack[^1].Name) || table is not null)
@@ -398,7 +415,7 @@ internal static class HtmlDocumentReader
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
                 if (!(stack[^1].Name is "#root" or "head" || Container(stack[^1].Name)))
                     throw new FactsPdfException("FPDF1101", "style must be at document, head or container level.", token.Offset);
-                if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
+                if (stack.Count - impliedOpen > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
                 insideStyle = true; continue;
             }
             if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
@@ -406,8 +423,8 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
-                if (table is null && stack[^1].Name == "p" && name != "p" && Container(name)) { Flush(); Pop(); }
-                if (ListTag(name) && stack[^1].Name == "li") { Flush(); Pop(); }
+                if (EndClosesParagraph(stack[^1].Name, name, table is not null)) { Flush(); Pop(); }
+                if (EndClosesListItem(stack[^1].Name, name)) { Flush(); Pop(); }
                 if (stack.Count == 1 || stack[^1].Name != name)
                     throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{name}'.", token.Offset);
                 if (TableMarkup.IsTag(name))
@@ -421,7 +438,7 @@ internal static class HtmlDocumentReader
                 if (name == "q") Add(Quote(stack, open: false, options), stack[^1].Style);
                 Pop(); continue;
             }
-            if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
+            if (!implied && ++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
             // A stylesheet link fails as an unsupported style source wherever it appears, before
             // any placement check.
             if (name == "link")
@@ -455,8 +472,8 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
             table?.CheckChild(stack[^1].Name, name, token.Offset);
-            if (table is null && (ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
-            if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
+            if (StartClosesParagraph(stack[^1].Name, name, table is not null)) { Flush(); Pop(); }
+            if (StartClosesListItem(stack[^1].Name, name)) { Flush(); Pop(); }
             if ((ParagraphTag(name) || Container(name)) && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name)))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
             if (ListTag(stack[^1].Name) && name != "li" || name == "li" && !ListTag(stack[^1].Name))
@@ -612,7 +629,7 @@ internal static class HtmlDocumentReader
                 continue;
             }
             if (name == "meta") continue;
-            path.Add(CssElement.From(token));
+            path.Add(CssElement.From(token, t));
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
@@ -628,7 +645,7 @@ internal static class HtmlDocumentReader
             };
             if (name == "html") { rootFontSize = style.FontSize; result.RootStyle = style; }
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
-            if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
+            if (stack.Count - impliedOpen > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             if (name == "table")
             {
                 Flush();
@@ -673,7 +690,11 @@ internal static class HtmlDocumentReader
             // `html`, head/title metadata and spans remain structural
             // inheritance/style contexts, never painted block boxes.
             BlockNode? box = null;
-            if (BoxTag(name) && table?.Cell is null)
+            // An implied body with no box declarations (box-sizing alone changes nothing without a
+            // width) adds no box, so a page without body tags keeps its read tree; a styled one paints
+            // and lays out like an explicit body.
+            if (BoxTag(name) && table?.Cell is null
+                && !(implied && boxStyle with { BorderBoxSizing = false } == BoxStyle.Initial))
             {
                 box = new BlockNode(name, style, boxStyle, token.Offset)
                 {

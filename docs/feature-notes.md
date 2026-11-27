@@ -28,8 +28,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos
-other than `:root`, sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, unsupported
+pseudo-classes, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -116,7 +116,39 @@ Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behav
 
 ### The `:root` pseudo-class
 
-Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). Other pseudo-classes and pseudo-elements still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
+Design-token stylesheets put their page-wide settings on `:root`. It matches the root `html` element and renders exactly like the same rule on `html`, with pseudo-class specificity (0,1,0) instead of a type selector's (0,0,1), so `:root{color:navy}` beats a later `html{color:maroon}`. It also works in compound and descendant selectors (`html:root`, `:root p`, `:root > body`). A page without an `html` tag matches through the implied `html` element. Pseudo-classes other than the structural ones and `:not()`, and pseudo-elements, still fail with `FPDF1203` ([sources and selectors](css-stylesheets.md#sources-and-selectors), `RootPseudoClassTests.cs`).
+
+### Structural pseudo-classes and :not()
+
+Report stylesheets stripe and edge their tables with
+`.table tbody tr:nth-of-type(even) td`, `tr:first-of-type` and
+`tr:last-of-type`, and hide separators with `.divider:not(:empty)`; each such
+rule failed the whole page with `FPDF1203`. `:first-child`, `:last-child`,
+`:only-child`, `:first-of-type`, `:last-of-type`, `:only-of-type`,
+`:nth-child()`, `:nth-last-child()`, `:nth-of-type()`, `:nth-last-of-type()`
+(`odd`, `even` and An+B), `:empty` and `:not()` with compound arguments now
+match the elements Chrome matches, with class-level specificity (`:not()` takes
+its most specific argument). Every element counts as a sibling, including
+`style` and the dropped `script` and `template`, and document-level content is
+counted where the HTML parser puts it. `:empty` treats whitespace as content,
+as Chrome does. The `of S` form, complex `:not()` arguments, other
+pseudo-classes, pseudo-elements and An+B values beyond ±1,000,000,000 fail
+`FPDF1203`; a matched rule's unsupported declaration still fails as
+before (`tr{background-color}` `FPDF1201`, `gap:1rem` `FPDF1202`)
+([exact contract](css-stylesheets.md#structural-pseudo-classes-and-not),
+`StructuralPseudoClassTests.cs`).
+
+### Implied html, head and body
+
+A page without `html`, `head` or `body` tags still has those elements, as the
+HTML parser builds them: `body > p`, `html body p`, `:root p` and
+`body{color:navy}` now match such a page (and content after `</body>`) as in
+Chrome, where before they silently matched nothing. `meta`, `link` and `base`
+before body content go into the implied `head` instead of failing `FPDF1101`.
+An implied `body` without box declarations adds no box, so unstyled pages render
+unchanged; a repeated or misplaced `html`/`head`/`body` tag with attributes
+fails `FPDF1101` ([exact contract](css-stylesheets.md#implied-html-head-and-body),
+`ImpliedDocumentElementTests.cs`).
 
 ### Custom properties and var()
 

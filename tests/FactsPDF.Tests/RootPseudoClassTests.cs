@@ -6,8 +6,8 @@ namespace FactsPDF.Tests;
 /// :root is the structural pseudo-class matching the document's root element, which in HTML is
 /// the html element. It renders exactly like the same declarations on html when specificity does
 /// not decide anything, counts as a pseudo-class (0,1,0) when it does, and composes with type,
-/// class, descendant and child selectors. Every other pseudo-class or pseudo-element still fails
-/// with FPDF1203.
+/// class, descendant and child selectors and with the structural pseudo-classes. Unsupported
+/// pseudo-classes and pseudo-elements fail with FPDF1203.
 /// </summary>
 [TestFixture]
 public sealed class RootPseudoClassTests
@@ -88,22 +88,33 @@ public sealed class RootPseudoClassTests
     }
 
     [Test]
-    public void RootWithoutAnHtmlElementMatchesLikeHtml()
+    public void RootWithoutAnHtmlTagMatchesTheImpliedHtml()
     {
-        // Without an html element no element is the root in FactsPDF's tree, exactly as html{} matches nothing.
+        // The HTML parser implies html, so :root and html{} both match it, as in Chrome.
         const string body = "<p>Paid</p>";
-        Assert.That(Pdf($"<style>:root{{color:#1f4e79}}</style>{body}"),
-            Is.EqualTo(Pdf($"<style>html{{color:#1f4e79}}</style>{body}")));
+        var root = Pdf($"<style>:root{{color:#1f4e79}}</style>{body}");
+        Assert.That(root, Is.EqualTo(Pdf($"<style>html{{color:#1f4e79}}</style>{body}")));
+        Assert.That(root, Is.EqualTo(Pdf($"<p style='color:#1f4e79'>Paid</p>")));
+        Assert.That(root, Is.Not.EqualTo(Pdf(body)));
     }
 
-    [TestCase(":hover{color:red}", "Expected a supported selector.")]
-    [TestCase(":first-child{color:red}", "Expected a supported selector.")]
-    [TestCase("p:first-child{color:red}", "Unsupported or malformed selector/combinator.")]
-    [TestCase("::before{color:red}", "Expected a supported selector.")]
-    [TestCase(":root::before{color:red}", "Unsupported or malformed selector/combinator.")]
-    [TestCase(": root{color:red}", "Expected a supported selector.")]
-    [TestCase(":not(p){color:red}", "Selector functions and nested components are not supported.")]
-    [TestCase(":rooted{color:red}", "Expected a supported selector.")]
+    [Test]
+    public void RootComposesWithStructuralPseudoClassesAndNot()
+    {
+        // html is the document's only element; :not(:root) is every other element.
+        Assert.That(Pdf(Document(":root:first-child:only-of-type{color:#1f4e79}")), Is.EqualTo(Pdf(Document("html{color:#1f4e79}"))));
+        Assert.That(Pdf(Document(":root:not(:root){color:#1f4e79}")), Is.EqualTo(Pdf(Document(""))));
+        Assert.That(Pdf(Document("p:not(:root){color:#1f4e79}")), Is.EqualTo(Pdf(Document("p{color:#1f4e79}"))));
+        Assert.That(Pdf(Document(":root > :last-child > p:first-of-type{color:#1f4e79}")),
+            Is.EqualTo(Pdf(Document("body > p:first-of-type{color:#1f4e79}"))));
+    }
+
+    [TestCase(":hover{color:red}", "Unsupported pseudo-class ':hover'.")]
+    [TestCase("::before{color:red}", "Pseudo-elements are not supported.")]
+    [TestCase(":root::before{color:red}", "Pseudo-elements are not supported.")]
+    [TestCase(": root{color:red}", "Expected a pseudo-class name adjacent to ':'.")]
+    [TestCase(":root(){color:red}", "Unsupported pseudo-class ':root()'.")]
+    [TestCase(":rooted{color:red}", "Unsupported pseudo-class ':rooted'.")]
     public void OtherPseudoClassesStillFail(string css, string message)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(Document(css)))!;

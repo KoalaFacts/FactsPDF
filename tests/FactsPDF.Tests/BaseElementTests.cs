@@ -33,8 +33,12 @@ public sealed class BaseElementTests
     public void BaseInHeadRendersAsIfAbsent(string element)
         => Assert.That(Pdf(Document(element)), Is.EqualTo(Pdf(Document(""))));
 
+    // Before any body content the HTML parser puts base into the implied head, as Chrome does.
+    [Test]
+    public void BaseBeforeBodyContentGoesIntoTheImpliedHead()
+        => Assert.That(Pdf("<base href=/><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
+
     [TestCase("<body><base href=/><p>A</p></body>", "FPDF1101")]
-    [TestCase("<base href=/><p>A</p>", "FPDF1101")]
     [TestCase("<p>A<base href=/></p>", "FPDF1101")]
     [TestCase("<head><title>T<base href=/></title></head><p>A</p>", "FPDF1101")]
     [TestCase("<head><base href=/></base></head><p>A</p>", "FPDF1101")]

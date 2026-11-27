@@ -49,6 +49,21 @@ internal sealed class CssStylesheets
         Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
+    // Whether a selector reads sibling positions or emptiness, and the script and template elements
+    // collection dropped (each with the token index it preceded), which still count as siblings.
+    private bool usesStructure;
+    private List<(int Token, string Name)>? dropped;
+
+    /// <summary>The document's element positions, built by <see cref="TrackPositions"/> only when a
+    /// selector needs them.</summary>
+    internal HtmlElementPositions? Positions { get; private set; }
+
+    /// <summary>Builds <see cref="Positions"/> from the collected tokens when a selector uses a
+    /// structural pseudo-class.</summary>
+    internal void TrackPositions(List<HtmlToken> tokens, CancellationToken cancellation)
+    {
+        if (usesStructure) Positions = HtmlElementPositions.Build(tokens, dropped, cancellation);
+    }
     // Custom property and var() declarations an element matched, kept until every other declaration
     // has been offered: custom properties cascade by name, then each var() declaration is compiled
     // against the element's computed custom properties and offered at its own cascade position.
@@ -92,14 +107,16 @@ internal sealed class CssStylesheets
         var depth = new HtmlDocumentReader.OpenElements(options.MaxDepth);
         // Sized once instead of doubling past the pooled capacity (each doubling copies every
         // reference so far). Within the element limit, so an input that fails it early pays for
-        // no more slots than it may hold.
-        tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2));
+        // no more slots than it may hold. Up to four more hold the html, head and body tags the HTML
+        // parser implies (HtmlImpliedElements).
+        tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2) + 4);
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
         var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
         // A style element whose type is not CSS is not a stylesheet: non-strict mode ignores its text.
         var ignoredStyle = false;
+        var shape = new HtmlImpliedElements();
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -118,7 +135,12 @@ internal sealed class CssStylesheets
                 // A declarative shadow root is rendered by browsers, so dropping it would lose content.
                 if (item.Attributes!.ContainsKey("shadowrootmode"))
                     throw new FactsPdfException("FPDF1103", "Declarative shadow DOM (template shadowrootmode) is not supported.", item.Offset);
-                if (templates++ == 0) templateOffset = item.Offset;
+                if (templates++ == 0)
+                {
+                    templateOffset = item.Offset;
+                    shape.Dropped(tokens, "template");
+                    (sheet.dropped ??= []).Add((tokens.Count, "template"));
+                }
                 continue;
             }
             if (templates > 0)
@@ -144,14 +166,16 @@ internal sealed class CssStylesheets
                 // would start a new column group; dropping the script would shift the columns.
                 if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
                 insideScript = true;
+                shape.Dropped(tokens, "script");
+                (sheet.dropped ??= []).Add((tokens.Count, "script"));
                 continue;
             }
-            tokens.Add(item);
+            var kept = shape.Add(tokens, item);
             if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title")
                 insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
             else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
                 insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
-            if (item.Kind == HtmlTokenKind.End) depth.Read(item);
+            if (item.Kind == HtmlTokenKind.End && kept) depth.Read(item);
             if (item.Kind == HtmlTokenKind.End && item.Value == "style") ignoredStyle = false;
             if (item.Kind == HtmlTokenKind.StyleText && ignoredStyle) ignoredStyle = false;
             else if (item.Kind == HtmlTokenKind.StyleText)
@@ -162,7 +186,7 @@ internal sealed class CssStylesheets
             else if (item.Kind == HtmlTokenKind.Start)
             {
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
-                depth.Read(item);
+                if (kept) depth.Read(item);
                 if (item.Value == "style") ignoredStyle = ValidateStyleElement(item, sheet.budget.Warnings);
                 else if (item is StyledHtmlToken styled)
                 {
@@ -173,6 +197,7 @@ internal sealed class CssStylesheets
             }
         }
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
+        shape.Finish(tokens);
         return sheet;
     }
     /// <summary>
@@ -424,6 +449,7 @@ internal sealed class CssStylesheets
                 ruleContents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
             foreach (var selector in selectors)
             {
+                usesStructure |= selector.UsesStructure;
                 var entry = new Rule(selector, declarations);
                 var last = selector.Rightmost;
                 if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
@@ -754,7 +780,7 @@ internal sealed class CssStylesheets
             foreach (var rule in rules)
             {
                 budget.Work(rule.Selector.Offset);
-                if (!rule.Selector.Matches(path, budget)) continue;
+                if (!rule.Selector.Matches(path, budget, Positions)) continue;
                 foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity);
             }
         }

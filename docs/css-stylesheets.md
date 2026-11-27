@@ -42,8 +42,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos
-other than `:root`, sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, unsupported
+pseudo-classes, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -1461,15 +1461,72 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Descendants | `.report p`, `.report .accent` |
 | Direct children | `.report > p`, mixed child/descendant chains |
 | Root pseudo-class | `:root`, `:root p`, `:root > body`, `html:root` |
+| Structural pseudo-classes | `tr:nth-of-type(even)`, `li:first-child`, `p:last-of-type`, `.divider:empty` ([contract](#structural-pseudo-classes-and-not)) |
+| Negation | `.divider:not(:empty)`, `p:not(.note, #summary)` (compound arguments only) |
 | Inline declarations | Existing `style="..."` attributes with the same supported values |
 
 HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. CSS identifiers in this increment are ASCII; escaped and non-ASCII selector syntax is rejected. A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, pseudo-elements, nesting, escapes and selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
+No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements, nesting, escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
-`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` element has no root element in FactsPDF's tree, so `:root` matches nothing there, exactly like `html{}`. Every other pseudo-class or pseudo-element (`:hover`, `:first-child`, `::before`, `:not()`) still fails with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` tag has the implied `html` element as its root, so `:root` matches it there too, exactly like `html{}` (see [implied html, head and body](#implied-html-head-and-body)). `:root` composes with the structural pseudo-classes and `:not()` (`:root:first-child`, `:not(:root)`); other pseudo-classes and pseudo-elements (`:hover`, `::before`) still fail with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+
+### Structural pseudo-classes and :not()
+
+`:first-child`, `:last-child`, `:only-child`, `:first-of-type`, `:last-of-type`,
+`:only-of-type`, `:nth-child()`, `:nth-last-child()`, `:nth-of-type()`,
+`:nth-last-of-type()`, `:empty` and `:not()` match as Chrome matches them
+(`StructuralPseudoClassTests.cs`), so report stylesheets can write zebra rows
+(`.table tbody tr:nth-of-type(even) td`) and first/last row rules.
+
+- Names are ASCII case-insensitive and count as one class in specificity.
+  `:not()` takes the specificity of its most specific argument, so
+  `p:not(.a, #b)` is (1,0,1).
+- The nth arguments use the CSS Syntax An+B grammar: `odd`, `even`, `B`, `An`
+  and `An+B`, with its sign and whitespace rules (`2n + 1` and `-n+3` are valid,
+  `- n+3`, `+ n` and `2n+ +1` fail). Values beyond ±1,000,000,000 fail: Chrome
+  stops matching some valid selectors near the 32-bit limits. The `of S` form
+  fails.
+- Every element counts as a sibling, as in the browser's DOM: `style`, `br`,
+  `hr`, `col`, and `script` and `template` elements that are dropped before
+  rendering. Implied `p` and `li` end tags close siblings as the HTML parser
+  does, and the [document structure](#implied-html-head-and-body) is the one
+  the HTML parser builds.
+- `:empty` matches an element with no child element and no text. As in Chrome,
+  whitespace-only text is content and a comment is not; the line feed the HTML
+  parser drops after `<pre>` does not count.
+- `:not()` takes a list of compound selectors (`:not(.a, p.b:first-child)`,
+  `:not(:root)`, nested `:not()` up to 32 levels and 32 arguments, `FPDF1205`
+  beyond). A combinator inside it fails, although Chrome accepts complex
+  arguments.
+
+Matching is charged to `MaxCssMatchOperations` (`FPDF1205`); positions are
+computed in one pass over the reader's own tokens with the reader's own implied
+end tags, only when a stylesheet uses a structural pseudo-class. Invalid An+B,
+empty or complex `:not()` arguments, `:is()`, `:where()`, `:has()`, `:hover`
+and other pseudo-classes, and pseudo-elements (`::before`, `:before`) fail
+`FPDF1203`. A matched rule still fails like any other when its declaration is
+unsupported on the element: `tr:nth-of-type(even){background-color:#f7f7f7}`
+fails `FPDF1201` and `.divider:not(:empty){gap:1rem}` `FPDF1202`, as without
+the pseudo-class.
+
+### Implied html, head and body
+
+Every page has the `html`, `head` and `body` elements the HTML parser builds,
+written or not (`ImpliedDocumentElementTests.cs`), so `body > p`, `html body p`,
+`:root p` and `body{color:navy}` match a page without those tags as in Chrome.
+An omitted `html` is implied first; `style`, `script`, `template`, `title`,
+`meta`, `link` and `base` before any body content go into `head` (also after an
+explicit `</head>`, as the parser reopens it); the first other element or
+non-whitespace text implies `body`; content after `</body>` or `</html>` is
+appended to `body`. Implied elements count against no element or depth limit
+and carry no source position, and an implied `body` without box declarations
+adds no box, so such a page's read tree and PDF are unchanged unless a rule
+styles it. A repeated or misplaced `html`, `head` or `body` start tag is ignored
+as the parser ignores it; with attributes, which the parser would merge into
+the existing element, it fails `FPDF1101`.
 
 ## Custom properties and var()
 
