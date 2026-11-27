@@ -229,6 +229,13 @@ image for the next fragment, rather than emitting a decoration-only final page.
 An atomic unit and its unavoidable final edges that cannot fit fresh fail
 `FPDF1302`. Already emitted pages are not reflowed.
 
+`tr{break-inside:avoid}` (or `page-break-inside:avoid`) and the same on `thead`
+change nothing for rows that already move whole, so such a page is
+byte-identical to the page without it. A kept body row that would qualify for
+continuation fails `FPDF1302` at the row instead of splitting, including a
+row split only to carry the table's first or final decoration. See
+[CSS table rows](css-stylesheets.md#table-rows).
+
 The [long service report](../examples/business-table-long-description.html)
 contains a long numbered description, an image and caption, a following service
 item and totals. Bind the same generated `brand-mark.png` as `logo`. Independent
@@ -245,7 +252,7 @@ PDFs must fail the corresponding content or geometry assertions.
 | `td`, `th` | Padding, solid borders, background-color, text properties and `vertical-align` (above); no width, margin or break declarations |
 | `p` inside a cell | Text properties and vertical margins; no width, padding, border, background or break declarations |
 | `col` | Explicit width only (including bounded em via inherited column-group text size and rem via HTML root) |
-| `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only |
+| `colgroup`, `thead`, `tbody`, `tr` | Inherited text properties only; `tr` and `thead` also accept `break-inside`/`page-break-inside:auto\|avoid` (below) |
 
 Existing selectors and global attributes apply. Matched inapplicable declarations fail even if another declaration overrides them. Each table part accepts the `display` value that names what it already renders, and nothing changes: `thead{display:table-header-group}`, `tbody` and `tfoot{display:table-row-group}`, `tr{display:table-row}` and `td,th{display:table-cell}`. `tfoot{display:table-footer-group}` fails `FPDF1202`, because footer rows are placed once and never repeated on each fragment; every other `display` value on a table part still fails. `table-layout` and cell heights are not implemented. `empty-cells:show` (empty cells always paint their background and borders) and `caption-side:top` (no `caption` element is accepted) are validated and dropped; other values fail `FPDF1202`. Cells use the separated border model with zero spacing, so only `border-collapse:separate` and `border-spacing` at one or two zero lengths are accepted (validated and dropped, on any element); `border-collapse:collapse` and non-zero spacing fail `FPDF1202`.
 

@@ -49,10 +49,10 @@ public sealed class WordWrapAliasTests
             Pdf($"<p style='width:60pt;word-wrap:break-word;overflow-wrap:normal'>{Code}</p>"));
     }
 
-    [TestCase("<p style='word-wrap:anywhere'>A</p>", "FPDF1202")]
+    [TestCase("<p style='word-wrap:auto'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-wrap:break-all'>A</p>", "FPDF1202")]
     [TestCase("<p>A <span style='word-wrap:break-word'>B</span></p>", "FPDF1201")]
-    [TestCase("<style>.unused{word-wrap:anywhere}</style><p>A</p>", "FPDF1202")]
+    [TestCase("<style>.unused{word-wrap:auto}</style><p>A</p>", "FPDF1202")]
     public void WordWrapFailsWhereOverflowWrapFails(string html, string code)
     {
         var standard = html.Replace("word-wrap", "overflow-wrap", StringComparison.Ordinal);

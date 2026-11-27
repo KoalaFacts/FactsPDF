@@ -62,7 +62,7 @@ internal static class HtmlDocumentReader
         {
             if (stopped || token.Kind is not (HtmlTokenKind.Start or HtmlTokenKind.End)) return;
             var name = token.Value;
-            if (name is "meta" or "link" or "br") return; // the reader skips them before its depth check
+            if (name is "meta" or "link" or "base" or "br") return; // the reader skips them before its depth check
             if (name is "style" or "img" or "hr" or "col")
             {
                 // Checked by the reader like any element, but never pushed.
@@ -224,7 +224,7 @@ internal static class HtmlDocumentReader
         Paragraph? current = null;
         TableMarkup? table = null;
         var anonymous = false;
-        var elements = 0; var insideStyle = false;
+        var elements = 0; var insideStyle = false; var baseSeen = false;
 
         // Where the innermost open block's children begin in the child stack (0 for the root).
         int ChildStart(int fromFrame)
@@ -349,7 +349,7 @@ internal static class HtmlDocumentReader
                 insideStyle = true; continue;
             }
             if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
-                || name is "img" or "hr" or "br" or "head" or "title" or "meta" or "link"))
+                || name is "img" or "hr" or "br" or "head" or "title" or "meta" or "link" or "base"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
@@ -374,7 +374,7 @@ internal static class HtmlDocumentReader
             if (name == "link")
                 foreach (var (attribute, value) in token.Attributes!)
                     if (attribute == "rel") LinkRelations(value, token.Offset);
-            if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "link" or "col"))
+            if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "link" or "base" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && (table is not null || stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
@@ -412,12 +412,17 @@ internal static class HtmlDocumentReader
             if (ListTag(name) && stack.Count(f => ListTag(f.Name)) >= 2)
                 throw new FactsPdfException("FPDF1101", "Lists support at most two nested levels.", token.Offset);
             if (ListTag(name)) result.HasLists = true;
-            if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta" or "link")))
+            if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta" or "link" or "base")))
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
                 throw new FactsPdfException("FPDF1101", "head must be at document level.", token.Offset);
-            if (name is "title" or "meta" or "link" && stack[^1].Name != "head")
-                throw new FactsPdfException("FPDF1101", "title/meta/link must be inside head.", token.Offset);
+            if (name is "title" or "meta" or "link" or "base" && stack[^1].Name != "head")
+                throw new FactsPdfException("FPDF1101", "title/meta/link/base must be inside head.", token.Offset);
+            if (name == "base")
+            {
+                if (baseSeen) throw new FactsPdfException("FPDF1101", "A document may have only one base element.", token.Offset);
+                baseSeen = true;
+            }
 
             var parent = stack[^1].Style;
             var parentBox = stack[^1].BoxStyle;
@@ -428,13 +433,15 @@ internal static class HtmlDocumentReader
             var titled = false;
             var hidden = false;
             var linkRel = false;
+            var baseHrefOrTarget = false;
             int? listStart = null, listValue = null;
             var listReversed = false;
+            ListMarkerKind? listTypeHint = null;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
                 {
-                    if (name is "head" or "title" or "meta" or "link" or "br")
+                    if (name is "head" or "title" or "meta" or "link" or "base" or "br")
                         throw new FactsPdfException("FPDF1103", "Styling this metadata/void element is not supported.", token.Offset);
                     // Declarations were parsed once during source collection.
                 }
@@ -442,7 +449,16 @@ internal static class HtmlDocumentReader
                     href = PdfLinkAnnotations.ValidateUri(value, token.Offset);
                 // A PDF link annotation always opens its URI outside the document, so the browsing
                 // context (target) and the hyperlink relations (noopener, nofollow, ...) change nothing.
-                else if (name == "a" && attribute == "target") AnchorTarget(value, token.Offset);
+                else if (name == "a" && attribute == "target") AnchorTarget("a", value, token.Offset);
+                // base only sets the URL that relative URLs resolve against and the default link
+                // target. Links must already be absolute and images are named resources, so neither
+                // is ever resolved; the href is never read, and target is held to the a rule.
+                else if (name == "base" && attribute == "href") baseHrefOrTarget = true;
+                else if (name == "base" && attribute == "target")
+                {
+                    AnchorTarget("base", value, token.Offset);
+                    baseHrefOrTarget = true;
+                }
                 else if (name == "a" && attribute == "rel") AnchorRelations(value, token.Offset);
                 else if (attribute == "colspan" && name is "td" or "th")
                     columnSpan = ParseColumnSpan(value, table!.Node.Columns.Count, token.Offset, cancellation);
@@ -457,6 +473,9 @@ internal static class HtmlDocumentReader
                             "ol reversed accepts only an empty boolean attribute or 'reversed'.", token.Offset);
                     listReversed = true;
                 }
+                // A presentational hint below every author declaration (see CssStylesheets.Compute).
+                else if (attribute == "type" && name is "ol" or "ul" or "li")
+                    listTypeHint = ListMarkerTypes.TypeAttribute(name, value, token.Offset);
                 else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
                 // Named and Open Graph metadata (viewport, description, author, generator, og:title)
                 // is document metadata a static page render never reads. color-scheme is the one
@@ -516,12 +535,17 @@ internal static class HtmlDocumentReader
                 if (!linkRel) throw new FactsPdfException("FPDF1103", "link requires a rel attribute.", token.Offset);
                 continue;
             }
+            if (name == "base")
+            {
+                if (!baseHrefOrTarget) throw new FactsPdfException("FPDF1103", "base requires an href or target attribute.", token.Offset);
+                continue;
+            }
             if (name == "meta") continue;
             path.Add(CssElement.From(token));
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
-                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden);
+                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "html") rootFontSize = style.FontSize;
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
@@ -630,12 +654,12 @@ internal static class HtmlDocumentReader
     ]);
 
     // _blank, _self, _parent, _top (any case) or a navigable name, which never starts with an underscore.
-    private static void AnchorTarget(string value, int offset)
+    private static void AnchorTarget(string element, string value, int offset)
     {
         if (value.Length == 0 || value[0] == '_' && !(value.Equals("_blank", StringComparison.OrdinalIgnoreCase)
             || value.Equals("_self", StringComparison.OrdinalIgnoreCase) || value.Equals("_parent", StringComparison.OrdinalIgnoreCase)
             || value.Equals("_top", StringComparison.OrdinalIgnoreCase)))
-            throw new FactsPdfException("FPDF1103", "a target must be _blank, _self, _parent, _top or a name.", offset);
+            throw new FactsPdfException("FPDF1103", element + " target must be _blank, _self, _parent, _top or a name.", offset);
     }
 
     private static void AnchorRelations(string value, int offset)

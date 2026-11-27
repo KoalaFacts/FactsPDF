@@ -17,8 +17,9 @@ compiles the CLI's `CliApplication.cs` into the test assembly instead of referen
 `net10.0` CLI project. `dotnet test FactsPDF.slnx` therefore needs the .NET 8 and .NET 9
 runtimes as well as the .NET 10 SDK; `-f net10.0` runs one target.
 
-Output is byte-for-byte deterministic within one runtime. Compressed streams (fonts, images
-and page content, written with `ZLibStream`) can differ between runtimes, because each .NET
+Output is byte-identical for the same input, options and .NET runtime version; different .NET
+versions may produce different bytes with the same rendered content. Compressed streams (fonts, images
+and page content, written with `ZLibStream`) are where they differ, because each .NET
 version ships its own zlib build (zlib on .NET 8, zlib-ng from .NET 9, and .NET 9 and .NET 10
 were measured to differ). Byte parity and hash-pinned tests are therefore authoritative on
 `net10.0` only: tests marked `[CompressedBytesPin]` (category `CompressedBytesPin`) and the
@@ -28,9 +29,10 @@ all three. The bounded-cost checks of the resource limits run everywhere.
 
 The `dotnet-11` CI job installs the .NET 11 GA SDK (11.0.100) and checks a `net11.0` consumer
 of the package's `net10.0` asset (`verify_first_use.py --consumer-tfm net11.0 --probe-sdk 11.0.100 --probe-runtime 11.0.0`),
-runs the whole test suite retargeted to `net11.0`, and compares every example PDF between
-the two runtimes (a `cmp` step that currently passes; a zlib change in a later .NET 11
-runtime would fail that step, not the product). Adding a native `net11.0` build to the package is a separate,
+runs the whole test suite retargeted to `net11.0`, and renders every example twice on
+`net11.0`, failing unless the two runs are byte-identical. It also compares the `net10.0` and
+`net11.0` example PDFs as a report only: differing files are listed in a warning and never fail
+the job, since determinism is guaranteed per runtime, not across .NET versions. Adding a native `net11.0` build to the package is a separate,
 reviewed change to the package contract in `scripts/verify_package.py`. From the repository root:
 
 ```sh

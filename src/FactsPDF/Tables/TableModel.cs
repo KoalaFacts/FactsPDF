@@ -9,7 +9,7 @@ internal sealed record TableNode(TextStyle Style, BoxStyle BoxStyle, int SourceO
 }
 
 internal sealed record TableColumn(CssLength? Width, int SourceOffset);
-internal sealed record TableRow(bool IsHeader, int SourceOffset)
+internal sealed record TableRow(bool IsHeader, int SourceOffset, bool AvoidBreakInside = false)
 {
     internal List<TableCell> Cells { get; } = [];
 }

@@ -628,11 +628,25 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+The non-standard `background-color-adjust` joins `color-adjust` as an alias of
+`print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
+since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
+The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
+place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
+so no count moves.
 The C# / .NET library row stays full; its limitation string is replaced in place to say that
 the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
 that compressed streams can differ between runtimes, with byte parity and hash pins
 authoritative on `net10.0` only, so no count moves.
 Current dataset SHA-256:
-`51ef1852cdebcb202fe50571e94b01cc0ae2b31ecf46d619320d800925f62e75`; English
+`b2e20a2bf73e03a469ae4325d38bb21382a38f9663e75dbbcf3d7c02e5384293`; English
 layer `site/src/audit-english-runtime-targets.mjs`, ordered source-text
-SHA-256 `01d21b1af67036cea4772de3b988964d8372759636341b9a4c0c08aa5d1ab152`.
+SHA-256 `adc467128d19d0c2394c9012cd93209db227523bad5da9e1b82fe15f9541c644`.
