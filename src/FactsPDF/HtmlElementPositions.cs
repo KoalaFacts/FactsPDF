@@ -21,7 +21,7 @@ internal sealed class HtmlElementPositions
         internal bool Empty;
     }
 
-    private readonly record struct Frame(int Token, string Name, int ChildStart);
+    private readonly record struct Frame(int Token, string Name, int ChildStart, bool CellList = false);
 
     private readonly Slot[] slots;
 
@@ -55,6 +55,7 @@ internal sealed class HtmlElementPositions
         var children = new List<(int Token, string Name)>();
         var typeCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         var tables = 0; // open table elements: the reader implies no p end tag inside a table
+        var cellLists = 0; // open lists inside a table cell: the reader implies end tags there as outside tables
         var next = 0;
 
         string? Top() => frames.Count > 0 ? frames[^1].Name : null;
@@ -82,6 +83,7 @@ internal sealed class HtmlElementPositions
                 if (children[k].Token is >= 0 and var token) slots[token].TypeCount = typeCounts[children[k].Name];
             slots[frame.Token].Empty = !content[^1];
             if (frame.Name == "table") tables--;
+            if (frame.CellList) cellLists--;
             children.RemoveRange(frame.ChildStart, count);
             frames.RemoveAt(frames.Count - 1);
             content.RemoveAt(content.Count - 1);
@@ -110,16 +112,19 @@ internal sealed class HtmlElementPositions
             var name = token.Value;
             if (token.Kind == HtmlTokenKind.Start)
             {
-                if (Top() is { } open && HtmlDocumentReader.StartClosesParagraph(open, name, tables > 0)) Close();
+                if (Top() is { } open && HtmlDocumentReader.StartClosesParagraph(open, name, tables > 0 && cellLists == 0)) Close();
                 if (Top() is { } item && HtmlDocumentReader.StartClosesListItem(item, name)) Close();
                 AddChild(t, name);
                 if (Void(name) || token.SelfClosing) continue;
-                frames.Add(new(t, name, children.Count));
+                // A list in a table cell (or any element inside one) is block content the reader builds a tree for.
+                var cellList = tables > 0 && (cellLists > 0 || HtmlDocumentReader.ListTag(name) && Top() is "td" or "th");
+                if (cellList) cellLists++;
+                frames.Add(new(t, name, children.Count, cellList));
                 content.Add(false);
                 if (name == "table") tables++;
                 continue;
             }
-            if (Top() is { } p && HtmlDocumentReader.EndClosesParagraph(p, name, tables > 0)) Close();
+            if (Top() is { } p && HtmlDocumentReader.EndClosesParagraph(p, name, tables > 0 && cellLists == 0)) Close();
             if (Top() is { } li && HtmlDocumentReader.EndClosesListItem(li, name)) Close();
             // The reader rejects any other mismatched end tag before it styles a later element.
             if (Top() == name) Close();

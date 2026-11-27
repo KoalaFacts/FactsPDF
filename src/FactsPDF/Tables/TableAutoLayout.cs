@@ -18,7 +18,8 @@ namespace FactsPDF;
 /// </para>
 /// <para>
 /// The table's used content width is its explicit width, or with <c>width:auto</c> its max-content
-/// width capped at the available width; it never drops below the sum of the minimums. The
+/// width capped at the available width, then limited by <c>max-width</c> and raised by
+/// <c>min-width</c>; it never drops below the sum of the minimums. The
 /// max-content width is the sum of the maximums, or larger when percentage columns need it: a
 /// percentage column of maximum M at P% needs a table of M·100/P, and the other columns' maximums
 /// need their sum divided by the percentage left over.
@@ -51,13 +52,10 @@ internal static class TableAutoLayout
             Percents.Slice(start, length), Constrained.Slice(start, length));
     }
 
-    /// <summary>
-    /// Fills <paramref name="tracks"/> with the automatic column widths and returns the table's used
-    /// content width, or throws FPDF1302 when the columns cannot fit the available width.
-    /// </summary>
-    internal static double Resolve(TableNode table, double? specifiedWidth, double availableWidth, double[] tracks,
-        PdfOptions options, Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
-        CancellationToken cancellation)
+    // Measures every column's minimum (into tracks), maximum, percentage and constrained flag from
+    // the cells and the col widths, spanning cells last.
+    private static Columns Collect(TableNode table, double[] tracks, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
     {
         // tracks holds the column minimums while measuring.
         var count = tracks.Length;
@@ -134,6 +132,33 @@ internal static class TableAutoLayout
                 Widen(covered, shares.AsSpan(0, span), max, raiseMaximums: true);
             }
         }
+        return columns;
+    }
+
+    /// <summary>
+    /// A table's content-box min-content and max-content widths: the sum of the column minimums and
+    /// the table's max-content width, before any width, min-width, max-width or available width.
+    /// </summary>
+    internal static (double Min, double Max) Content(TableNode table, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+    {
+        var tracks = new double[table.Columns.Count];
+        var columns = Collect(table, tracks, options, resolved, cancellation);
+        var minimum = 0d;
+        for (var i = 0; i < tracks.Length; i++) minimum += tracks[i];
+        return (minimum, Math.Max(minimum, MaxContent(columns)));
+    }
+
+    /// <summary>
+    /// Fills <paramref name="tracks"/> with the automatic column widths and returns the table's used
+    /// content width, or throws FPDF1302 when the columns cannot fit the available width.
+    /// </summary>
+    internal static double Resolve(TableNode table, double? specifiedWidth, double availableWidth, double[] tracks,
+        PdfOptions options, Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved,
+        CancellationToken cancellation, double? minWidth = null, double? maxWidth = null)
+    {
+        var count = tracks.Length;
+        var columns = Collect(table, tracks, options, resolved, cancellation);
         var minimum = 0d;
         for (var i = 0; i < count; i++) minimum += tracks[i];
         if (minimum > availableWidth + 0.000001)
@@ -141,7 +166,13 @@ internal static class TableAutoLayout
                 $"Automatic table columns need at least {minimum:0.###}pt, but only {availableWidth:0.###}pt is available."),
                 table.SourceOffset);
         // An explicit width wider than the container fails in the caller's table width check.
-        var target = Math.Max(minimum, specifiedWidth ?? Math.Min(availableWidth, MaxContent(columns)));
+        // min-width and max-width constrain the width the columns would otherwise get (min-width
+        // wins over max-width); the columns' minimums still floor it, as Chrome reruns the layout
+        // at the constrained width.
+        var natural = specifiedWidth ?? Math.Min(availableWidth, MaxContent(columns));
+        if (maxWidth is { } upper) natural = Math.Min(natural, upper);
+        if (minWidth is { } lower) natural = Math.Max(natural, lower);
+        var target = Math.Max(minimum, natural);
         Span<double> result = stackalloc double[count];
         Distribute(result, columns, target, constrainedTarget: true);
         result.CopyTo(tracks);
@@ -315,6 +346,17 @@ internal static class TableAutoLayout
                 var width = ImageLayout.Resolve(image, 14_400).OuterWidth;
                 min = Math.Max(min, width);
                 max = Math.Max(max, width);
+                continue;
+            }
+            if (content is TableCellBlock block)
+            {
+                // A list's contribution includes its marker gutter, margins and padding; its items
+                // (flex rows too) are sized by the flex and block intrinsic sizes.
+                var (blockMin, blockMax) = FlexLayout.Intrinsic.Of(block.Node, options, resolved, cancellation);
+                if (double.IsNaN(blockMax))
+                    throw Geometry("A list in a table cell cannot be sized from its content.", block.Node.SourceOffset);
+                min = Math.Max(min, blockMin);
+                max = Math.Max(max, blockMax);
                 continue;
             }
             var paragraph = ((TableCellText)content).Paragraph;

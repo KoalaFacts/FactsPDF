@@ -30,12 +30,18 @@ internal sealed class TableMarkup(TableNode node)
 
     internal static bool IsTag(string name) => name is "table" or "caption" or "colgroup" or "col" or "thead" or "tbody" or "tfoot" or "tr" or "th" or "td";
 
-    internal void CheckChild(string parent, string name, int offset)
+    internal void CheckChild(string parent, string name, int offset, bool insideCellBlock = false)
     {
+        // Inside a list in a cell the ordinary block rules apply, but never table parts.
+        if (Cell is not null && insideCellBlock)
+        {
+            if (IsTag(name)) throw Invalid("Unsupported table structure, placement or cell content.", offset);
+            return;
+        }
         var valid = Cell is not null
             ? name is "p" or "img" or "svg"
                 ? parent is "td" or "th"
-                : HtmlDocumentReader.InlineTag(name) || name == "br"
+                : HtmlDocumentReader.InlineTag(name) || name == "br" || HtmlDocumentReader.ListTag(name) && parent is "td" or "th"
             : parent switch
             {
                 "table" => name == "caption" && phase == Phase.NeedColumns && Node.Caption is null && Node.Columns.Count == 0
@@ -83,7 +89,8 @@ internal sealed class TableMarkup(TableNode node)
                 rowBackground = box.BackgroundColor;
                 row = new(phase == Phase.Header, offset, box.AvoidBreakInside)
                 {
-                    Box = box, Color = style.Color, Group = groupIndex, GroupBox = groupBox, GroupColor = groupColor
+                    Box = box, Color = style.Color, Group = groupIndex, GroupBox = groupBox, GroupColor = groupColor,
+                    IsFooter = phase == Phase.Footer
                 };
                 if (row.IsHeader) headerRows++;
                 else if (phase == Phase.Footer) footerRows++;
