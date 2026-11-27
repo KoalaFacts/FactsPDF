@@ -58,7 +58,13 @@ def inspect(pdf, case, raster=True):
                 value = ('ID' if col == 0 else 'DESCRIPTION') if case['header'] and row == 0 else (
                     f'R{next_id+row-int(case["header"]):03}' if col == 0 else ('记录' if case['bilingual'] else 'Record'))
                 assert compact(''.join(w['text'] for w in cell_words)) == compact(value), 'cell text'
-                assert cell_words and abs(cell_words[0]['xMin']-(x+5))<.02, 'cell text origin'
+                assert cell_words, 'cell text'
+                if case['header'] and row == 0:
+                    # Header th text is centred by default; padding and border are symmetric.
+                    left, right = min(w['xMin'] for w in cell_words), max(w['xMax'] for w in cell_words)
+                    assert abs((left+right)/2-(x+width/2))<.05, 'header text centred'
+                else:
+                    assert abs(cell_words[0]['xMin']-(x+5))<.02, 'cell text origin'
                 assert all(w['xMax'] <= x+width-4.98 for w in cell_words), 'cell text bounds'
         next_id += count
     assert next_id == case['count'] + 1
