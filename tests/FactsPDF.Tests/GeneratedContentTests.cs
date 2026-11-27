@@ -72,11 +72,11 @@ public sealed class GeneratedContentTests
     [Test]
     public void GeneratedTextInheritsFromItsElementAndTakesItsOwnRules()
     {
-        var runs = Layout("<style>.n{color:#ff0000}.n::before{content:\"X\";font-weight:bold}</style><p class='n'>Y</p>")[0].Runs;
+        var runs = Layout("<style>.n{color:#ff0000}.n::before{content:\"X\";text-decoration:underline}</style><p class='n'>Y</p>")[0].Runs;
         var generated = runs.Single(run => run.Text == "X");
         Assert.That(generated.Style.Color, Is.EqualTo(new Rgb(1, 0, 0)));
-        Assert.That(generated.Style.Bold, Is.True);
-        Assert.That(runs.Single(run => run.Text == "Y").Style.Bold, Is.False);
+        Assert.That(generated.Style.Decoration, Is.EqualTo(TextDecoration.Underline));
+        Assert.That(runs.Single(run => run.Text == "Y").Style.Decoration, Is.EqualTo(TextDecoration.None));
     }
 
     [Test]
