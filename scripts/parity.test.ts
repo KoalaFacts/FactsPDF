@@ -177,6 +177,24 @@ test('block-margin-collapse explains rendered differences of existing examples w
   assert.deepEqual(kinds({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before), []);
 });
 
+test('ua-stylesheet explains rendered differences and moved decorated bottom edges of existing examples', () => {
+  const before = ok('%PDF-1.7 old defaults');
+  const after = ok('%PDF-1.7 chrome defaults');
+  const kinds = (b: RunResult, a: RunResult, newExample = false) => classifyDifferences(b, a, newExample, false, false, false, false);
+  assert.deepEqual(kinds(before, after), ['orphans-widows-initial-2', 'ua-stylesheet']);
+  assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
+  assert.ok(!kinds(before, { ...after, stderr: 'warning\n' }).includes('ua-stylesheet'), 'changed diagnostics are not a layout difference');
+  assert.ok(!kinds(before, { ...after, exitCode: 3, pdf: null }).includes('ua-stylesheet'), 'a new failure is not a layout difference');
+  assert.ok(!kinds(before, ok('not a PDF')).includes('ua-stylesheet'));
+  const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n', pdf: null };
+  assert.ok(kinds(before, failed).includes('ua-stylesheet'));
+  assert.ok(kinds(failed, before).includes('ua-stylesheet'));
+  assert.deepEqual(kinds(before, { ...failed, stderr: 'FPDF1302: Table outer width exceeds containing content width or is zero.\n' }), []);
+  const difference: Difference = { example: 'x.html', set: 'defaults', reason: 'bytes', kind: 'orphans-widows-initial-2', kinds: kinds(before, after) };
+  assert.deepEqual(failures([difference], ['ua-stylesheet']), { unexpected: [], unobserved: [] });
+  assert.equal(failures([difference], ['location-added']).unexpected.length, 1, 'an unrelated kind still fails it');
+});
+
 test('a broad kind never hides a narrower one declared on its own', () => {
   // A page with a th and a div that moved its header text: a later change declaring only
   // th-default-centred must accept it, although the margin kinds also explain it.
