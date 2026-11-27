@@ -553,6 +553,8 @@ internal static class TextLines
         {
             var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
             var size = style.FontSize;
+            if (style.AbsoluteLineHeight is null && style.HasNormalLineHeight && fonts.Count > 0)
+                return NormalMetrics(fonts[0], size);
             var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
             var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
             var leading = (LineHeight(style, fonts) - ascent - descent) / 2;
@@ -570,13 +572,30 @@ internal static class TextLines
             return NormalLineHeight(fonts[0], style.FontSize);
         }
 
+        private const double PixelsPerPoint = 4d / 3;
+
+        // Blink's whole-pixel ascent, descent and line gap of a font at a size.
+        private static (double Ascent, double Descent, double Gap) PixelMetrics(PdfFont font, double fontSize)
+        {
+            var pixels = fontSize * PixelsPerPoint;
+            return (Math.Round(font.Ascent1000 / 1000 * pixels, MidpointRounding.AwayFromZero),
+                Math.Round(-font.Descent1000 / 1000 * pixels, MidpointRounding.AwayFromZero),
+                Math.Round(font.LineGap1000 / 1000 * pixels, MidpointRounding.AwayFromZero));
+        }
+
         internal static double NormalLineHeight(PdfFont font, double fontSize)
         {
-            const double PixelsPerPoint = 4d / 3;
-            var pixels = fontSize * PixelsPerPoint;
-            return (Math.Round(font.Ascent1000 / 1000 * pixels, MidpointRounding.AwayFromZero)
-                + Math.Round(-font.Descent1000 / 1000 * pixels, MidpointRounding.AwayFromZero)
-                + Math.Round(font.LineGap1000 / 1000 * pixels, MidpointRounding.AwayFromZero)) / PixelsPerPoint;
+            var (ascent, descent, gap) = PixelMetrics(font, fontSize);
+            return (ascent + descent + gap) / PixelsPerPoint;
+        }
+
+        // The line box's ascent and descent for line-height:normal: the line gap is leading, whose floored half
+        // goes above the rounded ascent (Blink's AddLeading), the rest below.
+        private static (double Ascent, double Descent) NormalMetrics(PdfFont font, double fontSize)
+        {
+            var (ascent, descent, gap) = PixelMetrics(font, fontSize);
+            var above = ascent + Math.Floor(gap / 2);
+            return (above / PixelsPerPoint, (ascent + descent + gap - above) / PixelsPerPoint);
         }
 
         private Line CurrentLine(bool softWrapped = false)

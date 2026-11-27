@@ -52,7 +52,15 @@ internal static class UserAgentStyleSheet
 
     // The rules by the type their selector ends in. Built once by the first conversion that needs it;
     // the compiled rules are immutable and shared by every conversion and thread.
-    private static readonly Lazy<Dictionary<string, Rule[]>> rules = new(Compile, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<Compiled> compiled = new(Compile, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private sealed record Compiled(Dictionary<string, Rule[]> Rules, CssProperty[] Properties, Dictionary<CssProperty, int> Slots);
+
+    /// <summary>The properties the sheet declares, so a conversion keeps one slot for each rather than one per property.</summary>
+    internal static CssProperty[] Properties => compiled.Value.Properties;
+
+    /// <summary>The index of a declared property in <see cref="Properties"/>.</summary>
+    internal static int Slot(CssProperty property) => compiled.Value.Slots[property];
 
     /// <summary>The options a conversion's user-agent matching budget is built from: it never fails.</summary>
     internal static readonly PdfOptions Unlimited = new()
@@ -63,9 +71,9 @@ internal static class UserAgentStyleSheet
     };
 
     /// <summary>The rules whose selector ends in <paramref name="element"/>, in source order, or null.</summary>
-    internal static Rule[]? For(string element) => rules.Value.GetValueOrDefault(element);
+    internal static Rule[]? For(string element) => compiled.Value.Rules.GetValueOrDefault(element);
 
-    private static Dictionary<string, Rule[]> Compile()
+    private static Compiled Compile()
     {
         var budget = new CssBudget(Unlimited, default);
         var limits = new CssSyntaxLimits();
@@ -87,6 +95,9 @@ internal static class UserAgentStyleSheet
                 list.Add(new Rule(selector, declarations));
             }
         }
-        return byType.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.Ordinal);
+        var properties = byType.Values.SelectMany(list => list).SelectMany(rule => rule.Declarations)
+            .Select(declaration => declaration.Property).Distinct().Order().ToArray();
+        return new(byType.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.Ordinal), properties,
+            properties.Select((property, index) => (property, index)).ToDictionary(pair => pair.property, pair => pair.index));
     }
 }

@@ -39,7 +39,7 @@ internal sealed class CssStylesheets
     private readonly Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
     // The user-agent declarations that won for the element being computed (see UserAgentStyleSheet),
     // merged into winners for every property no author declaration (or a revert) decided.
-    private readonly Winner?[] userAgentWinners = new Winner?[(int)CssProperty.JustifySelf + 1];
+    private readonly Winner?[] userAgentWinners = new Winner?[UserAgentStyleSheet.Properties.Length];
     // Matching the user-agent rules is no author work: it never charges the conversion's CSS budgets.
     private readonly CssBudget userAgentBudget;
     // Text styles computed from nothing but user-agent declarations on a shared parent style, by parent,
@@ -47,11 +47,14 @@ internal sealed class CssStylesheets
     private const int MaxUserAgentTextStyles = 64;
     private readonly Dictionary<UserAgentTextKey, TextStyle> userAgentTextStyles = [];
     // Compared by the parent style's identity, not by its value: hashing a whole style per element would cost more than it saves.
-    private readonly record struct UserAgentTextKey(TextStyle Parent, string Element, double RootFontSize) : IEquatable<UserAgentTextKey>
+    // Matched is the set of the element name's user-agent rules that matched (a bit per rule, in sheet order):
+    // an attribute or ancestor condition (abbr[title]) makes elements of one name differ.
+    private readonly record struct UserAgentTextKey(TextStyle Parent, string Element, double RootFontSize, ulong Matched) : IEquatable<UserAgentTextKey>
     {
         public bool Equals(UserAgentTextKey other) => ReferenceEquals(Parent, other.Parent)
-            && string.Equals(Element, other.Element, StringComparison.Ordinal) && RootFontSize.Equals(other.RootFontSize);
-        public override int GetHashCode() => HashCode.Combine(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Parent), Element, RootFontSize);
+            && string.Equals(Element, other.Element, StringComparison.Ordinal) && RootFontSize.Equals(other.RootFontSize)
+            && Matched == other.Matched;
+        public override int GetHashCode() => HashCode.Combine(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Parent), Element, RootFontSize, Matched);
     }
 
     /// <summary>The value of the text-align declaration that won the cascade for the element the
@@ -908,15 +911,19 @@ internal sealed class CssStylesheets
         }
         // The user-agent sheet is the lowest origin: its winners are kept apart and only fill in the
         // properties no author declaration decides. A pseudo-element generates no user-agent style here.
+        ulong userAgentMatched = 0;
         if (pseudo == CssPseudoElement.None && UserAgentStyleSheet.For(element.Name) is { } userAgentRules)
-            foreach (var rule in userAgentRules)
+            for (var ruleIndex = 0; ruleIndex < userAgentRules.Length; ruleIndex++)
             {
+                var rule = userAgentRules[ruleIndex];
                 if (!rule.Selector.Matches(path, userAgentBudget)) continue;
+                userAgentMatched |= 1UL << ruleIndex;
                 foreach (var declaration in rule.Declarations)
                 {
                     var candidate = new Winner(declaration, false, rule.Selector.Specificity, UserAgent: true);
-                    var current = userAgentWinners[(int)declaration.Property];
-                    if (!current.HasValue || candidate.Beats(current.Value)) userAgentWinners[(int)declaration.Property] = candidate;
+                    var slot = UserAgentStyleSheet.Slot(declaration.Property);
+                    var current = userAgentWinners[slot];
+                    if (!current.HasValue || candidate.Beats(current.Value)) userAgentWinners[slot] = candidate;
                 }
             }
         Match(universal);
@@ -966,10 +973,14 @@ internal sealed class CssStylesheets
         }
         // The user-agent declarations decide every property the author origin left alone (or reverted).
         // The type attribute's marker is a presentational hint: below the author, above this sheet.
-        for (var index = 0; index < winners.Length; index++)
-            if (winners[index] is null && userAgentWinners[index] is { } userAgent
+        var userAgentProperties = UserAgentStyleSheet.Properties;
+        for (var slot = 0; slot < userAgentProperties.Length; slot++)
+        {
+            var index = (int)userAgentProperties[slot];
+            if (winners[index] is null && userAgentWinners[slot] is { } userAgent
                 && !(index == (int)CssProperty.ListStyleType && listTypeHint is not null))
                 winners[index] = userAgent;
+        }
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared
@@ -1013,7 +1024,7 @@ internal sealed class CssStylesheets
             if (winners[index] is { } text && !WritesBox(subject, text.Declaration.Property)
                 && text.Declaration.Property != CssProperty.Content && !text.UserAgent)
                 userAgentTextOnly = false;
-        var userAgentTextKey = new UserAgentTextKey(defaults, subject, rootFontSize);
+        var userAgentTextKey = new UserAgentTextKey(defaults, subject, rootFontSize, userAgentMatched);
         if (userAgentTextOnly && userAgentTextStyles.TryGetValue(userAgentTextKey, out var sharedText))
         {
             style = sharedText;
