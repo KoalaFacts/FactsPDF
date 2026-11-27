@@ -678,13 +678,16 @@ stays partial.
 The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
 limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
 elements without widths), so no count moves. The `<table>` scope and limitation are replaced
-again when `colspan` joins automatic layout.
+again when `colspan` joins automatic layout, and with the `<col>`, `<td>` and `<th>` rows
+when `col` and cell widths join it.
 Current dataset SHA-256:
 `b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
 layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
 `55e91c973e3287cb768e4691ec7c4c39e0b3e535217b42436e836c7db6c6fe1b`; English
 layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
+`98496c6a4e19439271a5da1cc2dcce1f6ff07b0926b2920db4bb02011de29693`; English
+layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
 Current dataset SHA-256:
-`2da2a667a72e07dc4d2ad5461cba0122b05afccba082af699d11cc78c0505dfa`; English
-layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
-SHA-256 `7b34a1512c993d13c73814fe0298b064b369f53243ea86efc63f00c9f6da4442`.
+`2313f1681399fdba2296881a8432613a385ebf2903dbf83b601813b380c41061`; English
+layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
+SHA-256 `77f6f97c239f100c6a981304111639ac6cef386dd1c98b25c44b91d7c19fa210`.

@@ -97,7 +97,7 @@ public sealed class TableLayoutTests
         Assert.That(cell.Width, Is.EqualTo(double.Parse(width[6..^2], System.Globalization.CultureInfo.InvariantCulture)));
     }
 
-    [TestCase("missing-width")] [TestCase("sum-mismatch")] [TestCase("zero-content-width")]
+    [TestCase("sum-mismatch")] [TestCase("zero-content-width")]
     public void AuthoredNegativeGeometryFixturesFailBeforeWriting(string name)
         => TableStructureTests.Fails(Fixture(name), "FPDF1302");
 

@@ -14,7 +14,8 @@
 // page content width); a script reads getBoundingClientRect() of every td/th.
 // Positions are relative to the first cell's left edge. The run fails when any
 // cell's left edge or width differs by more than the tolerance (default
-// 0.1pt). The browser and fonts are test tools only.
+// 0.15pt: Chrome lays out in 1/64px units, and a percentage column that sets the
+// table width multiplies that rounding). The browser and fonts are test tools only.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -57,7 +58,7 @@ function parseArguments(argv: readonly string[]): Options {
     chrome: required('chrome'),
     font: required('font'),
     fontBold: required('font-bold'),
-    tolerance: Number(values.get('tolerance') ?? '0.1'),
+    tolerance: Number(values.get('tolerance') ?? '0.15'),
     out: values.get('out') ?? null,
   };
 }
@@ -114,7 +115,7 @@ function main(): void {
       writeFileSync(pagePath, chromePage(html, font, fontBold));
       const dom = execFileSync(options.chrome, ['--headless=new', '--disable-gpu', '--no-first-run',
         `--user-data-dir=${join(work, 'profile')}`, '--virtual-time-budget=10000', '--dump-dom',
-        pathToFileURL(pagePath).href], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+        pathToFileURL(pagePath).href], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
       const json = /<pre id="oracle">([^<]*)<\/pre>/.exec(dom);
       if (json === null) {
         throw new Error(`${name}: Chrome produced no measurement`);

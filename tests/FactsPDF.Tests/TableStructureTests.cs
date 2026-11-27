@@ -108,7 +108,7 @@ public sealed class TableStructureTests
 
     [TestCase("col", "color:red")][TestCase("col", "padding:1pt")]
     [TestCase("colgroup", "width:100pt")][TestCase("tbody", "background:red")]
-    [TestCase("tr", "border:1pt solid red")][TestCase("td", "width:100pt")]
+    [TestCase("tr", "border:1pt solid red")][TestCase("td", "min-width:100pt")]
     [TestCase("td", "margin-top:1pt")][TestCase("td", "break-before:page")]
     [TestCase("table", "margin-top:1pt")][TestCase("table", "table-layout:fixed")]
     [TestCase("table", "table-layout:auto")][TestCase("table", "vertical-align:top")]
@@ -117,7 +117,7 @@ public sealed class TableStructureTests
 
     [Test]
     public void LosingInapplicableDeclarationStillFails()
-        => Fails("<style>td{width:10pt}td{width:20pt!important}</style>" + One, "FPDF1201");
+        => Fails("<style>td{margin-top:1pt}td{margin-top:2pt!important}</style>" + One, "FPDF1201");
 
     [Test]
     public void CssPreflightStillPrecedesMalformedTableStructure()

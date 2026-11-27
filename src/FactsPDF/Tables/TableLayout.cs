@@ -46,9 +46,10 @@ internal static class TableLayout
                 - (style.BorderBoxSizing ? edges.Left + edges.Right : 0), table.SourceOffset)
             : (double?)null;
         var tracks = new double[table.Columns.Count];
-        // Columns without any explicit width use automatic layout; with auto
-        // table width the table then shrinks to its columns' max-content width.
-        var automatic = table.Columns.TrueForAll(column => column.Width is null);
+        // Unless every column has an explicit width, columns use automatic layout;
+        // with auto table width the table then shrinks to its max-content width.
+        // A cell width also takes automatic layout, where it constrains its column.
+        var automatic = !table.Columns.TrueForAll(column => column.Width is not null) || HasCellWidth(table);
         var width = automatic
             ? TableAutoLayout.Resolve(table, specifiedWidth, item.AvailableWidth - edges.Left - edges.Right, tracks,
                 options, resolved, cancellation)
@@ -63,8 +64,7 @@ internal static class TableLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 var column = table.Columns[i];
-                if (column.Width is not { } length)
-                    throw Geometry("A table mixing explicit and automatic column widths is not supported; give every col an explicit width or none.", column.SourceOffset);
+                var length = column.Width!.Value;
                 tracks[i] = Checked(length.Resolve(width), column.SourceOffset);
                 if (tracks[i] <= 0)
                     throw Geometry("Column width must be positive.", column.SourceOffset);
@@ -370,6 +370,14 @@ internal static class TableLayout
             if (tableBox.CommandCount > 0) boxes.Insert(0, tableBox);
         }
         return new(outerWidth, outerHeight, runs, boxes, images, rows, edges.Top, edges.Bottom);
+    }
+
+    private static bool HasCellWidth(TableNode table)
+    {
+        foreach (var row in table.Rows)
+            foreach (var cell in row.Cells)
+                if (cell.BoxStyle.Width is not null) return true;
+        return false;
     }
 
     private static Edges ResolveEdges(BoxStyle style, double containingWidth, int offset)
