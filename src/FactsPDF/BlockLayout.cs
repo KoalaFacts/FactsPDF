@@ -31,7 +31,7 @@ internal sealed record LayoutKeepPanel(BlockNode Node, double ContentWidth,
 internal static class BlockLayout
 {
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
-        double ContentWidth, double Bottom, bool IsRoot, double Gutter = 0, double MarkerGap = 0,
+        double ContentWidth, double Bottom, bool IsRoot, double MarkerGap = 0,
         double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false,
         double? ParagraphMarginBasis = null);
 
@@ -89,13 +89,9 @@ internal static class BlockLayout
                 case BlockNode node:
                 {
                     var style = ReferenceEquals(node, root.ShrunkBody) ? node.BoxStyle with { Width = null } : node.BoxStyle;
-                    var gutter = node.Name == "li" && !style.MarkerInside ? frame.Gutter : 0;
-                    var containing = frame.ContentWidth - gutter;
-                    if (containing < -0.000001)
-                        throw new FactsPdfException("FPDF1302", "List marker gutter exceeds containing content width.", node.SourceOffset);
-                    containing = Math.Max(0, containing);
+                    var containing = frame.ContentWidth;
                     var (marginLeft, _, width) = ResolveMargins(style, containing, node.SourceOffset);
-                    var x = frame.X + gutter + marginLeft;
+                    var x = frame.X + marginLeft;
                     var markerRight = node.Name == "li" ? x - frame.MarkerGap : frame.MarkerRightX;
                     var box = ResolveBox(style, width, node.SourceOffset, containing);
                     // Margins live outside the painted box. They advance the
@@ -231,7 +227,7 @@ internal static class BlockLayout
                         : node.Children.Count != 0 && style.IsGridContainer ? [new GridRows(node)]
                         : style.HasItems ? node.Children : lists?.Children(node) ?? node.Children;
                     frames.Push(new(children, 0, x + style.BorderLeft.EffectiveWidth + box.PaddingLeft, box.Inner, box.Bottom, false,
-                        lists?.Gutter(node) ?? 0, node.Name is "ol" or "ul" or "menu" ? 0.5 * node.Style.FontSize : 0, markerRight,
+                        node.Name is "ol" or "ul" or "menu" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
                         ParagraphMarginBasis: node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                             ? containing : null));

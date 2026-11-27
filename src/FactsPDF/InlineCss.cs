@@ -38,6 +38,7 @@ internal static class InlineCss
         switch (name)
         {
             case "font-weight":
+                style.SoftBold = false;
                 // Relative weights operate on the engine's two provided faces:
                 // bolder chooses bold and lighter chooses normal. At an edge
                 // of this binary ladder the same role remains selected.
@@ -97,7 +98,7 @@ internal static class InlineCss
                 // on this element and inherits that absolute value.
                 if (value == "normal")
                 {
-                    style.LineHeight = 1.2;
+                    style.LineHeight = TextStyle.NormalLineHeight;
                     style.AbsoluteLineHeight = null;
                     break;
                 }

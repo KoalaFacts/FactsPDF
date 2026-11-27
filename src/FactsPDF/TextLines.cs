@@ -551,12 +551,32 @@ internal static class TextLines
         // baselines on mixed Latin/CJK lines and inflates explicit line-height.
         private (double Ascent, double Descent) Metrics(TextStyle style, int sourceOffset)
         {
-            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
             var size = style.FontSize;
             var ascent = size * (fonts.Count == 0 ? 0.8 : fonts[0].Ascent1000 / 1000);
             var descent = size * (fonts.Count == 0 ? 0.2 : -fonts[0].Descent1000 / 1000);
-            var leading = ((style.AbsoluteLineHeight ?? size * style.LineHeight) - ascent - descent) / 2;
+            var leading = (LineHeight(style, fonts) - ascent - descent) / 2;
             return (ascent + leading, descent + leading);
+        }
+
+        // The height of one line of text in this style: the specified line-height, or for normal the
+        // first font's ascent, descent and line gap as Chrome (Blink's SimpleFontData) adds them,
+        // each rounded to whole CSS pixels. The built-in font has no metrics to read and keeps 1.2.
+        private static double LineHeight(TextStyle style, IReadOnlyList<PdfFont> fonts)
+        {
+            if (style.AbsoluteLineHeight is { } absolute) return absolute;
+            if (!style.HasNormalLineHeight) return style.FontSize * style.LineHeight;
+            if (fonts.Count == 0) return style.FontSize * 1.2;
+            return NormalLineHeight(fonts[0], style.FontSize);
+        }
+
+        internal static double NormalLineHeight(PdfFont font, double fontSize)
+        {
+            const double PixelsPerPoint = 4d / 3;
+            var pixels = fontSize * PixelsPerPoint;
+            return (Math.Round(font.Ascent1000 / 1000 * pixels, MidpointRounding.AwayFromZero)
+                + Math.Round(-font.Descent1000 / 1000 * pixels, MidpointRounding.AwayFromZero)
+                + Math.Round(font.LineGap1000 / 1000 * pixels, MidpointRounding.AwayFromZero)) / PixelsPerPoint;
         }
 
         private Line CurrentLine(bool softWrapped = false)
@@ -634,7 +654,7 @@ internal static class TextLines
                 var top = align.Kind switch
                 {
                     InlineAlignKind.Shift => height + (align.IsPercent
-                        ? align.Shift / 100 * (glyph.Style.AbsoluteLineHeight ?? glyph.Style.FontSize * glyph.Style.LineHeight)
+                        ? align.Shift / 100 * LineHeight(glyph.Style, FontRoles.Chain(options, FontRoles.Role(glyph.Style, options), glyph.SourceOffset))
                         : align.Shift),
                     InlineAlignKind.Middle => (height + XHeight(glyph.Style, glyph.SourceOffset)) / 2,
                     InlineAlignKind.TextTop => FontBox(glyph.Style, glyph.SourceOffset).Ascent,
@@ -670,7 +690,7 @@ internal static class TextLines
         // text box text-top and text-bottom align to.
         private (double Ascent, double Descent) FontBox(TextStyle style, int sourceOffset)
         {
-            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
             var size = style.FontSize;
             return fonts.Count == 0 ? (size * 0.8, size * 0.2)
                 : (size * fonts[0].Ascent1000 / 1000, size * -fonts[0].Descent1000 / 1000);
@@ -679,7 +699,7 @@ internal static class TextLines
         // The first available font's x-height (Courier's 426/1000 for the built-in font).
         private double XHeight(TextStyle style, int sourceOffset)
         {
-            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
             return style.FontSize * (fonts.Count == 0 ? 0.426 : fonts[0].XHeight1000 / 1000);
         }
     }
@@ -687,7 +707,7 @@ internal static class TextLines
     private static Glyph Resolve(int scalar, TextStyle style, int sourceOffset, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
     {
-        var role = FontRoles.Role(style);
+        var role = FontRoles.Role(style, options);
         if (!resolved.TryGetValue((role, scalar), out var value))
         {
             var fonts = FontRoles.Chain(options, role, sourceOffset);

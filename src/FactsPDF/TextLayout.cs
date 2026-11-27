@@ -34,7 +34,7 @@ internal static class TextLayout
         for (var i = 0; i < glyphs.Count; i++)
         {
             var style = glyphs[i].Style;
-            var height = style.AbsoluteLineHeight ?? style.FontSize * style.LineHeight;
+            var height = style.AbsoluteLineHeight ?? style.FontSize * (style.HasNormalLineHeight ? 1.2 : style.LineHeight);
             if (height > tallest && glyphs[i].SourceOffset >= 0) { tallest = height; offset = glyphs[i].SourceOffset; }
         }
         // An inline image taller than every line-height is the element to change.

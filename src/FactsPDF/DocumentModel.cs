@@ -2,7 +2,9 @@ namespace FactsPDF;
 
 internal enum TextAlignment { Left, Center, Right, Justify }
 // Table-cell content placement within a measured whole row; not CSS inline baseline alignment.
-internal enum CellVerticalAlign { Top, Middle, Bottom }
+// DefaultMiddle is the user-agent sheet's middle: it centres a cell in a row that stays whole and, since a
+// split row cannot centre, leaves the cell at the top there; an authored middle fails in a split row.
+internal enum CellVerticalAlign { Top, Middle, Bottom, DefaultMiddle }
 [Flags]
 internal enum TextDecoration { None = 0, Underline = 1, LineThrough = 2, Overline = 4 }
 internal static class TextDecorationCommands
@@ -84,8 +86,17 @@ internal sealed record TextStyle
         Alignment = alignment;
     }
 
+    /// <summary>
+    /// The <see cref="LineHeight"/> of line-height:normal, the CSS initial value and the user-agent
+    /// default: the line box takes its height from the first font's metrics (see TextLines).
+    /// A specified unitless line-height is from 1 to 10, so a negative multiplier is never authored.
+    /// </summary>
+    internal const double NormalLineHeight = -1;
+
     public double FontSize { get; set; }
     public double LineHeight { get; set; }
+    /// <summary>Whether line-height computes to normal (neither a multiplier nor a length).</summary>
+    internal bool HasNormalLineHeight => AbsoluteLineHeight is null && LineHeight < 0;
     public Rgb Color { get; set; }
     public TextAlignment Alignment { get; set; }
     public double MarginBefore { get; set; }
@@ -93,6 +104,12 @@ internal sealed record TextStyle
     public bool BreakBefore { get; set; }
     public bool BreakAfter { get; set; }
     public bool Bold { get; set; }
+    /// <summary>
+    /// Whether <see cref="Bold"/> comes from the user-agent sheet's heading weight rather than from the
+    /// author, th, b or strong: FactsPDF never synthesizes bold, so without a bold font chain a heading
+    /// keeps its regular face instead of failing (see <see cref="FontRoles"/>).
+    /// </summary>
+    public bool SoftBold { get; set; }
     public bool Italic { get; set; }
     public bool KeepWithNext { get; set; }
     public TextDecoration Decoration { get; set; }

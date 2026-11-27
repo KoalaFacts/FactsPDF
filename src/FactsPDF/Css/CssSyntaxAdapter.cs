@@ -21,7 +21,7 @@ internal static class CssSyntaxAdapter
     private static readonly int[] InlineEdges = [3, 1], BlockEdges = [0, 2], AllEdges = [0, 1, 2, 3];
 
     private static readonly TextStyle ValidationStyle =
-        new(12, 1.2, new(0, 0, 0), TextAlignment.Left);
+        new(12, TextStyle.NormalLineHeight, new(0, 0, 0), TextAlignment.Left);
 
     internal static void ThrowIfRecovered(CssSyntaxResult result)
     {

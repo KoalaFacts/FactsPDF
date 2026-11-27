@@ -43,7 +43,7 @@ internal static class HtmlDocumentReader
     // English: curly double quotes, and curly single quotes for every nested q. bdi only isolates
     // its text direction, and every run is laid out left to right, so it renders like span.
     internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
-        or "small" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
+        or "small" or "big" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
         or "time" or "data" or "abbr" or "q" or "bdi";
 
     // The quotation mark a q at this nesting level opens or closes (CSS quotes for English:
@@ -68,7 +68,7 @@ internal static class HtmlDocumentReader
         var outer = true;
         for (var i = stack.Count - 2; i >= 0; i--)
             if (stack[i].Name == "q") { outer = false; break; }
-        if (options.Fonts.Count == 0 && FontRoles.Role(stack[^1].Style) == FontRole.Normal)
+        if (options.Fonts.Count == 0 && FontRoles.Role(stack[^1].Style, options) == FontRole.Normal)
             return outer ? "\"" : "'";
         return outer ? open ? "\u201C" : "\u201D" : open ? "\u2018" : "\u2019";
     }
@@ -141,63 +141,37 @@ internal static class HtmlDocumentReader
     public static List<Paragraph> Read(string html, PdfOptions options, CancellationToken cancellation)
         => BlockTreeTraversal.Paragraphs(ReadTree(html, options, cancellation), cancellation).ToList();
 
-    // The last copy made for a tag whose only defaults are the resets, bold, italic and the
-    // paragraph margin. The next element with the same parent and the same values shares it.
+    // The last reset copy made for a parent style and the parent it was made for: the next element
+    // with the same parent shares it.
     private sealed class SharedDefaults
     {
         public TextStyle? Parent;
         public TextStyle? Style;
     }
 
-    // The element's style before author CSS: the parent's computed style with non-inherited text
-    // properties reset and the tag's own defaults. Returns the shared parent itself when nothing
-    // differs, a copy shared with earlier siblings when only the resets, bold, italic or the
-    // paragraph margin differ, and otherwise one private copy holding every change (see TextStyle).
-    // Owned is true only for a private copy; a shared style is copied before any declaration.
-    private static (TextStyle Style, bool Owned) ElementDefaults(TextStyle parent, string name, SharedDefaults shared)
+    // The element's style before the cascade: the parent's computed style with the non-inherited text
+    // properties (margins, page breaks, keep-with-next) reset. The element's own defaults come from
+    // the user-agent stylesheet in CssStylesheets.Compute, below every author declaration. Returns the
+    // parent itself when nothing needs resetting, and otherwise a copy shared with earlier siblings;
+    // a shared style is copied before any declaration (see TextStyle).
+    private static TextStyle ElementDefaults(TextStyle parent, SharedDefaults shared)
     {
-        var marginAfter = ParagraphTag(name) ? 8 : 0;
-        var bold = parent.Bold || name is "b" or "strong" or "th";
-        var italic = parent.Italic || name is "i" or "em" or "var" or "cite" or "dfn" or "address";
-        var heading = name.Length == 2 && name[0] == 'h' && name[1] is >= '1' and <= '6';
-        if (parent.MarginBefore == 0 && parent.MarginAfter == marginAfter &&
+        if (parent.MarginBefore == 0 && parent.MarginAfter == 0 &&
             parent.PercentMarginBefore is null && parent.PercentMarginAfter is null && !parent.BreakBefore && !parent.BreakAfter
-            && !parent.KeepWithNext && bold == parent.Bold && italic == parent.Italic && !heading
-            && name is not ("small" or "a" or "u" or "ins" or "s" or "del" or "pre"))
-            return (parent, false);
-        var plain = !heading && name is not ("small" or "a" or "u" or "ins" or "s" or "del" or "pre");
-        if (plain && ReferenceEquals(shared.Parent, parent) && shared.Style!.MarginAfter == marginAfter
-            && shared.Style.Bold == bold && shared.Style.Italic == italic)
-            return (shared.Style, false);
+            && !parent.KeepWithNext)
+            return parent;
+        if (ReferenceEquals(shared.Parent, parent)) return shared.Style!;
         var style = parent with { };
         style.MarginBefore = 0;
-        style.MarginAfter = marginAfter;
+        style.MarginAfter = 0;
         style.PercentMarginBefore = null;
         style.PercentMarginAfter = null;
         style.BreakBefore = false;
         style.BreakAfter = false;
         style.KeepWithNext = false;
-        style.Bold = bold;
-        style.Italic = italic;
-        // Real inline report editing semantics, rendered with existing
-        // measured glyphs and PDF decoration strokes. CSS can override
-        // these tag defaults through the normal cascade.
-        if (name == "small") style.FontSize *= 5d / 6d;
-        if (name == "a") { style.Color = new Rgb(0, 0, 0.8); style.Decoration = TextDecoration.Underline; }
-        if (name is "u" or "ins") style.Decoration = TextDecoration.Underline;
-        if (name is "s" or "del") style.Decoration = TextDecoration.LineThrough;
-        if (name == "pre")
-        {
-            style.NoWrap = true;
-            style.PreserveLineBreaks = true;
-            style.PreserveSpaces = true;
-        }
-        if (heading)
-            style.FontSize *= name[1] switch { '1' => 2, '2' => 1.7, '3' => 1.5, '4' => 1.3, '5' => 1.15, _ => 1 };
-        if (!plain) return (style, true);
         shared.Parent = parent;
         shared.Style = style;
-        return (style, false);
+        return style;
     }
 
     internal static DocumentRoot ReadTree(string html, PdfOptions options, CancellationToken cancellation)
@@ -248,7 +222,7 @@ internal static class HtmlDocumentReader
         // The tokens are read once, here, and walked again below.
         var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
         sheets.TrackPositions(tokens, cancellation);
-        var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var root = new TextStyle(options.FontSize, TextStyle.NormalLineHeight, new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
         // The last shared th/caption default and its centred copy (see the user-agent centring below).
         TextStyle? centredSource = null, centredStyle = null;
@@ -351,8 +325,8 @@ internal static class HtmlDocumentReader
             if (block && (!Container(name) || table is not null))
                 throw new FactsPdfException("FPDF1201",
                     "A block ::before or ::after box is supported only in report panels, list items and body outside tables.", offset);
-            var (defaults, owned) = ElementDefaults(style, block ? "div" : "span", sharedDefaults);
-            var (generatedStyle, generatedBox) = sheets.Compute(defaults, owned, style, root, rootFontSize, box, path,
+            var defaults = ElementDefaults(style, sharedDefaults);
+            var (generatedStyle, generatedBox) = sheets.Compute(defaults, false, style, root, rootFontSize, box, path,
                 paragraph: false, block: block, offset, default, pseudo: pseudo, pseudoName: block ? "div" : "span");
             if (generatedStyle.FontSize is < 1 or > 144)
                 throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", offset);
@@ -552,7 +526,8 @@ internal static class HtmlDocumentReader
             var parent = stack[^1].Style;
             var parentBox = stack[^1].BoxStyle;
             var boxStyle = BoxStyle.Initial;
-            var (style, styleOwned) = ElementDefaults(parent, name, sharedDefaults);
+            var style = ElementDefaults(parent, sharedDefaults);
+            var styleOwned = false;
             // The HTML user-agent sheet's th and caption {text-align:-internal-center}: centred when
             // the parent's computed text-align is its initial value (start), otherwise the
             // parent's alignment is inherited as usual. Author declarations still win below.
@@ -571,7 +546,6 @@ internal static class HtmlDocumentReader
             }
             var columnSpan = 1;
             string? href = null;
-            var titled = false;
             var hidden = false;
             var linkRel = false;
             var baseHrefOrTarget = false;
@@ -655,8 +629,7 @@ internal static class HtmlDocumentReader
                             "hidden is supported only on ordinary report blocks outside lists and tables.", token.Offset);
                     hidden = true;
                 }
-                else if (attribute == "title") titled = true;
-                else if (attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
+                else if (attribute is "id" or "class" or "title" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
             }
             if (name == "a")
@@ -664,15 +637,8 @@ internal static class HtmlDocumentReader
                 if (href is null) throw new FactsPdfException("FPDF1103", "a requires a bounded HTTPS or mailto href.", token.Offset);
                 if (AnyFrame(stack, frame => frame.Name == "a"))
                     throw new FactsPdfException("FPDF1101", "Nested links are not supported.", token.Offset);
-                style.LinkUri = href; // ElementDefaults always returns a private copy for an a element.
-            }
-            // abbr[title] { text-decoration: dotted underline } in the HTML rendering section's
-            // user-agent sheet; an abbr without a title has no default style. CSS can override it.
-            if (name == "abbr" && titled)
-            {
                 if (!styleOwned) { style = style with { }; styleOwned = true; }
-                style.Decoration = TextDecoration.Underline;
-                style.DecorationPattern = TextDecorationPattern.Dotted;
+                style.LinkUri = href;
             }
             if (name == "link")
             {
