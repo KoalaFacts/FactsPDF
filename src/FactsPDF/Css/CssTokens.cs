@@ -1,9 +1,14 @@
+using FactsPDF.CssSyntax;
+
 namespace FactsPDF;
 
 // Selector-only compatibility tokens. ALL CSS source lexing uses FactsPDF.CssSyntax.
-internal enum CssTokenKind { Identifier, Number, Hash, String, Symbol, End }
+internal enum CssTokenKind { Identifier, Number, Hash, String, Symbol, Function, End }
 
-internal readonly record struct CssToken(CssTokenKind Kind, string Text, bool LeadingSpace, int Offset)
+// A Function token keeps its name in Text and its unparsed arguments; selectors parse them
+// themselves (An+B for :nth-child(), a compound list for :not()).
+internal readonly record struct CssToken(CssTokenKind Kind, string Text, bool LeadingSpace, int Offset,
+    IReadOnlyList<CssSyntaxComponent>? Arguments = null)
 {
     internal bool Is(string text) => Text == text;
 }

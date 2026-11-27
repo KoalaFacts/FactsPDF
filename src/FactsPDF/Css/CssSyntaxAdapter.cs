@@ -2157,8 +2157,27 @@ internal static class CssSyntaxAdapter
         IReadOnlyList<CssSyntaxComponent> prelude, CssBudget budget, int offset)
     {
         var tokens = new List<CssToken>();
+        var space = SelectorTokens(prelude, budget, tokens);
+        tokens.Add(new(CssTokenKind.Symbol, "{", space, offset));
+        var i = 0;
+        var selectors = new List<CssSelector> { CssSelector.Parse(tokens, ref i, budget) };
+        while (tokens[i].Is(","))
+        {
+            i++;
+            selectors.Add(CssSelector.Parse(tokens, ref i, budget));
+        }
+        if (!tokens[i].Is("{"))
+            throw new FactsPdfException("FPDF1203", "Invalid CSS selector list.", tokens[i].Offset);
+        return selectors.ToArray();
+    }
+
+    /// <summary>Appends the selector tokens of <paramref name="components"/> and returns whether
+    /// whitespace followed the last one. A function keeps its arguments unparsed.</summary>
+    internal static bool SelectorTokens(
+        IReadOnlyList<CssSyntaxComponent> components, CssBudget budget, List<CssToken> tokens)
+    {
         var space = false;
-        foreach (var item in prelude)
+        foreach (var item in components)
         {
             budget.Token.ThrowIfCancellationRequested();
             if (item is CssBlockComponent { Opening: CssSyntaxTokenKind.OpenSquare } square)
@@ -2191,8 +2210,14 @@ internal static class CssSyntaxAdapter
                 space = false;
                 continue;
             }
+            if (item is CssFunctionComponent function)
+            {
+                tokens.Add(new(CssTokenKind.Function, function.Name, space, function.Span.Start, function.Values));
+                space = false;
+                continue;
+            }
             if (item is not CssTokenComponent entry)
-                throw new FactsPdfException("FPDF1203", "Selector functions and nested components are not supported.", item.Span.Start);
+                throw new FactsPdfException("FPDF1203", "Selector blocks and nested components are not supported.", item.Span.Start);
             var t = entry.Token;
             if (t.Kind == CssSyntaxTokenKind.Whitespace) { space = true; continue; }
             var kind = t.Kind switch
@@ -2213,16 +2238,6 @@ internal static class CssSyntaxAdapter
             tokens.Add(new(kind, text, space, t.Span.Start));
             space = false;
         }
-        tokens.Add(new(CssTokenKind.Symbol, "{", space, offset));
-        var i = 0;
-        var selectors = new List<CssSelector> { CssSelector.Parse(tokens, ref i, budget) };
-        while (tokens[i].Is(","))
-        {
-            i++;
-            selectors.Add(CssSelector.Parse(tokens, ref i, budget));
-        }
-        if (!tokens[i].Is("{"))
-            throw new FactsPdfException("FPDF1203", "Invalid CSS selector list.", tokens[i].Offset);
-        return selectors.ToArray();
+        return space;
     }
 }

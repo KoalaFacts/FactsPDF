@@ -28,8 +28,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos,
-sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, unsupported
+pseudo-classes, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -113,6 +113,27 @@ They also add `transition:all .2s ease` or `transition:none` to buttons, links a
 Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webkit-` spellings) accept a well-formed animation list, and a well-formed `@keyframes` / `@-webkit-keyframes` rule (one name; `from`, `to` or 0–100% keyframes holding declarations, at the top level or inside `@media print`) is dropped: a written PDF page shows no keyframe. Malformed animation values fail `FPDF1202` and malformed keyframes rules `FPDF1204` (`AnimationTests.cs`).
 
 Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behavior:none`, `-webkit-overflow-scrolling:touch` or `scrollbar-width:thin`. A PDF page never scrolls, so `scroll-behavior`, `overscroll-behavior` (and its `-x`/`-y`/`-inline`/`-block` longhands), `overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept one keyword and are dropped; other values fail `FPDF1202` (`ScrollOnlyPropertyTests.cs`). Docs and utility stylesheets offset anchored headings with `scroll-margin-top:4rem` or `scroll-padding-top:80px`; a PDF page is never scrolled to an anchor, so `scroll-margin` and `scroll-padding` with their side and axis longhands accept well-formed lengths (and `auto` or percentages for padding) and are dropped, while malformed values fail `FPDF1202`; carousel and slider CSS adds `scroll-snap-type:x mandatory`, `scroll-snap-align:start` and `scroll-snap-stop:always`, whose keywords are dropped the same way. Mobile resets add `-webkit-tap-highlight-color:transparent` (or `rgba(0,0,0,0)`), forms `accent-color`/`caret-color`, and app shells `scrollbar-color`/`scrollbar-gutter:stable`; these accept `auto`, their keywords or a well-formed colour, alpha included, and are dropped (`UiColourPropertyTests.cs`). Modern stylesheets also declare `color-scheme:light dark` and `forced-color-adjust:none`; a PDF page has no preferred or forced colour scheme, so well-formed values are dropped and malformed ones fail `FPDF1202` (`ColorSchemeHintTests.cs`).
+
+### Structural pseudo-classes and :not()
+
+Report stylesheets stripe and edge their tables with
+`.table tbody tr:nth-of-type(even) td`, `tr:first-of-type` and
+`tr:last-of-type`, and hide separators with `.divider:not(:empty)`; each such
+rule failed the whole page with `FPDF1203`. `:first-child`, `:last-child`,
+`:only-child`, `:first-of-type`, `:last-of-type`, `:only-of-type`,
+`:nth-child()`, `:nth-last-child()`, `:nth-of-type()`, `:nth-last-of-type()`
+(`odd`, `even` and An+B), `:empty` and `:not()` with compound arguments now
+match the elements Chrome matches, with class-level specificity (`:not()` takes
+its most specific argument). Every element counts as a sibling, including
+`style` and the dropped `script` and `template`, and document-level content is
+counted where the HTML parser puts it. `:empty` treats whitespace as content,
+as Chrome does. The `of S` form, complex `:not()` arguments, other
+pseudo-classes, pseudo-elements and An+B values beyond ±1,000,000,000 fail
+`FPDF1203`, as does a document whose `html`, `head` or `body` tags the parser
+would ignore or merge; a matched rule's unsupported declaration still fails as
+before (`tr{background-color}` `FPDF1201`, `gap:1rem` `FPDF1202`)
+([exact contract](css-stylesheets.md#structural-pseudo-classes-and-not),
+`StructuralPseudoClassTests.cs`).
 
 ### Print-only stylesheet rules for business reports (source-only)
 

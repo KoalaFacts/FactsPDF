@@ -42,8 +42,8 @@ match-operation budgets remain effective. Real PDF text, borders, padding,
 images, and continued report boxes consume the winning styles.
 
 Unsupported HTML attributes, other operators (`!=`), multiple/unknown flags,
-malformed/whitespace-split operators, empty non-equality operands, pseudos,
-sibling combinators and nested selectors fail explicitly with FPDF1203;
+malformed/whitespace-split operators, empty non-equality operands, unsupported
+pseudo-classes, sibling combinators and nested selectors fail explicitly with FPDF1203;
 no network access or full CSS Selectors claim. This remains a **partial**
 selector capability. [The 44-entry operator invoice example](../examples/report-attribute-operators.html)
 and [independent inline control](../examples/report-attribute-operators-oracle.html)
@@ -1361,13 +1361,61 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Selector lists | `h1, h2, p.note` |
 | Descendants | `.report p`, `.report .accent` |
 | Direct children | `.report > p`, mixed child/descendant chains |
+| Structural pseudo-classes | `tr:nth-of-type(even)`, `li:first-child`, `p:last-of-type`, `.divider:empty` ([contract](#structural-pseudo-classes-and-not)) |
+| Negation | `.divider:not(:empty)`, `p:not(.note, #summary)` (compound arguments only) |
 | Inline declarations | Existing `style="..."` attributes with the same supported values |
 
 HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. CSS identifiers in this increment are ASCII; escaped and non-ASCII selector syntax is rejected. A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import`, `@media`, `@page` or other at-rules are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Attribute/sibling/pseudo selectors, nesting, escapes, custom properties and functions remain unsupported. Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+No `link` stylesheet fetching, external files, `@import`, `@media`, `@page` or other at-rules are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling combinators, pseudo-elements, pseudo-classes other than the structural ones and `:not()`, nesting, escapes, custom properties and other functions remain unsupported. Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+
+### Structural pseudo-classes and :not()
+
+`:first-child`, `:last-child`, `:only-child`, `:first-of-type`, `:last-of-type`,
+`:only-of-type`, `:nth-child()`, `:nth-last-child()`, `:nth-of-type()`,
+`:nth-last-of-type()`, `:empty` and `:not()` match as Chrome matches them
+(`StructuralPseudoClassTests.cs`), so report stylesheets can write zebra rows
+(`.table tbody tr:nth-of-type(even) td`) and first/last row rules.
+
+- Names are ASCII case-insensitive and count as one class in specificity.
+  `:not()` takes the specificity of its most specific argument, so
+  `p:not(.a, #b)` is (1,0,1).
+- The nth arguments use the CSS Syntax An+B grammar: `odd`, `even`, `B`, `An`
+  and `An+B`, with its sign and whitespace rules (`2n + 1` and `-n+3` are valid,
+  `- n+3`, `+ n` and `2n+ +1` fail). Values beyond ±1,000,000,000 fail: Chrome
+  stops matching some valid selectors near the 32-bit limits. The `of S` form
+  fails.
+- Every element counts as a sibling, as in the browser's DOM: `style`, `br`,
+  `hr`, `col`, and `script` and `template` elements that are dropped before
+  rendering. Implied `p` and `li` end tags close siblings as the HTML parser
+  does.
+- Document-level content is counted where the HTML parser puts it: `style`
+  (and `script`, `template`) before any body content goes into `head`,
+  everything else into `body`, after the explicit `head`'s or `body`'s own
+  children; content after `</body>` or `</html>` is appended to `body`. `html`
+  is its document's only element; `head` and `body` are always its first and
+  second child.
+- `:empty` matches an element with no child element and no text. As in Chrome,
+  whitespace-only text is content and a comment is not; the line feed the HTML
+  parser drops after `<pre>` does not count.
+- `:not()` takes a list of compound selectors (`:not(.a, p.b:first-child)`,
+  nested `:not()` up to 32 levels and 32 arguments, `FPDF1205` beyond). A
+  combinator inside it fails, although Chrome accepts complex arguments.
+
+Matching is charged to `MaxCssMatchOperations` (`FPDF1205`); positions are
+computed in one pass over the document, only when a stylesheet uses a
+structural pseudo-class. Invalid An+B, empty or complex `:not()` arguments,
+`:is()`, `:where()`, `:has()`, `:root`, `:hover` and other pseudo-classes, and
+pseudo-elements (`::before`, `:before`) fail `FPDF1203`. So does a structural
+pseudo-class in a document whose `html`, `head` or `body` tag the HTML parser
+would ignore or merge (a second `body`, a `body` after body content, a nested
+`html`), and `:empty` on `body`, which receives the whitespace after
+`</body>`. A matched rule still fails like any other when its declaration is
+unsupported on the element: `tr:nth-of-type(even){background-color:#f7f7f7}`
+fails `FPDF1201` and `.divider:not(:empty){gap:1rem}` `FPDF1202`, as without
+the pseudo-class.
 
 ## Cascade and inheritance
 

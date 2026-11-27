@@ -5,14 +5,14 @@ internal static class HtmlDocumentReader
     // ChildStart: for a frame with a Box, where the box's children begin in the reader's child stack.
     private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box,
         int SourceOffset = -1, int ChildStart = 0);
-    private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
-    private static bool ListTag(string name) => name is "ol" or "ul" or "menu";
+    internal static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
+    internal static bool ListTag(string name) => name is "ol" or "ul" or "menu";
     // header, footer, main, nav, aside, hgroup, search and figcaption are blocks with no user-agent style beyond
     // display:block, so they render exactly like div, section and article; figure renders like
     // blockquote (the HTML user-agent sheet gives both the same margins).
     // dl, dt and dd are blocks like div; dl adds the paragraph-like block margins and dd the start
     // indent of the HTML user-agent sheet (see CssStylesheets).
-    private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
+    internal static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
         or "main" or "nav" or "aside" or "hgroup" or "search" or "body" or "html" or "ol" or "ul" or "menu" or "li" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd";
     private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
         || ParagraphTag(name) || Container(name) && name != "html";
@@ -215,6 +215,7 @@ internal static class HtmlDocumentReader
         // Compile every source before computing styles: a later style block can affect earlier content.
         // The tokens are read once, here, and walked again below.
         var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
+        sheets.TrackPositions(tokens, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
@@ -517,7 +518,8 @@ internal static class HtmlDocumentReader
                 continue;
             }
             if (name == "meta") continue;
-            path.Add(CssElement.From(token));
+            path.Add(CssElement.From(token, t));
+            sheets.Positions?.CheckParent(t, path.Count >= 2 ? path[^2].Token : -1);
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),

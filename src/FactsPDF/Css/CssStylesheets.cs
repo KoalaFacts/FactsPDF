@@ -45,6 +45,21 @@ internal sealed class CssStylesheets
         Rgb Color, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
+    // Whether a selector reads sibling positions or emptiness, and the script and template elements
+    // collection dropped (each with the token index it preceded), which still count as siblings.
+    private bool usesStructure;
+    private List<(int Token, string Name)>? dropped;
+
+    /// <summary>The document's element positions, built by <see cref="TrackPositions"/> only when a
+    /// selector needs them.</summary>
+    internal HtmlElementPositions? Positions { get; private set; }
+
+    /// <summary>Builds <see cref="Positions"/> from the collected tokens when a selector uses a
+    /// structural pseudo-class.</summary>
+    internal void TrackPositions(List<HtmlToken> tokens, CancellationToken cancellation)
+    {
+        if (usesStructure) Positions = HtmlElementPositions.Build(tokens, dropped, cancellation);
+    }
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
@@ -88,7 +103,11 @@ internal sealed class CssStylesheets
                 // A declarative shadow root is rendered by browsers, so dropping it would lose content.
                 if (item.Attributes!.ContainsKey("shadowrootmode"))
                     throw new FactsPdfException("FPDF1103", "Declarative shadow DOM (template shadowrootmode) is not supported.", item.Offset);
-                if (templates++ == 0) templateOffset = item.Offset;
+                if (templates++ == 0)
+                {
+                    templateOffset = item.Offset;
+                    (sheet.dropped ??= []).Add((tokens.Count, "template"));
+                }
                 continue;
             }
             if (templates > 0)
@@ -114,6 +133,7 @@ internal sealed class CssStylesheets
                 // would start a new column group; dropping the script would shift the columns.
                 if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
                 insideScript = true;
+                (sheet.dropped ??= []).Add((tokens.Count, "script"));
                 continue;
             }
             tokens.Add(item);
@@ -343,6 +363,7 @@ internal sealed class CssStylesheets
                 qualified.Contents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
             foreach (var selector in selectors)
             {
+                usesStructure |= selector.UsesStructure;
                 var entry = new Rule(selector, declarations);
                 var last = selector.Rightmost;
                 if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
@@ -621,7 +642,7 @@ internal sealed class CssStylesheets
             foreach (var rule in rules)
             {
                 budget.Work(rule.Selector.Offset);
-                if (!rule.Selector.Matches(path, budget)) continue;
+                if (!rule.Selector.Matches(path, budget, Positions)) continue;
                 foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity);
             }
         }
