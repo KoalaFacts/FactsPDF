@@ -67,6 +67,8 @@ internal sealed record TextStyle
     // Retain relative outside margins until containing-block content width is known.
     public CssLength? PercentMarginBefore { get; set; }
     public CssLength? PercentMarginAfter { get; set; }
+    /// <summary>border-collapse:collapse (inherited); only a table's own computed value is read.</summary>
+    public bool CollapseBorders { get; set; }
 }
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
@@ -254,6 +256,9 @@ internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
     // border-color: transparent keeps the edge's width in layout but paints
     // nothing; the background (painted to the border box) shows through.
     internal bool Transparent { get; init; }
+    // border-style:hidden paints nothing like none, but in the collapsing border model it
+    // suppresses every other border on the same edge.
+    internal bool Hidden { get; init; }
     internal static BorderEdge Initial => new(2.25, false, null); // CSS medium=3px
     internal double EffectiveWidth => Solid ? Width : 0;
 }

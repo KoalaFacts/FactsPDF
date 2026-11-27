@@ -637,14 +637,33 @@ internal static class TextLayout
                                 measured.Rows[rowIndex].SourceOffset);
                         y += tableGap;
                         var last = fragment.EndRow == measured.Rows.Count;
-                        var tableBox = new PaintedBox(table.X, y, measured.Width,
-                            last ? fragment.Height : bottom - y, table.Node.BoxStyle, table.Node.Style.Color,
+                        // The caption stays with the first fragment, above the table box.
+                        var captionHeight = first ? measured.CaptionHeight : 0;
+                        var tableBox = new PaintedBox(table.X, y + captionHeight, measured.Width,
+                            (last ? fragment.Height : bottom - y) - captionHeight, table.Node.LayoutBox, table.Node.Style.Color,
                             paintOrder++, IsFirstFragment: first, IsLastFragment: last,
                             SourceOffset: table.Node.SourceOffset);
                         ChargeDisplayCommands(tableBox.CommandCount, table.Node.SourceOffset);
                         if (tableBox.CommandCount > 0) pages[^1].PaintBoxes.Add(tableBox);
+                        if (first)
+                        {
+                            // Charged when the table was measured, like its rows.
+                            for (var j = 0; j < measured.CaptionRunCount; j++)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                var run = measured.Runs[j];
+                                pages[^1].Runs.Add(run with { X = table.X + run.X, Baseline = o.PageHeight - y + run.Baseline });
+                            }
+                            for (var j = 0; j < measured.CaptionBoxCount; j++)
+                            {
+                                var box = measured.PaintBoxes[j];
+                                pages[^1].PaintBoxes.Add(box with { X = table.X + box.X, Top = y + box.Top, Order = paintOrder++ });
+                            }
+                        }
                         var rowTop = y + (first ? measured.Top : 0);
-                        void PlaceRow(MeasuredTableRow row, bool repeat)
+                        // clipTop: the first row of a continuation without a repeated header, whose
+                        // collapsed top border shows only below the fragment's top edge, as in Chrome.
+                        void PlaceRow(MeasuredTableRow row, bool repeat, bool clipTop = false)
                         {
                             for (var j = row.RunStart; j < row.RunStart + row.RunCount; j++)
                             {
@@ -659,6 +678,12 @@ internal static class TextLayout
                                 cancellation.ThrowIfCancellationRequested();
                                 var box = measured.PaintBoxes[j];
                                 if (repeat) ChargeDisplayCommands(box.CommandCount, row.SourceOffset);
+                                if (clipTop && box.Top < row.Top)
+                                {
+                                    var cut = row.Top - box.Top;
+                                    if (box.Height <= cut) continue;
+                                    box = box with { Top = row.Top, Height = box.Height - cut };
+                                }
                                 pages[^1].PaintBoxes.Add(box with { X = table.X + box.X,
                                     Top = rowTop + box.Top - row.Top, Order = paintOrder++ });
                             }
@@ -733,7 +758,26 @@ internal static class TextLayout
                             cursor = plan.Next;
                             rowIndex = cursor.RowIndex;
                         }
-                        else for (; rowIndex < fragment.EndRow; rowIndex++) PlaceRow(measured.Rows[rowIndex], false);
+                        else
+                        {
+                            var fragmentStart = rowIndex;
+                            for (; rowIndex < fragment.EndRow; rowIndex++)
+                                PlaceRow(measured.Rows[rowIndex], false,
+                                    clipTop: !first && header is null && rowIndex == fragmentStart);
+                        }
+                        // Like Chrome, a collapsed table fragment that ends between rows paints the
+                        // upper half of the grid line below its last row; the next fragment paints
+                        // the rest under its repeated header or from its top edge.
+                        if (!last && !affected && measured.CollapsedLines is { } collapsedLines)
+                            foreach (var segment in collapsedLines[fragment.EndRow])
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                var half = segment with { X = table.X + segment.X,
+                                    Top = rowTop + segment.Top - measured.Rows[fragment.EndRow].Top,
+                                    Height = segment.Height / 2, Order = paintOrder++ };
+                                ChargeDisplayCommands(half.CommandCount, table.Node.SourceOffset);
+                                if (half.CommandCount > 0) pages[^1].PaintBoxes.Add(half);
+                            }
                         y += fragment.Height;
                         pendingTopPadding = pendingClosedPadding = after = 0;
                         contentEpoch++;

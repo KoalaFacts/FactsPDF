@@ -669,7 +669,12 @@ when `col` and cell widths join it.
 The `<th>`, `<tr>`, `<thead>` and `<tfoot>` rows and the `background-color` row stay partial;
 their strings are replaced in place for `th`/`td` cells in any row and row and row group
 backgrounds, so no count moves.
+The `<caption>` row moves from none to partial (partial 248, none 118) when table captions
+render; the `border-collapse` and `caption-side` rows stay partial with their strings replaced
+for the collapsing border model and the caption above the table, and the `<th>`, `<tr>` and
+`<table>` strings are replaced in place for Chrome's `th` centring, collapsed row borders and
+captions.
 Current dataset SHA-256:
-`954e10a6e68c61fa0f88a157ccb6c4332e0dbc652a27fbbc5914db6268e8187d`; English
-layer `site/src/audit-english-table-row-details.mjs`, ordered source-text
-SHA-256 `885dc1f4c7123bfbab2ef216cb06c764203b7f523abf843c6209791ce81993f4`.
+`ca64f78892428eb5b0b297b3084e21a0f5cef61d563d17398c833aa8ee237051`; English
+layer `site/src/audit-english-table-caption-collapse.mjs`, ordered source-text
+SHA-256 `57977b10c54b599a9b2e0387c681c2e2b070d88d59a9c842d94bc036da56f58d`.
