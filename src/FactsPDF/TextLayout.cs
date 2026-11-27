@@ -10,8 +10,23 @@ internal static class TextLayout
         bool HasParagraphDescendant = false, bool TopConsumed = false,
         double MarginTop = 0, double MinimumOuterHeight = 0,
         int OpeningMarginPage = -1, int OpeningPaddingPage = -1,
-        double? FixedOuterHeight = null, bool AvoidBreakInside = false,
+        double? FixedOuterHeight = null,
         bool TopPending = false, double CommittedStrut = 0, bool ClosesEdges = false);
+
+    // The layout state to return to if a break-inside:avoid box has to move to the next page.
+    private sealed class AvoidProbe(List<BlockLayoutStep> group, int sourceOffset)
+    {
+        public readonly List<BlockLayoutStep> Group = group;
+        public readonly int SourceOffset = sourceOffset;
+        public int FirstPage, BreakCount, Commands, ContentEpoch, PaintOrder;
+        public int[] Counts = [];
+        public OpenBlock[] Opened = [];
+        public double Y, Strut, PendingTop, PendingClosed, RootBlockEnd;
+        public bool BreakNext, BreakTop, FollowsKeptHeading, ClosedBoxOccupied;
+    }
+
+    // Marks where the steps of a probed box end.
+    private sealed record AvoidEnd(AvoidProbe Probe) : BlockLayoutStep;
 
     // M6 resolves content widths and X positions from the nested tree, while
     // glyphs and pagination remain text-based. Traverse lazily without flattening
@@ -82,6 +97,11 @@ internal static class TextLayout
         // margin on a still-open ancestor; only the former justifies a page.
         var closedBoxOccupied = false;
         var opened = new List<OpenBlock>();
+        // break-inside:avoid boxes are laid out where they stand and rolled back to move whole to the
+        // next page when a break the browser may not make inside them happens first. Created on the
+        // first such box, so documents without one allocate nothing for it.
+        Stack<BlockLayoutStep>? replay = null; Stack<AvoidProbe>? probes = null; List<bool>? breakForced = null;
+        BlockLayoutStep? probeStart = null; var limitWasForced = false;
         var contentEpoch = 0; var paintOrder = 0;
         budget ??= new LayoutBudget();
         void EnsureDisplayCommands(int count, int sourceOffset)
@@ -105,9 +125,14 @@ internal static class TextLayout
                 pages[^1].Images, o.PageHeight);
         var bottom = o.PageHeight - o.MarginBottom;
         // The page limit names the element whose content needed the extra page.
-        void NewPage(int sourceOffset)
+        void NewPage(int sourceOffset, bool forced = false)
         {
-            if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.", sourceOffset);
+            if (pages.Count >= o.MaxPages)
+            {
+                limitWasForced = forced;
+                throw new FactsPdfException("FPDF1303", "Page limit exceeded.", sourceOffset);
+            }
+            breakForced?.Add(forced);
             pages.Add(new()); y = o.MarginTop; strut = 0; closedBoxOccupied = false;
         }
         // Deferred margins on still-open ancestors must not count as page
@@ -240,7 +265,7 @@ internal static class TextLayout
             {
                 if (HasRetainedPageContent())
                 {
-                    NewPage(sourceOffset);
+                    NewPage(sourceOffset, forced: true);
                     MoveUnconsumedBlocksToNewPage(forced: true);
                 }
             }
@@ -291,7 +316,7 @@ internal static class TextLayout
             for (var i = 0; i < opened.Count; i++)
                 opened[i] = opened[i] with { HasOccupiedDescendant = true };
         }
-        foreach (var step in steps)
+        void Process(BlockLayoutStep step)
         {
             cancellation.ThrowIfCancellationRequested();
             if (step is LayoutHeadingGroup group)
@@ -304,77 +329,7 @@ internal static class TextLayout
                     NewPage(first.SourceOffset);
                     MoveUnconsumedBlocksToNewPage();
                 }
-                continue;
-            }
-            if (step is LayoutKeepPanel keep)
-            {
-                // Every eligible card contains actual glyphs. If an earlier
-                // block exhausted the command budget, fail before decoding or
-                // wrapping this card's future text (as ordinary paragraphs do).
-                // This is a check, not a charge: real rendering counts once.
-                if (budget.DisplayCommands == o.MaxDisplayCommands)
-                    EnsureDisplayCommands(1, keep.Node.SourceOffset);
-                // Preflight only the exact bounded flat card shape validated
-                // by BlockLayout. Measure with the same font/glyph wrap and
-                // resolved child content widths used by actual PDF layout.
-                // No extra PDF draw commands are emitted or charged here.
-                var intrinsic = keep.Top + keep.Bottom;
-                var previousAfter = 0d;
-                var firstBefore = 0d;
-                var firstChild = true;
-                var usable = bottom - o.MarginTop;
-                foreach (var child in keep.Node.Children)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    var node = (BlockNode)child;
-                    var keptParagraph = BlockLayout.ResolveParagraphMargins(
-                        (Paragraph)node.Children[0], keep.ContentWidth, o);
-                    var (_, _, available) = BlockLayout.ResolveMargins(node.BoxStyle,
-                        keep.ContentWidth, node.SourceOffset);
-                    var box = BlockLayout.ResolveBox(node.BoxStyle, available, node.SourceOffset,
-                        keep.ContentWidth);
-                    if (firstChild)
-                    {
-                        firstBefore = keptParagraph.Style.MarginBefore;
-                        firstChild = false;
-                    }
-                    else intrinsic += Math.Max(previousAfter, keptParagraph.Style.MarginBefore);
-                    intrinsic += box.Top + box.Bottom;
-                    var sawLine = false;
-                    foreach (var line in Wrap(keptParagraph, box.Inner, o, resolved, cancellation))
-                    {
-                        sawLine = true;
-                        intrinsic += line.Height;
-                        if (intrinsic > usable + 0.000001)
-                            throw new FactsPdfException("FPDF1302",
-                                "Kept report card is taller than the usable PDF page.",
-                                keep.Node.SourceOffset);
-                    }
-                    if (!sawLine)
-                        throw new FactsPdfException("FPDF1201",
-                            "Kept report card requires nonempty text.", node.SourceOffset);
-                    previousAfter = keptParagraph.Style.MarginAfter;
-                }
-                // The last paragraph's bottom margin lies inside the card only when its bottom padding
-                // or border keeps it from collapsing with the card's own.
-                if (keep.Bottom > 0) intrinsic += previousAfter;
-                // Margins adjoining the break that moves a card are truncated, so a fresh page holds
-                // just the card's box.
-                if (intrinsic > usable + 0.000001)
-                    throw new FactsPdfException("FPDF1302",
-                        "Kept report card cannot fit intact on one page.",
-                        keep.Node.SourceOffset);
-                var topMargin = keep.Top > 0
-                    ? Math.Max(strut, keep.MarginTop) + firstBefore
-                    : Math.Max(strut, Math.Max(keep.MarginTop, firstBefore));
-                var neededHere = topMargin + intrinsic + pendingTopPadding + pendingClosedPadding;
-                if (!breakNext && !keep.Node.BoxStyle.BreakBefore &&
-                    CurrentPageOccupied() && y + neededHere > bottom + 0.000001)
-                {
-                    NewPage(keep.Node.SourceOffset);
-                    MoveUnconsumedBlocksToNewPage();
-                }
-                continue;
+                return;
             }
             if (step is BeginBlock begin)
             {
@@ -398,7 +353,7 @@ internal static class TextLayout
                     // does not justify an otherwise blank leading PDF page.
                     if (HasRetainedPageContent())
                     {
-                        NewPage(begin.SourceOffset);
+                        NewPage(begin.SourceOffset, forced: true);
                         MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                     // If the break is suppressed on an empty page, still-open
@@ -473,7 +428,6 @@ internal static class TextLayout
                     OpeningMarginPage: pages.Count - 1,
                     OpeningPaddingPage: pages.Count - 1,
                     FixedOuterHeight: begin.FixedOuterHeight,
-                    AvoidBreakInside: begin.Style.AvoidBreakInside,
                     TopPending: true, CommittedStrut: committedStrut,
                     ClosesEdges: closesEdges));
                 if (closesTop)
@@ -486,7 +440,7 @@ internal static class TextLayout
                     strut = 0;
                 }
                 pendingTopPadding += begin.PaddingTop;
-                continue;
+                return;
             }
             if (step is EndBlock closing)
             {
@@ -509,11 +463,6 @@ internal static class TextLayout
                 // page before opening. A panel that actually spans pages has
                 // already occupied the bounded single-page minimum.
                 var minimumExtra = 0d;
-                // A kept report card must never silently fragment if a new
-                // layout interaction exceeds its measured one-page budget.
-                if (scope.AvoidBreakInside && scope.StartPage != pages.Count - 1)
-                    throw new FactsPdfException("FPDF1302",
-                        "Kept report card cannot fragment across pages.", scope.SourceOffset);
                 // Fixed-height report panels intentionally do not fragment.
                 // Reject oversize content before PDF emission rather than clipping.
                 if (scope.FixedOuterHeight.HasValue && scope.StartPage != pages.Count - 1)
@@ -702,7 +651,7 @@ internal static class TextLayout
                 // Page break after a panel belongs after its last paint/padding
                 // fragment; the next sibling consumes it exactly once.
                 if (scope.Style.BreakAfter) breakNext = true;
-                continue;
+                return;
             }
             if (step is LayoutImage image)
             {
@@ -711,7 +660,7 @@ internal static class TextLayout
                 {
                     if (HasRetainedPageContent())
                     {
-                        NewPage(image.Node.SourceOffset);
+                        NewPage(image.Node.SourceOffset, forced: true);
                         MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                 }
@@ -739,19 +688,19 @@ internal static class TextLayout
                 followsKeptHeading = false;
                 for (var i = 0; i < opened.Count; i++)
                     opened[i] = opened[i] with { HasOccupiedDescendant = true };
-                continue;
+                return;
             }
             if (step is LayoutFlexLine flex)
             {
                 PlaceItemRow(FlexLayout.Measure(flex, o, resolved, budget, cancellation), flex.Container.SourceOffset, 0);
-                continue;
+                return;
             }
             if (step is LayoutGrid grid)
             {
                 var rows = FlexLayout.MeasureGrid(grid, o, resolved, budget, cancellation, out var rowGap);
                 for (var i = 0; i < rows.Count; i++)
                     PlaceItemRow(rows[i], grid.Container.SourceOffset, i == 0 ? 0 : rowGap);
-                continue;
+                return;
             }
             if (step is LayoutTable table)
             {
@@ -762,12 +711,12 @@ internal static class TextLayout
                 // Leave deferred breaks and ancestor decoration for the next
                 // visible content, just as an empty undecorated block does.
                 if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0 && measured.Images.Count == 0)
-                    continue;
+                    return;
                 if (breakNext)
                 {
                     if (HasRetainedPageContent())
                     {
-                        NewPage(table.Node.SourceOffset);
+                        NewPage(table.Node.SourceOffset, forced: true);
                         MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                 }
@@ -972,7 +921,7 @@ internal static class TextLayout
                         }
                     }
                     strut = table.MarginBottom;
-                    continue;
+                    return;
                 }
                 if (y + tableGap + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
                 {
@@ -1008,7 +957,7 @@ internal static class TextLayout
                 followsKeptHeading = false;
                 for (var i = 0; i < opened.Count; i++)
                     opened[i] = opened[i] with { HasOccupiedDescendant = true };
-                continue;
+                return;
             }
             var item = (LayoutParagraph)step;
             var paragraph = item.Paragraph;
@@ -1041,7 +990,7 @@ internal static class TextLayout
                 {
                     if (HasRetainedPageContent())
                     {
-                        NewPage(paragraphOffset);
+                        NewPage(paragraphOffset, forced: true);
                         MoveUnconsumedBlocksToNewPage(forced: true);
                     }
                     // An empty paragraph consumes a preceding section boundary
@@ -1069,13 +1018,13 @@ internal static class TextLayout
                     AddMargin(Math.Max(marginBefore, paragraph.Style.MarginAfter));
                 }
                 breakNext |= paragraph.Style.BreakAfter;
-                continue;
+                return;
             }
             if (breakNext || paragraph.Style.BreakBefore)
             {
                 if (HasRetainedPageContent())
                 {
-                    NewPage(paragraphOffset);
+                    NewPage(paragraphOffset, forced: true);
                     MoveUnconsumedBlocksToNewPage(forced: true);
                 }
             }
@@ -1185,6 +1134,119 @@ internal static class TextLayout
             while (lines.MoveNext());
             strut = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
             followsKeptHeading = paragraph.Style.KeepWithNext;
+        }
+
+        using var source = steps.GetEnumerator();
+        BlockLayoutStep? NextStep()
+        {
+            if (replay is { Count: > 0 }) return replay.Pop();
+            return source.MoveNext() ? source.Current : null;
+        }
+        // A box and everything in it, up to its closing step.
+        List<BlockLayoutStep> CollectBox(BlockLayoutStep first)
+        {
+            var group = new List<BlockLayoutStep> { first };
+            var depth = first is BeginBlock ? 1 : 0;
+            while (depth > 0)
+            {
+                var next = NextStep() ?? throw new InvalidOperationException("Unbalanced block layout steps.");
+                group.Add(next);
+                if (next is BeginBlock) depth++;
+                else if (next is EndBlock) depth--;
+            }
+            return group;
+        }
+        AvoidProbe Capture(List<BlockLayoutStep> group, int sourceOffset)
+        {
+            // Pages before the outermost open block's first page are never written again.
+            var firstPage = pages.Count - 1;
+            for (var i = 0; i < opened.Count; i++) firstPage = Math.Min(firstPage, opened[i].StartPage);
+            var counts = new int[(pages.Count - firstPage) * 4];
+            for (var i = firstPage; i < pages.Count; i++)
+            {
+                var k = (i - firstPage) * 4;
+                counts[k] = pages[i].Runs.Count; counts[k + 1] = pages[i].PaintBoxes.Count;
+                counts[k + 2] = pages[i].Discs.Count; counts[k + 3] = pages[i].Images.Count;
+            }
+            return new(group, sourceOffset)
+            {
+                FirstPage = firstPage, Counts = counts, Opened = opened.ToArray(), BreakCount = breakForced!.Count,
+                Commands = budget.DisplayCommands, RootBlockEnd = end?.RootBlockEnd ?? -1,
+                Y = y, Strut = strut, PendingTop = pendingTopPadding, PendingClosed = pendingClosedPadding,
+                BreakNext = breakNext, BreakTop = breakTop, FollowsKeptHeading = followsKeptHeading,
+                ClosedBoxOccupied = closedBoxOccupied, ContentEpoch = contentEpoch, PaintOrder = paintOrder
+            };
+        }
+        void Restore(AvoidProbe probe)
+        {
+            var count = probe.FirstPage + probe.Counts.Length / 4;
+            pages.RemoveRange(count, pages.Count - count);
+            for (var i = probe.FirstPage; i < count; i++)
+            {
+                var k = (i - probe.FirstPage) * 4;
+                pages[i].Runs.RemoveRange(probe.Counts[k], pages[i].Runs.Count - probe.Counts[k]);
+                pages[i].PaintBoxes.RemoveRange(probe.Counts[k + 1], pages[i].PaintBoxes.Count - probe.Counts[k + 1]);
+                pages[i].Discs.RemoveRange(probe.Counts[k + 2], pages[i].Discs.Count - probe.Counts[k + 2]);
+                pages[i].Images.RemoveRange(probe.Counts[k + 3], pages[i].Images.Count - probe.Counts[k + 3]);
+            }
+            opened.Clear(); opened.AddRange(probe.Opened);
+            breakForced!.RemoveRange(probe.BreakCount, breakForced.Count - probe.BreakCount);
+            budget.DisplayCommands = probe.Commands;
+            if (end is not null) end.RootBlockEnd = probe.RootBlockEnd;
+            y = probe.Y; strut = probe.Strut; pendingTopPadding = probe.PendingTop; pendingClosedPadding = probe.PendingClosed;
+            breakNext = probe.BreakNext; breakTop = probe.BreakTop; followsKeptHeading = probe.FollowsKeptHeading;
+            closedBoxOccupied = probe.ClosedBoxOccupied; contentEpoch = probe.ContentEpoch; paintOrder = probe.PaintOrder;
+        }
+        // The box does not stay where it is: it moves whole to the next page, where it is laid out
+        // again and, if it is still too tall, breaks normally.
+        void MoveBoxToNextPage(AvoidProbe probe)
+        {
+            Restore(probe);
+            NewPage(probe.SourceOffset);
+            MoveUnconsumedBlocksToNewPage();
+            for (var i = probe.Group.Count - 1; i >= 0; i--) replay!.Push(probe.Group[i]);
+        }
+        // A break-inside:avoid box that is not the first thing on its page.
+        static bool AvoidsBreak(BlockLayoutStep step) => step is BeginBlock { Style.AvoidBreakInside: true }
+            or LayoutTable { Node.BoxStyle.AvoidBreakInside: true };
+        while (NextStep() is { } step)
+        {
+            if (step is AvoidEnd avoidEnd)
+            {
+                var probe = avoidEnd.Probe;
+                probes!.Pop();
+                // The first break inside the box decides: a forced one is honoured where it falls, an
+                // unforced one (or a bottom edge that does not fit) is avoided by moving the box.
+                var firstBreakAvoidable = breakForced!.Count > probe.BreakCount
+                    ? !breakForced[probe.BreakCount]
+                    : pendingClosedPadding > probe.PendingClosed && y + pendingClosedPadding > bottom + 0.000001;
+                if (firstBreakAvoidable) MoveBoxToNextPage(probe);
+                else if (probes.Count == 0) breakForced.Clear();
+                continue;
+            }
+            if (ReferenceEquals(step, probeStart)) probeStart = null;
+            else if (AvoidsBreak(step) && CurrentPageOccupied())
+            {
+                var offset = step is BeginBlock avoidBox ? avoidBox.SourceOffset : ((LayoutTable)step).Node.SourceOffset;
+                breakForced ??= [];
+                var probe = Capture(CollectBox(step), offset);
+                (probes ??= new()).Push(probe);
+                (replay ??= new()).Push(new AvoidEnd(probe));
+                for (var i = probe.Group.Count - 1; i >= 0; i--) replay.Push(probe.Group[i]);
+                probeStart = step;
+                continue;
+            }
+            try { Process(step); }
+            catch (FactsPdfException failure) when (probes is { Count: > 0 }
+                && (failure.Code == "FPDF1302" || failure.Code == "FPDF1303" && !limitWasForced))
+            {
+                // A geometry failure or the page limit inside an avoid box is a break the box can avoid
+                // by moving (to a page that then names the box), unless a forced break came first.
+                var probe = probes.Pop();
+                if (breakForced!.Count > probe.BreakCount && breakForced[probe.BreakCount]) throw;
+                while (replay!.Pop() is not AvoidEnd) { }
+                MoveBoxToNextPage(probe);
+            }
         }
         if (end is not null) end.EndY = y + pendingTopPadding + pendingClosedPadding + strut;
         return pages;

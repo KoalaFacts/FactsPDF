@@ -424,7 +424,7 @@ test('kept-card source scope has complete English while preserving all old metho
     assert.equal(row.last_audited_commit,'ecdef6d8745caa3d2b527197c5767e25f89ba6b0');
     assert.match(row.scope,/PDF/);
     assert.match(row.limitations,/FPDF1302/);
-    assert.match(row.limitations,/top-level|nested/);
+    assert.match(row.limitations,/inside a table cell/);
     assert.doesNotMatch(row.scope+' '+row.limitations,han);
   }
   assert.match(translate(data.audit_method),/historical source\/release identities are preserved/);

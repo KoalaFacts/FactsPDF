@@ -232,7 +232,6 @@ public sealed class TableRowBreakInsideTests
     [TestCase("tfoot{break-inside:auto}", "FPDF1201", "auto}")]
     [TestCase("td{break-inside:avoid}", "FPDF1201", "avoid}")]
     [TestCase("th{page-break-inside:avoid}", "FPDF1201", "avoid}")]
-    [TestCase("table{break-inside:avoid}", "FPDF1201", "avoid}")]
     [TestCase("tr{break-inside:avoid-page}", "FPDF1202", "avoid-page")]
     [TestCase("tr{break-inside:avoid-column}", "FPDF1202", "avoid-column")]
     [TestCase("thead{break-inside:always}", "FPDF1202", "always")]

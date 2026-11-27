@@ -1,0 +1,19 @@
+import { englishAudit as previous } from './audit-english-block-margins.mjs';
+
+// break-inside:avoid on every block box: the scope and limitation strings of break-inside and page-break-inside are
+// replaced in place, so no count or status moves.
+if (previous.length !== 916) throw new Error('Earlier English audit cardinality changed.');
+export const sourceDigest = '4fb76de6f0bb961fb22831da1ef7f83439273b7ba9722d769be2387e6d64d4d0';
+const entries = [...previous];
+entries.splice(417, 1,
+  "break-inside:auto/avoid on ordinary block boxes, printed as Chrome prints them: panels (div, section, article, header, footer, main, nav, aside, blockquote, figure, dl and similar), p/pre, h1–h6, ul/ol/menu, li and table, holding any block content (paragraphs, headings, lists, tables, nested panels, images, flex and grid rows). A box that is not first on its page and does not fit the rest of it moves whole to the next page in the PDF (its top margin is truncated at that unforced break); a box that fits adds no page and is byte-identical to the page without the declaration; a box taller than a page that does not start one still moves to the next page and then breaks normally (orphans, widows and repeated table headers apply); a box already at the top of a page does not move; a forced break inside (break-before/break-after) is honoured where it falls and only the first break inside the box decides whether it moves; nested boxes decide for themselves. CSS cascade, !important and inherit/initial/unset apply; page-break-inside is the equivalent legacy alias");
+entries.splice(418, 1,
+  "The declaration on a flex or grid container, an inline element, tbody/tfoot/td/th or anywhere inside a table cell fails FPDF1201; other values such as avoid-page and avoid-column fail FPDF1202; a box that cannot fit even a fresh page (a fixed height taller than a page, a row kept whole that is taller than a page) fails FPDF1302; a break-after:avoid heading directly before a kept box does not move with it (Chrome moves it too), so put the heading inside the box. Table rows tr and thead accept auto/avoid and are byte-identical to the page without the declaration (a row that fits a fresh fragment with the repeated header already moves whole and the header never splits); a kept row that must split (taller than a fresh fragment, or split only for the table's top decoration) breaks before itself as Chrome does, or before the whole table when it is the first body row, and then continues from the fresh page by complete rows; a last row split only for the table's bottom padding or border still fails FPDF1302. Errors do not overwrite the original PDF");
+entries.splice(429, 1,
+  "The legacy print alias page-break-inside:auto/avoid shares break-inside's CSS cascade slot; it works on panels, paragraphs and headings, lists, list items and tables and any block content in them, with page breaks in the PDF matching Chrome: a box that does not fit moves whole to the next page, a box taller than a page moves and then breaks normally, and a box that starts a page or whose first break is forced stays; not general CSS Paged Media");
+entries.splice(430, 1,
+  "The same bounds as break-inside: a flex or grid container, an inline element, tbody/tfoot/td/th and anything inside a table cell fail FPDF1201, values other than auto/avoid fail FPDF1202, and geometry that cannot fit even a fresh page fails FPDF1302; table rows tr and thead accept it (byte-identical to the page without it; a row that must split continues from a fresh page as in Chrome, and a last row split only for bottom decoration fails FPDF1302); failures protect the original PDF");
+export const englishAudit = Object.freeze(entries);
+if (englishAudit.length !== 916 ||
+  englishAudit.some(value => typeof value !== 'string' || !value.trim() || /[㐀-鿿]/u.test(value)))
+  throw new Error('Incomplete English audit layer.');

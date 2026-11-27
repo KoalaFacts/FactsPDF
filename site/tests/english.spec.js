@@ -150,7 +150,7 @@ test('first-visit English discloses actual PDF section breaks and strict limitat
   await page.getByRole('button',{name:'Close details',exact:true}).click();
   await page.goto('/FactsPDF/#feature=css.page-break-inside');
   await expect(page.getByRole('dialog')).toContainText('Partial');
-  await expect(page.getByRole('dialog')).toContainText('top-level');
+  await expect(page.getByRole('dialog')).toContainText('inside a table cell');
 });
 
 test('fixed-height PDF business cards show complete en-AU limits, not Chinese fallback', async ({page}) => {

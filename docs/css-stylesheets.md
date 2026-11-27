@@ -1323,40 +1323,66 @@ selector precedence, computed lengths, page edges and budgets. New source,
 CI and review evidence do not relabel old private candidates or provide
 human page approval.
 
-## Current-source keep-together business report cards
+## break-inside: avoid
 
-Ordinary top-level `div`, `section`, `article` and `blockquote`
-(outside lists/tables) may opt into `break-inside:avoid` or the legacy
-`page-break-inside:avoid`. Only cards of **one to eight direct nonempty
-`p/pre/h1–h6` children** are measurable. Their real glyph-wrapped line
-heights, margins, padding, border and background are preflighted, then
-the entire card is moved to a fresh page when it cannot fit at the
-current cursor. Unnecessary breaks are not inserted if the card fits.
-`auto` is the default; aliases share the same cascade/importance slot.
-Explicit `inherit/initial/unset` use normal non-inherited box semantics.
-
-Example:
+`break-inside:avoid` and the legacy `page-break-inside:avoid` keep a block
+box on one page the way Chrome prints it. They apply to panels (`div`,
+`section`, `article`, `header`, `footer`, `main`, `nav`, `aside`, `hgroup`,
+`search`, `blockquote`, `figure`, `figcaption`, `address`, `dl`, `dt`, `dd`),
+paragraphs (`p`, `pre`), headings, lists (`ul`, `ol`, `menu`), list items and
+`table`, with any block content inside: paragraphs, headings, lists, tables,
+nested panels, images, flex and grid rows, and boxes with padding, borders, a
+background, a `min-height` or their own margins. `auto` is the default; the
+aliases share one cascade slot, and `inherit`, `initial`, `unset` and
+`!important` behave as for any box property.
 
 ```html
-<section style="break-inside:avoid;background:#edf4fa;border:1pt solid #234">
-  <h3 style="margin:0">Approval</h3>
-  <p style="margin:0">Reviewed by the facilities manager</p>
-</section>
+<div style="break-inside:avoid">
+  <h3>Findings</h3>
+  <table>...</table>
+</div>
 ```
 
-**Limits:** nested panels, inner explicit page boundaries, images/lists/tables,
-fixed/minimum-height, more than eight direct children, and a card whose
-actual content exceeds one usable page are not eligible. Unsupported
-structures raise `FPDF1201`, values `FPDF1202`, and unplaceable geometry
-`FPDF1302`; the existing output remains unchanged. No arbitrary Paged
-Media, general `break-inside`, widow/orphan control or two-pass browser
-pagination. The source is `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`
-and must pass exact-head CI and genuine separate review. Tests:
-`tests/FactsPDF.Tests/ReportKeepTogetherTests.cs`, the two authored
-[PDF templates](../examples/report-keep-together.html) and
-[physical page-control oracle](../examples/report-keep-together-oracle.html),
-and the native witness in `scripts/verify_native_feature_paths.py`.
-No new release or human page approval is implied.
+The rules, each checked against Chrome (headless, `--print-to-pdf`) on
+synthetic pages:
+
+- A box that is not the first thing on its page and does not fit the rest of
+  it moves whole to the next page. The box is laid out where it stands; when
+  the first break inside it is one the browser may avoid (a line, a block or a
+  table row that does not fit, the bottom padding or border, a flex or grid
+  row that cannot be split), the layout is rolled back and the box starts the
+  next page. The margin above it is truncated at that unforced break and its
+  closing margin is kept, like any block at a page break.
+- A box that fits stays: no page is added and the page is byte-identical to
+  the page without the declaration. A box that fits exactly stays.
+- A box taller than a page still moves to the next page when it does not start
+  one, and then breaks normally there (lines honour orphans and widows, tables
+  repeat their header). Avoid is ignored only for the part that cannot fit.
+- A box that already starts its page never moves, so no empty page appears.
+- A forced break (`break-before`/`break-after` on the box or on a child)
+  is honoured where it falls. Only the first break inside the box decides: when
+  it is forced the box stays, when it is an unforced break the box moves; a
+  later unforced break after a forced one is an ordinary break.
+- Nested boxes each decide for themselves; an outer box that moves takes its
+  inner boxes along, and an inner box that does not fit its own page moves
+  alone inside a plain parent.
+- A table with `break-inside:avoid` moves whole (caption, header and rows),
+  and when taller than a page continues with its repeated header. A kept row
+  keeps the behaviour in [Table rows](#table-rows).
+
+**Not supported:** `break-inside:avoid` on a flex or grid container (a flex
+or grid row is already kept whole), on inline elements, `tbody`, `tfoot`,
+`td`, `th` and other table parts, and anywhere inside a table cell, which
+break by cell lines (`FPDF1201`); other values such as `avoid-page` and
+`avoid-column` (`FPDF1202`). A kept box that cannot be placed even on a fresh
+page (a fixed `height` taller than the page, a row taller than the page that
+FactsPDF keeps whole) fails `FPDF1302`. A `break-after:avoid` heading before a
+kept box does not travel with it (Chrome moves the heading too); put the
+heading inside the box. Failures leave the existing output unchanged.
+Tests: `tests/FactsPDF.Tests/BreakInsideAvoidTests.cs`; the printable
+[kept-card template](../examples/report-keep-together.html) and its
+[forced-page control](../examples/report-keep-together-oracle.html) still render
+as before.
 
 ### Table rows
 
@@ -1414,8 +1440,10 @@ Placement matches Chrome, verified by printing synthetic pages in Chrome:
   paragraph after it cannot leave its orphans after the headings, even when
   the group is taller than a page; otherwise the paragraph breaks inside and the
   heading stays ([heading pagination](heading-pagination.md)).
-- A `break-inside:avoid` card never breaks inside, so its paragraphs never
-  apply orphans or widows. Forced `break-before`/`break-after` come first.
+- A `break-inside:avoid` box moves whole when its first break would be an
+  unforced one, so a paragraph that cannot leave its orphans there moves with
+  it; inside the box, once placed, paragraphs apply orphans and widows as
+  usual. Forced `break-before`/`break-after` come first.
 - In a fixed-column table row that splits across pages, each cell continues
   independently and each cell paragraph keeps its orphans and widows: a later
   paragraph of a cell that cannot keep its orphans moves to the next page within
@@ -1452,9 +1480,8 @@ legacy declaration compete for the same physical break slot.
 .signoff { break-before: auto; }
 ```
 
-Not general keep-together, left/right/recto/verso, column boundaries,
-named pages, tables/list/inline breaks or CSS Paged Media. A separate
-top-level flat-card `break-inside:avoid` subset is defined above. Unsupported values and
+Not left/right/recto/verso, column boundaries, named pages or CSS Paged
+Media. `break-inside:avoid` is defined in [its own section](#break-inside-avoid). Unsupported values and
 applicability reject with `FPDF1201/1202` before replacing a customer's
 PDF. Source `67566764419232585632d8ea6f2106aeeeff2f70` adds
 `SectionPageBreakTests.cs`, the
@@ -1665,7 +1692,7 @@ Renderer initial values are the writer's base font size (`WithFonts(f => f.Size(
 | margin-left, margin-right | Paragraphs/headings only outside table cells; nonnegative pt/px/mm/cm/in/%/rem/em or zero, plus `auto`; percentages use containing width, rem uses computed html root, em uses own computed font; auto side takes remaining free space |
 | margin (bounded shorthand) | Ordinary p/pre/headings and scoped div/section/article/blockquote panels; 1–4 TRBL values with nonnegative vertical print/rem/em/%/zero, horizontal print/rem/em/%/zero/`auto`. Vertical percentages use containing content width, not height. `margin:0 auto` centres explicit-width boxes; CSS-wide keywords and per-side cascade work. List/table paragraphs retain their restrictions. |
 | break-before, break-after; page-break-before/after aliases | Explicit p/pre/headings and ordinary div/section/article/blockquote report panels outside lists/tables; auto/page. Legacy aliases accept auto/always; heading-only break-after:avoid remains a bounded keep hint. Real page boundaries, not general CSS Fragmentation. [Precise print-section scope](#current-source-print-section-page-boundaries) and [heading pagination](heading-pagination.md) |
-| break-inside; page-break-inside alias | Only top-level div/section/article/blockquote cards with 1–8 direct nonempty p/pre/h1–h6 children. `auto` / `avoid`, CSS-wide keywords and `!important` share the actual PDF whole-card preflight and page move. Cannot exceed one page; nested/complex/fixed/minimum-height/inner forced-break inputs fail. [Exact scope](#current-source-keep-together-business-report-cards) |
+| break-inside; page-break-inside alias | `auto` / `avoid` on panels, paragraphs, headings, lists, list items, tables and table rows (`tr`, `thead`): a box that does not fit the rest of the page moves whole to the next page, a box taller than a page moves and then breaks normally, a box that starts a page or whose first break is forced stays. Flex/grid containers, inline elements, other table parts and anything inside a table cell fail `FPDF1201`; other values `FPDF1202`. [Exact scope](#break-inside-avoid) |
 | orphans, widows | Positive integers, inherited, on any block (`html`, `body`, report panels, `p`/`pre`/headings, lists and list items, tables and cells), initial value 2 everywhere: the minimum number of a paragraph's lines kept at the bottom of a page before a break and at the top of the next page, placed as Chrome places them, including cell paragraphs of split table rows. Inline text, `br`, `img`, `hr` and `col` drop it. `0`, negative, non-integer and other values fail `FPDF1202`. [Exact contract](#orphans-and-widows) |
 | position, float, clear, overflow, overflow-x, overflow-y, visibility, z-index, opacity, box-shadow, text-shadow, transform, filter, background-image, clip-path, backdrop-filter, mix-blend-mode, isolation, font-feature-settings (also `-webkit-`/`-moz-`), font-variation-settings, font-variant-ligatures, font-variant-numeric, font-stretch, font-optical-sizing, font-size-adjust, font-variant, font-variant-caps, font-variant-east-asian, font-variant-alternates, font-variant-position, font-language-override, font-variant-emoji, font-palette, text-emphasis, text-emphasis-style, direction, unicode-bidi, writing-mode, text-orientation, text-combine-upright, column-count, column-width, columns, column-gap, row-gap, gap, column-span, column-fill, column-rule, column-rule-style, text-overflow, line-clamp (and `-webkit-`), box-decoration-break (and `-webkit-`), rotate, scale, translate, perspective, transform-style, mask, mask-image (both also `-webkit-`), shape-outside, hanging-punctuation, hyphenate-character, text-spacing-trim, text-underline-position, background-attachment, background-blend-mode, background-origin, container-type, container, aspect-ratio, mask-repeat, mask-size, mask-origin, mask-clip, mask-mode, mask-composite, mask-type, animation-composition, animation-timeline, animation-range, animation-range-start, animation-range-end, scroll-timeline, scroll-timeline-name, scroll-timeline-axis, view-timeline, view-timeline-name, view-timeline-axis, view-timeline-inset, timeline-scope, view-transition-name, view-transition-class, anchor-name, anchor-scope, position-area, position-try, position-try-fallbacks, position-try-order, overlay, interpolate-size, reading-flow, field-sizing, dynamic-range-limit, caret, caret-animation, caret-shape, text-wrap-style, text-box, text-box-trim, text-box-edge, paint-order, math-style, math-shift, contain-intrinsic-size, contain-intrinsic-width, contain-intrinsic-height, contain-intrinsic-block-size, contain-intrinsic-inline-size, transform-box, top, right, bottom, left, inset, inset-block, inset-inline, inset-block-start, inset-block-end, inset-inline-start, inset-inline-end, border-image, border-image-source, border-collapse, border-spacing, empty-cells, caption-side, offset-path, offset-rotate, offset-anchor, initial-letter, text-emphasis-color, zoom, contain, content-visibility, line-break, text-justify, image-rendering | Initial value only, on any element: `position:static`, `float:none`, `clear:none`, `overflow*:visible`, `visibility:visible`, `z-index:auto`, `opacity:1` or `100%`, `box-shadow`/`text-shadow`/`transform`/`filter`/`background-image`/`clip-path`/`backdrop-filter:none`, `mix-blend-mode:normal`, `isolation:auto`, `font-feature-settings`/`font-variation-settings`/`font-variant-ligatures`/`font-variant-numeric`/`font-stretch:normal`, `font-optical-sizing:auto`, `font-size-adjust:none`, `font-variant`/`font-variant-caps`/`font-variant-east-asian`/`font-variant-alternates`/`font-variant-position:normal`, `font-language-override`/`font-variant-emoji`/`font-palette:normal`, `text-emphasis`/`text-emphasis-style:none`, `direction:ltr`, `unicode-bidi:normal`, `writing-mode:horizontal-tb`, `text-orientation:mixed`, `text-combine-upright:none`, `column-count`/`column-width`/`columns:auto`, `column-gap:normal`, `column-span`/`column-rule`/`column-rule-style:none`, `column-fill:balance`, `text-overflow:clip`, `line-clamp`/`-webkit-line-clamp:none`, `box-decoration-break`/`-webkit-box-decoration-break:slice`, `rotate`/`scale`/`translate`/`perspective:none`, `transform-style:flat`, `mask`/`mask-image`/`-webkit-mask`/`-webkit-mask-image`/`shape-outside:none`, `hanging-punctuation:none`, `hyphenate-character`/`text-underline-position:auto`, `text-spacing-trim:normal`, `background-attachment:scroll`, `background-blend-mode:normal`, `background-origin:padding-box`, `container-type:normal`, `container:none`, `aspect-ratio:auto`, `mask-repeat:repeat`, `mask-size:auto`, `mask-origin`/`mask-clip:border-box`, `mask-mode:match-source`, `mask-composite:add`, `mask-type:luminance`, `animation-composition:replace`, `animation-timeline`/`view-timeline-inset:auto`, `animation-range`/`animation-range-start`/`animation-range-end:normal`, `scroll-timeline`/`scroll-timeline-name`/`view-timeline`/`view-timeline-name`/`timeline-scope`/`view-transition-name`/`view-transition-class:none`, `scroll-timeline-axis`/`view-timeline-axis:block`, `anchor-name`/`anchor-scope`/`position-area`/`position-try`/`position-try-fallbacks`/`overlay:none`, `position-try-order:normal`, `interpolate-size:numeric-only`, `reading-flow:normal`, `field-sizing:fixed`, `dynamic-range-limit:no-limit`, `caret`/`caret-animation`/`caret-shape:auto`, `text-wrap-style`/`text-box-edge:auto`, `text-box-trim:none`, `text-box`/`paint-order`/`math-style`/`math-shift:normal`, `contain-intrinsic-size` and its `-width`/`-height`/`-block-size`/`-inline-size` longhands at `none`, `transform-box:view-box`, `top`/`right`/`bottom`/`left`/`inset` and the logical `inset-block`/`inset-inline` (with `-start`/`-end`) at `auto` (only `position:static` is accepted, so offsets never move a box), `border-image`/`border-image-source:none`, `border-collapse:separate` and `border-spacing` at one or two zero lengths (`0`, `0 0`; table cells already paint separate border boxes that touch without spacing, so `collapse` and non-zero spacing fail `FPDF1202`), `empty-cells:show` (empty cells already paint their background and borders) and `caption-side:top` (no `caption` element is accepted), `offset-path:none`, `offset-rotate`/`offset-anchor:auto` (no box is placed along a motion path), `initial-letter:normal` (no drop cap is drawn) and `text-emphasis-color:currentcolor` (no emphasis mark is painted), `zoom:normal` (or `1`/`100%`), `contain:none`, `content-visibility:visible`, `line-break`/`text-justify`/`image-rendering:auto` (and CSS-wide keywords, which compute to it). Normal flow already lays out exactly this, so the declaration is validated and dropped and the PDF bytes equal the undeclared page; common reset rules in stylesheets therefore no longer fail. Every other value (`position:absolute`, `float:left`, `overflow:hidden`, `visibility:hidden`, `z-index:1`, `opacity:0.5`, `box-shadow:0 0 2pt #000`, `transform:rotate(90deg)`, `background-image:url(…)`, `font-feature-settings:'tnum'`, `font-stretch:condensed`, `zoom:2`, `contain:layout`, `line-break:anywhere`, `background-attachment:fixed`, `container-type:inline-size`, `aspect-ratio:16 / 9`, `mask-size:cover`, ...) fails `FPDF1202`; no positioning, floats, clipping, hiding, stacking, transparency, shadows, transforms, filters, background images, OpenType feature or variation-axis selection, optical sizing, aspect adjustment, font width selection, zoom, containment, content skipping, alternative line breaking or justification rules, image interpolation control, background blending, container queries or preferred aspect ratios are implemented ([`InitialValueNoOpTests`](../tests/FactsPDF.Tests/InitialValueNoOpTests.cs)) |
 | cursor, pointer-events, user-select (and its `-webkit-`/`-moz-`/`-ms-` spellings), resize, -webkit-user-drag, -webkit-touch-callout, -ms-overflow-style, speak, font-synthesis (and its `-weight`, `-style`, `-small-caps` and `-position` longhands), text-decoration-skip-ink, text-decoration-skip (and `-webkit-text-decoration-skip`), font-kerning, quotes | Any single keyword value, on any element: every CSS UI `cursor` keyword (`auto`, `default`, `pointer`, `text`, `not-allowed`, the `*-resize` cursors, ...), `pointer-events` (`auto`, `none` and the SVG keywords), `user-select` (`auto`, `text`, `none`, `contain`, `all`), `resize` (`none`, `both`, `horizontal`, `vertical`, `block`, `inline`), `-webkit-user-drag` (`auto`, `element`, `none`), `-webkit-touch-callout` (`default`, `none`) and `-ms-overflow-style` (`auto`, `none`, `scrollbar`, `-ms-autohiding-scrollbar`) and `speak` (`auto`, `never`, `always` and the CSS 2 aural `none`, `normal`, `spell-out` that icon-font stylesheets write), plus CSS-wide keywords. `text-decoration-skip-ink` accepts only `auto` or `none`, and `font-synthesis` and its four longhands only `none`: the renderer synthesizes no bold or italic face and never breaks an underline around descenders, which is what those values allow; `text-decoration-skip-ink:all` and other `font-synthesis` values (including `font-synthesis-weight:auto`) fail `FPDF1202`; the legacy `text-decoration-skip` (normalize.css 7 and Bootstrap 4 write `-webkit-text-decoration-skip:objects` on links) accepts `none`, `auto` or `objects`, since no image or other atomic inline can sit inside a line, while `ink`, `spaces`, `edges` and other values fail `FPDF1202`; `font-kerning` accepts only `auto` or `none`, since no glyph pair is ever kerned (no kern or GPOS data is read), while `font-kerning:normal` and other values fail `FPDF1202`; `quotes` accepts `auto`, `none`, `match-parent` or one or more pairs of strings, since no `q` element or `open-quote`/`close-quote` content is accepted and no quotation mark is ever inserted, while a single string and other values fail `FPDF1202`. They only change how a screen reacts to a pointer, a drag, a long press or a scrollbar, or how a screen reader speaks, or ask for nothing the renderer would do, so the declaration is validated and dropped and the PDF bytes equal the undeclared page. `-webkit-user-select`, `-moz-user-select` and `-ms-user-select` are aliases of `user-select`. Cursor images (`url(...)`), unknown keywords, several components and other prefixes (`-o-user-select`) still fail (`FPDF1202`, or `FPDF1201` for unknown names) ([`InteractionOnlyCssTests`](../tests/FactsPDF.Tests/InteractionOnlyCssTests.cs), [`ScreenGestureHintTests`](../tests/FactsPDF.Tests/ScreenGestureHintTests.cs)) |
@@ -2271,7 +2298,7 @@ Explicit `inherit` from a percent-margined report panel uses the child's
 containing width; `!important`, `initial`, `unset` and per-side
 cascade retain their normal behavior. The resolved values affect actual PDF
 placement, backgrounds/borders, multi-page text, heading keep and
-bounded kept cards.
+kept boxes.
 
 Direct percentages in list/table paragraphs fail `FPDF1201`;
 negative lengths, vertical `auto` and `calc()` fail `FPDF1202`;

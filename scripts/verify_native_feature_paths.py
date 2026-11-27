@@ -1458,7 +1458,7 @@ def verify_native_report_keep_together(executable, output, work):
     invalid = work / 'keep-together-invalid.html'
     preserved = output / 'keep-together-retained.pdf'
     for html, code in (
-        ('<section style="break-inside:avoid"><div><p>NO</p></div></section>', b'FPDF1201'),
+        ('<span style="break-inside:avoid">NO</span>', b'FPDF1201'),
         ('<section style="break-inside:left"><p>NO</p></section>', b'FPDF1202'),
     ):
         invalid.write_text(html, encoding='utf-8')

@@ -1690,45 +1690,43 @@ and [independently authored modern-break control](../examples/report-section-pag
 are checked as actual Native AOT PDFs, not accepted syntax alone.
 `break-after:avoid` remains **heading-only**, not a section keep-together;
 left/right, RTL, tables/lists and general CSS Paged Media are unsupported.
-A separately documented top-level flat-card `break-inside:avoid` subset
-does not change these forced-boundary semantics. Source:
+`break-inside:avoid` is documented separately and does not change these
+forced-boundary semantics. Source:
 `67566764419232585632d8ea6f2106aeeeff2f70`.
 [Precise CSS scope](css-stylesheets.md#current-source-print-section-page-boundaries).
 
-### Keep multi-paragraph sign-off cards together (source-only)
+### Keep a block together with break-inside:avoid
 
-Use `break-inside:avoid` (or legacy `page-break-inside:avoid`)
-on a **top-level** `div/section/article/blockquote` containing one to eight
-direct, nonempty `p/pre/h1–h6` children. FactsPDF measures actual glyph wraps,
-padding, borders and text margins **before** PDF placement; if a card does not
-fit at the current page end, its whole painted box and text move to the next
-page. A card taller than one usable page rejects with `FPDF1302`, retaining
-the previous PDF. `auto`, `inherit/initial/unset`, `!important`
-and the existing cascade apply. No new page for a card that fits.
+`break-inside:avoid` (or legacy `page-break-inside:avoid`) on a panel,
+paragraph, heading, list, list item or table keeps the box on one page like
+Chrome: when it is not the first thing on its page and does not fit the rest
+of it, the whole box moves to the next page (its top margin is truncated at
+that break); a box that fits stays and the page is byte-identical to the page
+without the declaration. The box may hold any block content: a heading and a
+table, a paragraph and a list, nested panels, images, flex and grid rows. A box
+taller than a page still moves to the next page when it does not start one and
+then breaks normally, with orphans and widows and repeated table headers; a box
+that already starts a page never moves, and a forced `break-before` or
+`break-after` inside is honoured where it falls. Nested boxes decide for
+themselves. `tr` and `thead` accept it too, as in
+`.report-table tr{break-inside:avoid}`: rows that fit a fresh page fragment
+with the repeated header already move whole and the header never splits, so the
+page is byte-identical to the page without it. A kept row that must split
+(taller than a fresh fragment, or a first row split only for the table's top
+decoration) starts on a fresh page, or moves the table there, and then
+continues at line boundaries, on the same pages as Chrome prints it; a kept
+last row split only for the table's bottom padding/border fails `FPDF1302`
+(Chrome paints that decoration past the page bottom).
 
-`tr` and `thead` accept `break-inside:auto|avoid` (and `page-break-inside`)
-too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
-fragment with the repeated header already move whole and the header never
-splits, so the page is byte-identical to the page without it. A kept row that
-must split (taller than a fresh fragment, or a first row split only for the
-table's top decoration) starts on a fresh page, or moves the table there, and
-then continues at line boundaries, on the same pages as Chrome prints it; a
-kept last row split only for the table's bottom padding/border fails
-`FPDF1302` (Chrome paints that decoration past the page bottom). `tbody`, `tfoot`, `td` and
-`th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
-[exact contract](css-stylesheets.md#table-rows)).
-
-This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
-explicit inner page breaks, fixed/minimum-height cards, more than eight direct
-children, arbitrary children or left/right pages are not
-implemented (orphans and widows are below). Inapplicable structures reject `FPDF1201`; unsupported values
-reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-together-business-report-cards),
-[printable card](../examples/report-keep-together.html),
-[independently authored forced-page control](../examples/report-keep-together-oracle.html),
-`ReportKeepTogetherTests.cs`, and Linux/Windows Native AOT/qpdf/Poppler
-witness are provided for review. Source first implemented at
-`ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
-private software, human PDF approval and customer rights are separate.
+Still failing explicitly: a flex or grid container with the declaration,
+inline elements, `tbody`, `tfoot`, `td`, `th` and anything inside a table
+cell (`FPDF1201`), values such as `avoid-page` (`FPDF1202`). A
+`break-after:avoid` heading directly before a kept box does not move with it
+(put the heading inside the box). `TableRowBreakInsideTests.cs`,
+`BreakInsideAvoidTests.cs` (Chrome's printed page splits),
+[exact CSS contract](css-stylesheets.md#break-inside-avoid),
+[printable card](../examples/report-keep-together.html) and
+[independently authored forced-page control](../examples/report-keep-together-oracle.html).
 
 ### Orphans and widows
 
