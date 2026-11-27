@@ -1503,8 +1503,11 @@ and the existing cascade apply. No new page for a card that fits.
 too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
 fragment with the repeated header already move whole and the header never
 splits, so the page is byte-identical to the page without it. A kept row that
-FactsPDF would split (taller than a fresh fragment, or split only to carry the
-table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
+must split (taller than a fresh fragment, or a first row split only for the
+table's top decoration) starts on a fresh page, or moves the table there, and
+then continues at line boundaries, on the same pages as Chrome prints it; a
+kept last row split only for the table's bottom padding/border fails
+`FPDF1302` (Chrome paints that decoration past the page bottom). `tbody`, `tfoot`, `td` and
 `th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
 [exact contract](css-stylesheets.md#table-rows)).
 

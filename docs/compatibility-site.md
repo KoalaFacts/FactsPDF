@@ -657,7 +657,11 @@ The custom property / `var()` row moves to partial: custom properties cascade an
 fallback fails `FPDF1202` instead of being unset. Its scope and limitation strings are replaced in
 place and its stage becomes the existing `语义/渲染`, so the `仅语法可表示` stage it shared with the
 value-function row moves after that row's strings (partial 247, rejected 119; `FPDF1202`).
+A kept table row that must split now paginates like Chrome (it starts on a fresh
+page, or moves the table there, and continues), so those two limitation strings
+are replaced in place again and a kept last row split only for the table's bottom
+decoration is the remaining `FPDF1302`; no count moves.
 Current dataset SHA-256:
-`59c9929a533f41bc48340676854c7d916d4594a9ba2c04e455c381b882d6d788`; English
-layer `site/src/audit-english-custom-properties.mjs`, ordered source-text
-SHA-256 `ec7b30b4a5fa54a67a3b88ec6bd96f45b142b120037d2592ebc09976018f5ab0`.
+`6c73120721e0e1bee2201e50b6ad2ce40695f572fd73f6387f80acaa15c88d72`; English
+layer `site/src/audit-english-table-row-kept-split.mjs`, ordered source-text
+SHA-256 `0e4408a1cc3960189e84bf82d58ef78837b36b031e35f0157e7052edd0c45602`.

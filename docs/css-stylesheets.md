@@ -1268,13 +1268,16 @@ No new release or human page approval is implied.
 `.report-table tr{break-inside:avoid;page-break-inside:avoid}`. A table row
 that fits a fresh page fragment with the repeated header already moves whole,
 and the header never splits, so the page renders byte-identical to the page
-without the declaration. A kept row that FactsPDF would split fails
-`FPDF1302` at the row: a row taller than a fresh fragment with its header, a
-first body row split only to carry the table's top padding/border (or the
-leading decoration of its container), and a last row split only to carry the
-table's bottom padding/border. A browser would move such a row to a fresh
-page or break before it instead. Rows without the declaration keep splitting
-as described in [tables](tables.md#long-descriptions-across-pages).
+without the declaration. A kept row that FactsPDF must split (taller than a
+fresh fragment with its header, or a first body row split only to carry the
+table's top padding/border or its container's leading decoration) breaks before
+itself as Chrome does, or before the whole table when it is the first body row,
+and then continues from the fresh page at line boundaries; where it already
+starts where a fresh page would put it, it splits like the row without the
+declaration. A kept last row split only to carry the table's bottom
+padding/border fails `FPDF1302` at the row, because Chrome keeps it whole and
+paints that decoration past the page bottom. Rows without the declaration keep
+splitting as described in [tables](tables.md#long-descriptions-across-pages).
 `tbody`, `tfoot`, `td`, `th` and `table` still fail `FPDF1201`;
 `avoid-page`, `avoid-column` and other values fail `FPDF1202`
 (`TableRowBreakInsideTests.cs`).
