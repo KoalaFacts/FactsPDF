@@ -87,8 +87,10 @@ internal readonly record struct CssSpecificity(int Ids, int Classes, int Types) 
 internal enum CssAttributeOperator { Presence, Equals, StartsWith, EndsWith, Contains, Includes, Dash }
 internal readonly record struct CssAttributeMatch(
     string Name, CssAttributeOperator Operator, string? Value, bool IgnoreCase);
+// Root is the :root pseudo-class: the document's root element, which in HTML is the html element
+// with no parent (the first entry of the ancestor path).
 internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
-    CssAttributeMatch[] Attributes, bool ChildOfPrevious);
+    CssAttributeMatch[] Attributes, bool ChildOfPrevious, bool Root = false);
 
 internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset)
 {
@@ -108,7 +110,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             budget.Token.ThrowIfCancellationRequested();
             CssBudget.Check(parts.Count < 32, "A selector may contain at most 32 compounds.", offset);
             string? type = null; var ids = new List<string>(); var classes = new List<string>();
-            var attrs = new List<CssAttributeMatch>(); var simple = 0;
+            var attrs = new List<CssAttributeMatch>(); var simple = 0; var root = false;
             if (tokens[i].Kind == CssTokenKind.Identifier) { type = tokens[i++].Text.ToLowerInvariant(); simple++; typeCount++; }
             else if (IsSymbol(tokens[i], "*")) { i++; simple++; }
             while (true)
@@ -126,6 +128,13 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                     var id = current.Text[1..];
                     if (!CssTokens.IdentifierStart(id, 0)) throw CssTokens.Invalid("Escaped/numeric ID selectors are not supported.", current.Offset);
                     ids.Add(id); idCount++; i++;
+                }
+                // :root is the only supported pseudo-class. Any other ':' ends the compound exactly as
+                // before, so other pseudo-classes and pseudo-elements keep failing with FPDF1203.
+                else if (IsSymbol(current, ":") && tokens[i + 1].Kind == CssTokenKind.Identifier
+                    && !tokens[i + 1].LeadingSpace && tokens[i + 1].Text.Equals("root", StringComparison.OrdinalIgnoreCase))
+                {
+                    i += 2; root = true; classCount++;
                 }
                 else if (IsSymbol(current, "["))
                 {
@@ -188,7 +197,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 CssBudget.Check(++simple <= 32, "A compound selector may contain at most 32 simple terms.", offset);
             }
             if (simple == 0) throw CssTokens.Invalid("Expected a supported selector.", tokens[i].Offset);
-            parts.Add(new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), child));
+            parts.Add(new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), child, root));
             if (IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")) break;
             if (tokens[i].Kind == CssTokenKind.End) throw CssTokens.Invalid("Expected a CSS declaration block.", tokens[i].Offset);
             if (IsSymbol(tokens[i], ">")) { child = true; i++; }
@@ -200,7 +209,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
 
     internal bool Matches(IReadOnlyList<CssElement> path, CssBudget budget)
     {
-        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], budget)) return false;
+        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], path.Count == 1, budget)) return false;
         if (parts.Length == 1) return true;
         if (parts.Length > path.Count) return false;
         // Dynamic programming preserves all possible ancestors in mixed child/descendant chains.
@@ -215,16 +224,17 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             {
                 budget.Work(offset); below |= candidates[n + 1];
                 var reachable = parts[p + 1].ChildOfPrevious ? candidates[n + 1] : below;
-                if (reachable && MatchesCompound(parts[p], path[n], budget)) { next[n] = true; any = true; }
+                if (reachable && MatchesCompound(parts[p], path[n], n == 0, budget)) { next[n] = true; any = true; }
             }
             if (!any) return false;
             next.CopyTo(candidates);
         }
         return true;
     }
-    private bool MatchesCompound(CssCompound part, in CssElement element, CssBudget budget)
+    private bool MatchesCompound(CssCompound part, in CssElement element, bool first, CssBudget budget)
     {
         budget.Work(offset);
+        if (part.Root && !(first && element.Name.Equals("html", StringComparison.OrdinalIgnoreCase))) return false;
         if (part.Type is not null && !part.Type.Equals(element.Name, StringComparison.OrdinalIgnoreCase)) return false;
         foreach (var id in part.Ids) { budget.Work(offset); if (!id.Equals(element.Id, StringComparison.Ordinal)) return false; }
         foreach (var name in part.Classes) { budget.Work(offset); if (!element.Classes.Contains(name)) return false; }
