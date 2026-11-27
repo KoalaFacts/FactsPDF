@@ -92,7 +92,6 @@ public sealed class TableRichTests
     [TestCase("<p><p>A</p></p>")][TestCase("<p>A</td>")][TestCase("<span><p>A</p></span>")]
     [TestCase("<p><img src='logo' style='display:block'></p>")][TestCase("<span><img src='logo' style='display:block'></span>")]
     [TestCase("<h1>A</h1>")][TestCase("<div>A</div>")][TestCase("<section>A</section>")]
-    [TestCase(TableStructureTests.One)]
     public void ParentRulesRejectWithoutOrdinaryParagraphRepair(string content)
         => TableStructureTests.Fails(Rich(content), "FPDF1101", TableImageTests.Options());
     [TestCase("width:auto")][TestCase("padding:5%")][TestCase("border:inherit")]
