@@ -86,7 +86,7 @@ internal static class CssSyntaxAdapter
                 if (CssVariables.IsCustomPropertyName(node.Name))
                 {
                     CssVariables.ValidateReferences(node.Values);
-                    var keyword = CssVariables.Keyword(node.Values, node.Span.Start);
+                    var keyword = CssVariables.Keyword(node.Values);
                     var values = node.Values as CssSyntaxComponent[] ?? [.. node.Values];
                     budget.UsesVariables = true;
                     output.Add(CssDeclaration.Create(CssProperty.Custom, node.Name, CssVariables.Text(values), node.Important,
@@ -146,7 +146,7 @@ internal static class CssSyntaxAdapter
                 {
                     var sourceOffset = offset < 0 ? node.Span.Start : offset;
                     var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
-                    output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
+                    output.Add(CssDeclaration.Create(target, targetName ?? name, value == "revert-layer" ? "revert" : value, node.Important, order, sourceOffset));
                 }
                 // Logical border component declarations use the existing *physical*
                 // per-side width/style/colour cascade slots. The pair forms accept
@@ -667,7 +667,7 @@ internal static class CssSyntaxAdapter
                     // then drops it (CssStylesheets.TablePartDisplayError).
                     var displayError = valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
                         ? "Report display supports only block and none."
-                        : token is "none" or "block" ? null
+                        : token is "none" or "block" or "revert" or "revert-layer" ? null
                         : CssStylesheets.TablePartDisplayError(token, hostSelectors, hostElement);
                     if (displayError is not null)
                         throw new FactsPdfException("FPDF1202", displayError, tokenOffset);
@@ -798,7 +798,9 @@ internal static class CssSyntaxAdapter
         return significantIndex >= 0 && (long)exponent + integerDigits - significantIndex - 1 == 2;
     }
 
-    private static bool Wide(string text) => text is "inherit" or "initial" or "unset";
+    // revert and revert-layer (no cascade layers exist, so it reverts like revert) roll back the
+    // author origin; the cascade discards such a winner (CssStylesheets.Compute).
+    private static bool Wide(string text) => text is "inherit" or "initial" or "unset" or "revert" or "revert-layer";
 
     // The only value each property accepts: the initial value, which the report renderer's
     // normal flow already produces (no positioning, floats, clipping, hiding, stacking,

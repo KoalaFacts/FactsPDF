@@ -44,7 +44,7 @@ document corpus.
 | `@media print`, `@page` | Retains at-rule | Applies `@media print`/`all` and `@page` (size, margins, top/bottom margin boxes); other media and page forms fail `FPDF1204` |
 | `calc()` / `var()` | Retains nested function tree | `var()` and custom properties are substituted by the cascade; `calc()` is not evaluated |
 | Nested CSS rules | Retains ordered rule/declaration contents | Does not evaluate nesting |
-| Comments and malformed constructs | Tokenizes/recovery diagnostics | Strict mode rejects recovered errors |
+| Comments and malformed constructs | Tokenizes/recovery diagnostics | Strict mode (default) rejects recovered errors; non-strict mode keeps the recovered tree and warns ([strict and non-strict CSS](css-stylesheets.md#strict-and-non-strict-css)) |
 | Existing eight supported properties | Parses | Computes and renders |
 | PDF width/padding/border/background | Parse as unknown valid declarations | Not implemented; planned after parser stabilization |
 

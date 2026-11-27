@@ -118,8 +118,8 @@ internal static class CssVariables
     }
 
     /// <summary>The CSS-wide keyword a custom property declares, or null; <c>revert</c> and
-    /// <c>revert-layer</c> fail FPDF1202 like elsewhere in the renderer.</summary>
-    internal static string? Keyword(IReadOnlyList<CssSyntaxComponent> values, int offset)
+    /// <c>revert-layer</c> act as <c>unset</c>.</summary>
+    internal static string? Keyword(IReadOnlyList<CssSyntaxComponent> values)
     {
         CssSyntaxToken? only = null;
         for (var i = 0; i < values.Count; i++)
@@ -130,8 +130,8 @@ internal static class CssVariables
         }
         if (only is not { } keyword) return null;
         var text = keyword.Value.ToLowerInvariant();
-        if (text is "revert" or "revert-layer")
-            throw new FactsPdfException("FPDF1202", $"CSS-wide keyword '{text}' is not supported on custom properties.", offset);
+        // revert rolls the author origin back, and custom properties inherit, so it acts as unset.
+        if (text is "revert" or "revert-layer") return "unset";
         return text is "inherit" or "initial" or "unset" ? text : null;
     }
 
@@ -206,7 +206,9 @@ internal static class CssVariables
                 case "inherit" or "unset": break;
                 case "initial": values.Remove(name); break;
                 default:
-                    if (ContainsVar(value.Values)) { values.Remove(name); pending.Add(name, (value, offset)); }
+                    // The inherited value stays until the reference resolves: a substituted CSS-wide
+                    // keyword other than initial keeps it (see Resolver.Resolve).
+                    if (ContainsVar(value.Values)) pending.Add(name, (value, offset));
                     else values[name] = new CssVariableValue(value.Values, CountNodes(value.Values));
                     break;
             }
@@ -259,7 +261,9 @@ internal static class CssVariables
             var nodes = 0;
             var valid = Substitute(declared.Values, output, ref nodes, offset, stack.Count, out _);
             stack.RemoveAt(stack.Count - 1); visiting.Remove(name); done.Add(name);
-            if (valid && !cyclic.Contains(name)) values[name] = new CssVariableValue(output.ToArray(), nodes);
+            var keyword = valid ? Keyword(output) : null;
+            if (!valid || cyclic.Contains(name) || keyword == "initial") values.Remove(name);
+            else if (keyword is null) values[name] = new CssVariableValue(output.ToArray(), nodes);
         }
 
         internal bool Substitute(IReadOnlyList<CssSyntaxComponent> source, List<CssSyntaxComponent> output,

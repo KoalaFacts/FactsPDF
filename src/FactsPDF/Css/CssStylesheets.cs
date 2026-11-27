@@ -92,6 +92,8 @@ internal sealed class CssStylesheets
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
         var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
+        // A style element whose type is not CSS is not a stylesheet: non-strict mode ignores its text.
+        var ignoredStyle = false;
         foreach (var item in HtmlTokens.Read(html, token))
         {
             token.ThrowIfCancellationRequested();
@@ -144,7 +146,9 @@ internal sealed class CssStylesheets
             else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
                 insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
             if (item.Kind == HtmlTokenKind.End) depth.Read(item);
-            if (item.Kind == HtmlTokenKind.StyleText)
+            if (item.Kind == HtmlTokenKind.End && item.Value == "style") ignoredStyle = false;
+            if (item.Kind == HtmlTokenKind.StyleText && ignoredStyle) ignoredStyle = false;
+            else if (item.Kind == HtmlTokenKind.StyleText)
             {
                 sheet.budget.Characters(item.Value.Length, item.Offset);
                 sheet.ParseRules(sheet.ParseSource(item.Value, item.Offset, declarationsOnly: false).Rules);
@@ -153,7 +157,7 @@ internal sealed class CssStylesheets
             {
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
                 depth.Read(item);
-                if (item.Value == "style") ValidateStyleElement(item);
+                if (item.Value == "style") ignoredStyle = ValidateStyleElement(item, sheet.budget.Warnings);
                 else if (item is StyledHtmlToken styled)
                 {
                     var css = styled.Attributes!["style"];
@@ -222,14 +226,23 @@ internal sealed class CssStylesheets
         }
         return count;
     }
-    private static void ValidateStyleElement(HtmlToken token)
+    // Whether the style element is ignored. HTML processes a style element only when its type is
+    // absent, empty or an ASCII case-insensitive match for text/css (no parameters, no white space;
+    // Chrome 158 agrees), so any other type is not a stylesheet: strict mode fails FPDF1204 as it
+    // always has, and non-strict mode ignores the whole element (with its other attributes) and warns.
+    private static bool ValidateStyleElement(HtmlToken token, CssWarnings? warnings)
     {
         if (token.SelfClosing) throw new FactsPdfException("FPDF1101", "style requires an HTML end tag.", token.Offset);
+        if (warnings is not null && token.Attributes!.TryGetValue("type", out var type) && !CssType(type))
+        {
+            warnings.Add("FPDF1204", "Only text/css style elements are supported.", token.Offset);
+            return true;
+        }
         foreach (var (name, value) in token.Attributes!)
         {
             if (name == "type")
             {
-                if (value.Length != 0 && !value.Equals("text/css", StringComparison.OrdinalIgnoreCase))
+                if (!CssType(value))
                     throw new FactsPdfException("FPDF1204", "Only text/css style elements are supported.", token.Offset);
             }
             else if (name == "media")
@@ -242,7 +255,10 @@ internal sealed class CssStylesheets
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
+        return false;
     }
+
+    private static bool CssType(string type) => type.Length == 0 || type.Equals("text/css", StringComparison.OrdinalIgnoreCase);
     private CssSyntaxResult ParseSource(string css, int offset, bool declarationsOnly,
         IReadOnlyList<int>? originalOffsets = null)
     {
@@ -453,6 +469,14 @@ internal sealed class CssStylesheets
                 return;
             }
             if (TablePartDisplay(declaration)) return;
+            // revert (and revert-layer, stored as revert) rolls the author origin back: the winner is
+            // discarded after the cascade, so nothing the element would apply needs checking here.
+            if (declaration.Value == "revert")
+            {
+                var reverting = new Winner(declaration, isInline, specificity); var current = winners[(int)declaration.Property];
+                if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
+                return;
+            }
             // baseline is the initial value. Outside cells inline text (and a br or img) already
             // sits on its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
@@ -734,6 +758,17 @@ internal sealed class CssStylesheets
                     Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
                 }
         }
+        // A winning revert computes the property as if the author origin declared nothing for it: the
+        // user-agent defaults below apply, or inheritance. Chrome 158 also discards the presentational
+        // hints (the list type attribute, the hidden attribute's display:none) for such a property.
+        var displayReverted = false;
+        for (var index = 0; index < winners.Length; index++)
+        {
+            if (winners[index] is not { Declaration.Value: "revert" }) continue;
+            winners[index] = null;
+            if (index == (int)CssProperty.Display) displayReverted = true;
+            if (index == (int)CssProperty.ListStyleType) listTypeHint = null;
+        }
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared
@@ -948,7 +983,7 @@ internal sealed class CssStylesheets
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
-        if (hidden && winners[(int)CssProperty.Display] is null && !box.DisplayNone)
+        if (hidden && !displayReverted && winners[(int)CssProperty.Display] is null && !box.DisplayNone)
             box = box with { DisplayNone = true };
         return (style, box);
     }
@@ -995,9 +1030,8 @@ internal sealed class CssStylesheets
                 pending.Offset);
             return budget.Warnings is null ? throw error : Unset(pending, payload, element, key, error);
         }
-        if (CssVariables.IsWideKeyword(values))
-            throw new FactsPdfException("FPDF1202",
-                $"var() in '{name}' substitutes the CSS-wide keyword '{CssVariables.Text(values)}', which is not supported.", pending.Offset);
+        // A substituted CSS-wide keyword applies as that keyword (Chrome 158), so it compiles like the
+        // literal declaration below.
         CssDeclaration[] compiled;
         try
         {

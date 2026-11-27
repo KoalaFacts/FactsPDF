@@ -162,7 +162,9 @@ public sealed class CustomPropertyTests
         // inherit and unset take the parent's computed value (custom properties are inherited).
         Assert.That(Pdf(Document(":root{--c:#2e7d32}p{--c:inherit;color:var(--c)}")), Is.EqualTo(green));
         Assert.That(Pdf(Document(":root{--c:#2e7d32}p{--c:UNSET;color:var(--c)}")), Is.EqualTo(green));
-        Assert.That(Fails(Document(":root{--c:revert}"), "FPDF1202").Message, Does.Contain("revert"));
+        // revert rolls the author origin back; custom properties inherit, so it acts as unset (Chrome 158).
+        Assert.That(Pdf(Document(":root{--c:#2e7d32}p{--c:revert;color:var(--c)}")), Is.EqualTo(green));
+        Assert.That(Pdf(Document(":root{--c:#2e7d32}p{--c:revert-layer;color:var(--c)}")), Is.EqualTo(green));
     }
 
     [Test]
@@ -224,9 +226,23 @@ public sealed class CustomPropertyTests
     }
 
     [Test]
-    public void ACssWideKeywordFromSubstitutionFails()
+    public void ACssWideKeywordFromSubstitutionAppliesAsThatKeyword()
     {
-        Assert.That(Fails(Document("p{color:var(--missing, inherit)}"), "FPDF1202").Message, Does.Contain("CSS-wide keyword"));
+        // Chrome 158 applies a substituted CSS-wide keyword exactly like the literal keyword.
+        foreach (var keyword in new[] { "inherit", "initial", "unset", "revert" })
+            Assert.That(Pdf(Document($"body{{color:#2e7d32}}p{{color:#c62828}}p{{color:var(--missing, {keyword})}}")),
+                Is.EqualTo(Pdf(Document($"body{{color:#2e7d32}}p{{color:#c62828}}p{{color:{keyword}}}"))), keyword);
+        Assert.That(Pdf(Document(":root{--k:unset}body{color:#2e7d32}p{color:var(--k, #c62828)}")),
+            Is.EqualTo(Pdf(Document("body{color:#2e7d32}p{color:#c62828}"))), "--k:unset on the root inherits nothing, so the fallback applies");
+        // A custom property whose substitution is a CSS-wide keyword takes that keyword itself.
+        Assert.That(Pdf(Document(":root{--c:#2e7d32}p{--c:var(--missing, inherit);color:var(--c, #c62828)}")),
+            Is.EqualTo(Pdf(Document("p{color:#2e7d32}"))));
+        Assert.That(Pdf(Document(":root{--c:#2e7d32}p{--c:var(--missing, initial);color:var(--c, #1565c0)}")),
+            Is.EqualTo(Pdf(Document("p{color:#1565c0}"))));
+        // A keyword with other components is invalid at computed-value time (strict mode fails).
+        Fails(Document("p{color:var(--missing, initial) red}"), "FPDF1202");
+        // A keyword the property cannot render still fails like the literal (display:initial is inline).
+        Fails(Document("div{display:var(--missing, initial)}", "<div>x</div>"), "FPDF1202");
     }
 
     [Test]

@@ -134,18 +134,19 @@ public sealed class NonStrictCssTests
     [TestCase("p{transform:rotate(5deg)}")]
     [TestCase("p{grid-template-columns:1fr 1fr}")]
     [TestCase("p{background:url(x.png)}")]
-    [TestCase("p{color:revert}")]
+    [TestCase("div{display:var(--missing, initial)}", "<div>x</div>")]
     [TestCase("p:hover{color:red}")]
     [TestCase("p + p{color:red}")]
     [TestCase("p::before{color:red}")]
-    [TestCase("@page{margin:0}")]
+    [TestCase("@font-face{font-family:x}")]
+    [TestCase("@page:first{margin:0}")]
     [TestCase("@import url(x.css);")]
     [TestCase("@media screen{p{color:red}}")]
     [TestCase("@media print{color:red}")]
     [TestCase("p{a{color:red}}")]
     [TestCase("p{display:var(--missing)}")]
     [TestCase(":root{--d:flex}p{display:var(--d)}")]
-    [TestCase("p{color:var(--missing, initial)}")]
+    [TestCase("", "<style media='screen'>p{color:red}</style><p>x</p>", Description = "style media other than print or all")]
     [TestCase("span{margin-top:4pt}", "<p><span>x</span></p>")]
     public void ValidButUnsupportedCssFailsInBothModes(string css, string? body = null)
     {
@@ -158,6 +159,34 @@ public sealed class NonStrictCssTests
             Assert.That(nonStrict.Message, Is.EqualTo(strict.Message));
             Assert.That(nonStrict.SourceOffset, Is.EqualTo(strict.SourceOffset));
         }
+    }
+
+    // HTML processes a style element only when its type is absent, empty or text/css (ASCII
+    // case-insensitive; Chrome 158 ignores text/css with parameters or white space too). Any other
+    // type is not a stylesheet: non-strict mode ignores the whole element, strict mode fails FPDF1204.
+    [TestCase("text/less")]
+    [TestCase("text/css; charset=utf-8")]
+    [TestCase(" text/css")]
+    [TestCase("text/x-template")]
+    public void ANonCssStyleElementIsIgnored(string type)
+    {
+        var html = $"<!doctype html><html><head><style type='{type}' media='screen' data-x>p{{colr:red;color:navy}}</style><style>h1{{color:navy}}</style></head><body><h1>T</h1><p>x</p></body></html>";
+        var strict = Strict(html);
+        Assert.That(strict.Code, Is.EqualTo("FPDF1204"));
+        var (pdf, warnings) = NonStrict(html);
+        Assert.That(pdf, Is.EqualTo(Writer.ToBytes("<!doctype html><html><head><style>h1{color:navy}</style></head><body><h1>T</h1><p>x</p></body></html>")));
+        Assert.That(warnings.Items, Has.Count.EqualTo(1));
+        AssertWarningIsTheStrictError(warnings.Items[0], strict);
+    }
+
+    [TestCase("TEXT/CSS")]
+    [TestCase("")]
+    public void ACssStyleElementTypeIsAStylesheetInBothModes(string type)
+    {
+        var html = $"<!doctype html><html><head><style type='{type}'>p{{color:navy}}</style></head><body><p>x</p></body></html>";
+        var expected = Writer.ToBytes("<!doctype html><html><head><style>p{color:navy}</style></head><body><p>x</p></body></html>");
+        Assert.That(Writer.ToBytes(html), Is.EqualTo(expected));
+        Assert.That(NonStrict(html).Pdf, Is.EqualTo(expected));
     }
 
     [Test]

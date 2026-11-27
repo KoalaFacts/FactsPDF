@@ -306,7 +306,11 @@ internal sealed class CssPageRules
                 throw new FactsPdfException("FPDF1001", $"@{BoxNames[i]} content exceeds 1024 UTF-16 units.", content.Offset);
             var style = context with { };
             foreach (var declaration in box.Styles.OrderBy(d => d.Important).ThenBy(d => d.Order))
-                style = CssDeclarations.Apply(style, context, initial, declaration, paragraph: false, context.FontSize);
+                // Every page-margin box property is inherited, so revert (rolling the author origin
+                // back) takes the page context's value, like inherit.
+                style = CssDeclarations.Apply(style, context, initial, declaration.Value == "revert"
+                    ? CssDeclaration.Create(declaration.Property, declaration.Name, "inherit", declaration.Important, declaration.Order, declaration.Offset)
+                    : declaration, paragraph: false, context.FontSize);
             if (!double.IsFinite(style.FontSize) || style.FontSize is < 1 or > 144)
                 throw new FactsPdfException("FPDF1202", "Page-margin font-size must be from 1 to 144 points.", content.Offset);
             texts[i] = new PdfPageText
