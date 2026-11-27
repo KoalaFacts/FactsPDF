@@ -1513,13 +1513,14 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Root pseudo-class | `:root`, `:root p`, `:root > body`, `html:root` |
 | Structural pseudo-classes | `tr:nth-of-type(even)`, `li:first-child`, `p:last-of-type`, `.divider:empty` ([contract](#structural-pseudo-classes-and-not)) |
 | Negation | `.divider:not(:empty)`, `p:not(.note, #summary)` (compound arguments only) |
+| Pseudo-elements | `.note::before`, `.divider::after`, legacy `:before`/`:after` with string `content` |
 | Inline declarations | Existing `style="..."` attributes with the same supported values |
 
 HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. CSS identifiers in this increment are ASCII; escaped and non-ASCII selector syntax is rejected. A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements, nesting, escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
+No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. Sibling selectors, pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements other than `::before`/`::after` ([generated content](#current-source-before-and-after-generated-content)), nesting, escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
 `:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` tag has the implied `html` element as its root, so `:root` matches it there too, exactly like `html{}` (see [implied html, head and body](#implied-html-head-and-body)). `:root` composes with the structural pseudo-classes and `:not()` (`:root:first-child`, `:not(:root)`); other pseudo-classes and pseudo-elements (`:hover`, `::before`) still fail with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
 
@@ -2619,6 +2620,47 @@ AOT. Source `0518b51d7a34457798c748db6753c4270ce20996` adds `PercentagePanelMarg
 native `verify_stylesheets.py` acceptance block. Exact final-head CI,
 independent review, human reference approval, private software and
 commercial distribution rights are **separate**.
+
+## Current-source `::before` and `::after` generated content
+
+A selector may end in `::before` or `::after` (also the legacy `:before` and
+`:after`, any case); the pseudo-element counts as a type selector for
+specificity. Its winning `content` and `display` decide whether it generates a
+box:
+
+- `content` accepts `none`, `normal` and one or more strings (joined, CSS
+  escapes decoded). `none` and `normal`, or `display:none`, generate nothing,
+  so rules without `content` — `*,*::before,*::after{box-sizing:border-box}` —
+  change nothing. `content` on an ordinary element changes nothing, as in a
+  browser, and an `img` generates no pseudo-element box.
+- By default the string is **inline text** at the start (`::before`) or end
+  (`::after`) of its element's content, on report blocks, list items,
+  paragraphs, inline text and table cells. It inherits from its element and
+  takes its own declarations (`font-weight`, `color`, …) like a `span`; box
+  properties on inline generated text fail `FPDF1201`.
+- In a `display:flex` container, or with `display:block` or `display:flex`
+  on the pseudo-element, it is a **block box** — a flex item in a flex
+  container — with the declarations of a `div`: `width`, `height`, `padding`,
+  borders, backgrounds, `flex-grow` and the rest of the flex item properties.
+  Block pseudo-elements are generated in report panels, list items and `body`
+  outside tables; in paragraphs and tables they fail `FPDF1201`.
+
+The centred divider of business templates works as written:
+
+```html
+<style>
+.divider{display:flex;align-items:center;white-space:nowrap;gap:1rem}
+.divider::before,.divider::after{content:"";flex-grow:1;height:1px;border-top:1px solid #edeff3}
+</style>
+<div class="divider">Account summary</div>
+```
+
+**Not supported:** `counter()`, `attr()`, `url()` and quotes (`open-quote`, …)
+in `content`, and `display` other than `inline`, `block`, `flex` and `none`
+(`FPDF1202`); `::marker`, `::first-line`, `::first-letter`, pseudo-classes
+(including `:not(:empty)`) and selectors that continue after a pseudo-element
+(`FPDF1203`); generated content on `hr`, `html`, `q` and table structure
+(`FPDF1201`). See [`GeneratedContentTests`](../tests/FactsPDF.Tests/GeneratedContentTests.cs).
 
 ## Current-source single-line flex rows
 

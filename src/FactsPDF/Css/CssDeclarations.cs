@@ -13,7 +13,7 @@ internal enum CssProperty
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
-    ColumnGap, RowGap, Order,
+    ColumnGap, RowGap, Order, Content,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.

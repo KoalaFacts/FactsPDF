@@ -103,7 +103,12 @@ internal sealed record CssPseudoClass(CssPseudoKind Kind, long A = 0, long B = 0
 internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
     CssAttributeMatch[] Attributes, CssPseudoClass[] PseudoClasses, bool ChildOfPrevious);
 
-internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset, bool structural)
+// The pseudo-element a selector ends in: generated ::before and ::after boxes (also written
+// :before and :after) are styled by their own rules, never the element's.
+internal enum CssPseudoElement { None, Before, After }
+
+internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset, bool structural,
+    CssPseudoElement pseudoElement = CssPseudoElement.None)
 {
     // An+B values beyond this fail: Chrome stops matching some valid selectors near the 32-bit
     // limits (for example -n+2147483647), so larger values cannot follow the browser.
@@ -118,23 +123,50 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
     internal int Offset => offset;
     /// <summary>Whether matching reads an element's position among its siblings or its emptiness.</summary>
     internal bool UsesStructure => structural;
+    internal CssPseudoElement PseudoElement => pseudoElement;
 
     internal static CssSelector Parse(List<CssToken> tokens, ref int i, CssBudget budget)
     {
         var offset = tokens[i].Offset; budget.Selector(offset);
         var parts = new List<CssCompound>(); var specificity = default(CssSpecificity); var child = false; var structural = false;
+        var pseudo = CssPseudoElement.None;
         while (true)
         {
             budget.Token.ThrowIfCancellationRequested();
             CssBudget.Check(parts.Count < 32, "A selector may contain at most 32 compounds.", offset);
             parts.Add(ParseCompound(tokens, ref i, budget, offset, child, 0, ref specificity, ref structural));
+            // ::before and ::after (or the legacy :before and :after) end the selector with the
+            // specificity of a type selector; any other pseudo-element fails in ParseCompound.
+            if (IsSymbol(tokens[i], ":") && PseudoElementAt(tokens, i) is var element and not CssPseudoElement.None)
+            {
+                var colon = tokens[i].Offset;
+                pseudo = element;
+                i += IsSymbol(tokens[i + 1], ":") ? 3 : 2;
+                specificity = specificity.Add(new(0, 0, 1));
+                if (!(IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")))
+                    throw CssTokens.Invalid("A ::before or ::after pseudo-element must end its selector.", colon);
+            }
             if (IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")) break;
             if (tokens[i].Kind == CssTokenKind.End) throw CssTokens.Invalid("Expected a CSS declaration block.", tokens[i].Offset);
             if (IsSymbol(tokens[i], ">")) { child = true; i++; }
             else if (tokens[i].LeadingSpace) child = false;
             else throw CssTokens.Invalid("Unsupported or malformed selector/combinator.", tokens[i].Offset);
         }
-        return new(parts.ToArray(), specificity, offset, structural);
+        return new(parts.ToArray(), specificity, offset, structural, pseudo);
+    }
+
+    // The ::before or ::after (or :before or :after) starting at the colon tokens[i], or None.
+    private static CssPseudoElement PseudoElementAt(List<CssToken> tokens, int i)
+    {
+        var at = i + 1;
+        if (IsSymbol(tokens[at], ":") && !tokens[at].LeadingSpace) at++;
+        if (tokens[at].Kind != CssTokenKind.Identifier || tokens[at].LeadingSpace) return CssPseudoElement.None;
+        return tokens[at].Text.ToLowerInvariant() switch
+        {
+            "before" => CssPseudoElement.Before,
+            "after" => CssPseudoElement.After,
+            _ => CssPseudoElement.None
+        };
     }
 
     private static CssCompound ParseCompound(List<CssToken> tokens, ref int i, CssBudget budget, int offset,
@@ -220,6 +252,12 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             }
             else if (IsSymbol(current, ":"))
             {
+                // A ::before or ::after ends the compound; Parse takes it (never inside :not()).
+                if (depth == 0 && PseudoElementAt(tokens, i) != CssPseudoElement.None)
+                {
+                    if (simple == 0) simple++;
+                    break;
+                }
                 i++;
                 var name = tokens[i];
                 if (name.LeadingSpace)

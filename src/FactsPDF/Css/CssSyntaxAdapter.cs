@@ -142,6 +142,14 @@ internal static class CssSyntaxAdapter
                     ValidateInteractionOnly(name, node);
                     continue;
                 }
+                // content: none, normal or one or more strings, the text of a ::before or ::after box.
+                // The strings are kept decoded and joined, after a leading quote that tells them from
+                // the keywords. Counters, attr(), url() and quotes fail.
+                if (name == "content")
+                {
+                    CompileContent(node, budget, output);
+                    continue;
+                }
                 // RGB and HSL functions are lowered to their equivalent hex colour
                 // (#rrggbb, or #rrggbbaa when translucent), so the cascade, box paint
                 // and PDF serializers share one colour path.
@@ -1736,6 +1744,7 @@ internal static class CssSyntaxAdapter
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
         "display" => CssProperty.Display,
+        "content" => CssProperty.Content,
         "flex-direction" => CssProperty.FlexDirection, "flex-wrap" => CssProperty.FlexWrap,
         "justify-content" => CssProperty.JustifyContent, "align-items" => CssProperty.AlignItems,
         "align-self" => CssProperty.AlignSelf, "flex-grow" => CssProperty.FlexGrow,
@@ -1975,6 +1984,40 @@ internal static class CssSyntaxAdapter
             return node with { Values = lowered };
         }
         return node;
+    }
+
+    private static void CompileContent(CssDeclarationNode node, CssBudget budget, List<CssDeclaration> output)
+    {
+        var text = new System.Text.StringBuilder();
+        string? keyword = null;
+        var strings = 0;
+        var start = node.Span.Start;
+        var first = true;
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            var component = node.Values[i];
+            if (component is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (first) { start = component.Span.Start; first = false; }
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.String } literal } && keyword is null)
+            {
+                text.Append(literal.Value);
+                strings++;
+                continue;
+            }
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word } && strings == 0 && keyword is null
+                && word.Value.ToLowerInvariant() is "none" or "normal" or "inherit" or "initial" or "unset")
+            {
+                keyword = word.Value.ToLowerInvariant();
+                continue;
+            }
+            throw new FactsPdfException("FPDF1202",
+                "content supports only none, normal and strings; counter(), attr(), url() and quotes are not supported.",
+                component.Span.Start);
+        }
+        if (keyword is null && strings == 0)
+            throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+        output.Add(CssDeclaration.Create(CssProperty.Content, "content", keyword ?? "\"" + text,
+            node.Important, budget.Declaration(start), start));
     }
 
     private static void ValidateAlignContent(CssDeclarationNode node)

@@ -36,7 +36,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Order + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Content + 1];
 
     /// <summary>The value of the text-align declaration that won the cascade for the element the
     /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
@@ -450,6 +450,7 @@ internal sealed class CssStylesheets
             foreach (var selector in selectors)
             {
                 usesStructure |= selector.UsesStructure;
+                if (selector.PseudoElement != CssPseudoElement.None) HasPseudoRules = true;
                 var entry = new Rule(selector, declarations);
                 var last = selector.Rightmost;
                 if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
@@ -481,21 +482,58 @@ internal sealed class CssStylesheets
         return false;
     }
 
+    /// <summary>Whether any rule selects a ::before or ::after pseudo-element.</summary>
+    internal bool HasPseudoRules { get; private set; }
+
+    /// <summary>
+    /// The winning display and content values of an element's ::before or ::after, read before the
+    /// pseudo-element is computed: they decide whether a box is generated and of which kind.
+    /// </summary>
+    internal (string? Display, string? Content) PseudoKeys(IReadOnlyList<CssElement> path, CssPseudoElement pseudo)
+    {
+        Winner? display = null, content = null;
+        var element = path[^1];
+        void Scan(List<Rule> rules)
+        {
+            foreach (var rule in rules)
+            {
+                budget.Work(rule.Selector.Offset);
+                if (rule.Selector.PseudoElement != pseudo || !rule.Selector.Matches(path, budget, Positions)) continue;
+                foreach (var declaration in rule.Declarations)
+                {
+                    var candidate = new Winner(declaration, false, rule.Selector.Specificity);
+                    if (declaration.Property == CssProperty.Display)
+                    { if (display is not { } old || candidate.Beats(old)) display = candidate; }
+                    else if (declaration.Property == CssProperty.Content)
+                    { if (content is not { } old || candidate.Beats(old)) content = candidate; }
+                }
+            }
+        }
+        Scan(universal);
+        if (types.TryGetValue(element.Name, out var typeRules)) Scan(typeRules);
+        if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Scan(idRules);
+        foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Scan(classRules);
+        return (display?.Declaration.Value, content?.Declaration.Value);
+    }
+
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false,
-        ListMarkerKind? listTypeHint = null)
+        ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null)
     {
         Array.Clear(winners); var element = path[^1];
+        // A pseudo-element is matched through its originating element but validated and computed
+        // as the box it generates: an inline span or a block div.
+        var subject = pseudoName ?? element.Name;
         customDeclarations.Clear(); pendingDeclarations.Clear();
-        var cellParagraph = element.Name == "p" && AnyElement(path, e => e.Name is "td" or "th");
+        var cellParagraph = subject == "p" && AnyElement(path, e => e.Name is "td" or "th");
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
-        var cellTextIndentHost = element.Name is "td" or "th" or "caption";
+        var cellTextIndentHost = subject is "td" or "th" or "caption";
         // These inherited text-flow controls can be authored on document or
         // ordinary report containers. Their computed state reaches the same
         // measured paragraph/heading renderer, not a separate box approximation.
         // Direct inline, list and table declarations remain unsupported.
-        var reportTextFlowHost = element.Name is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+        var reportTextFlowHost = subject is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
             && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                 or "td" or "th" or "thead" or "tbody" or "tfoot");
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
@@ -515,6 +553,9 @@ internal sealed class CssStylesheets
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
             }
+            // content generates boxes only for ::before and ::after; on an element it changes
+            // nothing (as in a browser), so the validated value is dropped there.
+            if (declaration.Property == CssProperty.Content && pseudo == CssPseudoElement.None) return;
             if (TablePartDisplay(declaration) && element.Name is not ("img" or "svg")) return;
             // baseline is the initial value. Outside cells inline text (and a br) already sits on
             // its baseline and blocks ignore vertical-align, so resets such as
@@ -522,11 +563,11 @@ internal sealed class CssStylesheets
             // A cell's baseline row alignment is not implemented (rejected below). An img or svg
             // keeps it, since it can win over another alignment of the image.
             if (declaration.Property == CssProperty.VerticalAlign && declaration.Value == "baseline"
-                && element.Name is not ("td" or "th" or "img" or "svg"))
+                && subject is not ("td" or "th" or "img" or "svg"))
                 return;
             // A br has no width, height or children, so box-sizing (validated when parsed) changes
             // nothing there and *{box-sizing:border-box} does not fail on a line break.
-            if (declaration.Property == CssProperty.BoxSizing && element.Name == "br")
+            if (declaration.Property == CssProperty.BoxSizing && subject == "br")
                 return;
             // <html> and <body> lay out with no margin of their own (the page margin options frame
             // the content), and <html> with no padding, so the resets body{margin:0},
@@ -534,8 +575,8 @@ internal sealed class CssStylesheets
             // and dropped. Inline text has no box here, so a zero margin or padding and a transparent
             // background (normalize.css a{background-color:transparent}, *{margin:0;padding:0}) are
             // dropped there too. Any value that would move or paint the content still fails below.
-            if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration)
-                || TablePartMargin(element.Name, declaration) || UnusedZeroInset(element.Name, declaration))
+            if (RootZeroInset(subject, declaration) || InlineZeroBox(subject, declaration)
+                || TablePartMargin(subject, declaration) || UnusedZeroInset(subject, declaration))
                 return;
             // orphans/widows count a block's line boxes. Inline text, br, img, hr and col hold no
             // line box of their own and no block can nest in them (FPDF1101), so a value there
@@ -557,7 +598,7 @@ internal sealed class CssStylesheets
             }
             else if (declaration.Property == CssProperty.Display && declaration.Value == "flex")
             {
-                if (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav"
+                if (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav"
                         or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address"
                         or "dl" or "dt" or "dd" or "li" or "body" or "html")
                     || AnyElement(path, e => e.Name is "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot"))
@@ -565,7 +606,7 @@ internal sealed class CssStylesheets
                         "display:flex is supported only on report panels, list items, body and html outside tables.", declaration.Offset);
             }
             else if (declaration.Property == CssProperty.Display &&
-                (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                (subject is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot")))
@@ -575,7 +616,7 @@ internal sealed class CssStylesheets
             // list, image or inline formatting contexts.
             if (declaration.Property is (CssProperty.OutlineWidth or CssProperty.OutlineStyle
                     or CssProperty.OutlineColor or CssProperty.OutlineOffset) &&
-                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
+                (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
             {
@@ -597,7 +638,7 @@ internal sealed class CssStylesheets
             if (declaration.Property is (CssProperty.BorderRadius or CssProperty.BorderTopLeftRadius
                 or CssProperty.BorderTopRightRadius or CssProperty.BorderBottomRightRadius
                 or CssProperty.BorderBottomLeftRadius) &&
-                (element.Name is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                (subject is not ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
                     or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd") ||
                  AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
@@ -608,9 +649,9 @@ internal sealed class CssStylesheets
             // Check every matching declaration, not only the cascade winner.
             if (declaration.Property is (CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight))
             {
-                var imageHeight = element.Name is "img" or "svg";
+                var imageHeight = subject is "img" or "svg";
                 var panelHeight = declaration.Property != CssProperty.MaxHeight
-                    && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+                    && subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                     && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                         or "td" or "th" or "thead" or "tbody" or "tfoot");
                 if (!imageHeight && !panelHeight)
@@ -622,19 +663,19 @@ internal sealed class CssStylesheets
             // must never be accepted as an unimplemented decoration.
             // A table row never splits when it fits a fresh fragment and the header never
             // splits, so tr and thead keep avoid as a check in TableLayout, not a new behaviour.
-            if (declaration.Property == CssProperty.BreakInside && element.Name is not ("tr" or "thead") &&
-                (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+            if (declaration.Property == CssProperty.BreakInside && subject is not ("tr" or "thead") &&
+                (subject is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                  || AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
                     "break-inside is supported only on ordinary report panels outside lists/tables and on table rows (tr, thead).", declaration.Offset);
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
-                element.Name is not ("ol" or "ul" or "menu" or "li"))
+                subject is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
             if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg"))
             {
-                if (element.Name is not ("td" or "th"))
+                if (subject is not ("td" or "th"))
                     throw new FactsPdfException("FPDF1201",
                         "vertical-align applies only to table td/th cells and inline img/svg (elsewhere only its initial value baseline is accepted).", declaration.Offset);
                 if (declaration.Value is not ("top" or "middle" or "bottom" or "inherit" or "initial" or "unset"))
@@ -645,12 +686,12 @@ internal sealed class CssStylesheets
             // padding or borders), so *{box-sizing:border-box} is accepted on it.
             // A td/th width takes part in automatic table layout only; TableLayout rejects it
             // in a table whose columns all have explicit widths.
-            if (element.Name == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing))
+            if (subject == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
             // hr has physical box geometry but no text. Its local font-size
             // can scale em lengths; colour supplies currentcolor borders.
             // Never pretend that text-only declarations rendered on a void rule.
-            if (element.Name == "hr" &&
+            if (subject == "hr" &&
                 declaration.Property is not (CssProperty.FontSize or CssProperty.Color
                     or CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight) &&
@@ -686,14 +727,14 @@ internal sealed class CssStylesheets
             if (declaration.Value.EndsWith("em", StringComparison.Ordinal)
                 && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth
                     or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft)
-                && (element.Name is ("tr" or "thead" or "tbody" or "tfoot")
-                    || element.Name is ("td" or "th")
+                && (subject is ("tr" or "thead" or "tbody" or "tfoot")
+                    || subject is ("td" or "th")
                         && declaration.Property is (CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth)))
                 throw new FactsPdfException("FPDF1201",
                     "Relative em/rem box lengths are unsupported on table rows/groups and cell widths.", declaration.Offset);
-            if (element.Name is "img" or "svg" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
+            if (subject is "img" or "svg" && declaration.Property is (CssProperty.TextDecoration or CssProperty.TextDecorationColor or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness or CssProperty.TextUnderlineOffset))
                 throw new FactsPdfException("FPDF1201", "Text decoration paint cannot be applied to standalone images.", declaration.Offset);
-            if (declaration.Property == CssProperty.TextTransform && element.Name is "img" or "svg")
+            if (declaration.Property == CssProperty.TextTransform && subject is "img" or "svg")
                 throw new FactsPdfException("FPDF1201", "text-transform cannot be applied to standalone images.", declaration.Offset);
             // Direct, explicitly bound images now consume these constraints through
             // their measured outer box, including direct image items in cells.
@@ -703,7 +744,7 @@ internal sealed class CssStylesheets
             // padding and borders); on columns, rows, groups and cells no width with padding or
             // borders is accepted, so it changes nothing there and universal resets pass.
             if (declaration.Property is CssProperty.MinWidth or CssProperty.MaxWidth &&
-                (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
+                (subject is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
                 throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset
                     && declaration.Property != CssProperty.BoxSizing)
@@ -712,7 +753,7 @@ internal sealed class CssStylesheets
             // Last-line alignment belongs to a paragraph's line box, never
             // a single inline run (including losing CSS declarations).
             if (declaration.Property == CssProperty.TextAlignLast &&
-                HtmlDocumentReader.InlineTag(element.Name))
+                HtmlDocumentReader.InlineTag(subject))
                 throw new FactsPdfException("FPDF1201",
                     "text-align-last cannot be declared on inline text.", declaration.Offset);
             // Inline spans cannot independently align paragraph lines.
@@ -721,11 +762,11 @@ internal sealed class CssStylesheets
             // Do not key this off BoxTag/block: <html> inherits text alignment.
             if (declaration.Property == CssProperty.TextAlign
                 && declaration.Value is ("justify" or "start" or "end")
-                && HtmlDocumentReader.InlineTag(element.Name))
+                && HtmlDocumentReader.InlineTag(subject))
                 throw new FactsPdfException("FPDF1201", "text-align:justify/start/end cannot be declared on inline text.", declaration.Offset);
             // Fail explicitly on unsupported applicability even if another declaration wins later.
             if (declaration.Property == CssProperty.BreakAfter && declaration.Value == "avoid" &&
-                (!HeadingKeep.IsHeading(element.Name) || AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li")))
+                (!HeadingKeep.IsHeading(subject) || AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li")))
                 throw new FactsPdfException("FPDF1201", "break-after:avoid is supported only on headings outside lists.", declaration.Offset);
             // Report panels have real outside-the-border vertical margins.
             // Validate all matching declarations, even losing ones. Vertical
@@ -734,7 +775,7 @@ internal sealed class CssStylesheets
             // spacing resolves against the containing block content WIDTH at
             // layout time, not the page height. Vertical auto still fails.
             // CSS-wide inheritance/reset is resolved for the winner below.
-            var panelMargin = element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+            var panelMargin = subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
             if (panelMargin && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom)
@@ -759,7 +800,7 @@ internal sealed class CssStylesheets
             // at its box boundary, not be delayed until its first text leaf.
             // No break-inside, avoid for whole panels or list/table breaks.
             var panelPageBreak = declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
-                && element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+                && subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                 && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                     or "td" or "th" or "thead" or "tbody" or "tfoot");
             if (panelPageBreak && declaration.Value == "avoid")
@@ -778,18 +819,18 @@ internal sealed class CssStylesheets
             // the element's box so a child's box-sizing:inherit reads it, as in a browser.
             // html lays out at the full page width, so width:100% (or auto) changes nothing there; its
             // flex container properties are accepted with display:flex (see RootFlexNoOp).
-            if (element.Name == "html" && (RootFlexNoOp(declaration)
+            if (subject == "html" && (RootFlexNoOp(declaration)
                 || declaration.Property == CssProperty.Width && declaration.Value is "100%" or "auto" or "initial" or "unset"))
                 return;
             // A row or row group background paints under its cells (TableMarkup gives it to
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
-                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name))
-                && !(declaration.Property == CssProperty.BackgroundColor && element.Name is "tr" or "thead" or "tbody" or "tfoot")
+                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(subject))
+                && !(declaration.Property == CssProperty.BackgroundColor && subject is "tr" or "thead" or "tbody" or "tfoot")
                 // In the collapsing border model row and row group borders take part in the
                 // border conflict resolution (TableBorderCollapse); the table's computed
                 // border-collapse reaches them through inheritance.
-                && !(parent.CollapseBorders && element.Name is "tr" or "thead" or "tbody" or "tfoot"
+                && !(parent.CollapseBorders && subject is "tr" or "thead" or "tbody" or "tfoot"
                     && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
@@ -800,7 +841,7 @@ internal sealed class CssStylesheets
             foreach (var rule in rules)
             {
                 budget.Work(rule.Selector.Offset);
-                if (!rule.Selector.Matches(path, budget, Positions)) continue;
+                if (rule.Selector.PseudoElement != pseudo || !rule.Selector.Matches(path, budget, Positions)) continue;
                 foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity);
             }
         }
@@ -808,7 +849,7 @@ internal sealed class CssStylesheets
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
-        if (inlineDeclarations.Declarations is { } inline)
+        if (pseudo == CssPseudoElement.None && inlineDeclarations.Declarations is { } inline)
         {
             if (inlineDeclarations.FirstOrder == 0) foreach (var d in inline) Offer(d, true, default);
             else
@@ -858,7 +899,7 @@ internal sealed class CssStylesheets
         // Bounded report defaults. A quote is a real inset block rather
         // than an ignored tag; author CSS overrides each side normally.
         // CSS-wide initial resets to the zero-margin ordinary box initial.
-        var box = element.Name switch
+        var box = subject switch
         {
             "hr" => new BoxStyle
             {
@@ -887,7 +928,7 @@ internal sealed class CssStylesheets
         // propagate the inherited marker type, including li and nested panels.
         // Copy the box only when a marker setting actually differs. The HTML type attribute is a
         // presentational hint: it replaces the default and loses to every author declaration.
-        var markerKind = listTypeHint ?? element.Name switch
+        var markerKind = listTypeHint ?? subject switch
         {
             "ol" => ListMarkerKind.Decimal,
             "ul" or "menu" => ListMarkerKind.Disc,
@@ -917,14 +958,15 @@ internal sealed class CssStylesheets
         {
             if (winners[index] is not { } winner) continue;
             var declaration = winner.Declaration;
-            if (WritesBox(element.Name, declaration.Property))
+            if (declaration.Property == CssProperty.Content) continue;
+            if (WritesBox(subject, declaration.Property))
             {
                 if (boxShared) continue;
                 if (!boxChecked)
                 {
                     boxChecked = true;
-                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
-                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, element.Name,
+                    boxKey = BoxKey(subject, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
+                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, subject,
                         parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index))
                     {
                         box = computed.Box;
@@ -971,7 +1013,7 @@ internal sealed class CssStylesheets
                     "bottom" => CellVerticalAlign.Bottom,
                     _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
                 };
-            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+            else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                 && declaration.Property is (CssProperty.BreakBefore or CssProperty.BreakAfter))
             {
                 var value = declaration.Value switch
@@ -996,7 +1038,7 @@ internal sealed class CssStylesheets
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
-            else if (element.Name is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
+            else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
@@ -1005,7 +1047,7 @@ internal sealed class CssStylesheets
                 // html font-size:rem refers to the initial size; other rem
                 // text metrics use the newly computed root font on html.
                 // FontSize precedes these properties in the fixed enum.
-                var computedRoot = element.Name == "html"
+                var computedRoot = subject == "html"
                     && declaration.Property is (CssProperty.LineHeight
                         or CssProperty.TextIndent or CssProperty.LetterSpacing
                         or CssProperty.WordSpacing or CssProperty.TextDecorationThickness
@@ -1070,8 +1112,8 @@ internal sealed class CssStylesheets
                      ?? elementOffset);
         }
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
-            computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
-                listTypeHint, BoxWrites(element.Name), box);
+            computedBoxes[boxKey] = new ComputedBox(subject, parentBox, rootFontSize, style.FontSize, style.Color,
+                listTypeHint, BoxWrites(subject), box);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.

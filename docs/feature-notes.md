@@ -1451,6 +1451,18 @@ See the [scoped CSS contract](css-stylesheets.md#current-source-html-horizontal-
 [independently authored painted-box oracle](../examples/report-horizontal-rules-oracle.html).
 This source feature is not a public NuGet/CLI release or a new private binary.
 
+### Current-source `::before` and `::after` generated content
+
+Label prefixes and divider lines written with generated content now render:
+`.note::before{content:"Note: ";font-weight:bold}` puts bold text before a
+paragraph, and `.divider::before,.divider::after{content:"";flex-grow:1;height:1px;border-top:1px solid #edeff3}`
+draws growing lines either side of a centred flex title. Strings (joined,
+escapes decoded) become inline text, or a block box in a flex container or
+with `display:block`; `counter()`, `attr()`, `url()` and quotes fail
+`FPDF1202`. Against Chrome print output the divider lines differ by at most
+0.37pt. See the
+[generated content contract](css-stylesheets.md#current-source-before-and-after-generated-content).
+
 ### Current-source single-line flex rows
 
 Report header bars, label/value rows and toolbars written with
