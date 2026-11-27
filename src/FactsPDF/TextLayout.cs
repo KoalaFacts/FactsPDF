@@ -166,6 +166,68 @@ internal static class TextLayout
             if (apply) pendingTopPadding = leading;
             return leading;
         }
+        // Places one measured flex line or grid row whole at the cursor, after rowGap from the
+        // previous row of the same grid (dropped when the row starts a new page).
+        void PlaceItemRow(MeasuredFlex measured, int sourceOffset, double rowGap)
+        {
+            // A container without items has no line; its box keeps any minimum height.
+            if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0 &&
+                measured.Images.Count == 0 && measured.Discs.Count == 0)
+                return;
+            if (breakNext)
+            {
+                if (HasRetainedPageContent())
+                {
+                    NewPage(sourceOffset);
+                    MoveUnconsumedBlocksToNewPage();
+                    pendingClosedPadding = 0;
+                }
+            }
+            breakNext = false;
+            var rowLead = after + pendingTopPadding + pendingClosedPadding + rowGap;
+            if (y + rowLead + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
+            {
+                // A browser moves a row of short items whole to the next page but splits taller
+                // items between their lines or blocks; FactsPDF keeps every flex line and grid row whole.
+                if (!measured.KeepWhole && measured.Height <= bottom - o.Margin + 0.000001)
+                    throw new FactsPdfException("FPDF1302",
+                        "A flex or grid row that does not fit the rest of the page would be split by a browser; FactsPDF keeps these rows whole, so only rows of single short items can move to the next page.",
+                        sourceOffset);
+                NewPage(sourceOffset);
+                MoveUnconsumedBlocksToNewPage();
+                rowLead = pendingTopPadding;
+            }
+            if (y + rowLead + measured.Height > bottom + 0.000001)
+                throw new FactsPdfException("FPDF1302",
+                    "A flex or grid row and its required leading decoration cannot fit on one page; these rows are not split across pages.",
+                    sourceOffset);
+            y += rowLead;
+            foreach (var run in measured.Runs)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                pages[^1].Runs.Add(run with { Baseline = o.PageHeight - y + run.Baseline });
+            }
+            foreach (var box in measured.PaintBoxes)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                pages[^1].PaintBoxes.Add(box with { Top = y + box.Top, Order = paintOrder++ });
+            }
+            foreach (var rowImage in measured.Images)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                pages[^1].Images.Add(rowImage with { Top = y + rowImage.Top });
+            }
+            foreach (var disc in measured.Discs)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                pages[^1].Discs.Add(disc with { Y = o.PageHeight - y + disc.Y });
+            }
+            y += measured.Height;
+            pendingTopPadding = pendingClosedPadding = after = 0;
+            contentEpoch++;
+            for (var i = 0; i < opened.Count; i++)
+                opened[i] = opened[i] with { HasOccupiedDescendant = true };
+        }
         foreach (var step in steps)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -606,64 +668,14 @@ internal static class TextLayout
             }
             if (step is LayoutFlexLine flex)
             {
-                var measured = FlexLayout.Measure(flex, o, resolved, budget, cancellation);
-                // A flex container without items has no line; its box keeps any minimum height.
-                if (measured.Height == 0 && measured.Runs.Count == 0 && measured.PaintBoxes.Count == 0 &&
-                    measured.Images.Count == 0 && measured.Discs.Count == 0)
-                    continue;
-                if (breakNext)
-                {
-                    if (HasRetainedPageContent())
-                    {
-                        NewPage(flex.Container.SourceOffset);
-                        MoveUnconsumedBlocksToNewPage();
-                        pendingClosedPadding = 0;
-                    }
-                }
-                breakNext = false;
-                var flexGap = after + pendingTopPadding + pendingClosedPadding;
-                if (y + flexGap + measured.Height > bottom + 0.000001 && CurrentPageOccupied())
-                {
-                    // A browser moves a row of short items whole to the next page but splits taller
-                    // items between their lines or blocks; FactsPDF keeps every flex row whole.
-                    if (!measured.KeepWhole && measured.Height <= bottom - o.Margin + 0.000001)
-                        throw new FactsPdfException("FPDF1302",
-                            "A flex row that does not fit the rest of the page would be split by a browser; FactsPDF keeps flex rows whole, so only rows of single short items can move to the next page.",
-                            flex.Container.SourceOffset);
-                    NewPage(flex.Container.SourceOffset);
-                    MoveUnconsumedBlocksToNewPage();
-                    flexGap = pendingTopPadding;
-                }
-                if (y + flexGap + measured.Height > bottom + 0.000001)
-                    throw new FactsPdfException("FPDF1302",
-                        "A flex row and its required leading decoration cannot fit on one page; flex rows are not split across pages.",
-                        flex.Container.SourceOffset);
-                y += flexGap;
-                foreach (var run in measured.Runs)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    pages[^1].Runs.Add(run with { Baseline = o.PageHeight - y + run.Baseline });
-                }
-                foreach (var box in measured.PaintBoxes)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    pages[^1].PaintBoxes.Add(box with { Top = y + box.Top, Order = paintOrder++ });
-                }
-                foreach (var flexImage in measured.Images)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    pages[^1].Images.Add(flexImage with { Top = y + flexImage.Top });
-                }
-                foreach (var disc in measured.Discs)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    pages[^1].Discs.Add(disc with { Y = o.PageHeight - y + disc.Y });
-                }
-                y += measured.Height;
-                pendingTopPadding = pendingClosedPadding = after = 0;
-                contentEpoch++;
-                for (var i = 0; i < opened.Count; i++)
-                    opened[i] = opened[i] with { HasOccupiedDescendant = true };
+                PlaceItemRow(FlexLayout.Measure(flex, o, resolved, budget, cancellation), flex.Container.SourceOffset, 0);
+                continue;
+            }
+            if (step is LayoutGrid grid)
+            {
+                var rows = FlexLayout.MeasureGrid(grid, o, resolved, budget, cancellation, out var rowGap);
+                for (var i = 0; i < rows.Count; i++)
+                    PlaceItemRow(rows[i], grid.Container.SourceOffset, i == 0 ? 0 : rowGap);
                 continue;
             }
             if (step is LayoutTable table)
