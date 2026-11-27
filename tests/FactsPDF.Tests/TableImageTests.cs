@@ -19,6 +19,7 @@ public sealed class TableImageTests
     private static string Cell(string content, string cellStyle = "", string tableStyle = "width:80pt")
         => TableLayoutTests.Table(content, tableStyle, cellStyle);
 
+    [CompressedBytesPin]
     [Test]
     public void ExistingTextTableAndStandaloneImageBytesRemainUnchanged()
     {

@@ -190,6 +190,7 @@ public sealed class ListMarkerByteLimitLocationTests
         Assert.That(late, Is.GreaterThan(early).And.LessThanOrEqualTo(Items - 1));
     }
 
+    [AllocationBudget]
     [Test]
     public void ADiscKeepsItsSizeWithTheItemOffset()
     {

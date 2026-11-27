@@ -76,7 +76,7 @@ public sealed class ListStructureTests
 
     [TestCase("<ol start='0'><li>A</li></ol>")]
     [TestCase("<ol reversed='false'><li>A</li></ol>")]
-    [TestCase("<ul type='square'><li>A</li></ul>")]
+    [TestCase("<ul type='a'><li>A</li></ul>")]
     [TestCase("<ul><li value='4'>A</li></ul>")]
     public void UnsupportedListAttributesProtectOutput(string html) => Fails(html, "FPDF1103");
 

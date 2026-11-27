@@ -61,6 +61,7 @@ public sealed class HtmlTokenNameTests
         Assert.That(error.Message, Does.Contain("Duplicate attribute."));
     }
 
+    [AllocationBudget]
     [Test]
     public void ReadingKnownTagsAllocatesNoNameCopies()
     {

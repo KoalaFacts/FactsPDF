@@ -141,7 +141,10 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'fa7531e4e3c7dd0f1199916537d885dc164bf2ab');
+  assert.equal(display.last_audited_commit,'d7869cef096ee3869a0f8f2cc8aca5fbf1d98064');
+  assert.match(display.scope,/normal\/break-word\/anywhere/);
+  assert.match(display.scope,/anywhere[^.]*min-content[^.]*byte-identical to overflow-wrap:break-word/);
+  assert.doesNotMatch(display.limitations,/No anywhere/);
   assert.match(display.scope,/flat cell paragraphs/);
   assert.match(display.scope,/legacy word-wrap alias/);
   assert.match(display.scope,/outside lists\/tables/);
@@ -883,6 +886,28 @@ test('table parts accept the display value they already render, in English', asy
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
 
+test(':root pseudo-class is partial and other pseudo-classes still fail, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'selector.pseudo'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1203');
+  assert.match(row.scope, /\(0,1,0\)/);
+  assert.match(row.limitations, /:first-child, :nth-child, :lang, :hover/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'selector.attribute')).limitations, /pseudo-classes other than :root/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('the .NET library row names its three target frameworks and the compression caveat, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'runtime.dotnet'));
+  assert.equal(row.status, 'full');
+  assert.match(row.limitations, /net8\.0, net9\.0 and net10\.0/);
+  assert.match(row.limitations, /byte-identical for the same input, options and \.NET runtime version/);
+  assert.match(row.limitations, /different \.NET versions may produce different bytes .* with the same rendered content/);
+  assert.match(row.limitations, /authoritative on net10\.0 only/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
 test('break-inside and page-break-inside accept avoid on table rows, in English', async () => {
   const { englishFeature } = await localisation();
   const rows = ['css.break-inside', 'css.page-break-inside']
@@ -894,4 +919,36 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
     assert.match(row.limitations, /bottom .*FPDF1302/);
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
+});
+
+test('base is partial: one base in head accepted, relative URLs still not resolved, in English', async () => {
+  const { englishFeature } = await localisation();
+  const base = englishFeature(data.features.find(x => x.id === 'html.base'));
+  assert.equal(base.status, 'partial');
+  assert.match(base.scope, /never resolves relative URLs/);
+  assert.match(base.limitations, /relative a href still fails FPDF1103/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(base[field], han, field);
+});
+
+test('lists accept the HTML type attribute as a list-style-type hint, in English', async () => {
+  const { englishFeature } = await localisation();
+  for (const id of ['html.li', 'html.ol', 'html.ul']) {
+    const row = englishFeature(data.features.find(x => x.id === id));
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /HTML type is a presentational hint for list-style-type/);
+    assert.doesNotMatch(row.limitations, /No ul start or ul-li value, HTML type/);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+  }
+});
+
+test('custom properties and var() are partial, failing instead of unsetting, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'functions.var'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1202');
+  assert.match(row.scope, /var\(--name, fallback\)/);
+  assert.match(row.limitations, /would unset the declaration at computed-value time/);
+  assert.match(row.limitations, /MaxCssSyntaxNodes/);
+  assert.equal(englishFeature(data.features.find(x => x.id === 'functions.math')).stage, 'Syntax representation only');
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });

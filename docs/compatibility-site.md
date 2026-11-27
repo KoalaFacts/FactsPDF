@@ -634,11 +634,34 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
+The `<li>`, `<ol>` and `<ul>` rows stay partial; their shared limitation string is replaced in
+place to say that the HTML `type` attribute is a presentational hint for `list-style-type`,
+so no count moves.
+The C# / .NET library row stays full; its limitation string is replaced in place to say that
+the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
+that output is byte-identical for the same input, options and .NET runtime version while
+different .NET versions may produce different bytes (for example compressed streams) with the
+same rendered content, with byte parity and hash pins authoritative on `net10.0` only, so no
+count moves.
+The pseudo-class row moves to partial for `:root` (the root `html` element, pseudo-class
+specificity); its own feature name, scope and limitation strings are replaced in place and the
+attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
+`FPDF1102` search is unchanged).
+The custom property / `var()` row moves to partial: custom properties cascade and inherit and
+`var()` is substituted into every supported property, while a reference without a value or
+fallback fails `FPDF1202` instead of being unset. Its scope and limitation strings are replaced in
+place and its stage becomes the existing `语义/渲染`, so the `仅语法可表示` stage it shared with the
+value-function row moves after that row's strings (partial 247, rejected 119; `FPDF1202`).
 A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
 Current dataset SHA-256:
-`a59f0bf86a88e5b57bb3850cf2640386ff86ee18d2d219bf989ad4e2487b051c`; English
+`6c73120721e0e1bee2201e50b6ad2ce40695f572fd73f6387f80acaa15c88d72`; English
 layer `site/src/audit-english-table-row-kept-split.mjs`, ordered source-text
-SHA-256 `0fba5ce7a8a30c050f2d3558180e7827053eb74f3eddd73ad0bef4ad71d175df`.
+SHA-256 `0e4408a1cc3960189e84bf82d58ef78837b36b031e35f0157e7052edd0c45602`.

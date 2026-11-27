@@ -117,7 +117,7 @@ public sealed class TableCellTextFlowTests
     }
 
     [TestCase("white-space:break-spaces", "FPDF1202")]
-    [TestCase("overflow-wrap:anywhere", "FPDF1202")]
+    [TestCase("overflow-wrap:auto", "FPDF1202")]
     [TestCase("word-break:keep-all", "FPDF1202")]
     [TestCase("white-space:pre", "FPDF1305")]
     public void UnsupportedValuesAndModesProtectExistingPdf(string declaration, string code)

@@ -1,0 +1,130 @@
+<!doctype html>
+<html><head><title>Design token report</title><style>
+/* Synthetic design tokens: colours, font sizes, spacing and line heights as custom properties. */
+:root {
+  --ex-red-100: #fdecea;
+  --ex-red-200: #f9c9c4;
+  --ex-red-300: #f3a29a;
+  --ex-red-400: #ec7a6f;
+  --ex-red-500: #e3584b;
+  --ex-red-600: #d43b2e;
+  --ex-red-700: #b3261e;
+  --ex-red-800: #8f1d17;
+  --ex-red-900: #6b1511;
+  --ex-blue-100: #e8f1fa;
+  --ex-blue-200: #c5dcf2;
+  --ex-blue-300: #9fc4e8;
+  --ex-blue-400: #78abdd;
+  --ex-blue-500: #5795d3;
+  --ex-blue-600: #3a7fc6;
+  --ex-blue-700: #2a68a8;
+  --ex-blue-800: #1f4e79;
+  --ex-blue-900: #16385a;
+  --ex-grey-100: #f7f8f9;
+  --ex-grey-200: #eceef0;
+  --ex-grey-300: #dde1e5;
+  --ex-grey-400: #c4cad1;
+  --ex-grey-500: #a2aab4;
+  --ex-grey-600: #7d8794;
+  --ex-grey-700: #5c6673;
+  --ex-grey-800: #3f4752;
+  --ex-grey-900: #262c33;
+  --ex-amber-100: #fff8e1;
+  --ex-amber-200: #ffecb3;
+  --ex-amber-300: #ffe082;
+  --ex-amber-400: #ffd54f;
+  --ex-amber-500: #ffca28;
+  --ex-amber-600: #ffc107;
+  --ex-amber-700: #ffb300;
+  --ex-amber-800: #ffa000;
+  --ex-amber-900: #ff8f00;
+  --ex-green-100: #e9f5ec;
+  --ex-green-200: #c8e6cf;
+  --ex-green-300: #a3d5ae;
+  --ex-green-400: #7cc48d;
+  --ex-green-500: #5bb573;
+  --ex-green-600: #3f9a58;
+  --ex-green-700: #2e7d32;
+  --ex-green-800: #22602a;
+  --ex-green-900: #174420;
+  --ex-font-1: 8pt;
+  --ex-font-2: 9pt;
+  --ex-font-3: 10pt;
+  --ex-font-4: 11pt;
+  --ex-font-5: 12pt;
+  --ex-font-6: 14pt;
+  --ex-font-7: 16pt;
+  --ex-font-8: 20pt;
+  --ex-space-1: 1pt;
+  --ex-space-2: 2pt;
+  --ex-space-3: 3pt;
+  --ex-space-4: 4pt;
+  --ex-space-5: 6pt;
+  --ex-space-6: 8pt;
+  --ex-space-7: 10pt;
+  --ex-space-8: 12pt;
+  --ex-space-9: 16pt;
+  --ex-space-10: 20pt;
+  --ex-line-height: 1.35;
+  --ex-line-height-tight: 1.15;
+  --ex-rule: 1pt;
+  --ex-brand: var(--ex-red-700);
+  --ex-accent: var(--ex-blue-800);
+  --ex-ink: var(--ex-grey-900);
+  --ex-muted: var(--ex-grey-600);
+  --ex-surface: var(--ex-grey-100);
+}
+h1 { color: var(--ex-brand); font-size: var(--ex-font-8); margin: 0 0 var(--ex-space-5); line-height: var(--ex-line-height-tight) }
+h2 { color: var(--ex-accent); font-size: var(--ex-font-6) !important; padding: var(--ex-space-3) var(--ex-space-6); border-top: 2px solid var(--ex-red-700); margin: var(--ex-space-10) 0 var(--ex-space-4) }
+p { color: var(--ex-ink); font-size: var(--ex-font-4); line-height: var(--ex-line-height); margin: 0 0 var(--ex-space-4) }
+.summary { background-color: var(--ex-surface); border: var(--ex-rule) solid var(--ex-grey-400); padding: var(--ex-space-5) var(--ex-space-6); margin: 0 0 var(--ex-space-8) }
+.summary p { color: var(--ex-muted); font-size: var(--ex-font-3) }
+.entry { border-left: var(--ex-space-2) solid var(--ex-green-700); background-color: var(--ex-green-100); padding: var(--ex-space-3) var(--ex-space-5); margin: 0 0 var(--ex-space-3) }
+.entry.overdue { border-left-color: var(--ex-brand); background-color: var(--ex-red-100) }
+.entry p { margin: 0; font-size: var(--ex-font-3) }
+.entry.flagged { border-left-color: var(--ex-amber-900); background-color: var(--ex-amber-100) }
+.note { color: var(--ex-blue-700); font-size: var(--ex-font-2); letter-spacing: var(--ex-space-1) }
+</style></head><body>
+<h1>Quarterly account review</h1>
+<div class="summary"><p>Thirty-six synthetic accounts, reviewed with design tokens declared once on the root element.</p></div>
+<div style="padding: 0 var(--ex-space-6)"><p class="note">Totals are illustrative and contain no real data.</p></div>
+<h2>First half</h2>
+<section class="entry"><p>Account EX-001 reviewed</p></section>
+<section class="entry"><p>Account EX-002 reviewed</p></section>
+<section class="entry"><p>Account EX-003 reviewed</p></section>
+<section class="entry"><p>Account EX-004 reviewed</p></section>
+<section class="entry flagged"><p>Account EX-005 reviewed (flagged)</p></section>
+<section class="entry"><p>Account EX-006 reviewed</p></section>
+<section class="entry overdue"><p>Account EX-007 reviewed (overdue)</p></section>
+<section class="entry"><p>Account EX-008 reviewed</p></section>
+<section class="entry"><p>Account EX-009 reviewed</p></section>
+<section class="entry flagged"><p>Account EX-010 reviewed (flagged)</p></section>
+<section class="entry"><p>Account EX-011 reviewed</p></section>
+<section class="entry"><p>Account EX-012 reviewed</p></section>
+<section class="entry"><p>Account EX-013 reviewed</p></section>
+<section class="entry overdue"><p>Account EX-014 reviewed (overdue)</p></section>
+<section class="entry flagged"><p>Account EX-015 reviewed (flagged)</p></section>
+<section class="entry"><p>Account EX-016 reviewed</p></section>
+<section class="entry"><p>Account EX-017 reviewed</p></section>
+<section class="entry"><p>Account EX-018 reviewed</p></section>
+<h2>Second half</h2>
+<section class="entry"><p>Account EX-019 reviewed</p></section>
+<section class="entry flagged"><p>Account EX-020 reviewed (flagged)</p></section>
+<section class="entry overdue"><p>Account EX-021 reviewed (overdue)</p></section>
+<section class="entry"><p>Account EX-022 reviewed</p></section>
+<section class="entry"><p>Account EX-023 reviewed</p></section>
+<section class="entry"><p>Account EX-024 reviewed</p></section>
+<section class="entry flagged"><p>Account EX-025 reviewed (flagged)</p></section>
+<section class="entry"><p>Account EX-026 reviewed</p></section>
+<section class="entry"><p>Account EX-027 reviewed</p></section>
+<section class="entry overdue"><p>Account EX-028 reviewed (overdue)</p></section>
+<section class="entry"><p>Account EX-029 reviewed</p></section>
+<section class="entry flagged"><p>Account EX-030 reviewed (flagged)</p></section>
+<section class="entry"><p>Account EX-031 reviewed</p></section>
+<section class="entry"><p>Account EX-032 reviewed</p></section>
+<section class="entry"><p>Account EX-033 reviewed</p></section>
+<section class="entry"><p>Account EX-034 reviewed</p></section>
+<section class="entry overdue"><p>Account EX-035 reviewed (overdue)</p></section>
+<section class="entry"><p>Account EX-036 reviewed</p></section>
+<div style="border-top: var(--ex-rule) solid var(--ex-muted); padding: var(--ex-space-4) var(--ex-space-6) 0"><p class="note">End of review</p></div>
+</body></html>

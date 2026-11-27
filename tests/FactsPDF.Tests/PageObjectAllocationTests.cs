@@ -17,6 +17,7 @@ public sealed class PageObjectAllocationTests
     // as strings: 1,010 (Courier) and 1,024 (subset font) serialize bytes per page, 276 and 339 after Z2e.
     // Z2f also builds the /Kids array in that builder: 300 and 339 on main 0cfc020, 234 and 281 after;
     // limit 400 → 325, which fails on main with the subset font.
+    [AllocationBudget]
     [TestCase(false)]
     [TestCase(true)]
     public void SerializingAllocatesNoStringPerPageObject(bool embedFont)
@@ -68,6 +69,7 @@ public sealed class PageObjectAllocationTests
     // string per link, and a string per page in a joined /Kids list. 600 forced pages with three
     // links each: 1,276 (Courier) and 1,593 (subset font) serialize bytes per link on main, 192 and
     // 779 after Z2f (the rest is the annotation list itself and glyph bounds). The limit fails on main.
+    [AllocationBudget]
     [TestCase(false)]
     [TestCase(true)]
     public void SerializingAllocatesNoStringPerLinkAnnotation(bool embedFont)

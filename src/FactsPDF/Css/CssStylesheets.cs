@@ -42,9 +42,29 @@ internal sealed class CssStylesheets
     private const int MaxComputedBoxes = 256;
     private readonly Dictionary<int, ComputedBox> computedBoxes = [];
     private sealed record ComputedBox(string Element, BoxStyle ParentBox, double RootFontSize, double FontSize,
-        Rgb Color, CssDeclaration[] Writes, BoxStyle Box);
+        Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly CssSyntaxLimits syntaxLimits;
+    // Custom property and var() declarations an element matched, kept until every other declaration
+    // has been offered: custom properties cascade by name, then each var() declaration is compiled
+    // against the element's computed custom properties and offered at its own cascade position.
+    private readonly record struct Deferral(CssDeclaration Shared, int Order, int Offset, bool Inline, CssSpecificity Specificity)
+    {
+        internal bool Beats(Deferral other)
+        {
+            var c = Shared.Important.CompareTo(other.Shared.Important); if (c != 0) return c > 0;
+            c = Inline.CompareTo(other.Inline); if (c != 0) return c > 0;
+            c = Specificity.CompareTo(other.Specificity); return c != 0 ? c > 0 : Order >= other.Order;
+        }
+    }
+    private readonly List<Deferral> customDeclarations = [], pendingDeclarations = [];
+    // The computed custom properties of each element on the current ancestor path, by depth.
+    private readonly List<CssCustomEnvironment> environments = [];
+    private readonly List<CssDeclaration.Slot> substitutionSlots = [];
+    // var() declarations already compiled for a computed custom property set (and, for a style
+    // attribute, its element). Bounded like the other per-conversion tables.
+    private const int MaxSubstitutions = 256;
+    private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), CssDeclaration[]> substitutions = [];
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
@@ -358,9 +378,11 @@ internal sealed class CssStylesheets
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
-        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false)
+        bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false,
+        ListMarkerKind? listTypeHint = null)
     {
         Array.Clear(winners); var element = path[^1];
+        customDeclarations.Clear(); pendingDeclarations.Clear();
         var cellParagraph = element.Name == "p" && path.Any(e => e.Name is "td" or "th");
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
         var cellTextIndentHost = element.Name is "td" or "th";
@@ -374,6 +396,12 @@ internal sealed class CssStylesheets
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
         {
             budget.Work(declaration.Offset);
+            if (declaration.Property is CssProperty.Custom or CssProperty.Pending)
+            {
+                (declaration.Property == CssProperty.Custom ? customDeclarations : pendingDeclarations)
+                    .Add(new(declaration.Shared, declaration.Order, declaration.Offset, isInline, specificity));
+                return;
+            }
             if (TablePartDisplay(declaration)) return;
             // baseline is the initial value. Outside cells inline text (and a br or img) already
             // sits on its baseline and blocks ignore vertical-align, so resets such as
@@ -640,6 +668,22 @@ internal sealed class CssStylesheets
                     Offer(inlineSlots[i].Retarget(d, inlineDeclarations.FirstOrder + i, d.Offset + inlineDeclarations.OffsetShift), true, default);
                 }
         }
+        if (budget.UsesVariables)
+        {
+            var depth = path.Count - 1;
+            var parentEnvironment = depth > 0 && depth - 1 < environments.Count ? environments[depth - 1] : CssCustomEnvironment.Empty;
+            var environment = customDeclarations.Count == 0 ? parentEnvironment : ResolveCustomProperties(parentEnvironment);
+            if (environments.Count > depth) environments.RemoveRange(depth, environments.Count - depth);
+            while (environments.Count < depth) environments.Add(CssCustomEnvironment.Empty);
+            environments.Add(environment);
+            var used = 0;
+            foreach (var pending in pendingDeclarations)
+                foreach (var substituted in Substitute(pending, environment, element.Name))
+                {
+                    if (used == substitutionSlots.Count) substitutionSlots.Add(new CssDeclaration.Slot());
+                    Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
+                }
+        }
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared
@@ -676,8 +720,9 @@ internal sealed class CssStylesheets
         };
         // UA list defaults are decimal for ol and disc for ul. Other elements
         // propagate the inherited marker type, including li and nested panels.
-        // Copy the box only when a marker setting actually differs.
-        var markerKind = element.Name switch
+        // Copy the box only when a marker setting actually differs. The HTML type attribute is a
+        // presentational hint: it replaces the default and loses to every author declaration.
+        var markerKind = listTypeHint ?? element.Name switch
         {
             "ol" => ListMarkerKind.Decimal,
             "ul" or "menu" => ListMarkerKind.Disc,
@@ -713,9 +758,9 @@ internal sealed class CssStylesheets
                 if (!boxChecked)
                 {
                     boxChecked = true;
-                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, index);
+                    boxKey = BoxKey(element.Name, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
                     if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, element.Name,
-                        parentBox, rootFontSize, style.FontSize, style.Color, index))
+                        parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index))
                     {
                         box = computed.Box;
                         boxShared = true;
@@ -849,13 +894,64 @@ internal sealed class CssStylesheets
         }
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(element.Name, parentBox, rootFontSize, style.FontSize, style.Color,
-                BoxWrites(element.Name), box);
+                listTypeHint, BoxWrites(element.Name), box);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
         if (hidden && winners[(int)CssProperty.Display] is null && !box.DisplayNone)
             box = box with { DisplayNone = true };
         return (style, box);
+    }
+
+    private CssCustomEnvironment ResolveCustomProperties(CssCustomEnvironment parent)
+    {
+        var winning = new Dictionary<string, Deferral>(StringComparer.Ordinal);
+        foreach (var candidate in customDeclarations)
+            if (!winning.TryGetValue(candidate.Shared.Name, out var old) || candidate.Beats(old))
+                winning[candidate.Shared.Name] = candidate;
+        var declared = new Dictionary<string, (CssCustomValue Value, int Offset)>(winning.Count, StringComparer.Ordinal);
+        foreach (var (name, winner) in winning) declared.Add(name, ((CssCustomValue)winner.Shared.Payload!, winner.Offset));
+        return CssVariables.Resolve(parent, declared, budget, syntaxLimits);
+    }
+
+    /// <summary>
+    /// The declarations a var() declaration compiles to on an element with these computed custom
+    /// properties. A reference without a value or fallback, a CSS-wide keyword produced by
+    /// substitution, or a substituted value the property does not accept fails with the error the
+    /// literal value would give (FPDF1202 for values), located at the var() declaration: the
+    /// renderer fails rather than treating the declaration as unset as a browser would.
+    /// </summary>
+    private CssDeclaration[] Substitute(Deferral pending, CssCustomEnvironment environment, string element)
+    {
+        var payload = (CssPendingValue)pending.Shared.Payload!;
+        var key = (pending.Shared, environment, payload.Inline ? element : null);
+        if (substitutions.TryGetValue(key, out var cached)) return cached;
+        var name = payload.Node.Name;
+        var values = new List<CssSyntaxComponent>();
+        var nodes = 0;
+        if (!CssVariables.Substitute(payload.Node.Values, values, ref nodes, pending.Offset, 1, budget, syntaxLimits,
+                (string reference, out CssVariableValue value) => environment.TryGet(reference, out value), out var missing))
+            throw new FactsPdfException("FPDF1202",
+                $"var({missing}) in '{name}' has no value and no fallback: the custom property is not defined on this element or its ancestors, is initial, is part of a reference cycle or failed its own substitution.",
+                pending.Offset);
+        if (CssVariables.IsWideKeyword(values))
+            throw new FactsPdfException("FPDF1202",
+                $"var() in '{name}' substitutes the CSS-wide keyword '{CssVariables.Text(values)}', which is not supported.", pending.Offset);
+        CssDeclaration[] compiled;
+        try
+        {
+            compiled = CssSyntaxAdapter.CompileKnownDeclarations([payload.Node with { Values = values.ToArray() }], budget,
+                payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1);
+        }
+        catch (FactsPdfException error) when (error.Code != "FPDF1205")
+        {
+            var reason = error.Message.StartsWith(error.Code + ": ", StringComparison.Ordinal)
+                ? error.Message[(error.Code.Length + 2)..] : error.Message;
+            throw new FactsPdfException(error.Code,
+                $"'{name}: {CssVariables.Text(values)}' after var() substitution: {reason}", pending.Offset);
+        }
+        if (substitutions.Count < MaxSubstitutions) substitutions[key] = compiled;
+        return compiled;
     }
 
     // A zero margin on <html> or <body>, or a zero padding on <html>: their used insets are already
@@ -972,10 +1068,12 @@ internal sealed class CssStylesheets
         || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
 
-    private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color, int first)
+    private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,
+        ListMarkerKind? listTypeHint, int first)
     {
         var hash = new HashCode();
         hash.Add(element);
+        hash.Add(listTypeHint);
         hash.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(parentBox));
         hash.Add(rootFontSize);
         hash.Add(fontSize);
@@ -990,10 +1088,11 @@ internal sealed class CssStylesheets
     }
 
     private bool SameBoxInputs(ComputedBox computed, string element, BoxStyle parentBox, double rootFontSize,
-        double fontSize, Rgb color, int first)
+        double fontSize, Rgb color, ListMarkerKind? listTypeHint, int first)
     {
         if (!string.Equals(computed.Element, element, StringComparison.Ordinal) || !ReferenceEquals(computed.ParentBox, parentBox)
-            || !computed.RootFontSize.Equals(rootFontSize) || !computed.FontSize.Equals(fontSize) || computed.Color != color) return false;
+            || !computed.RootFontSize.Equals(rootFontSize) || !computed.FontSize.Equals(fontSize) || computed.Color != color
+            || computed.ListTypeHint != listTypeHint) return false;
         var writes = computed.Writes; var count = 0;
         for (var index = first; index < winners.Length; index++)
         {
