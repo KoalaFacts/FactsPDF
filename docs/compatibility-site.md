@@ -691,3 +691,8 @@ Current dataset SHA-256:
 `2313f1681399fdba2296881a8432613a385ebf2903dbf83b601813b380c41061`; English
 layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
 SHA-256 `77f6f97c239f100c6a981304111639ac6cef386dd1c98b25c44b91d7c19fa210`.
+
+The `functions.var` limitation is replaced in place to name the `MaxCssCustomProperties` budget (default 4,096 distinct names); no status or count moves. Current dataset SHA-256:
+`d4840b6ec1dd2ef0c0557568d7d95d9144318bb2996e9eb92013fb871e6405af`; English
+layer `site/src/audit-english-custom-property-budget.mjs`, ordered source-text
+SHA-256 `535a15b0ccf49e383667b29ca0e11fa33aef41f33c5317687f285ee823a36e72`.

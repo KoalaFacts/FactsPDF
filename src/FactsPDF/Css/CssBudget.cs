@@ -16,6 +16,16 @@ internal sealed class CssBudget(PdfOptions options, CancellationToken token)
     { token.ThrowIfCancellationRequested(); Check(++declarations <= options.MaxCssDeclarations, CssSyntax.CssSyntaxLimits.DeclarationBudgetMessage, offset); return (int)declarations; }
     /// <summary>The declarations still within <see cref="PdfOptions.MaxCssDeclarations"/>.</summary>
     internal int DeclarationsLeft => (int)Math.Max(0, options.MaxCssDeclarations - declarations);
+    private HashSet<string>? customProperties;
+    /// <summary>Records a custom property name; a name beyond <see cref="PdfOptions.MaxCssCustomProperties"/>
+    /// distinct names fails FPDF1205.</summary>
+    internal void CustomProperty(string name, int offset)
+    {
+        customProperties ??= new HashSet<string>(StringComparer.Ordinal);
+        if (customProperties.Add(name))
+            Check(customProperties.Count <= options.MaxCssCustomProperties, CustomPropertyBudgetMessage, offset);
+    }
+    internal const string CustomPropertyBudgetMessage = "CSS custom property budget exceeded (MaxCssCustomProperties distinct names).";
     internal void Work(int offset, int count = 1)
     { token.ThrowIfCancellationRequested(); work += count; Check(work <= options.MaxCssMatchOperations, "CSS matching/work budget exceeded.", offset); }
     internal static void Check(bool condition, string message, int offset)

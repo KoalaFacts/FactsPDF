@@ -47,6 +47,7 @@ URLs, read imported stylesheets, use dynamic code or discover local fonts.
 | `MaxCssSelectors` | 4,096 |
 | `MaxCssDeclarations` | 32,768 |
 | `MaxCssMatchOperations` | 5,000,000 |
+| `MaxCssCustomProperties` | 4,096 |
 
 The limits bound named operations and graph size; they are not a global
 peak-memory or hostile-document sandbox guarantee. Per-conversion state

@@ -62,15 +62,17 @@ internal sealed class CssStylesheets
     private readonly List<CssCustomEnvironment> environments = [];
     private readonly List<CssDeclaration.Slot> substitutionSlots = [];
     // var() declarations already compiled for a computed custom property set (and, for a style
-    // attribute, its element). Bounded like the other per-conversion tables.
+    // attribute, its element). Bounded like the other per-conversion tables, by entries and by the
+    // substituted syntax nodes the entries were compiled from (at most MaxCssSyntaxNodes in all).
     private const int MaxSubstitutions = 256;
     private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), CssDeclaration[]> substitutions = [];
+    private long substitutionNodes;
     /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
     internal CssPageRules? PageRules { get; private set; }
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
-        if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1)
+        if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         budget = new(options, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, Cancellation: token);
@@ -946,9 +948,9 @@ internal sealed class CssStylesheets
         if (substitutions.TryGetValue(key, out var cached)) return cached;
         var name = payload.Node.Name;
         var values = new List<CssSyntaxComponent>();
-        var nodes = 0;
-        if (!CssVariables.Substitute(payload.Node.Values, values, ref nodes, pending.Offset, 1, budget, syntaxLimits,
-                (string reference, out CssVariableValue value) => environment.TryGet(reference, out value), out var missing))
+        var shape = new CssSubstitution();
+        if (!CssVariables.Substitute(payload.Node.Values, values, ref shape, pending.Offset, 1, budget, syntaxLimits,
+                (string reference, out CssVariableValue value) => environment.TryGet(reference, budget, pending.Offset, out value), out var missing))
             throw new FactsPdfException("FPDF1202",
                 $"var({missing}) in '{name}' has no value and no fallback: the custom property is not defined on this element or its ancestors, is initial, is part of a reference cycle or failed its own substitution.",
                 pending.Offset);
@@ -968,7 +970,11 @@ internal sealed class CssStylesheets
             throw new FactsPdfException(error.Code,
                 $"'{name}: {CssVariables.Text(values)}' after var() substitution: {reason}", pending.Offset);
         }
-        if (substitutions.Count < MaxSubstitutions) substitutions[key] = compiled;
+        if (substitutions.Count < MaxSubstitutions && substitutionNodes + shape.Nodes <= syntaxLimits.MaxNodes)
+        {
+            substitutions[key] = compiled;
+            substitutionNodes += shape.Nodes;
+        }
         return compiled;
     }
 

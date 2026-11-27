@@ -95,7 +95,7 @@ internal static class PdfConverter
             return (null, "Each margin must be nonnegative and the margins must leave a page area.");
         if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144)
             return (o.FontSize, "FontSize must be from 1 to 144 points.");
-        if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxDisplayCommands < 1
+        if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxCssCustomProperties < 1 || o.MaxDisplayCommands < 1
             || o.MaxImageResources < 1 || o.MaxTotalImageBytes < 1)
             return (null, "All resource limits must be positive.");
         return null;

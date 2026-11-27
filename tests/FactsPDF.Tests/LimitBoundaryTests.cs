@@ -62,6 +62,7 @@ public sealed class LimitBoundaryTests
         yield return new("MaxCssMatchOperations", (l, v) => l.MaxCssMatchOperations(v), "<style>p{color:red}</style><p>x</p><p>y</p>", Plain, () => Fixed(6), "FPDF1205", "matching/work budget");
         yield return new("MaxCssSyntaxNodes", (l, v) => l.MaxCssSyntaxNodes(v), "<style>p{color:red}</style><p>x</p>", Plain, () => Fixed(4), "FPDF1205", "MaxNodes");
         yield return new("MaxCssSyntaxDepth", (l, v) => l.MaxCssSyntaxDepth(v), "<style>p{color:rgb(1,2,3)}</style><p>x</p>", Plain, () => Fixed(2), "FPDF1205", "MaxDepth");
+        yield return new("MaxCssCustomProperties", (l, v) => l.MaxCssCustomProperties(v), "<style>:root{--a:1pt;--b:2pt}p{--a:3pt}</style><p>x</p>", Plain, () => Fixed(2), "FPDF1205", "MaxCssCustomProperties");
         yield return new("MaxDisplayCommands", (l, v) => l.MaxDisplayCommands(v), "<p>a</p><p>b</p><p>c</p>", Plain, () => Fixed(3), "FPDF1401", "display command");
     }
 
@@ -121,7 +122,7 @@ public sealed class LimitBoundaryTests
 
     private static PdfLimitsSetup Roomy(PdfLimitsSetup l) => l.MaxInputCharacters(8_000_000).MaxElements(400_000).MaxPages(10_000)
         .MaxOutputBytes(256 << 20).MaxDisplayCommands(2_000_000).MaxCssCharacters(8_000_000).MaxCssSelectors(400_000)
-        .MaxCssDeclarations(400_000).MaxCssSyntaxNodes(8_000_000).MaxCssMatchOperations(100_000_000);
+        .MaxCssDeclarations(400_000).MaxCssSyntaxNodes(8_000_000).MaxCssMatchOperations(100_000_000).MaxCssCustomProperties(400_000);
 
     public static IEnumerable<FloodCase> Floods()
     {
@@ -143,6 +144,8 @@ public sealed class LimitBoundaryTests
             n => style(Repeat("p{color:red}", 50_000 * n)), "FPDF1205", true);
         yield return new("MaxCssSyntaxDepth", l => Roomy(l).MaxCssSyntaxDepth(16), l => Roomy(l).MaxCssSyntaxDepth(64),
             n => style("p{color:" + Repeat("f(", 25_000 * n) + "}"), "FPDF1205", false);
+        yield return new("MaxCssCustomProperties", l => Roomy(l).MaxCssCustomProperties(100), Roomy,
+            n => style(":root{" + string.Concat(Enumerable.Range(0, 25_000 * n).Select(i => "--p" + i + ":1;")) + "}"), "FPDF1205", false);
         yield return new("MaxCssMatchOperations", l => Roomy(l).MaxCssMatchOperations(1_000), Roomy,
             n => "<style>" + Repeat("div p{color:red}", 200) + "</style>" + Paragraphs(1_000 * n), "FPDF1205", true);
         yield return new("MaxTotalFontBytes", l => Roomy(l).MaxTotalFontBytes(FontBytes.Length - 1), Roomy, n => Repeat("<p>AB Wi AB</p>", 10_000 * n), "FPDF1503", true, WithFont);
