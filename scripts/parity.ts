@@ -30,6 +30,16 @@
 // inline-replaced-baseline — an existing example with an img or svg renders a
 // different PDF on both sides: default-inline images sit on the baseline of
 // their line box with the strut's descent below them, as in Chrome.
+// list-default-margin — an existing example with a ul, ol or menu renders a
+// different PDF on both sides (or a decorated bottom edge now (no longer) fits):
+// those lists take Chrome's user-agent margin of 1em above and below, none when
+// nested, so the content after each list moves.
+// block-margin-collapse — an existing example with block containers (div, section,
+// li, hr, table ...) and no list renders a different PDF on both sides (or a decorated
+// bottom edge now (no longer) fits): vertical margins collapse as in CSS 2 (siblings,
+// parent and first or last child, empty blocks), padding and borders keep them apart,
+// margins adjoining an unforced page break are truncated, and a painted parent
+// excludes the margin that collapses out through its edge.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -63,7 +73,7 @@ export interface Difference {
 }
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -189,6 +199,14 @@ const locationLine = /^Location: line \d+, column \d+\.$/;
 
 const wroteLine = /^Wrote \d+ page\(s\), \d+ bytes\.$/m;
 const withoutWrote = (stderr: string) => stderr.replace(/\r\n/g, '\n').replace(wroteLine, 'Wrote');
+/** Both sides render a different PDF with the same diagnostics, or one side fails only at a decorated bottom edge. */
+function rendersDifferently(base: RunResult, head: RunResult): boolean {
+  const rendered = base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
+    head.pdf.subarray(0, 5).toString('latin1') === '%PDF-' && !base.pdf.equals(head.pdf) &&
+    withoutWrote(base.stderr) === withoutWrote(head.stderr);
+  return rendered || decoratedOverflow(base, head) || decoratedOverflow(head, base);
+}
+
 const decoratedFailure = /^FPDF1302: Decorated box fragment exceeds the usable page area\.$/m;
 
 /** Whether one side renders and the other fails only at a decorated box's bottom edge. */
@@ -199,7 +217,12 @@ function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
 
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
 export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false,
-  hasReplaced = false): ExpectedKind | null {
+  hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind | null {
+  // The margin kinds come first: a page with a table header and a padded panel moves because of the
+  // panel's margins, whatever else it contains.
+  if ((hasList || hasBlock) && !newExample && rendersDifferently(base, head)) {
+    return hasList ? 'list-default-margin' : 'block-margin-collapse';
+  }
   if (hasTh && !newExample && base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     return 'th-default-centred';
@@ -362,7 +385,9 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
       if (reason !== null) {
         const isNewExample = !baseExamples.has(example);
         const source = readFileSync(input, 'utf8');
-        const kind = classifyDifference(base, head, isNewExample, /<th[\s>]/i.test(source), /<(img|svg)[\s>]/i.test(source));
+        const kind = classifyDifference(base, head, isNewExample, /<th[\s>]/i.test(source), /<(img|svg)[\s>]/i.test(source),
+          /<(ul|ol|menu)[\s>]/i.test(source),
+          /<(div|section|article|header|footer|main|nav|aside|blockquote|figure|figcaption|address|dl|dt|dd|li|hr|table)[\s>]/i.test(source));
         if (isNewExample && kind === null) {
           // A new fixture is not silently exempt from parity: report why
           // its expected old-error to real-PDF conversion was not classified.

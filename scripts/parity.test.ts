@@ -144,6 +144,41 @@ test('inline-replaced-baseline accepts only rendered PDFs of existing examples w
   assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, true), null);
 });
 
+test('list-default-margin accepts rendered differences and decorated edges of existing examples with a list', () => {
+  const before = ok('%PDF-1.7 flush');
+  const after = ok('%PDF-1.7 spaced');
+  const hasList = true;
+  assert.equal(classifyDifference(before, after, false, false, false, hasList), 'list-default-margin');
+  assert.equal(classifyDifference(before, after, false, true, false, hasList), 'list-default-margin',
+    'a table header on the same page does not hide the list');
+  assert.notEqual(classifyDifference(before, after), 'list-default-margin', 'an example without a list is never this kind');
+  assert.equal(classifyDifference(before, after, true, false, false, hasList), null, 'a new example is not an existing one');
+  assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, false, hasList), null);
+  assert.equal(classifyDifference(before, { ...after, stderr: 'warning\n' }, false, false, false, hasList), null,
+    'changed diagnostics are not a layout difference');
+  assert.equal(classifyDifference(before, ok('not a PDF'), false, false, false, hasList), null);
+  const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n', pdf: null };
+  assert.equal(classifyDifference(before, failed, false, false, false, hasList), 'list-default-margin');
+});
+
+test('block-margin-collapse accepts rendered differences of existing examples with block containers and no list', () => {
+  const before = ok('%PDF-1.7 added');
+  const after = ok('%PDF-1.7 collapsed');
+  const hasBlock = true;
+  assert.equal(classifyDifference(before, after, false, false, false, false, hasBlock), 'block-margin-collapse');
+  assert.equal(classifyDifference(before, after, false, true, false, false, hasBlock), 'block-margin-collapse',
+    'a table header on the same page does not hide the panel');
+  assert.equal(classifyDifference(before, after, false, false, false, true, hasBlock), 'list-default-margin',
+    'an example with a list and panels takes the list kind');
+  assert.notEqual(classifyDifference(before, after), 'block-margin-collapse', 'an example without blocks is never this kind');
+  assert.equal(classifyDifference(before, after, true, false, false, false, hasBlock), null, 'a new example is not an existing one');
+  assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, false, false, hasBlock), null);
+  const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n', pdf: null };
+  assert.equal(classifyDifference(failed, before, false, false, false, false, hasBlock), 'block-margin-collapse');
+  assert.equal(classifyDifference({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before,
+    false, false, false, false, hasBlock), null);
+});
+
 test('a page count in the Wrote line and a moved decorated bottom edge are the orphans/widows kind', () => {
   const wrote = (pages: number, bytes: number, body: string) => ({ ...ok(body), stderr: `Wrote ${pages} page(s), ${bytes} bytes.\r\n` });
   assert.equal(classifyDifference(wrote(3, 10, '%PDF-1.7 a'), wrote(4, 12, '%PDF-1.7 b')), 'orphans-widows-initial-2');
