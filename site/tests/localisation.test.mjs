@@ -897,3 +897,12 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
 });
+
+test('base is partial: one base in head accepted, relative URLs still not resolved, in English', async () => {
+  const { englishFeature } = await localisation();
+  const base = englishFeature(data.features.find(x => x.id === 'html.base'));
+  assert.equal(base.status, 'partial');
+  assert.match(base.scope, /never resolves relative URLs/);
+  assert.match(base.limitations, /relative a href still fails FPDF1103/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(base[field], han, field);
+});

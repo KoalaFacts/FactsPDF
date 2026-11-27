@@ -548,6 +548,17 @@ types and a missing or empty `rel`,
 `media` and `style` fail `FPDF1103`; a link outside the head fails `FPDF1101`; links count toward
 `MaxElements` (`LinkMetadataTests.cs`).
 
+One `<base>` in the head, such as the `<base href="/">` that server-side frameworks emit, is
+accepted and changes nothing: the PDF is byte-identical to the page without it. `base` only sets
+the URL that relative URLs resolve against and the default link target, and FactsPDF resolves no
+relative URL (an `a` `href` must already be absolute HTTPS or mailto, and images are named
+resources), so its `href` is never read and takes any value, including an empty one. `target`
+follows the `a` rule (`_blank`, `_self`, `_parent`, `_top` or a name). A relative `a` `href`
+still fails `FPDF1103` exactly as without a `base`. A `base` with neither `href` nor `target`,
+other attributes such as `media`, `style` and `hidden`, and an empty or other underscore `target`
+fail `FPDF1103`; a second `base`, a `base` outside the head and a `</base>` end tag fail
+`FPDF1101`; a `base` counts toward `MaxElements` (`BaseElementTests.cs`).
+
 `<header>`, `<footer>`, `<main>`, `<nav>`, `<aside>`, `<hgroup>` and `<search>` render exactly like
 `<div>`: block containers with the same CSS, nesting and pagination. An HTML
 `<header>` or `<footer>` is an ordinary block in the flow, not repeated on every
@@ -1255,7 +1266,8 @@ block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
 `_parent`, `_top` or a name) and hyperlink `rel` types (`noopener`, `noreferrer`,
 `nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a
 PDF link always opens outside the document; an empty or other underscore `target`
-and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`).
+and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`). A `<base>` in the
+head never makes a relative `href` acceptable (`BaseElementTests.cs`).
 Clickable linked images, `download`, fragments, local-page destinations and full HTML anchor
 semantics are not implemented. Links are external PDF actions, not embedded
 content or a claim that target addresses are trusted.

@@ -124,8 +124,8 @@ test('empty-result clearing keeps rows, empty state and pagination consistent ac
   // A real hash navigation creates a history entry; clear replaces that entry.
   await page.evaluate(()=>{location.hash='#q=FPDF1102';});
   await expect(empty).toHaveCount(0);
-  // FPDF1102 still rejects 44 unsupported HTML cases.
-  await expect(pager).toHaveText('Page 1 / 2 · 44 records');
+  // FPDF1102 still rejects 43 unsupported HTML cases.
+  await expect(pager).toHaveText('Page 1 / 2 · 43 records');
   await page.locator('.reset').click();await full();
   await page.goBack();
   await expect(search).toHaveValue('zz-no-such-feature-qa');

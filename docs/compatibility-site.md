@@ -637,7 +637,9 @@ row FactsPDF would split fails `FPDF1302`, so no count moves.
 The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
 no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
 so no count moves.
+`<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
+are still never resolved (partial 245, rejected 121; 43 records).
 Current dataset SHA-256:
-`28776ef9eec8eff10da83b1057200f867eec23e8b385c57bb0eecb386fcf95dd`; English
-layer `site/src/audit-english-overflow-wrap-anywhere.mjs`, ordered source-text
-SHA-256 `76d3440c438c5241ae68596bd65f8a1c8e66dbb3f007bd7a6120502f5a2d5cc6`.
+`9fb8bf69a77fb9c1dafe36547c78db36b2c4bb684bbfc9ba1132ec372c272b58`; English
+layer `site/src/audit-english-base.mjs`, ordered source-text
+SHA-256 `250ee351cb14f6884eb4441f8054f6cebc212dfb0a5cb05483b5717b2a0cf3a6`.
