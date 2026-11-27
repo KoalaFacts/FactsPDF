@@ -631,7 +631,10 @@ to say that table parts accept the display value they already render and that
 The non-standard `background-color-adjust` joins `color-adjust` as an alias of
 `print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
 since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
 Current dataset SHA-256:
-`2167c34d79275f3615393d0a5b71f1aab9be830623b3454b0cc7d4f36bf7b2d9`; English
-layer `site/src/audit-english-background-color-adjust.mjs`, ordered source-text
-SHA-256 `5515dd2b34a8d714e74aafc3b447c2c171ef0233fb6686f539a6df51bf2de7f7`.
+`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
+layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
+SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
