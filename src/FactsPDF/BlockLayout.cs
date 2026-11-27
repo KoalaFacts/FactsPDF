@@ -85,7 +85,7 @@ internal static class BlockLayout
                     break;
                 case BlockNode node:
                 {
-                    var style = node.BoxStyle;
+                    var style = ReferenceEquals(node, root.ShrunkBody) ? node.BoxStyle with { Width = null } : node.BoxStyle;
                     var gutter = node.Name == "li" && !style.MarkerInside ? frame.Gutter : 0;
                     var containing = frame.ContentWidth - gutter;
                     if (containing < -0.000001)

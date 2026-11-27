@@ -1579,6 +1579,10 @@ styles it. A repeated or misplaced `html`, `head` or `body` start tag is ignored
 as the parser ignores it; with attributes, which the parser would merge into
 the existing element, it fails `FPDF1101`.
 
+A `tr` directly in a `table` (or after its `colgroup`, `caption` or `thead`) is put in a `tbody` the parser implies (the HTML "in table" insertion mode), closed by the next `thead`, `tbody` or `tfoot` or the table's end tag; it takes part in selectors like an explicit `tbody`.
+
+`background-color` on `html` is the page canvas: as Chrome prints it, it covers each whole sheet, margins included, under every other paint. Opaque white and transparent paint nothing; other box properties on `html` still fail `FPDF1201`. With `html{display:flex}` the `body` is a flex item, so a `body` wider than the page content box shrinks to it (`flex-shrink` 1, never below its min-content width) and lays out like an auto-width body; a `body` that cannot shrink (`flex-shrink:0`, a `min-width`, or min-content wider than the page) fails `FPDF1201`.
+
 ## Custom properties and var()
 
 A declaration whose name starts with two dashes (`--brand-700: #b3261e`) is a custom property. It is accepted on every element, in stylesheets and `style` attributes, with any value; the name is case-sensitive (`--Brand` and `--brand` differ), `--` alone is not a name (`FPDF1201`), and its value is the declared token sequence with leading and trailing white space trimmed (it may be empty: `--none:;`). Custom properties cascade by name like other declarations (`!important`, style attribute, specificity, source order), are inherited by default, and accept `initial` (the guaranteed-invalid value), `inherit` and `unset` (both the parent's value); `revert` and `revert-layer` roll the author origin back, so a custom property inherits its parent's value, as with `unset` (Chrome 158).

@@ -639,7 +639,12 @@ internal sealed class DocumentRoot
     public CssPageRules? PageRules { get; set; }
     /// <summary>The html element's computed text style, which the page context inherits; null without an html element.</summary>
     public TextStyle? RootStyle { get; set; }
+    /// <summary>The html element's background-color, which a browser prints over each whole sheet; null without one.</summary>
+    public Rgb? CanvasColor { get; set; }
     // Source offset of an html element computed as display:flex, or -1. Layout accepts it only
     // where its single body item fills the page width, which makes it a block layout no-op.
     public int FlexRootOffset { get; set; } = -1;
+    // The body of an html flex container whose specified width exceeds the page content width:
+    // as a flex item (flex-shrink 1) it shrinks to that width, so layout ignores its width.
+    public BlockNode? ShrunkBody { get; set; }
 }

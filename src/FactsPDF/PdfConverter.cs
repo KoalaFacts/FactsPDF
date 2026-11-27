@@ -47,6 +47,14 @@ internal static class PdfConverter
                 throw new FactsPdfException("FPDF1202", "@page produces invalid page options: " + problem.Message);
         }
         var pages = TextLayout.Layout(document, options, cancellationToken);
+        // The root background is the canvas: Chrome prints it over each whole sheet, margins
+        // included. Opaque white paints nothing visible on paper, so it adds no command.
+        if (document.CanvasColor is { IsInvisible: false } canvas && canvas != new Rgb(1, 1, 1))
+        {
+            var sheet = BoxStyle.Initial with { BackgroundColor = canvas };
+            foreach (var page in pages)
+                page.PaintBoxes.Insert(0, new PaintedBox(0, 0, options.PageWidth, options.PageHeight, sheet, canvas, int.MinValue));
+        }
         long displayCommands = 0;
         foreach (var page in pages)
         {

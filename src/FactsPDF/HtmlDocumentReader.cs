@@ -452,6 +452,7 @@ internal static class HtmlDocumentReader
             var implied = token is ImpliedHtmlToken;
             if (implied && token.Kind == HtmlTokenKind.Start) { impliedOpen++; impliedHead |= name == "head"; }
             else if (token.Kind == HtmlTokenKind.End && name == "head" && impliedHead) { impliedOpen--; impliedHead = false; }
+            else if (implied && token.Kind == HtmlTokenKind.End && name == "tbody") impliedOpen--;
             if (name == "style")
             {
                 if (ListTag(stack[^1].Name) || table is not null)
@@ -699,7 +700,8 @@ internal static class HtmlDocumentReader
             {
                 rootFontSize = style.FontSize;
                 result.RootStyle = style;
-                if (boxStyle.IsFlexContainer) result.FlexRootOffset = token.Offset;
+                result.CanvasColor = boxStyle.BackgroundColor;
+                if (boxStyle.IsFlexContainer) result.FlexRootOffset = Math.Max(token.Offset, 0);
             }
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count - impliedOpen > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);

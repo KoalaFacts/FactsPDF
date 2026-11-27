@@ -19,7 +19,7 @@ internal static partial class FlexLayout
         var container = grid.Container;
         var style = container.BoxStyle.Flex;
         var width = grid.ContentWidth;
-        var usableHeight = options.PageHeight - 2 * options.Margin;
+        var usableHeight = options.ContentHeight;
         var tracks = style.GridColumns ?? [new GridTrack(GridTrackKind.Auto)];
         var columns = tracks.Length;
         var columnGap = Checked(style.ColumnGap?.Resolve(width) ?? 0, container.SourceOffset);

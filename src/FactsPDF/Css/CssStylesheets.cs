@@ -835,6 +835,8 @@ internal sealed class CssStylesheets
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
                 && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(subject))
+                // The root element's background is the page canvas (DocumentRoot.CanvasColor).
+                && !(declaration.Property == CssProperty.BackgroundColor && subject == "html")
                 && !(declaration.Property == CssProperty.BackgroundColor && subject is "tr" or "thead" or "tbody" or "tfoot")
                 // In the collapsing border model row and row group borders take part in the
                 // border conflict resolution (TableBorderCollapse); the table's computed

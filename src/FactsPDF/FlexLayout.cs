@@ -54,7 +54,7 @@ internal static partial class FlexLayout
         var container = line.Container;
         var flex = container.BoxStyle.Flex;
         var width = line.ContentWidth;
-        var usableHeight = options.PageHeight - 2 * options.Margin;
+        var usableHeight = options.ContentHeight;
         var items = new List<Item>(container.Children.Count);
         foreach (var child in container.Children)
         {
@@ -459,6 +459,7 @@ internal static partial class FlexLayout
             PageWidth = outerWidth,
             PageHeight = usableHeight,
             Margin = 0,
+            SideMargins = null,
             MaxPages = 1,
             // Charged once the line is assembled, so a stretched item is not charged twice.
             MaxDisplayCommands = int.MaxValue,
@@ -535,13 +536,34 @@ internal static partial class FlexLayout
     /// </summary>
     internal static void CheckRootFlexNoOp(DocumentRoot root, PdfOptions options, CancellationToken cancellation)
     {
-        var width = options.PageWidth - 2 * options.Margin;
+        var width = options.ContentWidth;
         if (root.Children.Count != 1 || root.Children[0] is not BlockNode { Name: "body" } body)
             throw new FactsPdfException("FPDF1201",
                 "html display:flex is supported only with a single body element as its flex item.", root.FlexRootOffset);
-        if (body.BoxStyle.Width is { } specified && specified.Resolve(width) >= width - 0.001)
-            return;
         var resolved = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
+        if (body.BoxStyle.Width is { } specified && specified.Resolve(width) >= width - 0.001)
+        {
+            if (specified.Resolve(width) <= width + 0.001) return;
+            // A wider body shrinks to the page (flex-shrink 1), never below its min-content width
+            // (min-width:auto), and then fills it exactly like an auto-width block.
+            if (body.BoxStyle.Flex.Shrink <= 0 || body.BoxStyle.MinWidth is not null)
+                throw new FactsPdfException("FPDF1201",
+                    "html display:flex with a body wider than the page is supported only where the body can shrink to the page.",
+                    root.FlexRootOffset);
+            var shrunk = BlockLayout.ResolveBox(body.BoxStyle with { Width = null }, width, body.SourceOffset, width);
+            var shrunkEdges = shrunk.OuterWidth - shrunk.Inner;
+            foreach (var child in body.Children)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var (min, _) = Intrinsic.Of(child, options, resolved, cancellation);
+                if (!double.IsNaN(min) && min + shrunkEdges > width + 0.001)
+                    throw new FactsPdfException("FPDF1201",
+                        "html display:flex: the body's min-content width exceeds the page, so it would overflow it.",
+                        root.FlexRootOffset);
+            }
+            root.ShrunkBody = body;
+            return;
+        }
         var box = BlockLayout.ResolveBox(body.BoxStyle, width, body.SourceOffset, width);
         var edges = box.OuterWidth - box.Inner;
         foreach (var child in body.Children)

@@ -200,7 +200,7 @@ internal static class TextLayout
             {
                 // A browser moves a row of short items whole to the next page but splits taller
                 // items between their lines or blocks; FactsPDF keeps every flex line and grid row whole.
-                if (!measured.KeepWhole && measured.Height <= bottom - o.Margin + 0.000001)
+                if (!measured.KeepWhole && measured.Height <= bottom - o.MarginTop + 0.000001)
                     throw new FactsPdfException("FPDF1302",
                         "A flex or grid row that does not fit the rest of the page would be split by a browser; FactsPDF keeps these rows whole, so only rows of single short items can move to the next page.",
                         sourceOffset);
@@ -470,7 +470,7 @@ internal static class TextLayout
                     var rootBottomMargin = !scope.IsParagraph &&
                         (scope.ContentEpoch != contentEpoch || scope.HasParagraphDescendant ||
                          scope.MinimumOuterHeight > 0 || scope.FixedOuterHeight.HasValue) ? after : 0d;
-                    end.RootBlockEnd = Math.Max(scope.StartPage == pages.Count - 1 ? scope.StartY + scope.Top : o.Margin,
+                    end.RootBlockEnd = Math.Max(scope.StartPage == pages.Count - 1 ? scope.StartY + scope.Top : o.MarginTop,
                         y + pendingTopPadding + pendingClosedPadding + rootBottomMargin) + closing.PaddingBottom + minimumExtra;
                 }
                 if (minimumExtra > 0)

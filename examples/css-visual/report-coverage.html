@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><base href="https://example.com/">
+<title>Integrated feature coverage report</title>
+<!-- Synthetic Chrome comparison page that exercises the features integrated together (custom properties,
+     @page footer, flex and grid, ::before/::after, automatic and collapsed tables, structural
+     pseudo-classes, lists, inline svg, translucent colours, orphans/widows, implied body). Render with
+     Arial in Chrome (print, preferCSSPageSize) and FactsPDF. -->
+<style>
+@page { size: A4; margin: 15mm 15mm 18mm;
+  @bottom-center { content: counter(page) " / " counter(pages); font-size: 8pt; color: #555555; } }
+:root { --brand: #1f4e79; --muted: #5b6b7c; --gap: 8pt; --rule: 1pt solid rgba(31, 78, 121, 0.35); }
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: Arial; font-size: 9.5pt; line-height: 1.35; color: #222222; }
+h1 { font-size: 16pt; margin: 0; color: var(--brand); }
+h2 { font-size: 11pt; margin: 14pt 0 6pt; color: var(--brand); }
+p { margin: 0 0 var(--gap); }
+.bar { display: flex; justify-content: space-between; align-items: center; padding: 6pt 8pt;
+  background: rgba(31, 78, 121, 0.08); border-bottom: 2pt solid var(--brand); }
+.bar .meta { color: var(--muted); font-size: 8.5pt; }
+.facts { display: grid; grid-template-columns: 1fr auto; column-gap: 12pt; row-gap: 3pt; margin-top: var(--gap); }
+.facts .value { font-weight: bold; }
+.divider { margin: 10pt 0; color: var(--muted); }
+.divider:not(:empty)::before { content: "\2014  "; }
+.divider:not(:empty)::after { content: "  \2014"; }
+.kv { display: flex; justify-content: space-between; padding: 2pt 0; border-bottom: var(--rule); }
+table { width: 100%; font-size: 8.5pt; }
+caption { font-weight: bold; color: var(--brand); padding-bottom: 3pt; }
+td, th { padding: 2pt 4pt; }
+.zebra { border-collapse: collapse; }
+.zebra td, .zebra th { border: 0.75pt solid #c8d3de; }
+.zebra tbody tr:nth-of-type(even) td { background-color: #f3f6f9; }
+.zebra tbody tr:last-of-type td { border-bottom: 1.5pt solid var(--brand); }
+.long thead th { background-color: #e7eef5; }
+.long tr { break-inside: avoid; }
+.id { overflow-wrap: anywhere; }
+ol.steps { padding-left: 18pt; }
+ol.steps ol { padding-left: 16pt; }
+.note { border: var(--rule); background: rgba(255, 196, 0, 0.12); padding: 6pt 8pt; }
+.logo { vertical-align: middle; }
+</style>
+</head>
+<div class="bar"><div><svg class="logo" width="96" height="24" viewBox="0 0 96 24" style="--mark: #1f4e79">
+  <g clip-path="url(#absent)"><rect width="24" height="24" rx="4" fill="var(--mark)"/>
+  <path d="M6 17 L12 6 L18 17 Z" fill="#ffffff"/>
+</g></svg> <span>Coverage Pty Ltd</span></div>
+  <div class="meta">Statement 2026-11 · Page set A</div></div>
+<h1 style="margin-top: var(--gap)">Monthly service statement</h1>
+<div class="facts"><div>Account name</div><div class="value">Example Holdings</div>
+  <div>Account number</div><div class="value">ACC-000042</div>
+  <div>Statement period</div><div class="value">1–30 November 2026</div></div>
+<div class="divider">Summary</div>
+<ul style="list-style: none; padding: 0; margin: 0">
+  <li class="kv"><span>Opening balance</span><span>$12,400.00</span></li>
+  <li class="kv"><span>Payments received</span><span>$8,150.00</span></li>
+  <li class="kv"><span>Closing balance</span><span>$4,250.00</span></li>
+</ul>
+<div class="divider"></div>
+<h2>Charges by category</h2>
+<table>
+  <caption>Automatic column widths</caption>
+  <tr><th style="text-align: left">Category</th><th>Units</th><th style="width: 25%">Amount</th></tr>
+  <tr><th style="text-align: left; font-weight: normal">Hosting</th><td>12</td><td style="text-align: right">$1,200.00</td></tr>
+  <tr><th style="text-align: left; font-weight: normal">Support</th><td>3</td><td style="text-align: right">$450.00</td></tr>
+  <tr><td colspan="2">Total</td><td style="text-align: right">$1,650.00</td></tr>
+</table>
+<h2>Recent transactions</h2>
+<table class="zebra">
+  <thead><tr><th>Date</th><th>Reference</th><th>Amount</th></tr></thead>
+  <tbody>
+    <tr><td>02/11/2026</td><td class="id">INV-2026-11-0001-XYZABCDEFGHIJKLMNOP</td><td>$120.00</td></tr>
+    <tr><td>05/11/2026</td><td class="id">INV-2026-11-0002</td><td>$80.00</td></tr>
+    <tr><td>09/11/2026</td><td class="id">INV-2026-11-0003</td><td>$45.50</td></tr>
+    <tr><td>14/11/2026</td><td class="id">INV-2026-11-0004</td><td>$310.00</td></tr>
+  </tbody>
+</table>
+<h2>Steps to pay</h2>
+<ol class="steps" type="1">
+  <li>Choose a payment method
+    <ol type="a"><li>Direct debit</li><li>Card</li></ol></li>
+  <li>Quote the account number as the reference.</li>
+</ol>
+<p class="note">Payments made after the statement date appear on the next statement. Translucent colours paint with constant alpha.</p>
+<h2>Activity detail</h2>
+<table class="long">
+  <thead><tr><th>Line</th><th>Description</th><th>Amount</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Service usage for the period</td><td>$10.00</td></tr>
+    <tr><td>2</td><td>Service usage for the period</td><td>$11.00</td></tr>
+    <tr><td>3</td><td>Service usage for the period</td><td>$12.00</td></tr>
+    <tr><td>4</td><td>Service usage for the period</td><td>$13.00</td></tr>
+    <tr><td>5</td><td>Service usage for the period</td><td>$14.00</td></tr>
+    <tr><td>6</td><td>Service usage for the period</td><td>$15.00</td></tr>
+    <tr><td>7</td><td>Service usage for the period</td><td>$16.00</td></tr>
+    <tr><td>8</td><td>Service usage for the period</td><td>$17.00</td></tr>
+    <tr><td>9</td><td>Service usage for the period</td><td>$18.00</td></tr>
+    <tr><td>10</td><td>Service usage for the period</td><td>$19.00</td></tr>
+    <tr><td>11</td><td>Service usage for the period</td><td>$20.00</td></tr>
+    <tr><td>12</td><td>Service usage for the period</td><td>$21.00</td></tr>
+    <tr><td>13</td><td>Service usage for the period</td><td>$22.00</td></tr>
+    <tr><td>14</td><td>Service usage for the period</td><td>$23.00</td></tr>
+    <tr><td>15</td><td>Service usage for the period</td><td>$24.00</td></tr>
+    <tr><td>16</td><td>Service usage for the period</td><td>$25.00</td></tr>
+    <tr><td>17</td><td>Service usage for the period</td><td>$26.00</td></tr>
+    <tr><td>18</td><td>Service usage for the period</td><td>$27.00</td></tr>
+    <tr><td>19</td><td>Service usage for the period</td><td>$28.00</td></tr>
+    <tr><td>20</td><td>Service usage for the period</td><td>$29.00</td></tr>
+    <tr><td>21</td><td>Service usage for the period</td><td>$30.00</td></tr>
+    <tr><td>22</td><td>Service usage for the period</td><td>$31.00</td></tr>
+    <tr><td>23</td><td>Service usage for the period</td><td>$32.00</td></tr>
+    <tr><td>24</td><td>Service usage for the period</td><td>$33.00</td></tr>
+    <tr><td>25</td><td>Service usage for the period</td><td>$34.00</td></tr>
+    <tr><td>26</td><td>Service usage for the period</td><td>$35.00</td></tr>
+    <tr><td>27</td><td>Service usage for the period</td><td>$36.00</td></tr>
+    <tr><td>28</td><td>Service usage for the period</td><td>$37.00</td></tr>
+    <tr><td>29</td><td>Service usage for the period</td><td>$38.00</td></tr>
+    <tr><td>30</td><td>Service usage for the period</td><td>$39.00</td></tr>
+  </tbody>
+</table>
+<p>The closing paragraph checks orphans and widows at the page end: it runs over several lines so that a break inside it leaves at least two lines on each page, as Chrome prints it with the initial orphans and widows of two. The closing paragraph checks orphans and widows at the page end: it runs over several lines so that a break inside it leaves at least two lines on each page.</p>
+</html>

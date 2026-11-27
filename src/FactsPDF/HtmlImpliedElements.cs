@@ -22,10 +22,14 @@ internal sealed class HtmlImpliedElements
     private static readonly ImpliedHtmlToken Head = new(HtmlTokenKind.Start, "head");
     private static readonly ImpliedHtmlToken HeadEnd = new(HtmlTokenKind.End, "head");
     private static readonly ImpliedHtmlToken Body = new(HtmlTokenKind.Start, "body");
+    private static readonly ImpliedHtmlToken TableBody = new(HtmlTokenKind.Start, "tbody");
+    private static readonly ImpliedHtmlToken TableBodyEnd = new(HtmlTokenKind.End, "tbody");
 
     private Mode mode;
     // The title or style element open inside head, whose text and end tag pass through unchanged.
     private string? openInHead;
+    // Inside a table: whether a row group is open, and whether it is a tbody this class implied.
+    private bool inTable, sectionOpen, impliedSection;
 
     private static bool HeadContent(string name) => name is "style" or "script" or "template" or "title" or "meta" or "link" or "base";
 
@@ -38,7 +42,7 @@ internal sealed class HtmlImpliedElements
         {
             if (token.Kind == HtmlTokenKind.End && token.Value is "body" or "html" or "head") return false;
             if (token.Kind == HtmlTokenKind.Start && token.Value is "html" or "head" or "body") { Ignore(token); return false; }
-            tokens.Add(token);
+            AddInBody(tokens, token);
             return true;
         }
         if (openInHead is not null)
@@ -80,7 +84,7 @@ internal sealed class HtmlImpliedElements
                 return true;
             case HtmlTokenKind.Start:
                 StartBody(tokens);
-                tokens.Add(token);
+                AddInBody(tokens, token);
                 return true;
             // The head's end tag waits until body content starts: head content after it is still
             // inserted into head.
@@ -110,6 +114,37 @@ internal sealed class HtmlImpliedElements
     internal void Finish(List<HtmlToken> tokens)
     {
         if (mode != Mode.InBody) StartBody(tokens);
+    }
+
+    // A tr directly in a table (or after its colgroup or caption) is put in a tbody the parser
+    // implies, closed by the next row group or the table's end (HTML "in table" insertion mode).
+    private void AddInBody(List<HtmlToken> tokens, HtmlToken token)
+    {
+        var name = token.Value;
+        if (token.Kind == HtmlTokenKind.Start)
+        {
+            if (name == "table") { inTable = true; sectionOpen = impliedSection = false; }
+            else if (inTable && name is "thead" or "tbody" or "tfoot")
+            {
+                if (impliedSection) tokens.Add(TableBodyEnd);
+                sectionOpen = true; impliedSection = false;
+            }
+            else if (inTable && name == "tr" && !sectionOpen)
+            {
+                tokens.Add(TableBody);
+                sectionOpen = impliedSection = true;
+            }
+        }
+        else if (token.Kind == HtmlTokenKind.End && inTable)
+        {
+            if (name is "thead" or "tbody" or "tfoot") sectionOpen = impliedSection = false;
+            else if (name == "table")
+            {
+                if (impliedSection) tokens.Add(TableBodyEnd);
+                inTable = sectionOpen = impliedSection = false;
+            }
+        }
+        tokens.Add(token);
     }
 
     private void OpenHead(List<HtmlToken> tokens)

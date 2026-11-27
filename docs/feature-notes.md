@@ -148,7 +148,15 @@ before body content go into the implied `head` instead of failing `FPDF1101`.
 An implied `body` without box declarations adds no box, so unstyled pages render
 unchanged; a repeated or misplaced `html`/`head`/`body` tag with attributes
 fails `FPDF1101` ([exact contract](css-stylesheets.md#implied-html-head-and-body),
-`ImpliedDocumentElementTests.cs`).
+`ImpliedDocumentElementTests.cs`). Rows written directly in a `table` (or after
+its `colgroup`, `caption` or `thead`) go into a `tbody` the parser implies, so
+they render exactly like the same rows in an explicit `tbody` and match
+`tbody > tr` selectors. The `html` element's `background-color` is the page
+canvas: Chrome prints it over each whole sheet, margins included, and so does
+FactsPDF (white or transparent paints nothing). With `html{display:flex}` a
+`body` wider than the page (such as `width:210mm` on A4 with margins) shrinks to
+the page like a flex item, where before it failed `FPDF1302`
+(`ImpliedTableBodyAndCanvasTests.cs`).
 
 ### Custom properties and var()
 
