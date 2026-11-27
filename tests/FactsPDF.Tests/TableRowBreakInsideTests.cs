@@ -25,6 +25,9 @@ public sealed class TableRowBreakInsideTests
         return output.ToArray();
     }
 
+    // orphans and widows 1 keep the line-by-line breaks a test of row mechanics expects.
+    private const string Widows1 = "td{orphans:1;widows:1}";
+
     private static List<LayoutPage> Layout(string html)
         => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
 
@@ -178,13 +181,13 @@ public sealed class TableRowBreakInsideTests
     public void KeptFirstRowSplitOnlyForTheTableTopDecorationMovesTheTable()
     {
         var rows = $"<tr><td>FIRST</td><td>{Lines("FIRST", 26)}</td></tr>" + Rows(10, lines: 1);
-        Assert.That(LinesPerPage(Layout(Doc(Avoid, rows, tableStyle: ";padding-top:40pt")), "FIRST"),
+        Assert.That(LinesPerPage(Layout(Doc(Avoid + Widows1, rows, tableStyle: ";padding-top:40pt")), "FIRST"),
             Is.EqualTo(new[] { 25, 1 }));
-        Assert.That(Pdf(Doc(Avoid, rows, tableStyle: ";padding-top:40pt")),
-            Is.EqualTo(Pdf(Doc("", rows, tableStyle: ";padding-top:40pt"))));
+        Assert.That(Pdf(Doc(Avoid + Widows1, rows, tableStyle: ";padding-top:40pt")),
+            Is.EqualTo(Pdf(Doc(Widows1, rows, tableStyle: ";padding-top:40pt"))));
         var filler = string.Concat(Enumerable.Range(1, 5).Select(i => $"<p style='margin:0'>FILLER{i:00}</p>"));
-        Assert.That(LinesPerPage(Layout(Doc("", rows, filler, ";padding-top:40pt")), "FIRST"), Is.EqualTo(new[] { 19, 7 }));
-        var pages = Layout(Doc(Avoid, rows, filler, ";padding-top:40pt"));
+        Assert.That(LinesPerPage(Layout(Doc(Widows1, rows, filler, ";padding-top:40pt")), "FIRST"), Is.EqualTo(new[] { 19, 7 }));
+        var pages = Layout(Doc(Avoid + Widows1, rows, filler, ";padding-top:40pt"));
         Assert.That(LinesPerPage(pages, "FIRST"), Is.EqualTo(new[] { 0, 25, 1 }));
         Assert.That(PagesOf(pages, "FILLER05"), Is.EqualTo(new[] { 0 }));
         Assert.That(PagesOf(pages, "Description"), Is.EqualTo(new[] { 1, 2 }), "no header is left behind");

@@ -175,7 +175,9 @@ internal sealed class CssStylesheets
                 insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
             else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
                 insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
-            if (item.Kind == HtmlTokenKind.End && kept) depth.Read(item);
+            // The parser holds an explicit </head> back until body content starts, but the early depth
+            // check closes head there: it may only under-count the reader's depth, never exceed it.
+            if (item.Kind == HtmlTokenKind.End && (kept || item.Value == "head")) depth.Read(item);
             if (item.Kind == HtmlTokenKind.End && item.Value == "style") ignoredStyle = false;
             if (item.Kind == HtmlTokenKind.StyleText && ignoredStyle) ignoredStyle = false;
             else if (item.Kind == HtmlTokenKind.StyleText)
@@ -823,6 +825,11 @@ internal sealed class CssStylesheets
             // flex container properties are accepted with display:flex (see RootFlexNoOp).
             if (subject == "html" && (RootFlexNoOp(declaration)
                 || declaration.Property == CssProperty.Width && declaration.Value is "100%" or "auto" or "initial" or "unset"))
+                return;
+            // gap at normal (or a CSS-wide keyword) places nothing on an element that is no flex or
+            // grid container, as in a browser, so resets such as *{gap:normal} are dropped there.
+            if (!block && declaration.Property is CssProperty.ColumnGap or CssProperty.RowGap
+                && declaration.Value is "normal" or "initial" or "unset" or "inherit")
                 return;
             // A row or row group background paints under its cells (TableMarkup gives it to
             // every cell without its own background); their other box properties still fail.

@@ -212,7 +212,7 @@ public sealed class InlineReplacedElementTests
 
     // SVG transparency ----------------------------------------------------------------------------
 
-    private const string Square = "<path d='M0 0h1v1z'{0}/>";
+    private static readonly CompositeFormat Square = CompositeFormat.Parse("<path d='M0 0h1v1z'{0}/>");
 
     private static string SvgPdf(string content, PdfOptions? options = null)
         => Text("<svg width='4' height='4'>" + content + "</svg>", options);

@@ -631,7 +631,8 @@ internal static class CssSyntaxAdapter
                 }
                 if (name is "flex" or "flex-flow" or "gap")
                 {
-                    CompileFlexShorthand(name, terms, valueTokens, Emit);
+                    foreach (var longhand in CompileFlexShorthand(name, terms, valueTokens))
+                        Emit(longhand.Target, longhand.Value, longhand.Offset, longhand.Name);
                     continue;
                 }
                 // List shorthands reset BOTH inherited marker type and position.
@@ -2084,9 +2085,11 @@ internal static class CssSyntaxAdapter
 
     // Lowers flex, flex-flow and gap to their longhands through the normal cascade, so a later
     // longhand overrides one component and the shorthand resets every omitted one.
-    private static void CompileFlexShorthand(string name, List<string> terms, CssTokenComponent[] tokens,
-        Action<CssProperty, string, int, string?> emit)
+    private static List<(CssProperty Target, string Value, int Offset, string Name)> CompileFlexShorthand(string name,
+        List<string> terms, CssTokenComponent[] tokens)
     {
+        var longhands = new List<(CssProperty Target, string Value, int Offset, string Name)>(3);
+        void emit(CssProperty target, string value, int offset, string longhand) => longhands.Add((target, value, offset, longhand));
         var start = tokens.Length > 0 ? tokens[0].Token.Span.Start : 0;
         if (terms.Count == 1 && Wide(terms[0]))
         {
@@ -2106,7 +2109,7 @@ internal static class CssSyntaxAdapter
                     emit(CssProperty.ColumnGap, terms[0], start, "column-gap");
                     break;
             }
-            return;
+            return longhands;
         }
         for (var i = 0; i < terms.Count; i++)
             if (Wide(terms[i]))
@@ -2121,7 +2124,7 @@ internal static class CssSyntaxAdapter
             CssFlexValues.Validate("column-gap", terms[column], tokens[column].Token.Span.Start);
             emit(CssProperty.RowGap, terms[0], tokens[0].Token.Span.Start, "row-gap");
             emit(CssProperty.ColumnGap, terms[column], tokens[column].Token.Span.Start, "column-gap");
-            return;
+            return longhands;
         }
         if (name == "flex-flow")
         {
@@ -2146,7 +2149,7 @@ internal static class CssSyntaxAdapter
             }
             emit(CssProperty.FlexDirection, direction, start, "flex-direction");
             emit(CssProperty.FlexWrap, wrap, start, "flex-wrap");
-            return;
+            return longhands;
         }
         // flex: none | auto | [ <grow> <shrink>? || <basis> ]. A number omitted from the
         // shorthand is 1 for shrink and the basis becomes 0%, unlike the longhand initial values.
@@ -2190,6 +2193,7 @@ internal static class CssSyntaxAdapter
         emit(CssProperty.FlexGrow, grow, start, "flex-grow");
         emit(CssProperty.FlexShrink, shrink, start, "flex-shrink");
         emit(CssProperty.FlexBasis, basis, start, "flex-basis");
+        return longhands;
     }
 
     private static CssTokenComponent[] NonWhitespaceTokens(IReadOnlyList<CssSyntaxComponent> values)

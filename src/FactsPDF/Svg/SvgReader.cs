@@ -319,7 +319,7 @@ internal static class SvgReader
     private static Rgb? Translucent(Rgb? color, double opacity)
     {
         if (color is not { } paint) return null;
-        var alpha = paint with { A = paint.A * opacity };
+        var alpha = new Rgb(paint.R, paint.G, paint.B, paint.A * opacity);
         return PdfAlphaStates.AlphaByte(alpha) == 0 ? null : alpha;
     }
 

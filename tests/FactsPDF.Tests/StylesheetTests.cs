@@ -92,7 +92,12 @@ public sealed class StylesheetTests
     }
     [Test]
     public void SyntheticRootDoesNotMatchUniversalParent()
-        => Assert.That(HtmlDocumentReader.Read("<style>* > p{color:red}</style><p>A</p>", new(), default)[0].Style.Color, Is.EqualTo(Black));
+    {
+        // html has no parent element, so the reader's synthetic root never matches *.
+        Assert.That(HtmlDocumentReader.Read("<style>* > html{color:red}</style><p>A</p>", new(), default)[0].Style.Color, Is.EqualTo(Black));
+        // The implied body is p's parent, as in Chrome.
+        Assert.That(HtmlDocumentReader.Read("<style>* > p{color:red}</style><p>A</p>", new(), default)[0].Style.Color, Is.EqualTo(Red));
+    }
     [Test]
     public void ClassTokensAreDecodedAndSplitOnHtmlWhitespace()
         => Assert.That(Read(".b{color:red}", "<p class='a&#32;b\tc'>A</p>")[0].Style.Color, Is.EqualTo(Red));

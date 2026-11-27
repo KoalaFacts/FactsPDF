@@ -201,10 +201,10 @@ internal static partial class FlexLayout
                 var box = new PaintedBox(itemX, top, item.ImageWidth + item.Edges,
                     item.ImageHeight + item.Image.OuterHeight - item.Image.Height,
                     imageNode.BoxStyle, imageNode.Style.Color, 0, SourceOffset: imageNode.SourceOffset);
-                budget.Charge(1 + box.CommandCount, imageNode.SourceOffset, options);
+                budget.Charge(imageNode.CommandCount + box.CommandCount, imageNode.SourceOffset, options);
                 if (box.CommandCount > 0) boxes.Add(box);
                 images.Add(new(imageNode.Image, itemX + item.Image.Left, top + item.Image.Top,
-                    item.ImageWidth, item.ImageHeight));
+                    item.ImageWidth, item.ImageHeight, imageNode.Vector));
             }
             else if (item.Output is { } output)
             {
@@ -416,7 +416,7 @@ internal static partial class FlexLayout
             item.ImageWidth = item.Target;
             item.ImageHeight = stretchedHeight is { } stretched ? Math.Max(0, stretched - verticalEdges)
                 : image.BoxStyle.Height is not null || Math.Abs(item.Target - geometry.Width) <= Epsilon ? geometry.Height
-                : item.Target * image.Image.PixelHeight / image.Image.PixelWidth;
+                : item.Target * image.RatioHeight / image.RatioWidth;
             if (item.ImageWidth <= 0 || item.ImageHeight <= 0)
                 throw new FactsPdfException("FPDF1302", "A flex item image needs a positive width and height.", image.SourceOffset);
             item.OuterHeight = item.ImageHeight + verticalEdges;
@@ -594,7 +594,7 @@ internal static partial class FlexLayout
                     var edges = style.PaddingLeft.Value * (style.PaddingLeft.IsPercent ? 0 : 1)
                         + style.PaddingRight.Value * (style.PaddingRight.IsPercent ? 0 : 1)
                         + style.BorderLeft.EffectiveWidth + style.BorderRight.EffectiveWidth;
-                    var natural = image.Image.PixelWidth * 0.75 + edges;
+                    var natural = image.NaturalWidth + edges;
                     // A percentage width or max-width makes a replaced box compressible: its
                     // min-content contribution is zero.
                     var compressible = style.Width is { IsPercent: true } || style.MaxWidth is { IsPercent: true };

@@ -110,8 +110,8 @@ public sealed class RootPseudoClassTests
     }
 
     [TestCase(":hover{color:red}", "Unsupported pseudo-class ':hover'.")]
-    [TestCase("::before{color:red}", "Pseudo-elements are not supported.")]
-    [TestCase(":root::before{color:red}", "Pseudo-elements are not supported.")]
+    [TestCase("::first-line{color:red}", "Pseudo-elements are not supported.")]
+    [TestCase(":root::first-line{color:red}", "Pseudo-elements are not supported.")]
     [TestCase(": root{color:red}", "Expected a pseudo-class name adjacent to ':'.")]
     [TestCase(":root(){color:red}", "Unsupported pseudo-class ':root()'.")]
     [TestCase(":rooted{color:red}", "Unsupported pseudo-class ':rooted'.")]

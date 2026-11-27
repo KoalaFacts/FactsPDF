@@ -53,9 +53,9 @@ public sealed class ImageHeightConstraintsTests
     [Test]
     public void BorderBoxLimitCountsVerticalPaddingAndBordersOnce()
     {
-        const string actual = "<img src=chart style='width:180pt;max-height:50pt;" +
+        const string actual = "<img src=chart style='display:block;width:180pt;max-height:50pt;" +
             "box-sizing:border-box;padding:2pt;border:1pt solid red;background:white'>";
-        const string physical = "<img src=chart style='width:88pt;" +
+        const string physical = "<img src=chart style='display:block;width:88pt;" +
             "padding:2pt;border:1pt solid red;background:white'>";
         SamePdf(actual, physical);
         var page = TableLayoutTests.Layout(actual, Options()).Single();

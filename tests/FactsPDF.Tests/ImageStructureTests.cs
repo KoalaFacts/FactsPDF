@@ -63,7 +63,6 @@ public sealed class ImageStructureTests
     [TestCase("<ul><li><div><img src='chart' style='display:block'></div></li></ul>", "FPDF1101")]
     [TestCase("<img src='chart' style='display:none'>", "FPDF1201")]
     [TestCase("<img src='chart' style='margin-left:2pt;display:inline'>", "FPDF1201")]
-    [TestCase("<head><img src='chart'></head>", "FPDF1101")]
     [TestCase("<img src='chart'></img>", "FPDF1101")]
     [TestCase("<img>", "FPDF1103")]
     [TestCase("<img src=''>", "FPDF1103")]
@@ -78,6 +77,19 @@ public sealed class ImageStructureTests
     [TestCase("<img src='chart' style='break-before:page'>", "FPDF1201")]
     public void UnsupportedSyntaxAndPositionsFailExplicitly(string html, string code)
         => Assert.That(Assert.Throws<FactsPdfException>(() => Tree(html))!.Code, Is.EqualTo(code));
+
+    // An img in head ends head and starts the body, as the HTML parser (and Chrome) does.
+    [Test]
+    public void ImageInHeadStartsTheBody()
+    {
+        static byte[] Pdf(string html)
+        {
+            using var output = new MemoryStream();
+            PdfConverter.Convert(html, output, Options());
+            return output.ToArray();
+        }
+        Assert.That(Pdf("<head><img src='chart'></head>"), Is.EqualTo(Pdf("<head></head><img src='chart'>")));
+    }
 
     [Test]
     public void DuplicateAttributePreservesTokenizerDiagnosticAndCssStillPreflights()

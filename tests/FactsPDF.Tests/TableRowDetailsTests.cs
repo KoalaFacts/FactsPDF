@@ -42,7 +42,7 @@ public sealed class TableRowDetailsTests
     [Test]
     public void HeaderGroupBackgroundRepeatsWithTheHeader()
     {
-        var rows = string.Concat(Enumerable.Range(0, 60).Select(i => $"<tr><td>R{i}</td><td>V</td></tr>"));
+        var rows = string.Concat(Enumerable.Range(0, 80).Select(i => $"<tr><td>R{i}</td><td>V</td></tr>"));
         var pages = TableLayoutTests.Layout(Table("thead{background-color:#eef3f7}th{font-weight:normal}", rows,
             head: "<thead><tr><th>Id</th><th>Value</th></tr></thead>"));
         Assert.That(pages, Has.Count.GreaterThan(1));

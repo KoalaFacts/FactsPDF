@@ -61,7 +61,7 @@ public sealed class GridLayoutTests
         Assert.That(Run(pages, "C").X, Is.EqualTo(126 + 148 / 3.0 + 6).Within(1e-9));
     }
 
-    [TestCase("normal", 20 + 7.2 + 252.8 / 2)]
+    [TestCase("normal", 20 + 7.2 + (260 - 2 * 7.2) / 2)]
     [TestCase("start", 27.2)]
     public void JustifyContentNormalStretchesAutoColumns(string value, double second)
         => Assert.That(Run(Layout($"<div style='display:grid;grid-template-columns:auto auto;justify-content:{value}'>" +

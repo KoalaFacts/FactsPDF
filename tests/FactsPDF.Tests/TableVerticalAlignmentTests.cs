@@ -83,7 +83,7 @@ public sealed class TableVerticalAlignmentTests
     {
         var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["mark"] = image } };
-        const string child = "<img src='mark' style='width:12pt;padding:1pt;border:1pt solid red'>";
+        const string child = "<img src='mark' style='display:block;width:12pt;padding:1pt;border:1pt solid red'>";
         var top = Layout(TwoCells("vertical-align:top", child), options).Single();
         var middle = Layout(TwoCells("vertical-align:middle", child), options).Single();
         var bottom = Layout(TwoCells("vertical-align:bottom", child), options).Single();

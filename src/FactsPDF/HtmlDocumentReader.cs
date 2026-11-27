@@ -391,7 +391,10 @@ internal static class HtmlDocumentReader
         // sit inside a paragraph, inline element or list here.
         void AddReplaced(ImageNode node, string name, int offset)
         {
-            if (node.BoxStyle.DisplayBlock)
+            // A flex or grid item is blockified (CSS Display 3), so a replaced child of a flex or
+            // grid container is a block box whatever its display.
+            if (node.BoxStyle.DisplayBlock
+                || table is null && stack[^1].Box is { BoxStyle.IsFlexContainer: true } or { BoxStyle.IsGridContainer: true })
             {
                 if (AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
                     throw new FactsPdfException("FPDF1101", name == "svg"
@@ -415,7 +418,7 @@ internal static class HtmlDocumentReader
             {
                 current = table?.Cell is { } cell
                     ? new Paragraph(cell.Style, cell.SourceOffset)
-                    : new Paragraph(parentStyle, stack[^1].SourceOffset);
+                    : new Paragraph(parentStyle, stack[^1].SourceOffset < 0 ? offset : stack[^1].SourceOffset);
                 anonymous = true;
             }
             current.Runs.Add(new InlineImageRun(node, parentStyle.KeepWithNext ? parentStyle with { KeepWithNext = false } : parentStyle));
@@ -735,7 +738,7 @@ internal static class HtmlDocumentReader
             if (name == "svg")
             {
                 svg ??= new SvgDocument(options.MaxDisplayCommands, cancellation);
-                var graphic = SvgReader.Read(tokens, ref t, svg, sheets, path, stack.Count, options.MaxDepth, style.Color);
+                var graphic = SvgReader.Read(tokens, ref t, svg, sheets, path, stack.Count - impliedOpen, options.MaxDepth, style.Color);
                 AddReplaced(new ImageNode(null, style, SvgSizing(boxStyle, graphic), token.Offset, null, graphic),
                     name, token.Offset);
                 path.RemoveAt(path.Count - 1); continue;

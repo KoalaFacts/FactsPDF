@@ -68,7 +68,7 @@ public sealed class ImpliedDocumentElementTests
     public void AnUnstyledImpliedBodyAddsNoBox()
     {
         var root = HtmlDocumentReader.ReadTree("<p>A</p>", new PdfOptions(), default);
-        Assert.That(root.Children.Single(), Is.InstanceOf<Paragraph>());
+        Assert.That(((BlockNode)root.Children.Single()).Name, Is.EqualTo("p"));
         Assert.That(Pdf("<p>A</p>"), Is.EqualTo(Pdf("<html><head></head><body><p>A</p></body></html>")));
     }
 

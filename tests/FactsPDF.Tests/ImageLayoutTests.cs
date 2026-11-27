@@ -34,7 +34,7 @@ public sealed class ImageLayoutTests
     public void PercentWidthResolvesAgainstParentContentAndPaddingIsOutsideImage()
     {
         var pdf = Render("<section style='width:300pt;padding:8pt;border:1pt solid red;text-align:right'>"
-            + "<img src='chart' style='width:50%;padding:2pt;border:1pt solid blue;background-color:white'></section>");
+            + "<img src='chart' style='display:block;width:50%;padding:2pt;border:1pt solid blue;background-color:white'></section>");
         Assert.That(pdf.Text, Does.Contain("150 0 0 75 48 718.89 cm /Im1 Do"));
         Assert.That(pdf.Pages, Is.EqualTo(1));
     }
@@ -65,12 +65,12 @@ public sealed class ImageLayoutTests
         Assert.That(Regex.Count(Render("<img src='chart'><img src='copy'>", o).Text, "/Subtype /Image"), Is.EqualTo(2));
     }
 
-    [TestCase("<img src='chart' style='width:160pt'>", 100, 1)]
-    [TestCase("<img src='chart' style='width:148pt;padding:2pt;border:1pt solid red'>", 100, 1)]
-    [TestCase("<img src='chart' style='width:80pt'><img src='chart' style='width:100pt'>", 100, 2)]
-    [TestCase("<p style='margin-top:0;margin-bottom:0;font-size:10pt;line-height:2'>A</p><div style='padding-top:5pt;border-top:1pt solid red'><img src='chart' style='width:140pt'></div>", 100, 2)]
-    [TestCase("<img src='chart' style='width:100pt'><p style='break-before:page'>A</p>", 100, 2)]
-    [TestCase("<p style='break-after:page'>A</p><img src='chart' style='width:100pt'>", 100, 2)]
+    [TestCase("<img src='chart' style='display:block;width:160pt'>", 100, 1)]
+    [TestCase("<img src='chart' style='display:block;width:148pt;padding:2pt;border:1pt solid red'>", 100, 1)]
+    [TestCase("<img src='chart' style='display:block;width:80pt'><img src='chart' style='display:block;width:100pt'>", 100, 2)]
+    [TestCase("<p style='margin-top:0;margin-bottom:0;font-size:10pt;line-height:2'>A</p><div style='padding-top:5pt;border-top:1pt solid red'><img src='chart' style='display:block;width:140pt'></div>", 100, 2)]
+    [TestCase("<img src='chart' style='display:block;width:100pt'><p style='break-before:page'>A</p>", 100, 2)]
+    [TestCase("<p style='break-after:page'>A</p><img src='chart' style='display:block;width:100pt'>", 100, 2)]
     public void WholeOuterBoxPaginationAndExplicitBreaks(string html, int height, int pages)
         => Assert.That(Render(html, Options() with { PageHeight = height, Margin = 10 }).Pages, Is.EqualTo(pages));
 
@@ -85,10 +85,10 @@ public sealed class ImageLayoutTests
     [Test]
     public void ImagesAndTheirDecorationAreChargedBeforeRetainingCommands()
     {
-        FailsWithoutWriting("<img src='chart'><img src='chart'>", Options() with { MaxDisplayCommands = 1 }, "FPDF1401");
-        FailsWithoutWriting("<img src='chart' style='background-color:red'>", Options() with { MaxDisplayCommands = 1 }, "FPDF1401");
-        Assert.That(Render("<img src='chart' style='background-color:red'>", Options() with { MaxDisplayCommands = 2 }).Pages, Is.EqualTo(1));
-        FailsWithoutWriting("<img src='chart' style='width:100pt'><img src='chart' style='width:100pt'>",
+        FailsWithoutWriting("<img src='chart' style='display:block'><img src='chart' style='display:block'>", Options() with { MaxDisplayCommands = 1 }, "FPDF1401");
+        FailsWithoutWriting("<img src='chart' style='display:block;background-color:red'>", Options() with { MaxDisplayCommands = 1 }, "FPDF1401");
+        Assert.That(Render("<img src='chart' style='display:block;background-color:red'>", Options() with { MaxDisplayCommands = 2 }).Pages, Is.EqualTo(1));
+        FailsWithoutWriting("<img src='chart' style='display:block;width:100pt'><img src='chart' style='display:block;width:100pt'>",
             Options() with { MaxPages = 1, PageHeight = 100, Margin = 10 }, "FPDF1303");
     }
 

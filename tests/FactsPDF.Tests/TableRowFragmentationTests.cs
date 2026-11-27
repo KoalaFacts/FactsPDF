@@ -9,7 +9,7 @@ public sealed class TableRowFragmentationTests
     internal static string ThreeCells(int count = 12) => "<style>td,th{font-weight:normal;border:1pt solid red;background-color:blue}</style>"
         + "<table style='width:200pt;font-size:10pt;line-height:1.2;background-color:#eeeeee'><colgroup><col style='width:40pt'><col style='width:120pt'><col style='width:40pt'></colgroup><thead><tr><th colspan='3'>HEAD</th></tr></thead><tbody><tr><td>ID</td><td>" + Lines("L", count) + "</td><td>9</td></tr></tbody></table>";
     internal static string Pair(string left, string right, string leftStyle = "", string rightStyle = "", bool header = true)
-        => "<style>th{font-weight:normal}td p{margin-top:0;margin-bottom:0}</style><table style='width:200pt;font-size:10pt;line-height:1.2'><colgroup><col style='width:100pt'><col style='width:100pt'></colgroup>"
+        => "<style>th{font-weight:normal}td p{margin-top:0;margin-bottom:0}td{orphans:1;widows:1}</style><table style='width:200pt;font-size:10pt;line-height:1.2'><colgroup><col style='width:100pt'><col style='width:100pt'></colgroup>"
         + (header ? "<thead><tr><th colspan='2'>HEAD</th></tr></thead>" : "") + "<tbody><tr><td style='" + leftStyle + "'>" + left + "</td><td style='" + rightStyle + "'>" + right + "</td></tr></tbody></table>";
     private static int Commands(IEnumerable<LayoutPage> pages) => pages.Sum(p => p.Runs.Count + p.Images.Count + p.PaintBoxes.Sum(b => b.CommandCount));
     private static double[] Baselines(LayoutPage page, string prefix) => page.Runs.Where(r => r.Text.StartsWith(prefix, StringComparison.Ordinal)).Select(r => 100 - r.Baseline).ToArray();
@@ -60,7 +60,7 @@ public sealed class TableRowFragmentationTests
     {
         var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["sample"] = image } };
-        var html = Pair(Lines("A", 4) + "<img src='sample' style='width:24pt;padding:2pt;border:1pt solid red'>TAIL", Lines("B", 7));
+        var html = Pair(Lines("A", 4) + "<img src='sample' style='display:block;width:24pt;padding:2pt;border:1pt solid red'>TAIL", Lines("B", 7));
         var pages = TableLayoutTests.Layout(html, options);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Images, Is.Empty);
@@ -203,7 +203,7 @@ public sealed class TableRowFragmentationTests
     {
         var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["sample"] = image } };
-        var html = TableLayoutTests.Table(Lines("A", 4) + "<img src='sample' style='width:24pt;padding:2pt;border:1pt solid red'>", "width:100pt;font-size:10pt;line-height:1.2;padding-bottom:10pt");
+        var html = TableLayoutTests.Table(Lines("A", 4) + "<img src='sample' style='display:block;width:24pt;padding:2pt;border:1pt solid red'>", "width:100pt;font-size:10pt;line-height:1.2;padding-bottom:10pt");
         var pages = TableLayoutTests.Layout(html, options);
         Assert.That(pages, Has.Count.EqualTo(2)); Assert.That(pages[0].Images, Is.Empty);
         Assert.That(pages[1].Images.Single().Top, Is.EqualTo(13));
@@ -252,7 +252,7 @@ public sealed class TableRowFragmentationTests
     {
         var image = PdfImage.FromBytes(PngFixture.Image(new byte[32 * 129], 32, 32));
         var options = Page with { Images = new Dictionary<string, PdfImage> { ["sample"] = image } };
-        var html = TableRichTests.Rich(Lines("A", 7) + "<img src='sample' style='width:50%'>", "padding:5%;border:1pt solid red;background-color:blue");
+        var html = TableRichTests.Rich(Lines("A", 7) + "<img src='sample' style='display:block;width:50%'>", "padding:5%;border:1pt solid red;background-color:blue");
         var pages = TableLayoutTests.Layout(html, options);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages.Select(p => p.PaintBoxes.Single().Width), Is.All.EqualTo(100));

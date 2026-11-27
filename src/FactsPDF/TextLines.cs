@@ -146,7 +146,7 @@ internal static class TextLines
     {
         var style = paragraph.Style;
         var indent = style.FirstLineIndent.Value;
-        var reader = new GlyphReader(paragraph, options, resolved, cancellation, double.NaN);
+        var reader = new GlyphReader(paragraph, options, resolved, double.NaN, cancellation);
         double min = 0, max = 0, line = 0, segment = 0;
         var firstLine = true;
         var firstSegment = true;
@@ -312,7 +312,7 @@ internal static class TextLines
                     // The consumer finishes a borrowed line before MoveNext clears it.
                     // Retained page strings/paint and the PDF buffer are unchanged: this
                     // is line-at-a-time wrapping, not a streaming document serializer.
-                    cursor = new GlyphReader(paragraph, options, resolved, cancellation, available);
+                    cursor = new GlyphReader(paragraph, options, resolved, available, cancellation);
                     hasGlyph = cursor.MoveNext();
                     break;
                 case State.AfterBreak:
@@ -496,7 +496,7 @@ internal static class TextLines
             var tooWide = false;
             var tooWideOffset = -1;
             var firstSegment = true;
-            var reader = new GlyphReader(paragraph, options, resolved, cancellation, available);
+            var reader = new GlyphReader(paragraph, options, resolved, available, cancellation);
             while (reader.MoveNext())
             {
                 var glyph = reader.Current;
@@ -715,8 +715,8 @@ internal static class TextLines
     // text-transform. A mutable value: the line wrapper keeps it as a field, so a pass costs no object.
     // containingWidth sizes inline images (NaN: automatic table layout, see AtomGeometry).
     private struct GlyphReader(Paragraph paragraph, PdfOptions options,
-        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
-        double containingWidth)
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, double containingWidth,
+        CancellationToken cancellation)
     {
         private int runIndex;
         private int textIndex;

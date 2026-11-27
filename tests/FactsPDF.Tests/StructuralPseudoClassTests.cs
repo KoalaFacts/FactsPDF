@@ -112,9 +112,9 @@ public sealed class StructuralPseudoClassTests
     [TestCase("p:empty(){color:red}")]
     [TestCase("p : first-child{color:red}")]
     [TestCase("p: first-child{color:red}")]
-    [TestCase("p::before{color:red}")]
-    [TestCase("p:first-child::before{color:red}")]
-    [TestCase("p:before{color:red}")]
+    [TestCase("p::first-line{color:red}")]
+    [TestCase("p:first-child::first-line{color:red}")]
+    [TestCase("p:first-line{color:red}")]
     [TestCase("p:root(){color:red}")]
     [TestCase("p:is(.a){color:red}")]
     [TestCase("p:where(.a){color:red}")]
@@ -313,11 +313,11 @@ public sealed class StructuralPseudoClassTests
     {
         var table = "<table class='table' style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody>" +
             "<tr><td>A</td></tr><tr><td>B</td></tr></tbody></table>";
-        Fails("<style>.table tbody tr:nth-of-type(even){background-color:#f7f7f7}</style>" + table, "FPDF1201");
+        Fails("<style>.table tbody tr:nth-of-type(even){padding:2pt}</style>" + table, "FPDF1201");
         Fails("<style>.table tbody tr:last-of-type{border-bottom:2px solid #ae0f1a}</style>" + table, "FPDF1201");
-        Fails("<style>.divider:not(:empty){gap:1rem}</style><div class=divider>A</div>", "FPDF1202");
+        Fails("<style>.divider:not(:empty){gap:1}</style><div class=divider>A</div>", "FPDF1202");
         // Validated even when no element matches.
-        Fails("<style>.missing:first-child{gap:1rem}</style><div>A</div>", "FPDF1202");
+        Fails("<style>.missing:first-child{gap:1}</style><div>A</div>", "FPDF1202");
     }
 
     [Test]
