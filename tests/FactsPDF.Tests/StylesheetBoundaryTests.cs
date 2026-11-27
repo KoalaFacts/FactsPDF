@@ -45,7 +45,7 @@ public sealed class StylesheetBoundaryTests
     {
         var s = Read("<style>body{color:red;line-height:2;text-align:right}p{" + declaration + "}</style><body><p>A</p></body>")[0].Style;
         Assert.That(s.Color, Is.EqualTo(property == "color" ? new Rgb(0, 0, 0) : new Rgb(1, 0, 0)));
-        Assert.That(s.LineHeight, Is.EqualTo(property == "line-height" ? 1.2 : 2));
+        Assert.That(s.LineHeight, Is.EqualTo(property == "line-height" ? TextStyle.NormalLineHeight : 2));
         Assert.That(s.Alignment, Is.EqualTo(property == "text-align" ? TextAlignment.Left : TextAlignment.Right));
     }
     [Test]

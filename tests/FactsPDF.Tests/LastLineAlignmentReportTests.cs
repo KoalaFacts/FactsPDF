@@ -6,16 +6,19 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class LastLineAlignmentReportTests
 {
+    // The expected positions start at the 36pt page margin, so the user-agent body margin is reset.
+    private const string Neutral = "<style>body{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var settings = options ?? new PdfOptions();
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, settings, default), settings, default);
     }
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options);
+        PdfConverter.Convert(Neutral + html, output, options);
         return output.ToArray();
     }
 
