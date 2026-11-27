@@ -31,6 +31,20 @@ internal static class HtmlDocumentReader
     // The quotation mark a q at this nesting level opens or closes (CSS quotes for English:
     // the outer pair, then the inner pair for every deeper level). Text in the built-in font
     // (normal text with no supplied font chain) is ASCII-only, so it gets the ASCII marks.
+    // Index loops: LINQ over the frame list boxes its enumerator per call on .NET 8.
+    private static bool AnyFrame(List<Frame> stack, Func<Frame, bool> predicate)
+    {
+        for (var i = 0; i < stack.Count; i++) if (predicate(stack[i])) return true;
+        return false;
+    }
+
+    private static int CountFrames(List<Frame> stack, Func<Frame, bool> predicate)
+    {
+        var count = 0;
+        for (var i = 0; i < stack.Count; i++) if (predicate(stack[i])) count++;
+        return count;
+    }
+
     private static string Quote(List<Frame> stack, bool open, PdfOptions options)
     {
         var outer = true;
@@ -376,7 +390,7 @@ internal static class HtmlDocumentReader
                     if (attribute == "rel") LinkRelations(value, token.Offset);
             if (token.SelfClosing && name is not ("img" or "hr" or "br" or "meta" or "link" or "base" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
-            if (name == "table" && (table is not null || stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
+            if (name == "table" && (table is not null || AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
             if (TableMarkup.IsTag(name) && name != "table" && table is null)
                 throw new FactsPdfException("FPDF1101", "Table structural elements require their explicit table parents.", token.Offset);
@@ -384,7 +398,7 @@ internal static class HtmlDocumentReader
             // paragraph outside lists and tables. Use the ordinary paragraph
             // renderer without inventing tab stops or a font-family.
             if (name == "pre" && (table is not null ||
-                stack.Any(f => ListTag(f.Name) || f.Name == "li")))
+                AnyFrame(stack, f => ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101",
                     "pre must be a standalone report block outside lists and tables.", token.Offset);
             // Quoted report panels reuse ordinary block layout, but may not
@@ -392,24 +406,24 @@ internal static class HtmlDocumentReader
             // figure has the same user-agent margins as blockquote and the same limits.
             // dl and dd carry user-agent margins too, so they share those limits.
             if (name is "blockquote" or "figure" or "dl" or "dd" && (table is not null ||
-                stack.Any(f => ListTag(f.Name) || f.Name == "li")))
+                AnyFrame(stack, f => ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101", name + " must be outside lists and tables.", token.Offset);
             // Standalone void report separator, never a table/list/inline child.
             if (name == "hr" && (table is not null ||
-                stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) ||
+                AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) ||
                     ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
             table?.CheckChild(stack[^1].Name, name, token.Offset);
-            if (name == "img" && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
+            if (name == "img" && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
                 throw new FactsPdfException("FPDF1101", "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
             if (table is null && (ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
             if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
-            if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name)))
+            if ((ParagraphTag(name) || Container(name)) && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name)))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
             if (ListTag(stack[^1].Name) && name != "li" || name == "li" && !ListTag(stack[^1].Name))
                 throw new FactsPdfException("FPDF1101", "li must be a direct child of ol/ul, whose only element children are li.", token.Offset);
-            if (ListTag(name) && stack.Count(f => ListTag(f.Name)) >= 2)
+            if (ListTag(name) && CountFrames(stack, f => ListTag(f.Name)) >= 2)
                 throw new FactsPdfException("FPDF1101", "Lists support at most two nested levels.", token.Offset);
             if (ListTag(name)) result.HasLists = true;
             if (stack[^1].Name == "title" || (stack[^1].Name == "head" && name is not ("title" or "meta" or "link" or "base")))
@@ -507,7 +521,7 @@ internal static class HtmlDocumentReader
                     if (value.Length != 0 && !value.Equals("hidden", StringComparison.OrdinalIgnoreCase))
                         throw new FactsPdfException("FPDF1103", "hidden accepts only an empty boolean attribute or 'hidden'.", token.Offset);
                     if (!(ParagraphTag(name) || Container(name) && name is not ("body" or "html" or "ol" or "ul" or "menu" or "li"))
-                        || table is not null || stack.Any(f => ListTag(f.Name) || f.Name == "li"))
+                        || table is not null || AnyFrame(stack, f => ListTag(f.Name) || f.Name == "li"))
                         throw new FactsPdfException("FPDF1103",
                             "hidden is supported only on ordinary report blocks outside lists and tables.", token.Offset);
                     hidden = true;
@@ -519,7 +533,7 @@ internal static class HtmlDocumentReader
             if (name == "a")
             {
                 if (href is null) throw new FactsPdfException("FPDF1103", "a requires a bounded HTTPS or mailto href.", token.Offset);
-                if (stack.Any(frame => frame.Name == "a"))
+                if (AnyFrame(stack, frame => frame.Name == "a"))
                     throw new FactsPdfException("FPDF1101", "Nested links are not supported.", token.Offset);
                 style.LinkUri = href; // ElementDefaults always returns a private copy for an a element.
             }

@@ -82,6 +82,8 @@ internal sealed record PdfOptions
     public int MaxCssSyntaxNodes { get; init; } = 131_072;
     /// <summary>Maximum nesting depth of CSS blocks and functions, and of chained var() references.</summary>
     public int MaxCssSyntaxDepth { get; init; } = 64;
+    /// <summary>Maximum number of distinct custom property names (<c>--name</c>) across embedded and inline CSS.</summary>
+    public int MaxCssCustomProperties { get; init; } = 4_096;
     /// <summary>Upper bound of text and primitive box paint operations, all pages.</summary>
     public int MaxDisplayCommands { get; init; } = 200_000;
     /// <summary>Strict (default): every CSS the renderer rejects fails. Non-strict: CSS that is invalid per the specifications is dropped as a browser drops it and reported as a warning.</summary>

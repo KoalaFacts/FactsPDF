@@ -1788,8 +1788,8 @@ def verify_native_hsl_colours(executable, output, work):
         f'REC-{n:02d}' for n in range(1, 49)], 'HSL report text missing or reordered'
     invalid = work / 'hsl-invalid.html'
     retained = output / 'hsl-preserved.pdf'
-    for css in ('hsl(12,50%,50%,.5)', 'hsla(12,50%,50%,.5)',
-                'hsl(12 50% 50% / .5)', 'hsl(12,150%,50%)'):
+    for css in ('hsl(12,50%,50%,5px)', 'hsla(12,50%,50%,none)',
+                'hsl(12 50% 50% / 5px)', 'hsl(12,150%,50%)'):
         invalid.write_text('<style>.unused{color:' + css + '}</style><p>Protected</p>',
                            encoding='utf-8')
         retained.write_bytes(b'prior customer PDF')
@@ -1829,7 +1829,7 @@ def verify_native_percentage_rgb(executable, output, work):
     invalid = work / 'rgb-percent-invalid.html'
     retained = output / 'rgb-percent-retained.pdf'
     for css in ('rgb(1%,2,3%)', 'rgb(101%,0%,0%)',
-                'rgba(0%,50%,100%,.5)', 'rgb(0% 50% 100% / .5)'):
+                'rgba(0%,50%,100%,5px)', 'rgb(0% 50% 100% / 5px)'):
         invalid.write_text('<style>.unused{color:' + css + '}</style><p>Protected</p>',
                            encoding='utf-8')
         retained.write_bytes(b'prior customer PDF')
@@ -1867,7 +1867,7 @@ def verify_native_named_colours(executable, output, work):
         f'NAMED-{n:02d}' for n in range(1, 65)], 'Native report lost named-colour work orders'
     invalid = work / 'named-colour-invalid.html'
     retained = output / 'named-colour-retained.pdf'
-    for css in ('color:buttontext', 'background:darkishblue', 'color:transparent'):
+    for css in ('color:buttontext', 'background:darkishblue', 'color:canvastext'):
         invalid.write_text('<style>.unused{' + css + '}</style><p>Protected</p>',
                            encoding='utf-8')
         retained.write_bytes(b'previous customer PDF')
@@ -1907,7 +1907,7 @@ def verify_native_current_colour(executable, output, work):
     invalid = work / 'current-colour-invalid.html'
     saved = output / 'current-colour-preserved.pdf'
     for css in ('background:currentcolor url(secret.png)',
-                'color:transparent', 'background:rgba(1,2,3,0.5)'):
+                'color:accentcolor', 'background:rgba(1,2,3,5px)'):
         invalid.write_text('<style>.unmatched{' + css + '}</style><p>Safe</p>', encoding='utf-8')
         saved.write_bytes(b'previous customer PDF')
         failure = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
@@ -1945,7 +1945,7 @@ def verify_native_logical_borders(executable, output, work):
     invalid = work / 'logical-border-invalid.html'
     saved = output / 'logical-border-preserved.pdf'
     for css in ('border-inline:1pt double red',
-                'border-block:1pt solid rgba(2,3,4,0.5)',
+                'border-block:1pt solid rgba(2,3,4,5px)',
                 'border-inline-start:calc(2pt + 1pt) solid blue'):
         invalid.write_text('<style>.absent{' + css + '}</style><p>SAFE</p>', encoding='utf-8')
         saved.write_bytes(b'customer PDF protected')
@@ -1987,7 +1987,7 @@ def verify_native_logical_border_components(executable, output, work):
     saved = output / 'logical-component-preserved.pdf'
     for css in ('border-inline-width:1pt 2pt 3pt',
                 'border-block-style:solid double',
-                'border-inline-color:rgba(2,3,4,0.5)',
+                'border-inline-color:rgba(2,3,4,5px)',
                 'border-block-end-width:calc(2pt + 1pt)'):
         invalid.write_text('<style>.unmatched{' + css + '}</style><p>SAFE</p>', encoding='utf-8')
         saved.write_bytes(b'original customer PDF protected')

@@ -32,7 +32,7 @@ foreach (var (name, input, settings, expected) in new[]
     ("shape", "<table></table>", options, "FPDF1101"),
     ("width", simple.Replace("width:100%", "width:99%"), options, "FPDF1302"),
     ("colspan", simple.Replace("<td>", "<td colspan='0'>"), options, "FPDF1103"),
-    ("cell-css", simple.Replace("<td>", "<td style='width:100pt'>"), options, "FPDF1201"),
+    ("cell-css", simple.Replace("<td>", "<td style='margin:4pt'>"), options, "FPDF1201"),
     ("missing-bold", simple.Replace("<tbody>", "<thead><tr><th>A</th></tr></thead><tbody>"), options with { BoldFonts = [] }, "FPDF1507"),
     ("atomic-line-height", simple.Replace("line-height:2", "line-height:8"), options with { PageHeight = 99, Margin = 10 }, "FPDF1302"),
     ("empty-leading", "<div style='padding-top:1pt;background-color:red'>" + empty + simple + "</div>", options with { PageHeight = 100, Margin = 10 }, "FPDF1302"),

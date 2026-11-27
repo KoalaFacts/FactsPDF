@@ -507,6 +507,10 @@ public sealed class PdfLimitsSetup
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSyntaxDepth(int value) => Set(value, o => o with { MaxCssSyntaxDepth = value });
 
+    /// <summary>Maximum number of distinct CSS custom property names (<c>--name</c>) across style elements and attributes (FPDF1205). Default 4,096.</summary>
+    /// <param name="value">A positive limit.</param>
+    public PdfLimitsSetup MaxCssCustomProperties(int value) => Set(value, o => o with { MaxCssCustomProperties = value });
+
     /// <summary>Maximum number of warnings a non-strict conversion records (see <see cref="PdfWriter.WithStrict(bool)"/>);
     /// later warnings are counted in <see cref="PdfWarnings.TotalCount"/> but not stored. Default 1,000.</summary>
     /// <param name="value">A positive limit.</param>

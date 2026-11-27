@@ -91,6 +91,7 @@ internal static class CssSyntaxAdapter
                     budget.UsesVariables = true;
                     output.Add(CssDeclaration.Create(CssProperty.Custom, node.Name, CssVariables.Text(values), node.Important,
                         budget.Declaration(node.Span.Start), node.Span.Start, new CssCustomValue(values, keyword)));
+                    budget.CustomProperty(node.Name, node.Span.Start);
                     continue;
                 }
                 var originalName = node.Name.ToLowerInvariant();

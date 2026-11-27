@@ -9632,7 +9632,7 @@
       "status": "partial",
       "status_zh": "部分支持",
       "scope": "任意元素上的 --name 自定义属性（样式表与 style 属性；名称区分大小写；按 !important、style 属性、特异性与源顺序层叠；默认继承；支持 inherit/initial/unset）；var(--name) 与 var(--name, 回退值) 可用于每个受支持属性的值（含 padding、margin、border 等简写与函数内部），也可用于自定义属性之间的引用，按依赖顺序解析、循环视为无效；替换后的值与直接写出字面值时一样校验，PDF 字节与字面值页面一致",
-      "limitations": "浏览器在计算值阶段会将其视为 unset 的情况（引用无值且无回退、使用中的循环引用、属性不接受替换后的值）在严格模式下报 FPDF1202（或字面值对应的代码），非严格模式按 unset 计算并给出警告；替换出单个 CSS 全局关键字（inherit/initial/unset/revert/revert-layer）时按该关键字生效，与 Chrome 158 一致；自定义属性上的 revert/revert-layer 按 unset（继承）处理；落败的声明同样被替换和校验；var() 语法错误在解析时为 FPDF1202；每个替换后的值最多 MaxCssSyntaxNodes 个语法节点、引用链最深 MaxCssSyntaxDepth、替换工作计入 MaxCssMatchOperations（FPDF1205）；不支持 SVG 呈现属性、选择器或 at 规则前导中的 var()，也不支持 @property 注册",
+      "limitations": "浏览器在计算值阶段会将其视为 unset 的情况（引用无值且无回退、使用中的循环引用、属性不接受替换后的值）在严格模式下报 FPDF1202（或字面值对应的代码），非严格模式按 unset 计算并给出警告；替换出单个 CSS 全局关键字（inherit/initial/unset/revert/revert-layer）时按该关键字生效，与 Chrome 158 一致；自定义属性上的 revert/revert-layer 按 unset（继承）处理；落败的声明同样被替换和校验；var() 语法错误在解析时为 FPDF1202；每个替换后的值最多 MaxCssSyntaxNodes 个语法节点、引用链最深 MaxCssSyntaxDepth、替换工作计入 MaxCssMatchOperations（FPDF1205）；每页最多 MaxCssCustomProperties 个不同的自定义属性名（默认 4096，重复的名称只计一次，超出为 FPDF1205）；不支持 SVG 呈现属性、选择器或 at 规则前导中的 var()，也不支持 @property 注册",
       "stage": "语义/渲染",
       "applicability": "共享核心（CLI / .NET）",
       "example": ":root { --brand: #b3261e; --space-6: 12pt } h2 { border-top: 2px solid var(--brand); padding: 0 var(--space-6) }",
