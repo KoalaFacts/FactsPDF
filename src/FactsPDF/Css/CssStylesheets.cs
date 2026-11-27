@@ -65,6 +65,8 @@ internal sealed class CssStylesheets
     // attribute, its element). Bounded like the other per-conversion tables.
     private const int MaxSubstitutions = 256;
     private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), CssDeclaration[]> substitutions = [];
+    /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
+    internal CssPageRules? PageRules { get; private set; }
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
@@ -332,6 +334,12 @@ internal sealed class CssStylesheets
                     ValidateKeyframes(at);
                     continue;
                 }
+                // Paged-media page context: size, margins and the six top/bottom margin boxes.
+                if (at.Name.Equals("page", StringComparison.OrdinalIgnoreCase))
+                {
+                    (PageRules ??= new()).Add(at, budget);
+                    continue;
+                }
                 // Bounded print-only conditionals: no device queries, nesting,
                 // imports or ignored rules. Reuse the exact same selector,
                 // declaration, cascade and resource budgets as top-level CSS.
@@ -345,10 +353,12 @@ internal sealed class CssStylesheets
                     !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
                       || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
                     throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
-                // A print stylesheet may carry @keyframes; ParseRules validates and drops them.
+                // A print stylesheet may carry @keyframes, which ParseRules validates and drops, and
+                // @page, which it compiles like a top-level one.
                 if (at.Contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
                         && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
-                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)))))
+                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
+                            || nested.Name.Equals("page", StringComparison.OrdinalIgnoreCase)))))
                     throw new FactsPdfException("FPDF1204",
                         "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
                 ParseRules(at.Contents.Cast<CssRuleNode>().ToArray());
@@ -979,7 +989,10 @@ internal sealed class CssStylesheets
         if (declaration.Value is "initial" or "unset") return declaration.Property is CssProperty.BackgroundColor
             or CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom or CssProperty.MarginLeft
             or CssProperty.PaddingTop or CssProperty.PaddingRight or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (declaration.Property == CssProperty.BackgroundColor) return declaration.Value == "transparent";
+        // A colour with zero alpha (#rgb0, #rrggbb00, rgba(..., 0) lowered to hex) paints nothing either.
+        if (declaration.Property == CssProperty.BackgroundColor)
+            return declaration.Value == "transparent" || declaration.Value is ['#', .. var hex]
+                && (hex.Length == 4 && hex[3] == '0' || hex.Length == 8 && hex.EndsWith("00", StringComparison.Ordinal));
         return declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.PaddingTop or CssProperty.PaddingRight
                 or CssProperty.PaddingBottom or CssProperty.PaddingLeft

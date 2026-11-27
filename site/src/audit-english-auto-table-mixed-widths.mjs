@@ -2,8 +2,8 @@ import { englishAudit as previous } from './audit-english-auto-table-colspan.mjs
 
 // col and td/th widths now join automatic table layout.
 // The col, table, td and th strings, each used by no other row, are replaced; no string is added.
-if (previous.length !== 876) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = 'adfc1d5aa0a35e5015b43c3ac6cf4ba364676e1e5ed1a73c5804982e09279159';
+if (previous.length !== 877) throw new Error('Earlier English audit cardinality changed.');
+export const sourceDigest = '77f6f97c239f100c6a981304111639ac6cef386dd1c98b25c44b91d7c19fa210';
 const entries = [...previous];
 entries.splice(43, 1,
   'Only the width property applies to col. When any col omits its width (or sets auto), the whole table uses automatic column widths, and a col with a width constrains its column with that fixed or percentage width. Zero widths, HTML width/span attributes, own font-size and padding/background decoration are unsupported.');
@@ -16,6 +16,6 @@ entries.splice(119, 1,
 entries.splice(125, 1,
   'Bold text requires an explicit bold font chain or an override to normal. Image-only headers do not require a bold font. No scope/rowspan, lists, nested blocks/tables, em/rem or min/max widths, margin/break or Tagged PDF semantics (a pt, px or percentage width takes part in automatic column widths). Cell paragraphs reject box/pagination declarations; headers do not split.');
 export const englishAudit = Object.freeze(entries);
-if (englishAudit.length !== 876 ||
+if (englishAudit.length !== 877 ||
   englishAudit.some(value => typeof value !== 'string' || !value.trim() || /[㐀-鿿]/u.test(value)))
   throw new Error('Incomplete English audit layer.');

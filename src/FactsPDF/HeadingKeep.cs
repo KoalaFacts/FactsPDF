@@ -60,7 +60,7 @@ internal static class HeadingKeep
     {
         var here = new Cursor(after, leading, closed);
         var fresh = new Cursor(0, freshLeading, 0);
-        var usable = options.PageHeight - 2 * options.Margin;
+        var usable = options.ContentHeight;
         var commands = 0;
         try
         {

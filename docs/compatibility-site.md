@@ -661,12 +661,33 @@ A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
+The `@page` row moves to partial: `size`, per-side margins and the six top/bottom margin
+boxes with `counter(page)`/`counter(pages)`, with page selectors and the other margin boxes
+still failing `FPDF1204` and conflicts with explicit writer page options failing `FPDF1206`.
+Its scope and limitation strings are replaced in place, its new evidence string is inserted
+and the `@media` limitation no longer lists `@page` (partial 248, rejected 118; 877 ordered
+strings; the `FPDF1102` search is unchanged).
+Translucent colours (`rgba()`/`hsla()` and slash alpha, `#rgba`/`#rrggbbaa`, `color:transparent`
+and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colour strings of the
+`color`, `background-color`, `background`, `border`, `border-color` (and its four sides),
+`outline` and `text-decoration` rows and of the `value.color.rgbfunc`, `value.color.alphahex`,
+`value.background.transparent`, `value.background.currentcolor`, `value.border.transparent` and
+`value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
+since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
+stays partial.
 The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
 limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
 elements without widths), so no count moves. The `<table>` scope and limitation are replaced
 again when `colspan` joins automatic layout, and with the `<col>`, `<td>` and `<th>` rows
 when `col` and cell widths join it.
 Current dataset SHA-256:
+`b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
+layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
+`55e91c973e3287cb768e4691ec7c4c39e0b3e535217b42436e836c7db6c6fe1b`; English
+layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
 `98496c6a4e19439271a5da1cc2dcce1f6ff07b0926b2920db4bb02011de29693`; English
 layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
-SHA-256 `adfc1d5aa0a35e5015b43c3ac6cf4ba364676e1e5ed1a73c5804982e09279159`.
+Current dataset SHA-256:
+`2313f1681399fdba2296881a8432613a385ebf2903dbf83b601813b380c41061`; English
+layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
+SHA-256 `77f6f97c239f100c6a981304111639ac6cef386dd1c98b25c44b91d7c19fa210`.

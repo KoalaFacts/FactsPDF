@@ -22,6 +22,8 @@ The root accepts only `default` and `firstPage`. Both contain any of `headerLeft
 
 Each region is absent when omitted or null. An object accepts `template` (string, default empty), `fontSize` (finite number from 1 to 144, default 10), `color` (exactly `#RRGGBB`, default black), `bold` and `italic` (booleans, default false). Text supports `{page}`, `{pages}`, and doubled braces for literal braces. The core enforces the 1,024 UTF-16-unit template limit, total input/display/output budgets, explicit font roles, single-line geometry and collision rules. It does not silently wrap, truncate, move the body or invent missing font styles.
 
+A stylesheet's CSS `@page` margin boxes (`@top-left` … `@bottom-right`) render through this same furniture, so they cannot be combined with `--page-furniture`, `--page-numbers`, `--header-text` or `--footer-text`: the conversion fails `FPDF1206` with exit code 3 ([CSS `@page`](css-stylesheets.md#css-page-paper-margins-and-margin-boxes)).
+
 ## Failures and recovery
 
 Configuration/argument failures return 2; core template/font/layout failures return 3; file-access failures return 4; cancellation returns 130. PDF bytes are not mixed with diagnostics. The destination may not be the configuration file, even with `--overwrite`. Existing destinations are replaced only after successful conversion, and temporary output is removed on failure. Fix the reported input and rerun; do not remove guards or treat a refused configuration as an empty one.

@@ -138,7 +138,6 @@ public sealed class TextDecorationTests
     [TestCase("text-decoration:blink", "FPDF1202")]
     [TestCase("text-decoration:underline line-through underline", "FPDF1202")]
     [TestCase("text-decoration-line:dotted", "FPDF1202")]
-    [TestCase("text-decoration-color:transparent", "FPDF1202")]
     [TestCase("text-decoration-style:wavy", "FPDF1202")]
     public void UnsupportedPaintIsRejectedEvenInsideUnmatchedStylesheet(string css, string code)
         => Reject("<style>.absent{" + css + "}</style><p>Report remains safe</p>", code);
