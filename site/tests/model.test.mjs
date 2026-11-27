@@ -131,7 +131,7 @@ test('standalone horizontal rules are real scoped PDF separators, not full HTML/
 test('bounded report overflow-wrap audit has real scope and exact source evidence', () => {
   const f=dataset.features.find(x=>x.id==='css.overflow-wrap');
   assert.equal(f.status,'partial');
-  assert.equal(f.last_audited_commit,'990e4d080b39463bc7e83f79d9dc1af6a3c9319f');
+  assert.equal(f.last_audited_commit,'d7869cef096ee3869a0f8f2cc8aca5fbf1d98064');
   assert.equal(f.introduced_release,null);
   assert.match(f.scope,/break-word/);
   assert.match(f.scope,/normal\/break-word\/anywhere/);
@@ -1042,7 +1042,7 @@ test('fixed-track td/th text flow preserves partial evidence and IDs', () => {
     const f=dataset.features.find(feature=>feature.id===id);
     assert.ok(f,id);
     assert.equal(f.status,'partial',id);
-    assert.equal(f.last_audited_commit,id==='css.overflow-wrap' ? '990e4d080b39463bc7e83f79d9dc1af6a3c9319f' : id==='css.word-break' ? '2732d4e49cba7bcbb82d30023291d0301dfc4802' : '19c6e35eb2987aa84fc7b5ff16b2ccad57630c60',id);
+    assert.equal(f.last_audited_commit,id==='css.overflow-wrap' ? 'd7869cef096ee3869a0f8f2cc8aca5fbf1d98064' : id==='css.word-break' ? '2732d4e49cba7bcbb82d30023291d0301dfc4802' : '19c6e35eb2987aa84fc7b5ff16b2ccad57630c60',id);
     assert.equal(f.introduced_release,null,id);
     assert.match(f.scope,/固定列.*td\/th/,id);
     assert.match(f.limitations,/FPDF1201/,id);

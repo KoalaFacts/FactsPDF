@@ -1,11 +1,11 @@
-import { englishAudit as previous } from './audit-english-background-color-adjust.mjs';
+import { englishAudit as previous } from './audit-english-table-row-break-inside.mjs';
 
 // overflow-wrap:anywhere is now accepted: CSS Text 3 makes it break exactly like break-word and
 // differ only in min-content sizing, which FactsPDF never computes, so its PDF is byte-identical
 // to break-word. The css.overflow-wrap row keeps its place; its scope (364), limitations (365) and
 // evidence (368) strings are replaced in place (no count changes).
 if (previous.length !== 874) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = '6cf6e1d481a4f2864ddfd080e69fc7085e2d8df452a777c9320fd7e031891e4e';
+export const sourceDigest = '76d3440c438c5241ae68596bd65f8a1c8e66dbb3f007bd7a6120502f5a2d5cc6';
 const changes = new Map([
   [364, previous[364].replace('accept overflow-wrap:normal/break-word; the legacy word-wrap alias shares its cascade slot, values and applicability.',
     'accept overflow-wrap:normal/break-word/anywhere; the legacy word-wrap alias shares its cascade slot, values and applicability. Per CSS Text 3 anywhere breaks like break-word and differs only in min-content sizing, which FactsPDF never computes, so its PDF is byte-identical to overflow-wrap:break-word.')],

@@ -1469,6 +1469,15 @@ page. A card taller than one usable page rejects with `FPDF1302`, retaining
 the previous PDF. `auto`, `inherit/initial/unset`, `!important`
 and the existing cascade apply. No new page for a card that fits.
 
+`tr` and `thead` accept `break-inside:auto|avoid` (and `page-break-inside`)
+too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
+fragment with the repeated header already move whole and the header never
+splits, so the page is byte-identical to the page without it. A kept row that
+FactsPDF would split (taller than a fresh fragment, or split only to carry the
+table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
+`th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
+[exact contract](css-stylesheets.md#table-rows)).
+
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
 children, arbitrary children, left/right pages, or widows/orphans are not

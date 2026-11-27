@@ -1261,6 +1261,24 @@ and must pass exact-head CI and genuine separate review. Tests:
 and the native witness in `scripts/verify_native_feature_paths.py`.
 No new release or human page approval is implied.
 
+### Table rows
+
+`tr` and `thead` also accept `break-inside:auto|avoid` and the legacy
+`page-break-inside`, as report stylesheets write
+`.report-table tr{break-inside:avoid;page-break-inside:avoid}`. A table row
+that fits a fresh page fragment with the repeated header already moves whole,
+and the header never splits, so the page renders byte-identical to the page
+without the declaration. A kept row that FactsPDF would split fails
+`FPDF1302` at the row: a row taller than a fresh fragment with its header, a
+first body row split only to carry the table's top padding/border (or the
+leading decoration of its container), and a last row split only to carry the
+table's bottom padding/border. A browser would move such a row to a fresh
+page or break before it instead. Rows without the declaration keep splitting
+as described in [tables](tables.md#long-descriptions-across-pages).
+`tbody`, `tfoot`, `td`, `th` and `table` still fail `FPDF1201`;
+`avoid-page`, `avoid-column` and other values fail `FPDF1202`
+(`TableRowBreakInsideTests.cs`).
+
 ## Current-source print section page boundaries
 
 For controlled LTR reports, standalone `div`, `section`, `article` and

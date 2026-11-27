@@ -141,7 +141,7 @@ test('merged overflow-wrap audit keeps its exact new support scope in English', 
   const row=data.features.find(feature=>feature.id==='css.overflow-wrap');
   const display=englishFeature(row);
   assert.equal(display.status,'partial');
-  assert.equal(display.last_audited_commit,'990e4d080b39463bc7e83f79d9dc1af6a3c9319f');
+  assert.equal(display.last_audited_commit,'d7869cef096ee3869a0f8f2cc8aca5fbf1d98064');
   assert.match(display.scope,/normal\/break-word\/anywhere/);
   assert.match(display.scope,/anywhere[^.]*min-content[^.]*byte-identical to overflow-wrap:break-word/);
   assert.doesNotMatch(display.limitations,/No anywhere/);
@@ -884,4 +884,16 @@ test('table parts accept the display value they already render, in English', asy
   assert.match(tfoot.limitations, /table-footer-group .* fails FPDF1202/);
   for (const row of [display, tfoot])
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
+
+test('break-inside and page-break-inside accept avoid on table rows, in English', async () => {
+  const { englishFeature } = await localisation();
+  const rows = ['css.break-inside', 'css.page-break-inside']
+    .map(id => englishFeature(data.features.find(x => x.id === id)));
+  for (const row of rows) {
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /tr and thead/);
+    assert.match(row.limitations, /would split .*FPDF1302/);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+  }
 });

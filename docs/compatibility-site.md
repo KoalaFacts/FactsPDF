@@ -631,10 +631,13 @@ to say that table parts accept the display value they already render and that
 The non-standard `background-color-adjust` joins `color-adjust` as an alias of
 `print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
 since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
 The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
 no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
 so no count moves.
 Current dataset SHA-256:
-`988a1aaf19b42be4227ac6460f22cd2caad96c88be76275cc388082cb8aad1b9`; English
+`28776ef9eec8eff10da83b1057200f867eec23e8b385c57bb0eecb386fcf95dd`; English
 layer `site/src/audit-english-overflow-wrap-anywhere.mjs`, ordered source-text
-SHA-256 `6cf6e1d481a4f2864ddfd080e69fc7085e2d8df452a777c9320fd7e031891e4e`.
+SHA-256 `76d3440c438c5241ae68596bd65f8a1c8e66dbb3f007bd7a6120502f5a2d5cc6`.
