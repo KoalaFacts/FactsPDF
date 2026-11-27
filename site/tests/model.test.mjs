@@ -366,7 +366,7 @@ test('text-indent remains a limited renderable CSS feature after relative audit'
   assert.match(f.scope,/固定列 td\/th/);
   assert.equal(f.example,'text-indent:0.25in');
   assert.deepEqual(filterFeatures(dataset.features,{q:'text-indent',status:'partial'})
-    .map(f=>f.id).sort(), ['css.text-indent','value.length.relative']);
+    .map(f=>f.id).sort(), ['css.text-indent','html.table','value.length.relative']);
 });
 
 test('bounded letter-spacing is a genuine partially supported PDF text capability', () => {

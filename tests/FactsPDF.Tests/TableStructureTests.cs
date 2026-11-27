@@ -54,7 +54,8 @@ public sealed class TableStructureTests
     }
 
     [TestCase("<table></table>")]
-    [TestCase("<table><tbody><tr><td>A</td></tr></tbody></table>")]
+    [TestCase("<table><thead><tr><th>A</th></tr></thead></table>")]
+    [TestCase("<table><tbody><tr><td>A</td></tr></tbody>" + Columns + "</table>")]
     [TestCase("<table><colgroup></colgroup><tbody><tr><td>A</td></tr></tbody></table>")]
     [TestCase("<table>" + Columns + "</table>")]
     [TestCase("<table>" + Columns + "<tbody></tbody></table>")]

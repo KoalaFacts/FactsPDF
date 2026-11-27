@@ -675,7 +675,10 @@ and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colou
 `value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
 since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
 stays partial.
+The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
+limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
+elements without widths), so no count moves.
 Current dataset SHA-256:
-`c91a3026eee6fd6ff8cd3354123d3c4ce13e2aefa656f7e20f8f5b341efa1705`; English
-layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
-SHA-256 `9030c98569c8dcc545bc3dd0dd3c3057b86c6f5e38507765bf1162ea998e90b1`.
+`b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
+layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
+SHA-256 `83f1c8f063ee14e27329f64aeac87913eaa84c93e3bc9f4c51621a2860044d86`.

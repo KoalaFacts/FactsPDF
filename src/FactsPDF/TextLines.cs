@@ -72,6 +72,74 @@ internal static class TextLines
         return false;
     }
 
+    /// <summary>
+    /// The paragraph's min-content and max-content widths, measured with the glyph advances, break
+    /// opportunities and first-line indent that <see cref="Wrap"/> uses, so wrapping at either width
+    /// never overflows. The indent must be an absolute length.
+    /// </summary>
+    /// <remarks>
+    /// Max-content is the widest line between forced breaks (<c>br</c> and preserved newlines).
+    /// Min-content is the widest unbreakable segment: a word between spaces and CJK break
+    /// opportunities, a single glyph under <c>word-break:break-all</c>, <c>word-break:break-word</c> or
+    /// <c>overflow-wrap:anywhere</c> (whose emergency breaks count for min-content), a whole
+    /// line under <c>white-space:nowrap</c>, and also a single preserved space.
+    /// <c>overflow-wrap:break-word</c> leaves both unchanged, as in CSS. The first-line indent is added to the first line and to its first segment.
+    /// </remarks>
+    internal static (double Min, double Max) IntrinsicWidths(Paragraph paragraph, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+    {
+        var style = paragraph.Style;
+        var indent = style.FirstLineIndent.Value;
+        var reader = new GlyphReader(paragraph, options, resolved, cancellation);
+        double min = 0, max = 0, line = 0, segment = 0;
+        var firstLine = true;
+        var firstSegment = true;
+        var lineStarted = false;
+        var previous = -1;
+        void EndSegment()
+        {
+            if (segment == 0) return;
+            min = Math.Max(min, firstLine && firstSegment ? segment + indent : segment);
+            firstSegment = false;
+            segment = 0;
+        }
+        while (reader.MoveNext())
+        {
+            var glyph = reader.Current;
+            if (glyph.Scalar == 10)
+            {
+                EndSegment();
+                max = Math.Max(max, lineStarted && firstLine ? line + indent : line);
+                line = 0; firstLine = false; lineStarted = false; previous = -1;
+                continue;
+            }
+            lineStarted = true;
+            if (style.NoWrap)
+            {
+                line += glyph.Width;
+                segment = line;
+                continue;
+            }
+            if (glyph.Scalar == 32)
+            {
+                EndSegment();
+                line += glyph.Width;
+                // A preserved space is painted and can wrap on its own, so a line must hold one.
+                if (style.PreserveSpaces) min = Math.Max(min, firstLine && firstSegment ? glyph.Width + indent : glyph.Width);
+                previous = 32;
+                continue;
+            }
+            if (style.BreakAll || style.BreakWordsByWordBreak || style.BreakAnywhere || previous is not (-1 or 32) && CanBreak(previous, glyph.Scalar))
+                EndSegment();
+            segment += glyph.Width;
+            line += glyph.Width;
+            previous = glyph.Scalar;
+        }
+        EndSegment();
+        max = Math.Max(max, lineStarted && firstLine ? line + indent : line);
+        return (min, Math.Max(min, max));
+    }
+
     internal static WrappedLines Wrap(Paragraph paragraph, double available, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation,
         ListMarker? firstMarker = null, double firstLineMarkerInset = 0) =>
