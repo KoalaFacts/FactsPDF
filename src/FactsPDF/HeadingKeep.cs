@@ -79,12 +79,27 @@ internal static class HeadingKeep
                 if (HasTextContent(paragraph, cancellation)) ensureCommands(commands + 1, node.SourceOffset);
                 var height = 0d;
                 var hasLines = false;
+                // The group ends with its first text paragraph. When that paragraph declares
+                // orphans/widows and cannot leave its orphans after the headings here, Chrome
+                // breaks before the first heading, even when the group cannot fit a fresh page.
+                var control = i == group.End - 1 ? LineBreakControl.Of(paragraph.Style) : null;
+                var hereTop = here.Y + here.Gap(before, box.Top);
+                var linesHere = 0;
                 // Wrap can validate the whole current paragraph before its first
                 // yield. Bound geometry and later paragraphs, not that validation.
                 foreach (var line in Wrap(paragraph, box.Inner, options, resolved, cancellation))
                 {
                     hasLines = true;
                     height += line.Height;
+                    if (control is { } kept)
+                    {
+                        if (hereTop + height > remaining + 0.000001)
+                        {
+                            if (linesHere < kept.Orphans) return true;
+                            control = null;
+                        }
+                        else linesHere++;
+                    }
                     if (fresh.Y + fresh.Gap(freshBefore, box.Top) + height + box.Bottom > usable + 0.000001)
                         return false;
                     for (var g = 0; g < line.Glyphs.Count;)

@@ -234,7 +234,10 @@ change nothing for rows that already move whole, so such a page is
 byte-identical to the page without it. A kept body row that would qualify for
 continuation fails `FPDF1302` at the row instead of splitting, including a
 row split only to carry the table's first or final decoration. See
-[CSS table rows](css-stylesheets.md#table-rows).
+[CSS table rows](css-stylesheets.md#table-rows). Continued cells are not
+counted for `orphans`/`widows`, so a row that splits with a cell paragraph of
+two or more lines that such a declaration reaches fails `FPDF1302`
+([orphans and widows](css-stylesheets.md#orphans-and-widows)).
 
 The [long service report](../examples/business-table-long-description.html)
 contains a long numbered description, an image and caption, a following service

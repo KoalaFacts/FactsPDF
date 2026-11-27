@@ -55,6 +55,6 @@ CI's `css-box-visual.yml` now runs **`--mode compare` on all five** original HTM
 
 ## Explicit exclusions
 
-No clone-style border repeat, `box-decoration-break` declaration support, arbitrary CSS page rules, widows/orphans, keep-together, tables, images, inline box decoration, Flex/Grid, float/position, scroll clipping or general browser HTML5 tree construction. Unresolvable geometry and indivisible top+first-line requirements remain explicit errors; there is no promise of unrestricted browser fragmentation.
+No clone-style border repeat, `box-decoration-break` declaration support, arbitrary CSS page rules, keep-together, tables, images, inline box decoration, Flex/Grid, float/position, scroll clipping or general browser HTML5 tree construction. Unresolvable geometry and indivisible top+first-line requirements remain explicit errors; there is no promise of unrestricted browser fragmentation.
 
 **Process:** only PR #14 active. Exact-head NUnit on Windows/Ubuntu/macOS, Linux Native AOT, independent PDFs/Chrome visual oracle, CSS/font/subsetting workflows, independent code review and resolved findings before merging. Merge and verify `main` before any later milestone. No release/package publication.

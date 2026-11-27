@@ -706,6 +706,10 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
             if ((property is CssProperty.ListStyleType or CssProperty.ListStylePosition) && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
                 throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
+            // orphans/widows take a CSS <integer>: 3.0, 3e0 and 3px are numbers or dimensions.
+            if (property is CssProperty.Orphans or CssProperty.Widows && !Wide(token)
+                && valueTokens[0].Token is not { Kind: CssSyntaxTokenKind.Number, IsInteger: true })
+                throw new FactsPdfException("FPDF1202", "orphans and widows require a positive integer.", tokenOffset);
             if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
             Emit(property, token, tokenOffset);
         }
@@ -1672,6 +1676,7 @@ internal static class CssSyntaxAdapter
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "text-align-last" => CssProperty.TextAlignLast,
+        "orphans" => CssProperty.Orphans, "widows" => CssProperty.Widows,
         "vertical-align" => CssProperty.VerticalAlign,
         "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap,
         "word-break" => CssProperty.WordBreak, "text-indent" => CssProperty.TextIndent,

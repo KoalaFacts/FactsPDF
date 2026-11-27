@@ -86,6 +86,10 @@ internal static class TableLayout
         // row that only the terminal decoration would split. Only a multi-page table splits rows.
         var splitAvoidOffset = -1;
         var ambiguousAvoidOffset = -1;
+        // Likewise the first split row holding a multi-line cell paragraph with declared
+        // orphans/widows: row continuation breaks cell lines without counting them.
+        var splitLineControlOffset = -1;
+        var ambiguousLineControlOffset = -1;
         // One scratch list for every cell of this table; each cell keeps an
         // exact-size copy of its units.
         var units = new List<MeasuredCellUnit>();
@@ -132,6 +136,7 @@ internal static class TableLayout
             imageBoxes.Clear();
             placements.Clear();
             var rowHeight = 0d;
+            var rowLineControlOffset = -1;
             var x = edges.Left;
             var track = 0;
             foreach (var cell in row.Cells)
@@ -223,10 +228,14 @@ internal static class TableLayout
                     CheckHeight(height + cellEdges.Bottom, offset);
                     // Fail before allocating the shared wrapper's glyph buffers.
                     if (hasText) ensure(1, offset);
+                    var paragraphLines = 0;
                     try
                     {
                         foreach (var line in Wrap(paragraph, contentWidth, options, resolved, cancellation))
                         {
+                            if (++paragraphLines == 2 && rowLineControlOffset < 0
+                                && LineBreakControl.Of(paragraph.Style) is not null)
+                                rowLineControlOffset = offset;
                             cancellation.ThrowIfCancellationRequested();
                             CheckHeight(height + line.Height + cellEdges.Bottom, offset);
                             // Match ordinary paragraph placement: the first logical line
@@ -276,6 +285,7 @@ internal static class TableLayout
                 ambiguous.Clear();
                 ambiguousVerticalOffsets.Clear();
                 ambiguousAvoidOffset = -1;
+                ambiguousLineControlOffset = -1;
             }
             var isFirstBodyGroup = !row.IsHeader && firstBodyGroup;
             var capacity = fresh.UsableHeight - headerHeight
@@ -284,6 +294,8 @@ internal static class TableLayout
             var uncertain = !row.IsHeader && !canSplit && rowHeight + edges.Bottom > capacity + .000001;
             if (canSplit && row.AvoidBreakInside && splitAvoidOffset < 0) splitAvoidOffset = row.SourceOffset;
             if (uncertain && row.AvoidBreakInside && ambiguousAvoidOffset < 0) ambiguousAvoidOffset = row.SourceOffset;
+            if (canSplit && splitLineControlOffset < 0) splitLineControlOffset = rowLineControlOffset;
+            if (uncertain && ambiguousLineControlOffset < 0) ambiguousLineControlOffset = rowLineControlOffset;
             // When the complete row remains atomic, place its shorter cell
             // content within the shared painted row height. A fragmented body
             // row has independent cell cursors and cannot yet give middle/bottom
@@ -325,6 +337,7 @@ internal static class TableLayout
             throw Geometry("vertical-align:middle/bottom requires an unsplit terminal table row.",
                 ambiguousVerticalOffsets[0]);
         if (splitAvoidOffset < 0) splitAvoidOffset = ambiguousAvoidOffset;
+        if (splitLineControlOffset < 0) splitLineControlOffset = ambiguousLineControlOffset;
         foreach (var index in ambiguous)
             rows[index] = rows[index] with { CanSplit = true };
         // Assign stable paint ranges once in source order, without insertion or
@@ -349,6 +362,9 @@ internal static class TableLayout
         var outerHeight = top + edges.Bottom;
         CheckHeight(outerHeight, table.SourceOffset);
         if (splitAvoidOffset >= 0 && outerHeight > usableHeight + 0.000001) throw UnkeptRow(splitAvoidOffset);
+        if (splitLineControlOffset >= 0 && outerHeight > usableHeight + 0.000001)
+            throw Geometry("orphans/widows are not supported in a table row that splits across pages.",
+                splitLineControlOffset);
         var tableBox = new PaintedBox(0, 0, outerWidth, outerHeight, style, table.Style.Color, 0,
             SourceOffset: table.SourceOffset);
         // Preserve the E1 command order and bytes for every short table.

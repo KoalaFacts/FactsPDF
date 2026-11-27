@@ -36,7 +36,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Widows + 1];
     // Boxes computed earlier in this conversion, keyed by everything their box declarations read
     // (see Compute). Bounded so a page of distinct styles keeps no more than a small table.
     private const int MaxComputedBoxes = 256;
@@ -394,6 +394,12 @@ internal sealed class CssStylesheets
             // dropped there too. Any value that would move or paint the content still fails below.
             if (RootZeroInset(element.Name, declaration) || InlineZeroBox(element.Name, declaration)
                 || TablePartMargin(element.Name, declaration) || UnusedZeroInset(element.Name, declaration))
+                return;
+            // orphans/widows count a block's line boxes. Inline text, br, img, hr and col hold no
+            // line box of their own and no block can nest in them (FPDF1101), so a value there
+            // reaches no paragraph, as in a browser: validated and dropped (*{orphans:3} passes).
+            if (declaration.Property is CssProperty.Orphans or CssProperty.Widows
+                && (HtmlDocumentReader.InlineTag(element.Name) || element.Name is "br" or "img" or "hr" or "col"))
                 return;
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.

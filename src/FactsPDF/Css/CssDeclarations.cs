@@ -11,7 +11,7 @@ internal enum CssProperty
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
-    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, Orphans, Widows
 }
 /// <summary>
 /// One compiled declaration: what it says (property, name, value, importance) plus its cascade
@@ -202,7 +202,8 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast
+            or CssProperty.Orphans or CssProperty.Widows;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         switch (property)
         {
@@ -213,6 +214,10 @@ internal static class CssDeclarations
             case CssProperty.LineHeight: style.LineHeight = source.LineHeight; style.AbsoluteLineHeight = source.AbsoluteLineHeight; break;
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
             case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
+            // A CSS-wide keyword is still a declaration: where nothing above declared a value it
+            // computes to the initial 2, never to the undeclared line-by-line breaks.
+            case CssProperty.Orphans: style.Orphans = source.Orphans == 0 ? LineBreakControl.Initial : source.Orphans; break;
+            case CssProperty.Widows: style.Widows = source.Widows == 0 ? LineBreakControl.Initial : source.Widows; break;
             case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
             case CssProperty.TextDecorationColor: style.DecorationColor = source.DecorationColor; break;
             case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;

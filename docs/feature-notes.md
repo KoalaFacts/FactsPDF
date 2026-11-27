@@ -1480,8 +1480,8 @@ table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
 
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
-children, arbitrary children, left/right pages, or widows/orphans are not
-implemented. Inapplicable structures reject `FPDF1201`; unsupported values
+children, arbitrary children or left/right pages are not
+implemented (orphans and widows are below). Inapplicable structures reject `FPDF1201`; unsupported values
 reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-together-business-report-cards),
 [printable card](../examples/report-keep-together.html),
 [independently authored forced-page control](../examples/report-keep-together-oracle.html),
@@ -1489,6 +1489,21 @@ reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-t
 witness are provided for review. Source first implemented at
 `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
 private software, human PDF approval and customer rights are separate.
+
+### Orphans and widows
+
+`p, h2, h3 { orphans: 3; widows: 3; }` keeps at least three lines of a
+paragraph at the bottom of a page and three at the top of the next, placed as
+Chrome places them: a paragraph that cannot leave its orphans moves whole to
+the next page (with its panel's leading decoration, or with its
+`break-after:avoid` heading), the break otherwise moves earlier for the
+widows, and orphans win when a paragraph is too short for both. Any block
+accepts the inherited positive integer; lists move a too-short item with its
+marker. Paragraphs that no declaration reaches keep FactsPDF's line-by-line
+breaks rather than CSS's initial 2, so existing reports render unchanged. A
+split table row with a declared multi-line cell paragraph fails `FPDF1302`;
+non-positive or non-integer values fail `FPDF1202`
+([exact contract](css-stylesheets.md#orphans-and-widows), `OrphansWidowsTests.cs`).
 
 ## .NET SDK
 
