@@ -24,8 +24,9 @@ public sealed class AllocationBudgetTests
     private static string Table(int rows)
     {
         // The 520pt table fills the page content box, so the user-agent body margin is zeroed; cells keep the
-        // pre-UA-sheet shape (no padding, top aligned) unless styled inline.
-        var html = new StringBuilder("<style>body{margin:0}td{padding:0;vertical-align:top}</style><table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
+        // pre-UA-sheet shape (no padding, top aligned) unless styled inline, and the 1.2 line height keeps the
+        // 200 rows on the same six pages (the font's normal line height packs them into five).
+        var html = new StringBuilder("<style>body{margin:0;line-height:1.2}td{padding:0;vertical-align:top}</style><table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
             + "<col style=\"width:140pt\"></colgroup><tbody>");
         for (var i = 0; i < rows; i++)
             html.Append("<tr><td style=\"padding:3pt;border:0.5pt solid #789\">AB</td><td style=\"padding:3pt\">Wi AB Wi AB Wi AB Wi</td><td>AB</td></tr>");
