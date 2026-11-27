@@ -55,10 +55,11 @@ internal static class TableLayout
         var edges = ResolveEdges(style, item.AvailableWidth, table.SourceOffset);
         // As for existing blocks, auto fills the parent's content area with
         // the outer box; an explicit width describes the table's content, or
-        // with box-sizing:border-box its outer box including padding and borders.
+        // with box-sizing:border-box its outer box including padding and borders. A collapsed
+        // table's width always includes the outer halves of its collapsed borders, as in Chrome.
         var specifiedWidth = style.Width is { } specified
             ? Checked(specified.Resolve(item.AvailableWidth)
-                - (style.BorderBoxSizing ? edges.Left + edges.Right : 0), table.SourceOffset)
+                - (style.BorderBoxSizing || grid is not null ? edges.Left + edges.Right : 0), table.SourceOffset)
             : (double?)null;
         var tracks = new double[table.Columns.Count];
         // Unless every column has an explicit width, columns use automatic layout;
@@ -74,13 +75,17 @@ internal static class TableLayout
             throw Geometry("Table outer width exceeds containing content width or is zero.", table.SourceOffset);
         if (!automatic)
         {
+            // A collapsed table's column widths are authored against its whole width; its columns
+            // share the width less the outer halves of its collapsed borders in proportion, which
+            // agrees with Chrome within its layout rounding (table-auto-layout-oracle e5).
+            var authored = grid is null || style.Width is null ? width : width + edges.Left + edges.Right;
             var totalWidth = 0d;
             for (var i = 0; i < tracks.Length; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
                 var column = table.Columns[i];
                 var length = column.Width!.Value;
-                tracks[i] = Checked(length.Resolve(width), column.SourceOffset);
+                tracks[i] = Checked(length.Resolve(authored), column.SourceOffset);
                 if (tracks[i] <= 0)
                     throw Geometry("Column width must be positive.", column.SourceOffset);
                 totalWidth += tracks[i];
@@ -88,10 +93,12 @@ internal static class TableLayout
             // Allow only floating-point roundoff at the inclusive decimal boundary.
             // One ULP per track plus the table width covers resolution/summation;
             // the actual tracks remain unchanged, with no width redistribution.
-            var scale = Math.Max(totalWidth, width);
+            var scale = Math.Max(totalWidth, authored);
             var roundoff = (Math.BitIncrement(scale) - scale) * (tracks.Length + 1);
-            if (Math.Abs(totalWidth - width) > 0.001 + roundoff)
+            if (Math.Abs(totalWidth - authored) > 0.001 + roundoff)
                 throw Geometry("Column widths must sum to the table content width within 0.001pt.", table.SourceOffset);
+            if (authored != width)
+                for (var i = 0; i < tracks.Length; i++) tracks[i] *= width / authored;
         }
 
         var runs = new List<PlacedText>();

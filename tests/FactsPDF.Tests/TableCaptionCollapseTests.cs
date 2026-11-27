@@ -108,18 +108,19 @@ public sealed class TableCaptionCollapseTests
         var page = TableLayoutTests.Layout(Table("table{border-collapse:collapse}td{border:2pt solid #000;background-color:#c00}",
             "<tr><td>A</td><td>B</td></tr>")).Single();
         var cells = page.PaintBoxes.Where(box => box.Style.BackgroundColor == Red).ToArray();
-        // The table's layout border is half the outer border (1pt); fixed 50pt columns include their halves.
-        Assert.That(cells.Select(cell => cell.X), Is.EqualTo(new double[] { 37, 87 }));
-        Assert.That(cells.Select(cell => cell.Width), Is.EqualTo(new double[] { 50, 50 }));
+        // The table's layout border is half the outer border (1pt), and its 100pt width includes those
+        // halves as in Chrome, so the two 50pt columns share 98pt.
+        Assert.That(cells.Select(cell => cell.X), Is.EqualTo(new double[] { 37, 86 }));
+        Assert.That(cells.Select(cell => cell.Width), Is.EqualTo(new double[] { 49, 49 }));
         Assert.That(cells[0].Top, Is.EqualTo(37));
         var vertical = Vertical(page);
-        Assert.That(vertical.Select(box => box.X), Is.EqualTo(new double[] { 36, 86, 136 }));
+        Assert.That(vertical.Select(box => box.X), Is.EqualTo(new double[] { 36, 85, 134 }));
         Assert.That(vertical.All(box => box.Width == 2), Is.True, "each shared border is painted once, full width");
         var horizontal = Horizontal(page);
         Assert.That(horizontal, Has.Length.EqualTo(4));
         Assert.That(horizontal.Select(box => box.Top).Distinct(), Is.EqualTo(new double[] { 36, cells[0].Top + cells[0].Height - 1 }));
         Assert.That(horizontal[0].X, Is.EqualTo(36), "a horizontal border reaches over half the vertical one");
-        Assert.That(horizontal[0].Width, Is.EqualTo(52));
+        Assert.That(horizontal[0].Width, Is.EqualTo(51));
     }
 
     [TestCase("table{border:3pt solid #f00}td{border:1pt solid #000}", 3, 1)]
