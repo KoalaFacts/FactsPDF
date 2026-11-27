@@ -466,6 +466,8 @@ internal static class TableLayout
                 if (!double.IsFinite(free) || free < -0.000001)
                     throw Geometry("Table cell vertical alignment has invalid row geometry.", placement.SourceOffset);
                 var shift = Math.Max(0, free) * (placement.Alignment == CellVerticalAlign.Bottom ? 1 : .5);
+                // A cell that fills its row (the user-agent middle of nearly every cell) moves nothing, so its runs stay as they are.
+                if (shift == 0) continue;
                 for (var i = placement.RunStart; i < placement.RunEnd; i++)
                     runs[i] = runs[i] with { Baseline = runs[i].Baseline - shift };
                 for (var i = placement.ImageStart; i < placement.ImageEnd; i++)
