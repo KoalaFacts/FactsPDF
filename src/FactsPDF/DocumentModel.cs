@@ -494,4 +494,8 @@ internal sealed class DocumentRoot
 {
     public BlockChildList Children { get; } = new();
     public bool HasLists { get; set; }
+    /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
+    public CssPageRules? PageRules { get; set; }
+    /// <summary>The html element's computed text style, which the page context inherits; null without an html element.</summary>
+    public TextStyle? RootStyle { get; set; }
 }
