@@ -45,14 +45,19 @@ internal sealed class PdfImageWriter
         output.Append(" >>");
     }
 
-    internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation)
+    internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation,
+        ref PdfAlphaStates alpha)
     {
         foreach (var placed in page.Images)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (placed.Decoration is { } decoration)
+                PdfPaintSerializer.Append(content,
+                    [decoration with { X = placed.X + decoration.X, Top = placed.Top + decoration.Top }],
+                    options.PageHeight, options.MaxOutputBytes, cancellation, ref alpha);
             if (placed.Vector is { } vector)
             {
-                SvgPainter.Append(content, vector, placed, options);
+                SvgPainter.Append(content, vector, placed, options, ref alpha);
                 continue;
             }
             content.Append("q ").AppendInvariant(placed.Width, Number).Append(" 0 0 ").AppendInvariant(placed.Height, Number).Append(' ')

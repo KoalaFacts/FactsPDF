@@ -11,6 +11,35 @@ internal static class TextDecorationCommands
         System.Numerics.BitOperations.PopCount((uint)decoration);
 }
 internal enum TextDecorationPattern { Solid, Dashed, Dotted }
+internal enum InlineAlignKind : byte { Baseline, Middle, Top, Bottom, TextTop, TextBottom, Shift }
+// An atomic inline's vertical-align. Shift raises the box's bottom above the baseline by an
+// absolute length in points (negative lowers it), or by a percentage of the line-height.
+internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double Shift = 0, bool IsPercent = false)
+{
+    internal static bool TryParse(string value, out InlineVerticalAlign result, double? elementFontSize = null,
+        double? rootFontSize = null)
+    {
+        result = value switch
+        {
+            "baseline" => new(InlineAlignKind.Baseline),
+            "middle" => new(InlineAlignKind.Middle),
+            "top" => new(InlineAlignKind.Top),
+            "bottom" => new(InlineAlignKind.Bottom),
+            "text-top" => new(InlineAlignKind.TextTop),
+            "text-bottom" => new(InlineAlignKind.TextBottom),
+            _ => default,
+        };
+        if (value is "baseline" or "middle" or "top" or "bottom" or "text-top" or "text-bottom") return true;
+        var negative = value.StartsWith('-');
+        var magnitude = negative || value.StartsWith('+') ? value[1..] : value;
+        if (magnitude.Length == 0 || magnitude[0] is '-' or '+'
+            || !CssBoxValues.TryLength(magnitude, out var length, out _, rootFontSize, allowRem: true,
+                elementFontSize, allowEm: true))
+            return false;
+        result = new(InlineAlignKind.Shift, negative ? -length.Value : length.Value, length.IsPercent);
+        return true;
+    }
+}
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
@@ -75,7 +104,12 @@ internal sealed record TextStyle
 }
 // Diagnostic provenance is separate from TextStyle equality: adjacent identical
 // computed styles must still coalesce regardless of their source elements.
-internal sealed record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
+internal record TextRun(string Text, TextStyle Style, bool IsBreak = false, int SourceOffset = -1);
+// An img or svg with display:inline (the default): an atomic inline box in its paragraph's line
+// boxes. Style is the parent inline's style, whose baseline, x-height and link the box aligns to
+// and inherits; the image's own box style is on Image.
+internal sealed record InlineImageRun(ImageNode Image, TextStyle Style)
+    : TextRun("", Style, false, Image.SourceOffset);
 internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : BlockChild
 {
     private const uint AnonymousBit = 0x8000_0000;
@@ -194,8 +228,11 @@ internal sealed record LocatedText(string Text, double X, double Baseline, TextS
 // SourceOffset is the list item's; it packs beside Kind, so a disc stays 72 bytes.
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
     int SourceOffset = -1);
+// LinkUri: an inline image inside a link, whose box becomes the link annotation's rectangle.
+// Decoration: an inline image's own padding, border and background, painted just before it, with
+// X and Top relative to the image's (so moving the image moves it too).
 internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double Width, double Height,
-    SvgGraphic? Vector = null)
+    SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null)
 {
     internal int CommandCount => Vector?.CommandCount ?? 1;
 }
@@ -299,8 +336,13 @@ internal sealed record BoxStyle
     // Only ordinary block display:none is modelled. The parser removes the
     // complete validated subtree before any PDF layout or paint commands.
     public bool DisplayNone { get; set; }
+    // Only img and svg consume it: display:block lays them out as block boxes; the initial
+    // inline (and inline-block, identical for a replaced element) puts them in line boxes.
+    public bool DisplayBlock { get; set; }
     // Only td/th cells consume this property; rows needing fragmentation reject middle/bottom.
     public CellVerticalAlign VerticalAlign { get; set; } = CellVerticalAlign.Top;
+    // vertical-align of an inline img or svg within its line box.
+    public InlineVerticalAlign InlineAlign { get; set; }
     // Unlike painted box sides, list-style-type is inherited through li and
     // other containers. The ol/ul HTML defaults are applied in CSS computing.
     public ListMarkerKind MarkerKind { get; set; } = ListMarkerKind.Disc;

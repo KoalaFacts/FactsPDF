@@ -136,7 +136,7 @@ internal static class UnicodePdfSerializer
                 cancellation.ThrowIfCancellationRequested(); content.Clear(); alpha.Clear();
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha);
                 PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
-                images.Append(content, pages[i], o, cancellation);
+                images.Append(content, pages[i], o, cancellation, ref alpha);
                 // Tc survives BT/ET in PDF text state. Track transitions,
                 // including back to zero, without touching legacy byte output.
                 var previousTracking = 0d;

@@ -308,6 +308,40 @@ internal static class HtmlDocumentReader
             // Keep is a block hint, never part of glyph-run coalescing.
             current.Runs.Add(new(text, style.KeepWithNext ? style with { KeepWithNext = false } : style, lineBreak, stack[^1].SourceOffset));
         }
+        // An img or svg with display:inline is an atomic inline in the current paragraph, aligned
+        // to (and linked by) its parent inline; display:block makes it a block box, which cannot
+        // sit inside a paragraph, inline element or list here.
+        void AddReplaced(ImageNode node, string name, int offset)
+        {
+            if (node.BoxStyle.DisplayBlock)
+            {
+                if (stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
+                    throw new FactsPdfException("FPDF1101", name == "svg"
+                        ? "An svg with display:block must be a standalone block outside paragraphs, inline elements and lists."
+                        : "An img with display:block must be a standalone block outside paragraphs, inline elements and lists.", offset);
+                Flush();
+                if (table?.Cell is { } cell) cell.Contents.Add(new TableCellImage(node));
+                else children.Add(node);
+                return;
+            }
+            // Padding, borders and a background are part of the inline box (TextLines.AppendLine);
+            // margins would need margin-box line layout.
+            var inlineBox = node.BoxStyle;
+            if (inlineBox.MarginTop.Value != 0 || inlineBox.MarginRight.Value != 0 || inlineBox.MarginBottom.Value != 0
+                || inlineBox.MarginLeft.Value != 0 || inlineBox.MarginLeftAuto || inlineBox.MarginRightAuto
+                || inlineBox.HasRoundedCorners || inlineBox.Outline.EffectiveWidth > 0)
+                throw new FactsPdfException("FPDF1201",
+                    $"Margins, rounded corners and outlines on an inline {name} are not supported; use display:block.", offset);
+            var parentStyle = stack[^1].Style;
+            if (current is null)
+            {
+                current = table?.Cell is { } cell
+                    ? new Paragraph(cell.Style, cell.SourceOffset)
+                    : new Paragraph(parentStyle, stack[^1].SourceOffset);
+                anonymous = true;
+            }
+            current.Runs.Add(new InlineImageRun(node, parentStyle.KeepWithNext ? parentStyle with { KeepWithNext = false } : parentStyle));
+        }
 
         for (var t = 0; t < tokens.Count; t++)
         {
@@ -403,10 +437,6 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
             table?.CheckChild(stack[^1].Name, name, token.Offset);
-            if (name is "img" or "svg" && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
-                throw new FactsPdfException("FPDF1101", name == "svg"
-                    ? "svg must be a standalone block outside paragraphs, inline elements and lists."
-                    : "Images must be standalone blocks outside paragraphs, inline elements and lists.", token.Offset);
             if (table is null && (ParagraphTag(name) || Container(name)) && stack[^1].Name == "p") { Flush(); Pop(); }
             if (name == "li" && stack[^1].Name == "li") { Flush(); Pop(); }
             if ((ParagraphTag(name) || Container(name)) && stack.Any(f => ParagraphTag(f.Name) || InlineTag(f.Name)))
@@ -578,20 +608,16 @@ internal static class HtmlDocumentReader
                     throw new FactsPdfException("FPDF1103", "img requires an explicit resource name in src; paths and URLs are unsupported.", token.Offset);
                 if (!options.Images.TryGetValue(resourceName, out var image))
                     throw new FactsPdfException("FPDF1604", $"Image resource '{resourceName}' was not supplied.", token.Offset);
-                var imageNode = new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt"));
-                Flush();
-                if (table?.Cell is { } imageCell) imageCell.Contents.Add(new TableCellImage(imageNode));
-                else children.Add(imageNode);
+                AddReplaced(new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt")),
+                    name, token.Offset);
                 path.RemoveAt(path.Count - 1); continue;
             }
             if (name == "svg")
             {
                 svg ??= new SvgDocument(options.MaxDisplayCommands, cancellation);
                 var graphic = SvgReader.Read(tokens, ref t, svg, sheets, path, stack.Count, options.MaxDepth, style.Color);
-                var svgNode = new ImageNode(null, style, SvgSizing(boxStyle, graphic), token.Offset, null, graphic);
-                Flush();
-                if (table?.Cell is { } svgCell) svgCell.Contents.Add(new TableCellImage(svgNode));
-                else children.Add(svgNode);
+                AddReplaced(new ImageNode(null, style, SvgSizing(boxStyle, graphic), token.Offset, null, graphic),
+                    name, token.Offset);
                 path.RemoveAt(path.Count - 1); continue;
             }
             if (name == "hr")
@@ -656,7 +682,7 @@ internal static class HtmlDocumentReader
     }
 
     // The runs a paragraph element opened just before `start` will hold: one per text token, one
-    // per br and one per q start or end tag (its quotation mark) until its end tag, or until a block start or end that closes or rejects it. The
+    // per br, img and svg and one per q start or end tag (its quotation mark) until its end tag, or until a block start or end that closes or rejects it. The
     // count is exact for a well-formed paragraph and only sizes the run list, so an input that
     // fails later merely over-counts.
     private static int RunCount(List<HtmlToken> tokens, int start, string name)
@@ -669,8 +695,8 @@ internal static class HtmlDocumentReader
             if (token.Kind == HtmlTokenKind.StyleText) continue;
             var tag = token.Value;
             if (token.Kind == HtmlTokenKind.End && tag == name) break;
-            if (ParagraphTag(tag) || Container(tag) || TableMarkup.IsTag(tag) || tag is "img" or "hr" or "style") break;
-            if (token.Kind == HtmlTokenKind.Start && tag == "br" || tag == "q") count++;
+            if (ParagraphTag(tag) || Container(tag) || TableMarkup.IsTag(tag) || tag is "hr" or "style") break;
+            if (token.Kind == HtmlTokenKind.Start && tag is "br" or "img" or "svg" || tag == "q") count++;
         }
         return count;
     }

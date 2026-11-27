@@ -13,7 +13,8 @@ internal static class SvgPainter
     private const string Matrix = "0.######";
     private const string Coordinate = "0.####";
 
-    internal static void Append(StringBuilder content, SvgGraphic graphic, PlacedImage placed, PdfOptions options)
+    internal static void Append(StringBuilder content, SvgGraphic graphic, PlacedImage placed, PdfOptions options,
+        ref PdfAlphaStates alpha)
     {
         var offset = graphic.Shapes.Length > 0 ? graphic.Shapes[0].SourceOffset : -1;
         content.Append("q ").AppendInvariant(placed.X, Matrix).Append(' ')
@@ -24,36 +25,53 @@ internal static class SvgPainter
         foreach (var shape in graphic.Shapes)
         {
             if (!shape.Visible) continue;
-            content.Append('q');
-            foreach (var (clip, toRoot) in shape.ResolvedClips)
+            if (shape.SplitPaint)
             {
-                AppendPath(content, clip.Path, toRoot);
-                content.Append(clip.Rule == SvgFillRule.EvenOdd ? " W* n" : " W n");
+                AppendShape(content, shape, shape.Fill, null, ref alpha);
+                AppendShape(content, shape, null, shape.Stroke, ref alpha);
             }
-            if (!shape.Transform.IsIdentity)
-            {
-                content.Append(' ');
-                AppendMatrix(content, shape.Transform);
-                content.Append(" cm");
-            }
-            if (shape.Fill is { } fill) AppendColor(content, fill).Append(" rg");
-            if (shape.Stroke is { } stroke)
-            {
-                AppendColor(content, stroke).Append(" RG ").AppendInvariant(shape.StrokeWidth, Coordinate).Append(" w");
-                if (shape.LineCap != 0) content.Append(' ').Append(shape.LineCap).Append(" J");
-                if (shape.LineJoin != 0) content.Append(' ').Append(shape.LineJoin).Append(" j");
-                content.Append(' ').AppendInvariant(shape.MiterLimit, Coordinate).Append(" M");
-            }
-            AppendPath(content, shape.Path, SvgMatrix.Identity);
-            var evenOdd = shape.FillRule == SvgFillRule.EvenOdd;
-            content.Append(shape.Fill is null ? " S" : shape.Stroke is null ? evenOdd ? " f*" : " f" : evenOdd ? " B*" : " B");
-            content.Append(" Q\n");
+            else AppendShape(content, shape, shape.Fill, shape.Stroke, ref alpha);
             if (content.Length > options.MaxOutputBytes)
                 throw new FactsPdfException("FPDF1401", "PDF svg content exceeds MaxOutputBytes.", shape.SourceOffset);
         }
         content.Append("Q\n");
         if (content.Length > options.MaxOutputBytes)
             throw new FactsPdfException("FPDF1401", "PDF svg content exceeds MaxOutputBytes.", offset);
+    }
+
+    // One paint of a shape inside its own q/Q: clips, transform, the constant-alpha state of a
+    // translucent paint (fill and stroke share one alpha byte here), colours and the path.
+    private static void AppendShape(StringBuilder content, SvgShape shape, Rgb? fill, Rgb? stroke, ref PdfAlphaStates alpha)
+    {
+        content.Append('q');
+        foreach (var (clip, toRoot) in shape.ResolvedClips)
+        {
+            AppendPath(content, clip.Path, toRoot);
+            content.Append(clip.Rule == SvgFillRule.EvenOdd ? " W* n" : " W n");
+        }
+        if (!shape.Transform.IsIdentity)
+        {
+            content.Append(' ');
+            AppendMatrix(content, shape.Transform);
+            content.Append(" cm");
+        }
+        if ((fill ?? stroke) is { A: < 1 } translucent)
+        {
+            alpha.Select(content.Append(' '), translucent);
+            content.Length--; // Select ends with a space; the next operator writes its own.
+        }
+        if (fill is { } fillColor) AppendColor(content, fillColor).Append(" rg");
+        if (stroke is { } strokeColor)
+        {
+            AppendColor(content, strokeColor).Append(" RG ").AppendInvariant(shape.StrokeWidth, Coordinate).Append(" w");
+            if (shape.LineCap != 0) content.Append(' ').Append(shape.LineCap).Append(" J");
+            if (shape.LineJoin != 0) content.Append(' ').Append(shape.LineJoin).Append(" j");
+            content.Append(' ').AppendInvariant(shape.MiterLimit, Coordinate).Append(" M");
+        }
+        AppendPath(content, shape.Path, SvgMatrix.Identity);
+        var evenOdd = shape.FillRule == SvgFillRule.EvenOdd;
+        content.Append(fill is null ? " S" : stroke is null ? evenOdd ? " f*" : " f" : evenOdd ? " B*" : " B");
+        content.Append(" Q\n");
     }
 
     private static void AppendMatrix(StringBuilder content, SvgMatrix m) =>

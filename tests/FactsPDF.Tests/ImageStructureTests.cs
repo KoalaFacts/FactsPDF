@@ -32,9 +32,12 @@ public sealed class ImageStructureTests
     {
         const string html = "<section>Before<img src='chart' alt='Chart' class='pic'/>After</section>"
             + "<style>section > img.pic{width:50%;padding:2pt;border:1pt solid red;background-color:white}</style>";
+        // A default (display:inline) img is an atomic inline in its text's paragraph.
         var root = Tree(html); var children = ((BlockNode)root.Children.Single()).Children;
-        Assert.That(children, Has.Count.EqualTo(3));
-        var image = (ImageNode)children[1];
+        Assert.That(children, Has.Count.EqualTo(1));
+        var runs = ((Paragraph)children[0]).Runs;
+        Assert.That(runs, Has.Count.EqualTo(3));
+        var image = ((InlineImageRun)runs[1]).Image;
         Assert.That(image.Image!.PixelWidth, Is.EqualTo(320)); Assert.That(image.Alt, Is.EqualTo("Chart"));
         Assert.That(image.BoxStyle.Width!.Value.Resolve(200), Is.EqualTo(100));
         Assert.That(image.BoxStyle.PaddingTop.Resolve(200), Is.EqualTo(2));
@@ -48,15 +51,18 @@ public sealed class ImageStructureTests
     public void ImageAndListSiblingsKeepTheirSeparateStructure()
     {
         var root = Tree("<img src='chart'><ul><li>Item</li></ul><p>After</p>");
-        Assert.That(root.HasLists, Is.True); Assert.That(root.Children[0], Is.TypeOf<ImageNode>());
+        Assert.That(root.HasLists, Is.True);
+        Assert.That(((Paragraph)root.Children[0]).Runs.Single(), Is.TypeOf<InlineImageRun>());
         Assert.DoesNotThrow(() => ListLayout.Prepare(root, Options(), default));
         Assert.That(string.Concat(BlockTreeTraversal.Paragraphs(root, default).SelectMany(p => p.Runs).Select(r => r.Text)),
             Is.EqualTo("ItemAfter"));
     }
 
-    [TestCase("<p>Before<img src='chart'></p>", "FPDF1101")]
-    [TestCase("<span><img src='chart'></span>", "FPDF1101")]
-    [TestCase("<ul><li><div><img src='chart'></div></li></ul>", "FPDF1101")]
+    [TestCase("<p>Before<img src='chart' style='display:block'></p>", "FPDF1101")]
+    [TestCase("<span><img src='chart' style='display:block'></span>", "FPDF1101")]
+    [TestCase("<ul><li><div><img src='chart' style='display:block'></div></li></ul>", "FPDF1101")]
+    [TestCase("<img src='chart' style='display:none'>", "FPDF1201")]
+    [TestCase("<img src='chart' style='margin-left:2pt;display:inline'>", "FPDF1201")]
     [TestCase("<head><img src='chart'></head>", "FPDF1101")]
     [TestCase("<img src='chart'></img>", "FPDF1101")]
     [TestCase("<img>", "FPDF1103")]

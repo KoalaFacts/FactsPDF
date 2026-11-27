@@ -36,6 +36,10 @@ internal static class TextLayout
             var height = style.AbsoluteLineHeight ?? style.FontSize * style.LineHeight;
             if (height > tallest && glyphs[i].SourceOffset >= 0) { tallest = height; offset = glyphs[i].SourceOffset; }
         }
+        // An inline image taller than every line-height is the element to change.
+        if (line.Atoms is { } atoms)
+            foreach (var atom in atoms)
+                if (atom.Geometry.OuterHeight > tallest) { tallest = atom.Geometry.OuterHeight; offset = atom.Node.SourceOffset; }
         return offset;
     }
 
@@ -74,7 +78,8 @@ internal static class TextLayout
         Action<int, int> chargeDisplayCommands = ChargeDisplayCommands;
         Action<int, int> ensureDisplayCommands = EnsureDisplayCommands;
         void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1)
-            => AppendLine(line, x, baseline, pages[^1].Runs, chargeDisplayCommands, cancellation, sourceOffset);
+            => AppendLine(line, x, baseline, pages[^1].Runs, chargeDisplayCommands, cancellation, sourceOffset,
+                pages[^1].Images, o.PageHeight);
         var bottom = o.PageHeight - o.MarginBottom;
         // The page limit names the element whose content needed the extra page.
         void NewPage(int sourceOffset)
@@ -706,6 +711,13 @@ internal static class TextLayout
                                         pages[^1].Runs.Add(run with { X = table.X + run.X,
                                             Baseline = run.Baseline + o.PageHeight - unitTop + unit.Top });
                                     }
+                                    for (var j = unit.LineImageStart; j < unit.LineImageStart + unit.LineImageCount; j++)
+                                    {
+                                        cancellation.ThrowIfCancellationRequested();
+                                        var inline = measured.Images[j];
+                                        pages[^1].Images.Add(inline with { X = table.X + inline.X,
+                                            Top = inline.Top + unitTop - unit.Top });
+                                    }
                                     if (unit.Kind != TableCellUnitKind.Image) continue;
                                     for (var j = unit.ImageBoxStart; j < unit.ImageBoxStart + unit.ImageBoxCount; j++)
                                     {
@@ -871,6 +883,10 @@ internal static class TextLayout
                 // first-fragment outside margins and padding travel with it.
                 gap = pendingTopPadding + firstChildMargin;
             }
+            // A first line made taller than a page by an inline image names the image.
+            if (lines.Current.Atoms is not null && lines.Current.Height > bottom - o.MarginTop)
+                throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.",
+                    TallestGlyphOffset(lines.Current, paragraphOffset));
             if (gap + lines.Current.Height > bottom - o.MarginTop)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
                     paragraphOffset);

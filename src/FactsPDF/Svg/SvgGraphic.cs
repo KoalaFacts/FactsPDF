@@ -28,6 +28,81 @@ internal sealed record SvgClip(SvgSegment[] Path, SvgFillRule Rule, SvgMatrix Lo
 /// space of the referencing element; chained outward to the ancestors' references.</summary>
 internal sealed record SvgClipReference(string Id, SvgMatrix Space, SvgClipReference? Outer);
 
+/// <summary>
+/// An element's opacity below 1, which SVG applies to its whole subtree as one group: the paints
+/// are composited together and the result faded. FactsPDF paints no transparency group; instead
+/// it multiplies the opacity into each paint's alpha, which is exactly the group's result only
+/// when no two of the group's paints overlap. So a group must hold paints whose conservative
+/// bounding boxes (stroke reach included) are pairwise disjoint and no shape that both fills
+/// and strokes (its stroke overlaps its fill); anything else fails FPDF1103.
+/// </summary>
+internal sealed class SvgOpacityGroup(double opacity, int offset, SvgOpacityGroup? outer)
+{
+    /// <summary>The most paints one group may hold, bounding the pairwise overlap check.</summary>
+    internal const int MaxShapes = 256;
+
+    private readonly List<SvgShape> shapes = [];
+
+    internal double Opacity => opacity;
+    internal SvgOpacityGroup? Outer => outer;
+
+    internal void Add(SvgShape shape) => shapes.Add(shape);
+
+    internal void Check(CancellationToken cancellation)
+    {
+        if (shapes.Count > MaxShapes)
+            throw new FactsPdfException("FPDF1103",
+                $"SVG opacity below 1 is supported on at most {MaxShapes} painted shapes.", offset);
+        var bounds = new (double MinX, double MinY, double MaxX, double MaxY)[shapes.Count];
+        for (var i = 0; i < shapes.Count; i++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (shapes[i].Fill is not null && shapes[i].Stroke is not null)
+                throw new FactsPdfException("FPDF1103",
+                    "SVG opacity below 1 over a shape that both fills and strokes needs a transparency group, which is not painted; use fill-opacity and stroke-opacity.", offset);
+            bounds[i] = Bounds(shapes[i]);
+            for (var j = 0; j < i; j++)
+                if (bounds[i].MinX < bounds[j].MaxX && bounds[j].MinX < bounds[i].MaxX
+                    && bounds[i].MinY < bounds[j].MaxY && bounds[j].MinY < bounds[i].MaxY)
+                    throw new FactsPdfException("FPDF1103",
+                        "SVG opacity below 1 over overlapping shapes needs a transparency group, which is not painted; set the opacity on each shape or use fill-opacity.", offset);
+        }
+    }
+
+    // The shape's control-point box (which contains its curves), widened by the farthest a stroke
+    // reaches (half its width times the miter limit or a square cap's diagonal), mapped to the
+    // svg's user space.
+    private static (double MinX, double MinY, double MaxX, double MaxY) Bounds(SvgShape shape)
+    {
+        double minX = double.PositiveInfinity, minY = double.PositiveInfinity;
+        double maxX = double.NegativeInfinity, maxY = double.NegativeInfinity;
+        void Include(double x, double y)
+        {
+            minX = Math.Min(minX, x); minY = Math.Min(minY, y);
+            maxX = Math.Max(maxX, x); maxY = Math.Max(maxY, y);
+        }
+        foreach (var segment in shape.Path)
+        {
+            if (segment.Kind == SvgSegmentKind.Close) continue;
+            if (segment.Kind == SvgSegmentKind.Cubic)
+            {
+                Include(segment.X1, segment.Y1);
+                Include(segment.X2, segment.Y2);
+            }
+            Include(segment.X, segment.Y);
+        }
+        if (shape.Stroke is not null)
+        {
+            var reach = shape.StrokeWidth / 2 * Math.Max(shape.LineJoin == 0 ? shape.MiterLimit : 1,
+                shape.LineCap == 2 ? Math.Sqrt(2) : 1);
+            minX -= reach; minY -= reach; maxX += reach; maxY += reach;
+        }
+        var corners = new[] { shape.Transform.Apply(minX, minY), shape.Transform.Apply(maxX, minY),
+            shape.Transform.Apply(minX, maxY), shape.Transform.Apply(maxX, maxY) };
+        return (corners.Min(c => c.X), corners.Min(c => c.Y), corners.Max(c => c.X), corners.Max(c => c.Y));
+    }
+}
+
 /// <summary>One painted shape: its path in its own user space, the map to the outer svg's user
 /// space, its resolved paint and the clip references in force.</summary>
 internal sealed class SvgShape
@@ -48,6 +123,10 @@ internal sealed class SvgShape
     internal (SvgClip Clip, SvgMatrix ToRoot)[] ResolvedClips { get; set; } = [];
     // False when a resolved clipPath is empty, so nothing of the shape can show.
     internal bool Visible { get; set; } = true;
+    // A fill and a stroke whose alpha bytes differ need separate constant-alpha states, so they
+    // are painted as two paths (fill, then stroke, SVG's paint order) instead of one B.
+    internal bool SplitPaint => Fill is { } fill && Stroke is { } stroke
+        && PdfAlphaStates.AlphaByte(fill) != PdfAlphaStates.AlphaByte(stroke);
 }
 
 /// <summary>

@@ -689,6 +689,14 @@ names SVG (replaced in place); the namespace-selector, custom
 property and image limitations are replaced in place (partial 248, rejected 117; 880 ordered strings; its failure codes
 still include `FPDF1102`, so the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`2eabc934447a472a968da55e57b515fb3f10962c4fe72ac74b1daac221df4d60`; English
+`3bcea9b0edd88e7f0ab5d659378576f3bd1080511f3c40c09f1f492845fe1771`; English
 layer `site/src/audit-english-inline-svg.mjs`, ordered source-text
 SHA-256 `96d9c22fb0d44728066605e81ccde7d4dbcc1f845a836d4726830a779259fade`.
+An `img` or `svg` is an inline replaced box by default and inline svg paints transparency: the
+`html.img`, `foreign.svg`, `css.display` and `css.vertical-align` scope and limitation strings are
+replaced in place (880 ordered strings; no count moves; the `FPDF1101` and `FPDF1102` searches are
+unchanged).
+Current dataset SHA-256:
+`c8acd20967805c5b5aae3e84e7b25011d150334efc5395567a5874a11845aee7`; English
+layer `site/src/audit-english-inline-replaced.mjs`, ordered source-text
+SHA-256 `eebe85c0a247b72e13eca7c6ed8f630dc1a7e2098bd5e43282b084d1e383aae3`.
