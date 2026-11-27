@@ -675,7 +675,13 @@ and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colou
 `value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
 since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
 stays partial.
+The `orphans`, `widows` and `Widows / orphans` rows move from rejected to partial: both
+properties are inherited positive integers with the CSS initial value 2 for every paragraph,
+placed at Chrome's printed breaks, including cell paragraphs of split table rows. The three rows
+share one new scope, limitation and evidence string; the former `Widows / orphans` scope and
+limitation are removed, and the CSS inventory note records 384 to 386 accepted CSS property
+names (partial 247 to 250, rejected 118 to 115).
 Current dataset SHA-256:
-`c91a3026eee6fd6ff8cd3354123d3c4ce13e2aefa656f7e20f8f5b341efa1705`; English
-layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
-SHA-256 `9030c98569c8dcc545bc3dd0dd3c3057b86c6f5e38507765bf1162ea998e90b1`.
+`a811d6e012c4f6260933f985b7314e021c69073fddba65bcd851944f09a4c1c7`; English
+layer `site/src/audit-english-orphans-widows.mjs`, ordered source-text
+SHA-256 `19a1405b50b59a01109e4deae93476119d331a27a1248dfaf9e8823f2a27d839`.
