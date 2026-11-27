@@ -455,12 +455,14 @@ internal sealed class CssStylesheets
             // A keep-together card must be an ordinary top-level report panel.
             // Validate losing declarations too; nested/table/list/inline usage
             // must never be accepted as an unimplemented decoration.
-            if (declaration.Property == CssProperty.BreakInside &&
+            // A table row never splits when it fits a fresh fragment and the header never
+            // splits, so tr and thead keep avoid as a check in TableLayout, not a new behaviour.
+            if (declaration.Property == CssProperty.BreakInside && element.Name is not ("tr" or "thead") &&
                 (element.Name is not ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                  || path.Any(e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                      or "td" or "th" or "thead" or "tbody" or "tfoot")))
                 throw new FactsPdfException("FPDF1201",
-                    "break-inside is supported only on ordinary report panels outside lists/tables.", declaration.Offset);
+                    "break-inside is supported only on ordinary report panels outside lists/tables and on table rows (tr, thead).", declaration.Offset);
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
                 element.Name is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",

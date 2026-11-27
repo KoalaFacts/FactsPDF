@@ -85,8 +85,9 @@ internal static class CssSyntaxAdapter
                 // shares its cascade slot, values and applicability.
                 "word-wrap" => "overflow-wrap",
                 // print-color-adjust is still mostly written with Chromium's prefix.
-                // color-adjust is the deprecated name of print-color-adjust (Firefox, older print CSS).
-                "-webkit-print-color-adjust" or "color-adjust" => "print-color-adjust",
+                // color-adjust is the deprecated name of print-color-adjust (Firefox, older print CSS);
+                // background-color-adjust is a non-standard name print resets write next to both.
+                "-webkit-print-color-adjust" or "color-adjust" or "background-color-adjust" => "print-color-adjust",
                 // Tailwind preflight and modern-normalize write tab-size with the Gecko prefix first.
                 "-moz-tab-size" => "tab-size",
                 // text-size-adjust is almost always written with the WebKit prefix (normalize.css).

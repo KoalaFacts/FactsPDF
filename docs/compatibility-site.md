@@ -628,9 +628,15 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+The non-standard `background-color-adjust` joins `color-adjust` as an alias of
+`print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
+since no feature row covers it (accepted CSS property names 383 to 384).
+The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
+replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
+row FactsPDF would split fails `FPDF1302`, so no count moves.
 `<base>` moves to partial: one `base` in head is accepted and changes nothing, relative URLs
 are still never resolved (partial 245, rejected 121; 43 records).
 Current dataset SHA-256:
-`32fad43a481c45fb5e171e0e9888b7268604f3e102352f60ed4e8816a217db6b`; English
+`009c9f0587b2c6c9dacfdc34b0ae5a6091afa1752882e2a9f74d330e880ae2d2`; English
 layer `site/src/audit-english-base.mjs`, ordered source-text
-SHA-256 `df4a5dc184691eb52b8c55804d795e4c0243764c9b2e813ba14b7fa4f68ee32c`.
+SHA-256 `d08ec29e2a410f5f8182234f3006554be1fde2493d41110f7a33dcae58dcf151`.

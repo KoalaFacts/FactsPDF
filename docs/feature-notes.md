@@ -96,7 +96,7 @@ Web stylesheets reused for reports often set `cursor:pointer`, `user-select:none
 
 Almost every copied stylesheet sets `font-family` (`body{font-family:"Helvetica Neue",Arial,sans-serif}`, normalize.css `pre{font-family:monospace,monospace}`). FactsPDF never discovers or matches fonts: the fonts you supply (or the standard Courier fallback) are the only installed fonts, so a well-formed family list is validated and dropped, and the text falls back to that chain exactly as a browser falls back when none of the named families is installed. The PDF is byte-identical to the page without the declaration; `monospace` uses the same chain. Malformed lists fail `FPDF1202` ([property scope](css-stylesheets.md#property-scope), `InteractionOnlyCssTests.cs`).
 
-Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `print-color-adjust:exact`) so browsers keep backgrounds when printing. FactsPDF always paints colours and backgrounds exactly as declared, so both names (and the deprecated `color-adjust`) accept `exact` or `economy` and drop the declaration; the PDF is byte-identical to the page without it (`PrintColorAdjustTests.cs`). Tailwind preflight and modern-normalize put `-moz-tab-size:4;tab-size:4` on `html`; no tab stop reaches a page (collapsed tabs become spaces, preserved tabs fail `FPDF1305`), so `tab-size` and `-moz-tab-size` accept a non-negative number or length and are dropped, while other values fail `FPDF1202` (`TabSizeTests.cs`).
+Print stylesheets almost always add `-webkit-print-color-adjust:exact` (or `print-color-adjust:exact`) so browsers keep backgrounds when printing. FactsPDF always paints colours and backgrounds exactly as declared, so both names (and the deprecated `color-adjust`) accept `exact` or `economy` and drop the declaration; the PDF is byte-identical to the page without it (`PrintColorAdjustTests.cs`). `economy` only permits a renderer to drop backgrounds or lighten colours to save ink; FactsPDF never does, so `economy` keeps every background, exactly as `exact` does. Print resets often add the non-standard `background-color-adjust:exact` next to them (`*{print-color-adjust:exact !important;color-adjust:exact !important;background-color-adjust:exact !important}`); it is a further alias with the same values and errors, while `-webkit-background-color-adjust` still fails `FPDF1201`. Tailwind preflight and modern-normalize put `-moz-tab-size:4;tab-size:4` on `html`; no tab stop reaches a page (collapsed tabs become spaces, preserved tabs fail `FPDF1305`), so `tab-size` and `-moz-tab-size` accept a non-negative number or length and are dropped, while other values fail `FPDF1202` (`TabSizeTests.cs`).
 
 CSS resets and site stylesheets commonly set `-webkit-font-smoothing:antialiased`, `-moz-osx-font-smoothing:grayscale` and `text-rendering:optimizeLegibility`. These only steer how a screen rasterises glyphs, which a PDF leaves to its viewer, so any keyword value of the three is accepted on any element and dropped; the PDF is byte-identical to the page without them. Other values fail `FPDF1202` (`FontSmoothingHintTests.cs`).
 
@@ -1480,6 +1480,15 @@ fit at the current page end, its whole painted box and text move to the next
 page. A card taller than one usable page rejects with `FPDF1302`, retaining
 the previous PDF. `auto`, `inherit/initial/unset`, `!important`
 and the existing cascade apply. No new page for a card that fits.
+
+`tr` and `thead` accept `break-inside:auto|avoid` (and `page-break-inside`)
+too, as in `.report-table tr{break-inside:avoid}`: rows that fit a fresh page
+fragment with the repeated header already move whole and the header never
+splits, so the page is byte-identical to the page without it. A kept row that
+FactsPDF would split (taller than a fresh fragment, or split only to carry the
+table's first or last decoration) fails `FPDF1302`; `tbody`, `tfoot`, `td` and
+`th` still fail `FPDF1201` (`TableRowBreakInsideTests.cs`,
+[exact contract](css-stylesheets.md#table-rows)).
 
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
