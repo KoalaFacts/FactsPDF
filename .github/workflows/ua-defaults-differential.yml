@@ -1,0 +1,33 @@
+name: FactsPDF user-agent defaults differential
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/fixtures/ua-defaults/**'
+      - 'scripts/ua_defaults_browser_differential.py'
+      - '.github/workflows/ua-defaults-differential.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chrome-ua-defaults:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.403'
+      - name: Install fonts, PDF reader and check for a real Chrome
+        run: |
+          python3 scripts/ubuntu_packages.py packages fonts-dejavu-core fonts-dejavu-extra python3-pypdf
+          command -v google-chrome || command -v chromium
+          (google-chrome --version || chromium --version)
+      - name: Prove the comparison logic
+        run: /usr/bin/python3 -m unittest discover -s scripts -p 'test_ua_defaults*.py' -v
+      - name: Build the FactsPDF CLI
+        run: dotnet build src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release
+      - name: Compare user-agent defaults with Chrome (snapshot freshness and rendered geometry)
+        run: /usr/bin/python3 scripts/ua_defaults_browser_differential.py --cli src/FactsPDF.Cli/bin/Release/net10.0/FactsPDF.Cli --work artifacts/ua-defaults
