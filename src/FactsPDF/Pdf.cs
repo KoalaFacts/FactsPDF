@@ -129,6 +129,28 @@ public sealed class PdfWriter
         return new(setup.Options);
     }
 
+    /// <summary>Chooses how CSS the renderer rejects is handled.</summary>
+    /// <param name="strict">True (the default): every CSS construct the renderer does not render exactly fails
+    /// with a <see cref="FactsPdfException"/>. False (non-strict): CSS that is invalid per the CSS specifications,
+    /// which a browser silently ignores (an unknown property or at-rule, a value its property does not accept, an
+    /// invalid selector, a malformed rule), is dropped exactly as a browser drops it and reported as a
+    /// <see cref="PdfWarning"/> with the code, message and location strict mode would throw. Valid CSS the
+    /// renderer does not implement, and every resource limit, still fails in both modes.</param>
+    /// <remarks>Warnings never change the output bytes: a non-strict page renders exactly as the same page with
+    /// the dropped CSS removed. Receive them with <see cref="WithWarnings(Action{PdfWarnings})"/>; see
+    /// docs/css-stylesheets.md for the contract.</remarks>
+    public PdfWriter WithStrict(bool strict) => new(Options with { Strict = strict });
+
+    /// <summary>Sets a handler that receives the warnings of every successful conversion, once, before the output
+    /// is written.</summary>
+    /// <param name="handler">Called on the converting thread with the warnings in source order; empty in strict
+    /// mode. An exception it throws fails the conversion and nothing is written. Replaces any earlier handler.</param>
+    public PdfWriter WithWarnings(Action<PdfWarnings> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        return new(Options with { WarningHandler = handler });
+    }
+
     /// <summary>Renders <paramref name="html"/> and returns the PDF bytes.</summary>
     /// <param name="html">The complete HTML document.</param>
     /// <param name="cancellationToken">Cancels the conversion.</param>
@@ -484,6 +506,11 @@ public sealed class PdfLimitsSetup
     /// <summary>Maximum nesting depth of CSS blocks and functions, and of chained var() references (FPDF1205). Default 64.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxCssSyntaxDepth(int value) => Set(value, o => o with { MaxCssSyntaxDepth = value });
+
+    /// <summary>Maximum number of warnings a non-strict conversion records (see <see cref="PdfWriter.WithStrict(bool)"/>);
+    /// later warnings are counted in <see cref="PdfWarnings.TotalCount"/> but not stored. Default 1,000.</summary>
+    /// <param name="value">A positive limit.</param>
+    public PdfLimitsSetup MaxCssWarnings(int value) => Set(value, o => o with { MaxCssWarnings = value });
 
     /// <summary>Maximum text and box paint operations across all pages (FPDF1401). Default 200,000.</summary>
     /// <param name="value">A positive limit.</param>

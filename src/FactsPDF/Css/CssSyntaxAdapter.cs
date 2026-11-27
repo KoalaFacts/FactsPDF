@@ -57,686 +57,706 @@ internal static class CssSyntaxAdapter
 
     // hostSelectors are the selectors of the rule that holds the declarations, hostElement the
     // element whose style attribute holds them; a table-part display value is checked against them.
+    // In non-strict mode (budget.Warnings set, recover true) a declaration that is invalid per the
+    // CSS specifications is dropped as a browser drops it, and the error strict mode throws becomes a
+    // warning; a value holding a bad string, bad URL or unmatched closer is dropped silently, since
+    // its syntax error was already reported. Values after var() substitution pass recover false:
+    // the cascade decides what an invalid substitution means.
     internal static CssDeclaration[] CompileKnownDeclarations(
         IReadOnlyList<CssDeclarationNode> nodes, CssBudget budget,
-        CssSelector[]? hostSelectors = null, string? hostElement = null, int fixedOrder = 0)
+        CssSelector[]? hostSelectors = null, string? hostElement = null, int fixedOrder = 0, bool recover = true)
     {
         // One pooled scratch list per thread: shorthands expand into several declarations
         // (`border` into twelve), so a list sized to the nodes grew by doubling per declaration
         // block; the result is still one exact-size array. Taken out of its slot while in use.
         var output = pooledDeclarations ?? new List<CssDeclaration>(16);
         pooledDeclarations = null;
+        var warnings = recover ? budget.Warnings : null;
         // An index loop: foreach over the IReadOnlyList would box an array enumerator per call.
         for (var n = 0; n < nodes.Count; n++)
         {
             var node = nodes[n];
             budget.Token.ThrowIfCancellationRequested();
-            // A custom property (--name, case-sensitive) holds any value; only its var() syntax and
-            // CSS-wide keyword are checked here. The cascade resolves it for each element.
-            if (CssVariables.IsCustomPropertyName(node.Name))
+            if (warnings is not null && CssSpecValidity.HasInvalidTokens(node.Values)) continue;
+            var mark = output.Count;
+            try
             {
-                CssVariables.ValidateReferences(node.Values);
-                var keyword = CssVariables.Keyword(node.Values, node.Span.Start);
-                var values = node.Values as CssSyntaxComponent[] ?? [.. node.Values];
-                budget.UsesVariables = true;
-                output.Add(CssDeclaration.Create(CssProperty.Custom, node.Name, CssVariables.Text(values), node.Important,
-                    budget.Declaration(node.Span.Start), node.Span.Start, new CssCustomValue(values, keyword)));
-                continue;
-            }
-            var originalName = node.Name.ToLowerInvariant();
-            // Legacy print stylesheets use page-break-before/after:always.
-            // Normalize only these known aliases into the existing cascade
-            // slots; page/auto retain the same actual layout semantics.
-            var legacyPageBreak = originalName is "page-break-before" or "page-break-after";
-            var name = originalName switch
-            {
-                "page-break-before" => "break-before",
-                "page-break-after" => "break-after",
-                "page-break-inside" => "break-inside",
-                // CSS Text: word-wrap is the legacy name of overflow-wrap and
-                // shares its cascade slot, values and applicability.
-                "word-wrap" => "overflow-wrap",
-                // print-color-adjust is still mostly written with Chromium's prefix.
-                // color-adjust is the deprecated name of print-color-adjust (Firefox, older print CSS);
-                // background-color-adjust is a non-standard name print resets write next to both.
-                "-webkit-print-color-adjust" or "color-adjust" or "background-color-adjust" => "print-color-adjust",
-                // Tailwind preflight and modern-normalize write tab-size with the Gecko prefix first.
-                "-moz-tab-size" => "tab-size",
-                // text-size-adjust is almost always written with the WebKit prefix (normalize.css).
-                // normalize.css v3/v4 also writes the -ms- spelling (and some resets -moz-).
-                "-webkit-text-size-adjust" or "-ms-text-size-adjust" or "-moz-text-size-adjust" => "text-size-adjust",
-                // appearance resets are still written with both engine prefixes.
-                "-webkit-appearance" or "-moz-appearance" => "appearance",
-                "-webkit-backface-visibility" => "backface-visibility",
-                // Resets and component libraries still disable selection with all three prefixes.
-                "-webkit-user-select" or "-moz-user-select" or "-ms-user-select" => "user-select",
-                // Bootstrap 3 and older resets write box-sizing with both engine prefixes first.
-                "-webkit-box-sizing" or "-moz-box-sizing" => "box-sizing",
-                // Bootstrap 3, Font Awesome 4 and older themes write the engine-prefixed spellings of
-                // border-radius, box-shadow, transform and filter before (or instead of) the standard
-                // name; they share its cascade slot, values, applicability and errors.
-                "-webkit-border-radius" or "-moz-border-radius" => "border-radius",
-                "-webkit-box-shadow" or "-moz-box-shadow" => "box-shadow",
-                "-webkit-transform" or "-moz-transform" or "-ms-transform" or "-o-transform" => "transform",
-                "-webkit-filter" => "filter",
-                "-webkit-transform-origin" => "transform-origin",
-                "-webkit-clip-path" => "clip-path",
-                "-webkit-backdrop-filter" => "backdrop-filter",
-                // normalize.css 7 and Bootstrap 4's reboot write -webkit-text-decoration-skip:objects on a.
-                "-webkit-text-decoration-skip" => "text-decoration-skip",
-                // Bootstrap 4's reboot and Safari-era stylesheets write the text-decoration shorthand
-                // and longhands with the WebKit prefix (abbr{-webkit-text-decoration:underline dotted}).
-                "-webkit-text-decoration" or "-webkit-text-decoration-line" or "-webkit-text-decoration-color"
-                    or "-webkit-text-decoration-style" => originalName[8..],
-                // Older stylesheets still write font-feature-settings with both engine prefixes.
-                "-webkit-font-feature-settings" or "-moz-font-feature-settings" => "font-feature-settings",
-                // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
-                "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
-                    or "-webkit-transition-timing-function" or "-webkit-transition-delay"
-                    or "-webkit-animation" or "-webkit-animation-name" or "-webkit-animation-duration"
-                    or "-webkit-animation-timing-function" or "-webkit-animation-delay"
-                    or "-webkit-animation-iteration-count" or "-webkit-animation-direction"
-                    or "-webkit-animation-fill-mode" or "-webkit-animation-play-state" => originalName[8..],
-                _ => originalName
-            };
-            // Fail unsupported properties first even when the value contains
-            // functions or multiple tokens.
-            var initialOnly = InitialOnlyValue(name);
-            var property = initialOnly is null && !IsInteractionOnly(name) ? Property(name, node.Span.Start) : default;
-            // A supported property whose value holds var() can be checked only after substitution,
-            // for each element it applies to (CSS Custom Properties: valid at parse time when the
-            // var() syntax is). It keeps one cascade order for every declaration it expands into.
-            if (CssVariables.ContainsVar(node.Values))
-            {
-                CssVariables.ValidateReferences(node.Values);
-                budget.UsesVariables = true;
-                output.Add(CssDeclaration.Create(CssProperty.Pending, name, CssVariables.Text(node.Values), node.Important,
-                    budget.Declaration(node.Span.Start), node.Span.Start, new CssPendingValue(node, hostSelectors, hostElement is not null)));
-                continue;
-            }
-            // Properties the report renderer does not implement, declared at the one value it
-            // already lays out (position: static, float: none, opacity: 1, ...): the declaration
-            // changes nothing, so it is validated and dropped. Every other value, including any
-            // function such as rotate() or url(), fails with a message naming the one value.
-            if (initialOnly is not null)
-            {
-                ValidateInitialOnly(name, initialOnly, node);
-                continue;
-            }
-            // Interaction-only properties (cursor, pointer-events, user-select, resize) change
-            // how a screen reacts to a pointer, never what is painted, and print-color-adjust
-            // only lets a printer drop colours, which this renderer never does; text-rendering and
-            // the font-smoothing switches only steer a screen rasteriser; so every keyword
-            // value is validated and dropped and any other value fails with FPDF1202.
-            if (IsInteractionOnly(name))
-            {
-                ValidateInteractionOnly(name, node);
-                continue;
-            }
-            // Only opaque RGB functions are lowered to their equivalent hex
-            // colour. All downstream cascade, box paint and PDF serializers
-            // therefore use exactly the already audited solid-colour path.
-            var canonical = CanonicalValues(node);
-            var terms = Terms(canonical);
-            var valueTokens = NonWhitespaceTokens(canonical.Values);
-            if (terms.Count == 0)
-                throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
-
-            void Emit(CssProperty target, string value, int offset = -1, string? targetName = null)
-            {
-                var sourceOffset = offset < 0 ? node.Span.Start : offset;
-                var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
-                output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
-            }
-            // Logical border component declarations use the existing *physical*
-            // per-side width/style/colour cascade slots. The pair forms accept
-            // one or two values (start/end); individual sides exactly one.
-            // Only horizontal LTR normal-flow print layouts are supported.
-            if (name is "border-inline-width" or "border-inline-style" or "border-inline-color"
-                or "border-block-width" or "border-block-style" or "border-block-color"
-                or "border-inline-start-width" or "border-inline-start-style" or "border-inline-start-color"
-                or "border-inline-end-width" or "border-inline-end-style" or "border-inline-end-color"
-                or "border-block-start-width" or "border-block-start-style" or "border-block-start-color"
-                or "border-block-end-width" or "border-block-end-style" or "border-block-end-color")
-            {
-                var component = name[(name.LastIndexOf('-') + 1)..];
-                var logicalAxis = name[..^(component.Length + 1)];
-                string[] physicalSides = logicalAxis switch
+                // A custom property (--name, case-sensitive) holds any value; only its var() syntax and
+                // CSS-wide keyword are checked here. The cascade resolves it for each element.
+                if (CssVariables.IsCustomPropertyName(node.Name))
                 {
-                    "border-inline" => ["border-left", "border-right"],
-                    "border-block" => ["border-top", "border-bottom"],
-                    "border-inline-start" => ["border-left"],
-                    "border-inline-end" => ["border-right"],
-                    "border-block-start" => ["border-top"],
-                    "border-block-end" => ["border-bottom"],
-                    _ => throw new InvalidOperationException("Unrecognized logical border component.")
-                };
-                if (terms.Count > physicalSides.Length)
-                    throw new FactsPdfException("FPDF1202",
-                        "Logical border component expects one or two values for a pair, one for a side.",
-                        node.Span.Start);
-                var parts = terms.ToArray();
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    var source = valueTokens[i].Token;
-                    if (source.Kind == CssSyntaxTokenKind.Number &&
-                        CssBoxValues.IsExactlyUnitlessZero(parts[i]))
-                        parts[i] = "0";
-                    if (Wide(parts[i]) && parts.Length != 1)
-                        throw new FactsPdfException("FPDF1202",
-                            "A CSS-wide logical border component must be the only value.", source.Span.Start);
-                    if (!Wide(parts[i]))
-                        ValidateComponent(physicalSides[i] + "-" + component, parts[i], source.Span.Start);
-                }
-                for (var i = 0; i < physicalSides.Length; i++)
-                {
-                    var sourceIndex = Math.Min(i, parts.Length - 1);
-                    var sourceOffset = valueTokens[sourceIndex].Token.Span.Start;
-                    var physical = physicalSides[i] + "-" + component;
-                    Emit(Property(physical, sourceOffset), parts[sourceIndex], sourceOffset, physical);
-                }
-                continue;
-            }
-            // Eight LTR logical *longhands* name the same physical sides as
-            // the existing two-sided logical shorthands. Lowering before
-            // cascade preserves physical/logical declaration ordering and
-            // !important, including individual inherit/initial/unset sides.
-            // No RTL or vertical writing is accepted by this renderer.
-            if (name is "margin-inline-start" or "margin-inline-end"
-                or "margin-block-start" or "margin-block-end"
-                or "padding-inline-start" or "padding-inline-end"
-                or "padding-block-start" or "padding-block-end")
-            {
-                if (terms.Count != 1)
-                    throw new FactsPdfException("FPDF1202",
-                        "Logical side longhands require exactly one value.", node.Span.Start);
-                var physical = name switch
-                {
-                    "margin-inline-start" => "margin-left",
-                    "margin-inline-end" => "margin-right",
-                    "margin-block-start" => "margin-top",
-                    "margin-block-end" => "margin-bottom",
-                    "padding-inline-start" => "padding-left",
-                    "padding-inline-end" => "padding-right",
-                    "padding-block-start" => "padding-top",
-                    _ => "padding-bottom"
-                };
-                var sourceToken = valueTokens[0].Token;
-                var value = terms[0];
-                if (sourceToken.Kind == CssSyntaxTokenKind.Number)
-                {
-                    if (!CssBoxValues.IsExactlyUnitlessZero(value))
-                        throw new FactsPdfException("FPDF1202",
-                            "Logical box lengths require a supported unit or exact numeric zero.",
-                            sourceToken.Span.Start);
-                    value = "0";
-                }
-                if (!Wide(value)) ValidateComponent(physical, value, sourceToken.Span.Start);
-                Emit(Property(physical, sourceToken.Span.Start), value,
-                    sourceToken.Span.Start, physical);
-                continue;
-            }
-            // CSS four-corner order is top-left, top-right, bottom-right,
-            // bottom-left. Validate *all* components, including unmatched
-            // selectors; preserve one cascade winner for the full shorthand.
-            // Elliptical slash syntax remains rejected. Lower all four corners
-            // before winner selection so each longhand competes with its
-            // shorthand side under the normal cascade and !important.
-            if (name == "border-radius")
-            {
-                if (terms.Count > 4)
-                    throw new FactsPdfException("FPDF1202",
-                        "border-radius takes one to four physical corner lengths.", node.Span.Start);
-                var parts = terms.ToArray();
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    var source = valueTokens[i].Token;
-                    if (source.Kind == CssSyntaxTokenKind.Number &&
-                        CssBoxValues.IsExactlyUnitlessZero(parts[i]))
-                        parts[i] = "0";
-                    if (Wide(parts[i]))
-                    {
-                        if (parts.Length != 1)
-                            throw new FactsPdfException("FPDF1202",
-                                "CSS-wide radius keyword must be the only value.", source.Span.Start);
-                    }
-                    else _ = CssPaintValues.BorderRadius(parts[i], source.Span.Start);
-                }
-                var corners = ExpandFour(parts);
-                var targets = new[] { CssProperty.BorderTopLeftRadius, CssProperty.BorderTopRightRadius,
-                    CssProperty.BorderBottomRightRadius, CssProperty.BorderBottomLeftRadius };
-                var names = new[] { "border-top-left-radius", "border-top-right-radius",
-                    "border-bottom-right-radius", "border-bottom-left-radius" };
-                for (var i = 0; i < corners.Length; i++)
-                    Emit(targets[i], corners[i], node.Span.Start, names[i]);
-                continue;
-            }
-            if (name is "border-top-left-radius" or "border-top-right-radius"
-                or "border-bottom-right-radius" or "border-bottom-left-radius")
-            {
-                if (terms.Count != 1)
-                    throw new FactsPdfException("FPDF1202",
-                        "A corner-radius longhand requires exactly one physical length.", node.Span.Start);
-                var source = valueTokens[0].Token;
-                var radius = terms[0];
-                if (source.Kind == CssSyntaxTokenKind.Number && CssBoxValues.IsExactlyUnitlessZero(radius))
-                    radius = "0";
-                if (!Wide(radius)) _ = CssPaintValues.BorderRadius(radius, source.Span.Start);
-                Emit(property, radius, source.Span.Start);
-                continue;
-            }
-            if (name == "margin")
-            {
-                if (terms.Count > 4)
-                    throw new FactsPdfException("FPDF1202", "Margin shorthand takes one to four values.", node.Span.Start);
-                var parts = terms.ToArray();
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    // Normalize numeric zero with its original source location.
-                    if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
-                        && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
-                        parts[i] = "0";
-                }
-                if (parts.Length == 1 && Wide(parts[0]))
-                {
-                    Emit(CssProperty.MarginTop, parts[0], valueTokens[0].Token.Span.Start, "margin-top");
-                    Emit(CssProperty.MarginRight, parts[0], valueTokens[0].Token.Span.Start, "margin-right");
-                    Emit(CssProperty.MarginBottom, parts[0], valueTokens[0].Token.Span.Start, "margin-bottom");
-                    Emit(CssProperty.MarginLeft, parts[0], valueTokens[0].Token.Span.Start, "margin-left");
+                    CssVariables.ValidateReferences(node.Values);
+                    var keyword = CssVariables.Keyword(node.Values, node.Span.Start);
+                    var values = node.Values as CssSyntaxComponent[] ?? [.. node.Values];
+                    budget.UsesVariables = true;
+                    output.Add(CssDeclaration.Create(CssProperty.Custom, node.Name, CssVariables.Text(values), node.Important,
+                        budget.Declaration(node.Span.Start), node.Span.Start, new CssCustomValue(values, keyword)));
                     continue;
                 }
-                var sides = ExpandFour(parts);
-                for (var side = 0; side < 4; side++)
+                var originalName = node.Name.ToLowerInvariant();
+                // Legacy print stylesheets use page-break-before/after:always.
+                // Normalize only these known aliases into the existing cascade
+                // slots; page/auto retain the same actual layout semantics.
+                var legacyPageBreak = originalName is "page-break-before" or "page-break-after";
+                var name = CanonicalName(originalName);
+                // Fail unsupported properties first even when the value contains
+                // functions or multiple tokens.
+                var initialOnly = InitialOnlyValue(name);
+                var property = initialOnly is null && !IsInteractionOnly(name) ? Property(name, node.Span.Start) : default;
+                // A supported property whose value holds var() can be checked only after substitution,
+                // for each element it applies to (CSS Custom Properties: valid at parse time when the
+                // var() syntax is). It keeps one cascade order for every declaration it expands into.
+                if (CssVariables.ContainsVar(node.Values))
                 {
-                    var source = parts.Length switch
+                    CssVariables.ValidateReferences(node.Values);
+                    budget.UsesVariables = true;
+                    output.Add(CssDeclaration.Create(CssProperty.Pending, name, CssVariables.Text(node.Values), node.Important,
+                        budget.Declaration(node.Span.Start), node.Span.Start, new CssPendingValue(node, hostSelectors, hostElement is not null)));
+                    continue;
+                }
+                // Properties the report renderer does not implement, declared at the one value it
+                // already lays out (position: static, float: none, opacity: 1, ...): the declaration
+                // changes nothing, so it is validated and dropped. Every other value, including any
+                // function such as rotate() or url(), fails with a message naming the one value.
+                if (initialOnly is not null)
+                {
+                    ValidateInitialOnly(name, initialOnly, node);
+                    continue;
+                }
+                // Interaction-only properties (cursor, pointer-events, user-select, resize) change
+                // how a screen reacts to a pointer, never what is painted, and print-color-adjust
+                // only lets a printer drop colours, which this renderer never does; text-rendering and
+                // the font-smoothing switches only steer a screen rasteriser; so every keyword
+                // value is validated and dropped and any other value fails with FPDF1202.
+                if (IsInteractionOnly(name))
+                {
+                    ValidateInteractionOnly(name, node);
+                    continue;
+                }
+                // Only opaque RGB functions are lowered to their equivalent hex
+                // colour. All downstream cascade, box paint and PDF serializers
+                // therefore use exactly the already audited solid-colour path.
+                var canonical = CanonicalValues(node);
+                var terms = Terms(canonical);
+                var valueTokens = NonWhitespaceTokens(canonical.Values);
+                if (terms.Count == 0)
+                    throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+
+                void Emit(CssProperty target, string value, int offset = -1, string? targetName = null)
+                {
+                    var sourceOffset = offset < 0 ? node.Span.Start : offset;
+                    var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
+                    output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
+                }
+                // Logical border component declarations use the existing *physical*
+                // per-side width/style/colour cascade slots. The pair forms accept
+                // one or two values (start/end); individual sides exactly one.
+                // Only horizontal LTR normal-flow print layouts are supported.
+                if (name is "border-inline-width" or "border-inline-style" or "border-inline-color"
+                    or "border-block-width" or "border-block-style" or "border-block-color"
+                    or "border-inline-start-width" or "border-inline-start-style" or "border-inline-start-color"
+                    or "border-inline-end-width" or "border-inline-end-style" or "border-inline-end-color"
+                    or "border-block-start-width" or "border-block-start-style" or "border-block-start-color"
+                    or "border-block-end-width" or "border-block-end-style" or "border-block-end-color")
+                {
+                    var component = name[(name.LastIndexOf('-') + 1)..];
+                    var logicalAxis = name[..^(component.Length + 1)];
+                    string[] physicalSides = logicalAxis switch
                     {
-                        1 => 0, 2 => side % 2,
-                        3 => side == 3 ? 1 : side, _ => side
+                        "border-inline" => ["border-left", "border-right"],
+                        "border-block" => ["border-top", "border-bottom"],
+                        "border-inline-start" => ["border-left"],
+                        "border-inline-end" => ["border-right"],
+                        "border-block-start" => ["border-top"],
+                        "border-block-end" => ["border-bottom"],
+                        _ => throw new InvalidOperationException("Unrecognized logical border component.")
                     };
-                    var offset = valueTokens[source].Token.Span.Start;
-                    if (Wide(sides[side]))
+                    if (terms.Count > physicalSides.Length)
                         throw new FactsPdfException("FPDF1202",
-                            "A CSS-wide margin keyword must be the only value.", offset);
-                    if (side % 2 == 0)
-                        ValidateComponent("margin-top", sides[side], offset);
-                    else if (sides[side] != "auto")
-                        _ = CssBoxValues.Length(sides[side], offset, allowRem: true, allowEm: true);
-                }
-                Emit(CssProperty.MarginTop, sides[0], valueTokens[0].Token.Span.Start, "margin-top");
-                var rightSource = parts.Length == 1 ? 0 : 1;
-                Emit(CssProperty.MarginRight, sides[1], valueTokens[rightSource].Token.Span.Start, "margin-right");
-                var bottomSource = parts.Length switch { 1 => 0, 2 => 0, _ => 2 };
-                Emit(CssProperty.MarginBottom, sides[2], valueTokens[bottomSource].Token.Span.Start, "margin-bottom");
-                var leftSource = parts.Length == 4 ? 3 : rightSource;
-                Emit(CssProperty.MarginLeft, sides[3], valueTokens[leftSource].Token.Span.Start, "margin-left");
-                continue;
-            }
-
-            // Logical spacing is intentionally limited to horizontal LTR
-            // documents in normal flow. Expand into physical longhands here
-            // so the *same* per-side cascade, box geometry, page fragmentation
-            // and explicit failure behavior are used by the renderer.
-            if (name is "margin-inline" or "margin-block" or "padding-inline" or "padding-block")
-            {
-                if (terms.Count > 2)
-                    throw new FactsPdfException("FPDF1202",
-                        "Logical spacing shorthand takes one or two values.", node.Span.Start);
-                string[] longhands = name switch
-                {
-                    "margin-inline" => ["margin-left", "margin-right"],
-                    "margin-block" => ["margin-top", "margin-bottom"],
-                    "padding-inline" => ["padding-left", "padding-right"],
-                    _ => ["padding-top", "padding-bottom"]
-                };
-                var parts = terms.ToArray();
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    // Like the existing physical margin shorthand, retain
-                    // the source offset but normalize exactly zero-valued
-                    // unitless Number tokens before checking the physical side.
-                    if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
-                        && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
-                        parts[i] = "0";
-                }
-                var first = parts[0];
-                var second = parts.Length == 1 ? first : parts[1];
-                var firstOffset = valueTokens[0].Token.Span.Start;
-                var secondOffset = valueTokens[terms.Count - 1].Token.Span.Start;
-                if (terms.Count == 1 && Wide(first))
-                {
-                    Emit(Property(longhands[0], firstOffset), first, firstOffset, longhands[0]);
-                    Emit(Property(longhands[1], firstOffset), first, firstOffset, longhands[1]);
+                            "Logical border component expects one or two values for a pair, one for a side.",
+                            node.Span.Start);
+                    var parts = terms.ToArray();
+                    for (var i = 0; i < parts.Length; i++)
+                    {
+                        var source = valueTokens[i].Token;
+                        if (source.Kind == CssSyntaxTokenKind.Number &&
+                            CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                            parts[i] = "0";
+                        if (Wide(parts[i]) && parts.Length != 1)
+                            throw new FactsPdfException("FPDF1202",
+                                "A CSS-wide logical border component must be the only value.", source.Span.Start);
+                        if (!Wide(parts[i]))
+                            ValidateComponent(physicalSides[i] + "-" + component, parts[i], source.Span.Start);
+                    }
+                    for (var i = 0; i < physicalSides.Length; i++)
+                    {
+                        var sourceIndex = Math.Min(i, parts.Length - 1);
+                        var sourceOffset = valueTokens[sourceIndex].Token.Span.Start;
+                        var physical = physicalSides[i] + "-" + component;
+                        Emit(Property(physical, sourceOffset), parts[sourceIndex], sourceOffset, physical);
+                    }
                     continue;
                 }
-                if (Wide(first) || Wide(second))
-                    throw new FactsPdfException("FPDF1202",
-                        "A CSS-wide logical spacing keyword must be the only value.",
-                        Wide(first) ? firstOffset : secondOffset);
-                ValidateComponent(longhands[0], first, firstOffset);
-                ValidateComponent(longhands[1], second, secondOffset);
-                Emit(Property(longhands[0], firstOffset), first, firstOffset, longhands[0]);
-                Emit(Property(longhands[1], secondOffset), second, secondOffset, longhands[1]);
-                continue;
-            }
-            if (name is "padding" or "border-width" or "border-style" or "border-color")
-            {
-                if (terms.Count > 4) throw new FactsPdfException("FPDF1202", "Box shorthand takes one to four values.", node.Span.Start);
-                if (!(terms.Count == 1 && Wide(terms[0])))
-                    for (var i = 0; i < terms.Count; i++)
-                        ValidateComponent(name, terms[i], valueTokens[i].Token.Span.Start);
-                var properties = name switch
+                // Eight LTR logical *longhands* name the same physical sides as
+                // the existing two-sided logical shorthands. Lowering before
+                // cascade preserves physical/logical declaration ordering and
+                // !important, including individual inherit/initial/unset sides.
+                // No RTL or vertical writing is accepted by this renderer.
+                if (name is "margin-inline-start" or "margin-inline-end"
+                    or "margin-block-start" or "margin-block-end"
+                    or "padding-inline-start" or "padding-inline-end"
+                    or "padding-block-start" or "padding-block-end")
                 {
-                    "padding" => PaddingSides,
-                    "border-width" => BorderWidthSides,
-                    "border-style" => BorderStyleSides,
-                    _ => BorderColorSides
-                };
-                for (var i = 0; i < 4; i++)
-                {
-                    // Expand in TRBL order but charge a generated longhand
-                    // against the CSS token from which that side originated.
-                    var sourceIndex = SideSource(terms.Count, i);
-                    Emit(properties[i], terms[sourceIndex], valueTokens[sourceIndex].Token.Span.Start);
-                }
-                continue;
-            }
-            // Expand the outline shorthand into three separately cascading
-            // components. Omitted terms reset to initial values, not the
-            // previously winning outline longhand.
-            if (name == "outline")
-            {
-                if (terms.Count > 3)
-                    throw new FactsPdfException("FPDF1202",
-                        "Outline accepts up to three width/style/colour terms.", node.Span.Start);
-                var at = valueTokens[0].Token.Span.Start;
-                if (terms.Count == 1 && Wide(terms[0]))
-                {
-                    Emit(CssProperty.OutlineWidth, terms[0], at, "outline-width");
-                    Emit(CssProperty.OutlineStyle, terms[0], at, "outline-style");
-                    Emit(CssProperty.OutlineColor, terms[0], at, "outline-color");
+                    if (terms.Count != 1)
+                        throw new FactsPdfException("FPDF1202",
+                            "Logical side longhands require exactly one value.", node.Span.Start);
+                    var physical = name switch
+                    {
+                        "margin-inline-start" => "margin-left",
+                        "margin-inline-end" => "margin-right",
+                        "margin-block-start" => "margin-top",
+                        "margin-block-end" => "margin-bottom",
+                        "padding-inline-start" => "padding-left",
+                        "padding-inline-end" => "padding-right",
+                        "padding-block-start" => "padding-top",
+                        _ => "padding-bottom"
+                    };
+                    var sourceToken = valueTokens[0].Token;
+                    var value = terms[0];
+                    if (sourceToken.Kind == CssSyntaxTokenKind.Number)
+                    {
+                        if (!CssBoxValues.IsExactlyUnitlessZero(value))
+                            throw new FactsPdfException("FPDF1202",
+                                "Logical box lengths require a supported unit or exact numeric zero.",
+                                sourceToken.Span.Start);
+                        value = "0";
+                    }
+                    if (!Wide(value)) ValidateComponent(physical, value, sourceToken.Span.Start);
+                    Emit(Property(physical, sourceToken.Span.Start), value,
+                        sourceToken.Span.Start, physical);
                     continue;
                 }
-                var width = "medium"; var style = "none"; var color = "currentcolor";
-                var widthAt = at; var styleAt = at; var colorAt = at;
-                var seenWidth = false; var seenStyle = false; var seenColor = false;
-                for (var i = 0; i < terms.Count; i++)
+                // CSS four-corner order is top-left, top-right, bottom-right,
+                // bottom-left. Validate *all* components, including unmatched
+                // selectors; preserve one cascade winner for the full shorthand.
+                // Elliptical slash syntax remains rejected. Lower all four corners
+                // before winner selection so each longhand competes with its
+                // shorthand side under the normal cascade and !important.
+                if (name == "border-radius")
                 {
-                    var word = terms[i];
-                    var tokenAt = valueTokens[i].Token.Span.Start;
-                    if (Wide(word))
+                    if (terms.Count > 4)
                         throw new FactsPdfException("FPDF1202",
-                            "CSS-wide outline value must stand alone.", tokenAt);
-                    if (CssPaintValues.TryBorderWidth(word, out _))
+                            "border-radius takes one to four physical corner lengths.", node.Span.Start);
+                    var parts = terms.ToArray();
+                    for (var i = 0; i < parts.Length; i++)
                     {
-                        if (seenWidth) throw new FactsPdfException("FPDF1202", "Duplicate outline width.", tokenAt);
-                        _ = CssPaintValues.OutlineWidth(word, tokenAt);
-                        width = word; widthAt = tokenAt; seenWidth = true;
-                    }
-                    else if (word is "solid" or "none" or "dashed" or "dotted")
-                    {
-                        if (seenStyle) throw new FactsPdfException("FPDF1202", "Duplicate outline style.", tokenAt);
-                        style = word; styleAt = tokenAt; seenStyle = true;
-                    }
-                    else
-                    {
-                        if (seenColor) throw new FactsPdfException("FPDF1202", "Duplicate outline colour.", tokenAt);
-                        _ = CssPaintValues.BorderColor(word, tokenAt);
-                        color = word; colorAt = tokenAt; seenColor = true;
-                    }
-                }
-                Emit(CssProperty.OutlineWidth, width, widthAt, "outline-width");
-                Emit(CssProperty.OutlineStyle, style, styleAt, "outline-style");
-                Emit(CssProperty.OutlineColor, color, colorAt, "outline-color");
-                continue;
-            }
-            // Only horizontal LTR logical borders are mapped to physical PDF edges.
-            // This is a shorthand family, not directional writing-mode support.
-            // Lower each affected edge to the three existing independent
-            // width/style/colour cascade slots before PDF layout and paint.
-            if (name is "border" or "border-top" or "border-right" or "border-bottom" or "border-left"
-                or "border-inline" or "border-block" or "border-inline-start" or "border-inline-end"
-                or "border-block-start" or "border-block-end")
-            {
-                if (terms.Count > 3) throw new FactsPdfException("FPDF1202", "Border shorthand takes up to three terms.", node.Span.Start);
-                var words = terms;
-                string width = "medium", style = "none", color = "currentcolor";
-                var initialOffset = valueTokens[0].Token.Span.Start;
-                var widthOffset = initialOffset;
-                var styleOffset = initialOffset;
-                var colorOffset = initialOffset;
-                if (words.Count == 1 && Wide(words[0]))
-                    width = style = color = words[0];
-                else
-                {
-                    bool hasWidth = false, hasStyle = false, hasColor = false;
-                    for (var i = 0; i < words.Count; i++)
-                    {
-                        var word = words[i];
-                        var offset = valueTokens[i].Token.Span.Start;
-                        if (Wide(word)) throw new FactsPdfException("FPDF1202", "CSS-wide keyword must be the only shorthand value.", offset);
-                        if (CssPaintValues.TryBorderWidth(word, out _, allowRelative: true))
+                        var source = valueTokens[i].Token;
+                        if (source.Kind == CssSyntaxTokenKind.Number &&
+                            CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                            parts[i] = "0";
+                        if (Wide(parts[i]))
                         {
-                            if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
-                            width = word; hasWidth = true; widthOffset = offset;
+                            if (parts.Length != 1)
+                                throw new FactsPdfException("FPDF1202",
+                                    "CSS-wide radius keyword must be the only value.", source.Span.Start);
                         }
-                        else if (word is "solid" or "none" or "hidden" or "dashed" or "dotted")
+                        else _ = CssPaintValues.BorderRadius(parts[i], source.Span.Start);
+                    }
+                    var corners = ExpandFour(parts);
+                    var targets = new[] { CssProperty.BorderTopLeftRadius, CssProperty.BorderTopRightRadius,
+                        CssProperty.BorderBottomRightRadius, CssProperty.BorderBottomLeftRadius };
+                    var names = new[] { "border-top-left-radius", "border-top-right-radius",
+                        "border-bottom-right-radius", "border-bottom-left-radius" };
+                    for (var i = 0; i < corners.Length; i++)
+                        Emit(targets[i], corners[i], node.Span.Start, names[i]);
+                    continue;
+                }
+                if (name is "border-top-left-radius" or "border-top-right-radius"
+                    or "border-bottom-right-radius" or "border-bottom-left-radius")
+                {
+                    if (terms.Count != 1)
+                        throw new FactsPdfException("FPDF1202",
+                            "A corner-radius longhand requires exactly one physical length.", node.Span.Start);
+                    var source = valueTokens[0].Token;
+                    var radius = terms[0];
+                    if (source.Kind == CssSyntaxTokenKind.Number && CssBoxValues.IsExactlyUnitlessZero(radius))
+                        radius = "0";
+                    if (!Wide(radius)) _ = CssPaintValues.BorderRadius(radius, source.Span.Start);
+                    Emit(property, radius, source.Span.Start);
+                    continue;
+                }
+                if (name == "margin")
+                {
+                    if (terms.Count > 4)
+                        throw new FactsPdfException("FPDF1202", "Margin shorthand takes one to four values.", node.Span.Start);
+                    var parts = terms.ToArray();
+                    for (var i = 0; i < parts.Length; i++)
+                    {
+                        // Normalize numeric zero with its original source location.
+                        if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
+                            && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                            parts[i] = "0";
+                    }
+                    if (parts.Length == 1 && Wide(parts[0]))
+                    {
+                        Emit(CssProperty.MarginTop, parts[0], valueTokens[0].Token.Span.Start, "margin-top");
+                        Emit(CssProperty.MarginRight, parts[0], valueTokens[0].Token.Span.Start, "margin-right");
+                        Emit(CssProperty.MarginBottom, parts[0], valueTokens[0].Token.Span.Start, "margin-bottom");
+                        Emit(CssProperty.MarginLeft, parts[0], valueTokens[0].Token.Span.Start, "margin-left");
+                        continue;
+                    }
+                    var sides = ExpandFour(parts);
+                    for (var side = 0; side < 4; side++)
+                    {
+                        var source = parts.Length switch
                         {
-                            if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", offset);
-                            style = word; hasStyle = true; styleOffset = offset;
+                            1 => 0, 2 => side % 2,
+                            3 => side == 3 ? 1 : side, _ => side
+                        };
+                        var offset = valueTokens[source].Token.Span.Start;
+                        if (Wide(sides[side]))
+                            throw new FactsPdfException("FPDF1202",
+                                "A CSS-wide margin keyword must be the only value.", offset);
+                        if (side % 2 == 0)
+                            ValidateComponent("margin-top", sides[side], offset);
+                        else if (sides[side] != "auto")
+                            _ = CssBoxValues.Length(sides[side], offset, allowRem: true, allowEm: true);
+                    }
+                    Emit(CssProperty.MarginTop, sides[0], valueTokens[0].Token.Span.Start, "margin-top");
+                    var rightSource = parts.Length == 1 ? 0 : 1;
+                    Emit(CssProperty.MarginRight, sides[1], valueTokens[rightSource].Token.Span.Start, "margin-right");
+                    var bottomSource = parts.Length switch { 1 => 0, 2 => 0, _ => 2 };
+                    Emit(CssProperty.MarginBottom, sides[2], valueTokens[bottomSource].Token.Span.Start, "margin-bottom");
+                    var leftSource = parts.Length == 4 ? 3 : rightSource;
+                    Emit(CssProperty.MarginLeft, sides[3], valueTokens[leftSource].Token.Span.Start, "margin-left");
+                    continue;
+                }
+
+                // Logical spacing is intentionally limited to horizontal LTR
+                // documents in normal flow. Expand into physical longhands here
+                // so the *same* per-side cascade, box geometry, page fragmentation
+                // and explicit failure behavior are used by the renderer.
+                if (name is "margin-inline" or "margin-block" or "padding-inline" or "padding-block")
+                {
+                    if (terms.Count > 2)
+                        throw new FactsPdfException("FPDF1202",
+                            "Logical spacing shorthand takes one or two values.", node.Span.Start);
+                    string[] longhands = name switch
+                    {
+                        "margin-inline" => ["margin-left", "margin-right"],
+                        "margin-block" => ["margin-top", "margin-bottom"],
+                        "padding-inline" => ["padding-left", "padding-right"],
+                        _ => ["padding-top", "padding-bottom"]
+                    };
+                    var parts = terms.ToArray();
+                    for (var i = 0; i < parts.Length; i++)
+                    {
+                        // Like the existing physical margin shorthand, retain
+                        // the source offset but normalize exactly zero-valued
+                        // unitless Number tokens before checking the physical side.
+                        if (valueTokens[i].Token.Kind == CssSyntaxTokenKind.Number
+                            && CssBoxValues.IsExactlyUnitlessZero(parts[i]))
+                            parts[i] = "0";
+                    }
+                    var first = parts[0];
+                    var second = parts.Length == 1 ? first : parts[1];
+                    var firstOffset = valueTokens[0].Token.Span.Start;
+                    var secondOffset = valueTokens[terms.Count - 1].Token.Span.Start;
+                    if (terms.Count == 1 && Wide(first))
+                    {
+                        Emit(Property(longhands[0], firstOffset), first, firstOffset, longhands[0]);
+                        Emit(Property(longhands[1], firstOffset), first, firstOffset, longhands[1]);
+                        continue;
+                    }
+                    if (Wide(first) || Wide(second))
+                        throw new FactsPdfException("FPDF1202",
+                            "A CSS-wide logical spacing keyword must be the only value.",
+                            Wide(first) ? firstOffset : secondOffset);
+                    ValidateComponent(longhands[0], first, firstOffset);
+                    ValidateComponent(longhands[1], second, secondOffset);
+                    Emit(Property(longhands[0], firstOffset), first, firstOffset, longhands[0]);
+                    Emit(Property(longhands[1], secondOffset), second, secondOffset, longhands[1]);
+                    continue;
+                }
+                if (name is "padding" or "border-width" or "border-style" or "border-color")
+                {
+                    if (terms.Count > 4) throw new FactsPdfException("FPDF1202", "Box shorthand takes one to four values.", node.Span.Start);
+                    if (!(terms.Count == 1 && Wide(terms[0])))
+                        for (var i = 0; i < terms.Count; i++)
+                            ValidateComponent(name, terms[i], valueTokens[i].Token.Span.Start);
+                    var properties = name switch
+                    {
+                        "padding" => PaddingSides,
+                        "border-width" => BorderWidthSides,
+                        "border-style" => BorderStyleSides,
+                        _ => BorderColorSides
+                    };
+                    for (var i = 0; i < 4; i++)
+                    {
+                        // Expand in TRBL order but charge a generated longhand
+                        // against the CSS token from which that side originated.
+                        var sourceIndex = SideSource(terms.Count, i);
+                        Emit(properties[i], terms[sourceIndex], valueTokens[sourceIndex].Token.Span.Start);
+                    }
+                    continue;
+                }
+                // Expand the outline shorthand into three separately cascading
+                // components. Omitted terms reset to initial values, not the
+                // previously winning outline longhand.
+                if (name == "outline")
+                {
+                    if (terms.Count > 3)
+                        throw new FactsPdfException("FPDF1202",
+                            "Outline accepts up to three width/style/colour terms.", node.Span.Start);
+                    var at = valueTokens[0].Token.Span.Start;
+                    if (terms.Count == 1 && Wide(terms[0]))
+                    {
+                        Emit(CssProperty.OutlineWidth, terms[0], at, "outline-width");
+                        Emit(CssProperty.OutlineStyle, terms[0], at, "outline-style");
+                        Emit(CssProperty.OutlineColor, terms[0], at, "outline-color");
+                        continue;
+                    }
+                    var width = "medium"; var style = "none"; var color = "currentcolor";
+                    var widthAt = at; var styleAt = at; var colorAt = at;
+                    var seenWidth = false; var seenStyle = false; var seenColor = false;
+                    for (var i = 0; i < terms.Count; i++)
+                    {
+                        var word = terms[i];
+                        var tokenAt = valueTokens[i].Token.Span.Start;
+                        if (Wide(word))
+                            throw new FactsPdfException("FPDF1202",
+                                "CSS-wide outline value must stand alone.", tokenAt);
+                        if (CssPaintValues.TryBorderWidth(word, out _))
+                        {
+                            if (seenWidth) throw new FactsPdfException("FPDF1202", "Duplicate outline width.", tokenAt);
+                            _ = CssPaintValues.OutlineWidth(word, tokenAt);
+                            width = word; widthAt = tokenAt; seenWidth = true;
+                        }
+                        else if (word is "solid" or "none" or "dashed" or "dotted")
+                        {
+                            if (seenStyle) throw new FactsPdfException("FPDF1202", "Duplicate outline style.", tokenAt);
+                            style = word; styleAt = tokenAt; seenStyle = true;
                         }
                         else
                         {
-                            _ = CssPaintValues.EdgeColor(word, offset);
-                            if (hasColor) throw new FactsPdfException("FPDF1202", "Duplicate border color.", offset);
-                            color = word; hasColor = true; colorOffset = offset;
+                            if (seenColor) throw new FactsPdfException("FPDF1202", "Duplicate outline colour.", tokenAt);
+                            _ = CssPaintValues.BorderColor(word, tokenAt);
+                            color = word; colorAt = tokenAt; seenColor = true;
                         }
                     }
-                }
-                var edges = name switch
-                {
-                    "border-left" or "border-inline-start" => LeftEdge,
-                    "border-right" or "border-inline-end" => RightEdge,
-                    "border-top" or "border-block-start" => TopEdge,
-                    "border-bottom" or "border-block-end" => BottomEdge,
-                    "border-inline" => InlineEdges,
-                    "border-block" => BlockEdges,
-                    _ => AllEdges
-                };
-                foreach (var edge in edges)
-                {
-                    Emit((CssProperty)((int)CssProperty.BorderTopWidth + edge), width, widthOffset);
-                    Emit((CssProperty)((int)CssProperty.BorderTopStyle + edge), style, styleOffset);
-                    Emit((CssProperty)((int)CssProperty.BorderTopColor + edge), color, colorOffset);
-                }
-                continue;
-            }
-            // A bounded text-decoration-line set can paint any nonempty subset
-            // of underline/overline/line-through, or standalone none. Parse and
-            // validate even unmatched selectors before entering the cascade.
-            if (name == "text-decoration-line")
-            {
-                if (terms.Count > 3 || valueTokens.Length != terms.Count ||
-                    valueTokens.Any(t => t.Token.Kind != CssSyntaxTokenKind.Ident))
-                    throw new FactsPdfException("FPDF1202",
-                        "text-decoration-line accepts up to three distinct line keywords.", node.Span.Start);
-                var at = valueTokens[0].Token.Span.Start;
-                var lines = string.Join(" ", terms);
-                if (!(terms.Count == 1 && Wide(terms[0])))
-                    _ = InlineCss.ParseDecorationLines(lines, at);
-                Emit(CssProperty.TextDecoration, lines, at, "text-decoration-line");
-                continue;
-            }
-            // Bounded text-decoration shorthand: a nonempty line set and
-            // optional opaque colour, bounded thickness and solid/dashed/dotted stroke. Lower all
-            // four longhands through the normal CSS winner/cascade pipeline,
-            // so a later !important longhand can override one component and a
-            // new shorthand resets omitted components rather than ignoring them.
-            if (name == "text-decoration")
-            {
-                if (terms.Count > 6)
-                    throw new FactsPdfException("FPDF1202",
-                        "Text decoration accepts up to three lines, one stroke, thickness and opaque colour.", node.Span.Start);
-                if (terms.Count == 1 && Wide(terms[0]))
-                {
-                    var wideOffset = valueTokens[0].Token.Span.Start;
-                    Emit(CssProperty.TextDecoration, terms[0], wideOffset, "text-decoration-line");
-                    Emit(CssProperty.TextDecorationStyle, terms[0], wideOffset, "text-decoration-style");
-                    Emit(CssProperty.TextDecorationColor, terms[0], wideOffset, "text-decoration-color");
-                    Emit(CssProperty.TextDecorationThickness, terms[0], wideOffset, "text-decoration-thickness");
+                    Emit(CssProperty.OutlineWidth, width, widthAt, "outline-width");
+                    Emit(CssProperty.OutlineStyle, style, styleAt, "outline-style");
+                    Emit(CssProperty.OutlineColor, color, colorAt, "outline-color");
                     continue;
                 }
-                var lines = new List<string>(3);
-                var stroke = "solid";
-                var ink = "currentcolor";
-                var thickness = "auto";
-                var strokeSeen = false;
-                var inkSeen = false;
-                var thicknessSeen = false;
-                var lineOffset = node.Span.Start;
-                var strokeOffset = node.Span.Start;
-                var inkOffset = node.Span.Start;
-                var thicknessOffset = node.Span.Start;
-                for (var i = 0; i < terms.Count; i++)
+                // Only horizontal LTR logical borders are mapped to physical PDF edges.
+                // This is a shorthand family, not directional writing-mode support.
+                // Lower each affected edge to the three existing independent
+                // width/style/colour cascade slots before PDF layout and paint.
+                if (name is "border" or "border-top" or "border-right" or "border-bottom" or "border-left"
+                    or "border-inline" or "border-block" or "border-inline-start" or "border-inline-end"
+                    or "border-block-start" or "border-block-end")
                 {
-                    var word = terms[i];
-                    var at = valueTokens[i].Token.Span.Start;
-                    if (Wide(word))
-                        throw new FactsPdfException("FPDF1202",
-                            "CSS-wide decoration values must stand alone.", at);
-                    if (word is "none" or "underline" or "line-through" or "overline")
+                    if (terms.Count > 3) throw new FactsPdfException("FPDF1202", "Border shorthand takes up to three terms.", node.Span.Start);
+                    var words = terms;
+                    string width = "medium", style = "none", color = "currentcolor";
+                    var initialOffset = valueTokens[0].Token.Span.Start;
+                    var widthOffset = initialOffset;
+                    var styleOffset = initialOffset;
+                    var colorOffset = initialOffset;
+                    if (words.Count == 1 && Wide(words[0]))
+                        width = style = color = words[0];
+                    else
                     {
-                        if (lines.Contains(word))
+                        bool hasWidth = false, hasStyle = false, hasColor = false;
+                        for (var i = 0; i < words.Count; i++)
+                        {
+                            var word = words[i];
+                            var offset = valueTokens[i].Token.Span.Start;
+                            if (Wide(word)) throw new FactsPdfException("FPDF1202", "CSS-wide keyword must be the only shorthand value.", offset);
+                            if (CssPaintValues.TryBorderWidth(word, out _, allowRelative: true))
+                            {
+                                if (hasWidth) throw new FactsPdfException("FPDF1202", "Duplicate border width.", offset);
+                                width = word; hasWidth = true; widthOffset = offset;
+                            }
+                            else if (word is "solid" or "none" or "hidden" or "dashed" or "dotted")
+                            {
+                                if (hasStyle) throw new FactsPdfException("FPDF1202", "Duplicate border style.", offset);
+                                style = word; hasStyle = true; styleOffset = offset;
+                            }
+                            else
+                            {
+                                _ = CssPaintValues.EdgeColor(word, offset);
+                                if (hasColor) throw new FactsPdfException("FPDF1202", "Duplicate border color.", offset);
+                                color = word; hasColor = true; colorOffset = offset;
+                            }
+                        }
+                    }
+                    var edges = name switch
+                    {
+                        "border-left" or "border-inline-start" => LeftEdge,
+                        "border-right" or "border-inline-end" => RightEdge,
+                        "border-top" or "border-block-start" => TopEdge,
+                        "border-bottom" or "border-block-end" => BottomEdge,
+                        "border-inline" => InlineEdges,
+                        "border-block" => BlockEdges,
+                        _ => AllEdges
+                    };
+                    foreach (var edge in edges)
+                    {
+                        Emit((CssProperty)((int)CssProperty.BorderTopWidth + edge), width, widthOffset);
+                        Emit((CssProperty)((int)CssProperty.BorderTopStyle + edge), style, styleOffset);
+                        Emit((CssProperty)((int)CssProperty.BorderTopColor + edge), color, colorOffset);
+                    }
+                    continue;
+                }
+                // A bounded text-decoration-line set can paint any nonempty subset
+                // of underline/overline/line-through, or standalone none. Parse and
+                // validate even unmatched selectors before entering the cascade.
+                if (name == "text-decoration-line")
+                {
+                    if (terms.Count > 3 || valueTokens.Length != terms.Count ||
+                        valueTokens.Any(t => t.Token.Kind != CssSyntaxTokenKind.Ident))
+                        throw new FactsPdfException("FPDF1202",
+                            "text-decoration-line accepts up to three distinct line keywords.", node.Span.Start);
+                    var at = valueTokens[0].Token.Span.Start;
+                    var lines = string.Join(" ", terms);
+                    if (!(terms.Count == 1 && Wide(terms[0])))
+                        _ = InlineCss.ParseDecorationLines(lines, at);
+                    Emit(CssProperty.TextDecoration, lines, at, "text-decoration-line");
+                    continue;
+                }
+                // Bounded text-decoration shorthand: a nonempty line set and
+                // optional opaque colour, bounded thickness and solid/dashed/dotted stroke. Lower all
+                // four longhands through the normal CSS winner/cascade pipeline,
+                // so a later !important longhand can override one component and a
+                // new shorthand resets omitted components rather than ignoring them.
+                if (name == "text-decoration")
+                {
+                    if (terms.Count > 6)
+                        throw new FactsPdfException("FPDF1202",
+                            "Text decoration accepts up to three lines, one stroke, thickness and opaque colour.", node.Span.Start);
+                    if (terms.Count == 1 && Wide(terms[0]))
+                    {
+                        var wideOffset = valueTokens[0].Token.Span.Start;
+                        Emit(CssProperty.TextDecoration, terms[0], wideOffset, "text-decoration-line");
+                        Emit(CssProperty.TextDecorationStyle, terms[0], wideOffset, "text-decoration-style");
+                        Emit(CssProperty.TextDecorationColor, terms[0], wideOffset, "text-decoration-color");
+                        Emit(CssProperty.TextDecorationThickness, terms[0], wideOffset, "text-decoration-thickness");
+                        continue;
+                    }
+                    var lines = new List<string>(3);
+                    var stroke = "solid";
+                    var ink = "currentcolor";
+                    var thickness = "auto";
+                    var strokeSeen = false;
+                    var inkSeen = false;
+                    var thicknessSeen = false;
+                    var lineOffset = node.Span.Start;
+                    var strokeOffset = node.Span.Start;
+                    var inkOffset = node.Span.Start;
+                    var thicknessOffset = node.Span.Start;
+                    for (var i = 0; i < terms.Count; i++)
+                    {
+                        var word = terms[i];
+                        var at = valueTokens[i].Token.Span.Start;
+                        if (Wide(word))
                             throw new FactsPdfException("FPDF1202",
-                                "Duplicate text decoration line.", at);
-                        if (lines.Count == 0) lineOffset = at;
-                        lines.Add(word);
+                                "CSS-wide decoration values must stand alone.", at);
+                        if (word is "none" or "underline" or "line-through" or "overline")
+                        {
+                            if (lines.Contains(word))
+                                throw new FactsPdfException("FPDF1202",
+                                    "Duplicate text decoration line.", at);
+                            if (lines.Count == 0) lineOffset = at;
+                            lines.Add(word);
+                        }
+                        else if (word is "solid" or "dashed" or "dotted")
+                        {
+                            if (strokeSeen)
+                                throw new FactsPdfException("FPDF1202", "Duplicate decoration stroke.", at);
+                            stroke = word; strokeSeen = true; strokeOffset = at;
+                        }
+                        else if (word == "auto" || valueTokens[i].Token.Kind is CssSyntaxTokenKind.Dimension
+                            or CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage)
+                        {
+                            if (thicknessSeen)
+                                throw new FactsPdfException("FPDF1202", "Duplicate decoration thickness.", at);
+                            ValidateComponent("text-decoration-thickness", word, at);
+                            thickness = word; thicknessSeen = true; thicknessOffset = at;
+                        }
+                        else
+                        {
+                            if (inkSeen)
+                                throw new FactsPdfException("FPDF1202", "Duplicate decoration colour.", at);
+                            if (word != "currentcolor") _ = InlineCss.Color(word, at);
+                            ink = word; inkSeen = true; inkOffset = at;
+                        }
                     }
-                    else if (word is "solid" or "dashed" or "dotted")
-                    {
-                        if (strokeSeen)
-                            throw new FactsPdfException("FPDF1202", "Duplicate decoration stroke.", at);
-                        stroke = word; strokeSeen = true; strokeOffset = at;
-                    }
-                    else if (word == "auto" || valueTokens[i].Token.Kind is CssSyntaxTokenKind.Dimension
-                        or CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Percentage)
-                    {
-                        if (thicknessSeen)
-                            throw new FactsPdfException("FPDF1202", "Duplicate decoration thickness.", at);
-                        ValidateComponent("text-decoration-thickness", word, at);
-                        thickness = word; thicknessSeen = true; thicknessOffset = at;
-                    }
-                    else
-                    {
-                        if (inkSeen)
-                            throw new FactsPdfException("FPDF1202", "Duplicate decoration colour.", at);
-                        if (word != "currentcolor") _ = InlineCss.Color(word, at);
-                        ink = word; inkSeen = true; inkOffset = at;
-                    }
-                }
-                if (lines.Count == 0 || lines.Contains("none") && terms.Count > 1)
-                    throw new FactsPdfException("FPDF1202",
-                        "Text decoration shorthand requires visible lines or standalone none.", node.Span.Start);
-                var orderedLines = lines.Contains("none") ? "none" : string.Join(" ",
-                    DecorationLineOrder.Where(lines.Contains));
-                _ = InlineCss.ParseDecorationLines(orderedLines, lineOffset);
-                Emit(CssProperty.TextDecoration, orderedLines, lineOffset, "text-decoration-line");
-                Emit(CssProperty.TextDecorationStyle, stroke, strokeOffset, "text-decoration-style");
-                Emit(CssProperty.TextDecorationColor, ink, inkOffset, "text-decoration-color");
-                Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");
-                continue;
-            }
-            // List shorthands reset BOTH inherited marker type and position.
-            // Support only marker type plus optional inside/outside; never
-            // silently accept a URL, counter or arbitrary list-style image.
-            if (name == "list-style")
-            {
-                if (terms.Count is < 1 or > 2 || valueTokens.Length != terms.Count ||
-                    valueTokens.Any(t => t.Token.Kind != CssSyntaxTokenKind.Ident))
-                    throw new FactsPdfException("FPDF1202",
-                        "list-style accepts one marker type and optional inside/outside.", node.Span.Start);
-                if (terms.Count == 1 && Wide(terms[0]))
-                {
-                    Emit(CssProperty.ListStyleType, terms[0], valueTokens[0].Token.Span.Start, "list-style-type");
-                    Emit(CssProperty.ListStylePosition, terms[0], valueTokens[0].Token.Span.Start, "list-style-position");
+                    if (lines.Count == 0 || lines.Contains("none") && terms.Count > 1)
+                        throw new FactsPdfException("FPDF1202",
+                            "Text decoration shorthand requires visible lines or standalone none.", node.Span.Start);
+                    var orderedLines = lines.Contains("none") ? "none" : string.Join(" ",
+                        DecorationLineOrder.Where(lines.Contains));
+                    _ = InlineCss.ParseDecorationLines(orderedLines, lineOffset);
+                    Emit(CssProperty.TextDecoration, orderedLines, lineOffset, "text-decoration-line");
+                    Emit(CssProperty.TextDecorationStyle, stroke, strokeOffset, "text-decoration-style");
+                    Emit(CssProperty.TextDecorationColor, ink, inkOffset, "text-decoration-color");
+                    Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");
                     continue;
                 }
-                var kind = "disc";
-                var position = "outside";
-                var kindSeen = false;
-                var positionSeen = false;
-                for (var i = 0; i < terms.Count; i++)
+                // List shorthands reset BOTH inherited marker type and position.
+                // Support only marker type plus optional inside/outside; never
+                // silently accept a URL, counter or arbitrary list-style image.
+                if (name == "list-style")
                 {
-                    var word = terms[i];
-                    var at = valueTokens[i].Token.Span.Start;
-                    if (Wide(word))
+                    if (terms.Count is < 1 or > 2 || valueTokens.Length != terms.Count ||
+                        valueTokens.Any(t => t.Token.Kind != CssSyntaxTokenKind.Ident))
                         throw new FactsPdfException("FPDF1202",
-                            "CSS-wide list-style keywords must stand alone.", at);
-                    if (word is "inside" or "outside")
+                            "list-style accepts one marker type and optional inside/outside.", node.Span.Start);
+                    if (terms.Count == 1 && Wide(terms[0]))
                     {
-                        if (positionSeen) throw new FactsPdfException("FPDF1202", "Duplicate list marker position.", at);
-                        position = word; positionSeen = true;
+                        Emit(CssProperty.ListStyleType, terms[0], valueTokens[0].Token.Span.Start, "list-style-type");
+                        Emit(CssProperty.ListStylePosition, terms[0], valueTokens[0].Token.Span.Start, "list-style-position");
+                        continue;
                     }
-                    else
+                    var kind = "disc";
+                    var position = "outside";
+                    var kindSeen = false;
+                    var positionSeen = false;
+                    for (var i = 0; i < terms.Count; i++)
                     {
-                        if (kindSeen) throw new FactsPdfException("FPDF1202", "Duplicate list marker type.", at);
-                        _ = ListMarkerTypes.Parse(word, at);
-                        kind = word; kindSeen = true;
+                        var word = terms[i];
+                        var at = valueTokens[i].Token.Span.Start;
+                        if (Wide(word))
+                            throw new FactsPdfException("FPDF1202",
+                                "CSS-wide list-style keywords must stand alone.", at);
+                        if (word is "inside" or "outside")
+                        {
+                            if (positionSeen) throw new FactsPdfException("FPDF1202", "Duplicate list marker position.", at);
+                            position = word; positionSeen = true;
+                        }
+                        else
+                        {
+                            if (kindSeen) throw new FactsPdfException("FPDF1202", "Duplicate list marker type.", at);
+                            _ = ListMarkerTypes.Parse(word, at);
+                            kind = word; kindSeen = true;
+                        }
                     }
+                    Emit(CssProperty.ListStyleType, kind, node.Span.Start, "list-style-type");
+                    Emit(CssProperty.ListStylePosition, position, node.Span.Start, "list-style-position");
+                    continue;
                 }
-                Emit(CssProperty.ListStyleType, kind, node.Span.Start, "list-style-type");
-                Emit(CssProperty.ListStylePosition, position, node.Span.Start, "list-style-position");
-                continue;
-            }
-            if (terms.Count != 1)
-                throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
-            var token = terms[0];
-            var tokenOffset = valueTokens[0].Token.Span.Start;
-            if (legacyPageBreak && token == "always") token = "page";
-            // The background shorthand's "none" resets the image layer and leaves
-            // the initial colour, transparent: exactly the existing no-fill paint.
-            // background-color has no "none" value and still rejects it.
-            if (name == "background" && token == "none" &&
-                valueTokens[0].Token.Kind == CssSyntaxTokenKind.Ident) token = "transparent";
-            if (property == CssProperty.Display)
-            {
-                // The report renderer supports suppression, not CSS display
-                // formatting contexts. CSS-wide initial/unset compute to
-                // inline and are deliberately rejected rather than faked.
-                // A table-part keyword passes only where every host the declarations
-                // can reach is the table part whose rendering it names; the cascade
-                // then drops it (CssStylesheets.TablePartDisplayError).
-                var displayError = valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
-                    ? "Report display supports only block and none."
-                    : token is "none" or "block" ? null
-                    : CssStylesheets.TablePartDisplayError(token, hostSelectors, hostElement);
-                if (displayError is not null)
-                    throw new FactsPdfException("FPDF1202", displayError, tokenOffset);
+                if (terms.Count != 1)
+                    throw new FactsPdfException("FPDF1202", "Expected one supported CSS value.", node.Span.Start);
+                var token = terms[0];
+                var tokenOffset = valueTokens[0].Token.Span.Start;
+                if (legacyPageBreak && token == "always") token = "page";
+                // The background shorthand's "none" resets the image layer and leaves
+                // the initial colour, transparent: exactly the existing no-fill paint.
+                // background-color has no "none" value and still rejects it.
+                if (name == "background" && token == "none" &&
+                    valueTokens[0].Token.Kind == CssSyntaxTokenKind.Ident) token = "transparent";
+                if (property == CssProperty.Display)
+                {
+                    // The report renderer supports suppression, not CSS display
+                    // formatting contexts. CSS-wide initial/unset compute to
+                    // inline and are deliberately rejected rather than faked.
+                    // A table-part keyword passes only where every host the declarations
+                    // can reach is the table part whose rendering it names; the cascade
+                    // then drops it (CssStylesheets.TablePartDisplayError).
+                    var displayError = valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
+                        ? "Report display supports only block and none."
+                        : token is "none" or "block" ? null
+                        : CssStylesheets.TablePartDisplayError(token, hostSelectors, hostElement);
+                    if (displayError is not null)
+                        throw new FactsPdfException("FPDF1202", displayError, tokenOffset);
+                    Emit(property, token, tokenOffset);
+                    continue;
+                }
+                if (property == CssProperty.FontWeight)
+                {
+                    var syntax = valueTokens[0].Token;
+                    if (syntax.Kind == CssSyntaxTokenKind.Number
+                        && TryNumericFontWeight(syntax.Value, out var weight))
+                        token = weight.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+                    else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold" or "bolder" or "lighter"))
+                        throw new FactsPdfException("FPDF1202",
+                            "font-weight requires normal/bold/bolder/lighter or numeric hundreds from 100 through 900.", tokenOffset);
+                }
+                if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
+                    || !(Wide(token) || token is "normal" or "italic")))
+                    throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
+                if ((property is CssProperty.ListStyleType or CssProperty.ListStylePosition) && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
+                    throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
+                if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
                 Emit(property, token, tokenOffset);
-                continue;
             }
-            if (property == CssProperty.FontWeight)
+            catch (FactsPdfException error) when (warnings is not null && error.Code is "FPDF1201" or "FPDF1202"
+                && CssSpecValidity.InvalidDeclaration(node.Name, CanonicalName(node.Name.ToLowerInvariant()), node.Values))
             {
-                var syntax = valueTokens[0].Token;
-                if (syntax.Kind == CssSyntaxTokenKind.Number
-                    && TryNumericFontWeight(syntax.Value, out var weight))
-                    token = weight.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
-                else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold" or "bolder" or "lighter"))
-                    throw new FactsPdfException("FPDF1202",
-                        "font-weight requires normal/bold/bolder/lighter or numeric hundreds from 100 through 900.", tokenOffset);
+                output.RemoveRange(mark, output.Count - mark);
+                warnings.Add(error);
             }
-            if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
-                || !(Wide(token) || token is "normal" or "italic")))
-                throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
-            if ((property is CssProperty.ListStyleType or CssProperty.ListStylePosition) && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
-                throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
-            if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
-            Emit(property, token, tokenOffset);
         }
         var compiled = output.ToArray();
         output.Clear(); // drop the references before the list waits in its slot
         if (output.Capacity <= MaxPooledDeclarations) pooledDeclarations = output;
         return compiled;
     }
+
+    /// <summary>The property a legacy, prefixed or alias name shares its cascade slot, values and errors with.</summary>
+    internal static string CanonicalName(string name) => name switch
+    {
+        "page-break-before" => "break-before",
+        "page-break-after" => "break-after",
+        "page-break-inside" => "break-inside",
+        // CSS Text: word-wrap is the legacy name of overflow-wrap and
+        // shares its cascade slot, values and applicability.
+        "word-wrap" => "overflow-wrap",
+        // print-color-adjust is still mostly written with Chromium's prefix.
+        // color-adjust is the deprecated name of print-color-adjust (Firefox, older print CSS);
+        // background-color-adjust is a non-standard name print resets write next to both.
+        "-webkit-print-color-adjust" or "color-adjust" or "background-color-adjust" => "print-color-adjust",
+        // Tailwind preflight and modern-normalize write tab-size with the Gecko prefix first.
+        "-moz-tab-size" => "tab-size",
+        // text-size-adjust is almost always written with the WebKit prefix (normalize.css).
+        // normalize.css v3/v4 also writes the -ms- spelling (and some resets -moz-).
+        "-webkit-text-size-adjust" or "-ms-text-size-adjust" or "-moz-text-size-adjust" => "text-size-adjust",
+        // appearance resets are still written with both engine prefixes.
+        "-webkit-appearance" or "-moz-appearance" => "appearance",
+        "-webkit-backface-visibility" => "backface-visibility",
+        // Resets and component libraries still disable selection with all three prefixes.
+        "-webkit-user-select" or "-moz-user-select" or "-ms-user-select" => "user-select",
+        // Bootstrap 3 and older resets write box-sizing with both engine prefixes first.
+        "-webkit-box-sizing" or "-moz-box-sizing" => "box-sizing",
+        // Bootstrap 3, Font Awesome 4 and older themes write the engine-prefixed spellings of
+        // border-radius, box-shadow, transform and filter before (or instead of) the standard
+        // name; they share its cascade slot, values, applicability and errors.
+        "-webkit-border-radius" or "-moz-border-radius" => "border-radius",
+        "-webkit-box-shadow" or "-moz-box-shadow" => "box-shadow",
+        "-webkit-transform" or "-moz-transform" or "-ms-transform" or "-o-transform" => "transform",
+        "-webkit-filter" => "filter",
+        "-webkit-transform-origin" => "transform-origin",
+        "-webkit-clip-path" => "clip-path",
+        "-webkit-backdrop-filter" => "backdrop-filter",
+        // normalize.css 7 and Bootstrap 4's reboot write -webkit-text-decoration-skip:objects on a.
+        "-webkit-text-decoration-skip" => "text-decoration-skip",
+        // Bootstrap 4's reboot and Safari-era stylesheets write the text-decoration shorthand
+        // and longhands with the WebKit prefix (abbr{-webkit-text-decoration:underline dotted}).
+        "-webkit-text-decoration" or "-webkit-text-decoration-line" or "-webkit-text-decoration-color"
+            or "-webkit-text-decoration-style" => name[8..],
+        // Older stylesheets still write font-feature-settings with both engine prefixes.
+        "-webkit-font-feature-settings" or "-moz-font-feature-settings" => "font-feature-settings",
+        // Older stylesheets (Bootstrap 3 and many themes) still write -webkit-transition.
+        "-webkit-transition" or "-webkit-transition-property" or "-webkit-transition-duration"
+            or "-webkit-transition-timing-function" or "-webkit-transition-delay"
+            or "-webkit-animation" or "-webkit-animation-name" or "-webkit-animation-duration"
+            or "-webkit-animation-timing-function" or "-webkit-animation-delay"
+            or "-webkit-animation-iteration-count" or "-webkit-animation-direction"
+            or "-webkit-animation-fill-mode" or "-webkit-animation-play-state" => name[8..],
+        _ => name
+    };
 
     // Keeps the pooled array small; a larger declaration block allocates its own list.
     private const int MaxPooledDeclarations = 1024;

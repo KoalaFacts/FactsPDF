@@ -8,7 +8,7 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--strict true|false]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
@@ -26,6 +26,7 @@ public static class CliApplication
         "Structured furniture cannot be combined with --page-numbers, --header-text or --footer-text, including empty legacy text.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
         "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n" +
+        "--strict true (default) fails on every CSS construct that is not rendered exactly. --strict false (also --strict=false) drops CSS that is invalid per the CSS specifications, as a browser does, prints each as a warning on stderr and still exits 0; valid but unsupported CSS still fails.\n" +
         "--version prints the built CLI informational version for deployment and support; no document or resources are read.\n";
 
     public static int Run(string[] args, Stream input, Stream output, TextWriter error,
@@ -53,6 +54,7 @@ public static class CliApplication
             double? requestedPageWidth = null; double? requestedPageHeight = null;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
             string? title = null; string? author = null; string? subject = null; string? keywords = null;
+            bool? strict = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
@@ -113,6 +115,19 @@ public static class CliApplication
                     if (fontPaths.Count >= 8) throw new ArgumentException("At most eight font paths are allowed.");
                     var role = arg switch { "--font-bold" => 1, "--font-italic" => 2, "--font-bold-italic" => 3, _ => 0 };
                     fontPaths.Add((role, Path.GetFullPath(args[i])));
+                }
+                else if ((arg == "--strict" || arg.StartsWith("--strict=", StringComparison.Ordinal)) && strict is null)
+                {
+                    string value;
+                    if (arg == "--strict")
+                    {
+                        if (++i >= args.Length) throw new ArgumentException("--strict requires true or false.");
+                        value = args[i];
+                    }
+                    else value = arg["--strict=".Length..];
+                    strict = value.Equals("true", StringComparison.OrdinalIgnoreCase) ? true
+                        : value.Equals("false", StringComparison.OrdinalIgnoreCase) ? false
+                        : throw new ArgumentException("--strict requires true or false.");
                 }
                 else if (arg == "--image")
                 {
@@ -175,6 +190,8 @@ public static class CliApplication
             if (footerText is not null) writer = writer.WithFooterText(footerText);
             if (pageNumbers) writer = writer.WithPageNumbers();
             if (furniture is not null) writer = writer.WithPageFurniture(furniture);
+            PdfWarnings? warnings = null;
+            if (strict == false) writer = writer.WithStrict(false).WithWarnings(report => warnings = report);
             var fonts = Enumerable.Range(0, 4).Select(_ => new List<PdfFont>()).ToArray(); long totalFontBytes = 0;
             foreach (var (role, path) in fontPaths)
             {
@@ -211,6 +228,7 @@ public static class CliApplication
                 { result = writer.ToStream(html, file, cancellationToken); file.Flush(flushToDisk: true); }
                 cancellationToken.ThrowIfCancellationRequested(); File.Move(temporary, destination, overwrite); temporary = null;
             }
+            if (warnings is not null) WriteWarnings(error, html, warnings);
             error.WriteLine($"Wrote {result.PageCount} page(s), {result.BytesWritten} bytes."); return 0;
         }
         catch (OperationCanceledException) { error.WriteLine("Conversion cancelled."); return 130; }
@@ -245,6 +263,19 @@ public static class CliApplication
                 { error.WriteLine("Could not remove temporary file: " + temporary); }
             }
         }
+    }
+
+    // One line per dropped construct, in source order, with the location strict mode would report.
+    private static void WriteWarnings(TextWriter error, string html, PdfWarnings warnings)
+    {
+        foreach (var warning in warnings.Items)
+        {
+            var location = warning.SourceOffset >= 0 && warning.SourceOffset <= html.Length
+                ? " " + DescribeLocation(html, warning.SourceOffset) : "";
+            error.WriteLine($"warning {warning.Code}: {warning.Message}{location}");
+        }
+        if (warnings.TotalCount > warnings.Items.Count)
+            error.WriteLine($"warning: {warnings.TotalCount - warnings.Items.Count} more CSS warning(s) were counted but not listed.");
     }
 
     // Reports only the position, never input text.

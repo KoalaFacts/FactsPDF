@@ -69,6 +69,14 @@ internal sealed record PdfOptions
     public int MaxCssSyntaxDepth { get; init; } = 64;
     /// <summary>Upper bound of text and primitive box paint operations, all pages.</summary>
     public int MaxDisplayCommands { get; init; } = 200_000;
+    /// <summary>Strict (default): every CSS the renderer rejects fails. Non-strict: CSS that is invalid per the specifications is dropped as a browser drops it and reported as a warning.</summary>
+    public bool Strict { get; init; } = true;
+    /// <summary>Maximum number of warnings a non-strict conversion records; later ones are only counted.</summary>
+    public int MaxCssWarnings { get; init; } = 1_000;
+    /// <summary>Receives the warnings of each successful conversion.</summary>
+    public Action<PdfWarnings>? WarningHandler { get; init; }
+    /// <summary>The warning collector of the conversion in progress: set by the converter on its own copy of the options when <see cref="Strict"/> is false.</summary>
+    internal CssWarnings? CssWarnings { get; init; }
 }
 
 /// <summary>Outcome of a successful <see cref="PdfWriter"/> write.</summary>

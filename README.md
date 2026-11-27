@@ -63,6 +63,7 @@ stdin/stdout). Common options:
 | `--subset-fonts` | Embed only the glyphs used |
 | `--image name=path.png` | Bind an image resource, see [below](#fonts-and-images) |
 | `--overwrite` | Allow replacing an existing output file |
+| `--strict false` (or `--strict=false`) | Non-strict CSS: drop CSS that is invalid per the specifications, as a browser does, and print each as a warning (exit 0); default `true` ([contract](docs/css-stylesheets.md#strict-and-non-strict-css)) |
 | `--help`, `--version` | Show usage, or the exact build version and commit |
 
 Example with a header, footer and page numbers:
@@ -104,7 +105,9 @@ file only after the PDF is complete. Every method renders fully before writing,
 so a failed conversion writes nothing, and each accepts a `CancellationToken`.
 `WithFonts`, `WithImage`, `WithMetadata`, `WithPageFurniture` and `WithLimits`
 set fonts, images, document properties, styled headers and footers, and resource
-limits. See the [API guide](docs/development.md#library-api) and the
+limits. `WithStrict(false)` drops CSS that is invalid per the specifications, as
+a browser does, and `WithWarnings(handler)` receives what was dropped
+([strict and non-strict CSS](docs/css-stylesheets.md#strict-and-non-strict-css)). See the [API guide](docs/development.md#library-api) and the
 [local-package recipe](docs/development.md#first-use-from-local-artifacts).
 
 ## Fonts and images

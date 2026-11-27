@@ -64,7 +64,7 @@ internal sealed class CssStylesheets
     // var() declarations already compiled for a computed custom property set (and, for a style
     // attribute, its element). Bounded like the other per-conversion tables.
     private const int MaxSubstitutions = 256;
-    private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), CssDeclaration[]> substitutions = [];
+    private readonly Dictionary<(CssDeclaration Declaration, CssCustomEnvironment Environment, string? Element), (CssDeclaration[] Declarations, FactsPdfException? Warning)> substitutions = [];
 
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
@@ -192,9 +192,13 @@ internal sealed class CssStylesheets
             }
             return new InlineStyle(declarations, shift, firstOrder);
         }
+        var warned = budget.Warnings?.Total ?? 0;
         var nodes = ParseSource(css, valueOffset, declarationsOnly: true, originOffsets).Declarations;
         var output = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget, hostElement: element);
-        if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength)
+        // A text that produced non-strict warnings is compiled again for every element, so each
+        // element's dropped declarations are reported at its own offsets.
+        if (originOffsets is null && compiledStyles.Count < MaxCompiledStyles && css.Length <= MaxCompiledStyleLength
+            && (budget.Warnings?.Total ?? 0) == warned)
             compiledStyles.Add(css, (output, valueOffset));
         return new InlineStyle(output, 0, 0);
     }
@@ -256,7 +260,11 @@ internal sealed class CssStylesheets
                     MaxQualifiedRules = budget.SelectorsLeft,
                     MaxDeclarations = budget.DeclarationsLeft,
                 });
-            CssSyntaxAdapter.ThrowIfRecovered(result);
+            // Non-strict mode keeps the tree CSS Syntax error recovery produced (the parser drops
+            // exactly the declaration, rule or at-rule a browser drops) and reports each error.
+            if (budget.Warnings is { } warnings)
+                foreach (var diagnostic in result.Diagnostics) warnings.Add("FPDF1203", diagnostic.Message, diagnostic.Span.Start);
+            else CssSyntaxAdapter.ThrowIfRecovered(result);
             return result;
         }
         catch (CssSyntaxLimitException error)
@@ -329,7 +337,18 @@ internal sealed class CssStylesheets
                 if (at.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
                     || at.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase))
                 {
-                    ValidateKeyframes(at);
+                    // A malformed @keyframes rule (or keyframe) is dropped by a browser; every
+                    // keyframe is dropped here anyway, so the page is the same either way.
+                    try { ValidateKeyframes(at); }
+                    catch (FactsPdfException error) when (budget.Warnings is { } warnings) { warnings.Add(error); }
+                    continue;
+                }
+                // An unknown at-rule, and @media without a block, are invalid: a browser drops
+                // the whole at-rule (to its semicolon or with its block).
+                if (budget.Warnings is { } dropped && (CssSpecValidity.UnknownAtRule(at.Name)
+                    || at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) && at.Contents is null))
+                {
+                    dropped.Add("FPDF1204", "Only block-form @media print/all is supported.", rule.Span.Start);
                     continue;
                 }
                 // Bounded print-only conditionals: no device queries, nesting,
@@ -345,22 +364,32 @@ internal sealed class CssStylesheets
                     !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
                       || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
                     throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
+                var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", rule.Span.Start);
                 // A print stylesheet may carry @keyframes; ParseRules validates and drops them.
-                if (at.Contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
+                if (contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
                         && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
                             || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)))))
                     throw new FactsPdfException("FPDF1204",
                         "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
-                ParseRules(at.Contents.Cast<CssRuleNode>().ToArray());
+                ParseRules(contents.Cast<CssRuleNode>().ToArray());
                 continue;
             }
             if (rule is not CssQualifiedRuleNode qualified)
                 throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", rule.Span.Start);
-            var selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start);
-            if (qualified.Contents.Any(x => x is not CssDeclarationNode))
+            CssSelector[] selectors;
+            try { selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start); }
+            // An invalid selector list makes a browser drop the whole style rule, declarations included.
+            catch (FactsPdfException error) when (budget.Warnings is { } warnings && error.Code == "FPDF1203"
+                && CssSpecValidity.InvalidSelectorList(qualified.Prelude))
+            {
+                warnings.Add(error);
+                continue;
+            }
+            var ruleContents = WithoutUnknownAtRules(qualified.Contents, "Nested CSS rules are not supported by the PDF renderer.", "FPDF1203", rule.Span.Start);
+            if (ruleContents.Any(x => x is not CssDeclarationNode))
                 throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", rule.Span.Start);
             var declarations = CssSyntaxAdapter.CompileKnownDeclarations(
-                qualified.Contents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
+                ruleContents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
             foreach (var selector in selectors)
             {
                 var entry = new Rule(selector, declarations);
@@ -371,6 +400,17 @@ internal sealed class CssStylesheets
                 else universal.Add(entry);
             }
         }
+    }
+
+    // Non-strict mode drops unknown at-rules nested in a block, as a browser does, reporting the
+    // error strict mode throws for the block; anything else in the block is left for the caller.
+    private IReadOnlyList<CssSyntaxContent> WithoutUnknownAtRules(IReadOnlyList<CssSyntaxContent> contents,
+        string message, string code, int offset)
+    {
+        if (budget.Warnings is not { } warnings || !contents.Any(x => x is CssAtRuleNode nested && CssSpecValidity.UnknownAtRule(nested.Name)))
+            return contents;
+        warnings.Add(code, message, offset);
+        return contents.Where(x => !(x is CssAtRuleNode nested && CssSpecValidity.UnknownAtRule(nested.Name))).ToArray();
     }
 
     private static void Add(Dictionary<string, List<Rule>> index, string key, Rule rule)
@@ -915,21 +955,32 @@ internal sealed class CssStylesheets
     /// properties. A reference without a value or fallback, a CSS-wide keyword produced by
     /// substitution, or a substituted value the property does not accept fails with the error the
     /// literal value would give (FPDF1202 for values), located at the var() declaration: the
-    /// renderer fails rather than treating the declaration as unset as a browser would.
+    /// renderer fails rather than treating the declaration as unset as a browser would. Non-strict
+    /// mode treats a declaration that is invalid at computed-value time (a reference without a value
+    /// or fallback, or a substituted value that is invalid per the specifications) as unset, as a
+    /// browser does, and reports the strict error as a warning; a substituted CSS-wide keyword or a
+    /// valid value the renderer does not implement still fails.
     /// </summary>
     private CssDeclaration[] Substitute(Deferral pending, CssCustomEnvironment environment, string element)
     {
         var payload = (CssPendingValue)pending.Shared.Payload!;
         var key = (pending.Shared, environment, payload.Inline ? element : null);
-        if (substitutions.TryGetValue(key, out var cached)) return cached;
+        if (substitutions.TryGetValue(key, out var cached))
+        {
+            if (cached.Warning is not null) budget.Warnings?.Add(cached.Warning);
+            return cached.Declarations;
+        }
         var name = payload.Node.Name;
         var values = new List<CssSyntaxComponent>();
         var nodes = 0;
         if (!CssVariables.Substitute(payload.Node.Values, values, ref nodes, pending.Offset, 1, budget, syntaxLimits,
                 (string reference, out CssVariableValue value) => environment.TryGet(reference, out value), out var missing))
-            throw new FactsPdfException("FPDF1202",
+        {
+            var error = new FactsPdfException("FPDF1202",
                 $"var({missing}) in '{name}' has no value and no fallback: the custom property is not defined on this element or its ancestors, is initial, is part of a reference cycle or failed its own substitution.",
                 pending.Offset);
+            return budget.Warnings is null ? throw error : Unset(pending, payload, element, key, error);
+        }
         if (CssVariables.IsWideKeyword(values))
             throw new FactsPdfException("FPDF1202",
                 $"var() in '{name}' substitutes the CSS-wide keyword '{CssVariables.Text(values)}', which is not supported.", pending.Offset);
@@ -937,16 +988,33 @@ internal sealed class CssStylesheets
         try
         {
             compiled = CssSyntaxAdapter.CompileKnownDeclarations([payload.Node with { Values = values.ToArray() }], budget,
-                payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1);
+                payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1, recover: false);
         }
         catch (FactsPdfException error) when (error.Code != "FPDF1205")
         {
             var reason = error.Message.StartsWith(error.Code + ": ", StringComparison.Ordinal)
                 ? error.Message[(error.Code.Length + 2)..] : error.Message;
-            throw new FactsPdfException(error.Code,
+            var substituted = new FactsPdfException(error.Code,
                 $"'{name}: {CssVariables.Text(values)}' after var() substitution: {reason}", pending.Offset);
+            if (budget.Warnings is null || error.Code is not ("FPDF1201" or "FPDF1202")
+                || !CssSpecValidity.InvalidDeclaration(name, CssSyntaxAdapter.CanonicalName(name.ToLowerInvariant()), values))
+                throw substituted;
+            return Unset(pending, payload, element, key, substituted);
         }
-        if (substitutions.Count < MaxSubstitutions) substitutions[key] = compiled;
+        if (substitutions.Count < MaxSubstitutions) substitutions[key] = (compiled, null);
+        return compiled;
+    }
+
+    // A declaration invalid at computed-value time computes as unset (CSS Custom Properties 1,
+    // section 3.1): it still wins the cascade, and its longhands take their inherited or initial value.
+    private CssDeclaration[] Unset(Deferral pending, CssPendingValue payload, string element,
+        (CssDeclaration, CssCustomEnvironment, string?) key, FactsPdfException warning)
+    {
+        var unset = new CssTokenComponent(new CssSyntaxToken(CssSyntaxTokenKind.Ident, "unset", "unset", new CssSourceSpan(pending.Offset, 0)));
+        var compiled = CssSyntaxAdapter.CompileKnownDeclarations([payload.Node with { Values = [unset] }], budget,
+            payload.HostSelectors, payload.Inline ? element : null, fixedOrder: 1, recover: false);
+        budget.Warnings!.Add(warning);
+        if (substitutions.Count < MaxSubstitutions) substitutions[key] = (compiled, warning);
         return compiled;
     }
 
