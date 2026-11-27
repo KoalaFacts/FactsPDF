@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { classifyDifference, compareRuns, type Difference, exitCodeOf, failures, optionSets, parseArguments, type RunResult, trailerKinds, workParent } from './parity.ts';
+import { classifyDifference, classifyDifferences, compareRuns, type Difference, exitCodeOf, failures, optionSets, parseArguments, type RunResult, trailerKinds, workParent } from './parity.ts';
 
 const pdf = (text: string) => Buffer.from(text, 'latin1');
 const ok = (bytes: string): RunResult => ({ exitCode: 0, stderr: '', pdf: pdf(bytes) });
@@ -144,39 +144,51 @@ test('inline-replaced-baseline accepts only rendered PDFs of existing examples w
   assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, true), null);
 });
 
-test('list-default-margin accepts rendered differences and decorated edges of existing examples with a list', () => {
+test('list-default-margin explains rendered differences and decorated edges of existing examples with a list', () => {
   const before = ok('%PDF-1.7 flush');
   const after = ok('%PDF-1.7 spaced');
   const hasList = true;
-  assert.equal(classifyDifference(before, after, false, false, false, hasList), 'list-default-margin');
-  assert.equal(classifyDifference(before, after, false, true, false, hasList), 'list-default-margin',
-    'a table header on the same page does not hide the list');
-  assert.notEqual(classifyDifference(before, after), 'list-default-margin', 'an example without a list is never this kind');
-  assert.equal(classifyDifference(before, after, true, false, false, hasList), null, 'a new example is not an existing one');
-  assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, false, hasList), null);
-  assert.equal(classifyDifference(before, { ...after, stderr: 'warning\n' }, false, false, false, hasList), null,
-    'changed diagnostics are not a layout difference');
-  assert.equal(classifyDifference(before, ok('not a PDF'), false, false, false, hasList), null);
+  const kinds = (b: RunResult, a: RunResult, newExample = false, hasTh = false, list = hasList, block = false) =>
+    classifyDifferences(b, a, newExample, hasTh, false, list, block);
+  assert.ok(kinds(before, after).includes('list-default-margin'));
+  assert.ok(kinds(before, after, false, true).includes('list-default-margin'), 'a table header on the same page does not hide the list');
+  assert.ok(!kinds(before, after, false, false, false).includes('list-default-margin'), 'an example without a list is never this kind');
+  assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
+  assert.ok(!kinds(before, { ...after, exitCode: 3, pdf: null }).includes('list-default-margin'));
+  assert.deepEqual(kinds(before, { ...after, stderr: 'warning\n' }), [], 'changed diagnostics are not a layout difference');
+  assert.deepEqual(kinds(before, ok('not a PDF')), []);
   const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n', pdf: null };
-  assert.equal(classifyDifference(before, failed, false, false, false, hasList), 'list-default-margin');
+  assert.ok(kinds(before, failed).includes('list-default-margin'));
 });
 
-test('block-margin-collapse accepts rendered differences of existing examples with block containers and no list', () => {
+test('block-margin-collapse explains rendered differences of existing examples with block containers', () => {
   const before = ok('%PDF-1.7 added');
   const after = ok('%PDF-1.7 collapsed');
-  const hasBlock = true;
-  assert.equal(classifyDifference(before, after, false, false, false, false, hasBlock), 'block-margin-collapse');
-  assert.equal(classifyDifference(before, after, false, true, false, false, hasBlock), 'block-margin-collapse',
-    'a table header on the same page does not hide the panel');
-  assert.equal(classifyDifference(before, after, false, false, false, true, hasBlock), 'list-default-margin',
-    'an example with a list and panels takes the list kind');
-  assert.notEqual(classifyDifference(before, after), 'block-margin-collapse', 'an example without blocks is never this kind');
-  assert.equal(classifyDifference(before, after, true, false, false, false, hasBlock), null, 'a new example is not an existing one');
-  assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, false, false, false, hasBlock), null);
+  const kinds = (b: RunResult, a: RunResult, newExample = false, hasTh = false, list = false, block = true) =>
+    classifyDifferences(b, a, newExample, hasTh, false, list, block);
+  assert.ok(kinds(before, after).includes('block-margin-collapse'));
+  assert.ok(kinds(before, after, false, true).includes('block-margin-collapse'), 'a table header on the same page does not hide the panel');
+  assert.ok(kinds(before, after, false, false, true).includes('list-default-margin'), 'a list and panels explain it either way');
+  assert.ok(!kinds(before, after, false, false, false, false).includes('block-margin-collapse'), 'an example without blocks is never this kind');
+  assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
+  assert.ok(!kinds(before, { ...after, exitCode: 3, pdf: null }).includes('block-margin-collapse'));
   const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n', pdf: null };
-  assert.equal(classifyDifference(failed, before, false, false, false, false, hasBlock), 'block-margin-collapse');
-  assert.equal(classifyDifference({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before,
-    false, false, false, false, hasBlock), null);
+  assert.ok(kinds(failed, before).includes('block-margin-collapse'));
+  assert.deepEqual(kinds({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before), []);
+});
+
+test('a broad kind never hides a narrower one declared on its own', () => {
+  // A page with a th and a div that moved its header text: a later change declaring only
+  // th-default-centred must accept it, although the margin kinds also explain it.
+  const before = ok('%PDF-1.7 left');
+  const after = ok('%PDF-1.7 centred');
+  const kinds = classifyDifferences(before, after, false, true, false, false, true);
+  assert.equal(kinds[0], 'th-default-centred');
+  assert.ok(kinds.includes('block-margin-collapse'));
+  const difference: Difference = { example: 'x.html', set: 'defaults', reason: 'bytes', kind: kinds[0], kinds };
+  assert.deepEqual(failures([difference], ['th-default-centred']), { unexpected: [], unobserved: [] });
+  assert.deepEqual(failures([difference], ['block-margin-collapse']), { unexpected: [], unobserved: [] });
+  assert.equal(failures([difference], ['location-added']).unexpected.length, 1, 'an unrelated kind still fails it');
 });
 
 test('a page count in the Wrote line and a moved decorated bottom edge are the orphans/widows kind', () => {
