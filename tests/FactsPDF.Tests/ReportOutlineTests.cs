@@ -239,7 +239,9 @@ public sealed class ReportOutlineTests
         const string source = "<section style='outline:2pt solid blue'>" +
             "<div style='outline-width:inherit;outline-style:inherit;outline-color:inherit'>AB</div>" +
             "<div style='outline:initial'>AB</div></section>";
-        var root = (BlockNode)HtmlDocumentReader.ReadTree(source, Page, default).Children.Single();
+        // The implied body is the root's only child and holds the section.
+        var body = (BlockNode)HtmlDocumentReader.ReadTree(source, Page, default).Children.Single();
+        var root = (BlockNode)body.Children.Single();
         var children = root.Children.OfType<BlockNode>().ToArray();
         Assert.That(children[0].BoxStyle.Outline, Is.EqualTo(root.BoxStyle.Outline));
         Assert.That(children[1].BoxStyle.Outline.EffectiveWidth, Is.Zero);

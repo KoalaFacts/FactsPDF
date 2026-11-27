@@ -8,17 +8,20 @@ public sealed class ParagraphPercentageVerticalMarginTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // Percentages resolve against the 260pt page content width, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, options ?? Page);
+        PdfConverter.Convert(NoBodyMargin + html, stream, options ?? Page);
         return stream.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default);
     }
 
     private static void RejectPreservingOutput(string html, string code, PdfOptions? options = null)

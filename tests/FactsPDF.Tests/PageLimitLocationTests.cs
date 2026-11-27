@@ -9,7 +9,8 @@ public sealed class PageLimitLocationTests
 {
     private const string First = "<p>First page.</p>\n";
     // A first line almost as tall as the usable page, so whatever follows needs page two.
-    private const string Filler = "<p style='line-height:760pt'>Filler.</p>\n";
+    // The reset keeps the pre-user-agent geometry: no body margin and an 8pt gap below paragraphs only.
+    private const string Filler = "<style>html,body{margin:0}p{margin:0 0 8pt}</style><p style='line-height:760pt'>Filler.</p>\n";
     private static readonly PdfImage Image = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"));
 
     private static FactsPdfException Fails(string html, int maxPages = 1)

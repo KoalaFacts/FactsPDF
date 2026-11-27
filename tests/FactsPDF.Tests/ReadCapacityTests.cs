@@ -63,7 +63,8 @@ public sealed class ReadCapacityTests
         var tree = HtmlDocumentReader.ReadTree(html, options, default);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         TestContext.Out.WriteLine($"read 20,000 paragraphs: {allocated / 1024} KiB");
-        Assert.That(tree.Children, Has.Count.EqualTo(20_000));
+        // The implied body is the root's only child and holds the paragraphs.
+        Assert.That(((BlockNode)tree.Children.Single()).Children, Has.Count.EqualTo(20_000));
         Assert.That(allocated, Is.LessThan(9_600 * 1024L));
     }
 
@@ -97,7 +98,8 @@ public sealed class ReadCapacityTests
     public void ReversedListWithStartStillNumbersDownward()
     {
         var tree = HtmlDocumentReader.ReadTree("<ol reversed start=\"5\"><li>a</li><li value=\"9\">b</li></ol>", new PdfOptions(), default);
-        var list = (BlockNode)tree.Children[0];
+        var body = (BlockNode)tree.Children.Single();
+        var list = (BlockNode)body.Children[0];
         Assert.That((list.ListStart, list.ListValue, list.ListReversed), Is.EqualTo(((int?)5, (int?)null, true)));
         var second = (BlockNode)list.Children[1];
         Assert.That((second.ListStart, second.ListValue, second.ListReversed), Is.EqualTo(((int?)null, (int?)9, false)));
