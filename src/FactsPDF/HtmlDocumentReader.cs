@@ -19,7 +19,7 @@ internal static class HtmlDocumentReader
     // The end tags the reader implies, shared with HtmlElementPositions so both build one tree.
     // Before a start tag: a paragraph or block closes an open p (outside tables), an li an open li.
     internal static bool StartClosesParagraph(string top, string name, bool inTable)
-        => !inTable && top == "p" && (ParagraphTag(name) || Container(name));
+        => !inTable && top == "p" && (ParagraphTag(name) || Container(name) || name == "table");
     internal static bool StartClosesListItem(string top, string name) => name == "li" && top == "li";
     // Before an end tag: a block's end tag closes an open p (outside tables), a list's an open li.
     internal static bool EndClosesParagraph(string top, string name, bool inTable)
@@ -260,6 +260,9 @@ internal static class HtmlDocumentReader
         // The box of the open cell paragraph when it has padding; cell paragraphs have no other box.
         BoxStyle? currentPadding = null;
         TableMarkup? table = null;
+        // Open block boxes (a list and its items) inside the current table cell: their content is a
+        // block tree, kept whole as one cell content, while a flat cell holds text and images only.
+        var cellBlocks = 0;
         var anonymous = false;
         var elements = 0; var insideStyle = false; var baseSeen = false;
         SvgDocument? svg = null;
@@ -275,11 +278,14 @@ internal static class HtmlDocumentReader
             return 0;
         }
 
+        // The current table cell holds flat text and images (no list box is open in it).
+        bool FlatCell() => table?.Cell is not null && cellBlocks == 0;
+
         void Flush()
         {
             if (current is not null)
             {
-                if (table?.Cell is { } cell)
+                if (FlatCell() && table!.Cell is { } cell)
                 {
                     // Formatting whitespace and empty inline wrappers are not
                     // anonymous flow items. Explicit p margins are retained.
@@ -323,7 +329,20 @@ internal static class HtmlDocumentReader
                     anonymous = true;
                 }
             }
-            else closing.Box?.TakeChildren(children, closing.ChildStart);
+            else
+            {
+                closing.Box?.TakeChildren(children, closing.ChildStart);
+                // The outermost list of a cell becomes one content of the cell instead of a child of
+                // the block that holds the table.
+                if (closing.Box is not null && table?.Cell is { } listCell && cellBlocks == 1)
+                {
+                    if (!ReferenceEquals(children[^1], closing.Box))
+                        throw new InvalidOperationException("Cell list is not the current child.");
+                    children.RemoveAt(children.Count - 1);
+                    listCell.Contents.Add(new TableCellBlock(closing.Box));
+                }
+            }
+            if (closing.Box is not null && table?.Cell is not null) cellBlocks--;
             stack.RemoveAt(stack.Count - 1);
             path.RemoveAt(path.Count - 1);
         }
@@ -381,7 +400,7 @@ internal static class HtmlDocumentReader
                 // first-inline-run span (including text-align). The retained
                 // BlockNode.Style separately stores the actual containing-box
                 // computed style for future block-aware layout.
-                current = table?.Cell is { } cell
+                current = FlatCell() && table!.Cell is { } cell
                     ? new Paragraph(cell.Style, cell.SourceOffset)
                     : new Paragraph(stack[^1].Style, stack[^1].SourceOffset);
                 anonymous = true;
@@ -397,14 +416,14 @@ internal static class HtmlDocumentReader
             // A flex or grid item is blockified (CSS Display 3), so a replaced child of a flex or
             // grid container is a block box whatever its display.
             if (node.BoxStyle.DisplayBlock
-                || table is null && stack[^1].Box is { BoxStyle.IsFlexContainer: true } or { BoxStyle.IsGridContainer: true })
+                || (table is null || cellBlocks > 0) && stack[^1].Box is { BoxStyle.IsFlexContainer: true } or { BoxStyle.IsGridContainer: true })
             {
                 if (AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li"))
                     throw new FactsPdfException("FPDF1101", name == "svg"
                         ? "An svg with display:block must be a standalone block outside paragraphs, inline elements and lists."
                         : "An img with display:block must be a standalone block outside paragraphs, inline elements and lists.", offset);
                 Flush();
-                if (table?.Cell is { } cell) cell.Contents.Add(new TableCellImage(node));
+                if (FlatCell() && table!.Cell is { } cell) cell.Contents.Add(new TableCellImage(node));
                 else children.Add(node);
                 return;
             }
@@ -419,7 +438,7 @@ internal static class HtmlDocumentReader
             var parentStyle = stack[^1].Style;
             if (current is null)
             {
-                current = table?.Cell is { } cell
+                current = FlatCell() && table!.Cell is { } cell
                     ? new Paragraph(cell.Style, cell.SourceOffset)
                     : new Paragraph(parentStyle, stack[^1].SourceOffset < 0 ? offset : stack[^1].SourceOffset);
                 anonymous = true;
@@ -476,10 +495,12 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
-                if (EndClosesParagraph(stack[^1].Name, name, table is not null)) Close();
+                if (EndClosesParagraph(stack[^1].Name, name, table is not null && cellBlocks == 0)) Close();
                 if (EndClosesListItem(stack[^1].Name, name)) Close();
                 if (stack.Count == 1 || stack[^1].Name != name)
-                    throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{name}'.", token.Offset);
+                    throw new FactsPdfException("FPDF1101", name == "p"
+                        ? "An unmatched </p> (for example after a table that closed its paragraph) would make a browser insert an empty paragraph; remove it."
+                        : $"Unexpected end tag '{name}'.", token.Offset);
                 if (TableMarkup.IsTag(name))
                 {
                     if (name is "td" or "th" or "caption") { AfterText(); Flush(); }
@@ -503,8 +524,8 @@ internal static class HtmlDocumentReader
             // An svg is foreign content, where a self-closing tag closes the element.
             if (token.SelfClosing && name is not ("img" or "svg" or "hr" or "br" or "meta" or "link" or "base" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
-            if (name == "table" && (table is not null || AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) || ListTag(f.Name) || f.Name == "li")))
-                throw new FactsPdfException("FPDF1101", "Tables must be standalone blocks outside text elements, lists and tables.", token.Offset);
+            if (name == "table" && table is not null)
+                throw new FactsPdfException("FPDF1101", "A table cannot be nested inside another table or a table cell.", token.Offset);
             if (TableMarkup.IsTag(name) && name != "table" && table is null)
                 throw new FactsPdfException("FPDF1101", "Table structural elements require their explicit table parents.", token.Offset);
             // A preformatted report block is an explicitly closed, non-nested
@@ -527,9 +548,15 @@ internal static class HtmlDocumentReader
                     ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
-            table?.CheckChild(stack[^1].Name, name, token.Offset);
-            if (StartClosesParagraph(stack[^1].Name, name, table is not null)) Close();
+            table?.CheckChild(stack[^1].Name, name, token.Offset, cellBlocks > 0);
+            if (StartClosesParagraph(stack[^1].Name, name, table is not null && cellBlocks == 0)) Close();
             if (StartClosesListItem(stack[^1].Name, name)) Close();
+            // A table start tag closes an open p (the HTML parser, standards mode); any other text
+            // element still open around it would have to be split around the table, which only inline
+            // elements in a block, list item or body can be (the text before it is its own line box).
+            if (name == "table" && AnyFrame(stack, f => ParagraphTag(f.Name)))
+                throw new FactsPdfException("FPDF1101",
+                    "A table cannot be placed inside a heading, pre or an inline element of a paragraph; close the element before the table.", token.Offset);
             if ((ParagraphTag(name) || Container(name)) && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name)))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
             if (ListTag(stack[^1].Name) && name != "li" || name == "li" && !ListTag(stack[^1].Name))
@@ -762,7 +789,7 @@ internal static class HtmlDocumentReader
             // An implied body with no box declarations (box-sizing alone changes nothing without a
             // width) adds no box, so a page without body tags keeps its read tree; a styled one paints
             // and lays out like an explicit body.
-            if (BoxTag(name) && table?.Cell is null
+            if (BoxTag(name) && (table?.Cell is null || cellBlocks > 0 || ListTag(name))
                 && !(implied && boxStyle with { BorderBoxSizing = false } == BoxStyle.Initial))
             {
                 box = new BlockNode(name, style, boxStyle, token.Offset)
@@ -775,15 +802,16 @@ internal static class HtmlDocumentReader
             }
             // Each inline child of a flex or grid container, and each run of text between them, is its own
             // item: close the anonymous paragraph before and after the inline element.
-            var flexItem = InlineTag(name) && table is null && stack[^1].Box is { BoxStyle.HasItems: true };
+            var flexItem = InlineTag(name) && (table is null || cellBlocks > 0) && stack[^1].Box is { BoxStyle.HasItems: true };
             if (flexItem) Flush();
             stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, alignStart, flexItem, after));
+            if (box is not null && table?.Cell is not null) cellBlocks++;
             if (name == "q") Add(Quote(stack, open: true, options), style);
             if (ParagraphTag(name))
             {
                 current = new Paragraph(style, token.Offset, RunCount(tokens, t + 1, name));
                 anonymous = false;
-                if (table?.Cell is not null && (boxStyle.PaddingTop.Value != 0 || boxStyle.PaddingRight.Value != 0
+                if (FlatCell() && (boxStyle.PaddingTop.Value != 0 || boxStyle.PaddingRight.Value != 0
                     || boxStyle.PaddingBottom.Value != 0 || boxStyle.PaddingLeft.Value != 0))
                     currentPadding = boxStyle;
             }

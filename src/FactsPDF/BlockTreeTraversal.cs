@@ -44,6 +44,7 @@ internal static class BlockTreeTraversal
                             {
                                 cancellation.ThrowIfCancellationRequested();
                                 if (content is TableCellText text) yield return text.Paragraph;
+                                else if (content is TableCellBlock block) pending.Push((block.Node.Children, 0));
                             }
                         }
                     break;

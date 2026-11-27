@@ -816,6 +816,17 @@ internal static class TextLayout
                                 pages[^1].Images.Add(cellImage with { X = table.X + cellImage.X,
                                     Top = rowTop + cellImage.Top - row.Top });
                             }
+                            // List markers of cells with lists: the discs whose centre lies in this row.
+                            if (measured.Discs is { } tableDiscs)
+                                foreach (var disc in tableDiscs)
+                                {
+                                    cancellation.ThrowIfCancellationRequested();
+                                    var discTop = -disc.Y;
+                                    if (discTop < row.Top - 0.000001 || discTop >= row.Top + row.Height - 0.000001) continue;
+                                    if (repeat) ChargeDisplayCommands(1, row.SourceOffset);
+                                    pages[^1].Discs.Add(disc with { X = table.X + disc.X,
+                                        Y = o.PageHeight - rowTop + row.Top + disc.Y });
+                                }
                             rowTop += row.Height;
                         }
                         void PlaceSlice(MeasuredTableRow row, RowFragment slice)
@@ -950,6 +961,12 @@ internal static class TextLayout
                     cancellation.ThrowIfCancellationRequested();
                     pages[^1].Images.Add(cellImage with { X = table.X + cellImage.X, Top = y + cellImage.Top });
                 }
+                if (measured.Discs is { } cellDiscs)
+                    foreach (var disc in cellDiscs)
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        pages[^1].Discs.Add(disc with { X = table.X + disc.X, Y = o.PageHeight - y + disc.Y });
+                    }
                 y += measured.Height;
                 pendingTopPadding = pendingClosedPadding = 0;
                 strut = table.MarginBottom;

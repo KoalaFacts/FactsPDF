@@ -271,8 +271,20 @@ internal static partial class FlexLayout
                 return item;
             }
             case TableNode table:
-                throw new FactsPdfException("FPDF1201",
-                    "A table cannot be a flex item; wrap it in a report panel with an explicit width.", table.SourceOffset);
+            {
+                // The table's own box is the item (a browser wraps it in an anonymous table wrapper
+                // box): only its vertical margins exist, and its width follows the table's sizing.
+                var box = table.LayoutBox;
+                if (box.MarginTop.IsPercent || box.MarginBottom.IsPercent)
+                    throw new FactsPdfException("FPDF1201",
+                        "Percentage vertical margins are not supported on flex items.", table.SourceOffset);
+                return new Item
+                {
+                    Child = table, SourceOffset = table.SourceOffset, Box = box,
+                    MarginTop = Checked(box.MarginTop.Value, table.SourceOffset),
+                    MarginBottom = Checked(box.MarginBottom.Value, table.SourceOffset),
+                };
+            }
             default:
                 throw new InvalidOperationException("Unexpected flex item.");
         }
@@ -299,24 +311,25 @@ internal static partial class FlexLayout
         }
         else
         {
-            item.Edges = item.Child is BlockNode
+            item.Edges = item.Child is BlockNode or TableNode
                 ? Checked(box.PaddingLeft.Resolve(width), offset) + Checked(box.PaddingRight.Resolve(width), offset)
                     + box.BorderLeft.EffectiveWidth + box.BorderRight.EffectiveWidth
                 : 0;
             (minContent, maxContent) = (-1, -1);
         }
-        var sizing = box.BorderBoxSizing ? item.Edges : 0;
+        // A collapsed table width, like border-box, includes the halves of its collapsed borders.
+        var sizing = box.BorderBoxSizing || item.Child is TableNode { Collapsed: not null } ? item.Edges : 0;
         double ContentOf(CssLength length) => Math.Max(0, Checked(length.Resolve(width), offset) - sizing);
         (double Min, double Max) Content()
         {
             if (minContent < 0)
             {
-                var sizes = item.Child is BlockNode node
-                    ? ContentSizes(node, options, resolved, cancellation)
-                    : Intrinsic.Of(item.Child, options, resolved, cancellation);
-                if (double.IsNaN(sizes.Max))
-                    throw new FactsPdfException("FPDF1201",
-                        "A table cannot size a flex item from its content; give the item an explicit width or flex-basis.", offset);
+                var sizes = item.Child switch
+                {
+                    BlockNode node => ContentSizes(node, options, resolved, cancellation),
+                    TableNode table => Intrinsic.TableContent(table, options, resolved, cancellation),
+                    _ => Intrinsic.Of(item.Child, options, resolved, cancellation)
+                };
                 (minContent, maxContent) = sizes;
             }
             return (minContent, maxContent);
@@ -401,7 +414,7 @@ internal static partial class FlexLayout
 
     private static bool CanStretch(Item item) =>
         item.Child is ImageNode image ? image.BoxStyle.Height is null
-        : item.Child is BlockNode node && node.BoxStyle.Height is null;
+        : item.Child is TableNode || item.Child is BlockNode node && node.BoxStyle.Height is null;
 
     // Lays the item out at its resolved width (and, when stretched, at a definite outer height
     // without margins) and records its outer height, first baseline and output.
@@ -453,6 +466,13 @@ internal static partial class FlexLayout
             foreach (var child in original.Children) node.Add(child);
             fragment.Children.Add(node);
         }
+        else if (item.Child is TableNode table)
+            fragment.Children.Add(table with
+            {
+                FixedOuterWidth = item.Target + item.Edges,
+                // A browser stretches the table box itself (its rows grow) to the line height.
+                StretchHeight = stretchedHeight
+            });
         else fragment.Children.Add(item.Child);
         var fragmentOptions = options with
         {
@@ -651,10 +671,40 @@ internal static partial class FlexLayout
                     }
                     return (min + padding + margins, max + padding + margins);
                 }
+                case TableNode table:
+                {
+                    // The table border box: its columns content widths plus its own padding and
+                    // borders (a table has no horizontal margins), unless its width fixes it.
+                    var (min, max) = TableContent(table, options, resolved, cancellation);
+                    var style = table.LayoutBox;
+                    double Fixed(CssLength length) => length.IsPercent ? 0 : length.Value;
+                    var edges = Fixed(style.PaddingLeft) + Fixed(style.PaddingRight)
+                        + style.BorderLeft.EffectiveWidth + style.BorderRight.EffectiveWidth;
+                    var sizing = style.BorderBoxSizing || table.Collapsed is not null ? edges : 0;
+                    if (style.Width is { IsPercent: false } width)
+                        min = max = Math.Max(min, Math.Max(0, width.Value - sizing));
+                    if (style.MaxWidth is { IsPercent: false } upper)
+                    {
+                        var cap = Math.Max(min, Math.Max(0, upper.Value - sizing));
+                        max = Math.Min(max, cap);
+                    }
+                    if (style.MinWidth is { IsPercent: false } lower)
+                    {
+                        var floor = Math.Max(0, lower.Value - sizing);
+                        min = Math.Max(min, floor);
+                        max = Math.Max(max, floor);
+                    }
+                    return (min + edges, max + edges);
+                }
                 default:
                     return (double.NaN, double.NaN);
             }
         }
+
+        /// <summary>A table content-box min-content and max-content widths (its columns sums).</summary>
+        internal static (double Min, double Max) TableContent(TableNode table, PdfOptions options,
+            Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
+            => TableAutoLayout.Content(table, options, resolved, cancellation);
 
         internal static (double Min, double Max) Content(BlockNode node, PdfOptions options,
             Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)

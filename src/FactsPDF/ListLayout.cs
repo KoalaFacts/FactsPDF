@@ -164,6 +164,8 @@ internal sealed class ListLayout
                     if (item.Children.Count > 0 &&
                         item.Children[0] is Paragraph { IsAnonymous: true } direct)
                         paragraph = direct;
+                    else if (item.Children.Count > 0 && item.Children[0] is TableNode leading)
+                        throw StartsWithTable(leading);
                 }
                 else
                 {
@@ -171,6 +173,7 @@ internal sealed class ListLayout
                     foreach (var descendant in Descendants(item.Children, cancellation))
                     {
                         if (descendant is BlockNode { Name: "ol" or "ul" or "menu" }) break;
+                        if (descendant is TableNode leading) throw StartsWithTable(leading);
                         if (descendant is Paragraph leaf) { paragraph = leaf; break; }
                     }
                 }
@@ -184,8 +187,12 @@ internal sealed class ListLayout
                 }
                 result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset, kind, item.BoxStyle.MarkerInside));
             }
+            // Chrome indents a list only by its padding-left (the user-agent 40px, or the author's
+            // value, zero included); a marker hangs outside the item whatever that is. FactsPDF
+            // models the user-agent padding as this gutter, so an author padding-left replaces it.
             if (list.Children.Count > 0)
-                result.gutters.Add(list, Math.Max(2 * list.Style.FontSize, maximum + 0.5 * list.Style.FontSize));
+                result.gutters.Add(list, list.BoxStyle.PaddingLeftAuthored ? 0
+                    : Math.Max(2 * list.Style.FontSize, maximum + 0.5 * list.Style.FontSize));
         }
         return result;
 
@@ -239,6 +246,11 @@ internal sealed class ListLayout
             return total;
         }
     }
+
+    // A browser aligns the marker of a list item that starts with a block in a way that is not modelled.
+    private static FactsPdfException StartsWithTable(TableNode table) => new("FPDF1201",
+        "A list item with a marker cannot start with a table: a browser aligns its marker with the table's first row in a way FactsPDF does not model. Put text before the table or use list-style:none.",
+        table.SourceOffset);
 
     private static IEnumerable<BlockChild> Descendants(IReadOnlyList<BlockChild> children, CancellationToken cancellation)
     {
