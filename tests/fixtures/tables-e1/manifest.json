@@ -187,10 +187,47 @@
     {
       "id": "missing-body",
       "file": "missing-body.html",
-      "sha256": "170507c13262f1bcd87b88a0e8029591d371c9e8947ed10a84d5fc51a33d451a",
+      "sha256": "ef955d094a525c8464245413e15702235a26099e84f9e5df0c3c84909c8ce3a2",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
-        "code": "FPDF1101"
+        "pages": 1,
+        "table_width": 480,
+        "column_outer_widths": [
+          80,
+          140,
+          260
+        ],
+        "cell_padding": 4,
+        "cell_border": 1,
+        "content_widths": [
+          70,
+          130,
+          250
+        ],
+        "row_line_counts": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            2
+          ]
+        ],
+        "line_height": 18,
+        "row_heights": [
+          28,
+          28,
+          46
+        ],
+        "table_height": 102
       }
     },
     {
