@@ -622,7 +622,7 @@ test('scoped display suppression is backed by actual source and retains the 418-
   assert.equal(f.last_audited_commit, '9762e45dac1907eb77234132c2e14c348aa55264');
   assert.match(f.scope, /display:none/);
   assert.match(f.scope, /分页/);
-  assert.match(f.limitations, /flex\/grid/);
+  assert.match(f.limitations, /inline-flex\/inline-grid/);
   assert.match(f.limitations, /严格HTML\/CSS/);
   assert.match(f.test_reference, /ReportDisplayTests\.cs/);
   assert.equal(dataset.accepted_css_property_count, 414);
@@ -873,8 +873,8 @@ test('bounded keep-together card is a real, narrowly tracked PDF capability', ()
     assert.match(record.limitations,/FPDF1302/);
     assert.match(record.test_reference,/ReportKeepTogetherTests\.cs/);
   }
-  assert.equal(dataset.features.find(f=>f.id==='css.orphans').status,'none');
-  assert.equal(dataset.features.find(f=>f.id==='css.widows').status,'none');
+  assert.equal(dataset.features.find(f=>f.id==='css.orphans').status,'partial');
+  assert.equal(dataset.features.find(f=>f.id==='css.widows').status,'partial');
   assert.deepEqual(counts(dataset.features),{full:45,partial: 270,none: 95,unknown:6,na:2});
   assert.match(dataset.audit_method,/416条维持历史来源/);
   assert.match(dataset.css_inventory_note,/83个受限CSS属性名/);

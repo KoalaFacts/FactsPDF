@@ -1072,6 +1072,6 @@ test('::before and ::after generated content is partial, in English', async () =
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
   assert.match(englishFeature(data.features.find(x => x.id === 'selector.pseudo-element')).scope, /divider lines/);
-  assert.equal(data.features.find(x => x.id === 'selector.pseudo').status, 'none');
+  assert.equal(data.features.find(x => x.id === 'selector.pseudo').status, 'partial');
   assert.match(translate(data.css_inventory_note), /adding the content name; this took it from 398 to 399/);
 });
