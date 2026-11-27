@@ -641,6 +641,6 @@ and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colou
 `value.background.transparent`, `value.background.currentcolor`, `value.border.transparent` and
 `value.text.currentcolor` rows are replaced in place; every row stays partial, so no count moves.
 Current dataset SHA-256:
-`20b72b2cc90305b46bc695943f560836ab1fa330ee1658c17979b40641c4472f`; English
+`c65b0c55044402b4115aea62fe04f3b31fb74d0d61d710a3e5740cae10e2ff26`; English
 layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
 SHA-256 `67b5be1a4ece3a838fa4a80620bab29db9678bb9085453df90e9dd5139e482f7`.
