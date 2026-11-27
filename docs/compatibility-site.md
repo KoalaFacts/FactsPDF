@@ -634,7 +634,12 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+The pseudo-class row (`:first-child/:nth-child/:lang`) and the logical pseudo-class row
+(`:is()/:where()/:not()/:has()`) move to partial: structural pseudo-classes and `:not()` with
+compound arguments match as in Chrome, while `:lang`, `:is()`, `:where()` and `:has()` still
+fail; the attribute-selector row's limitation now names only unsupported pseudo-classes
+(partial 246, rejected 120; `FPDF1203`, so the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
-layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
-SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
+`905afc11e685c100f1b6d1e4254abae90dd4161dbe33f30304e4bb3d6b141353`; English
+layer `site/src/audit-english-structural-pseudo-classes.mjs`, ordered source-text
+SHA-256 `a7da66ccdffbddd6b896e47618794ed4032c5e271274f013036cada804069321`.

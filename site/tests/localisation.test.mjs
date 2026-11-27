@@ -894,3 +894,20 @@ test('break-inside and page-break-inside accept avoid on table rows, in English'
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   }
 });
+
+test('structural pseudo-classes and :not() are partial selector rows, in English', async () => {
+  const { englishFeature } = await localisation();
+  const [pseudo, logical, attribute] = ['selector.pseudo', 'selector.logical', 'selector.attribute']
+    .map(id => englishFeature(data.features.find(x => x.id === id)));
+  assert.equal(pseudo.status, 'partial');
+  assert.match(pseudo.scope, /:nth-of-type\(\)/);
+  assert.match(pseudo.scope, /:empty treats whitespace-only text as content/);
+  assert.match(pseudo.limitations, /of S form/);
+  assert.match(pseudo.limitations, /FPDF1201/);
+  assert.equal(logical.status, 'partial');
+  assert.match(logical.scope, /compound selectors/);
+  assert.match(logical.limitations, /:is\(\)\/:where\(\)\/:has\(\) fail FPDF1203/);
+  assert.match(attribute.limitations, /unsupported pseudo-classes/);
+  for (const row of [pseudo, logical])
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
