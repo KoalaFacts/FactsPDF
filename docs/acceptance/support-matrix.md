@@ -433,22 +433,22 @@ not full CSS Sizing, an installable package, approved pages or a
 customer distribution grant. Final-head CI and independent review
 must be verified separately.
 
-## Current-source bounded report-card keep-together
+## Current-source break-inside:avoid
 
-A top-level div/section/article/blockquote with one-to-eight direct
-nonempty p/pre/h1–h6 children can use `break-inside:avoid` (also
-`page-break-inside:avoid`); preflight measures actual PDF glyph wraps,
-padding, borders and margins, moving the whole card intact to a new page
-when needed. `ReportKeepTogetherTests.cs` asserts PDF-byte parity with
-a manually forced page, no spurious page when it fits, cascade/aliases,
-unfit-card failure and untouched existing output. The
+A panel, paragraph, heading, list, list item or table (with any block content)
+can use `break-inside:avoid` (also `page-break-inside:avoid`): a box that does
+not fit the rest of the page moves whole to the next page, a box taller than a
+page moves and then breaks normally, and a box that starts a page or whose first
+break is forced stays, as Chrome prints it. `BreakInsideAvoidTests.cs` asserts
+Chrome's page splits, PDF-byte parity with a manually forced page, no spurious
+page when it fits, cascade/aliases, the explicit failures and untouched
+existing output. The
 [printable report](../../examples/report-keep-together.html) and
 [authored forced-break control](../../examples/report-keep-together-oracle.html)
 are separately converted with real Native AOT and qpdf/Poppler page/text
 verification in `scripts/verify_native_feature_paths.py`.
-Not general break-inside, nested panels, tables/lists/images, fixed/minimum
-height, arbitrary descendants, or a card taller than one PDF page.
-Source implementation: `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`.
+Not supported: a flex or grid container, inline elements, table parts other
+than `tr`/`thead` and anything inside a table cell (`FPDF1201`).
 Exact final CI, independent review, human PDF approval, separately retained
 software and publication rights are independent gates.
 
@@ -468,8 +468,7 @@ and searchable qpdf/Poppler output from the authored source
 [modern-break oracle](../../examples/report-section-page-breaks-oracle.html),
 including protected PDF recovery after rejected input.
 Not general keep, Paged Media, table/list/inline or unsupported left/right
-page selection; a separate bounded top-level flat-card break-inside subset
-does not alter forced section breaks. Exact-head CI, independent
+page selection; break-inside:avoid does not alter forced section breaks. Exact-head CI, independent
 review, private candidate, customer rights and human page approvals are
 separate; no previous binary is relabelled.
 

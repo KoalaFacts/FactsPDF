@@ -327,6 +327,8 @@ image for the next fragment, rather than emitting a decoration-only final page.
 An atomic unit and its unavoidable final edges that cannot fit fresh fail
 `FPDF1302`. Already emitted pages are not reflowed.
 
+`break-inside:avoid` on the `table` itself keeps caption, header and rows on one page
+as a block ([contract](css-stylesheets.md#break-inside-avoid)).
 `tr{break-inside:avoid}` (or `page-break-inside:avoid`) and the same on `thead`
 change nothing for rows that already move whole, so such a page is
 byte-identical to the page without it. A kept body row that would qualify for
