@@ -49,6 +49,12 @@ internal static class TextLayout
         var resolved = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
         var y = o.MarginTop; var after = 0d; var breakNext = false;
         var trimNextMargin = false;
+        // The last placed text was a break-after:avoid heading. A break before the paragraph that
+        // follows it would violate that avoid, which Chrome ranks below breaking its orphans.
+        var followsKeptHeading = false;
+        // Every line height of the current paragraph, measured before its first break is chosen.
+        // One list per layout, reused by every paragraph.
+        var heights = new List<double>();
         // Retain pending top padding only for still-open blocks. Closed empty
         // predecessors contribute trailing spacing; a spanning box receives
         // page-local decoration slices rather than repeating its top padding.
@@ -173,7 +179,6 @@ internal static class TextLayout
                 var retainFirstHeadingMargin = HasUnconsumedPanelTopMargin();
                 if (!breakNext && !first.Style.BreakBefore && CurrentPageOccupied() &&
                     HeadingKeep.ShouldMove(group, o, bottom - y, after, pendingTopPadding, pendingClosedPadding,
-                        MoveUnconsumedBlocksToNewPage(apply: false), retainFirstHeadingMargin,
                         resolved, ensureDisplayCommands, cancellation))
                 {
                     NewPage(first.SourceOffset);
@@ -585,6 +590,7 @@ internal static class TextLayout
                 y += image.OuterHeight;
                 pendingTopPadding = pendingClosedPadding = after = 0;
                 contentEpoch++;
+                followsKeptHeading = false;
                 for (var i = 0; i < opened.Count; i++)
                     opened[i] = opened[i] with { HasOccupiedDescendant = true };
                 continue;
@@ -793,6 +799,7 @@ internal static class TextLayout
                         y += fragment.Height;
                         pendingTopPadding = pendingClosedPadding = after = 0;
                         contentEpoch++;
+                        followsKeptHeading = false;
                         for (var i = 0; i < opened.Count; i++)
                             opened[i] = opened[i] with { HasOccupiedDescendant = true };
                         first = false;
@@ -832,6 +839,7 @@ internal static class TextLayout
                 y += measured.Height;
                 pendingTopPadding = pendingClosedPadding = after = 0;
                 contentEpoch++;
+                followsKeptHeading = false;
                 for (var i = 0; i < opened.Count; i++)
                     opened[i] = opened[i] with { HasOccupiedDescendant = true };
                 continue;
@@ -850,6 +858,14 @@ internal static class TextLayout
                 ChargeDisplayCommands(1, paragraphOffset);
             var insideMarkerInset = item.Marker is { Inside: true } inside
                 ? inside.Width + 0.5 * inside.Style.FontSize : 0d;
+            // orphans/widows (initial 2) need every line height before the first break is
+            // chosen. A first wrap measures them without retaining glyphs and returns the pooled
+            // wrapper before the placing wrap takes it again.
+            heights.Clear();
+            foreach (var measured in Wrap(paragraph, item.ContentWidth, o, resolved, cancellation,
+                item.Marker, insideMarkerInset))
+                heights.Add(measured.Height);
+            var control = LineBreakControl.Of(paragraph.Style);
             using var lines = Wrap(paragraph, item.ContentWidth, o, resolved, cancellation,
                 item.Marker, insideMarkerInset).GetEnumerator();
             if (!lines.MoveNext())
@@ -904,7 +920,13 @@ internal static class TextLayout
             }
             breakNext = false;
             var gap = Math.Max(after, marginBefore) + pendingTopPadding + pendingClosedPadding;
-            if (y + gap + lines.Current.Height > bottom && CurrentPageOccupied())
+            // A paragraph that cannot leave its orphans here moves whole, as when its first line
+            // does not fit, unless the break before it would separate a kept heading.
+            var breaksOrphans = !followsKeptHeading
+                && y + gap + lines.Current.Height <= bottom
+                && LineBreakControl.Fitting(heights, 0, y + gap, bottom) is var fitting
+                && fitting < heights.Count && fitting < control.Orphans;
+            if ((y + gap + lines.Current.Height > bottom || breaksOrphans) && CurrentPageOccupied())
             {
                 // Existing padded/painted scopes sometimes have deferred paint
                 // even when no runs or boxes have been emitted yet. Preserve
@@ -942,6 +964,8 @@ internal static class TextLayout
             pendingClosedPadding = 0;
             contentEpoch++;
             var pendingMarker = item.Marker;
+            var lineIndex = 0;
+            var lineFragmentEnd = LineBreakControl.FragmentEnd(heights, 0, y, bottom, control);
             do
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -949,7 +973,11 @@ internal static class TextLayout
                 if (line.Height > bottom - o.MarginTop)
                     throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.",
                         TallestGlyphOffset(line, paragraphOffset));
-                if (y + line.Height > bottom + 0.000001) NewPage(paragraphOffset);
+                if (lineIndex == lineFragmentEnd || y + line.Height > bottom + 0.000001)
+                {
+                    NewPage(paragraphOffset);
+                    lineFragmentEnd = LineBreakControl.FragmentEnd(heights, lineIndex, y, bottom, control);
+                }
                 var lineWidth = item.ContentWidth - line.FirstLineIndent;
                 var x = item.ContentX + line.FirstLineIndent + ((line.AlignmentOverride ?? paragraph.Style.Alignment) switch
                 { TextAlignment.Center => (lineWidth - line.Width) / 2,
@@ -988,9 +1016,11 @@ internal static class TextLayout
                 // marker. Never mask the real FPDF1401 with unknown offset.
                 PlaceLine(line, x, baseline, paragraph.SourceOffset);
                 y += line.Height;
+                lineIndex++;
             }
             while (lines.MoveNext());
             after = paragraph.Style.MarginAfter; breakNext = paragraph.Style.BreakAfter;
+            followsKeptHeading = paragraph.Style.KeepWithNext;
         }
         return pages;
     }

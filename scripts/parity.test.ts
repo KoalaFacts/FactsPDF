@@ -94,7 +94,6 @@ test('anything beyond an inserted location line is no known kind', () => {
   assert.equal(classifyDifference(base, failed(`${message}\nLocation: line one.\n`)), null);
   // Changed exit codes, successful runs and written PDFs are never accepted.
   assert.equal(classifyDifference(base, { ...failed(`${message}\nLocation: line 1, column 1.\n`), exitCode: 4 }), null);
-  assert.equal(classifyDifference(ok('a'), ok('b')), null);
   assert.equal(classifyDifference({ exitCode: 0, stderr: '', pdf: null }, { exitCode: 0, stderr: 'Location: line 1, column 1.', pdf: null }), null);
   assert.equal(classifyDifference({ ...base, pdf: pdf('a') }, { ...failed(`${message}\nLocation: line 1, column 1.\n`), pdf: pdf('a') }), null);
 });
@@ -151,4 +150,14 @@ test('parses --expect and --expect-from', () => {
   assert.deepEqual(parseArguments([]).expect, []);
   assert.equal(parseArguments([]).expectFrom, null);
   assert.throws(() => parseArguments(['--expect', 'bytes']), /unknown expected difference kind/);
+});
+
+test('a changed rendered page is the declared orphans/widows initial-value kind', () => {
+  assert.equal(classifyDifference(ok('%PDF-1.7 a'), ok('%PDF-1.7 b')), 'orphans-widows-initial-2');
+  assert.equal(classifyDifference(ok('a'), { ...ok('b'), stderr: 'warning' }), null, 'diagnostics must not change');
+  assert.equal(classifyDifference(ok('a'), { exitCode: 0, stderr: '', pdf: null }), null);
+  assert.equal(classifyDifference(ok('a'), { ...ok('b'), exitCode: 3 }), null);
+  const moved: Difference = { example: 'a.html', set: 'defaults', reason: 'PDF bytes differ', kind: 'orphans-widows-initial-2' };
+  assert.deepEqual(failures([moved], []), { unexpected: [moved], unobserved: [] });
+  assert.deepEqual(failures([moved], ['orphans-widows-initial-2']), { unexpected: [], unobserved: [] });
 });

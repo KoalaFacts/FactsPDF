@@ -1656,8 +1656,8 @@ kept last row split only for the table's bottom padding/border fails
 
 This is **not** general CSS Fragmentation: nested cards, images/tables/lists,
 explicit inner page breaks, fixed/minimum-height cards, more than eight direct
-children, arbitrary children, left/right pages, or widows/orphans are not
-implemented. Inapplicable structures reject `FPDF1201`; unsupported values
+children, arbitrary children or left/right pages are not
+implemented (orphans and widows are below). Inapplicable structures reject `FPDF1201`; unsupported values
 reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-together-business-report-cards),
 [printable card](../examples/report-keep-together.html),
 [independently authored forced-page control](../examples/report-keep-together-oracle.html),
@@ -1665,6 +1665,24 @@ reject `FPDF1202`. [Exact CSS contract](css-stylesheets.md#current-source-keep-t
 witness are provided for review. Source first implemented at
 `ecdef6d8745caa3d2b527197c5767e25f89ba6b0`; new CI/review,
 private software, human PDF approval and customer rights are separate.
+
+### Orphans and widows
+
+`p, h2, h3 { orphans: 3; widows: 3; }` keeps at least three lines of a
+paragraph at the bottom of a page and three at the top of the next, placed as
+Chrome places them: a paragraph that cannot leave its orphans moves whole to
+the next page (with its panel's leading decoration, or with its
+`break-after:avoid` heading), the break otherwise moves earlier for the
+widows, and orphans win when a paragraph is too short for both. Any block
+accepts the inherited positive integer; lists move a too-short item with its
+marker, and cell paragraphs of table rows that split across pages keep theirs
+too (a cell paragraph that cannot keep its orphans moves within its cell or
+breaks before the row). Without a declaration every paragraph uses CSS's
+initial `orphans:2;widows:2`, so a page that used to end with a paragraph's
+first line, or start with its last line, now breaks as Chrome prints it;
+`orphans:1;widows:1` restores the old breaks. Non-positive or non-integer
+values fail `FPDF1202`
+([exact contract](css-stylesheets.md#orphans-and-widows), `OrphansWidowsTests.cs`).
 
 ## .NET SDK
 

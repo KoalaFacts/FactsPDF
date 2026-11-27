@@ -352,6 +352,13 @@ declaration Chrome also splits a row that fits a fresh page (3 lines on the
 tail, 17 on the next page), while FactsPDF moves it whole; that existing
 difference is unchanged.
 
+Each cell of a row that splits keeps its paragraphs' `orphans` and `widows`
+(initial value 2) as Chrome prints them: a later paragraph of a cell that cannot
+keep its orphans moves to the next page within its cell, a paragraph that starts
+its cell's fragment and cannot keep them makes the whole row break before itself
+when content precedes it on the page, and every break moves earlier for the
+widows. See [orphans and widows](css-stylesheets.md#orphans-and-widows).
+
 The [long service report](../examples/business-table-long-description.html)
 contains a long numbered description, an image and caption, a following service
 item and totals. Bind the same generated `brand-mark.png` as `logo`. Independent

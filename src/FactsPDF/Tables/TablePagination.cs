@@ -86,6 +86,9 @@ internal static class TablePagination
             var result = TableRowFragmentation.Fit(row, continuation, available - height,
                 terminal, false, cancellation, freshSpace.UsableHeight - header);
             if (result.Status == RowFitStatus.NoProgress) break;
+            // A cell paragraph that cannot keep its orphans on the row's first fragment breaks
+            // before the row instead, as in Chrome, unless nothing precedes it on this page.
+            if (result.BreaksOrphans && continuation.IsFirstFragment && (parts.Count > 0 || !freshStart)) break;
             var slice = result.Fragment!;
             for (var i = index; i < occupied; i++) parts.Add(new(i, null));
             parts.Add(new(occupied, slice));

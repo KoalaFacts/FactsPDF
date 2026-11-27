@@ -212,6 +212,8 @@ internal static class InlineCss
                     _ => throw Invalid("Only left, center, right, LTR start/end and word-space justify alignment are supported.", offset)
                 };
                 break;
+            case "orphans": style.Orphans = LineCount(value, offset); break;
+            case "widows": style.Widows = LineCount(value, offset); break;
             case "margin-top" when paragraph: style.MarginBefore = Margin(value, offset); break;
             case "margin-bottom" when paragraph: style.MarginAfter = Margin(value, offset); break;
             case "break-before" when paragraph: style.BreakBefore = PageBreak(value, offset); break;
@@ -336,6 +338,21 @@ internal static class InlineCss
             CultureInfo.InvariantCulture, out var result) || !double.IsFinite(result))
             throw Invalid("Expected a finite decimal number.", offset);
         return result;
+    }
+
+    // CSS orphans/widows: a positive <integer> (an optional '+', decimal digits). Chrome keeps the
+    // computed value in a 16-bit short, so anything larger computes to 32767, as it does there.
+    private static ushort LineCount(string value, int offset)
+    {
+        var number = value.AsSpan(value.StartsWith('+') ? 1 : 0);
+        var count = 0;
+        foreach (var digit in number)
+        {
+            if (digit is < '0' or > '9') throw Invalid("orphans and widows require a positive integer.", offset);
+            count = Math.Min(short.MaxValue, count * 10 + (digit - '0'));
+        }
+        if (count == 0) throw Invalid("orphans and widows require a positive integer.", offset);
+        return (ushort)count;
     }
 
     private static bool PageBreak(string value, int offset) => value switch

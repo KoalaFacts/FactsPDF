@@ -23,12 +23,23 @@ public sealed class HeadingKeepTests
         Assert.That(TableLayoutTests.Pdf(html, Page), Is.EqualTo(TableLayoutTests.Pdf(html.Replace("break-after:avoid;", ""), Page)));
     }
 
+    // As in Chrome: only one line of the paragraph would follow the heading here (orphans 2), so
+    // the heading moves although the group is taller than a page; the next page then keeps two
+    // lines for the widows.
     [Test]
-    public void OversizedCombinationRelaxesWithoutEmptyPages()
+    public void OversizedCombinationMovesWhenItsParagraphCannotKeepItsOrphans()
     {
         var html = Before(2) + Heading() + "<p>A<br>B<br>C<br>D</p>";
-        Assert.That(Pages(html), Is.EqualTo(new[] { "BEFORE,BEFORE,TITLE,A", "B,C,D" }));
+        Assert.That(Pages(html), Is.EqualTo(new[] { "BEFORE,BEFORE", "TITLE,A,B", "C,D" }));
     }
+
+    // As in Chrome: two lines can follow the heading here, so the paragraph breaks inside instead
+    // of moving with the heading, even though the whole group would fit a fresh page. Three lines
+    // cannot keep both two orphans and two widows, so the orphans win.
+    [Test]
+    public void HeadingStaysWhenItsParagraphKeepsItsOrphansHere()
+        => Assert.That(Pages(Before(1) + Heading() + "<p>A<br>B<br>C</p>"),
+            Is.EqualTo(new[] { "BEFORE,TITLE,A,B", "C" }));
 
     [TestCase("break-before:page", "")]
     [TestCase("", "break-after:page")]
@@ -109,10 +120,12 @@ public sealed class HeadingKeepTests
     public void LookaheadDoesNotPreemptBudgetFailureWithLaterMissingGlyph(string decoration, int budget)
         => Fails(Css + Heading(extra: decoration) + "<p>中文</p>", "FPDF1401", Page with { MaxDisplayCommands = budget });
 
+    // The chain moves once (no line of the paragraph follows it here); on the fresh page breaking
+    // inside the paragraph, despite its orphans, beats separating it from the kept headings.
     [Test]
-    public void OversizedChainDoesNotRetryShorterSuffix()
+    public void OversizedChainMovesOnceAndThenBreaksInsideItsParagraph()
         => Assert.That(Pages(Before(1) + Heading("ONE") + Heading("TWO") + Heading("THREE") + "<p>A<br>B</p>"),
-            Is.EqualTo(new[] { "BEFORE,ONE,TWO,THREE", "A,B" }));
+            Is.EqualTo(new[] { "BEFORE", "ONE,TWO,THREE,A", "B" }));
     private static void Fails(string html, string code, PdfOptions options)
     {
         using var output = new MemoryStream(); output.Write("sentinel"u8); output.Position = 3;

@@ -118,6 +118,12 @@ internal sealed record TextStyle
     public double? DecorationThickness { get; set; }
     public double? UnderlineOffset { get; set; }
     public TextAlignment? LastLineAlignment { get; set; }
+    /// <summary>
+    /// Computed CSS orphans and widows, or 0 for the initial value 2 (see
+    /// <see cref="LineBreakControl"/>), so the default style needs no assignment.
+    /// </summary>
+    public ushort Orphans { get; set; }
+    public ushort Widows { get; set; }
     // Retain relative outside margins until containing-block content width is known.
     public CssLength? PercentMarginBefore { get; set; }
     public CssLength? PercentMarginAfter { get; set; }

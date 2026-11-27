@@ -11,7 +11,7 @@ internal enum CssProperty
     TextDecorationColor, TextDecorationStyle, BorderRadius, MinHeight, Height,
     BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius,
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
-    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse,
+    OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.
@@ -218,7 +218,8 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
+            or CssProperty.Orphans or CssProperty.Widows;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         switch (property)
         {
@@ -230,6 +231,8 @@ internal static class CssDeclarations
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
             case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
             case CssProperty.BorderCollapse: style.CollapseBorders = source.CollapseBorders; break;
+            case CssProperty.Orphans: style.Orphans = source.Orphans; break;
+            case CssProperty.Widows: style.Widows = source.Widows; break;
             case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
             case CssProperty.TextDecorationColor: style.DecorationColor = source.DecorationColor; break;
             case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;
