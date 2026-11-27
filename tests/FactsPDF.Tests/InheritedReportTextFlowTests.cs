@@ -98,7 +98,8 @@ public sealed class InheritedReportTextFlowTests
             Is.EqualTo(Pdf("<section><p style='width:100pt;text-indent:20%'>Inspection notes</p></section>")));
         var positions = Layout("<section style='text-indent:20%'>" + child + "</section>")
             .SelectMany(p => p.Runs).ToArray();
-        Assert.That(positions[0].X, Is.EqualTo(36).Within(0.001));
+        // 16pt page margin + 6pt UA body margin + 20% of the child's 100pt containing width.
+        Assert.That(positions[0].X, Is.EqualTo(42).Within(0.001));
     }
 
     [Test]
@@ -192,7 +193,8 @@ public sealed class InheritedReportTextFlowTests
             "<p>Alpha is the first invoice detail.</p></body></html>";
 
         var runs = Layout(relative).SelectMany(page => page.Runs).ToArray();
-        Assert.That(runs[0].X, Is.EqualTo(Page.Margin + 24).Within(0.001),
+        // The 6pt UA body margin sits between the page margin and the 24pt indent.
+        Assert.That(runs[0].X, Is.EqualTo(Page.Margin + 6 + 24).Within(0.001),
             "Root rem must resolve against the final 24pt html font, not the initial 12pt.");
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(pointOracle)));
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(bodyOracle)));

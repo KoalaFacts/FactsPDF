@@ -9,10 +9,12 @@ public sealed class ListLayoutTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 140, Margin = 20 };
     private static bool Marker(PlacedText run) => Regex.IsMatch(run.Text, @"^\d+\.$");
+    // The coordinates below are measured from the page margin, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default);
     }
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
@@ -30,16 +32,18 @@ public sealed class ListLayoutTests
         if (source) Assert.That(error.SourceOffset, Is.GreaterThanOrEqualTo(0));
     }
 
-    [TestCase(12, 27.6)]
-    [TestCase(100, 34.8)]
-    public void LaterWideMarkerSetsUniformSiblingGutter(int count, double gutter)
+    // The list has no marker-sized gutter any more: items start after the 30pt (40px) list padding and a
+    // marker hangs 0.5em left of its item whatever its width, so a later wide marker moves nothing.
+    [TestCase(12)]
+    [TestCase(100)]
+    public void LaterWideMarkerSetsUniformSiblingGutter(int count)
     {
         var html = "<ol>" + string.Concat(Enumerable.Range(1, count).Select(i => $"<li>Row{i}</li>")) + "</ol>";
         var runs = Layout(html, Page with { PageHeight = 3000 }).SelectMany(p => p.Runs).ToArray();
         Assert.That(runs.Where(Marker).Select(r => r.Text), Is.EqualTo(Enumerable.Range(1, count).Select(i => $"{i}.")));
-        Assert.That(runs.Where(r => !Marker(r)).Select(r => r.X), Is.All.EqualTo(20 + gutter).Within(0.000001));
+        Assert.That(runs.Where(r => !Marker(r)).Select(r => r.X), Is.All.EqualTo(20 + 30).Within(0.000001));
         foreach (var marker in runs.Where(Marker))
-            Assert.That(marker.X + marker.Text.Length * 7.2, Is.EqualTo(20 + gutter - 6).Within(0.000001));
+            Assert.That(marker.X + marker.Text.Length * 7.2, Is.EqualTo(20 + 30 - 6).Within(0.000001));
     }
 
     [Test]
@@ -49,7 +53,7 @@ public sealed class ListLayoutTests
             .SelectMany(p => p.Runs).ToArray();
         Assert.That(runs.Count(Marker), Is.EqualTo(1));
         Assert.That(runs.Where(r => !Marker(r)).Count(), Is.GreaterThan(2));
-        Assert.That(runs.Where(r => !Marker(r)).Select(r => r.X), Is.All.EqualTo(44).Within(0.000001));
+        Assert.That(runs.Where(r => !Marker(r)).Select(r => r.X), Is.All.EqualTo(50).Within(0.000001));
     }
 
     [Test]
@@ -58,18 +62,20 @@ public sealed class ListLayoutTests
         var runs = Layout("<ol><li>A<ol><li>B</li><li>C</li></ol>D</li><li>E</li></ol><ol><li>F</li></ol>")
             .SelectMany(p => p.Runs).ToArray();
         Assert.That(runs.Where(Marker).Select(r => r.Text), Is.EqualTo(new[] { "1.", "1.", "2.", "2.", "1." }));
-        Assert.That(runs.Single(r => r.Text == "B").X, Is.EqualTo(68));
-        Assert.That(runs.Where(r => r.Text is "A" or "D" or "E" or "F").Select(r => r.X), Is.All.EqualTo(44));
+        // Each list level indents its items by the 30pt list padding.
+        Assert.That(runs.Single(r => r.Text == "B").X, Is.EqualTo(80));
+        Assert.That(runs.Where(r => r.Text is "A" or "D" or "E" or "F").Select(r => r.X), Is.All.EqualTo(50));
     }
 
-    [TestCase("left", 55)]
-    [TestCase("center", 106.8)]
-    [TestCase("right", 158.6)]
+    // Item x = 20 + 30 list padding; text starts after 3pt border + 8pt padding; the item content is 50% of 230.
+    [TestCase("left", 61)]
+    [TestCase("center", 111.3)]
+    [TestCase("right", 161.6)]
     public void PercentItemWidthUsesReducedContainingWidthAndMarkerStaysInGutter(string align, double x)
     {
         var runs = Layout($"<ol><li style='width:50%;padding-left:8pt;border:3pt solid red;text-align:{align}'>AA</li></ol>")[0].Runs;
         Assert.That(runs.Single(r => r.Text == "AA").X, Is.EqualTo(x).Within(0.000001));
-        Assert.That(runs.Single(Marker).X, Is.EqualTo(23.6).Within(0.000001));
+        Assert.That(runs.Single(Marker).X, Is.EqualTo(29.6).Within(0.000001));
     }
 
     [Test]
@@ -98,7 +104,7 @@ public sealed class ListLayoutTests
     {
         var runs = Layout("<ol><li><p></p><p>A</p></li></ol>")[0].Runs;
         Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "1.", "A" }));
-        Assert.That(runs[0].Baseline - runs[1].Baseline, Is.EqualTo(22.4).Within(0.000001));
+        Assert.That(runs[0].Baseline - runs[1].Baseline, Is.EqualTo(26.4).Within(0.000001)); // 14.4 strut line + the 12pt paragraph margin
     }
 
     [Test]
@@ -122,7 +128,7 @@ public sealed class ListLayoutTests
     [Test]
     public void LargeMarkerContributesToFirstLineStrut()
     {
-        var runs = Layout("<ol style='margin:0'><li style='font-size:36pt'><p style='font-size:12pt'>A<br>B</p></li></ol>")[0].Runs;
+        var runs = Layout("<ol style='margin:0'><li style='font-size:36pt'><p style='font-size:12pt;margin:0'>A<br>B</p></li></ol>")[0].Runs;
         var marker = runs.Single(Marker);
         Assert.That(marker.Style.FontSize, Is.EqualTo(36));
         Assert.That(marker.Baseline, Is.EqualTo(87.6).Within(0.000001));
@@ -203,7 +209,8 @@ public sealed class ListLayoutTests
         var runs = Layout(html, Page with { Fonts = [body, digits], PageHeight = 3000 }).SelectMany(p => p.Runs).ToArray();
         Assert.That(runs.Where(Marker).All(r => ReferenceEquals(r.Font, digits)), Is.True);
         Assert.That(runs.Where(r => r.Text == "A").All(r => ReferenceEquals(r.Font, body)), Is.True);
-        // Actual marker advance: (3*600 + 200)/1000*12 = 24pt; plus 6pt gap.
+        // Items start after the 30pt list padding; the marker advance (3*600 + 200)/1000*12 = 24pt hangs
+        // 0.5em (6pt) left of that, so "100." starts at 50 - 6 - 24.
         Assert.That(runs.Where(r => r.Text == "A").Select(r => r.X), Is.All.EqualTo(50));
         Assert.That(runs.Single(r => r.Text == "100.").X, Is.EqualTo(20));
     }
@@ -248,7 +255,7 @@ public sealed class ListLayoutTests
 
     [Test]
     public void GutterCannotOverflowNarrowList()
-        => Fails("<ol style='width:20pt'><li>A</li></ol>", "FPDF1302", source: true);
+        => Fails("<div style='width:20pt'><ol><li>A</li></ol></div>", "FPDF1302", source: true);
 
     [Test]
     public void ListPaginationAndOutputBudgetsProtectOutput()
@@ -269,6 +276,6 @@ public sealed class ListLayoutTests
         Assert.That(pages[0].PaintBoxes.All(b => b.IsFirstFragment && !b.IsLastFragment), Is.True);
         Assert.That(pages[1].PaintBoxes.All(b => !b.IsFirstFragment && b.IsLastFragment), Is.True);
         Assert.That(pages[0].PaintBoxes.Single(b => b.Style.BorderTop.Color == new Rgb(1, 0, 0)).X, Is.EqualTo(20));
-        Assert.That(pages[0].PaintBoxes.Single(b => b.Style.BorderTop.Color == new Rgb(0, 0, 1)).X, Is.EqualTo(45));
+        Assert.That(pages[0].PaintBoxes.Single(b => b.Style.BorderTop.Color == new Rgb(0, 0, 1)).X, Is.EqualTo(51)); // 1pt list border + 30pt list padding
     }
 }

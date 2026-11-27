@@ -14,16 +14,19 @@ public sealed class BoxFragmentationTests
         Margin = 20
     };
 
+    // The geometry below predates the user-agent stylesheet: no body margin and an 8pt gap below paragraphs only.
+    private const string Neutral = "<style>html,body{margin:0}p{margin:0 0 8pt}</style>";
+
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Small;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, o, default), o, default);
     }
 
     private static (PdfWriteResult Result, byte[] Pdf) Render(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        var result = PdfConverter.Convert(html, output, options ?? Small);
+        var result = PdfConverter.Convert(Neutral + html, output, options ?? Small);
         return (result, output.ToArray());
     }
 
@@ -32,7 +35,7 @@ public sealed class BoxFragmentationTests
         using var output = new MemoryStream();
         output.Write("keep"u8);
         var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
-            html, output, options ?? Small));
+            Neutral + html, output, options ?? Small));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(Encoding.ASCII.GetString(output.ToArray()), Is.EqualTo("keep"));
         return error;
