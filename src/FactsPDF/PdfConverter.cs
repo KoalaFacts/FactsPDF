@@ -39,7 +39,12 @@ internal static class PdfConverter
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
         // CSS @page sets the page geometry and margin boxes before any layout reads them.
-        if (document.PageRules is { } pageRules) options = pageRules.Apply(options, document.RootStyle);
+        if (document.PageRules is { } pageRules)
+        {
+            options = pageRules.Apply(options, document.RootStyle);
+            if (Problem(options) is { } problem)
+                throw new FactsPdfException("FPDF1202", "@page produces invalid page options: " + problem.Message);
+        }
         var pages = TextLayout.Layout(document, options, cancellationToken);
         long displayCommands = 0;
         foreach (var page in pages)
@@ -68,17 +73,31 @@ internal static class PdfConverter
     // ParamName is always the public "options" parameter; the message names the property.
     private static void Validate(PdfOptions options)
     {
-        var o = options;
+        if (Problem(options) is { } problem)
+            throw problem.Value is { } value
+                ? new ArgumentOutOfRangeException(nameof(options), value, problem.Message)
+                : new ArgumentOutOfRangeException(nameof(options), problem.Message);
+    }
+
+    // The same invariants hold for the writer's options and for the options CSS @page derives from them.
+    private static (object? Value, string Message)? Problem(PdfOptions o)
+    {
         if (!double.IsFinite(o.PageWidth) || o.PageWidth is < 72 or > 14_400)
-            throw new ArgumentOutOfRangeException(nameof(options), o.PageWidth, "PageWidth must be from 72 to 14400 points.");
+            return (o.PageWidth, "PageWidth must be from 72 to 14400 points.");
         if (!double.IsFinite(o.PageHeight) || o.PageHeight is < 72 or > 14_400)
-            throw new ArgumentOutOfRangeException(nameof(options), o.PageHeight, "PageHeight must be from 72 to 14400 points.");
+            return (o.PageHeight, "PageHeight must be from 72 to 14400 points.");
         if (!double.IsFinite(o.Margin) || o.Margin < 0 || 2 * o.Margin >= Math.Min(o.PageWidth, o.PageHeight))
-            throw new ArgumentOutOfRangeException(nameof(options), o.Margin, "Margin must be nonnegative and less than half the shorter page side.");
+            return (o.Margin, "Margin must be nonnegative and less than half the shorter page side.");
+        if (o.SideMargins is { } sides && (
+                !double.IsFinite(sides.Top) || !double.IsFinite(sides.Right) || !double.IsFinite(sides.Bottom) || !double.IsFinite(sides.Left)
+                || sides.Top < 0 || sides.Right < 0 || sides.Bottom < 0 || sides.Left < 0
+                || sides.Top + sides.Bottom >= o.PageHeight || sides.Left + sides.Right >= o.PageWidth))
+            return (null, "Each margin must be nonnegative and the margins must leave a page area.");
         if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144)
-            throw new ArgumentOutOfRangeException(nameof(options), o.FontSize, "FontSize must be from 1 to 144 points.");
+            return (o.FontSize, "FontSize must be from 1 to 144 points.");
         if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxDisplayCommands < 1
             || o.MaxImageResources < 1 || o.MaxTotalImageBytes < 1)
-            throw new ArgumentOutOfRangeException(nameof(options), "All resource limits must be positive.");
+            return (null, "All resource limits must be positive.");
+        return null;
     }
 }
