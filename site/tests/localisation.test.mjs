@@ -1024,7 +1024,7 @@ test('non-strict CSS recovery is partial and valid unsupported CSS still fails, 
   assert.equal(row.stage, 'Semantics / rendering');
   assert.match(row.scope, /WithStrict\(false\)/);
   assert.match(row.scope, /style elements whose type is not CSS/);
-  assert.match(row.limitations, /position:absolute, :hover, @font-face, display:flex/);
+  assert.match(row.limitations, /position:absolute, :hover, @font-face, display:inline-grid/);
   assert.match(row.limitations, /MaxCssWarnings/);
   for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
   const variables = englishFeature(data.features.find(x => x.id === 'functions.var'));

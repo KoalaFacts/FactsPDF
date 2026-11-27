@@ -696,3 +696,8 @@ The `functions.var` limitation is replaced in place to name the `MaxCssCustomPro
 `d4840b6ec1dd2ef0c0557568d7d95d9144318bb2996e9eb92013fb871e6405af`; English
 layer `site/src/audit-english-custom-property-budget.mjs`, ordered source-text
 SHA-256 `535a15b0ccf49e383667b29ca0e11fa33aef41f33c5317687f285ee823a36e72`.
+
+The integrated strict/non-strict CSS, table row details, captions and collapsed borders, inline svg, inline replaced elements, structural pseudo-classes, orphans/widows, flex, `::before`/`::after` and grid branches (R5df–R5do) update their rows together: `css.grid`, `css.grid-template-columns`, `css.grid-template-rows`, `css.grid-area`, `css.grid-column`, `css.grid-row` and `selector.logical` move from none to partial, `selector.pseudo` gains the structural pseudo-classes, and every other changed string is replaced in place (full 45, partial 270, none 95). Their per-branch English layers are folded into one chained layer. Current dataset SHA-256:
+`8a5d77cfd1327babc9490fabefb235d6a10f342599e26e6e56cc2d3bc8b3f858`; English
+layer `site/src/audit-english-integrated-features.mjs`, ordered source-text
+SHA-256 `8a4070b56fb2a1b941b3168f04e19c4aa0c521b2c4b66a5897e6a12dcf06261d`.
