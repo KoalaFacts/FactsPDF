@@ -675,7 +675,19 @@ and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colou
 `value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
 since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
 stays partial.
+The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
+limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
+elements without widths), so no count moves. The `<table>` scope and limitation are replaced
+again when `colspan` joins automatic layout, and with the `<col>`, `<td>` and `<th>` rows
+when `col` and cell widths join it.
 Current dataset SHA-256:
-`c91a3026eee6fd6ff8cd3354123d3c4ce13e2aefa656f7e20f8f5b341efa1705`; English
-layer `site/src/audit-english-translucent-colours.mjs`, ordered source-text
-SHA-256 `9030c98569c8dcc545bc3dd0dd3c3057b86c6f5e38507765bf1162ea998e90b1`.
+`b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
+layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
+`55e91c973e3287cb768e4691ec7c4c39e0b3e535217b42436e836c7db6c6fe1b`; English
+layer `site/src/audit-english-auto-table-colspan.mjs`, ordered source-text
+`98496c6a4e19439271a5da1cc2dcce1f6ff07b0926b2920db4bb02011de29693`; English
+layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
+Current dataset SHA-256:
+`2313f1681399fdba2296881a8432613a385ebf2903dbf83b601813b380c41061`; English
+layer `site/src/audit-english-auto-table-mixed-widths.mjs`, ordered source-text
+SHA-256 `77f6f97c239f100c6a981304111639ac6cef386dd1c98b25c44b91d7c19fa210`.

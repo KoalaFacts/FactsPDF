@@ -518,8 +518,9 @@ internal sealed class CssStylesheets
             }
             // A col takes only a track width; box-sizing changes nothing there (a col has no
             // padding or borders), so *{box-sizing:border-box} is accepted on it.
-            if (element.Name == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing)
-                || element.Name is "td" or "th" && declaration.Property == CssProperty.Width)
+            // A td/th width takes part in automatic table layout only; TableLayout rejects it
+            // in a table whose columns all have explicit widths.
+            if (element.Name == "col" && declaration.Property is not (CssProperty.Width or CssProperty.BoxSizing))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is not supported on this table element.", declaration.Offset);
             // hr has physical box geometry but no text. Its local font-size
             // can scale em lengths; colour supplies currentcolor borders.

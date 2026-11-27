@@ -41,33 +41,43 @@ internal static class TableLayout
         // As for existing blocks, auto fills the parent's content area with
         // the outer box; an explicit width describes the table's content, or
         // with box-sizing:border-box its outer box including padding and borders.
-        var width = style.Width is { } specified
+        var specifiedWidth = style.Width is { } specified
             ? Checked(specified.Resolve(item.AvailableWidth)
                 - (style.BorderBoxSizing ? edges.Left + edges.Right : 0), table.SourceOffset)
-            : item.AvailableWidth - edges.Left - edges.Right;
+            : (double?)null;
+        var tracks = new double[table.Columns.Count];
+        // Unless every column has an explicit width, columns use automatic layout;
+        // with auto table width the table then shrinks to its max-content width.
+        // A cell width also takes automatic layout, where it constrains its column.
+        var automatic = !table.Columns.TrueForAll(column => column.Width is not null) || HasCellWidth(table);
+        var width = automatic
+            ? TableAutoLayout.Resolve(table, specifiedWidth, item.AvailableWidth - edges.Left - edges.Right, tracks,
+                options, resolved, cancellation)
+            : specifiedWidth ?? item.AvailableWidth - edges.Left - edges.Right;
         var outerWidth = width + edges.Left + edges.Right;
         if (width <= 0 || outerWidth > item.AvailableWidth + 0.000001)
             throw Geometry("Table outer width exceeds containing content width or is zero.", table.SourceOffset);
-        var tracks = new double[table.Columns.Count];
-        var totalWidth = 0d;
-        for (var i = 0; i < tracks.Length; i++)
+        if (!automatic)
         {
-            cancellation.ThrowIfCancellationRequested();
-            var column = table.Columns[i];
-            if (column.Width is not { } length)
-                throw Geometry("Every column requires an explicit positive width.", column.SourceOffset);
-            tracks[i] = Checked(length.Resolve(width), column.SourceOffset);
-            if (tracks[i] <= 0)
-                throw Geometry("Column width must be positive.", column.SourceOffset);
-            totalWidth += tracks[i];
+            var totalWidth = 0d;
+            for (var i = 0; i < tracks.Length; i++)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var column = table.Columns[i];
+                var length = column.Width!.Value;
+                tracks[i] = Checked(length.Resolve(width), column.SourceOffset);
+                if (tracks[i] <= 0)
+                    throw Geometry("Column width must be positive.", column.SourceOffset);
+                totalWidth += tracks[i];
+            }
+            // Allow only floating-point roundoff at the inclusive decimal boundary.
+            // One ULP per track plus the table width covers resolution/summation;
+            // the actual tracks remain unchanged, with no width redistribution.
+            var scale = Math.Max(totalWidth, width);
+            var roundoff = (Math.BitIncrement(scale) - scale) * (tracks.Length + 1);
+            if (Math.Abs(totalWidth - width) > 0.001 + roundoff)
+                throw Geometry("Column widths must sum to the table content width within 0.001pt.", table.SourceOffset);
         }
-        // Allow only floating-point roundoff at the inclusive decimal boundary.
-        // One ULP per track plus the table width covers resolution/summation;
-        // the actual tracks remain unchanged, with no width redistribution.
-        var scale = Math.Max(totalWidth, width);
-        var roundoff = (Math.BitIncrement(scale) - scale) * (tracks.Length + 1);
-        if (Math.Abs(totalWidth - width) > 0.001 + roundoff)
-            throw Geometry("Column widths must sum to the table content width within 0.001pt.", table.SourceOffset);
 
         var runs = new List<PlacedText>();
         var boxes = new List<PaintedBox>();
@@ -147,7 +157,10 @@ internal static class TableLayout
                 }
                 var cellEdges = ResolveEdges(cell.BoxStyle, cellWidth, cell.SourceOffset);
                 var contentWidth = cellWidth - cellEdges.Left - cellEdges.Right;
-                if (contentWidth <= 0)
+                // An automatic column is never narrower than its cells' min-content, so only
+                // an empty column can leave a cell no content width; clear the roundoff.
+                if (automatic && contentWidth > -0.000001) contentWidth = Math.Max(0, contentWidth);
+                else if (contentWidth <= 0)
                     throw Geometry("Cell content width must remain positive after padding and borders.", cell.SourceOffset);
                 units.Clear();
                 var height = cellEdges.Top;
@@ -357,6 +370,14 @@ internal static class TableLayout
             if (tableBox.CommandCount > 0) boxes.Insert(0, tableBox);
         }
         return new(outerWidth, outerHeight, runs, boxes, images, rows, edges.Top, edges.Bottom);
+    }
+
+    private static bool HasCellWidth(TableNode table)
+    {
+        foreach (var row in table.Rows)
+            foreach (var cell in row.Cells)
+                if (cell.BoxStyle.Width is not null) return true;
+        return false;
     }
 
     private static Edges ResolveEdges(BoxStyle style, double containingWidth, int offset)
