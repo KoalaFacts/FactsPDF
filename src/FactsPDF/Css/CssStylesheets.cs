@@ -722,8 +722,11 @@ internal sealed class CssStylesheets
             // non-replaced inline text (CSS Box Sizing: width and height do not apply), so the
             // universal reset *{box-sizing:border-box} is accepted there. It is still recorded on
             // the element's box so a child's box-sizing:inherit reads it, as in a browser.
+            // A row or row group background paints under its cells (TableMarkup gives it to
+            // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
-                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name)))
+                && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name))
+                && !(declaration.Property == CssProperty.BackgroundColor && element.Name is "tr" or "thead" or "tbody" or "tfoot"))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;

@@ -1197,6 +1197,15 @@ Percentage cell padding or image sizes in such tables fail `FPDF1302`;
 `table-layout` still fails `FPDF1201`; fixed-column tables are unchanged. See
 [automatic column widths](tables.md#automatic-column-widths).
 
+### Label/value rows and row backgrounds
+
+Any table row may mix `th` and `td` cells, so a body row can pair a bold label
+`th` with its value (`<tr><th>Invoice number</th><td>INV 2041</td></tr>`).
+`background-color` on `tr`, `thead`, `tbody` and `tfoot` paints under every cell of
+the row or group without a background of its own, where Chrome paints it; the
+header keeps its background on every page. Row and group padding and borders,
+`caption` and `border-collapse:collapse` still fail (`TableRowDetailsTests.cs`).
+
 ### Table footer rows
 
 A `<tfoot>` directly after the `tbody` holds one or more ordinary `td` rows,
