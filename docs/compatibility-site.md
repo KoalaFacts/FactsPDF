@@ -634,7 +634,10 @@ since no feature row covers it (accepted CSS property names 383 to 384).
 The `break-inside` and `page-break-inside` rows stay partial; their limitation strings are
 replaced in place to say that `tr` and `thead` accept `auto`/`avoid` unchanged and that a kept
 row FactsPDF would split fails `FPDF1302`, so no count moves.
+The `overflow-wrap` row adds `anywhere`, which wraps byte-identical to `break-word` because
+no min-content sizing exists; its scope, limitation and evidence strings are replaced in place,
+so no count moves.
 Current dataset SHA-256:
-`ae536c1d7ac923ee0df4cce5644caf036b3ee291833cc8fbd2242f54f1599a00`; English
-layer `site/src/audit-english-table-row-break-inside.mjs`, ordered source-text
-SHA-256 `98629c7a74f45d97977ad1f566f5b127551343b1abd07faabe9c3cbc0490d08e`.
+`28776ef9eec8eff10da83b1057200f867eec23e8b385c57bb0eecb386fcf95dd`; English
+layer `site/src/audit-english-overflow-wrap-anywhere.mjs`, ordered source-text
+SHA-256 `76d3440c438c5241ae68596bd65f8a1c8e66dbb3f007bd7a6120502f5a2d5cc6`.

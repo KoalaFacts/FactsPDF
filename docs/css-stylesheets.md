@@ -2,7 +2,7 @@
 
 Explicitly bounded `td/th` can declare `white-space`, `word-break` and `overflow-wrap` on the cell itself. Computed winners reach its anonymous text and flat `p` by inheritance; child paragraphs can override or reset them. Measured column content widths and existing `TextLines.Wrap` produce real PDF spaces, glyph positions, wraps, repeat headers and page breaks, rather than silently accepting declarations. This removes the need to insert a styled `p` in every table cell of a commercial report.
 
-Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word`. No break-spaces/keep-all/anywhere, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
+Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word/anywhere`. No break-spaces/keep-all, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
 
 A [24-row real report](../examples/report-cell-text-flow.html) and independent [paragraph-style control](../examples/report-cell-text-flow-oracle.html) are covered by [NUnit geometry, multipage, cascade and recovery tests](../tests/FactsPDF.Tests/TableCellTextFlowTests.cs). Engine source [19c6e35eb2987aa84fc7b5ff16b2ccad57630c60](https://github.com/KoalaFacts/FactsPDF/commit/19c6e35eb2987aa84fc7b5ff16b2ccad57630c60); exact CI, independent review, main verification and release are distinct. All three Can I Render records remain partial.
 
@@ -879,7 +879,7 @@ resource limits and invalid values. That is scoped engineering evidence,
 
 ## Current-source inherited report text flow
 
-Existing bounded `overflow-wrap:normal|break-word`,
+Existing bounded `overflow-wrap:normal|break-word|anywhere`,
 `word-break:normal|break-all` and nonnegative `text-indent` may now be
 declared on `html`, `body` and ordinary `div`/`section`/`article`/`blockquote`
 report containers outside list/table structures. The computed values inherit
@@ -897,7 +897,7 @@ not indent again. Direct `text-indent` on the cell paragraph and CSS
 declarations on table/list structural elements or inline spans still reject
 with `FPDF1201`. Unsupported words/units and unfit glyph geometry keep the
 existing `FPDF1202/1302` protection. This does not implement general
-CSS Text, `word-break:keep-all`, `overflow-wrap:anywhere`, RTL or complex
+CSS Text, `word-break:keep-all`, RTL or complex
 Unicode shaping. The independent HTML-to-PDF coordinate, byte and
 failure-recovery tests are in
 [`InheritedReportTextFlowTests.cs`](../tests/FactsPDF.Tests/InheritedReportTextFlowTests.cs).
@@ -2219,12 +2219,16 @@ its preceding collapsed space. Spaces still collapse, explicit `<br>` works
 and `white-space:nowrap` continues to prohibit automatic breaking.
 `overflow-wrap:normal` or omitted retains identical PDF drawing bytes.
 
-Only `normal`, `break-word` and single CSS-wide
-`inherit`/`initial`/`unset` values are accepted. The legacy `word-wrap` name is
+Only `normal`, `break-word`, `anywhere` and single CSS-wide
+`inherit`/`initial`/`unset` values are accepted. Per CSS Text 3, `anywhere`
+breaks exactly like `break-word` and differs only in min-content sizing;
+FactsPDF has no min-content sizing (table columns and boxes take explicit or
+containing-block widths), so `anywhere` wraps byte-for-byte like `break-word`
+in every context that accepts it (`OverflowWrapAnywhereTests.cs`). The legacy `word-wrap` name is
 an alias: it shares the `overflow-wrap` cascade slot (the later declaration
 wins), values and applicability. Explicit declarations on
 inline spans, unsupported container and table-element targets (ordinary report containers outside the table/list structure are now supported for inheritance),
-`anywhere`, `break-all`, hyphen insertion, grapheme/complex-script shaping
+`break-all`, hyphen insertion, grapheme/complex-script shaping
 and bidirectional text remain outside this scoped increment. A flat `p` inside
 a fixed-column table cell may opt in for its own text, but this does not add
 auto column widths or general table layout.

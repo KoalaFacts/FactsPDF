@@ -713,7 +713,7 @@ For inspection findings, revised quotes and status notes, `text-decoration:overl
 
 ### Inherited report text flow (source-only)
 
-The existing bounded `overflow-wrap:normal|break-word`, `word-break:normal|break-all|break-word`
+The existing bounded `overflow-wrap:normal|break-word|anywhere`, `word-break:normal|break-all|break-word`
 and nonnegative `text-indent` values can now be declared on `html`, `body`
 or ordinary report `div`/`section`/`article`/`blockquote` containers.
 Their computed values inherit into descendant paragraphs and headings and
@@ -827,7 +827,7 @@ Controlled identifiers or approval labels can use `white-space:nowrap` on `<p>` 
 
 ### `overflow-wrap:break-word` for long identifiers (source-only)
 
-Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; unsupported `anywhere`/inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
+Long unbroken invoice and approval identifiers can use `overflow-wrap:break-word` on explicit report paragraphs/headings, including flat paragraphs inside fixed-column table cells. The measured PDF layout keeps ordinary words whole when they fit a fresh line, but splits an oversized token at supported glyph boundaries and continues across pages. `white-space:nowrap` takes precedence; inline declarations and an unfit individual glyph reject without modifying a previous PDF. The legacy `word-wrap` name is an alias with the same values, cascade slot and applicability (`WordWrapAliasTests.cs`). `overflow-wrap:anywhere` (and `word-wrap:anywhere`, which Chromium, Firefox and WebKit all accept) is accepted wherever `break-word` is, so a report stylesheet's `.ledger td { overflow-wrap: anywhere; }` renders: CSS Text 3 makes the two differ only in min-content sizing, which FactsPDF never computes (fixed table columns, explicit or containing-block widths), so the PDF is byte-identical to `break-word` in paragraphs, headings, inherited containers, list items, table cells and multi-page ledgers (`OverflowWrapAnywhereTests.cs`). This bounded source-only feature is not full browser CSS Text or automatic hyphenation. See the [contract](css-stylesheets.md#current-source-bounded-emergency-wrapping-for-report-identifiers), [32-entry report](../examples/report-overflow-wrap.html), and [independent manual-break oracle](../examples/report-overflow-wrap-oracle.html).
 
 ### Full-width invoice identifier wrapping (source-only)
 
