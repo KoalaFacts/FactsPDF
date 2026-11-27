@@ -6,16 +6,24 @@ namespace FactsPDF.Tests;
 public sealed class HorizontalRuleTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 240, Margin = 20 };
+    // The user-agent sheet gives body an 8px margin and hr four 1px borders; tests that size or place one
+    // authored border measure without them. A document that starts with its own html element opts out.
+    private const string Plain = "<style>html,body{margin:0}hr{border:0}</style>";
+    private static string Neutral(string html)
+        => html.StartsWith("<html", StringComparison.Ordinal) || html.StartsWith(Margin0, StringComparison.Ordinal) ? html : Plain + html;
+    // Only the body margin zeroed, for the test that measures the default rule itself.
+    private const string Margin0 = "<style>html,body{margin:0}</style>";
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, options ?? Page);
+        PdfConverter.Convert(Neutral(html), stream, options ?? Page);
         return stream.ToArray();
     }
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var settings = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), settings, default), settings, default);
     }
     private static void Reject(string html, string code, PdfOptions? options = null)
     {
@@ -29,17 +37,19 @@ public sealed class HorizontalRuleTests
     }
 
     [Test]
-    public void DefaultRulePaintsActualOnePointSeparatorAndEightPointGaps()
+    public void DefaultRulePaintsOnePixelBordersAndHalfEmGaps()
     {
+        // Chrome's hr: 0.5em (6pt) margins and a 1px border on every side, light top/left and lighter
+        // bottom/right, so the rule is 2px (1.5pt) tall.
         const string actual = "<p style='margin:0'>BEFORE</p><hr><p style='margin:0'>AFTER</p>";
         const string oracle = "<p style='margin:0'>BEFORE</p>" +
-            "<div style='margin:8pt 0;border-top:1pt solid currentcolor'></div>" +
+            "<div style='margin:6pt 0;border:1px solid;border-color:#9a9a9a #eee #eee #9a9a9a'></div>" +
             "<p style='margin:0'>AFTER</p>";
-        Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
-        var page = Layout(actual).Single();
+        var page = Layout(Margin0 + actual).Single();
+        Assert.That(Render(Margin0 + actual), Is.EqualTo(Render(Margin0 + oracle)));
         var box = page.PaintBoxes.Single();
         Assert.That(box.Width, Is.EqualTo(260).Within(0.000001));
-        Assert.That(box.Height, Is.EqualTo(1).Within(0.000001));
+        Assert.That(box.Height, Is.EqualTo(1.5).Within(0.000001));
         Assert.That(page.Runs.Select(r => r.Text), Is.EquivalentTo(new[] { "BEFORE", "AFTER" }));
     }
 
@@ -66,7 +76,7 @@ public sealed class HorizontalRuleTests
         const string open = "<html style='font-size:10pt'><body style='font-size:15pt'>";
         const string tail = "<p style='margin:0'>FOLLOWING</p></body></html>";
         var actual = open + "<hr style='font-size:20pt;width:6em;" +
-            "margin:1rem auto 0.5em;border-top:2pt solid blue'>" + tail;
+            "margin:1rem auto 0.5em;border:0;border-top:2pt solid blue'>" + tail;
         var oracle = open + "<div style='width:120pt;" +
             "margin:10pt auto 10pt;border-top:2pt solid blue'></div>" + tail;
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
@@ -99,10 +109,11 @@ public sealed class HorizontalRuleTests
     [Test]
     public void InheritedPanelMarginAndCurrentColourMatchExplicitFixedOracle()
     {
+        // hr has its own gray colour in the UA sheet, so inherit the panel colour for currentcolor to be blue.
         const string actual = "<section style='color:blue;margin-top:7pt'>" +
-            "<hr style='margin-top:inherit;border-top-color:currentcolor'></section>";
+            "<hr style='color:inherit;margin-top:inherit;border:0 solid;border-top-width:1pt;border-top-color:currentcolor'></section>";
         const string oracle = "<section style='color:blue;margin-top:7pt'>" +
-            "<div style='margin:7pt 0 8pt;border-top:1pt solid blue'></div></section>";
+            "<div style='margin:7pt 0 6pt;border-top:1pt solid blue'></div></section>"; // bottom margin: UA 0.5em
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
         Assert.That(Layout("<hr style='border-top:initial'>").Single().PaintBoxes, Is.Empty);
     }

@@ -8,17 +8,21 @@ public sealed class BorderBoxSizingTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // The user-agent sheet gives body an 8px margin; fragments that start with an html element are left as authored.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+    private static string Neutral(string html) => html.StartsWith("<html", StringComparison.Ordinal) ? html : NoBodyMargin + html;
+
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var target = new MemoryStream();
-        PdfConverter.Convert(html, target, options ?? Page);
+        PdfConverter.Convert(Neutral(html), target, options ?? Page);
         return target.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var page = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, page, default), page, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), page, default), page, default);
     }
 
     private static void FailClosed(string html, string code)
@@ -83,7 +87,7 @@ public sealed class BorderBoxSizingTests
             "<div style='box-sizing:unset;width:70pt'>C</div>" +
             "<div style='box-sizing:initial;width:70pt'>D</div>" +
             "<div style='width:70pt'>E</div></section>";
-        var root = HtmlDocumentReader.ReadTree(html, Page, default);
+        var root = HtmlDocumentReader.ReadTree(NoBodyMargin + html, Page, default);
         var outer = (BlockNode)root.Children.Single();
         Assert.That(outer.BoxStyle.BorderBoxSizing, Is.True);
         var children = outer.Children.Cast<BlockNode>().ToArray();

@@ -25,7 +25,8 @@ public sealed class BoxStyleSharingTests
         var document = HtmlDocumentReader.ReadTree(
             "<div style=\"padding:4pt\"><div style=\"padding:inherit;padding-left:9pt;border:1pt solid red\">A</div></div>",
             new PdfOptions(), CancellationToken.None);
-        var outer = (BlockNode)document.Children[0];
+        var body = (BlockNode)document.Children[0]; // the body carries the user-agent margin, so it is always a box
+        var outer = (BlockNode)body.Children[0];
         var inner = (BlockNode)outer.Children[0];
         Assert.That(outer.BoxStyle.PaddingLeft.Value, Is.EqualTo(4));
         Assert.That(outer.BoxStyle.BorderTop.EffectiveWidth, Is.Zero);

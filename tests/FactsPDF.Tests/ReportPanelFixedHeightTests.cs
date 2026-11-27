@@ -98,7 +98,8 @@ public sealed class ReportPanelFixedHeightTests
             "<article style='height:unset'>B</article>" +
             "<blockquote style='height:initial'>C</blockquote>" +
             "</section>";
-        var node = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        var body = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single(); // the body carries the UA margin
+        var node = (BlockNode)body.Children.Single();
         Assert.That(node.BoxStyle.Height!.Value.Value, Is.EqualTo(90));
         var nested = node.Children.OfType<BlockNode>().ToArray();
         Assert.That(nested[0].BoxStyle.Height!.Value.Value, Is.EqualTo(90));

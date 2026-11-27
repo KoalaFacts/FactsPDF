@@ -10,6 +10,9 @@ public sealed class ReportPrintSpacingTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // The user-agent sheet gives body an 8px margin; tests that assert the tree shape or page coordinates zero it.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var pdf = new MemoryStream();
@@ -62,7 +65,7 @@ public sealed class ReportPrintSpacingTests
     [Test]
     public void PhysicalPrintUnitsAffectRealGeometryAndFontSize()
     {
-        const string html = "<div style='width:2in;padding-left:6.35mm;border-left:0.25cm solid blue'>" +
+        const string html = NoBodyMargin + "<div style='width:2in;padding-left:6.35mm;border-left:0.25cm solid blue'>" +
             "<p style='font-size:0.25in;margin:0 0 0.5cm'>ITEM</p><p>TAIL</p></div>";
         var tree = HtmlDocumentReader.ReadTree(html, Page, default);
         var div = (BlockNode)tree.Children.Single();
@@ -157,13 +160,13 @@ public sealed class ReportPrintSpacingTests
     [Test]
     public void PrintUnitsRespectLogicalShorthandsCascadeFontAndBoxGeometry()
     {
-        const string print = "<style>.card{width:14pc;padding-inline:4q 1pc;" +
+        const string print = NoBodyMargin + "<style>.card{width:14pc;padding-inline:4q 1pc;" +
             "padding-block:4q;margin-block:1pc 2pc;" +
             "border-left:4q solid #23456a}" +
             "h2{font-size:1pc;line-height:1pc!important}</style>" +
             "<section class=card><h2 style='line-height:2pc'>REPORT</h2>" +
             "<p style='margin-block:4q 1pc;letter-spacing:4q;word-spacing:4q'>WIDE LABEL</p></section>";
-        const string physical = "<style>.card{width:168pt;padding-left:1mm;padding-right:12pt;" +
+        const string physical = NoBodyMargin + "<style>.card{width:168pt;padding-left:1mm;padding-right:12pt;" +
             "padding-top:1mm;padding-bottom:1mm;margin-top:12pt;margin-bottom:24pt;" +
             "border-left:1mm solid #23456a}" +
             "h2{font-size:12pt;line-height:12pt!important}</style>" +
@@ -207,9 +210,12 @@ public sealed class ReportPrintSpacingTests
     public void InvalidPrintUnitValuesKeepDestinationUnchanged(string css)
         => Reject(css);
 
+    // Body has a real margin in the user-agent sheet, so an authored body margin in print units is
+    // accepted and equals the same margin in points.
     [Test]
-    public void PrintUnitsDoNotMakeBodyBoxMarginsSupported()
-        => Reject("margin:1pc", "body", "FPDF1201");
+    public void PrintUnitsOnTheBodyMarginMatchPoints()
+        => Assert.That(Render("<body style='margin:1pc'><p>A</p></body>"),
+            Is.EqualTo(Render("<body style='margin:12pt'><p>A</p></body>")));
 
     [TestCase("margin:0 0 auto")]
     [TestCase("margin:0 0 -1mm")]
@@ -226,10 +232,11 @@ public sealed class ReportPrintSpacingTests
         => Reject(css);
 
     [Test]
-    public void MarginsRemainOutOfScopeOnBodyAndUnmatchedRulesStillValidate()
+    public void BodyMarginRendersAndUnmatchedRulesStillValidate()
     {
-        // Ordinary panels now render margins; body still rejects them.
-        Reject("margin:2mm 0", "body", "FPDF1201");
+        // Ordinary panels and the body render margins; an invalid margin in an unmatched rule still fails.
+        Assert.That(Render("<body style='margin:2mm 0'><p>A</p></body>"),
+            Is.EqualTo(Render("<body style='margin-top:2mm;margin-bottom:2mm;margin-left:0;margin-right:0'><p>A</p></body>")));
         using var target = new MemoryStream();
         target.Write("still intact"u8);
         var error = Assert.Throws<FactsPdfException>(() =>

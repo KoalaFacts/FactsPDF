@@ -86,7 +86,7 @@ public sealed class TextStyleSharingTests
         var inner = paragraphs.Single(p => p.Runs[0].Text == "A").Style;
         var outer = paragraphs.Single(p => p.Runs[0].Text == "B").Style;
         Assert.That(panel.Style.FontSize, Is.EqualTo(20));
-        Assert.That(panel.Style.LineHeight, Is.EqualTo(1.2));
+        Assert.That(panel.Style.LineHeight, Is.EqualTo(TextStyle.NormalLineHeight), "line-height:normal is the default");
         Assert.That(inner.Color, Is.EqualTo(new Rgb(0, 0, 1)));
         Assert.That(inner.FontSize, Is.EqualTo(12));
         Assert.That(inner.LineHeight, Is.EqualTo(2));
@@ -111,12 +111,12 @@ public sealed class TextStyleSharingTests
     [Test]
     public void SiblingsWithTheSameTagDefaultsShareOneStyle()
     {
-        // Each p differs from body only by its tag defaults (an 8pt bottom margin), so plain sibling
+        // Each p differs from body only by its tag defaults (1em top and bottom margins), so plain sibling
         // paragraphs share one defaults copy instead of making one each.
         var paragraphs = Paragraphs("<p>A</p><p>B</p><div><p>C</p></div><p>D</p>");
         Assert.That(paragraphs[1].Style, Is.SameAs(paragraphs[0].Style));
         Assert.That(paragraphs[3].Style, Is.SameAs(paragraphs[0].Style));
-        Assert.That(paragraphs[0].Style.MarginAfter, Is.EqualTo(8));
+        Assert.That(paragraphs[0].Style.MarginAfter, Is.EqualTo(12)); // 1em of the 12pt font
     }
 
     [Test]
@@ -134,6 +134,6 @@ public sealed class TextStyleSharingTests
         Assert.That(paragraphs[4].Style.Color, Is.EqualTo(new Rgb(0, 0, 1)));
         Assert.That(shared.Color, Is.EqualTo(new Rgb(0, 0, 0)));
         Assert.That(shared.Bold, Is.False);
-        Assert.That(shared.MarginAfter, Is.EqualTo(8));
+        Assert.That(shared.MarginAfter, Is.EqualTo(12)); // 1em of the 12pt font
     }
 }
