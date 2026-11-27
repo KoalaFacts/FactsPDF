@@ -65,10 +65,13 @@ public sealed class ImpliedDocumentElementTests
     }
 
     [Test]
-    public void AnUnstyledImpliedBodyAddsNoBox()
+    public void AnImpliedBodyIsTheSameBoxAsAnExplicitOne()
     {
+        // The user-agent sheet gives body its 8px margin, so the implied body is a box holding the paragraph.
         var root = HtmlDocumentReader.ReadTree("<p>A</p>", new PdfOptions(), default);
-        Assert.That(((BlockNode)root.Children.Single()).Name, Is.EqualTo("p"));
+        var body = (BlockNode)root.Children.Single();
+        Assert.That(body.Name, Is.EqualTo("body"));
+        Assert.That(((BlockNode)body.Children.Single()).Name, Is.EqualTo("p"));
         Assert.That(Pdf("<p>A</p>"), Is.EqualTo(Pdf("<html><head></head><body><p>A</p></body></html>")));
     }
 

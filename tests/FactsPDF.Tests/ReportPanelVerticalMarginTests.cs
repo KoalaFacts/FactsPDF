@@ -14,17 +14,23 @@ public sealed class ReportPanelVerticalMarginTests
         PageWidth = 300, PageHeight = 500, Margin = 20
     };
 
+    // The user-agent sheet gives body an 8px margin; these tests measure from the page margin, so zero it.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
+    // A document that starts with its own html element zeroes the body margin itself.
+    private static string Neutral(string html) => html.StartsWith("<html", StringComparison.Ordinal) ? html : NoBodyMargin + html;
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var destination = new MemoryStream();
-        PdfConverter.Convert(html, destination, options ?? Page);
+        PdfConverter.Convert(Neutral(html), destination, options ?? Page);
         return destination.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var settings = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), settings, default), settings, default);
     }
 
     private static void Reject(string html, string code)
@@ -78,7 +84,7 @@ public sealed class ReportPanelVerticalMarginTests
     [Test]
     public void RootRemAndFinalElementEmProduceTheSameActualPdfAsExplicitPointMargins()
     {
-        const string start = "<html style='font-size:10pt'><body>" +
+        const string start = "<html style='font-size:10pt'><body style='margin:0'>" +
             "<section style='font-size:16pt;width:130pt;padding:4pt;background:blue;";
         const string end = "'><p style='margin:0'>FONT-SCALED</p></section>" +
             "<p style='margin:0'>AFTER</p></body></html>";
@@ -133,12 +139,17 @@ public sealed class ReportPanelVerticalMarginTests
     [TestCase("<article style='margin-top:-1pt'>A</article>", "FPDF1202")]
     [TestCase("<article style='margin-top:calc(1pt + 2pt)'>A</article>", "FPDF1202")]
     [TestCase("<div style='margin:15000pt 0'>A</div>", "FPDF1202")]
-    [TestCase("<body style='margin-top:4pt'>A</body>", "FPDF1201")]
     [TestCase("<span style='margin-top:4pt'>A</span>", "FPDF1201")]
     [TestCase("<ul style='margin-top:4%'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<table style='margin-top:4%'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
     public void UnsupportedValuesAndElementsFailWithoutDamagingDestination(string html, string code)
         => Reject(html, code);
+
+    // The user-agent sheet gives body a real margin, so an authored body margin is no longer rejected.
+    [Test]
+    public void AuthoredBodyMarginTopMovesTheContentLikeALeadingSpacer()
+        => Assert.That(Render("<body style='margin-top:4pt'><p style='margin:0'>A</p></body>"),
+            Is.EqualTo(Render("<div style='padding-top:4pt'></div><p style='margin:0'>A</p>")));
 
     [Test]
     public void LosingNonzeroPanelMarginIsValidatedButZeroWinnerKeepsOldPdfBytes()

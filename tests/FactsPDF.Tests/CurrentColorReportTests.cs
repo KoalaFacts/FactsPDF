@@ -16,6 +16,10 @@ public sealed class CurrentColorReportTests
         return result.ToArray();
     }
 
+    // The body carries the user-agent margin, so it is always a box; the panel under test is its only child.
+    private static BlockNode Panel(string html)
+        => (BlockNode)((BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single()).Children.Single();
+
     private static void Reject(string css)
     {
         using var saved = new MemoryStream();
@@ -38,7 +42,7 @@ public sealed class CurrentColorReportTests
         const string hex = "<div style='color:#315f82;background-color:#315f82;border:2pt solid #315f82'>" +
             "<p>Audit</p></div>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(hex)));
-        var box = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        var box = Panel(actual);
         Assert.That(box.BoxStyle.BackgroundColor, Is.EqualTo(box.Style.Color));
         Assert.That(box.BoxStyle.BorderTop.Color, Is.Null,
             "Existing border currentColor must keep its final-text-ink fallback.");
@@ -66,7 +70,7 @@ public sealed class CurrentColorReportTests
             "<div style='color:#c25224;background:#c25224'>" +
             "<div style='color:#214d28;background:#214d28'><p>Inherited swatch</p></div></div></div>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(hex)));
-        var root = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        var root = Panel(actual);
         var child = (BlockNode)root.Children.Single();
         var grandchild = (BlockNode)child.Children.Single();
         Assert.That(root.BoxStyle.BackgroundUsesCurrentColor, Is.True);
@@ -84,7 +88,7 @@ public sealed class CurrentColorReportTests
         const string hex = "<div style='color:#315f82;background:#315f82'>" +
             "<div style='color:#c25224;background:#315f82'><p>Inherited swatch</p></div></div>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(hex)));
-        var parent = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        var parent = Panel(actual);
         var child = (BlockNode)parent.Children.Single();
         Assert.That(parent.BoxStyle.BackgroundUsesCurrentColor, Is.False);
         Assert.That(child.BoxStyle.BackgroundUsesCurrentColor, Is.False);

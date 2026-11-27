@@ -27,8 +27,10 @@ public sealed class CustomPropertyTests
         return output.ToArray();
     }
 
+    // p{margin:0} comes first so the author rules still win: the user-agent 1em paragraph margins would
+    // otherwise collapse with a panel margin of the same size and hide the effect the tests compare.
     private static string Document(string css, string body = Content) =>
-        $"<!doctype html><html><head><style>{css}</style></head><body>{body}</body></html>";
+        $"<!doctype html><html><head><style>p{{margin:0}}{css}</style></head><body>{body}</body></html>";
 
     private static FactsPdfException Fails(string html, string code)
     {
