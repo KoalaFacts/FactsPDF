@@ -90,7 +90,12 @@ internal readonly record struct CssAttributeMatch(
 internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
     CssAttributeMatch[] Attributes, bool ChildOfPrevious);
 
-internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset)
+// The pseudo-element a selector ends in: generated ::before and ::after boxes (also written
+// :before and :after) are styled by their own rules, never the element's.
+internal enum CssPseudoElement { None, Before, After }
+
+internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset,
+    CssPseudoElement pseudoElement = CssPseudoElement.None)
 {
     private static bool IsSymbol(CssToken token, string value)
         => token.Kind == CssTokenKind.Symbol && token.Is(value);
@@ -98,11 +103,13 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
     internal CssCompound Rightmost => parts[^1];
     internal CssSpecificity Specificity => specificity;
     internal int Offset => offset;
+    internal CssPseudoElement PseudoElement => pseudoElement;
 
     internal static CssSelector Parse(List<CssToken> tokens, ref int i, CssBudget budget)
     {
         var offset = tokens[i].Offset; budget.Selector(offset);
         var parts = new List<CssCompound>(); var idCount = 0; var classCount = 0; var typeCount = 0; var child = false;
+        var pseudo = CssPseudoElement.None;
         while (true)
         {
             budget.Token.ThrowIfCancellationRequested();
@@ -187,6 +194,25 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 else break;
                 CssBudget.Check(++simple <= 32, "A compound selector may contain at most 32 simple terms.", offset);
             }
+            // ::before and ::after (or the legacy :before and :after) end the selector; any other
+            // pseudo-class or pseudo-element fails below.
+            if (IsSymbol(tokens[i], ":") && (simple == 0 || !tokens[i].LeadingSpace))
+            {
+                var colon = tokens[i];
+                var at = i + 1;
+                if (IsSymbol(tokens[at], ":") && !tokens[at].LeadingSpace) at++;
+                if (tokens[at].Kind == CssTokenKind.Identifier && !tokens[at].LeadingSpace
+                    && tokens[at].Text.ToLowerInvariant() is "before" or "after")
+                {
+                    pseudo = tokens[at].Text.Equals("before", StringComparison.OrdinalIgnoreCase)
+                        ? CssPseudoElement.Before : CssPseudoElement.After;
+                    i = at + 1;
+                    simple++;
+                    typeCount++;
+                    if (!(IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")))
+                        throw CssTokens.Invalid("A ::before or ::after pseudo-element must end its selector.", colon.Offset);
+                }
+            }
             if (simple == 0) throw CssTokens.Invalid("Expected a supported selector.", tokens[i].Offset);
             parts.Add(new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), child));
             if (IsSymbol(tokens[i], ",") || IsSymbol(tokens[i], "{")) break;
@@ -195,7 +221,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             else if (tokens[i].LeadingSpace) child = false;
             else throw CssTokens.Invalid("Unsupported or malformed selector/combinator.", tokens[i].Offset);
         }
-        return new(parts.ToArray(), new(idCount, classCount, typeCount), offset);
+        return new(parts.ToArray(), new(idCount, classCount, typeCount), offset, pseudo);
     }
 
     internal bool Matches(IReadOnlyList<CssElement> path, CssBudget budget)

@@ -13,7 +13,7 @@ internal enum CssProperty
     WordBreak, MaxHeight, BreakInside, TextDecorationThickness, TextUnderlineOffset, ListStylePosition,
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast,
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
-    ColumnGap, RowGap, Order
+    ColumnGap, RowGap, Order, Content
 }
 /// <summary>
 /// One compiled declaration: what it says (property, name, value, importance) plus its cascade
