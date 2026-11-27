@@ -631,7 +631,11 @@ to say that table parts accept the display value they already render and that
 The non-standard `background-color-adjust` joins `color-adjust` as an alias of
 `print-color-adjust` with its values and errors, recorded in the CSS inventory note only,
 since no feature row covers it (accepted CSS property names 383 to 384).
+The pseudo-class row moves to partial for `:root` (the root `html` element, pseudo-class
+specificity); its own feature name, scope and limitation strings are replaced in place and the
+attribute-selector limitation excepts `:root` (partial 245, rejected 121; `FPDF1203`, so the
+`FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`2167c34d79275f3615393d0a5b71f1aab9be830623b3454b0cc7d4f36bf7b2d9`; English
-layer `site/src/audit-english-background-color-adjust.mjs`, ordered source-text
-SHA-256 `5515dd2b34a8d714e74aafc3b447c2c171ef0233fb6686f539a6df51bf2de7f7`.
+`8d94d49dd3a3a27ae744aac92b82b62c409ea75bf1eb2444c2499ae83c798f82`; English
+layer `site/src/audit-english-root-pseudo-class.mjs`, ordered source-text
+SHA-256 `d49621cad982107d3c06a0d4098b2917f9212e65cf7112aa0ed1a3b00a838359`.

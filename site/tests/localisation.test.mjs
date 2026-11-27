@@ -882,3 +882,14 @@ test('table parts accept the display value they already render, in English', asy
   for (const row of [display, tfoot])
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test(':root pseudo-class is partial and other pseudo-classes still fail, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'selector.pseudo'));
+  assert.equal(row.status, 'partial');
+  assert.equal(row.failure_code, 'FPDF1203');
+  assert.match(row.scope, /\(0,1,0\)/);
+  assert.match(row.limitations, /:first-child, :nth-child, :lang, :hover/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'selector.attribute')).limitations, /pseudo-classes other than :root/);
+  for (const field of ['feature', 'scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});
