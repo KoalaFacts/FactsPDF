@@ -882,3 +882,15 @@ test('table parts accept the display value they already render, in English', asy
   for (const row of [display, tfoot])
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test('break-inside and page-break-inside accept avoid on table rows, in English', async () => {
+  const { englishFeature } = await localisation();
+  const rows = ['css.break-inside', 'css.page-break-inside']
+    .map(id => englishFeature(data.features.find(x => x.id === id)));
+  for (const row of rows) {
+    assert.equal(row.status, 'partial');
+    assert.match(row.limitations, /tr and thead/);
+    assert.match(row.limitations, /would split .*FPDF1302/);
+    for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+  }
+});
