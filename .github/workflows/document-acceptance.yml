@@ -95,12 +95,12 @@ jobs:
           from pathlib import Path
           import os
           data = json.loads((Path(os.environ['RUNNER_TEMP']) / 'factspdf-combined-report' / 'report.json').read_text())
-          assert len(data['cases']) == 7 and data['positivePages'] == 11 and data['allGeneratedVariantPages'] == 24
+          assert len(data['cases']) == 7 and data['positivePages'] == 11 and data['allGeneratedVariantPages'] == 25
           assert all(case['apiCliNativeBytesEqual'] for case in data['cases'])
           assert data['approvals']['newCombinationApproval'] == 'pending-user-review'
           print('### Styled-CJK report engineering acceptance')
           print('Pinned original four-role Latin/CJK fonts: SHA and distinct outlines checked.')
-          print('10/30/100-record reports and variants: 7 native/API/managed-equivalent cases, 24 pages.')
+          print('10/30/100-record reports and variants: 7 native/API/managed-equivalent cases, 25 pages.')
           print('Original unapproved pages and legal/customer permissions remain pending.')
           print('Full PDFs and font inputs are kept in runner temp, not uploaded.')
           PY

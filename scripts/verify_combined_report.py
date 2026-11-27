@@ -27,8 +27,13 @@ def reference_status(): return 'pending-user-review'
 def row_height(number): return 54 if number % 10 == 0 else 32
 
 
+# Chrome's user-agent margin on the (outer) ol: 1em at the 11pt body size, above and below.
+# The nested ul has none. List items move by one margin, everything after the list by two.
+LIST_MARGIN = 11
+
+
 def row_groups(count, image_gap):
-    # Authored 362pt introduction, plus the line gap under the inline chart image,
+    # Authored 362pt introduction, plus the list margins and the line gap under the inline chart image,
     # + 32pt repeating header. Whole-row greedy fill.
     groups = [[]]; top = 398 + image_gap + 32
     for number in range(1, count + 1):
@@ -97,7 +102,7 @@ class Sources:
 
 
 def authored(count, sources, furniture=True, keep=True):
-    gap = sources.image_line_gap()
+    gap = sources.image_line_gap() + 2 * LIST_MARGIN
     pages = [[] for _ in row_groups(count, gap)]; rectangles = [[] for _ in pages]
     page_text = [[] for _ in pages]
 
@@ -121,16 +126,16 @@ def authored(count, sources, furniture=True, keep=True):
     line(0, 103, 45, '', segments=[('状态 ', 'normal'), ('通过', 'bold'), (' / ', 'normal'),
         ('Reviewed', 'italic'), (' / ', 'normal'), ('Priority', 'boldItalic')])
     box(0, 36, 94, 523.28, 40, (238/255,244/255,250/255))
-    for text, top, x in [('核对记录 / Check records',134,58),('保留证据 / Retain evidence',156,80),('签署结论 / Sign decision',178,58)]:
+    for text, top, x in [('核对记录 / Check records',134+LIST_MARGIN,58),('保留证据 / Retain evidence',156+LIST_MARGIN,80),('签署结论 / Sign decision',178+LIST_MARGIN,58)]:
         if x == 58:
-            marker = '1.' if top == 134 else '2.'
+            marker = '1.' if top == 134+LIST_MARGIN else '2.'
             width = sum(sources.width(sources.font('normal', c), c, 11) for c in marker)
             line(0, top, 52.5-width, marker)
         line(0, top, x, text)
     line(0, 330+gap, 36, 'CHART-01 合成示意 / Synthetic chart')
     line(0, 352+gap, 36, '记录明细 / Record details', 12, 'bold')
     line(0, 376+gap, 36, '逐行核对 / Review every row')
-    groups = row_groups(count, gap); final_top = 0
+    groups = row_groups(count, gap); final_top = 0; page_ends = []
     for page, rows in enumerate(groups):
         top = 398+gap if page == 0 else 36
         if rows:
@@ -147,15 +152,23 @@ def authored(count, sources, furniture=True, keep=True):
                         line(page,top+27,x+5,f'NOTE-{index:03} 已复核 / reviewed')
                     x += width
                 top += height
-        final_top = top
+        final_top = top; page_ends.append(top)
     # The inline chart image paints its border with the line content, after every
     # block background and border of its page (CSS painting order, as in Chrome).
-    box(0, 36, 200, 250, 130)
+    box(0, 36, 200 + 2 * LIST_MARGIN, 250, 130)
     final = len(pages)-1
-    # Counterfactual auto drops only the closing heading onto the 10-row first page.
-    line(0 if count == 10 and not keep else final, 772+gap if count == 10 and not keep else final_top,
-         36, '复核结论 / Review decision',12,'bold')
-    paragraph_top = 36 if count == 10 and not keep else final_top+24
+    # The closing heading is kept with its two-line paragraph (break-after:avoid): they follow
+    # the last row, or open a page of their own when they do not fit under it (row_groups).
+    # The counterfactual auto (only where they take their own page) leaves the heading alone
+    # under the last row, and orphans 2 still moves both paragraph lines.
+    if keep:
+        line(final, final_top, 36, '复核结论 / Review decision', 12, 'bold')
+        paragraph_top = final_top+24
+    else:
+        assert not groups[-1], 'the counterfactual needs the heading and paragraph on their own page'
+        assert page_ends[final-1]+24 <= H-36, 'the counterfactual heading fits under the last row'
+        line(final-1, page_ends[final-1], 36, '复核结论 / Review decision', 12, 'bold')
+        paragraph_top = 36
     line(final,paragraph_top,36,'记录完整 / Records complete')
     line(final,paragraph_top+22,36,f'END-{count:03} 已核准 / Accepted')
     if furniture:
@@ -163,7 +176,7 @@ def authored(count, sources, furniture=True, keep=True):
             for text, top in [(HEADER,True),(f'{FOOTER} | {page+1}',False)]:
                 width = sum(sources.width(sources.font('normal', c),c,10) for c in text)
                 line(page,0,(595.28-width)/2,text,10,baseline=expected_baseline(text,sources.metrics,H,top),color=(0,0,0))
-    disc_y = H-156-sources.ascent('normal',11)+3.3
+    disc_y = H-156-LIST_MARGIN-sources.ascent('normal',11)+3.3
     return pages, rectangles, page_text, (72.85, disc_y, 1.65)
 
 
@@ -247,7 +260,7 @@ def inspect(pdf,count,sources,jpeg,furniture=True,keep=True,raster=True):
             assert max(abs(a-b) for a,b in zip(color,INK))<.00051, 'disc color'
         assert len(images)==(1 if index==0 else 0), 'authored image count'
         for matrix,image in images:
-            assert matrix==[240,0,0,120,41,516.89], 'authored image geometry'
+            assert matrix==[240,0,0,120,41,round(516.89-2*LIST_MARGIN,2)], 'authored image geometry'
             assert image['/Subtype']=='/Image' and image['/Filter']=='/DCTDecode' and image['/Width']==320 and image['/Height']==160, 'image format'
             assert image._data==jpeg.read_bytes(), 'original JPEG bytes'
             all_images.append(matrix)
@@ -262,9 +275,9 @@ def inspect(pdf,count,sources,jpeg,furniture=True,keep=True,raster=True):
         pngs=sorted(pdf.parent.glob(pdf.stem+'-*.png'));assert len(pngs)==len(expected),'raster page count'
         with Image.open(pngs[0]).convert('RGB') as image,Image.open(jpeg).convert('RGB') as original:
             for sx,sy in [(15,10),(304,10),(15,148),(304,148),(160,20)]:
-                pixel=image.getpixel((round((41+(sx+.5)*240/320)*96/72),round((205+(sy+.5)*120/160)*96/72)))
+                pixel=image.getpixel((round((41+(sx+.5)*240/320)*96/72),round((205+2*LIST_MARGIN+(sy+.5)*120/160)*96/72)))
                 assert max(abs(a-b) for a,b in zip(pixel,original.getpixel((sx,sy))))<=12,'rendered JPEG color/orientation'
-            gap=sources.image_line_gap()
+            gap=sources.image_line_gap()+2*LIST_MARGIN
             for x,y,color in [(38,96,(238,244,250)),(38,400+gap,(220,233,242)),(36.4,410+gap,(36,68,90))]:
                 pixel=image.getpixel((int(x*96/72),int(y*96/72)))
                 assert max(abs(a-b) for a,b in zip(pixel,color))<=4,'rendered panel/table paint'
@@ -285,7 +298,7 @@ def mutation_checks(pdf,count,sources,jpeg,out):
         'text-ctm':'text graphics transform','occluded-records':'painting after text','restored-text-color':'authored text color'}
     results=[]
     # First-page header cell fill, below the inline chart image's line gap.
-    header_cell=[36,H-398-sources.image_line_gap()-32,80,32]
+    header_cell=[36,H-398-sources.image_line_gap()-2*LIST_MARGIN-32,80,32]
     def is_header_cell(values,op):
         return op==b're' and all(abs(float(a)-b)<.002 for a,b in zip(values,header_cell))
     for mode in ['rewrite-control',*reasons]:
@@ -411,7 +424,8 @@ def main():
         approvals=baseline_approvals(root),cases=[],negativeCases=[],visualReview='pending',browserPrint='not run')
     for count in (10,30,100):
         source=root/f'examples/combined-report-{count}.html'
-        for variant in (['positive','body','auto'] if count==10 else ['positive','body']):
+        # The 30-row report leaves room for the closing heading alone under its last row.
+        for variant in (['positive','body','auto'] if count==30 else ['positive','body']):
             name=f'report-{count}-{variant}';enabled=variant!='body'
             input_path=source
             if variant=='auto':
@@ -426,7 +440,7 @@ def main():
             evidence['cases'].append(dict(name=name,records=count,variant=variant,inputSha256=sha(input_path.read_bytes()),
                 api=meta,apiCliNativeBytesEqual=True,**result))
         positive=out/f'report-{count}-positive-native.pdf';plain=out/f'report-{count}-body-native.pdf'
-        inspect_margins(positive,plain,dict(pages=len(row_groups(count,sources.image_line_gap())),header=HEADER,footer=FOOTER,numbers=True),sources.metrics,False)
+        inspect_margins(positive,plain,dict(pages=len(row_groups(count,sources.image_line_gap()+2*LIST_MARGIN)),header=HEADER,footer=FOOTER,numbers=True),sources.metrics,False)
         for a,b in zip(sorted(out.glob(positive.stem+'-*.png')),sorted(out.glob(plain.stem+'-*.png'))):
             with Image.open(a) as x,Image.open(b) as y:
                 crop=(0,48,x.width,round((H-36)*96/72))
