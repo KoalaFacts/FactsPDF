@@ -652,7 +652,13 @@ The pseudo-class row moves to partial for `:root` (the root `html` element, pseu
 specificity); its own feature name, scope and limitation strings are replaced in place and the
 attribute-selector limitation excepts `:root` (partial 246, rejected 120; `FPDF1203`, so the
 `FPDF1102` search is unchanged).
+The `@page` row moves to partial: `size`, per-side margins and the six top/bottom margin
+boxes with `counter(page)`/`counter(pages)`, with page selectors and the other margin boxes
+still failing `FPDF1204` and conflicts with explicit writer page options failing `FPDF1206`.
+Its scope and limitation strings are replaced in place, its new evidence string is inserted
+and the `@media` limitation no longer lists `@page` (partial 247, rejected 119; 877 ordered
+strings; the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`3a0fd0e36cf2d0d1ebb172090e9bb020fcc735b173a432a8f1d829c65b7a5538`; English
-layer `site/src/audit-english-root-pseudo-class.mjs`, ordered source-text
-SHA-256 `cf4ff1dc6a955acf122bf49ed835dc2ffae7fc54835cde6a61420230ac3651f7`.
+`d7b7174920ebb91c4718ae22834afe5cfe5adb91d0f3a939eedad792a7689eb4`; English
+layer `site/src/audit-english-page-rule.mjs`, ordered source-text
+SHA-256 `3fdf1edd14866a5c47db9b068e86550bdf367a8feed2fa62d2c3ac2020e7e6b0`.
