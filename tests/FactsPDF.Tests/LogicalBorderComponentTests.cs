@@ -160,7 +160,7 @@ public sealed class LogicalBorderComponentTests
 
     [TestCase("border-inline-width:1pt 2pt 3pt")]
     [TestCase("border-block-style:dashed double")]
-    [TestCase("border-inline-color:rgba(1,2,3,0.5)")]
+    [TestCase("border-inline-color:rgba(1,2,3,none)")]
     [TestCase("border-block-start-width:-2pt")]
     [TestCase("border-inline-end-color:linear-gradient(red,blue)")]
     [TestCase("border-block-color:inherit blue")]

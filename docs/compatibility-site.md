@@ -661,13 +661,34 @@ A kept table row that must split now paginates like Chrome (it starts on a fresh
 page, or moves the table there, and continues), so those two limitation strings
 are replaced in place again and a kept last row split only for the table's bottom
 decoration is the remaining `FPDF1302`; no count moves.
+The `@page` row moves to partial: `size`, per-side margins and the six top/bottom margin
+boxes with `counter(page)`/`counter(pages)`, with page selectors and the other margin boxes
+still failing `FPDF1204` and conflicts with explicit writer page options failing `FPDF1206`.
+Its scope and limitation strings are replaced in place, its new evidence string is inserted
+and the `@media` limitation no longer lists `@page` (partial 248, rejected 118; 877 ordered
+strings; the `FPDF1102` search is unchanged).
+Translucent colours (`rgba()`/`hsla()` and slash alpha, `#rgba`/`#rrggbbaa`, `color:transparent`
+and `outline-color:transparent`) now paint with PDF constant alpha. Twenty colour strings of the
+`color`, `background-color`, `background`, `border`, `border-color` (and its four sides),
+`outline` and `text-decoration` rows and of the `value.color.rgbfunc`, `value.color.alphahex`,
+`value.background.transparent`, `value.background.currentcolor`, `value.border.transparent` and
+`value.text.currentcolor` rows are replaced in place. `value.color.alphahex` (`#rgba`/`#rrggbbaa`) moves from partial to full,
+since every alpha byte now paints as declared (full 44 to 45, partial 248 to 247); every other row
+stays partial.
+The `<table>`, `<colgroup>`, `<col>` and `<tbody>` rows stay partial; their scope and
+limitation strings are replaced in place for automatic column widths (no `colgroup`, or `col`
+elements without widths), so no count moves.
+Current dataset SHA-256:
+`b68b389e20fb1a7b6b80143d561fbbfa9bfdf9da202488606909bd7a4f0fc9db`; English
+layer `site/src/audit-english-auto-table-layout.mjs`, ordered source-text
+SHA-256 `83f1c8f063ee14e27329f64aeac87913eaa84c93e3bc9f4c51621a2860044d86`.
 Inline `svg` moves to partial: it is drawn as PDF vector paths. Its new scope, limitation and
 evidence strings are inserted where its old ones were, so the `<math>` row's feature name moves
 ahead of the scope and limitation strings the two rows shared, and the `<math>` scope no longer
 names SVG (replaced in place); the namespace-selector, custom
-property and image limitations are replaced in place (partial 248, rejected 118; its failure codes
+property and image limitations are replaced in place (partial 248, rejected 117; 880 ordered strings; its failure codes
 still include `FPDF1102`, so the `FPDF1102` search is unchanged).
 Current dataset SHA-256:
-`39f5a23fdb80507ccc8dd8f488052afe815ad77e2465b2c4e39bb9a8798c41eb`; English
+`2eabc934447a472a968da55e57b515fb3f10962c4fe72ac74b1daac221df4d60`; English
 layer `site/src/audit-english-inline-svg.mjs`, ordered source-text
-SHA-256 `0b6d179c8f711c8bcf33fd19e1b0830bf60a3b6a2afe6f11b8361383a6acaae8`.
+SHA-256 `96d9c22fb0d44728066605e81ccde7d4dbcc1f845a836d4726830a779259fade`.

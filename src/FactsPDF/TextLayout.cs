@@ -21,8 +21,8 @@ internal static class TextLayout
 
     // Compatibility path for existing font/layout tests.
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
-        => LayoutCore(paragraphs.Select(p => (BlockLayoutStep)new LayoutParagraph(p, o.Margin,
-            o.PageWidth - 2 * o.Margin)), o, cancellation);
+        => LayoutCore(paragraphs.Select(p => (BlockLayoutStep)new LayoutParagraph(p, o.MarginLeft,
+            o.ContentWidth)), o, cancellation);
 
     // The element whose line height is largest on the line is the one to change.
     private static int TallestGlyphOffset(TextLines.Line line, int fallback)
@@ -43,7 +43,7 @@ internal static class TextLayout
     {
         var pages = new List<LayoutPage> { new() };
         var resolved = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
-        var y = o.Margin; var after = 0d; var breakNext = false;
+        var y = o.MarginTop; var after = 0d; var breakNext = false;
         var trimNextMargin = false;
         // Retain pending top padding only for still-open blocks. Closed empty
         // predecessors contribute trailing spacing; a spanning box receives
@@ -75,17 +75,17 @@ internal static class TextLayout
         Action<int, int> ensureDisplayCommands = EnsureDisplayCommands;
         void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1)
             => AppendLine(line, x, baseline, pages[^1].Runs, chargeDisplayCommands, cancellation, sourceOffset);
-        var bottom = o.PageHeight - o.Margin;
+        var bottom = o.PageHeight - o.MarginBottom;
         // The page limit names the element whose content needed the extra page.
         void NewPage(int sourceOffset)
         {
             if (pages.Count >= o.MaxPages) throw new FactsPdfException("FPDF1303", "Page limit exceeded.", sourceOffset);
-            pages.Add(new()); y = o.Margin; after = 0; closedBoxOccupied = false;
+            pages.Add(new()); y = o.MarginTop; after = 0; closedBoxOccupied = false;
         }
         // Deferred margins on still-open ancestors must not count as page
         // content for a second explicit break on an otherwise empty page.
         // Closed empty boxes do occupy the current page even without ink.
-        bool HasRetainedPageContent() => y > o.Margin + 0.000001
+        bool HasRetainedPageContent() => y > o.MarginTop + 0.000001
             || closedBoxOccupied
             || pages[^1].Runs.Count > 0
             || pages[^1].Discs.Count > 0
@@ -141,7 +141,7 @@ internal static class TextLayout
                 if (apply) opened[i] = scope with
                 {
                     StartPage = pages.Count - 1,
-                    StartY = o.Margin + leading + firstMargin,
+                    StartY = o.MarginTop + leading + firstMargin,
                     // StartPage can be rebased for an unpainted continuation.
                     // Already occupied opening margins/padding belong to their
                     // original page, even when the box has not emitted text.
@@ -194,7 +194,7 @@ internal static class TextLayout
                 var previousAfter = 0d;
                 var firstBefore = 0d;
                 var firstChild = true;
-                var usable = bottom - o.Margin;
+                var usable = bottom - o.MarginTop;
                 foreach (var child in keep.Node.Children)
                 {
                     cancellation.ThrowIfCancellationRequested();
@@ -300,7 +300,7 @@ internal static class TextLayout
                     // preview must not manufacture a display command.
                     if (displayCommands == o.MaxDisplayCommands)
                     {
-                        var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
+                        var preview = new PaintedBox(begin.X, o.MarginTop, begin.OuterWidth,
                             requiredHeight, begin.Style, begin.TextColor, paintOrder);
                         EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
                     }
@@ -319,7 +319,7 @@ internal static class TextLayout
                             (begin.IndivisibleEmptyClosingMargin ?? 0);
                         if (displayCommands == o.MaxDisplayCommands)
                         {
-                            var preview = new PaintedBox(begin.X, o.Margin, begin.OuterWidth,
+                            var preview = new PaintedBox(begin.X, o.MarginTop, begin.OuterWidth,
                                 requiredHeight, begin.Style, begin.TextColor, paintOrder);
                             EnsureDisplayCommands(preview.CommandCount, begin.SourceOffset);
                         }
@@ -417,7 +417,7 @@ internal static class TextLayout
                     // Never use the first-page starting Y as a lower bound
                     // for the *last* fragment when this block spans pages.
                     var minimumEnd = scope.StartPage == finalPage
-                        ? scope.StartY + scope.Top : o.Margin;
+                        ? scope.StartY + scope.Top : o.MarginTop;
                     var finish = Math.Max(minimumEnd,
                         y + pendingTopPadding + pendingClosedPadding + childBottomMargin);
                     finish += closing.PaddingBottom + minimumExtra;
@@ -438,12 +438,12 @@ internal static class TextLayout
                         CheckFragment(scope.StartY, scope.StartPage == finalPage ? finish : bottom,
                             true, scope.StartPage == finalPage);
                         if (scope.StartPage < finalPage)
-                            CheckFragment(o.Margin, finish, false, true);
+                            CheckFragment(o.MarginTop, finish, false, true);
                         if (finalPage - scope.StartPage > 1)
-                            CheckFragment(o.Margin, bottom, false, false);
+                            CheckFragment(o.MarginTop, bottom, false, false);
                     }
                     if (!double.IsFinite(finish) || finish > physicalPaintBottom + 0.000001 ||
-                        scope.StartY < o.Margin - 0.000001 || scope.Width < 0 ||
+                        scope.StartY < o.MarginTop - 0.000001 || scope.Width < 0 ||
                         scope.StartPage > finalPage || scope.StartY > bottom + 0.000001)
                         throw new FactsPdfException("FPDF1302",
                             "Decorated box fragment exceeds the usable page area.", scope.SourceOffset);
@@ -458,7 +458,7 @@ internal static class TextLayout
                         cancellation.ThrowIfCancellationRequested();
                         var isFirst = pageIndex == scope.StartPage;
                         var isLast = pageIndex == finalPage;
-                        var fragmentTop = isFirst ? scope.StartY : o.Margin;
+                        var fragmentTop = isFirst ? scope.StartY : o.MarginTop;
                         var fragmentEnd = isLast ? finish : bottom;
                         var height = Math.Max(0, fragmentEnd - fragmentTop);
                         // An outline-only solid continuation has no lower cap.
@@ -473,7 +473,7 @@ internal static class TextLayout
                             fragmentPaintBottom = o.PageHeight - scope.Style.OutlineOffset -
                                 scope.Style.Outline.EffectiveWidth / 2;
                         if (fragmentEnd < fragmentTop - 0.000001 ||
-                            fragmentTop < o.Margin - 0.000001 ||
+                            fragmentTop < o.MarginTop - 0.000001 ||
                             fragmentEnd > fragmentPaintBottom + 0.000001)
                             throw new FactsPdfException("FPDF1302",
                                 "Page fragment geometry exceeds the page margins.", scope.SourceOffset);
@@ -586,7 +586,7 @@ internal static class TextLayout
             }
             if (step is LayoutTable table)
             {
-                var freshSpace = new TableFreshSpace(bottom - o.Margin, MoveUnconsumedBlocksToNewPage(apply: false));
+                var freshSpace = new TableFreshSpace(bottom - o.MarginTop, MoveUnconsumedBlocksToNewPage(apply: false));
                 var measured = TableLayout.Measure(table, o, resolved,
                     chargeDisplayCommands, ensureDisplayCommands, cancellation, freshSpace);
                 // A validated but invisible table does not occupy page space.
@@ -605,7 +605,7 @@ internal static class TextLayout
                 }
                 breakNext = false;
                 var tableGap = after + pendingTopPadding + pendingClosedPadding;
-                if (measured.Height > bottom - o.Margin + 0.000001)
+                if (measured.Height > bottom - o.MarginTop + 0.000001)
                 {
                     var header = measured.Rows[0].IsHeader ? measured.Rows[0] : null;
                     var rowIndex = header is null ? 0 : 1;
@@ -862,7 +862,7 @@ internal static class TextLayout
                 var firstChildMargin = unconsumedMargin ? marginBefore : 0d;
                 if (unconsumedMargin &&
                     MoveUnconsumedBlocksToNewPage(apply: false) + firstChildMargin +
-                        lines.Current.Height > bottom - o.Margin + 0.000001)
+                        lines.Current.Height > bottom - o.MarginTop + 0.000001)
                     throw new FactsPdfException("FPDF1302",
                         "Report panel top margin and first line cannot fit on a fresh page.", paragraphOffset);
                 NewPage(paragraphOffset);
@@ -871,7 +871,7 @@ internal static class TextLayout
                 // first-fragment outside margins and padding travel with it.
                 gap = pendingTopPadding + firstChildMargin;
             }
-            if (gap + lines.Current.Height > bottom - o.Margin)
+            if (gap + lines.Current.Height > bottom - o.MarginTop)
                 throw new FactsPdfException("FPDF1302", "Paragraph margin, box padding and first line cannot fit on a page.",
                     paragraphOffset);
             if (opened.Count > 0 && opened[^1].IsParagraph &&
@@ -886,7 +886,7 @@ internal static class TextLayout
             {
                 cancellation.ThrowIfCancellationRequested();
                 var line = lines.Current;
-                if (line.Height > bottom - o.Margin)
+                if (line.Height > bottom - o.MarginTop)
                     throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.",
                         TallestGlyphOffset(line, paragraphOffset));
                 if (y + line.Height > bottom + 0.000001) NewPage(paragraphOffset);

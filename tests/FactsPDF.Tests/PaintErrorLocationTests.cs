@@ -135,8 +135,9 @@ public sealed class TextPaintErrorLocationTests
     public void AShortDashedDecorationPointsAtItsRun()
     {
         var style = new TextStyle(10, 12, new Rgb(0, 0, 0), TextAlignment.Left) { Decoration = TextDecoration.Underline, DecorationPattern = TextDecorationPattern.Dashed };
+        var alpha = new PdfAlphaStates();
         var error = Assert.Throws<FactsPdfException>(() => PdfPaintSerializer.AppendTextDecoration(
-            new System.Text.StringBuilder(), new LocatedText("x", 1, 2, style, null, 0.0005, 42), int.MaxValue))!;
+            new System.Text.StringBuilder(), new LocatedText("x", 1, 2, style, null, 0.0005, 42), int.MaxValue, ref alpha))!;
         Assert.That(error.Message, Is.EqualTo("FPDF1302: Text decoration is too short to paint."));
         Assert.That(error.SourceOffset, Is.EqualTo(42));
     }

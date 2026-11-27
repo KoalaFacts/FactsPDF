@@ -36,7 +36,7 @@ internal static class BlockLayout
     {
         ArgumentNullException.ThrowIfNull(root);
         var frames = new Stack<Frame>();
-        frames.Push(new(root.Children, 0, options.Margin, options.PageWidth - 2 * options.Margin, 0, true));
+        frames.Push(new(root.Children, 0, options.MarginLeft, options.ContentWidth, 0, true));
         while (frames.Count > 0)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -92,7 +92,7 @@ internal static class BlockLayout
                     // multi-page panel cannot place one margin taller than
                     // a fresh page. Reject before deferred empty spacing can
                     // be discarded when the next paragraph starts a new page.
-                    var usablePageHeight = options.PageHeight - 2 * options.Margin;
+                    var usablePageHeight = options.ContentHeight;
                     if ((style.MarginTop.IsPercent && marginTop > usablePageHeight + 0.000001) ||
                         (style.MarginBottom.IsPercent && marginBottom > usablePageHeight + 0.000001))
                         throw new FactsPdfException("FPDF1302",
@@ -235,7 +235,7 @@ internal static class BlockLayout
             paragraph.SourceOffset);
         var after = Checked(style.PercentMarginAfter?.Resolve(containingWidth) ?? style.MarginAfter,
             paragraph.SourceOffset);
-        var usableHeight = options.PageHeight - 2 * options.Margin;
+        var usableHeight = options.ContentHeight;
         if (before > usableHeight + 0.000001 || after > usableHeight + 0.000001)
             throw new FactsPdfException("FPDF1302",
                 "Percentage paragraph outside margin cannot fit on a usable PDF page.",

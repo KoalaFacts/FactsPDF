@@ -54,6 +54,8 @@ public sealed class OpaqueRgbCssTests
             Is.EqualTo(Pdf("<p style='color:#23446b'>Alpha</p>")));
     }
 
+    // CSS clamps alpha to [0, 1] and Chrome paints it as one byte: anything that rounds to 255
+    // is the opaque colour, byte for byte.
     [TestCase("0.99999999999999999")]
     [TestCase("1.00000000000000001")]
     [TestCase("0.99999999999999999999999999999999999999999")]
@@ -61,11 +63,24 @@ public sealed class OpaqueRgbCssTests
     [TestCase("99999999999999999e-17")]
     [TestCase("100000000000000001e-17")]
     [TestCase("1e9999999999999999999999")]
+    [TestCase("0.999")]
+    [TestCase("2")]
+    public void AlphaThatRoundsToOpaqueMatchesHex(string alpha)
+    {
+        Assert.That(Pdf("<p style='color:rgba(35,68,107," + alpha + ")'>Alpha</p>"),
+            Is.EqualTo(Pdf("<p style='color:#23446b'>Alpha</p>")));
+    }
+
+    // Alpha clamped to zero paints no glyphs, exactly like color:transparent.
     [TestCase("1e-9999999999999999999999")]
     [TestCase("-1")]
     [TestCase("0")]
-    public void NonExactOneAlphaPreservesOutput(string alpha) =>
-        Reject("color:rgba(35,68,107," + alpha + ")");
+    [TestCase("0.001")]
+    public void AlphaThatRoundsToZeroPaintsLikeTransparent(string alpha)
+    {
+        Assert.That(Pdf("<p style='color:rgba(35,68,107," + alpha + ")'>Alpha</p>"),
+            Is.EqualTo(Pdf("<p style='color:transparent'>Alpha</p>")));
+    }
 
     [Test]
     public void OpaqueRgbPaintsBackgroundBorderAndAllFourIndividualSides()
@@ -114,12 +129,12 @@ public sealed class OpaqueRgbCssTests
     [TestCase("background:rgb(1% 2%, 3%)")]
     [TestCase("background:rgb(1,2)")]
     [TestCase("background:rgb(1 2, 3)")]
-    [TestCase("background:rgba(1,2,3,0.5)")]
-    [TestCase("background:rgba(1,2,3,0)")]
-    [TestCase("background:rgb(1 2 3 / 0.5)")]
+    [TestCase("background:rgba(1,2,3,none)")]
+    [TestCase("background:rgba(1,2,3,0.5pt)")]
+    [TestCase("background:rgb(1 2 3 / )")]
     [TestCase("background:rgb(calc(1),2,3)")]
     [TestCase("background:linear-gradient(red,blue)")]
-    public void UnsupportedFunctionsAndAlphaFailBeforeReplacingOutput(string css) => Reject(css);
+    public void UnsupportedFunctionsAndMalformedAlphaFailBeforeReplacingOutput(string css) => Reject(css);
 
     [Test]
     public void UnsupportedFunctionFailsEvenInUnmatchedRule()
@@ -178,8 +193,8 @@ public sealed class OpaqueRgbCssTests
         using var diagnostics = new StringWriter();
         Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero, diagnostics.ToString());
         Assert.That(output.ToArray(), Is.EqualTo(Pdf(report, new())));
-        Reject("background:rgba(0%,50%,100%,.5)");
-        Reject("background:rgb(10% 20% 30% / 99%)");
+        Reject("background:rgba(0%,50%,100%,none)");
+        Reject("background:rgb(10% 20% 30% / 1deg)");
         Reject("background:rgb(calc(10%) 20% 30%)");
         Reject("background:rgb(1e99999% 20% 30%)");
     }

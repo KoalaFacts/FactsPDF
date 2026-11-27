@@ -343,7 +343,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | --- | --- |
 | FPDF1001-1003 | Input/element/depth limit |
 | FPDF1101-1104 | HTML structure/element/attribute/reference error |
-| FPDF1201-1205 | CSS property/value/syntax/source/budget error |
+| FPDF1201-1206 | CSS property/value/syntax/source/budget error, or a CSS `@page` value that conflicts with an explicit writer page option |
 | FPDF1301-1306 | Text/font availability, layout/page limit, invalid UTF-16, unsupported text processing or invalid page furniture template |
 | FPDF1401 | Output-byte or display-command limit |
 | FPDF1501-1507 | Font format, resource, mapping, embedding-permission, subsetting or missing explicit style chain |
