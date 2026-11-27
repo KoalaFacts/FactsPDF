@@ -26,7 +26,7 @@ public sealed class TableRowDetailsTests
 
     [Test]
     public void BodyThRendersLikeABoldTd()
-        => Assert.That(TableLayoutTests.Pdf(Table("th{font-weight:normal}", "<tr><th>Ref</th><td>A1</td></tr>")),
+        => Assert.That(TableLayoutTests.Pdf(Table("th{font-weight:normal;text-align:left}", "<tr><th>Ref</th><td>A1</td></tr>")),
             Is.EqualTo(TableLayoutTests.Pdf(Table("", "<tr><td>Ref</td><td>A1</td></tr>"))));
 
     [TestCase("tbody{background-color:#eef3f7}", "<tr><td>A</td><td>B</td></tr><tr><td>C</td><td style='background-color:#c00'>D</td></tr>",

@@ -1197,14 +1197,29 @@ Percentage cell padding or image sizes in such tables fail `FPDF1302`;
 `table-layout` still fails `FPDF1201`; fixed-column tables are unchanged. See
 [automatic column widths](tables.md#automatic-column-widths).
 
+### Table captions, collapsed borders and centred th
+
+`th` cells are centred by default, as Chrome's user-agent stylesheet centres them, unless
+their parent's computed `text-align` is set (an author `text-align` on a `tr`, row group,
+`table` or ancestor is inherited instead). A `caption` as the table's first child renders
+above the table at its width, centred by default, with its own padding, borders and background,
+and stays with the table's first page fragment. `border-collapse:collapse` resolves shared
+borders with the CSS 2.1 rules Chrome uses (hidden, width, style, then cell over row, row group
+and table), lays cells out with half of each border, paints the winning borders centred on the
+grid lines and lets row and row group borders take part, so zebra rules look as in Chrome; a
+page break paints half of the broken line on each fragment. `caption-side:bottom`, caption
+margins and width, `col` borders and collapsed rows that must split across pages still fail
+(`TableCaptionCollapseTests.cs`). See [captions](tables.md#captions) and
+[collapsed borders](tables.md#collapsed-borders).
+
 ### Label/value rows and row backgrounds
 
 Any table row may mix `th` and `td` cells, so a body row can pair a bold label
 `th` with its value (`<tr><th>Invoice number</th><td>INV 2041</td></tr>`).
 `background-color` on `tr`, `thead`, `tbody` and `tfoot` paints under every cell of
 the row or group without a background of its own, where Chrome paints it; the
-header keeps its background on every page. Row and group padding and borders,
-`caption` and `border-collapse:collapse` still fail (`TableRowDetailsTests.cs`).
+header keeps its background on every page. Row and group padding still fail, and their
+borders fail outside collapsed-border tables (`TableRowDetailsTests.cs`).
 
 ### Table footer rows
 

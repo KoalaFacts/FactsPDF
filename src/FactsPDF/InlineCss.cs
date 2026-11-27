@@ -195,6 +195,15 @@ internal static class InlineCss
                     _ => throw Invalid("text-align-last supports auto, left, center, right, LTR start/end and justify.", offset)
                 };
                 break;
+            case "border-collapse" when !inline:
+                // The separated model (zero spacing) or the collapsing border model; see TableBorderCollapse.
+                style.CollapseBorders = value switch
+                {
+                    "separate" => false,
+                    "collapse" => true,
+                    _ => throw Invalid("border-collapse supports only separate and collapse.", offset)
+                };
+                break;
             case "text-align" when !inline:
                 style.Alignment = value switch
                 {

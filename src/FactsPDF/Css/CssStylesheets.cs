@@ -36,7 +36,11 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.TextAlignLast + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.BorderCollapse + 1];
+
+    /// <summary>The value of the text-align declaration that won the cascade for the element the
+    /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
+    internal string? LastTextAlign => winners[(int)CssProperty.TextAlign]?.Declaration.Value;
     // Boxes computed earlier in this conversion, keyed by everything their box declarations read
     // (see Compute). Bounded so a page of distinct styles keeps no more than a small table.
     private const int MaxComputedBoxes = 256;
@@ -460,7 +464,7 @@ internal sealed class CssStylesheets
         customDeclarations.Clear(); pendingDeclarations.Clear();
         var cellParagraph = element.Name == "p" && AnyElement(path, e => e.Name is "td" or "th");
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
-        var cellTextIndentHost = element.Name is "td" or "th";
+        var cellTextIndentHost = element.Name is "td" or "th" or "caption";
         // These inherited text-flow controls can be authored on document or
         // ordinary report containers. Their computed state reaches the same
         // measured paragraph/heading renderer, not a separate box approximation.
@@ -649,7 +653,7 @@ internal sealed class CssStylesheets
             // padding and borders); on columns, rows, groups and cells no width with padding or
             // borders is accepted, so it changes nothing there and universal resets pass.
             if (declaration.Property is CssProperty.MinWidth or CssProperty.MaxWidth &&
-                (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot"))
+                (element.Name is "table" or "col" or "td" or "th" or "tr" or "thead" or "tbody" or "tfoot" or "caption"))
                 throw new FactsPdfException("FPDF1201", "Box sizing constraints are supported only on ordinary blocks and direct images.", declaration.Offset);
             if (cellParagraph && ((CssDeclarations.IsBoxProperty(declaration.Property) && !zeroCellInset
                     && declaration.Property != CssProperty.BoxSizing)
@@ -726,7 +730,12 @@ internal sealed class CssStylesheets
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
                 && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(element.Name))
-                && !(declaration.Property == CssProperty.BackgroundColor && element.Name is "tr" or "thead" or "tbody" or "tfoot"))
+                && !(declaration.Property == CssProperty.BackgroundColor && element.Name is "tr" or "thead" or "tbody" or "tfoot")
+                // In the collapsing border model row and row group borders take part in the
+                // border conflict resolution (TableBorderCollapse); the table's computed
+                // border-collapse reaches them through inheritance.
+                && !(parent.CollapseBorders && element.Name is "tr" or "thead" or "tbody" or "tfoot"
+                    && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;
@@ -1151,7 +1160,7 @@ internal sealed class CssStylesheets
     {
         var host = element.ToLowerInvariant();
         if ((host, value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
-            or ("tr", "table-row") or ("td" or "th", "table-cell"))
+            or ("tr", "table-row") or ("td" or "th", "table-cell") or ("caption", "table-caption"))
             return null;
         return (host, value) is ("tfoot", "table-footer-group")
             ? "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported."
@@ -1172,7 +1181,7 @@ internal sealed class CssStylesheets
         var wide = declaration.Value is "initial" or "unset";
         var length = CssBoxValues.TryLength(declaration.Value, out var value, out _, rootFontSize: 16,
             allowRem: true, elementFontSize: 16, allowEm: true);
-        return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup"
+        return element is "li" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "caption"
             && (wide || length && value.Value == 0);
     }
 

@@ -3,8 +3,10 @@ namespace FactsPDF;
 internal static class HtmlDocumentReader
 {
     // ChildStart: for a frame with a Box, where the box's children begin in the reader's child stack.
+    // AlignStart: the element's computed text-align is its initial value, start, which a th or
+    // caption child turns into the user-agent centre (see ReadTree).
     private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box,
-        int SourceOffset = -1, int ChildStart = 0);
+        int SourceOffset = -1, int ChildStart = 0, bool AlignStart = true);
     private static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     private static bool ListTag(string name) => name is "ol" or "ul" or "menu";
     // header, footer, main, nav, aside, hgroup, search and figcaption are blocks with no user-agent style beyond
@@ -14,7 +16,7 @@ internal static class HtmlDocumentReader
     // indent of the HTML user-agent sheet (see CssStylesheets).
     private static bool Container(string name) => name is "div" or "section" or "article" or "header" or "footer"
         or "main" or "nav" or "aside" or "hgroup" or "search" or "body" or "html" or "ol" or "ul" or "menu" or "li" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd";
-    private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th"
+    private static bool BoxTag(string name) => name is "img" or "hr" or "table" or "col" or "td" or "th" or "caption"
         || ParagraphTag(name) || Container(name) && name != "html";
 
     // Inline text elements: no box of their own, only a text style. code, kbd and samp keep the
@@ -231,6 +233,8 @@ internal static class HtmlDocumentReader
         var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
         var root = new TextStyle(options.FontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
+        // The last shared th/caption default and its centred copy (see the user-agent centring below).
+        TextStyle? centredSource = null, centredStyle = null;
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
@@ -373,7 +377,7 @@ internal static class HtmlDocumentReader
                     throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{name}'.", token.Offset);
                 if (TableMarkup.IsTag(name))
                 {
-                    if (name is "td" or "th") Flush();
+                    if (name is "td" or "th" or "caption") Flush();
                     table!.End(name, token.Offset);
                     if (name == "table") table = null;
                     Pop(); continue;
@@ -442,6 +446,22 @@ internal static class HtmlDocumentReader
             var parentBox = stack[^1].BoxStyle;
             var boxStyle = BoxStyle.Initial;
             var (style, styleOwned) = ElementDefaults(parent, name, sharedDefaults);
+            // The HTML user-agent sheet's th and caption {text-align:-internal-center}: centred when
+            // the parent's computed text-align is its initial value (start), otherwise the
+            // parent's alignment is inherited as usual. Author declarations still win below.
+            var parentAlignStart = stack[^1].AlignStart;
+            if (name is "th" or "caption" && parentAlignStart && style.Alignment != TextAlignment.Center)
+            {
+                // A shared default stays shared: sibling cells reuse one centred copy of it.
+                if (styleOwned) style.Alignment = TextAlignment.Center;
+                else if (ReferenceEquals(centredSource, style)) style = centredStyle!;
+                else
+                {
+                    centredSource = style;
+                    style = style with { Alignment = TextAlignment.Center };
+                    centredStyle = style;
+                }
+            }
             var columnSpan = 1;
             string? href = null;
             var titled = false;
@@ -562,6 +582,14 @@ internal static class HtmlDocumentReader
                     ParagraphTag(name), BoxTag(name),
                     token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
+            var winningTextAlign = name is "head" or "title" ? null : sheets.LastTextAlign;
+            var alignStart = winningTextAlign switch
+            {
+                null => parentAlignStart && name is not ("th" or "caption"),
+                "start" or "initial" => true,
+                "inherit" or "unset" => parentAlignStart,
+                _ => false
+            };
             if (name == "html") { rootFontSize = style.FontSize; result.RootStyle = style; }
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
@@ -570,14 +598,14 @@ internal static class HtmlDocumentReader
                 Flush();
                 table = new(new TableNode(style, boxStyle, token.Offset));
                 children.Add(table.Node);
-                stack.Add(new(name, style, boxStyle, null, token.Offset));
+                stack.Add(new(name, style, boxStyle, null, token.Offset, 0, alignStart));
                 continue;
             }
             if (TableMarkup.IsTag(name))
             {
                 table!.Start(name, style, boxStyle, token.Offset, columnSpan);
                 if (name == "col") { path.RemoveAt(path.Count - 1); continue; }
-                stack.Add(new(name, style, boxStyle, null, token.Offset));
+                stack.Add(new(name, style, boxStyle, null, token.Offset, 0, alignStart));
                 continue;
             }
             if (name == "img")
@@ -613,7 +641,7 @@ internal static class HtmlDocumentReader
                 // or close it first), which the child list keeps in its first slot without an array.
                 children.Add(box);
             }
-            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count));
+            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, alignStart));
             if (name == "q") Add(Quote(stack, open: true, options), style);
             if (ParagraphTag(name))
             {

@@ -941,12 +941,8 @@ internal static class CssSyntaxAdapter
         "contain" => "none",
         "content-visibility" => "visible",
         "line-break" or "text-justify" or "image-rendering" => "auto",
-        // Table border model: every cell paints its own border box and adjacent cell boxes
-        // touch with distinct strokes, which is the separated model (with zero spacing, below);
-        // border-collapse:collapse would merge shared borders and still fails.
-        "border-collapse" => "separate",
-        // Empty cells already paint their background and borders (empty-cells:show), and no
-        // caption element is accepted, so the caption side is never consulted.
+        // Empty cells already paint their background and borders (empty-cells:show), and a
+        // caption is always placed above its table (caption-side:bottom is not implemented).
         "empty-cells" => "show",
         "caption-side" => "top",
         // Motion path, drop cap and emphasis colour resets: no box is ever placed along a path
@@ -1718,6 +1714,7 @@ internal static class CssSyntaxAdapter
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "text-align-last" => CssProperty.TextAlignLast,
+        "border-collapse" => CssProperty.BorderCollapse,
         "vertical-align" => CssProperty.VerticalAlign,
         "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap,
         "word-break" => CssProperty.WordBreak, "text-indent" => CssProperty.TextIndent,
@@ -2160,6 +2157,11 @@ internal static class CssSyntaxAdapter
         else if (name is "padding" or "padding-top" or "padding-right" or "padding-bottom" or "padding-left")
             _ = CssBoxValues.Length(token, offset, allowRem: true, allowEm: true);
         else if (name is "background" or "background-color") _ = CssPaintValues.Background(token, offset);
+        else if (name == "border-collapse")
+        {
+            if (token is not ("separate" or "collapse"))
+                throw new FactsPdfException("FPDF1202", "border-collapse supports only separate and collapse.", offset);
+        }
         else if (name.Contains("border", StringComparison.Ordinal))
         {
             if (name.EndsWith("width", StringComparison.Ordinal))

@@ -8,10 +8,13 @@
 //
 // FactsPDF: each cell paints the fixture's cell background (#eef3f7); its
 // rectangles are read back from the uncompressed page content stream, in
-// source order. Chrome: the same HTML with a reference-only stylesheet that
+// source order (a caption painted with the same background comes first, as
+// it is the first element Chrome measures). Chrome: the same HTML with a reference-only stylesheet that
 // loads the two fonts as data URLs and turns off kerning and ligatures (the
 // engine applies neither), and an A4 body 523.28pt wide (the CLI's default
-// page content width); a script reads getBoundingClientRect() of every td/th.
+// page content width); a script reads getBoundingClientRect() of every
+// caption, td and th. In a border-collapse:collapse table a cell's rectangle
+// runs from grid line to grid line (half of each shared border), as in Chrome.
 // Positions are relative to the first cell's left edge. The run fails when any
 // cell's left edge or width differs by more than the tolerance (default
 // 0.15pt: Chrome lays out in 1/64px units, and a percentage column that sets the
@@ -80,7 +83,7 @@ export function chromePage(html: string, font: Buffer, fontBold: Buffer): string
   const style = `<style>${face(font, 'normal')}${face(fontBold, 'bold')}`
     + '*{font-family:OracleFont!important;font-kerning:none!important;font-variant-ligatures:none!important}'
     + 'html,body{margin:0;padding:0}body{width:523.28pt}</style>';
-  const script = '<script>document.fonts.ready.then(()=>{const cells=[...document.querySelectorAll("td,th")]'
+  const script = '<script>document.fonts.ready.then(()=>{const cells=[...document.querySelectorAll("caption,td,th")]'
     + '.map(c=>{const r=c.getBoundingClientRect();return{x:r.left,width:r.width}});'
     + 'const fonts=[...document.fonts].map(f=>f.status);'
     + 'const pre=document.createElement("pre");pre.id="oracle";pre.textContent=JSON.stringify({cells,fonts});'

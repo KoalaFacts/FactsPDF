@@ -125,6 +125,17 @@ test('new example can be declared only for genuine newly rendered PDF', () => {
   assert.equal(classifyDifference({ ...old, pdf: pdf('previous PDF') }, fresh, true), null);
 });
 
+test('th-default-centred accepts only rendered PDFs of existing examples with a th', () => {
+  const before = ok('%PDF-1.7 left');
+  const after = ok('%PDF-1.7 centred');
+  assert.equal(classifyDifference(before, after, false, true), 'th-default-centred');
+  assert.equal(classifyDifference(before, after), null, 'an example without a th must stay identical');
+  assert.equal(classifyDifference(before, after, true, true), null, 'a new example is not an existing one');
+  assert.equal(classifyDifference(before, { ...after, exitCode: 3, pdf: null }, false, true), null);
+  assert.equal(classifyDifference({ exitCode: 3, stderr: 'FPDF1507\n', pdf: null }, after, false, true), null);
+  assert.equal(classifyDifference(before, ok('not a PDF'), false, true), null);
+});
+
 test('reads Parity-Expect trailers and rejects unknown kinds', () => {
   assert.deepEqual(trailerKinds('Subject\n\nBody.\n\nParity-Expect: location-added\nCo-Authored-By: x\n'), ['location-added']);
   assert.deepEqual(trailerKinds('Subject\n\nParity-Expect: location-added\nParity-Expect: location-added\n'), ['location-added']);
