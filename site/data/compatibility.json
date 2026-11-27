@@ -10379,7 +10379,7 @@
       "status": "full",
       "status_zh": "完整支持",
       "scope": "源码 ProjectReference 调用 Pdf.Write() 流式 SDK",
-      "limitations": "当前 net10.0 入口合同；不表示稳定包/API 或其他语言绑定",
+      "limitations": "库面向 net8.0、net9.0 与 net10.0（CLI 与工具仅 net10.0）；同一运行时内输出逐字节确定，但压缩流（字体、图片、内容流）因各 .NET 版本自带的 zlib 不同可能在运行时之间不同，字节对齐与哈希固定只以 net10.0 为准；不表示稳定包/API 或其他语言绑定",
       "stage": "库入口",
       "applicability": "按接口 / RID / 构建模式单独判断",
       "example": "",

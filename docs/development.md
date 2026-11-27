@@ -9,12 +9,28 @@ The initial ASCII-only M0 support matrix has been superseded by [Unicode/fonts](
 Any .NET 10 SDK (10.0.100 or later) works for development; `global.json` accepts
 the whole .NET 10 range. Release and delivery-candidate builds are stricter: they
 require the exact SDK and runtime in `eng/delivery-candidate.json` (currently
-10.0.403 / 10.0.14) and verify the SDK actually used. The package targets `net10.0`;
-the `dotnet-11` CI job installs the .NET 11 GA SDK (11.0.100) and checks a `net11.0` consumer
-of that package (`verify_first_use.py --consumer-tfm net11.0 --probe-sdk 11.0.100 --probe-runtime 11.0.0`),
+10.0.403 / 10.0.14) and verify the SDK actually used. The library (`src/FactsPDF`) targets
+`net8.0`, `net9.0` and `net10.0`; the CLI, tools, probes and benchmarks stay on the single
+`net10.0` target in `Directory.Build.props`, and `LangVersion` is pinned so every target compiles
+the same C#. The test project targets all three library frameworks: on `net8.0` and `net9.0` it
+compiles the CLI's `CliApplication.cs` into the test assembly instead of referencing the
+`net10.0` CLI project. `dotnet test FactsPDF.slnx` therefore needs the .NET 8 and .NET 9
+runtimes as well as the .NET 10 SDK; `-f net10.0` runs one target.
+
+Output is byte-for-byte deterministic within one runtime. Compressed streams (fonts, images
+and page content, written with `ZLibStream`) can differ between runtimes, because each .NET
+version ships its own zlib build (zlib on .NET 8, zlib-ng from .NET 9, and .NET 9 and .NET 10
+were measured to differ). Byte parity and hash-pinned tests are therefore authoritative on
+`net10.0` only: tests marked `[CompressedBytesPin]` (category `CompressedBytesPin`) and the
+allocation budgets marked `[AllocationBudget]` (category `AllocationBudget`, tuned on the .NET 10
+runtime and only ever lowered) are skipped on `net8.0` and `net9.0`; every other test runs on
+all three. The bounded-cost checks of the resource limits run everywhere.
+
+The `dotnet-11` CI job installs the .NET 11 GA SDK (11.0.100) and checks a `net11.0` consumer
+of the package's `net10.0` asset (`verify_first_use.py --consumer-tfm net11.0 --probe-sdk 11.0.100 --probe-runtime 11.0.0`),
 runs the whole test suite retargeted to `net11.0`, and requires every example PDF to be
 byte-identical on both runtimes. Adding a native `net11.0` build to the package is a separate,
-reviewed change to the single-target package contract in `scripts/verify_package.py`. From the repository root:
+reviewed change to the package contract in `scripts/verify_package.py`. From the repository root:
 
 ```sh
 dotnet test FactsPDF.slnx -c Release
@@ -105,8 +121,8 @@ The verifier creates and removes its own separate temporary workspace and copies
 Package acceptance requires a clean checkout, including untracked source even
 when Git's user configuration normally hides it. Both package checks bind the
 `FactsPDF` ID, version from `Directory.Build.props`, repository URL and exact Git
-commit to the current source, require exactly the `lib/net10.0/FactsPDF.dll` assembly and its
-`lib/net10.0/FactsPDF.xml` API documentation as consumer assets, and an empty `net10.0` group directly under `dependencies`, reject additional
+commit to the current source, require exactly a `lib/<tfm>/FactsPDF.dll` assembly and its
+`lib/<tfm>/FactsPDF.xml` API documentation for each declared target (`net8.0`, `net9.0`, `net10.0`) as consumer assets, and one empty group per target directly under `dependencies`, reject additional
 framework dependencies, and compare the packed license/README
 with source. Additional NuGet build, analyzer, content and tool assets, including
 the root `runtime.json` runtime graph, are rejected.
@@ -135,10 +151,12 @@ regenerated; PDFs, reports and packages under `artifacts` are retained. This is 
 requirement of the trusted build procedure, not a claim that the verifier proves
 arbitrary supplied binaries were built cleanly or attests all build inputs.
 
-The automated verifier reads the expected version and single target framework
-from the clean checkout's explicit `Directory.Build.props` declaration, never
-from the package under test. It specializes only the temporary consumer copy
-with that framework and an exact package version. Without `--package`, it
+The automated verifier reads the expected version and repository target framework
+from the clean checkout's explicit `Directory.Build.props` declaration, and the
+library's target list from the single unconditional, literal `TargetFrameworks` in
+`src/FactsPDF/FactsPDF.csproj` (a reviewed set ending in that repository target),
+never from the package under test. It specializes only the temporary consumer copy
+with the repository framework and an exact package version. Without `--package`, it
 requires the sole `artifacts/packages/FactsPDF.<declared-version>.nupkg`; stale
 extra packages fail selection. Conditional, computed or multiple declarations
 require a reviewed verifier update. This is a literal declaration reader, not a
@@ -149,14 +167,15 @@ CI additionally builds `tools/FactsPDF.PackageInspector` and supplies its DLL to
 `verify_package.py --assembly-inspector`. The tool reads PE metadata without
 loading or executing the inspected assembly. Binary identity, target-framework
 attribute, exact source informational version, and the unique `System.Runtime`
-reference must agree with the declared package asset. A real negative fixture
-changes only a net10 DLL's target-framework label to net11; the unchanged runtime
+reference must agree with each declared package asset (`System.Runtime` 8.0, 9.0 and
+10.0 for the three targets). A real negative fixture keeps only the net10 assets and
+changes the net10 DLL's target-framework label to net11; the unchanged runtime
 reference must still cause rejection. `verify_package_inspector.py` exercises
 that case against the freshly packed local artifact.
 
 The validator's explicit `(net10.0, net11.0)` fixture interface requires separate
 metadata checks for both assets and exact target-specific compile/runtime asset
-selection. This does not change the product's single-target declaration or claim
+selection. This does not change the product's declared `net8.0`/`net9.0`/`net10.0` set or claim
 that a real net11 package, cross-target API equivalence, or NativeAOT consumer has
 been validated. Existing first-use CLI/library byte comparisons remain intact.
 

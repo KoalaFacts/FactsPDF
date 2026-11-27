@@ -628,7 +628,11 @@ were already accepted, and `target` plus hyperlink `rel` types on `a` are now ig
 The `display` and `<tfoot>` rows stay partial; their limitation strings are replaced in place
 to say that table parts accept the display value they already render and that
 `tfoot{display:table-footer-group}` fails `FPDF1202`, so no count moves.
+The C# / .NET library row stays full; its limitation string is replaced in place to say that
+the library targets `net8.0`, `net9.0` and `net10.0` (the CLI and tools only `net10.0`) and
+that compressed streams can differ between runtimes, with byte parity and hash pins
+authoritative on `net10.0` only, so no count moves.
 Current dataset SHA-256:
-`b9581aae0697b3df0f7caa9d511e2d9f0b55dd944774c0a885ab483d6d139d80`; English
-layer `site/src/audit-english-table-part-display.mjs`, ordered source-text
-SHA-256 `60069eb3830d06aad5354a4f0b7b738e3ad59475cdca74ec1c682dc238e70fed`.
+`51ef1852cdebcb202fe50571e94b01cc0ae2b31ecf46d619320d800925f62e75`; English
+layer `site/src/audit-english-runtime-targets.mjs`, ordered source-text
+SHA-256 `01d21b1af67036cea4772de3b988964d8372759636341b9a4c0c08aa5d1ab152`.

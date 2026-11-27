@@ -1513,6 +1513,17 @@ See the [API guide](development.md#library-api). Source implemented at
 `PdfConverter.Convert`/`PdfOptions` entry point and is not part of the older
 retained private preview.
 
+### .NET 8 and .NET 9 apps (source-only)
+
+The library targets `net8.0`, `net9.0` and `net10.0`, so .NET 8 and .NET 9 apps
+reference it directly; the CLI stays on `net10.0`. The same source compiles on
+every target: on `net8.0` two span helpers stand in for members that arrived in
+.NET 9, with identical results (`SpanCompatibilityTests`). Output is
+byte-for-byte deterministic within one runtime; compressed streams (fonts,
+images, page content) can differ between .NET versions because each ships its
+own zlib, so byte parity and hash pins are authoritative on `net10.0` only. See
+[Run from source](development.md#run-from-source).
+
 ## Diagnostics
 
 ### Line and column for CLI errors (source-only)

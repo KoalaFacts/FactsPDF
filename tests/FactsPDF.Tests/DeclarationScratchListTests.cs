@@ -21,6 +21,7 @@ public sealed class DeclarationScratchListTests
     private static CssDeclaration[] Compile(IReadOnlyList<CssDeclarationNode> nodes) =>
         CssSyntaxAdapter.CompileKnownDeclarations(nodes, new CssBudget(Options, default));
 
+    [AllocationBudget]
     [Test]
     public void CompilingExpandedShorthandsAllocatesOnlyTheExactSizeResult()
     {

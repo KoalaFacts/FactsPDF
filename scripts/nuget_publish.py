@@ -15,10 +15,9 @@ from zipfile import ZipFile
 
 REPOSITORY = 'KoalaFacts/FactsPDF'
 VERSION_PATTERN = r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-[0-9a-z-]+(?:\.[0-9a-z-]+)*'
-BASE_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md', 'lib/net10.0/FactsPDF.dll',
-                'lib/net10.0/FactsPDF.xml', '_rels/.rels', '[Content_Types].xml'}
-REQUIRED_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md', 'lib/net10.0/FactsPDF.dll',
-                    'lib/net10.0/FactsPDF.xml'}
+LIBRARY_ASSETS = {f'lib/{target}/FactsPDF.{kind}' for target in ('net8.0', 'net9.0', 'net10.0') for kind in ('dll', 'xml')}
+BASE_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md', '_rels/.rels', '[Content_Types].xml'} | LIBRARY_ASSETS
+REQUIRED_MEMBERS = {'FactsPDF.nuspec', 'LICENSE.md', 'README.md'} | LIBRARY_ASSETS
 
 
 def validate_request(*, declared: str, requested: str, event: str, ref: str,
@@ -169,12 +168,13 @@ def main() -> None:
         return
     # The existing repository verifier remains authoritative for source/metadata.
     # Imports stay here so pure boundary tests need neither .NET nor a checkout.
-    from verify_package import current_source, expected_contract, validate_package
+    from verify_package import current_source, expected_contract, package_targets, validate_package
     root = Path(__file__).resolve().parents[1]
     declared, target = expected_contract(root)
     source = current_source(root)
     if source != args.source or target != 'net10.0':
         raise ValueError('Checkout/source or declared package target mismatch')
+    targets = package_targets(root, target)
     version = validate_request(declared=declared, requested=args.version,
                                event=args.event if args.command == 'request' else 'workflow_dispatch',
                                ref=args.ref if args.command == 'request' else 'refs/heads/main',
@@ -183,11 +183,11 @@ def main() -> None:
     if args.command == 'request':
         print(f'PACKAGE_VERSION={version}\nSOURCE_SHA={source}')
     elif args.command == 'seal':
-        validate_package(args.package, root, version, source, target)
+        validate_package(args.package, root, version, source, targets)
         seal(args.package, args.bundle, version, source)
     else:
         package = verify_bundle(args.bundle, version, source)
-        validate_package(package, root, version, source, target)
+        validate_package(package, root, version, source, targets)
         if args.command == 'verify-public':
             verify_public(args.bundle, version, source, args.destination)
         else:

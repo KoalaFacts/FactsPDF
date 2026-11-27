@@ -54,6 +54,7 @@ public sealed class InlineCssDeclarationTests
         Assert.That(separated, Is.EqualTo(joined));
     }
 
+    [AllocationBudget]
     [Test]
     public void SeparatedLowerCaseDeclarationAllocatesNothingForAKeyword()
     {

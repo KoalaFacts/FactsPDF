@@ -618,16 +618,16 @@ internal static class HtmlDocumentReader
     // truncating or wrapping generated PDF marker text.
     // Link types that name a related resource or a connection hint. None is fetched or painted when a
     // page renders to paper; stylesheet (and anything unknown) still fails.
-    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> MetadataLinkTypes = new HashSet<string>([
+    private static readonly SpanStringSet MetadataLinkTypes = new([
         "icon", "shortcut", "apple-touch-icon", "apple-touch-icon-precomposed", "mask-icon", "manifest", "canonical",
         "alternate", "author", "license", "help", "search", "next", "prev", "me", "pingback", "amphtml",
         "preconnect", "dns-prefetch", "prefetch", "preload", "modulepreload",
-    ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+    ]);
 
-    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> HyperlinkTypes = new HashSet<string>([
+    private static readonly SpanStringSet HyperlinkTypes = new([
         "noopener", "noreferrer", "nofollow", "opener", "external", "sponsored", "ugc", "author", "license",
         "help", "bookmark", "tag", "next", "prev", "alternate", "me", "privacy-policy", "terms-of-service", "search",
-    ], StringComparer.OrdinalIgnoreCase).GetAlternateLookup<ReadOnlySpan<char>>();
+    ]);
 
     // _blank, _self, _parent, _top (any case) or a navigable name, which never starts with an underscore.
     private static void AnchorTarget(string value, int offset)

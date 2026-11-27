@@ -33,6 +33,7 @@ public sealed class XrefEntryTests
     // 600 forced pages, two objects each. On main every entry allocated its offset string and the
     // joined line: 1,235 (Courier) and 1,249 (subset font) serialize bytes per page, 1,010 and
     // 1,024 after Z2d. The limit fails on main.
+    [AllocationBudget]
     [TestCase(false)]
     [TestCase(true)]
     public void SerializingAllocatesNoStringPerXrefEntry(bool embedFont)

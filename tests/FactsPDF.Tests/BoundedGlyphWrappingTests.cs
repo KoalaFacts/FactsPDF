@@ -20,6 +20,7 @@ public sealed class BoundedGlyphWrappingTests
         return output.ToArray();
     }
 
+    [AllocationBudget]
     [Test]
     public void LongParagraphDoesNotAllocateAParagraphWideGlyphCopy()
     {

@@ -881,3 +881,13 @@ test('table parts accept the display value they already render, in English', asy
   for (const row of [display, tfoot])
     for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
 });
+
+test('the .NET library row names its three target frameworks and the compression caveat, in English', async () => {
+  const { englishFeature } = await localisation();
+  const row = englishFeature(data.features.find(x => x.id === 'runtime.dotnet'));
+  assert.equal(row.status, 'full');
+  assert.match(row.limitations, /net8\.0, net9\.0 and net10\.0/);
+  assert.match(row.limitations, /compressed streams .* can differ between runtimes/);
+  assert.match(row.limitations, /authoritative on net10\.0 only/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(row[field], han, field);
+});

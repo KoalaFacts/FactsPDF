@@ -36,6 +36,7 @@ public sealed class TableRowScratchTests
         return (largeBytes - smallBytes) / (double)runs / 200;
     }
 
+    [AllocationBudget]
     [Test]
     public void LayingOutAPlainTableRowAllocatesNoPerRowScratchLists()
     {
@@ -44,6 +45,7 @@ public sealed class TableRowScratchTests
         Assert.That(perRow, Is.LessThan(LimitPlain));
     }
 
+    [AllocationBudget]
     [Test]
     public void LayingOutABorderedTableRowAllocatesItsRetainedBoxesAtExactSize()
     {

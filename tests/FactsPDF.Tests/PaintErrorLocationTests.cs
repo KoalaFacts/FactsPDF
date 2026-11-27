@@ -154,6 +154,7 @@ public sealed class TextPaintErrorLocationTests
         Assert.That(runs.Single(run => run.Text == "link").SourceOffset, Is.EqualTo(OffsetOf(html, "<p id='a'>")));
     }
 
+    [AllocationBudget]
     [Test]
     public void APlainRunStaysSixtyFourBytes()
     {
