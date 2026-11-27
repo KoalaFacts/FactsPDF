@@ -433,6 +433,21 @@ list replaces its marker gutter. No status or count moves (full 45, partial 270,
 `ec32e9e8abb49946aecda0f7381a9c0b237a65fad2950595b281cf27a56a4e8f`. The entries below
 describe the state at their own dates.
 
+## The user-agent stylesheet
+
+A candidate change replaces strings in place for the `html.body`, `html.blockquote`, `html.figure`, `html.dl`,
+`html.dd`, `html.h1` to `html.h6`, `html.hr`, `html.menu`, `html.ol`, `html.ul`, `html.li`, `html.p`, `html.small`
+and `css.line-height` rows, the list marker rows and the `<body>` sentence shared by the margin rows: the
+supported elements take Chrome's user-agent defaults (the 8px `body` margin, 1em `p`, `dl` and block margins,
+`blockquote` and `figure` insets of 40px, heading sizes and a soft bold, 40px list padding with hanging markers,
+Chrome's `hr` bevel, `big`) and `line-height:normal` reads the first font's metrics. Twenty-one English strings are
+replaced in place, so no count or status moves (full 45, partial 270, none 95; 418 records, 52 accepted CSS property
+names unchanged). Current dataset SHA-256:
+`95d2ff6ede5ccd149b55b48032d3b786906013533a2271ba6d7e66176a4662b4`; English layer
+`site/src/audit-english-ua-stylesheet.mjs`, ordered source-text SHA-256
+`e07bb3f74607b3dbf0f943c403d9ff33647c7f71ec567c71f2d9b207cf21e49c`. The older entries below describe the state at
+their own dates.
+
 ## Block margin collapsing, list and table margins and cell paragraph padding
 
 A candidate change replaces strings in place for the `css.margin`, `css.margin-top`,
