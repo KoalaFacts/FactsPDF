@@ -1,84 +1,42 @@
 # Licensing review and release gates
 
-Status: initial maintainer-authored licensing documents; not reviewed by retained
-legal counsel. This checklist is a maintainer release policy, not an amendment
-to the grants in ../LICENSE.md. It does not represent a legal opinion or promise
-that a license eliminates all legal risk.
+Status: maintainer-authored checklist; not reviewed by retained legal counsel.
+It is a release policy, not an amendment to the grants in ../LICENSE.md, and not
+a legal opinion.
 
-## Before the first software-package release or paid order
+FactsPDF is licensed by **Koala Facts Trading Pty Ltd** (ABN 88 602 884 408)
+under the Apache License 2.0. Paid commercial support is offered separately
+(see ../COMMERCIAL.md).
 
-- [x] Name the commercial licensor: **Koala Facts Trading Pty Ltd** (owner
-  decision, 5 November 2026). LICENSE.md and COMMERCIAL.md identify it.
-- [x] Record the company's ABN: 88 602 884 408 (stated in LICENSE.md and
-  COMMERCIAL.md).
-- [ ] Record an authorized contact for the company in the private sales
-  records.
+## Before the first software-package release
+
+- [x] Name the licensor: Koala Facts Trading Pty Ltd (owner decision).
+  LICENSE.md and COMMERCIAL.md identify it.
+- [x] Record the company's ABN: 88 602 884 408.
+- [x] Use the standard Apache License 2.0, verbatim, in LICENSE.md.
+- [x] Confirm no employer of the owner has a claim on FactsPDF (owner
+  confirmation). Repeat this check for any future contributor or contractor.
 - [ ] Assign or license existing maintainer-authored FactsPDF code to
   Koala Facts Trading Pty Ltd in writing, so the company holds the rights it
   licenses.
-- [x] Confirm no employer of the owner has a claim on FactsPDF (owner
-  confirmation, 5 November 2026). Repeat this check for any future contributor
-  or contractor.
 - [ ] Ask counsel how AI-assisted authorship affects copyright in the code.
-- [x] Replace the custom FactsPDF Community License with the standard
-  PolyForm Small Business 1.0.0 or PolyForm Noncommercial 1.0.0 choice (owner
-  decision, 5 November 2026), plus PolyForm Free Trial 1.0.0 for evaluation
-  by any company (owner decision, same day). The texts in LICENSE.md are
-  verbatim copies of the official PolyForm files.
-- [ ] Obtain review by counsel familiar with software licensing, Australia, and
-  intended sales jurisdictions. With standard public licenses in place, the
-  review can focus on the commercial agreement and on how the licensor
-  handles earlier copies released under the Community License.
-- [ ] Do not assume changing a README or LICENSE.md amends an existing paid
-  agreement. Verify inbound commercial rights separately from public source
-  availability.
-- [ ] Review acceptance mechanics, termination, warranty and liability provisions,
-  mandatory consumer protections, and unfair-contract-term obligations. A broad
-  disclaimer or a savings clause alone does not guarantee compliance.
-- [ ] Approve the actual commercial agreement, its parties, price, duration,
-  renewal, post-expiry rights, redistribution scope, and private sales channel
-  before accepting an order. COMMERCIAL.md grants none of these by itself.
-- [ ] Establish documented contributor permissions before merging external work;
-  review third-party code, transitive components, fonts, and test assets and keep
-  required notices. A no-third-party-engine goal is not a provenance audit.
-- [ ] Include LICENSE.md and all applicable notices in every source/binary,
-  NuGet, CLI, WASM, container, and language-binding distribution. Verify the
-  actual archive, not only the repository. Do not label the engine MIT.
-- [ ] When a NuGet package exists, use a packed license file via PackageLicenseFile
-  (LICENSE.md). NuGet license expressions accept only OSI/FSF-approved
-  identifiers, so do not use the PolyForm SPDX expression there. For a future npm
-  package use `"license": "SEE LICENSE IN LICENSE.md"` and include that file.
-- [ ] Preserve license/version evidence for releases; do not retroactively
-  replace historical notices. Confirm README and sales summaries match the
-  controlling grant. Implement enforcement or declarations only after their
-  behavior, privacy impact, and accessibility are designed and approved.
+- [ ] Review third-party code, transitive components, fonts and test assets and
+  keep required notices. A no-third-party-engine goal is not a provenance audit.
+- [ ] Include LICENSE.md in every source, binary, NuGet, CLI, WASM, container
+  and language-binding distribution. Verify the actual archive, not only the
+  repository.
+- [ ] Agree the terms of any paid support engagement (scope, price, duration,
+  liability, mandatory consumer protections) before accepting an order.
+  COMMERCIAL.md grants none of these by itself.
 
-No automated license CI check, CLA acceptance service, package validation,
-legal review, sales mechanism, or license-key enforcement is asserted as
-implemented by adding this checklist.
+Contributions are accepted under Apache-2.0 (see ../CONTRIBUTING.md).
 
-## References consulted on 9 October 2026
+The NuGet package declares the SPDX expression `Apache-2.0` and also carries
+LICENSE.md, which the package contract scripts compare byte for byte with the
+repository copy.
 
-These primary sources inform the review topics. They do not approve, endorse,
-or provide the text of the custom FactsPDF license.
+## References
 
-- [OSI Open Source Definition](https://opensource.org/osd): source availability
-  alone does not satisfy the open-source definition.
-- [Mozilla MPL 2.0 FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/): distinguishes
-  covered source from other files and permits private internal modifications.
-  FactsPDF's internal operational-use disclosure rule is different.
-- [GNU license FAQ](https://www.gnu.org/licenses/gpl-faq.en.html): explains
-  private changes and source availability under GNU licenses; FactsPDF does
-  not adopt those licenses or claim identical publication triggers.
-- [GitHub: licensing a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository):
-  public-repository behavior and the importance of an explicit license.
-- [GitHub Open Source Guides: legal considerations](https://opensource.guide/legal/):
-  rights, licensing, and contributions.
-- [ACCC: consumer rights and guarantees](https://www.accc.gov.au/consumers/buying-products-and-services/consumer-rights-and-guarantees):
-  mandatory protections cannot simply be removed by contract wording.
-- [ACCC: removing unfair contract terms](https://www.accc.gov.au/media-release/businesses-urged-to-remove-unfair-contract-terms-ahead-of-law-changes):
-  standard-form contract review is a separate obligation.
+- [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 - [NuGet .nuspec reference](https://learn.microsoft.com/en-us/nuget/reference/nuspec):
-  custom license-file metadata.
-- [npm package.json reference](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/):
-  custom license-file metadata.
+  license metadata.

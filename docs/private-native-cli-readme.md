@@ -1,7 +1,7 @@
 # FactsPDF private Native AOT CLI — 0.1.0-preview.1
 
 This is a privately staged, UNVERIFIED software component, not a release,
-production approval or authorization to distribute. The unchanged LICENSE.md
+production approval or authorization to distribute. The Apache-2.0 license in LICENSE.md
 governs use. Fonts and customer templates are not included.
 
 The executable does not need a separately installed .NET runtime. Select

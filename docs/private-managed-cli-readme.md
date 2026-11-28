@@ -2,7 +2,7 @@
 
 This software is an **unverified, privately staged evaluation component**, not
 an authorized distribution, a public NuGet release or a production-ready API.
-Review the repository's unchanged LICENSE.md and licensing requirements before
+Review the repository's LICENSE.md (Apache-2.0) and licensing requirements before
 building or running it. The package contains no fonts or customer assets.
 
 Requires Microsoft .NET runtime **10.0.14** on a compatible host (the evaluation
