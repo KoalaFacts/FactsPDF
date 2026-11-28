@@ -49,10 +49,16 @@ internal static class PdfConverter
             if (Problem(options) is { } problem)
                 throw new FactsPdfException("FPDF1202", "@page produces invalid page options: " + problem.Message);
         }
+        // Page furniture is drawn in fixed black text, which Chrome would draw in the dark scheme's CanvasText.
+        if (document.Dark && (options.PageFurniture is not null || options.PageNumbers || options.HeaderText is not null
+            || options.FooterText is not null || document.PageRules?.HasMarginBoxes == true))
+            throw new FactsPdfException("FPDF1206", "A dark color-scheme cannot be combined with page numbers, header or footer text, page furniture or @page margin boxes.");
         var pages = TextLayout.Layout(document, options, cancellationToken);
         // The root background is the canvas: Chrome prints it over each whole sheet, margins
         // included. Opaque white paints nothing visible on paper, so it adds no command.
-        if (document.CanvasColor is { IsInvisible: false } canvas && canvas != new Rgb(1, 1, 1))
+        // On the dark scheme the canvas is #121212 unless the root paints its own (even white).
+        Rgb? paintedCanvas = document.CanvasColor is { IsInvisible: false } own ? own : document.Dark ? new Rgb(18 / 255d, 18 / 255d, 18 / 255d) : null;
+        if (paintedCanvas is { } canvas && (document.Dark || canvas != new Rgb(1, 1, 1)))
         {
             var sheet = BoxStyle.Initial with { BackgroundColor = canvas };
             foreach (var page in pages)

@@ -11,8 +11,13 @@ internal static class HtmlMeta
 {
     private static readonly System.Buffers.SearchValues<char> CharsetEnd = System.Buffers.SearchValues.Create(" \t\n\f\r;");
 
-    /// <summary>Validates the attributes of one meta start tag; throws FPDF1103 for what is not supported.</summary>
-    internal static void Validate(HtmlToken token)
+    /// <summary>What a meta color-scheme contributes: nothing, or the scheme its content resolves to
+    /// (<see cref="ResolvesToDark"/>); an invalid content is ignored by a browser too.</summary>
+    internal enum Scheme { None, Invalid, Light, Dark }
+
+    /// <summary>Validates the attributes of one meta start tag; throws FPDF1103 for what is not supported,
+    /// and reports the color-scheme the tag declares.</summary>
+    internal static Scheme Validate(HtmlToken token)
     {
         var attributes = token.Attributes!;
         attributes.TryGetValue("name", out var name);
@@ -20,10 +25,9 @@ internal static class HtmlMeta
         if (attributes.TryGetValue("charset", out var charset) && !Utf8Label(charset))
             throw Unsupported("A meta charset other than UTF-8 is not supported: the source is read as UTF-8.", token);
         // The name matches ASCII case-insensitively and is not trimmed: Chrome ignores " color-scheme".
-        if (name is not null && name.Equals("color-scheme", StringComparison.OrdinalIgnoreCase)
-            && content is not null && ResolvesToDark(content))
-            throw Unsupported("A dark meta color-scheme repaints the canvas and text colours and is not supported.", token);
-        if (!attributes.TryGetValue("http-equiv", out var equiv)) return;
+        var scheme = name is not null && name.Equals("color-scheme", StringComparison.OrdinalIgnoreCase) && content is not null
+            ? ParseScheme(content) : Scheme.None;
+        if (!attributes.TryGetValue("http-equiv", out var equiv)) return scheme;
         equiv = equiv.Trim();
         if (equiv.Equals("refresh", StringComparison.OrdinalIgnoreCase))
             throw Unsupported("meta http-equiv=refresh navigates away from the page and is not supported.", token);
@@ -37,6 +41,7 @@ internal static class HtmlMeta
         else if (equiv.Equals("content-type", StringComparison.OrdinalIgnoreCase) && content is not null
             && CharsetOf(content) is { } declared && !Utf8Label(declared))
             throw Unsupported("A meta content-type charset other than UTF-8 is not supported: the source is read as UTF-8.", token);
+        return scheme;
     }
 
     private static FactsPdfException Unsupported(string message, HtmlToken token) => new("FPDF1103", message, token.Offset);
@@ -76,7 +81,10 @@ internal static class HtmlMeta
     /// an invalid value is ignored. Printing prefers light, so a list that also names light stays
     /// light; only a list that names dark and not light is dark.
     /// </summary>
-    internal static bool ResolvesToDark(string content)
+    internal static bool ResolvesToDark(string content) => ParseScheme(content) == Scheme.Dark;
+
+    /// <summary>The scheme a color-scheme value resolves to in print, or <see cref="Scheme.Invalid"/>.</summary>
+    internal static Scheme ParseScheme(string content)
     {
         var words = new List<string>();
         var rest = content.AsSpan();
@@ -86,27 +94,28 @@ internal static class HtmlMeta
             if (rest.IsEmpty) break;
             var end = 0;
             while (end < rest.Length && !IsSeparator(rest[end])) end++;
-            if (end == 0) return false; // a comma, bang or other non-identifier token invalidates the value
+            if (end == 0) return Scheme.Invalid; // a comma, bang or other non-identifier token invalidates the value
             words.Add(rest[..end].ToString().ToLowerInvariant());
             rest = rest[end..];
         }
+        if (words.Count == 1 && words[0] == "normal") return Scheme.Light;
         var onlyAt = -1; var dark = false; var light = false; var names = 0;
         for (var i = 0; i < words.Count; i++)
         {
             var word = words[i];
             if (word == "only")
             {
-                if (onlyAt >= 0 || i != 0 && i != words.Count - 1) return false;
+                if (onlyAt >= 0 || i != 0 && i != words.Count - 1) return Scheme.Invalid;
                 onlyAt = i;
                 continue;
             }
-            if (word is "normal" or "inherit" or "initial" or "unset" or "revert" or "revert-layer" or "default") return false;
+            if (word is "normal" or "inherit" or "initial" or "unset" or "revert" or "revert-layer" or "default") return Scheme.Invalid;
             if (word == "dark") dark = true;
             else if (word == "light") light = true;
-            else if (!ValidIdentifier(word)) return false;
+            else if (!ValidIdentifier(word)) return Scheme.Invalid;
             names++;
         }
-        return names > 0 && dark && !light;
+        return names == 0 ? Scheme.Invalid : dark && !light ? Scheme.Dark : Scheme.Light;
     }
 
     // Skips white space and CSS comments.

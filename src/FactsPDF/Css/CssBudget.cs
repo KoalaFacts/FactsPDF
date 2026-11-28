@@ -8,6 +8,9 @@ internal sealed class CssBudget(PdfOptions options, CancellationToken token)
     internal CssWarnings? Warnings => options.CssWarnings;
     /// <summary>Whether any compiled declaration is a custom property or holds var().</summary>
     internal bool UsesVariables { get; set; }
+    /// <summary>The colour scheme the root element's last <c>color-scheme</c> declaration resolves to in print
+    /// (true: dark), or null when none was declared.</summary>
+    internal bool? RootDark { get; set; }
     internal void Characters(int count, int offset)
     { token.ThrowIfCancellationRequested(); characters += count; Check(characters <= options.MaxCssCharacters, "CSS character budget exceeded.", offset); }
     internal void Selector(int offset)

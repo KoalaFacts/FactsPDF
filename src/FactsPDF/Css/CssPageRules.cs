@@ -35,6 +35,9 @@ internal sealed class CssPageRules
     private readonly CssDeclaration?[] margins = new CssDeclaration?[4];
     private readonly MarginBox?[] boxes = new MarginBox?[6];
 
+    /// <summary>Whether any page-margin box (@top-left ... @bottom-right) was declared.</summary>
+    internal bool HasMarginBoxes => Array.Exists(boxes, box => box is not null);
+
     private static bool Wins(bool important, int order, bool currentImportant, int currentOrder)
         => important != currentImportant ? important : order >= currentOrder;
 

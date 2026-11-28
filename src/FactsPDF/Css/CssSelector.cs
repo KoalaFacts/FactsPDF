@@ -119,6 +119,12 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         => token.Kind == CssTokenKind.Symbol && token.Is(value);
 
     internal CssCompound Rightmost => parts[^1];
+    /// <summary>Whether the selector can only ever match the root element: a single compound that is
+    /// <c>html</c> or <c>:root</c> (or both) with no id, class, attribute or other pseudo-class.</summary>
+    internal bool IsRootOnly => parts.Length == 1 && pseudoElement == CssPseudoElement.None
+        && parts[0] is { Ids.Length: 0, Classes.Length: 0, Attributes.Length: 0, ChildOfPrevious: false } compound
+        && (compound.Type is "html" || compound.Type is null && compound.PseudoClasses.Length > 0)
+        && Array.TrueForAll(compound.PseudoClasses, pseudo => pseudo.Kind == CssPseudoKind.Root);
     internal CssSpecificity Specificity => specificity;
     internal int Offset => offset;
     /// <summary>Whether matching reads an element's position among its siblings or its emptiness.</summary>

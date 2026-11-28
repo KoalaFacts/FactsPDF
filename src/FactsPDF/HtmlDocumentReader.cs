@@ -222,14 +222,15 @@ internal static class HtmlDocumentReader
         // The tokens are read once, here, and walked again below.
         var sheets = CssStylesheets.Collect(html, options, tokens, cancellation);
         sheets.TrackPositions(tokens, cancellation);
-        var root = new TextStyle(options.FontSize, TextStyle.NormalLineHeight, new Rgb(0, 0, 0), TextAlignment.Left);
+        // CanvasText: black, or white on the dark scheme.
+        var root = new TextStyle(options.FontSize, TextStyle.NormalLineHeight, sheets.Dark ? new Rgb(1, 1, 1) : new Rgb(0, 0, 0), TextAlignment.Left);
         var sharedDefaults = new SharedDefaults();
         // The last shared th/caption default and its centred copy (see the user-agent centring below).
         TextStyle? centredSource = null, centredStyle = null;
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
-        var result = new DocumentRoot { PageRules = sheets.PageRules, Title = sheets.DocumentTitle };
+        var result = new DocumentRoot { PageRules = sheets.PageRules, Title = sheets.DocumentTitle, Dark = sheets.Dark };
         Paragraph? current = null;
         // The box of the open cell paragraph when it has padding; cell paragraphs have no other box.
         BoxStyle? currentPadding = null;

@@ -650,6 +650,8 @@ internal sealed class DocumentRoot
     public CssPageRules? PageRules { get; set; }
     /// <summary>The first title element's text as a browser reports it (<c>document.title</c>), or null.</summary>
     public string? Title { get; set; }
+    /// <summary>Whether the document prints on the dark colour scheme (a #121212 canvas unless the root paints its own).</summary>
+    public bool Dark { get; set; }
     /// <summary>The html element's computed text style, which the page context inherits; null without an html element.</summary>
     public TextStyle? RootStyle { get; set; }
     /// <summary>The html element's background-color, which a browser prints over each whole sheet; null without one.</summary>

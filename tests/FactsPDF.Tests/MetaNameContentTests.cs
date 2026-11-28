@@ -42,13 +42,6 @@ public sealed class MetaNameContentTests
         Assert.That(with, Is.EqualTo(without));
     }
 
-    // Chrome 158 prints these pages on a dark canvas, which is not rendered, so they fail explicitly.
-    [TestCase("<head><meta name=color-scheme content=dark></head><p>A</p>")]
-    [TestCase("<head><meta name=COLOR-SCHEME content='only dark'></head><p>A</p>")]
-    [TestCase("<head><meta content=' dark ' name=color-scheme></head><p>A</p>")]
-    [TestCase("<head><meta name=color-scheme content='dark foo'></head><p>A</p>")]
-    [TestCase("<head><meta name=color-scheme content='dark /* c */'></head><p>A</p>")]
-    [TestCase("<p>A</p><meta name=color-scheme content=dark>")]
     // Unsupported semantics: another character set, a navigation, a policy that can block styles.
     [TestCase("<head><meta charset=latin1 name=viewport content=x></head><p>A</p>")]
     [TestCase("<head><meta http-equiv=Content-Type content='text/html; charset=iso-8859-1'></head><p>A</p>")]
@@ -109,14 +102,14 @@ public sealed class MetaNameContentTests
     public void MetaInBodyIsStillJudged()
     {
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
-            "<p>A</p><meta name=color-scheme content=dark>", new MemoryStream(), Page))!;
+            "<p>A</p><meta http-equiv=refresh content=5>", new MemoryStream(), Page))!;
         Assert.That(ex.Code, Is.EqualTo("FPDF1103"));
     }
 
     [Test]
     public void FailureReportsTheMetaOffset()
     {
-        const string html = "<head><title>T</title><meta name=color-scheme content=dark></head><p>A</p>";
+        const string html = "<head><title>T</title><meta http-equiv=refresh content=5></head><p>A</p>";
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, new MemoryStream(), Page))!;
         Assert.That(ex.SourceOffset, Is.EqualTo(html.IndexOf("<meta", StringComparison.Ordinal)));
     }

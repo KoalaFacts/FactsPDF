@@ -105,7 +105,7 @@ public sealed class HeadAndVoidElementStyleTests
 
     [TestCase("<p style='vertical-align:top'>Aa</p><div style='vertical-align:middle'>Bb</div>", "<p>Aa</p><div>Bb</div>")]
     [TestCase("<ul><li style='vertical-align:bottom'>Aa</li></ul>", "<ul><li>Aa</li></ul>")]
-    [TestCase("<h2 style='vertical-align:10pt'>Aa</h2><hr style='vertical-align:text-top'>", "<h2>Aa</h2><hr>")]
+    [TestCase("<p style='vertical-align:10pt'>Aa</p><hr style='vertical-align:text-top'>", "<p>Aa</p><hr>")]
     public void VerticalAlignOnABlockBoxChangesNothing(string with, string without)
         => Assert.That(Pdf(Doc("", with)), Is.EqualTo(Pdf(Doc("", without))));
 

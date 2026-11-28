@@ -115,6 +115,8 @@ internal static class CssSyntaxAdapter
                 // A supported property whose value holds var() can be checked only after substitution,
                 // for each element it applies to (CSS Custom Properties: valid at parse time when the
                 // var() syntax is). It keeps one cascade order for every declaration it expands into.
+                if (name == "color-scheme" && CssVariables.ContainsVar(node.Values))
+                    throw new FactsPdfException("FPDF1202", "var() in color-scheme is not supported: the scheme decides the canvas before any element is computed.", node.Span.Start);
                 if (CssVariables.ContainsVar(node.Values))
                 {
                     CssVariables.ValidateReferences(node.Values);
@@ -140,6 +142,7 @@ internal static class CssSyntaxAdapter
                 if (IsInteractionOnly(name))
                 {
                     ValidateInteractionOnly(name, node);
+                    if (name == "color-scheme") NoteColorScheme(node, budget, hostSelectors, hostElement);
                     continue;
                 }
                 // font: expands into the longhands it covers, each compiled by the code of that longhand.
@@ -1402,6 +1405,26 @@ internal static class CssSyntaxAdapter
         && double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
             System.Globalization.CultureInfo.InvariantCulture, out var size)
         && double.IsFinite(size) && size >= 0;
+
+    // A color-scheme that resolves to dark repaints the canvas and the default text colours in Chrome's
+    // print, so it is honoured on the root element (html or :root rules, or the html style attribute),
+    // where it decides the document's scheme (the last declaration wins), and fails everywhere else, where
+    // the colours it would change inside the page cannot be followed.
+    private static void NoteColorScheme(CssDeclarationNode node, CssBudget budget, CssSelector[]? hostSelectors, string? hostElement)
+    {
+        var words = new List<string>();
+        foreach (var value in node.Values)
+            if (value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word }) words.Add(word.Value);
+        var dark = HtmlMeta.ResolvesToDark(string.Join(' ', words));
+        var root = hostElement is not null
+            ? hostElement.Equals("html", StringComparison.OrdinalIgnoreCase)
+            : hostSelectors is { Length: > 0 } && Array.TrueForAll(hostSelectors, selector => selector.IsRootOnly);
+        if (root) budget.RootDark = dark;
+        else if (dark)
+            throw new FactsPdfException("FPDF1202",
+                "A dark color-scheme is supported only on html or :root (it repaints the canvas and default colours); Chrome's colours inside the page cannot be followed.",
+                node.Span.Start);
+    }
 
     // color-scheme: normal, or one or more scheme names (light, dark or custom identifiers)
     // with at most one "only" at the start or end; normal, only and CSS-wide keywords cannot

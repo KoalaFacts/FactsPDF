@@ -28,7 +28,6 @@ public sealed class ColorSchemeHintTests
 
     [TestCase("color-scheme:normal")]
     [TestCase("color-scheme:light")]
-    [TestCase("color-scheme:dark")]
     [TestCase("color-scheme:light dark")]
     [TestCase("color-scheme:dark light")]
     [TestCase("color-scheme:only light")]

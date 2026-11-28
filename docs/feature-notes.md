@@ -617,10 +617,20 @@ it: `charset` and `http-equiv=content-type` naming UTF-8 (any WHATWG label), and
 PDF is byte-identical to the page without it. `name=color-scheme` follows Chrome's print
 resolution (the content is the CSS `color-scheme` grammar; the name matches ASCII
 case-insensitively and is not trimmed): every value that allows light, is `normal` or is invalid
-prints exactly like the page without it, and a value that names `dark` and not `light` (Chrome prints
-a #121212 canvas with white text) fails `FPDF1103`. A charset other than UTF-8, `http-equiv=refresh`,
-an enforced `Content-Security-Policy` (which can block the page's own styles) and `style` on a
-meta also fail `FPDF1103` (`MetaNameContentTests.cs`).
+prints exactly like the page without it, and a value that names `dark` and not `light` prints on the
+dark scheme (below); the first valid meta wins, as in Chrome. A charset other than UTF-8,
+`http-equiv=refresh` and an enforced `Content-Security-Policy` (which can block the page's own styles)
+fail `FPDF1103` (`MetaNameContentTests.cs`).
+
+**Dark colour scheme.** A root `color-scheme` that resolves to dark (`html{color-scheme:dark}`,
+`:root{...}`, the html `style` attribute, or the first valid meta; the root declaration beats the meta, and
+print prefers light so `light dark` stays light) prints as Chrome does: a #121212 canvas over each sheet
+unless the root paints its own, the default text colour CanvasText (white, also what `color:initial` and
+a default border take) and links in LinkText `#9e9eff`; author colours are untouched. It was silently
+dropped before. A dark scheme on any other element (`body`, `div`, `html.x`, a selector list holding
+one), `var()` in `color-scheme` and a dark scheme combined with page numbers, header or footer text, page
+furniture or `@page` margin boxes (fixed black text) fail explicitly (`FPDF1202`, `FPDF1206`)
+(`DarkColorSchemeTests.cs`; twelve Chrome 158 probes print alike).
 
 A `style` attribute is accepted on every element FactsPDF accepts, including the display:none metadata
 elements of head (`head`, `title`, `meta`, `link`, `base`): its declarations are validated like any

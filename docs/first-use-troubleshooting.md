@@ -46,6 +46,10 @@ matching family name does not prove glyph coverage or embedding permission.
 
 ## FPDF1505: font embedding permissions do not allow this PDF
 
+This refusal is a deliberate difference from Chrome: font-licence compliance takes precedence over
+matching the browser, which embeds Preview&Print fonts and turns restricted and bitmap-only fonts into
+Type 3 outlines.
+
 A supplied font has restricted, preview-and-print-only, bitmap-only or unsupported
 `OS/2 fsType` embedding permissions. FactsPDF conservatively refuses these fonts
 rather than embedding them without authorisation. This is not a missing-glyph

@@ -53,7 +53,12 @@ internal static class UserAgentStyleSheet
 
     // The rules by the type their selector ends in. Built once by the first conversion that needs it;
     // the compiled rules are immutable and shared by every conversion and thread.
-    private static readonly Lazy<Compiled> compiled = new(Compile, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<Compiled> compiled = new(() => Compile(Source), LazyThreadSafetyMode.ExecutionAndPublication);
+
+    // On the dark scheme (a color-scheme that resolves to dark) the one colour the sheet gives is LinkText,
+    // #9e9eff; the root text colour and the canvas are CanvasText and Canvas, set where the root is computed.
+    private static readonly Lazy<Compiled> compiledDark = new(
+        () => Compile(Source.Replace("a{color:#0000ee", "a{color:#9e9eff", StringComparison.Ordinal)), LazyThreadSafetyMode.ExecutionAndPublication);
 
     private sealed record Compiled(Dictionary<string, Rule[]> Rules, CssProperty[] Properties, Dictionary<CssProperty, int> Slots);
 
@@ -72,13 +77,13 @@ internal static class UserAgentStyleSheet
     };
 
     /// <summary>The rules whose selector ends in <paramref name="element"/>, in source order, or null.</summary>
-    internal static Rule[]? For(string element) => compiled.Value.Rules.GetValueOrDefault(element);
+    internal static Rule[]? For(string element, bool dark = false) => (dark ? compiledDark : compiled).Value.Rules.GetValueOrDefault(element);
 
-    private static Compiled Compile()
+    private static Compiled Compile(string source)
     {
         var budget = new CssBudget(Unlimited, default);
         var limits = new CssSyntaxLimits();
-        var result = CssSyntaxParser.ParseStylesheet(CssSourceText.Create(Source, 0, limits, null), limits);
+        var result = CssSyntaxParser.ParseStylesheet(CssSourceText.Create(source, 0, limits, null), limits);
         if (result.Diagnostics.Count > 0)
             throw new InvalidOperationException("The user-agent stylesheet is malformed: " + result.Diagnostics[0].Message);
         var byType = new Dictionary<string, List<Rule>>(StringComparer.Ordinal);

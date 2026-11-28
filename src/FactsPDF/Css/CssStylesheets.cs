@@ -77,6 +77,12 @@ internal sealed class CssStylesheets
     /// is, or null when the page has no title element or its title is blank.</summary>
     internal string? DocumentTitle { get; private set; }
 
+    private bool metaDark;
+
+    /// <summary>Whether the document prints on Chrome's dark scheme: the root element's color-scheme
+    /// (stylesheet or style attribute) if declared, else the first valid meta color-scheme.</summary>
+    internal bool Dark => budget.RootDark ?? metaDark;
+
     /// <summary>The document's element positions, built by <see cref="TrackPositions"/> only when a
     /// selector needs them.</summary>
     internal HtmlElementPositions? Positions { get; private set; }
@@ -140,6 +146,7 @@ internal sealed class CssStylesheets
         var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
         // The document's title is its first title element in tree order (also one in body, which
         // is dropped here like script because it is never rendered); only that element's text counts.
+        var metaSchemes = new List<HtmlMeta.Scheme>();
         var titleSeen = false; var captureTitle = false; var droppedTitle = false; var svgDepth = 0;
         // A style element whose type is not CSS is not a stylesheet: non-strict mode ignores its text.
         var ignoredStyle = false;
@@ -211,7 +218,8 @@ internal sealed class CssStylesheets
             // meta is judged once, in head or body (a browser accepts it in both and renders neither).
             if (item.Kind == HtmlTokenKind.Start && item.Value == "meta" && svgDepth == 0)
             {
-                HtmlMeta.Validate(item);
+                var declared = HtmlMeta.Validate(item);
+                if (declared != HtmlMeta.Scheme.None) metaSchemes.Add(declared);
                 if (shape.InBody)
                 {
                     if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
@@ -289,6 +297,11 @@ internal sealed class CssStylesheets
                 }
             }
         }
+        // The first valid meta color-scheme decides (Chrome 158); an invalid one next to a dark one leaves
+        // it unclear which the browser reads, so that combination fails.
+        if (metaSchemes.Contains(HtmlMeta.Scheme.Dark) && metaSchemes.Contains(HtmlMeta.Scheme.Invalid))
+            throw new FactsPdfException("FPDF1103", "An invalid meta color-scheme next to a dark one is not supported.", 0);
+        sheet.metaDark = metaSchemes.Find(scheme => scheme is HtmlMeta.Scheme.Light or HtmlMeta.Scheme.Dark) == HtmlMeta.Scheme.Dark;
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
         shape.Finish(tokens);
         return sheet;
@@ -1057,7 +1070,7 @@ internal sealed class CssStylesheets
         // The user-agent sheet is the lowest origin: its winners are kept apart and only fill in the
         // properties no author declaration decides. A pseudo-element generates no user-agent style here.
         ulong userAgentMatched = 0;
-        if (pseudo == CssPseudoElement.None && UserAgentStyleSheet.For(element.Name) is { } userAgentRules)
+        if (pseudo == CssPseudoElement.None && UserAgentStyleSheet.For(element.Name, Dark) is { } userAgentRules)
             for (var ruleIndex = 0; ruleIndex < userAgentRules.Length; ruleIndex++)
             {
                 var rule = userAgentRules[ruleIndex];
