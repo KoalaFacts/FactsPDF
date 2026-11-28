@@ -8,7 +8,6 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double? FixedOuterHeight = null,
     double? IndivisibleEmptyClosingMargin = null,
     double DeferredBlankParagraphMargin = 0,
-    bool ClipX = false, bool ClipY = false, bool AutoX = false, bool AutoY = false,
     TextVisibility Visibility = TextVisibility.Visible, double BottomEdges = 0) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
@@ -203,7 +202,6 @@ internal static class BlockLayout
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
                         indivisibleClosingMargin,
                         DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0,
-                        ClipX: style.ClipsX, ClipY: style.ClipsY, AutoX: style.AutoX, AutoY: style.AutoY,
                         Visibility: node.Style.Visibility, BottomEdges: box.Bottom);
                     IReadOnlyList<BlockChild> children = node.Children.Count != 0 && style.IsFlexContainer
                         ? [new FlexLine(node, box.Top + box.Bottom)]

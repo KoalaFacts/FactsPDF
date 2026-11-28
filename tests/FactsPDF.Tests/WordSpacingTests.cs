@@ -60,6 +60,18 @@ public sealed class WordSpacingTests
     }
 
     [Test]
+    public void WordGapChangesLineBreakingAndNowrapRejectsOverflow()
+    {
+        var narrow = Page with { PageWidth = 110, Margin = 20 };
+        const string words = "AA BB CC";
+        Assert.That(Layout("<p>" + words + "</p>", narrow).Single().Runs, Has.Count.EqualTo(1));
+        var wrapped = Layout("<p style='word-spacing:8pt'>" + words + "</p>", narrow).Single().Runs;
+        Assert.That(wrapped.Count, Is.GreaterThan(1));
+        Assert.That(Pdf("<p style='word-spacing:8pt'>" + words + "</p>", narrow), Is.Not.Empty);
+        
+    }
+
+    [Test]
     public void InheritanceCssCascadeAndWideKeywordsComputeRealStyles()
     {
         const string html = "<style>p{word-spacing:2pt!important}.loose{word-spacing:7pt}" +

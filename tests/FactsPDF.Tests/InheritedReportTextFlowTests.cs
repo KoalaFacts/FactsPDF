@@ -169,6 +169,23 @@ public sealed class InheritedReportTextFlowTests
     }
 
     [Test]
+    public void CellIndentWrapsLongCellTextAndProtectsUnfitOutput()
+    {
+        const string content = "LONGREFERENCEINVOICENUMBER2026";
+        const string table = "<table style='width:75pt'><colgroup><col style='width:75pt'></colgroup>" +
+            "<tbody><tr><td><p style='word-break:break-all'>" + content +
+            "</p></td></tr></tbody></table>";
+        var actual = "<div>" + table.Replace("<td>", "<td style='text-indent:9pt'>") + "</div>";
+        var lines = Layout(actual).SelectMany(page => page.Runs).ToArray();
+        var noIndent = Layout("<div>" + table + "</div>").SelectMany(page => page.Runs).ToArray();
+        Assert.That(lines.Length, Is.GreaterThan(1));
+        Assert.That(lines[0].X - noIndent[0].X, Is.EqualTo(9).Within(0.001));
+        Assert.That(string.Concat(lines.Select(line => line.Text)), Is.EqualTo(content));
+        Assert.That(Pdf(actual), Is.Not.EqualTo(Pdf("<div>" + table + "</div>")));
+        
+    }
+
+    [Test]
     public void RootRemIndentUsesWinningHtmlFontAndMatchesAnExplicitPointOracle()
     {
         const string content = "<body><p>Alpha is the first invoice detail.</p></body>";

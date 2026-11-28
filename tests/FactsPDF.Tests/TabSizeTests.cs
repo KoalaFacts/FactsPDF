@@ -32,6 +32,7 @@ public sealed class TabSizeTests
     [TestCase("tab-size:0")]
     [TestCase("tab-size:2.5")]
     [TestCase("tab-size:16px")]
+    [TestCase("tab-size:1.5em")]
     [TestCase("-moz-tab-size:12pt")]
     [TestCase("TAB-SIZE:4")]
     [TestCase("tab-size:inherit;-moz-tab-size:initial")]

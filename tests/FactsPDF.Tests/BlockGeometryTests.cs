@@ -117,6 +117,7 @@ public sealed class BlockGeometryTests
         Assert.That(runs.Select(x => x.X), Is.EqualTo(new[] { 60d, 40d, 40d }));
     }
 
+
     [TestCase("width:-1pt")]
     [TestCase("padding:1pt 2pt 3pt 4pt 5pt")]
     [TestCase("padding:1pt auto")]

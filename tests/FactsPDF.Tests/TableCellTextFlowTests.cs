@@ -62,6 +62,19 @@ public sealed class TableCellTextFlowTests
     }
 
     [Test]
+    public void CellOverflowWrapInheritsAndEmergencyBreaksLongIdentifiers()
+    {
+        const string code = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        var inherited = Cell("overflow-wrap:break-word", "<p>" + code + "</p>");
+        var explicitChild = Cell("", "<p style='overflow-wrap:break-word'>" + code + "</p>");
+        Assert.That(Pdf(inherited), Is.EqualTo(Pdf(explicitChild)));
+        var lines = Layout(inherited).SelectMany(page => page.Runs).Where(run => run.Text != "KEY" && run.Text != "NOTES" && run.Text != "R01").ToArray();
+        Assert.That(lines.Length, Is.GreaterThan(1));
+        Assert.That(string.Concat(lines.Select(run => run.Text)), Is.EqualTo(code));
+        
+    }
+
+    [Test]
     public void CellWordBreakAndImportantStylesChangeActualGlyphWrapping()
     {
         const string word = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

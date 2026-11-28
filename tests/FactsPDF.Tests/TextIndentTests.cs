@@ -132,6 +132,17 @@ public sealed class TextIndentTests
         => Rejected(html, "FPDF1201");
 
     [Test]
+    public void NowrapRespectsIndentedFirstLineButNotLaterExplicitBreaks()
+    {
+        var narrow = Page with { PageWidth = 100 };
+        
+        var layout = Layout("<p style='white-space:nowrap;text-indent:15pt'>OK<br>PAID IN</p>", narrow);
+        var runs = layout.Single().Runs;
+        Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "OK", "PAID IN" }));
+        Assert.That(runs.Select(r => r.X), Is.EqualTo(new[] { 35d, 20d }).Within(0.001));
+    }
+
+    [Test]
     public void InvalidFirstLineGeometryDoesNotHideLaterMissingFontResource()
         => Rejected("<p style='text-indent:200pt'>中文</p>", "FPDF1301",
             Page with { PageWidth = 110 });

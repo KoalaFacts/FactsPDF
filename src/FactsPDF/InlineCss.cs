@@ -202,7 +202,10 @@ internal static class InlineCss
                 else
                 {
                     double tabLength;
-                    try { tabLength = Length(value, offset); }
+                    if (value.EndsWith("em", StringComparison.Ordinal) && !value.EndsWith("rem", StringComparison.Ordinal)
+                        && double.TryParse(value[..^2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ems))
+                        tabLength = ems * style.FontSize;
+                    else try { tabLength = Length(value, offset); }
                     catch (FactsPdfException) { throw Invalid("tab-size supports only a non-negative number or length.", offset); }
                     if (!double.IsFinite(tabLength) || tabLength < 0 || tabLength > 14_400) throw Invalid("tab-size supports only a non-negative number or length.", offset);
                     style.TabSize = -(float)tabLength; // a length is stored negated (a zero length is the number zero, which is the same)

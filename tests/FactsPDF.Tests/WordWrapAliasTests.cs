@@ -33,6 +33,21 @@ public sealed class WordWrapAliasTests
         Assert.That(Pdf(Page("word-wrap")), Is.EqualTo(Pdf(Page("overflow-wrap"))));
     }
 
+    [Test]
+    public void WordWrapBreaksALongIdentifierThatWouldOtherwiseFail()
+    {
+        Assert.That(Pdf($"<p style='width:60pt;word-wrap:break-word'>{Code}</p>"), Is.Not.Empty);
+        
+    }
+
+    [Test]
+    public void LaterDeclarationWinsAcrossTheAliasAndItsStandardName()
+    {
+        Assert.That(Pdf($"<p style='width:60pt;overflow-wrap:normal;word-wrap:break-word'>{Code}</p>"),
+            Is.EqualTo(Pdf($"<p style='width:60pt;overflow-wrap:break-word'>{Code}</p>")));
+        
+    }
+
     [TestCase("<p style='word-wrap:auto'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-wrap:break-all'>A</p>", "FPDF1202")]
     [TestCase("<style>.unused{word-wrap:auto}</style><p>A</p>", "FPDF1202")]

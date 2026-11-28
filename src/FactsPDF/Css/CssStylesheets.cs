@@ -39,10 +39,23 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.Hyphens + 1];
+    // The cascade tables are pooled per thread like the token list: they are taken by a sheet and returned when the
+    // document has been read (ReturnPooled), so a conversion allocates them only the first time.
+    private readonly Winner?[] winners;
+    [ThreadStatic] private static Winner?[]? pooledWinners, pooledUserAgentWinners;
+    [ThreadStatic] private static CssStylesheets? lastCreated;
+
+    /// <summary>Returns the calling thread's most recent sheet's cascade tables to the pool; call once its document is read.</summary>
+    internal static void ReturnPooled()
+    {
+        if (lastCreated is not { } sheet) return;
+        lastCreated = null;
+        Array.Clear(sheet.winners); Array.Clear(sheet.userAgentWinners);
+        pooledWinners = sheet.winners; pooledUserAgentWinners = sheet.userAgentWinners;
+    }
     // The user-agent declarations that won for the element being computed (see UserAgentStyleSheet),
     // merged into winners for every property no author declaration (or a revert) decided.
-    private readonly Winner?[] userAgentWinners = new Winner?[UserAgentStyleSheet.Properties.Length];
+    private readonly Winner?[] userAgentWinners;
     // Matching the user-agent rules is no author work: it never charges the conversion's CSS budgets.
     private readonly CssBudget userAgentBudget;
     // Text styles computed from nothing but user-agent declarations on a shared parent style, by parent,
@@ -135,6 +148,10 @@ internal sealed class CssStylesheets
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         this.options = options;
+        winners = pooledWinners ?? new Winner?[(int)CssProperty.Hyphens + 1];
+        userAgentWinners = pooledUserAgentWinners ?? new Winner?[UserAgentStyleSheet.Properties.Length];
+        pooledWinners = pooledUserAgentWinners = null;
+        lastCreated = this;
         budget = new(options, token);
         userAgentBudget = new(UserAgentStyleSheet.Unlimited, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, Cancellation: token);

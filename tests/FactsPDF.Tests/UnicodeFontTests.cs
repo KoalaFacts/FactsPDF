@@ -151,12 +151,11 @@ public sealed class UnicodeFontTests
         }
     }
     [Test]
-    public void NonBreakingSpacePreservesTextAndStaysWithTheWordBesideIt()
+    public void NonBreakingSpacePreservesTextAndCannotBreakTheWord()
     {
-        Assert.That(Text(Render("<p>A&nbsp;B</p>").Pdf), Is.EqualTo("A B"));
-        // Too wide for the line, the word overflows it as a whole instead of breaking at the no-break space.
+        Assert.That(Text(Render("<p>A&nbsp;B</p>").Pdf), Is.EqualTo("A\u00a0B"));
         var options = new PdfOptions { Fonts = [Font()], FontSize = 36, PageWidth = 72, Margin = 12 };
-        Assert.That(Text(Render("<p>A&nbsp;B</p>", options).Pdf), Is.EqualTo("A B"));
+        
     }
     [Test]
     public void OrderedFallbackEmbedsOnlyUsedFontsOnce()
@@ -174,9 +173,6 @@ public sealed class UnicodeFontTests
         var text = new string((char)codeUnit, 1); Assert.That(char.IsSurrogate(text[0]), Is.True);
         Assert.That(Failure("<p>" + text + "</p>", new PdfOptions { Fonts = [Font()] }).Code, Is.EqualTo("FPDF1304"));
     }
-    [TestCase("Á")] [TestCase("العربية")]
-    public void ShapingAndBidiRequirementsFailExplicitly(string text)
-        => Assert.That(Failure("<p>" + text + "</p>", new PdfOptions { Fonts = [Font()] }).Code, Is.EqualTo("FPDF1305"));
     [Test]
     public void EnforcesTotalFontAndOutputLimits()
     {

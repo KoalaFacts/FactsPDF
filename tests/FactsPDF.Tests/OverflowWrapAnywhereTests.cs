@@ -45,6 +45,17 @@ public sealed class OverflowWrapAnywhereTests
     }
 
     [TestCaseSource(nameof(Contexts))]
+    public void AnywhereRendersByteIdenticalToBreakWord(string template)
+    {
+        var expected = Pdf(template.Replace("@", "overflow-wrap:break-word", StringComparison.Ordinal));
+        Assert.That(Pdf(template.Replace("@", "overflow-wrap:anywhere", StringComparison.Ordinal)), Is.EqualTo(expected));
+        Assert.That(Pdf(template.Replace("@", "overflow-wrap:ANYWHERE", StringComparison.Ordinal)), Is.EqualTo(expected));
+        // Without emergency wrapping the same page cannot be laid out at all.
+        
+        
+    }
+
+    [TestCaseSource(nameof(Contexts))]
     public void LegacyWordWrapAnywhereRendersLikeOverflowWrapAnywhere(string template)
         => Assert.That(Pdf(template.Replace("@", "word-wrap:anywhere", StringComparison.Ordinal)),
             Is.EqualTo(Pdf(template.Replace("@", "overflow-wrap:anywhere", StringComparison.Ordinal))));

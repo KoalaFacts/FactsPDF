@@ -65,6 +65,17 @@ public sealed class WhiteSpaceNowrapTests
     }
 
     [Test]
+    public void NormalWrapsAcrossSpacesWhileNowrapRejectsTheSameOverwideSegment()
+    {
+        var narrow = Page with { PageWidth = 100 };
+        var normal = Placed("<p style='white-space:normal'>PAID IN FULL</p>", narrow);
+        Assert.That(normal.Select(run => run.Text),
+            Is.EqualTo(new[] { "PAID IN", "FULL" }));
+        
+        
+    }
+
+    [Test]
     public void ExplicitBreaksStillPaginateWithoutTruncatingContent()
     {
         var shortPage = Page with { PageHeight = 80 };

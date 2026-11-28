@@ -186,6 +186,7 @@ internal static class HtmlDocumentReader
         try { return ReadTree(html, options, tokens, children, cancellation); }
         finally
         {
+            CssStylesheets.ReturnPooled();
             // Cleared before pooling so the list never keeps a finished document's tokens alive.
             tokens.Clear();
             if (tokens.Capacity <= MaxPooledTokens) pooledTokens = tokens;

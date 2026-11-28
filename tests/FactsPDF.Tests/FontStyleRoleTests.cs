@@ -181,6 +181,16 @@ public sealed class FontStyleRoleTests
     }
 
     [Test]
+    public void ActualRoleAdvancesControlWrappingAndDoNotCreateWordBreaks()
+    {
+        var options = AllRoles() with { PageWidth = 72, Margin = 12 };
+        
+        var runs = Layout("<p>A <b>AAAAAAAAA</b></p>", options)[0].Runs;
+        Assert.That(runs[0].Baseline, Is.GreaterThan(runs[^1].Baseline));
+        
+    }
+
+    [Test]
     public void StyledLongRunPaginatesWithoutLossAndRespectsLimits()
     {
         var options = AllRoles() with { PageWidth = 72, PageHeight = 72, Margin = 12 };

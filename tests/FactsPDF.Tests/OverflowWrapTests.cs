@@ -79,6 +79,15 @@ public sealed class OverflowWrapTests
                 .Select(run => run.Text), Is.EqualTo(new[] { "PAID", "EXAMPLE" }));
 
     [Test]
+    public void FirstLineIndentReducesOnlyTheFirstLineCapacity()
+    {
+        var lines = Lines("<p style='width:60pt;text-indent:24pt;overflow-wrap:break-word'>ABCDEFGHIJKLMNO</p>");
+        Assert.That(lines.Select(run => run.Text), Is.EqualTo(new[] { "ABCDE", "FGHIJKLM", "NO" }));
+        Assert.That(lines[0].X - lines[1].X, Is.EqualTo(24).Within(0.001));
+        
+    }
+
+    [Test]
     public void ExplicitTrueTypeFontIsEmbeddedAndEveryGlyphSurvivesEmergencyWrapping()
     {
         var font = PdfFont.FromBytes(FontFixture.Create());
@@ -95,6 +104,28 @@ public sealed class OverflowWrapTests
         // could make an otherwise-unsupported character fit the line.
         Reject("<p style='width:40pt;overflow-wrap:break-word'>ABWC</p>",
             "FPDF1504", options);
+    }
+
+    [Test]
+    public void ExplicitBreaksAndNoWrapKeepTheirExistingSemantics()
+    {
+        Assert.That(Lines("<p style='width:60pt;overflow-wrap:break-word'>ABCDEFGH<br>IJKLMNOP</p>")
+            .Select(x => x.Text), Is.EqualTo(new[] { "ABCDEFGH", "IJKLMNOP" }));
+        
+    }
+
+    [Test]
+    public void RealMultipageReportMatchesIndependentlyAuthoredExplicitBreakOracle()
+    {
+        var report = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap.html")).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
+        var oracle = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap-oracle.html")).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
+        var options = new PdfOptions();
+        Assert.That(Pdf(report, options), Is.EqualTo(Pdf(oracle, options)));
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(report, options, default), options, default);
+        Assert.That(pages.Count, Is.GreaterThan(1));
+        var rendered = string.Concat(pages.SelectMany(page => page.Runs).Select(run => run.Text));
+        Assert.That(rendered, Does.Contain("INV-01-"));
+        Assert.That(rendered, Does.Contain("INV-32-"));
     }
 
     [Test]

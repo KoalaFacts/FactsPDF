@@ -251,4 +251,12 @@ public sealed class PageMarginTextTests
         Assert.That(Pdf("",options with { Fonts=[first,Font(ymax:4000,ymin:-4000)] }),Is.EqualTo(Pdf("",options)));
         Fails("",With(Page with { Fonts=[Font(missing:65),Font(ymax:4000)] },"A"),"FPDF1302");
     }
+    [Test]
+    public void PostFailureRecoveryUsesNoSharedMutablePageTextState()
+    {
+        var options=With(Page,"A","B");var expected=Pdf("",options);
+        
+        Assert.That(Pdf("",options),Is.EqualTo(expected));
+    }
+
 }

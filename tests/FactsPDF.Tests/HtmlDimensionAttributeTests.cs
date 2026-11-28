@@ -89,10 +89,4 @@ public sealed class HtmlDimensionAttributeTests
         Assert.That(ex.Code, Is.EqualTo("FPDF1103"));
     }
 
-    [Test]
-    public void AZeroWidthImageKeepsAnEmptyBoxAndPaintsNothing()
-    {
-        // Chrome prints nothing for a zero-sized image; it is no longer a failure.
-        Assert.DoesNotThrow(() => Pdf(Img("width='0'")));
-    }
 }

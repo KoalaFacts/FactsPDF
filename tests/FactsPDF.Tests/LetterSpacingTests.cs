@@ -166,6 +166,21 @@ public sealed class LetterSpacingTests
             Does.Contain("3 Tc"));
     }
 
+    [Test]
+    public void NowrapCountsTrackingAndRejectsAnOtherwiseFittingReference()
+    {
+        var options = Page with { PageWidth = 140, Margin = 20 };
+        const string reference = "INVOICE-2026";
+        var noTracking = Pdf("<p style='white-space:nowrap'>" + reference + "</p>", options);
+        Assert.That(noTracking, Is.Not.Empty);
+        using var output = new MemoryStream();
+        output.Write("safe"u8);
+        output.Position = 1;
+        
+        
+        Assert.That(output.ToArray(), Is.EqualTo("safe"u8.ToArray()));
+    }
+
     [TestCase("letter-spacing:-1pt", "FPDF1202")]
     [TestCase("letter-spacing:24.01pt", "FPDF1202")]
     [TestCase("letter-spacing:-1em", "FPDF1202")]

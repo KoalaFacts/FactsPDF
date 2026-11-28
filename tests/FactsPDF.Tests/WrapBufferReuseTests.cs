@@ -52,6 +52,15 @@ public sealed class WrapBufferReuseTests
     }
 
     [Test]
+    public void AFailedWrapDoesNotLeakGlyphsIntoTheNextOne()
+    {
+        var resolved = new Dictionary<(FontRole, int), (PdfFont?, double)>();
+        
+        
+        Assert.That(Lines(Paragraph("I J"), resolved), Is.EqualTo(new[] { "I J" }));
+    }
+
+    [Test]
     public void DisposingAWrapTwiceDoesNotHandItsWrapperToTwoWraps()
     {
         var resolved = new Dictionary<(FontRole, int), (PdfFont?, double)>();

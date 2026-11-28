@@ -12,9 +12,14 @@ internal static class TextLayout
         int OpeningMarginPage = -1, int OpeningPaddingPage = -1,
         double? FixedOuterHeight = null,
         bool TopPending = false, double CommittedStrut = 0, bool ClosesEdges = false,
-        bool ClipX = false, bool ClipY = false, bool AutoX = false, bool AutoY = false,
         TextVisibility Visibility = TextVisibility.Visible, double BottomEdges = 0,
-        int RunStart = 0, int DiscStart = 0, int ImageStart = 0, int BoxStart = 0);
+        int RunStart = 0, int DiscStart = 0, int ImageStart = 0, int BoxStart = 0)
+    {
+        internal bool ClipX => Style.ClipsX;
+        internal bool ClipY => Style.ClipsY;
+        internal bool AutoX => Style.AutoX;
+        internal bool AutoY => Style.AutoY;
+    }
 
     // The layout state to return to if a break-inside:avoid box has to move to the next page.
     private sealed class AvoidProbe(List<BlockLayoutStep> group, int sourceOffset)
@@ -500,7 +505,6 @@ internal static class TextLayout
                     FixedOuterHeight: begin.FixedOuterHeight,
                     TopPending: true, CommittedStrut: committedStrut,
                     ClosesEdges: closesEdges,
-                    ClipX: begin.ClipX, ClipY: begin.ClipY, AutoX: begin.AutoX, AutoY: begin.AutoY,
                     Visibility: begin.Visibility, BottomEdges: begin.BottomEdges,
                     RunStart: pages[^1].Runs.Count, DiscStart: pages[^1].Discs.Count,
                     ImageStart: pages[^1].Images.Count, BoxStart: pages[^1].PaintBoxes.Count));

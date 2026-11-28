@@ -63,6 +63,31 @@ public sealed class TextErrorLocationTests
     }
 
     [Test]
+    public void UnbreakableWordPointsAtItsElement()
+    {
+        var html = Prefix + "<p id='wide'>" + new string('W', 400) + "</p>";
+        
+        
+        
+    }
+
+    [Test]
+    public void UnbreakableWordInsideASpanPointsAtTheSpanThatOverflows()
+    {
+        var html = Prefix + "<p>Short <span id='wide'>" + new string('W', 400) + "</span></p>";
+        
+        
+    }
+
+    [Test]
+    public void NoWrapSegmentPointsAtItsElement()
+    {
+        var html = Prefix + "<p id='nowrap' style='white-space:nowrap'>" + string.Join(' ', Enumerable.Repeat("word", 100)) + "</p>";
+        
+        
+    }
+
+    [Test]
     public void PageFurnitureTextFailureHasNoHtmlOffset()
     {
         var error = Fails(Pdf.Write().WithPageFurniture(pages => pages.FooterCenter("中")), "<p>Body</p>", "FPDF1301");
