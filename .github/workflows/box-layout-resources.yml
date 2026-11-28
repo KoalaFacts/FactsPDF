@@ -38,8 +38,6 @@ jobs:
           test "$(git -C baseline rev-parse HEAD)" = "$BASELINE_SHA"
           echo "SOURCE_SHA=$(git -C current rev-parse HEAD)" >> "$GITHUB_ENV"
           cp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
-          cp current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs baseline/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs
-          cmp current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs baseline/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs
           cmp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
           cmp current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj baseline/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj
           HARNESS_SHA=$(cat current/benchmarks/FactsPDF.Benchmarks/Program.cs current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj \

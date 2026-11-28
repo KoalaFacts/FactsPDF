@@ -4,7 +4,8 @@ using FactsPDF;
 // identical across compared engine revisions; a revision whose engine API differs supplies its own thin adapter.
 internal sealed class BenchmarkEngine(IReadOnlyList<PdfFont> fonts, bool subset)
 {
-    private readonly PdfWriter writer = Pdf.Write().WithFonts(f =>
+    // The comparison is of layout and resource cost, so the PDF is untagged, as every earlier revision wrote it.
+    private readonly PdfWriter writer = Pdf.Write().WithTaggedPdf(false).WithFonts(f =>
     {
         f.Regular([.. fonts]);
         if (subset) f.Subset();
