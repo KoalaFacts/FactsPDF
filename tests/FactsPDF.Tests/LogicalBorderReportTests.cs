@@ -146,7 +146,7 @@ public sealed class LogicalBorderReportTests
     [TestCase("border-inline:1pt solid red blue", "FPDF1202")]
     [TestCase("border-block:1pt solid double", "FPDF1202")]
     [TestCase("border-inline:1pt solid rgba(1,2,3,none)", "FPDF1202")]
-    [TestCase("border-block:calc(2pt + 1pt) solid blue", "FPDF1202")]
+    [TestCase("border-block:env(x) solid blue", "FPDF1202")]
     [TestCase("border-inline:inherit 2pt", "FPDF1202")]
     [TestCase("border-inline-start:2pt solid red blue", "FPDF1202")]
     [TestCase("border-block-end:-2pt solid red", "FPDF1202")]

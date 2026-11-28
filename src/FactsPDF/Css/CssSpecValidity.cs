@@ -34,6 +34,8 @@ internal static class CssSpecValidity
         if (CssVariables.IsCustomPropertyName(writtenName)) return false;
         if (!CssKnownProperties.Contains(writtenName.ToLowerInvariant())) return true;
         if (CssVariables.ContainsVar(values)) return false;
+        // A math function or viewport length is invalid only when its expression is (see CssMath).
+        if (CssMath.Contains(values)) return CssMath.ProvenInvalid(values);
         var terms = new List<Term>();
         if (!Terms(values, terms)) return false;
         if (terms.Count == 0) return true;

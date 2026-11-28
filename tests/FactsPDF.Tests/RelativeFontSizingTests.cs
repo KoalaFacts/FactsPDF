@@ -81,8 +81,8 @@ public sealed class RelativeFontSizingTests
     [TestCase("15000%")]
     [TestCase("200em")]
     [TestCase("0rem")]
-    [TestCase("1vh")]
-    [TestCase("calc(2em)")]
+    [TestCase("1ex")]
+    [TestCase("env(x)")]
     [TestCase("bogus")]
     public void BadRelativeSizeFailsBeforeOutputIsChanged(string value)
         => Reject("<p style='font-size:" + value + "'>Protected</p>");

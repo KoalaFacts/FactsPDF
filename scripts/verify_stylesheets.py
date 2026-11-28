@@ -613,7 +613,7 @@ def main():
                 raise AssertionError('Native rem PDF lost searchable text: ' + phrase)
         bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
         for declaration in ('font-size:0rem', 'font-size:1000rem',
-                            'line-height:0.001rem', 'line-height:2000rem', 'width:1vh'):
+                            'line-height:0.001rem', 'line-height:2000rem', 'width:1ex'):
             bad.write_text("<html style='font-size:15pt'><body><p style='" +
                            declaration + "'>Invalid</p></body></html>", encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -651,7 +651,7 @@ def main():
         for declaration, error in (
             ('width:20000rem', b'FPDF1202'),
             ('padding:-1rem', b'FPDF1202'),
-            ('margin-left:1vh', b'FPDF1202'),
+            ('margin-left:1ex', b'FPDF1202'),
             ('box-sizing:border-box;width:1rem;padding:1rem', b'FPDF1302')
         ):
             bad.write_text("<p style='" + declaration + "'>Protected report</p>", encoding='utf-8')
@@ -687,7 +687,7 @@ def main():
                 raise AssertionError('Native rem margin report lost text: ' + phrase)
         bad, dest = temp / 'bad.html', temp / 'existing.pdf'
         for declaration, code in (('margin:-1rem', b'FPDF1202'),
-                                  ('margin-left:1vh', b'FPDF1202'),
+                                  ('margin-left:1ex', b'FPDF1202'),
                                   ('width:100pt;margin:0 50rem', b'FPDF1302')):
             bad.write_text("<p style='" + declaration + "'>Keep existing</p>", encoding='utf-8')
             dest.write_bytes(b'keep-existing')
@@ -837,7 +837,7 @@ def main():
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
             ("<article style='margin-bottom:-10%'>A</article>", b'FPDF1202'),
             ("<div style='width:240pt;margin-left:400pt'>A</div>", b'FPDF1302'),
-            ("<section style='margin-left:calc(2pt + 1pt)'>A</section>", b'FPDF1202'),
+            ("<section style='margin-left:env(x)'>A</section>", b'FPDF1202'),
             ("<html style='margin-left:1pt'>A</html>", b'FPDF1201')
         ):
             bad.write_text(html, encoding='utf-8')
@@ -1136,7 +1136,7 @@ def main():
         protected = temp / 'protected.pdf'
         for html, code in (
             ("<section style='margin-block:0 auto'>A</section>", b'FPDF1202'),
-            ("<section style='padding-inline:calc(1pt + 2pt)'>A</section>", b'FPDF1202'),
+            ("<section style='padding-inline:env(x)'>A</section>", b'FPDF1202'),
             ("<section style='margin-inline:-1pt'>A</section>", b'FPDF1202'),
             ("<html style='margin-inline:4pt'>A</html>", b'FPDF1201'),
             ("<p style='width:540pt;margin-inline:20pt'>A</p>", b'FPDF1302')
@@ -1180,7 +1180,7 @@ def main():
         bad, existing = temp / 'invalid.html', temp / 'existing.pdf'
         for html, code in (
             ("<section style='margin-block-start:auto'>A</section>", b'FPDF1202'),
-            ("<section style='padding-inline-end:calc(1pt + 2pt)'>A</section>", b'FPDF1202'),
+            ("<section style='padding-inline-end:env(x)'>A</section>", b'FPDF1202'),
             ("<section style='margin-inline-start:1e-999pt'>A</section>", b'FPDF1202'),
             ("<section style='padding-inline-start:1e-999px'>A</section>", b'FPDF1202'),
             ("<span style='padding-block-end:2pt'>A</span>", b'FPDF1201'),

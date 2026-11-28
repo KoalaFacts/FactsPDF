@@ -97,7 +97,7 @@ public sealed class FontSizeKeywordTests
     [TestCase("xxx-large")]
     [TestCase("math")]
     [TestCase("largerr")]
-    [TestCase("calc(10pt + 2pt)")]
+    [TestCase("env(x)")]
     public void UnsupportedValuesFailWithoutChangingOriginalPdf(string value)
         => Reject("<p style='font-size:" + value + "'>Never written</p>");
 

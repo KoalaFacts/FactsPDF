@@ -98,7 +98,7 @@ public sealed class TableStructureTests
     public void SeventeenthColumnFailsAtItsStart()
         => Fails("<table><colgroup>" + string.Concat(Enumerable.Repeat("<col style='width:10pt'>", 17)) + "</colgroup></table>", "FPDF1101");
 
-    [TestCase("rowspan='1'")][TestCase("width='10'")]
+    [TestCase("rowspan='1'")][TestCase("height='10'")]
     public void CellAttributesDoNotSilentlyExpandTheSubset(string attribute)
         => Fails(One.Replace("<td>", "<td " + attribute + ">"), "FPDF1103");
 
