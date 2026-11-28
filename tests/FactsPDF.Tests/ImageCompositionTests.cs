@@ -6,7 +6,7 @@ namespace FactsPDF.Tests;
 
 public sealed class ImageCompositionTests
 {
-    private const string Body = "<body style='font-size:10pt;line-height:2'>";
+    private const string Body = "<body style='font-size:10pt;line-height:2;margin:0'>";
     private const string Image = "<img src='chart' style='display:block;width:120pt'>";
     // The user-agent list margins are not what these page-geometry tests are about.
     private const string Flat = "<style>ul,ol{margin:0}</style>";

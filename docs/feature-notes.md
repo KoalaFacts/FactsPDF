@@ -646,7 +646,7 @@ script or a player would change fails explicitly instead of printing something e
   summary only; an open one prints the rest after it, and a second `summary` is a plain block. The
   summary must be the first child: text or elements before it, and a details without one (which prints
   a localized default label), fail `FPDF1101`; `details::before`/`::after` fail `FPDF1201`.
-- **`fieldset`** is a block with a 2px `groove` border in `ThreeDFace` (#f0f0f0, outer band darker),
+- **`fieldset`** (margins, padding and border colour come from the user-agent sheet, `UserAgentStyleSheet.cs`; the groove bands are drawn by the paint code) is a block with a 2px `groove` border in `ThreeDFace` (#f0f0f0, outer band darker),
   2px side margins and `0.35em 0.75em 0.625em` padding of the fieldset's own font size; author borders
   and padding replace them. Its `legend` is not supported (`FPDF1102`): a legend is drawn over the top
   border, which needs layout this engine does not have.
@@ -718,8 +718,8 @@ styles it; like `<em>` it needs an italic font chain, and CSS
 `font-style:normal` resets it (`AddressElementTests.cs`).
 
 `<dl>`, `<dt>` and `<dd>` render as block containers like `<div>`: `dl` with
-the default 8pt top and bottom margins and `dd` with a 24pt start indent
-(blockquote's scale), both overridable by CSS. The `</dt>` and `</dd>` end tags
+the default 1em top and bottom margins and `dd` with a 40px start indent
+(Chrome's), both overridable by CSS. The `</dt>` and `</dd>` end tags
 must be written, and like `blockquote`, `dl` and `dd` may not sit in a list or
 table (`DescriptionListElementTests.cs`).
 
@@ -736,7 +736,7 @@ These five tags are inline-only, with explicit closing tags and existing
 depth/element budgets. Unsupported `datetime` or `cite` on `del`/`ins`,
 block descendants, CSS lengths or malformed markup fail using the existing
 output-preserving diagnostics. There are no native change annotations, PDF
-history/timestamps, browser user-agent styles, or automatic fonts.
+history/timestamps or automatic fonts.
 
 A [44-change work order](../examples/report-inline-changes.html)
 and [explicit CSS/span oracle](../examples/report-inline-changes-oracle.html)

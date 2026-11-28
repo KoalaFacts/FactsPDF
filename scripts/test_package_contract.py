@@ -27,7 +27,7 @@ class PackageContractTests(unittest.TestCase):
 
     def package(self, change=None, extra=None):
         xml = ('<package><metadata><id>FactsPDF</id><version>0.1.0-dev</version>'
-               '<license type="file">LICENSE.md</license><readme>README.md</readme>'
+               '<license type="expression">Apache-2.0</license><readme>README.md</readme>'
                '<repository type="git" url="https://github.com/KoalaFacts/FactsPDF" commit="' + SOURCE + '" />'
                '<dependencies><group targetFramework="net10.0" /></dependencies></metadata></package>')
         if change: xml = change(xml)
@@ -71,7 +71,8 @@ class PackageContractTests(unittest.TestCase):
         for old, new in [('net10.0', 'net11.0'),
                          ('<group targetFramework="net10.0" />', '<group targetFramework="net10.0"><dependency id="Other" version="1.0.0" /></group>'),
                          ('<readme>README.md</readme>', '<readme>Other.md</readme>'),
-                         ('type="file">LICENSE.md', 'type="expression">MIT')]:
+                         ('type="expression">Apache-2.0', 'type="expression">MIT'),
+                         ('type="expression">Apache-2.0', 'type="file">LICENSE.md')]:
             with self.subTest(replacement=new), self.assertRaises(AssertionError):
                 self.module.validate_package(self.package(lambda s: s.replace(old, new)), self.root, VERSION, SOURCE, 'net10.0')
         for extra in [{'lib/net11.0/FactsPDF.dll': b'extra target'},

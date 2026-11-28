@@ -22,7 +22,7 @@ public sealed class ColorSchemeHintTests
 
     private static string Report(string declarations) =>
         $"<style>html{{{declarations}}} body{{{declarations}}} h2{{color:#234;{declarations}}} .box{{width:200pt;background:#eef;{declarations}}} .unused{{{declarations}}}</style>" +
-        "<h2>Invoice</h2>" +
+        "<h2 style='font-weight:normal'>Invoice</h2>" +
         $"<div class='box'><p style='{declarations}'>Paid in full</p></div>" +
         $"<table style='width:200pt'><colgroup><col style='width:200pt'></colgroup><tbody><tr><td style='{declarations}'>Total</td></tr></tbody></table>";
 

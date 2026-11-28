@@ -130,7 +130,7 @@ public sealed class DetailsSummaryFieldsetTests
     [Test]
     public void FieldsetIsABlockWithAGrooveBorderSideMarginsAndEmPadding()
     {
-        var page = TableLayoutTests.Layout("<div>A</div><fieldset><div>F</div></fieldset><div>B</div>", Page).Single();
+        var page = TableLayoutTests.Layout("<style>body{margin:0}</style><div>A</div><fieldset><div>F</div></fieldset><div>B</div>", Page).Single();
         // 12pt text: margin 1.5pt, border 1.5pt and padding 0.75em = 9pt put the content 12pt in.
         var inner = page.Runs.Single(r => r.Text == "F");
         Assert.That(inner.X, Is.EqualTo(12 + 1.5 + 1.5 + 9).Within(0.0001));
@@ -146,9 +146,9 @@ public sealed class DetailsSummaryFieldsetTests
     [Test]
     public void FieldsetPaddingUsesTheFieldsetsOwnFontSizeAndAuthorValuesWin()
     {
-        var big = TableLayoutTests.Layout("<fieldset style='font-size:20pt'><p style='font-size:12pt'>F</p></fieldset>", Page).Single();
+        var big = TableLayoutTests.Layout("<style>body{margin:0}</style><fieldset style='font-size:20pt'><p style='font-size:12pt'>F</p></fieldset>", Page).Single();
         Assert.That(big.Runs.Single().X, Is.EqualTo(12 + 1.5 + 1.5 + 0.75 * 20).Within(0.0001));
-        var author = TableLayoutTests.Layout("<fieldset style='padding:2pt 3pt'><p>F</p></fieldset>", Page).Single();
+        var author = TableLayoutTests.Layout("<style>body{margin:0}</style><fieldset style='padding:2pt 3pt'><p>F</p></fieldset>", Page).Single();
         Assert.That(author.Runs.Single().X, Is.EqualTo(12 + 1.5 + 1.5 + 3).Within(0.0001));
     }
 

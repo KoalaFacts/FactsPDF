@@ -6,13 +6,15 @@ public sealed class TableRichTests
 {
     private const string Cols = "<colgroup><col style='width:40pt'><col style='width:60pt'><col style='width:100pt'></colgroup>";
     private const string Edges = "padding:4pt;border:1pt solid red";
+    // The pre user-agent-sheet paragraph margin (8pt below only), which the expected cell heights were measured with.
+    private const string OldParagraphMargin = "<style>p{margin:0 0 8pt}</style>";
     internal static string Rich(string content, string cellStyle = Edges, string span = "2", string suffix = "")
-        => "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<tbody><tr><td colspan='" + span + "' style='" + cellStyle + "'>" + content + "</td><td>Z</td></tr>" + suffix + "</tbody></table>";
+        => TableLayoutTests.Neutral + OldParagraphMargin + "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<tbody><tr><td colspan='" + span + "' style='" + cellStyle + "'>" + content + "</td><td>Z</td></tr>" + suffix + "</tbody></table>";
 
     [TestCase("2")][TestCase("02")][TestCase("  \t0002\r\n")]
     public void SpanUsesCoveredTracksAndPaintsOneFullWidthCell(string span)
     {
-        var page = TableLayoutTests.Layout(Rich("A", span: span, suffix: "<tr><td style='border:1pt solid blue'>B</td><td>C</td><td>D</td></tr>")).Single();
+        var page = TableLayoutTests.NLayout(Rich("A", span: span, suffix: "<tr><td style='border:1pt solid blue'>B</td><td>C</td><td>D</td></tr>")).Single();
         Assert.That(page.PaintBoxes.Select(b => b.Width), Is.EqualTo(new[] { 100d, 40 }));
         Assert.That(page.PaintBoxes[0].Height, Is.EqualTo(22));
         Assert.That(page.PaintBoxes[1].Top, Is.EqualTo(58));
@@ -68,14 +70,14 @@ public sealed class TableRichTests
     [Test]
     public void ParagraphMarginsCollapseWithLiteralFortyFivePointRow()
     {
-        var page = TableLayoutTests.Layout(Rich("<p style='margin-top:2pt;margin-bottom:6pt'>A</p><p style='margin-top:4pt;margin-bottom:3pt'>B</p>")).Single();
+        var page = TableLayoutTests.NLayout(Rich("<p style='margin-top:2pt;margin-bottom:6pt'>A</p><p style='margin-top:4pt;margin-bottom:3pt'>B</p>")).Single();
         Assert.That(page.PaintBoxes.Single().Height, Is.EqualTo(45));
         Assert.That(page.Runs.Take(2).Select(r => 841.89 - r.Baseline), Is.EqualTo(new[] { 52d, 70 }).Within(0.000001));
     }
     [TestCase("left", 44)][TestCase("center", 63.5)][TestCase("right", 83)]
     public void ParagraphImageParagraphUsesSpanPercentagesAndLiteralGeometry(string align, double pixelX)
     {
-        var page = TableLayoutTests.Layout(Rich("<p>A</p><img src='logo' style='display:block;width:50%;padding:2pt;border:1pt solid blue;text-align:left'><p>B</p>", Edges + ";text-align:" + align), TableImageTests.Options()).Single();
+        var page = TableLayoutTests.NLayout(Rich("<p>A</p><img src='logo' style='display:block;width:50%;padding:2pt;border:1pt solid blue;text-align:left'><p>B</p>", Edges + ";text-align:" + align), TableImageTests.Options()).Single();
         Assert.That(page.PaintBoxes.Select(b => b.Height), Is.EqualTo(new[] { 78.5, 28.5 }));
         Assert.That(page.PaintBoxes.Select(b => b.Width), Is.EqualTo(new[] { 100d, 51 }));
         var image = page.Images.Single(); Assert.That(image.X, Is.EqualTo(pixelX)); Assert.That(image.Top, Is.EqualTo(64));
@@ -88,7 +90,7 @@ public sealed class TableRichTests
     [TestCase(" \n ", 10)][TestCase("<span></span><b> </b>", 10)][TestCase("<br>", 22)]
     [TestCase("<p>A</p><p style='margin-top:20pt;margin-bottom:7pt'></p><p>B</p>", 62)]
     public void EmptyParagraphMarginsFoldWithoutPhantomLines(string content, double height)
-        => Assert.That(TableLayoutTests.Layout(Rich(content).Replace("<td>Z</td>", "<td></td>")).Single().PaintBoxes.Single().Height, Is.EqualTo(height));
+        => Assert.That(TableLayoutTests.NLayout(Rich(content).Replace("<td>Z</td>", "<td></td>")).Single().PaintBoxes.Single().Height, Is.EqualTo(height));
     [TestCase("<p><p>A</p></p>")][TestCase("<p>A</td>")][TestCase("<span><p>A</p></span>")]
     [TestCase("<p><img src='logo' style='display:block'></p>")][TestCase("<span><img src='logo' style='display:block'></span>")]
     [TestCase("<h1>A</h1>")][TestCase("<div>A</div>")][TestCase("<section>A</section>")]
@@ -106,15 +108,15 @@ public sealed class TableRichTests
         var paragraphs = HtmlDocumentReader.Read(html, new(), default);
         Assert.That(paragraphs[0].Style.MarginAfter, Is.Zero);
         Assert.That(paragraphs[0].Runs.Select(r => r.Style.Color), Is.EqualTo(new[] { new Rgb(1, 0, 0), new Rgb(0, 0, 1) }));
-        Assert.That(TableLayoutTests.Pdf(html), Is.Not.Empty);
+        Assert.That(TableLayoutTests.NPdf(html), Is.Not.Empty);
     }
     [Test]
     public void EmptyBoldHeaderParagraphsAndImageOnlyCellsHaveNoFontDemand()
     {
         var options = TableImageTests.Options() with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
-        var html = "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<thead><tr><th colspan='2' style='" + Edges + "'><p> </p><p></p><img src='logo' style='display:block'></th><th></th></tr></thead><tbody><tr><td colspan='3'>A</td></tr></tbody></table>";
-        Assert.That(TableLayoutTests.Layout(html, options).Single().PaintBoxes.Single().Height, Is.EqualTo(30));
-        Assert.That(TableLayoutTests.Pdf(html, options), Is.Not.Empty);
+        var html = TableLayoutTests.Neutral + OldParagraphMargin + "<table style='width:200pt;font-size:10pt;line-height:1.2'>" + Cols + "<thead><tr><th colspan='2' style='" + Edges + "'><p> </p><p></p><img src='logo' style='display:block'></th><th></th></tr></thead><tbody><tr><td colspan='3'>A</td></tr></tbody></table>";
+        Assert.That(TableLayoutTests.NLayout(html, options).Single().PaintBoxes.Single().Height, Is.EqualTo(30));
+        Assert.That(TableLayoutTests.NPdf(html, options), Is.Not.Empty);
         Assert.That(HtmlDocumentReader.Read(TableLayoutTests.Table(""), new(), default), Has.Count.EqualTo(1));
         Assert.That(HtmlDocumentReader.Read(TableLayoutTests.Table("<img src='logo' style='display:block'>"), options, default), Is.Empty);
     }
@@ -128,17 +130,17 @@ public sealed class TableRichTests
     public void FormerOversizeRichRowsContinueWhileUnbreakableParagraphsAndNarrowSpansFail()
     {
         var options = TableImageTests.Options() with { PageHeight = 100, Margin = 10 };
-        Assert.That(TableLayoutTests.Layout(Rich("<p>A</p><img src='logo' style='width:80pt'><p>B</p>"), options), Has.Count.EqualTo(2));
+        Assert.That(TableLayoutTests.NLayout(Rich("<p>A</p><img src='logo' style='width:80pt'><p>B</p>"), options), Has.Count.EqualTo(2));
         TableStructureTests.Fails(Rich("<p>A</p><img src='logo' style='width:80pt;padding-top:50pt'><p>B</p>"), "FPDF1302", options);
         TableStructureTests.Fails(Rich("<p>UNBREAKABLEUNBREAKABLE</p>"), "FPDF1302");
         TableStructureTests.Fails(Rich("A", "padding:50pt"), "FPDF1302");
-        Assert.That(TableLayoutTests.Pdf(Rich("<p>A</p>"), options), Is.Not.Empty);
+        Assert.That(TableLayoutTests.NPdf(Rich("<p>A</p>"), options), Is.Not.Empty);
     }
     [Test]
     public void OmittedAndExplicitUnitSpanAreByteEquivalent()
     {
         var html = TableLayoutTests.Table("<span style='text-align:right'>A</span>");
-        Assert.That(TableLayoutTests.Pdf(html.Replace("<td ", "<td colspan='0001' ")), Is.EqualTo(TableLayoutTests.Pdf(html)));
+        Assert.That(TableLayoutTests.NPdf(html.Replace("<td ", "<td colspan='0001' ")), Is.EqualTo(TableLayoutTests.NPdf(html)));
     }
 
     [Test]
@@ -148,7 +150,7 @@ public sealed class TableRichTests
             + string.Concat(Enumerable.Repeat("<col style='width:6.25%'>", 16)) + "</colgroup>";
         var html = start + "<thead><tr><th colspan='16' style='font-weight:normal'>H</th></tr></thead><tbody>"
             + "<tr><td colspan='15'>A</td><td>B</td></tr><tr><td>A</td><td colspan='15'>B</td></tr></tbody></table>";
-        var page = TableLayoutTests.Layout(html).Single();
+        var page = TableLayoutTests.NLayout(html).Single();
         Assert.That(page.Runs.Select(r => r.Text), Is.EqualTo(new[] { "H", "A", "B", "A", "B" }));
         // th is centred, as in Chrome: H (6pt of 10pt Courier) in the 160pt table.
         Assert.That(page.Runs.Select(r => r.X), Is.EqualTo(new[] { 36 + (160 - 6) / 2d, 36, 186, 36, 46 }));
@@ -158,7 +160,7 @@ public sealed class TableRichTests
     [Test]
     public void SpannedPercentPaddingUsesCompleteTrackWidth()
     {
-        var page = TableLayoutTests.Layout(Rich("A", "padding:4%;border:1pt solid red")).Single();
+        var page = TableLayoutTests.NLayout(Rich("A", "padding:4%;border:1pt solid red")).Single();
         Assert.That(page.Runs[0].X, Is.EqualTo(41));
         Assert.That(page.PaintBoxes.Single().Height, Is.EqualTo(22));
     }
@@ -170,7 +172,7 @@ public sealed class TableRichTests
         var html = TableLayoutTests.Table("<span></span> <!-- a --> <img src='logo' style='display:block'><b> </b><img src='logo' style='display:block'> A<br>B") + "<p>AFTER</p>";
         var paragraphs = HtmlDocumentReader.Read(html, options, default);
         Assert.That(paragraphs.Select(p => string.Concat(p.Runs.Select(r => r.Text))), Is.EqualTo(new[] { " AB", "AFTER" }));
-        var page = TableLayoutTests.Layout(html, options).Single();
+        var page = TableLayoutTests.NLayout(html, options).Single();
         Assert.That(page.Images.Select(i => i.Top), Is.EqualTo(new[] { 36d, 48 }));
         Assert.That(page.Runs.Select(r => r.Text), Is.EqualTo(new[] { "A", "B", "AFTER" }));
     }
@@ -188,7 +190,7 @@ public sealed class TableRichTests
     }
 
     private static string RichHeader()
-        => "<style>td,th{padding:2pt;border:1pt solid red;background-color:blue}</style>"
+        => TableLayoutTests.Neutral + OldParagraphMargin + "<style>td,th{padding:2pt;border:1pt solid red;background-color:blue}</style>"
         + "<table style='width:100pt;font-size:10pt;line-height:1.2'><colgroup><col style='width:40pt'><col style='width:60pt'></colgroup>"
         + "<thead><tr><th colspan='2' style='font-weight:normal'><p style='margin-bottom:2pt'>H</p><img src='logo' style='display:block;width:16pt'><p style='margin-bottom:0;margin-top:2pt'>N</p></th></tr></thead><tbody>"
         + string.Concat(Enumerable.Range(1, 5).Select(i => $"<tr><td colspan='2'>R{i}</td></tr>")) + "</tbody></table>";
@@ -197,7 +199,7 @@ public sealed class TableRichTests
     public void RichHeaderRepeatsWholeRowsAndChargesEveryRepeatedCommand()
     {
         var options = TableImageTests.Options() with { PageWidth = 240, PageHeight = 100, Margin = 10 };
-        var html = RichHeader(); var pages = TableLayoutTests.Layout(html, options);
+        var html = RichHeader(); var pages = TableLayoutTests.NLayout(html, options);
         Assert.That(pages, Has.Count.EqualTo(3));
         Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text), Is.EqualTo(new[] { "H", "N", "R1", "R2", "H", "N", "R3", "R4", "H", "N", "R5" }));
         Assert.That(pages.SelectMany(p => p.Images).Select(i => i.Top), Is.EqualTo(new[] { 27d, 27, 27 }));
@@ -205,14 +207,14 @@ public sealed class TableRichTests
         // Each cell paints background+four borders; three header and five body cells.
         // Eleven text runs and three repeated image draws complete the exact budget.
         Assert.That(pages.Sum(p => p.Runs.Count + p.Images.Count + p.PaintBoxes.Sum(b => b.CommandCount)), Is.EqualTo(54));
-        Assert.That(TableLayoutTests.Pdf(html, options with { MaxDisplayCommands = 54 }), Is.Not.Empty);
+        Assert.That(TableLayoutTests.NPdf(html, options with { MaxDisplayCommands = 54 }), Is.Not.Empty);
         TableStructureTests.Fails(html, "FPDF1401", options with { MaxDisplayCommands = 53 });
         using var output = new MemoryStream(); output.Write("sentinel"u8); output.Position = 3;
         var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, options with { MaxPages = 2 }))!;
         Assert.That(error.Code, Is.EqualTo("FPDF1303"));
         Assert.That(output.ToArray(), Is.EqualTo("sentinel"u8.ToArray())); Assert.That(output.Position, Is.EqualTo(3));
         TableStructureTests.Fails(html.Replace("width:16pt", "width:80pt"), "FPDF1302", options);
-        Assert.That(TableLayoutTests.Pdf(html, options), Is.Not.Empty);
+        Assert.That(TableLayoutTests.NPdf(html, options), Is.Not.Empty);
     }
 
     [Test]
@@ -232,7 +234,7 @@ public sealed class TableRichTests
         Assert.That(paragraphs.MoveNext(), Is.True); source.Cancel();
         Assert.Throws<OperationCanceledException>(() => paragraphs.MoveNext());
         using var measuring = new CancellationTokenSource();
-        var table = (LayoutTable)BlockLayout.Steps(root, options, default).Single();
+        var table = BlockLayout.Steps(root, options, default).OfType<LayoutTable>().Single(); // the body's own margin adds steps
         Assert.Throws<OperationCanceledException>(() => TableLayout.Measure(table, options, new(),
             (_, _) => measuring.Cancel(), (_, _) => { }, measuring.Token));
     }

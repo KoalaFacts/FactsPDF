@@ -393,10 +393,7 @@ internal static class CssDeclarations
                 case CssProperty.PaddingTop: current.PaddingTop = wide ? from.PaddingTop : length; break;
                 case CssProperty.PaddingRight: current.PaddingRight = wide ? from.PaddingRight : length; break;
                 case CssProperty.PaddingBottom: current.PaddingBottom = wide ? from.PaddingBottom : length; break;
-                case CssProperty.PaddingLeft:
-                    current.PaddingLeft = wide ? from.PaddingLeft : length;
-                    current.PaddingLeftAuthored = true;
-                    break;
+                case CssProperty.PaddingLeft: current.PaddingLeft = wide ? from.PaddingLeft : length; break;
                 default: throw new InvalidOperationException();
             }
             return current;

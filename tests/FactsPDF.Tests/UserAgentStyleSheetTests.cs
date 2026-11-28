@@ -1,0 +1,151 @@
+using NUnit.Framework;
+
+namespace FactsPDF.Tests;
+
+/// <summary>
+/// The user-agent stylesheet is the lowest cascade origin and gives every supported element Chrome's
+/// default style. The fixture font has hhea ascent 800 and descent -200, so at 12pt (16px) its
+/// normal line is 13px + 3px = 12pt with the baseline 9.75pt below the line top.
+/// </summary>
+[TestFixture]
+public sealed class UserAgentStyleSheetTests
+{
+    private const double Top = 400, Ascent = 9.75, Line = 12;
+    private static readonly PdfFont Regular = PdfFont.FromBytes(FontFixture.Create(listDigits: true));
+    private static readonly PdfFont Bold = PdfFont.FromBytes(FontFixture.Create(listDigits: true));
+
+    private static PdfOptions Options(bool boldChain = false, double height = Top)
+        => new() { PageWidth = 300, PageHeight = height, Margin = 0, Fonts = [Regular], BoldFonts = boldChain ? [Bold] : [] };
+
+    private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
+    {
+        var settings = options ?? Options();
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
+    }
+
+    // The distance from the top of the page to the baseline of the run that reads text.
+    private static double FromTop(List<LayoutPage> pages, string text, double height = Top)
+        => height - pages.SelectMany(p => p.Runs).First(r => r.Text == text).Baseline;
+
+    [Test]
+    public void BodyAndParagraphMarginsCollapseLikeChrome()
+    {
+        var pages = Layout("<p>A</p><p>B</p>");
+        // The 6pt body margin collapses into the paragraph's 12pt; the paragraphs are 12pt apart.
+        Assert.That(FromTop(pages, "A"), Is.EqualTo(12 + Ascent).Within(0.001));
+        Assert.That(FromTop(pages, "B"), Is.EqualTo(12 + Line + 12 + Ascent).Within(0.001));
+    }
+
+    [Test]
+    public void AuthorRulesBeatTheSheetAndRevertReturnsToIt()
+    {
+        Assert.That(FromTop(Layout("<style>body,p{margin:0}</style><p>A</p>"), "A"), Is.EqualTo(Ascent).Within(0.001));
+        Assert.That(FromTop(Layout("<p style='margin:0'>A</p>"), "A"), Is.EqualTo(6 + Ascent).Within(0.001));
+        Assert.That(FromTop(Layout("<style>p{margin:0}p{margin-top:revert}</style><p>A</p>"), "A"),
+            Is.EqualTo(12 + Ascent).Within(0.001));
+        // An author line-height beats the font's normal one.
+        var pitch = Layout("<style>body,p{margin:0;line-height:2}</style><p>A</p><p>A</p>").SelectMany(p => p.Runs).ToList();
+        Assert.That(pitch[0].Baseline - pitch[1].Baseline, Is.EqualTo(24).Within(0.001));
+    }
+
+    [Test]
+    public void NormalLineHeightIsTheFontsOwnAndNotAMultiplier()
+    {
+        var runs = Layout("<style>body,p{margin:0}</style><p>A<br>A</p>").SelectMany(p => p.Runs).ToList();
+        Assert.That(runs[0].Baseline - runs[1].Baseline, Is.EqualTo(Line).Within(0.001));
+    }
+
+    [Test]
+    public void HeadingsAndThAreBoldLikeBAndNeedTheSameBoldChain()
+    {
+        var withBold = Layout("<h1>A</h1>", Options(boldChain: true)).SelectMany(p => p.Runs).Single();
+        Assert.That(withBold.Style.FontSize, Is.EqualTo(24).Within(0.001));
+        Assert.That(withBold.Font, Is.SameAs(Bold));
+        // FactsPDF never synthesizes bold: a heading, th, b and an authored bold fail alike without a bold chain,
+        // and font-weight:normal keeps the regular face.
+        foreach (var html in new[] { "<b>A</b>", "<h1>A</h1>", "<h6>A</h6>", "<table><tbody><tr><th>A</th></tr></tbody></table>",
+                     "<h1 style='font-weight:bold'>A</h1>" })
+            Assert.That(Assert.Throws<FactsPdfException>(() => Layout(html))!.Code, Is.EqualTo("FPDF1507"), html);
+        var regular = Layout("<h1 style='font-weight:normal'>A</h1>").SelectMany(p => p.Runs).Single();
+        Assert.That(regular.Font, Is.SameAs(Regular));
+        // The built-in font has no bold either, so b and a heading behave the same there.
+        var builtIn = new PdfOptions { PageWidth = 300, PageHeight = 400, Margin = 0 };
+        foreach (var html in new[] { "<b>A</b>", "<h1>A</h1>" })
+            Assert.That(Assert.Throws<FactsPdfException>(() => Layout(html, builtIn))!.Code, Is.EqualTo("FPDF1507"), html);
+    }
+
+    [Test]
+    public void ListsIndentByTheirPaddingAndTheAuthorPaddingWins()
+    {
+        Assert.That(Layout("<ul><li>A</li></ul>").SelectMany(p => p.Runs).Single().X, Is.EqualTo(6 + 30).Within(0.001));
+        Assert.That(Layout("<style>ul{padding:0}</style><ul><li>A</li></ul>").SelectMany(p => p.Runs).Single().X,
+            Is.EqualTo(6).Within(0.001));
+        var nested = Layout("<ul><li>A<ul><li>B</li></ul></li></ul>").SelectMany(p => p.Runs).First(r => r.Text == "B");
+        Assert.That(nested.X, Is.EqualTo(6 + 30 + 30).Within(0.001));
+    }
+
+    [Test]
+    public void CellsAreCentredInAWholeRowAndTopAlignedInARowThatSplits()
+    {
+        const string cells = "<td>A<br>A<br>A</td><td>B</td>";
+        double B(string css, double height = Top)
+            => FromTop(Layout($"<style>body{{margin:0}}table{{width:200pt}}{css}</style><table><colgroup><col style='width:100pt'><col style='width:100pt'></colgroup><tbody><tr>{cells}</tr></tbody></table>",
+                Options(height: height)), "B", height);
+        // The shorter cell sits (3 lines - 1 line) / 2 below the top-aligned position.
+        Assert.That(B("") - B("td{vertical-align:top}"), Is.EqualTo(Line).Within(0.001));
+
+        // A row taller than a page cannot centre: the user-agent middle keeps the cell at the top ...
+        var tall = string.Concat(Enumerable.Repeat("A<br>", 30)) + "A";
+        string Split(string css, double height) => $"<style>body{{margin:0}}table{{width:200pt}}{css}</style><table><colgroup><col style='width:100pt'><col style='width:100pt'></colgroup><tbody><tr><td>{tall}</td><td>B</td></tr></tbody></table>";
+        Assert.That(FromTop(Layout(Split("", 100), Options(height: 100)), "B", 100),
+            Is.EqualTo(FromTop(Layout(Split("td{vertical-align:top}", 100), Options(height: 100)), "B", 100)).Within(0.001));
+        // ... while an authored middle is still refused there.
+        Assert.That(Assert.Throws<FactsPdfException>(() => Layout(Split("td{vertical-align:middle}", 100), Options(height: 100)))!.Code,
+            Is.EqualTo("FPDF1302"));
+    }
+
+    [Test]
+    public void BigIsLargerAndAnUntitledAbbrKeepsNoDecorationNextToATitledOne()
+    {
+        var big = Layout("<p>A <big>A</big></p>").SelectMany(p => p.Runs).Last(r => r.Text == "A");
+        Assert.That(big.Style.FontSize, Is.EqualTo(14.4).Within(0.001));
+        var abbrs = Layout("<p><abbr title='t'>A</abbr> <abbr>B</abbr></p>").SelectMany(p => p.Runs).ToList();
+        Assert.That(abbrs.Single(r => r.Text == "A").Style.Decoration, Is.EqualTo(TextDecoration.Underline));
+        Assert.That(abbrs.Single(r => r.Text == "B").Style.Decoration, Is.EqualTo(TextDecoration.None));
+    }
+
+    [Test]
+    public void ATableIsSeparateBorderBoxAndAnInnerTableDoesNotInheritCollapsedBorders()
+    {
+        // Chrome: table{border-collapse:separate;box-sizing:border-box;text-indent:initial}. The inner table in a cell of
+        // a collapsed table is separate again, so the author's tbody row borders reach only the outer table's row.
+        const string css = "<style>body{margin:0}.t{border-collapse:collapse;width:100%}" +
+            ".t tbody tr{border-bottom:3px solid #00f}.t tbody tr:last-of-type{border-bottom:3px solid #f00}</style>";
+        const string html = css + "<table class='t'><thead><tr><th style='font-weight:normal'>A</th><th style='font-weight:normal'>B</th></tr></thead>" +
+            "<tbody><tr><td>A</td><td><table><tr style='background-color:transparent'><td>A</td></tr>" +
+            "<tr style='background-color:transparent'><td>A</td></tr></table></td></tr></tbody></table>";
+        var boxes = Layout(html).SelectMany(p => p.PaintBoxes).ToList();
+        bool Has(double r, double g, double b) => boxes.Any(x => new[] { x.Style.BorderTop, x.Style.BorderBottom, x.Style.BorderLeft, x.Style.BorderRight }
+            .Any(e => e.EffectiveWidth > 0 && (e.Color ?? x.TextColor) is { } c && Math.Abs(c.R - r) < .01 && Math.Abs(c.G - g) < .01 && Math.Abs(c.B - b) < .01));
+        Assert.That(Has(1, 0, 0), Is.True, "the outer last row's red border");
+        Assert.That(Has(0, 0, 1), Is.False, "no blue row border: the inner table is separate and the outer has one row");
+
+        // In the separated model a row or row-group border is validated and dropped, as Chrome paints none.
+        const string separate = "<table><tbody><tr><td>A</td></tr></tbody></table>";
+        Assert.That(Layout("<style>tr{border-bottom:3px solid red}tbody{border:1pt solid red}</style>" + separate).SelectMany(p => p.PaintBoxes), Is.Empty);
+
+        // border-box: the 100pt table width includes its padding and border; content-box opts out.
+        string Wide(string extra) => string.Join(",", Layout($"<style>body{{margin:0}}td{{padding:0}}</style><table style='width:100pt;padding:5pt;background-color:#eee;{extra}'><tr><td>A</td></tr></table>")
+            .SelectMany(p => p.PaintBoxes).Select(b => b.Width));
+        Assert.That(Wide(""), Is.EqualTo("100"));
+        Assert.That(Wide("box-sizing:content-box"), Is.EqualTo("110"));
+    }
+
+    [Test]
+    public void TheSheetDeclaresNoDisplayAndEveryRuleEndsInAType()
+    {
+        Assert.That(UserAgentStyleSheet.For("p"), Is.Not.Null);
+        Assert.That(UserAgentStyleSheet.For("div"), Is.Null);
+        Assert.That(UserAgentStyleSheet.Properties, Does.Not.Contain(CssProperty.Display));
+    }
+}

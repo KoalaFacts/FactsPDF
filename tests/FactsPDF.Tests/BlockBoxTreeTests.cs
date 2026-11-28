@@ -13,6 +13,9 @@ public sealed class BlockBoxTreeTests
         CancellationToken cancellation = default)
         => HtmlDocumentReader.ReadTree(html, options ?? new(), cancellation);
 
+    // The implied body is always the root's only child (it carries the user-agent margin).
+    private static BlockNode Body(string html) => Box(Tree(html).Children.Single());
+
     private static BlockNode Box(BlockChild node) => (BlockNode)node;
     private static Paragraph Text(BlockChild node) => (Paragraph)node;
     private static string Content(Paragraph leaf)
@@ -42,9 +45,8 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void DirectTextBeforeAndAfterNestedBlockStaysInSourceOrder()
     {
-        var root = Tree("<div>before <span style='color:red'>inline</span>" +
-            "<section><p>middle</p></section>after</div>");
-        var div = Box(root.Children.Single());
+        var div = Box(Body("<div>before <span style='color:red'>inline</span>" +
+            "<section><p>middle</p></section>after</div>").Children.Single());
         Assert.That(div.Children, Has.Count.EqualTo(3));
         var before = Text(div.Children[0]);
         Assert.That(before.IsAnonymous, Is.True);
@@ -61,7 +63,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void WhitespaceBetweenBlocksDoesNotCreatePhantomParagraphs()
     {
-        var div = Box(Tree("<div>\n  <p>A</p> \n  <p>B</p>\n</div>").Children.Single());
+        var div = Box(Body("<div>\n  <p>A</p> \n  <p>B</p>\n</div>").Children.Single());
         Assert.That(div.Children, Has.Count.EqualTo(2));
         Assert.That(div.Children, Is.All.TypeOf<BlockNode>());
         Assert.That(div.Children.Cast<BlockNode>().Select(b => b.Name),
@@ -82,7 +84,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void AnonymousParagraphKeepsLegacyFirstInlineLayoutStyleWithIndependentBlockStyle()
     {
-        var div = Box(Tree("<div style='font-size:14pt'><span style='font-size:20pt'>X</span> Y</div>")
+        var div = Box(Body("<div style='font-size:14pt'><span style='font-size:20pt'>X</span> Y</div>")
             .Children.Single());
         var leaf = Text(div.Children.Single());
         Assert.That(leaf.IsAnonymous, Is.True);
@@ -98,7 +100,7 @@ public sealed class BlockBoxTreeTests
     {
         const string html = "<div><span style='text-align:right'>A</span>B</div>";
         var options = new PdfOptions();
-        var outer = Box(Tree(html, options).Children.Single());
+        var outer = Box(Box(Tree(html, options).Children.Single()).Children.Single());
         var anonymous = Text(outer.Children.Single());
         Assert.That(outer.Style.Alignment, Is.EqualTo(TextAlignment.Left));
         Assert.That(anonymous.Style.Alignment, Is.EqualTo(TextAlignment.Right),
@@ -123,7 +125,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void ContainerTextBeforeAndAfterNestedContainerPreservesThreeLeaves()
     {
-        var div = Box(Tree("<div>A<div>B</div>C</div>").Children.Single());
+        var div = Box(Body("<div>A<div>B</div>C</div>").Children.Single());
         Assert.That(div.Children, Has.Count.EqualTo(3));
         Assert.That(Content(Text(div.Children[0])), Is.EqualTo("A"));
         Assert.That(Content(Text(Box(div.Children[1]).Children.Single())), Is.EqualTo("B"));
@@ -144,7 +146,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void BrRemainsInlineBreakNotBlockNode()
     {
-        var para = Box(Tree("<p>A<br>B</p>").Children.Single());
+        var para = Box(Body("<p>A<br>B</p>").Children.Single());
         Assert.That(para.Children, Has.Count.EqualTo(1));
         var leaf = Text(para.Children.Single());
         Assert.That(leaf.Runs.Count(r => r.IsBreak), Is.EqualTo(1));
@@ -171,7 +173,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void TreeLayoutMatchesExistingParagraphLayoutForNestedTextAndBreaks()
     {
-        const string html = "<style>section p{color:blue}</style>" +
+        const string html = "<style>html,body{margin:0}section p{color:blue}</style>" +
             "<body><section>Before <span style='color:red'>inline</span>" +
             "<p style='break-before:page'>Second page</p>" +
             "<article><p>After</p></article>tail</section></body>";
@@ -203,7 +205,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void RealAsciiPdfBytesMatchTheExistingFlatLayoutSerializer()
     {
-        const string html = "<style>div p{color:red}</style>" +
+        const string html = "<style>html,body{margin:0}h2{font-weight:normal}div p{color:red}</style>" +
             "<body><div>Before<p>Colored</p><section><h2>Heading</h2>" +
             "<p>End</p></section>Trailing</div></body>";
         var options = new PdfOptions();

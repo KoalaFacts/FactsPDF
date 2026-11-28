@@ -6,7 +6,8 @@ public sealed class TablePaginationTests
 {
     internal static readonly PdfOptions Page = new() { PageWidth = 240, PageHeight = 100, Margin = 10 };
     internal static string Table(int count, bool header = true, string tableStyle = "", string cellStyle = "", string? content = null)
-        => "<style>td,th{font-weight:normal;orphans:1;widows:1;" + cellStyle + "}</style><table style='width:100pt;font-size:10pt;line-height:2;" + tableStyle
+        // The pagination arithmetic below assumes no body margin and cells without padding.
+        => "<style>html,body{margin:0}td,th{padding:0;vertical-align:top;font-weight:normal;orphans:1;widows:1;" + cellStyle + "}</style><table style='width:100pt;font-size:10pt;line-height:2;" + tableStyle
         + "'><colgroup><col style='width:100%'></colgroup>"
         + (header ? "<thead><tr><th>HEAD</th></tr></thead>" : "") + "<tbody>"
         + string.Concat(Enumerable.Range(1, count).Select(i => $"<tr><td>{content ?? $"R{i:000}"}</td></tr>")) + "</tbody></table>";

@@ -834,7 +834,7 @@ def main():
             ("<article style='margin-bottom:-10%'>A</article>", b'FPDF1202'),
             ("<div style='width:240pt;margin-left:400pt'>A</div>", b'FPDF1302'),
             ("<section style='margin-left:calc(2pt + 1pt)'>A</section>", b'FPDF1202'),
-            ("<body style='margin-left:1pt'>A</body>", b'FPDF1201')
+            ("<html style='margin-left:1pt'>A</html>", b'FPDF1201')
         ):
             bad.write_text(html, encoding='utf-8')
             dest.write_bytes(b'keep-existing')
@@ -874,7 +874,7 @@ def main():
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
             ("<article style='margin-bottom:-10%'>A</article>", b'FPDF1202'),
             ("<div style='margin-top:-1pt'>A</div>", b'FPDF1202'),
-            ("<body style='margin-top:4pt'>A</body>", b'FPDF1201')
+            ("<html style='margin-top:4pt'>A</html>", b'FPDF1201')
         ):
             bad.write_text(html, encoding='utf-8')
             destination.write_bytes(b'previous-report')
@@ -1134,7 +1134,7 @@ def main():
             ("<section style='margin-block:0 auto'>A</section>", b'FPDF1202'),
             ("<section style='padding-inline:calc(1pt + 2pt)'>A</section>", b'FPDF1202'),
             ("<section style='margin-inline:-1pt'>A</section>", b'FPDF1202'),
-            ("<body style='margin-inline:4pt'>A</body>", b'FPDF1201'),
+            ("<html style='margin-inline:4pt'>A</html>", b'FPDF1201'),
             ("<p style='width:540pt;margin-inline:20pt'>A</p>", b'FPDF1302')
         ):
             bad.write_text(html, encoding='utf-8')

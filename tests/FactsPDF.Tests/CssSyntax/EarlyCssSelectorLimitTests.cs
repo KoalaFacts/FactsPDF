@@ -46,13 +46,13 @@ public sealed class EarlyCssSelectorLimitTests
             .SetName("{m}(selector list)");
         yield return new TestCaseData("<style>@media print{a{color:red}b{color:red}}p{color:red}</style><p>x</p>", 3, 45)
             .SetName("{m}(media block)");
-        yield return new TestCaseData("<style>p{color:red}h1{color:red}</style><h1 style=\"color:red\">t</h1><p style=\"color:red\">x</p>", 2, 19)
+        yield return new TestCaseData("<style>p{color:red}h1{color:red;font-weight:normal}</style><h1 style=\"color:red\">t</h1><p style=\"color:red\">x</p>", 2, 19)
             .SetName("{m}(style attribute)");
-        yield return new TestCaseData("<style><!-- p{color:red} --> h1{color:red}</style><h1>t</h1><p>x</p>", 2, 29)
+        yield return new TestCaseData("<style><!-- p{color:red} --> h1{color:red;font-weight:normal}</style><h1>t</h1><p>x</p>", 2, 29)
             .SetName("{m}(cdo and cdc)");
         yield return new TestCaseData("<style>p[title=\"{\"] , p[title=\"}\"]{color:red} p{color:red}</style><p>x</p>", 3, 46)
             .SetName("{m}(braces in attribute selector strings)");
-        yield return new TestCaseData("<style>\n  p { color: red }\n  h1 { color: red }\n</style><h1>t</h1><p>x</p>", 2, 29)
+        yield return new TestCaseData("<style>\n  p { color: red }\n  h1 { color: red; font-weight: normal }\n</style><h1>t</h1><p>x</p>", 2, 29)
             .SetName("{m}(whitespace between rules)");
         yield return new TestCaseData("<style>p{color:red}#x{color:red}</style><p id=\"x\">x</p>", 2, 19)
             .SetName("{m}(id selector rule)");

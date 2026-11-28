@@ -22,7 +22,7 @@ title: "[Template fit] "
 <!-- Optional link to synthetic/public HTML or a short feature list. No customer files, screenshots with private data, or licensed fonts. -->
 
 ### Licensing / evaluation question (optional)
-<!-- Do not share financial figures or legal identities in this public issue. Eligibility under PolyForm Small Business, Noncommercial or Free Trial is self-assessed; the Free Trial allows any company to evaluate for up to 90 consecutive days; longer evaluations need written authorization. -->
+<!-- Do not share financial figures or legal identities in this public issue. FactsPDF is free under Apache-2.0; paid commercial support is optional and arranged privately. -->
 - [ ] I have reviewed [current evaluation boundaries](https://github.com/KoalaFacts/FactsPDF/blob/main/docs/evaluation.md) and [licensing requirements](https://github.com/KoalaFacts/FactsPDF/blob/main/LICENSING.md).
 - [ ] I would like maintainers to explain the next step for a private assessment (no private contact details here).
 

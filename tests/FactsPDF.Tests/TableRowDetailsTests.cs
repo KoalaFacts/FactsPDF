@@ -51,8 +51,6 @@ public sealed class TableRowDetailsTests
     }
 
     [TestCase("tr{padding:2pt}", "FPDF1201")]
-    [TestCase("tr{border:1pt solid red}", "FPDF1201")]
-    [TestCase("tbody{border-top:1pt solid red}", "FPDF1201")]
     [TestCase("tr{background-color:#eee}td{border-radius:3pt}", "FPDF1201")]
     public void OtherRowAndGroupBoxStylesStillFail(string style, string code)
         => TableStructureTests.Fails(Table(style, "<tr><td>A</td><td>B</td></tr>"), code);

@@ -127,7 +127,7 @@ public sealed class UnicodeFontTests
     [Test]
     public void UsesActualWidthsRatherThanCourierApproximation()
     {
-        var pdf = Render("<p>iiii<span style='color:red'>W</span></p>").Pdf;
+        var pdf = Render("<style>body{margin:0}</style><p>iiii<span style='color:red'>W</span></p>").Pdf; // body margin reset
         Assert.That(pdf, Does.Contain("1 0 0 1 45.6 "), "Four 200-unit glyphs at 12pt advance 9.6pt from x=36.");
     }
     [Test]

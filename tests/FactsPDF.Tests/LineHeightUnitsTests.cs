@@ -108,9 +108,10 @@ public sealed class LineHeightUnitsTests
         Assert.That(p[0].Style.AbsoluteLineHeight, Is.EqualTo(24));
         Assert.That(p[1].Style.AbsoluteLineHeight, Is.EqualTo(24));
         Assert.That(p[2].Style.AbsoluteLineHeight, Is.Null);
-        Assert.That(p[2].Style.LineHeight, Is.EqualTo(1.2));
+        // initial and normal are the font-metrics line height, not the old 1.2 multiplier.
+        Assert.That(p[2].Style.LineHeight, Is.EqualTo(TextStyle.NormalLineHeight));
         Assert.That(p[3].Style.AbsoluteLineHeight, Is.Null);
-        Assert.That(p[3].Style.LineHeight, Is.EqualTo(1.2));
+        Assert.That(p[3].Style.LineHeight, Is.EqualTo(TextStyle.NormalLineHeight));
     }
 
     [TestCase("0%")]

@@ -37,7 +37,7 @@ public sealed class ReportDisplayTests
     {
         var rows = string.Concat(Enumerable.Range(1, 40)
             .Select(i => $"<p style='margin:0'>Reference {i:00}</p>"));
-        var visible = "<section style='padding:4pt;border:1pt solid #345678'>" +
+        var visible = "<style>h1,h2{font-weight:normal}</style><section style='padding:4pt;border:1pt solid #345678'>" +
             "<h2 style='margin:0'>Invoice summary</h2>" + rows +
             "</section><p style='margin:0'>GRAND TOTAL</p>";
         var hidden = "<section style='display:none;padding:90pt;" +

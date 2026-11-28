@@ -9,6 +9,9 @@ public sealed class TextTransformTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 180, PageHeight = 240, Margin = 20 };
 
+    // The narrow pages and single-run assertions below are sized without the default 8px body margin.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
@@ -48,9 +51,9 @@ public sealed class TextTransformTests
         const string label = "Invoice ref ab-1042";
         Assert.That(Pdf("<p style='text-transform:uppercase'>" + label + "</p>"),
             Is.EqualTo(Pdf("<p>INVOICE REF AB-1042</p>")));
-        Assert.That(Pdf("<h2 style='text-transform:lowercase'>INVOICE REF AB-1042</h2>"),
-            Is.EqualTo(Pdf("<h2>invoice ref ab-1042</h2>")));
-        Assert.That(Layout("<p style='text-transform:uppercase'>" + label + "</p>")
+        Assert.That(Pdf("<h2 style='font-weight:normal;text-transform:lowercase'>INVOICE REF AB-1042</h2>"),
+            Is.EqualTo(Pdf("<h2 style='font-weight:normal'>invoice ref ab-1042</h2>")));
+        Assert.That(Layout(NoBodyMargin + "<p style='text-transform:uppercase'>" + label + "</p>")
             .Single().Runs.Single().Text, Is.EqualTo("INVOICE REF AB-1042"));
     }
 
@@ -154,9 +157,9 @@ public sealed class TextTransformTests
     public void CapitalizeAffectsActualWrapAndPageFragments()
     {
         var narrow = Page with { PageWidth = 110, PageHeight = 90, Margin = 18 };
-        var source = string.Concat(Enumerable.Range(1, 42).Select(i =>
+        var source = NoBodyMargin + string.Concat(Enumerable.Range(1, 42).Select(i =>
             $"<p style='text-transform:capitalize'>inspection task {i}: asset-a{i}</p>"));
-        var oracle = string.Concat(Enumerable.Range(1, 42).Select(i =>
+        var oracle = NoBodyMargin + string.Concat(Enumerable.Range(1, 42).Select(i =>
             $"<p>Inspection Task {i}: Asset-A{i}</p>"));
         Assert.That(Layout(source, narrow).Count, Is.GreaterThan(1));
         Assert.That(Pdf(source, narrow), Is.EqualTo(Pdf(oracle, narrow)));

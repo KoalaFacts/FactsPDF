@@ -129,7 +129,7 @@ public sealed class PageMarginTextTests
     [TestCase(1500,true)] [TestCase(1501,false)]
     public void HeaderRejectsBodyInkOverhangDespiteValidLineBox(int ymax,bool fits)
     {
-        var options=Page with { Fonts=[Font()],BoldFonts=[Font(ymax:ymax)] };var html=Css+"<p style='font-weight:bold'>A</p>";
+        var options=Page with { Fonts=[Font()],BoldFonts=[Font(ymax:ymax)] };var html="<style>body{margin:0}</style>"+Css+"<p style='font-weight:bold'>A</p>"; // 6pt UA body margin would hide the overhang
         Assert.DoesNotThrow(()=>Pdf(html,options));
         if(fits)Assert.DoesNotThrow(()=>Pdf(html,With(options,"A")));else Fails(html,With(options,"A"),"FPDF1302");
     }

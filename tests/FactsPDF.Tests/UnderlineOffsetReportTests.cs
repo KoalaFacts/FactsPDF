@@ -165,6 +165,8 @@ public sealed class UnderlineOffsetReportTests
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "FactsPDF.slnx")))
             dir = dir.Parent;
         Assert.That(dir, Is.Not.Null);
-        return File.ReadAllText(Path.Combine(dir!.FullName, "examples", name));
+        // The example headings are not what these tests are about: pin them regular so no bold font chain is needed.
+        return File.ReadAllText(Path.Combine(dir!.FullName, "examples", name))
+            .Replace("<style>", "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}", StringComparison.Ordinal);
     }
 }

@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class CliPageMarginTests
 {
-    private static string Report => "<h1>Monthly invoice summary</h1>" +
+    private static string Report => "<h1 style='font-weight:normal'>Monthly invoice summary</h1>" +
         string.Concat(Enumerable.Range(1, 100).Select(i =>
             $"<p>Invoice {i:D3} covers services, billing and payment details.</p>"));
 

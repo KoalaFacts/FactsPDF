@@ -31,7 +31,7 @@ class DeclaredPackageContractTests(unittest.TestCase):
         with ZipFile(path, 'w') as archive:
             archive.writestr('FactsPDF.nuspec',
                 f'<package><metadata><id>FactsPDF</id><version>{version}</version>'
-                '<license type="file">LICENSE.md</license><readme>README.md</readme>'
+                '<license type="expression">Apache-2.0</license><readme>README.md</readme>'
                 '<repository type="git" url="https://github.com/KoalaFacts/FactsPDF" '
                 f'commit="{SOURCE}" /><dependencies><group targetFramework="{target}" />'
                 '</dependencies></metadata></package>')
@@ -99,7 +99,7 @@ class DeclaredPackageContractTests(unittest.TestCase):
             with ZipFile(path, 'w') as archive:
                 archive.writestr('FactsPDF.nuspec',
                     '<package><metadata><id>FactsPDF</id><version>0.2.0</version>'
-                    '<license type="file">LICENSE.md</license><readme>README.md</readme>'
+                    '<license type="expression">Apache-2.0</license><readme>README.md</readme>'
                     '<repository type="git" url="https://github.com/KoalaFacts/FactsPDF" '
                     f'commit="{SOURCE}" /><dependencies>'
                     + ''.join(f'<group targetFramework="{t}" />' for t in included) + '</dependencies></metadata></package>')

@@ -20,7 +20,7 @@ public sealed class WillChangeTests
     }
 
     private static string Report(string declarations) =>
-        $"<style>body{{{declarations}}} h2{{color:#234;{declarations}}} .box{{width:200pt;background:#eef;border:1pt solid #c00;{declarations}}} .unused{{{declarations}}}</style>" +
+        $"<style>h1,h2,h3,h4,h5,h6,th{{font-weight:normal}}body{{{declarations}}} h2{{color:#234;{declarations}}} .box{{width:200pt;background:#eef;border:1pt solid #c00;{declarations}}} .unused{{{declarations}}}</style>" +
         "<h2>Invoice</h2>" +
         $"<div class='box'><p style='{declarations}'>Paid in full</p></div>" +
         $"<table style='width:200pt'><colgroup><col style='width:200pt'></colgroup><tbody><tr><td style='{declarations}'>Total</td></tr></tbody></table>";

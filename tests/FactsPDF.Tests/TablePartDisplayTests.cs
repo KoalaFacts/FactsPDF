@@ -21,7 +21,7 @@ public sealed class TablePartDisplayTests
     }
 
     private static string Doc(string css, int bodyRows = 1, string rowStyle = "") =>
-        $"<!doctype html><html><head><style>th{{font-weight:normal}}{css}</style></head><body><h2>Orders</h2>" +
+        $"<!doctype html><html><head><style>h1,h2,h3,h4,h5,h6,th{{font-weight:normal}}{css}</style></head><body><h2>Orders</h2>" +
         "<table class='table' style='width:200pt'><colgroup><col style='width:120pt'><col style='width:80pt'></colgroup>" +
         $"<thead><tr><th>Item</th><th>Total</th></tr></thead><tbody>" +
         string.Concat(Enumerable.Range(1, bodyRows).Select(i => $"<tr{rowStyle}><td>Line {i}</td><td>{i}</td></tr>")) +

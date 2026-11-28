@@ -58,9 +58,11 @@ public sealed class TableVerticalAlignmentTests
             => page.PaintBoxes.Select(b => (b.X, b.Top, b.Width, b.Height)).ToArray();
         Assert.That(Boxes(middle), Is.EqualTo(Boxes(top)));
         Assert.That(Boxes(bottom), Is.EqualTo(Boxes(top)));
-        Assert.That(Pdf(TwoCells()), Is.EqualTo(Pdf(TwoCells("vertical-align:top"))),
-            "Default table-cell top-alignment must retain existing PDF bytes.");
-        Assert.That(Pdf(TwoCells("vertical-align:middle")), Is.Not.EqualTo(Pdf(TwoCells())));
+        // The user-agent sheet makes rows and cells vertical-align:middle, so an unstyled cell in a
+        // whole row renders like an authored middle and differs from top and bottom.
+        Assert.That(Pdf(TwoCells()), Is.EqualTo(Pdf(TwoCells("vertical-align:middle"))),
+            "The default table-cell alignment is the user-agent middle.");
+        Assert.That(Pdf(TwoCells("vertical-align:top")), Is.Not.EqualTo(Pdf(TwoCells())));
         Assert.That(Pdf(TwoCells("vertical-align:bottom")), Is.Not.EqualTo(Pdf(TwoCells())));
     }
 
@@ -73,9 +75,12 @@ public sealed class TableVerticalAlignmentTests
         var expected = "<style>td.priority{vertical-align:bottom!important}</style>" +
             TwoCells("vertical-align:bottom").Replace("<td style=", "<td class='priority' style=");
         Assert.That(Pdf(important), Is.EqualTo(Pdf(expected)));
-        foreach (var keyword in new[] { "initial", "unset", "inherit" })
+        foreach (var keyword in new[] { "initial", "unset" })
             Assert.That(Pdf(TwoCells("vertical-align:" + keyword)),
                 Is.EqualTo(Pdf(TwoCells("vertical-align:top"))), keyword);
+        // inherit takes the row's value, which the user-agent sheet sets to middle.
+        Assert.That(Pdf(TwoCells("vertical-align:inherit")),
+            Is.EqualTo(Pdf(TwoCells("vertical-align:middle"))), "inherit");
     }
 
     [Test]

@@ -368,18 +368,27 @@ dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r win-x64 -p:Pub
 & ./artifacts/windows-native/FactsPDF.Cli.exe examples/first-document.html artifacts/windows-sample.pdf
 ```
 
-The separate `windows-native-aot` CI job builds that executable on `windows-latest`. [Its verifier](../scripts/verify_windows_aot.py) checks AMD64 PE32+ metadata, copies only `FactsPDF.Cli.exe` into an otherwise empty temporary directory and executes it directly, without a `dotnet` launcher or adjacent managed assemblies. The actual AOT publish plus successful isolated execution establish the evidence; a PE signature alone does not distinguish Native AOT from a managed apphost.
+The separate `windows-native-aot` CI job builds that executable on `windows-latest`. [Its verifier](../scripts/verify_native_aot.py) checks AMD64 PE32+ metadata, copies only `FactsPDF.Cli.exe` into an otherwise empty temporary directory and executes it directly, without a `dotnet` launcher or adjacent managed assemblies. The actual AOT publish plus successful isolated execution establish the evidence; a PE signature alone does not distinguish Native AOT from a managed apphost.
 
 Independent Windows PDF inspection uses `pdfinfo`, `pdftotext` and `pdftoppm` from the [official MSYS2 UCRT64 Poppler package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-poppler). CI pins the [MSYS2 setup Action](https://github.com/msys2/setup-msys2) to a full commit and installs through normal signed `pacman` repositories. These tools are verification dependencies only. To run the same check locally on Windows, install that package in your existing trusted MSYS2 installation, put its `ucrt64\bin` directory on the current process PATH, and use a fresh output directory:
 
 ```powershell
-python -m unittest discover -s scripts -p test_windows_aot.py -v
-python scripts/verify_windows_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence
+python -m unittest discover -s scripts -p test_native_aot.py -v
+python scripts/verify_native_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence
 ```
 
 The check requires a real Windows x64 host. It inspects both pages of the existing ASCII sample through Poppler, verifies repeat bytes, rejects an actual reordered PDF, and tests the exact unsupported-script diagnostic with exit 3, empty stdout and preservation of existing/absent targets. Successful conversion after failure must replace the preserved sentinel with the original successful PDF bytes. The job retains publish/tool versions, command logs, hashes, PDFs and page previews, and emits a small result summary without embedding PDF bytes. A Linux test run is not Windows execution evidence; the corresponding Windows CI job must pass on the commit being evaluated.
 
-These AOT binaries still use platform libraries. The Windows acceptance covers this ASCII/diagnostic slice, not every font/resource combination or Windows architecture. Windows/Linux/macOS also run managed tests; this does not validate their entire AOT matrix. The separate [browser WASM probe](browser-wasm-probe.md) has protected-browser execution evidence for the shared engine; it is an experimental probe, not a published WASM SDK. The [Node/CLI probe](node-cli-probe.md) similarly validates subprocess integration. Other language bindings remain planned.
+The same verifier is RID-aware (`--rid`, default the host): it checks the executable header for the target (PE32+ AMD64/ARM64, ELF64 x86-64/AArch64, thin 64-bit Mach-O x86_64/arm64), refuses to run on a host that is not that OS and architecture, stages only the executable and runs the identical two-page, diagnostic, preservation and recovery checks. The [`native-aot-platform-matrix` workflow](../.github/workflows/native-aot-platform-matrix.yml) publishes `-r <rid> -p:PublishAot=true` and runs that verifier plus `verify_native_feature_paths.py` natively on `osx-arm64` (`macos-15`), `osx-x64` (`macos-15-intel`; `macos-13` is retired), `linux-arm64` (`ubuntu-24.04-arm`) and `win-arm64` (`windows-11-arm`, Poppler/qpdf from the signed MSYS2 CLANGARM64 repository). Linux x64 and Windows x64 stay in `ci.yml`. It runs only for changes under `src/`, `shared/`, `examples/`, the verifier scripts or the workflow, uses no secrets or extra permissions and never publishes a release. Locally, on a matching host:
+
+```sh
+dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -r osx-arm64 -p:PublishAot=true -o artifacts/native
+python scripts/verify_native_aot.py --rid osx-arm64 --executable artifacts/native/FactsPDF.Cli --output artifacts/native-aot-evidence
+```
+
+A header check cannot tell Native AOT from a managed apphost on ELF or Mach-O either; the evidence is the real `PublishAot` build plus isolated execution on the matching runner. The Chinese/Unicode font check (`verify_unicode.py`) still runs only on Linux x64.
+
+These AOT binaries still use platform libraries. The Windows acceptance covers this ASCII/diagnostic slice, not every font/resource combination or Windows architecture. Windows/Linux/macOS also run managed tests; the AOT matrix above covers the same ASCII/diagnostic and feature-path slice per RID, not every font or resource combination. The separate [browser WASM probe](browser-wasm-probe.md) has protected-browser execution evidence for the shared engine; it is an experimental probe, not a published WASM SDK. The [Node/CLI probe](node-cli-probe.md) similarly validates subprocess integration. Other language bindings remain planned.
 
 CI independently inspects real output using qpdf/Poppler and, for subset inspection, fontTools. Those are verification-only tools, not runtime parser/font/PDF dependencies. The stylesheet workflow compares a bilingual stylesheet template against a hand-authored inline equivalent, including exact bytes/text/pixels. Fonts are not committed or uploaded as standalone files. Local NuGet validation checks exact license/README content and no runtime package dependencies, then actually restores/builds/runs an independent package consumer outside repository build inheritance. The first-use check above records package and runtime provenance. No registry publication occurs and all licensing release gates remain.
 
@@ -440,7 +449,10 @@ decides whether to merge it.
 ### User-agent defaults against Chrome
 
 FactsPDF must start from the same element defaults as a browser's user-agent
-stylesheet. `tests/fixtures/ua-defaults/corpus.json` holds one synthetic probe
+stylesheet, and does: they are the user-agent stylesheet in
+`src/FactsPDF/Css/UserAgentStyleSheet.cs`, the lowest cascade origin
+([css-stylesheets](css-stylesheets.md#user-agent-stylesheet)). This is the check
+that keeps it equal to Chrome's. `tests/fixtures/ua-defaults/corpus.json` holds one synthetic probe
 per supported element plus the contexts that change a default (nested lists,
 `section > h1`, `th` and `td`, `caption`, `dt`/`dd`, `q` in `q`, the inline
 elements, `img`, `svg`, `hr`, `br`). Each probe is a tiny document with some
@@ -467,7 +479,8 @@ every value is a default. Two layers check it:
   or a stale snapshot is caught.
 
 `tests/fixtures/ua-defaults/known-differences.json` lists every difference that
-exists today, each with a one-line reason (`computed` entries: element,
+exists today (six computed entries: the `hr` inset keyword, `tfoot` and `colgroup`;
+22 geometry entries, all the 2px table cell spacing), each with a one-line reason (`computed` entries: element,
 property, Chrome value, FactsPDF value; `geometry` entries: probe, metric,
 Chrome value, FactsPDF value). Both layers fail on a difference that is not
 listed and on a listed difference that no longer occurs, so the list can only

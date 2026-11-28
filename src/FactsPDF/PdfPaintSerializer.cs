@@ -390,9 +390,9 @@ internal static class PdfPaintSerializer
             Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes, sourceOffset, ref alpha);
             return;
         }
-        if (edge.Pattern is BorderPattern.Inset or BorderPattern.Groove)
+        if (edge.Pattern == BorderPattern.Groove)
         {
-            ThreeDimensionalBorder(output, edge.Pattern, color, leading, x, top, width, height, horizontal,
+            ThreeDimensionalBorder(output, color, leading, x, top, width, height, horizontal,
                 pageHeight, maxOutputBytes, sourceOffset, ref alpha);
             return;
         }
@@ -435,21 +435,14 @@ internal static class PdfPaintSerializer
             throw new FactsPdfException("FPDF1401", "PDF patterned border exceeds MaxOutputBytes.", sourceOffset);
     }
 
-    // The two tones of an inset or groove border, as Chrome paints them: the border colour and its
-    // darker shade (Chrome's Color::Dark, every channel scaled by (v - 0.33) / v for v the largest
-    // channel). An inset edge is dark on the top and left and plain on the bottom and right; a groove
-    // splits each edge in two bands, dark outside and plain inside on the top and left, the reverse
-    // on the bottom and right.
-    private static void ThreeDimensionalBorder(StringBuilder output, BorderPattern pattern, Rgb color, bool leading,
+    // A groove border as Chrome paints it: each edge is two bands of the border colour and its darker
+    // shade (Chrome's Color::Dark, every channel scaled by (v - 0.33) / v for v the largest channel),
+    // dark outside and plain inside on the top and left, the reverse on the bottom and right.
+    private static void ThreeDimensionalBorder(StringBuilder output, Rgb color, bool leading,
         double x, double top, double width, double height, bool horizontal, double pageHeight, int maxOutputBytes,
         int sourceOffset, ref PdfAlphaStates alpha)
     {
         var dark = Darker(color);
-        if (pattern == BorderPattern.Inset)
-        {
-            Rect(output, leading ? dark : color, x, top, width, height, pageHeight, maxOutputBytes, sourceOffset, ref alpha);
-            return;
-        }
         var outer = leading ? dark : color;
         var inner = leading ? color : dark;
         var halfWidth = horizontal ? width : width / 2;

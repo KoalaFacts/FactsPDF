@@ -32,7 +32,8 @@ public sealed class ElementRelativeBoxLengthTests
     [Test]
     public void DifferentOwnComputedFontSizesDriveActualNestedPaintAndTextGeometry()
     {
-        const string open = "<html style='font-size:15pt'><body style='font-size:9pt'>";
+        // The body margin is reset so the 20pt page margin is the geometry origin.
+        const string open = "<html style='font-size:15pt'><body style='font-size:9pt;margin:0'>";
         const string relative =
             "<section style='font-size:20pt;box-sizing:border-box;width:10em;padding:0.25em;" +
             "border:1pt solid #23446b;background:#f0f6fa'>" +
@@ -100,7 +101,7 @@ public sealed class ElementRelativeBoxLengthTests
         var points = string.Concat(Enumerable.Range(1, 22).Select(i =>
             $"<p style='font-size:10pt;margin:2pt 5pt 3pt;" +
             $"padding:1pt;background:#f0f6fa'>Service entry {i:00}</p>"));
-        const string open = "<html style='font-size:15pt'><body>";
+        const string open = "<html style='font-size:15pt'><body style='margin:0'>"; // the body margin is reset
         const string close = "</body></html>";
         var html = open + relative + close;
         Assert.That(Pdf(html), Is.EqualTo(Pdf(open + points + close)));
@@ -120,7 +121,8 @@ public sealed class ElementRelativeBoxLengthTests
         // Neither an external font nor browser rendering is needed.
         var options = Page with { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var body = string.Concat(Enumerable.Repeat("<p>AB WA BA</p>", 18));
-        const string before = "<html style='font-size:15pt'><body>";
+        // The paragraphs keep the old 8pt-below spacing and 1.2 line height this pagination was sized for.
+        const string before = "<html style='font-size:15pt'><style>p{margin:0 0 8pt;line-height:1.2}</style><body style='margin:0'>";
         const string relative = "<section style='font-size:12pt;width:12em;padding:0.5em;" +
             "background:#e0e9f1'><p style='font-size:12pt;margin:0.25em'>AB WA BA</p>";
         const string absolute = "<section style='font-size:12pt;width:144pt;padding:6pt;" +

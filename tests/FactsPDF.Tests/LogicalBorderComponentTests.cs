@@ -8,6 +8,9 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class LogicalBorderComponentTests
 {
+    // The example reports use headings and table headers; the user-agent sheet makes them bold, which needs a bold font chain these tests do not supply.
+    private const string BoldPin = "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>";
+
     private static readonly PdfOptions Page = new() { PageWidth = 310, PageHeight = 165, Margin = 18 };
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
@@ -188,8 +191,8 @@ public sealed class LogicalBorderComponentTests
         while (directory != null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
             directory = directory.Parent;
         if (directory is null) throw new InvalidOperationException("Repository root not found.");
-        var source = File.ReadAllText(Path.Combine(directory.FullName, "examples", "report-logical-border-components.html"));
-        var oracle = File.ReadAllText(Path.Combine(directory.FullName, "examples", "report-logical-border-components-oracle.html"));
+        var source = BoldPin + File.ReadAllText(Path.Combine(directory.FullName, "examples", "report-logical-border-components.html"));
+        var oracle = BoldPin + File.ReadAllText(Path.Combine(directory.FullName, "examples", "report-logical-border-components-oracle.html"));
         var options = new PdfOptions();
         Assert.That(Pdf(source, options), Is.EqualTo(Pdf(oracle, options)));
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(source, options, default), options, default);

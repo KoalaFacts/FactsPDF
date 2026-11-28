@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      BASELINE_SHA: 9b9ad5b04c3cc89a18f620b346589381b693695b
+      BASELINE_SHA: 2df75f60bb1d94fc91a0a15df2cdbe656f7417ce
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: 9b9ad5b04c3cc89a18f620b346589381b693695b
+          ref: 2df75f60bb1d94fc91a0a15df2cdbe656f7417ce
           path: baseline
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -38,12 +38,12 @@ jobs:
           test "$(git -C baseline rev-parse HEAD)" = "$BASELINE_SHA"
           echo "SOURCE_SHA=$(git -C current rev-parse HEAD)" >> "$GITHUB_ENV"
           cp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
-          # The baseline predates the Pdf.Write() SDK: it gets the pre-SDK engine adapter.
-          cp current/benchmarks/baseline-engine/BenchmarkEngine.cs baseline/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs
+          cp current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs baseline/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs
+          cmp current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs baseline/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs
           cmp current/benchmarks/FactsPDF.Benchmarks/Program.cs baseline/benchmarks/FactsPDF.Benchmarks/Program.cs
           cmp current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj baseline/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj
           HARNESS_SHA=$(cat current/benchmarks/FactsPDF.Benchmarks/Program.cs current/benchmarks/FactsPDF.Benchmarks/FactsPDF.Benchmarks.csproj \
-            current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs current/benchmarks/baseline-engine/BenchmarkEngine.cs | sha256sum | cut -d' ' -f1)
+            current/benchmarks/FactsPDF.Benchmarks/BenchmarkEngine.cs | sha256sum | cut -d' ' -f1)
           echo "HARNESS_SHA=$HARNESS_SHA" >> "$GITHUB_ENV"
       - name: Compile same Native AOT harness against both engines
         run: |

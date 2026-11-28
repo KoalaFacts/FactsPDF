@@ -10,10 +10,25 @@ public sealed class ScriptElementTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 260, PageHeight = 300, Margin = 12 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? Page);
+        PdfConverter.Convert(Neutral(html), output, options ?? Page);
         return output.ToArray();
     }
 
@@ -47,8 +62,10 @@ public sealed class ScriptElementTests
     public void ScriptsCountTowardTheElementLimit()
     {
         var limited = new PdfOptions { PageWidth = 260, PageHeight = 300, Margin = 12, MaxElements = 2 };
-        Assert.That(Pdf("<p>A</p><script></script>", limited), Is.Not.Empty);
         using var output = new MemoryStream();
+        PdfConverter.Convert("<p>A</p><script></script>", output, limited);
+        Assert.That(output.Length, Is.GreaterThan(0));
+        output.SetLength(0);
         var ex = Assert.Throws<FactsPdfException>(() =>
             PdfConverter.Convert("<p>A</p><script></script><script></script>", output, limited))!;
         Assert.That(ex.Code, Is.EqualTo("FPDF1002"));
@@ -64,11 +81,11 @@ public sealed class ScriptElementTests
     public void UnclosedStrayOrDoubleEscapedScriptsFail(string html, string code, int offset)
     {
         using var output = new MemoryStream();
-        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, Page))!;
+        var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), output, Page))!;
         Assert.Multiple(() =>
         {
             Assert.That(ex.Code, Is.EqualTo(code));
-            Assert.That(ex.SourceOffset, Is.EqualTo(offset));
+            Assert.That(ex.SourceOffset, Is.EqualTo(Reset.Length + offset));
             Assert.That(output.Length, Is.Zero);
         });
     }

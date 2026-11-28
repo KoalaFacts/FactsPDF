@@ -11,7 +11,7 @@ public sealed class TableTrackRelativeWidthTests
     private static string Invoice(string tableWidth, string firstWidth, string secondWidth,
         string tablePadding = "padding:2pt", string colgroupFont = "font-size:20pt")
         => "<html style='font-size:16pt'><body><table style='width:" + tableWidth +
-           ";font-size:10pt;line-height:1.2;" + tablePadding +
+           ";box-sizing:content-box;font-size:10pt;line-height:1.2;" + tablePadding +
            ";border:1pt solid #315f82;background:#eef3f7'>" +
            "<colgroup style='" + colgroupFont + "'><col style='width:" +
            firstWidth + "'><col style='width:" + secondWidth + "'></colgroup>" +
@@ -90,12 +90,12 @@ public sealed class TableTrackRelativeWidthTests
             "<th style='font-weight:normal'>DETAIL</th></tr></thead>" +
             "<tbody><tr><td>A</td><td>B</td></tr></tbody></table></body></html>";
         var relative = start +
-            "<style>table.invoice{font-size:12pt!important;width:10em!important;padding:0.25rem!important}" +
+            "<style>table{box-sizing:content-box}table.invoice{font-size:12pt!important;width:10em!important;padding:0.25rem!important}" +
             "col.code{width:2rem!important}</style>" +
             "<table class='invoice' style='width:15rem;font-size:20pt;padding:1em'>" +
             "<colgroup><col class='code' style='width:40pt'><col style='width:88pt'></colgroup>" + rows;
         var oracle = start +
-            "<table style='width:120pt;font-size:12pt;padding:4pt'>" +
+            "<table style='box-sizing:content-box;width:120pt;font-size:12pt;padding:4pt'>" +
             "<colgroup><col style='width:32pt'><col style='width:88pt'></colgroup>" + rows;
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(oracle)));
     }

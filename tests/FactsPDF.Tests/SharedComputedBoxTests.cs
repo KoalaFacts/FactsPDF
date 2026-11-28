@@ -12,8 +12,11 @@ public sealed class SharedComputedBoxTests
 {
     private static readonly PdfOptions Options = new() { MaxElements = 100_000 };
 
-    private static BoxStyle[] Boxes(string html) =>
-        HtmlDocumentReader.ReadTree(html, Options, default).Children.Cast<BlockNode>().Select(block => block.BoxStyle).ToArray();
+    // The implied body is the document root's only child; its children are the elements under test.
+    private static BlockNode[] Elements(string html) =>
+        ((BlockNode)HtmlDocumentReader.ReadTree(html, Options, default).Children.Single()).Children.Cast<BlockNode>().ToArray();
+
+    private static BoxStyle[] Boxes(string html) => Elements(html).Select(block => block.BoxStyle).ToArray();
 
     private static byte[] Render(string html)
     {
@@ -67,7 +70,7 @@ public sealed class SharedComputedBoxTests
     [TestCase("<div style=\"padding:4pt\"><div style=\"padding:inherit\">A</div></div><div style=\"padding:8pt\"><div style=\"padding:inherit\">B</div></div>", 4, 8)]
     public void DifferentBoxInputsKeepTheirOwnValues(string html, double first, double second)
     {
-        var outer = HtmlDocumentReader.ReadTree(html, Options, default).Children.Cast<BlockNode>().ToArray();
+        var outer = Elements(html);
         BoxStyle Inner(BlockNode block) => block.Children.Count > 0 && block.Children[0] is BlockNode inner ? inner.BoxStyle : block.BoxStyle;
         Assert.That(Inner(outer[0]).PaddingLeft.Value, Is.EqualTo(first));
         Assert.That(Inner(outer[1]).PaddingLeft.Value, Is.EqualTo(second));

@@ -49,7 +49,7 @@ public sealed class LinkHrefFallbackTests
         Assert.That(text, Does.Not.Contain("/Subtype /Link"));
         Assert.That(text, Does.Not.Contain("/URI"));
         // The text looks exactly like an ordinary link: the bytes equal those of blue underlined text.
-        var plain = Writer.ToBytes("<p>See <span style=\"color:#0000cc;text-decoration:underline\">the text</span> now</p>");
+        var plain = Writer.ToBytes("<p>See <span style=\"color:#0000ee;text-decoration:underline\">the text</span> now</p>");
         Assert.That(pdf, Is.EqualTo(plain));
         Assert.That(warnings!.Items, Has.Count.EqualTo(1));
         var warning = warnings.Items[0];

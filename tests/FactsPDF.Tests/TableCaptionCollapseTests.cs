@@ -9,7 +9,8 @@ public sealed class TableCaptionCollapseTests
     private static readonly Rgb Red = new(0xcc / 255d, 0, 0);
 
     private static string Table(string style, string body, string head = "", string caption = "", string tableStyle = "width:100pt;font-size:10pt")
-        => $"<style>{style}</style><table style='{tableStyle}'>{caption}{Columns}{head}<tbody>{body}</tbody></table>";
+        // html,body{margin:0}: coordinates below are measured from the page margin, not the 8px UA body margin.
+        => $"<style>html,body{{margin:0}}{style}</style><table style='{tableStyle}'>{caption}{Columns}{head}<tbody>{body}</tbody></table>";
 
     private static Paragraph[] Paragraphs(string html)
         => BlockTreeTraversal.Paragraphs(HtmlDocumentReader.ReadTree(html, new(), default), default).ToArray();
@@ -197,8 +198,10 @@ public sealed class TableCaptionCollapseTests
     }
 
     [Test]
-    public void RowBordersStillFailWithSeparatedBorders()
-        => TableStructureTests.Fails(Table("tr{border-bottom:1pt solid #000}", Rows(1)), "FPDF1201");
+    public void RowBordersAreValidatedAndDroppedWithSeparatedBorders()
+        // Chrome paints no row border in the separated model, so the declaration changes nothing.
+        => Assert.That(TableLayoutTests.Pdf(Table("tr{border-bottom:1pt solid #000}", Rows(1))),
+            Is.EqualTo(TableLayoutTests.Pdf(Table("", Rows(1)))));
 
     [Test]
     public void CollapsedRowThatMustSplitFails()

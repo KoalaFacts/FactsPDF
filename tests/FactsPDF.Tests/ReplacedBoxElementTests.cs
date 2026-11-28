@@ -52,10 +52,10 @@ public sealed class ReplacedBoxElementTests
     [TestCase("<p>A <video style='width:200px'></video> B</p>", 150, 112.5)]
     [TestCase("<p>A <video style='height:100px'></video> B</p>", 225, 75)]
     [TestCase("<p>A <video width='100' style='height:100px'></video> B</p>", 75, 75)]
-    [TestCase("<p>A <video style='width:50%'></video> B</p>", 180, 112.5)]
+    [TestCase("<p>A <video style='width:50%'></video> B</p>", 174, 112.5)]
     [TestCase("<p>A <iframe></iframe> B</p>", 225, 112.5)]
     [TestCase("<p>A <iframe width='100' height='60'></iframe> B</p>", 75, 45)]
-    [TestCase("<p>A <iframe width='50%'></iframe> B</p>", 180, 112.5)]
+    [TestCase("<p>A <iframe width='50%'></iframe> B</p>", 174, 112.5)]
     [TestCase("<p>A <iframe style='width:200px'></iframe> B</p>", 150, 112.5)]
     public void VideoAndIframeTakeEachDimensionIndependentlyFromAttributesAndCss(string html, double width, double height)
         => AssertSize(html, width, height);

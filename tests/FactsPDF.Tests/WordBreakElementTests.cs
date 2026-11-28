@@ -66,7 +66,7 @@ public sealed class WordBreakElementTests
         var twenty = new string('A', 20);
         var twelve = new string('A', 12);
         Assert.That(Layout($"<ul><li>{twenty}<wbr>{twenty}</li></ul>").Single().Runs.Count, Is.EqualTo(2));
-        Assert.That(Layout($"<h2>x<span>{twelve}<wbr>{twelve}</span></h2>").Single().Runs.Count, Is.EqualTo(3));
+        Assert.That(Layout($"<h2 style='font-weight:normal'>x<span>{twelve}<wbr>{twelve}</span></h2>").Single().Runs.Count, Is.EqualTo(3));
     }
 
     [Test]

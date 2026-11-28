@@ -45,9 +45,9 @@ public sealed class InheritedWhiteSpaceReportTests
         const string second = "APPROVED  BY\n  TEAM";
         var actual = "<style>.report{white-space:" + mode + "}</style>" +
             "<section class='report'><p>" + first +
-            "</p><article><h3>" + second + "</h3></article></section>";
+            "</p><article><h3 style='font-weight:normal'>" + second + "</h3></article></section>";
         var oracle = "<section class='report'><p style='white-space:" + mode + "'>" +
-            first + "</p><article><h3 style='white-space:" + mode + "'>" +
+            first + "</p><article><h3 style='font-weight:normal;white-space:" + mode + "'>" +
             second + "</h3></article></section>";
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)),
             "Container inheritance must affect actual PDF bytes, not merely parse declarations.");

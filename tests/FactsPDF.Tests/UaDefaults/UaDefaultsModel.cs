@@ -129,13 +129,14 @@ internal sealed class UaDefaultsModel
         else if (tag is "td" or "th" && cells.TryGetValue(offset, out var cell))
         {
             text = cell.Style; box = cell.BoxStyle; display = "table-cell";
-            verticalAlign = cell.BoxStyle.VerticalAlign.ToString().ToLowerInvariant();
+            verticalAlign = Align(cell.BoxStyle.VerticalAlign);
         }
         else if (tag == "tr" && rows.TryGetValue(offset, out var row))
         {
             text = orderedRows.First(r => ReferenceEquals(r.Row, row)).TableStyle;
             box = row.Box;
             display = "table-row";
+            verticalAlign = Align(row.Box.VerticalAlign);
         }
         else if (tag is "thead" or "tbody" or "tfoot")
         {
@@ -144,6 +145,7 @@ internal sealed class UaDefaultsModel
             box = firstRow.GroupBox;
             // FactsPDF lays a tfoot out as the last rows of a tbody.
             display = tag == "thead" ? "table-header-group" : "table-row-group";
+            verticalAlign = Align(firstRow.GroupBox.VerticalAlign);
         }
         else if (tag == "col") { text = null; display = "table-column"; }
         else if (tag == "colgroup") { text = null; display = null; }
@@ -189,7 +191,7 @@ internal sealed class UaDefaultsModel
             values["font-size"] = Points(text.FontSize);
             values["font-weight"] = text.Bold ? "700" : "400";
             values["font-style"] = text.Italic ? "italic" : "normal";
-            values["line-height"] = Points(text.AbsoluteLineHeight ?? text.LineHeight * text.FontSize);
+            values["line-height"] = text.HasNormalLineHeight ? "normal" : Points(text.AbsoluteLineHeight ?? text.LineHeight * text.FontSize);
             values["text-align"] = text.Alignment switch
             {
                 TextAlignment.Left => "start",
@@ -204,12 +206,13 @@ internal sealed class UaDefaultsModel
         return values;
     }
 
+    private static string Align(CellVerticalAlign align) => align == CellVerticalAlign.DefaultMiddle ? "middle" : align.ToString().ToLowerInvariant();
+
     private static void Border(Dictionary<string, string?> values, string side, BorderEdge edge)
     {
         values["border-" + side + "-width"] = Points(edge.EffectiveWidth);
         values["border-" + side + "-style"] = !edge.Solid ? "none" : edge.Pattern switch
         {
-            BorderPattern.Inset => "inset",
             BorderPattern.Groove => "groove",
             _ => "solid",
         };

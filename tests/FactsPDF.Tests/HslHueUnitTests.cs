@@ -16,7 +16,7 @@ public sealed class HslHueUnitTests
         return Encoding.ASCII.GetString(stream.ToArray());
     }
 
-    private static string Page(string c) => $"<style>h1{{color:{c}}}</style><h1>Total</h1>" +
+    private static string Page(string c) => $"<style>h1{{font-weight:normal;color:{c}}}</style><h1>Total</h1>" +
         $"<div style='background:{c};border:2pt dashed {c};text-decoration:underline {c}'>A</div>";
 
     [TestCase("hsl(0.5turn 60% 40%)", "hsl(180 60% 40%)")]

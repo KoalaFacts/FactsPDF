@@ -18,8 +18,14 @@ public sealed class InlineSvgTests
         return segments;
     }
 
+    // The 36pt margin offsets above are measured from the page margin, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
+    private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
+        => TableLayoutTests.Layout(NoBodyMargin + html, options);
+
     private static string Pdf(string html, PdfOptions? options = null)
-        => Encoding.Latin1.GetString(TableLayoutTests.Pdf(html, options));
+        => Encoding.Latin1.GetString(TableLayoutTests.Pdf(NoBodyMargin + html, options));
 
     // The content-stream text of the first svg: from its viewport clip to its closing Q.
     private static string Svg(string html, PdfOptions? options = null)
@@ -34,7 +40,7 @@ public sealed class InlineSvgTests
 
     private static (double Width, double Height) Size(string html)
     {
-        var image = TableLayoutTests.Layout(html).Single().Images.Single();
+        var image = Layout(html).Single().Images.Single();
         Assert.That(image.Vector, Is.Not.Null);
         return (image.Width, image.Height);
     }
@@ -313,7 +319,7 @@ public sealed class InlineSvgTests
     [Test]
     public void SvgsInTableCellsAndAfterTextPaintAtTheirBoxes()
     {
-        var page = TableLayoutTests.Layout(TableLayoutTests.Table("<svg width='20' height='8'><rect width='20' height='8'/></svg>")).Single();
+        var page = Layout(TableLayoutTests.Table("<svg width='20' height='8'><rect width='20' height='8'/></svg>")).Single();
         Assert.That(page.Images.Single().Vector, Is.Not.Null);
         Assert.That((page.Images.Single().Width, page.Images.Single().Height), Is.EqualTo((15d, 6d)));
         var pdf = Pdf("<p>Above</p><svg width='4' height='4'><rect width='4' height='4'/></svg><p>Below</p>");
@@ -365,11 +371,11 @@ public sealed class InlineSvgTests
         Assert.That(Pdf("<style>*{margin:0;padding:0;box-sizing:border-box}svg{display:block}</style>" + plain),
             Is.EqualTo(Pdf(plain)));
         // An inline svg's padding, border and background travel with it as its decoration.
-        var page = TableLayoutTests.Layout("<svg width='40' height='20' style='padding:2pt;border:1pt solid red'></svg>").Single();
+        var page = Layout("<svg width='40' height='20' style='padding:2pt;border:1pt solid red'></svg>").Single();
         Assert.That(page.Images.Single().X, Is.EqualTo(39));
         Assert.That(page.Images.Single().Decoration!.Width, Is.EqualTo(36));
         Assert.That(page.PaintBoxes, Is.Empty);
-        var block = TableLayoutTests.Layout("<svg width='40' height='20' style='display:block;padding:2pt;border:1pt solid red'></svg>").Single();
+        var block = Layout("<svg width='40' height='20' style='display:block;padding:2pt;border:1pt solid red'></svg>").Single();
         Assert.That(block.Images.Single().X, Is.EqualTo(39));
         Assert.That(block.PaintBoxes.Single().Width, Is.EqualTo(36));
     }
@@ -439,7 +445,7 @@ public sealed class InlineSvgTests
     [TestCase("<div><span><svg width='4' height='4'></svg></span></div>")]
     [TestCase("<ul><li><svg width='4' height='4'></svg></li></ul>")]
     public void DefaultInlineSvgRendersInsideParagraphsInlineElementsAndListItems(string html)
-        => Assert.That(TableLayoutTests.Layout(html).Single().Images.Single().Vector, Is.Not.Null);
+        => Assert.That(Layout(html).Single().Images.Single().Vector, Is.Not.Null);
 
     [Test]
     public void SvgNestingCountsTowardsMaxDepth()

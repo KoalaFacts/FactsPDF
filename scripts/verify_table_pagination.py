@@ -22,7 +22,7 @@ def html(case):
             + '<br>'.join(['LEAD'] * case['lead']) + '</p>') if case['lead'] else ''
     header = '<thead><tr><th>ID</th><th>DESCRIPTION</th></tr></thead>' if case['header'] else ''
     rows = ''.join(f'<tr><td>R{i:03}</td><td>{"记录" if case["bilingual"] else "Record"}</td></tr>' for i in range(1, case['count']+1))
-    return ("<!doctype html><style>td,th{padding:4pt;border:1pt solid #24445a;background-color:#f4f7fa}"
+    return ("<!doctype html><style>html,body{margin:0}td,th{vertical-align:top;padding:4pt;border:1pt solid #24445a;background-color:#f4f7fa}"
             "th{font-weight:normal;background-color:#dce7ef}</style>" + lead
             + "<table style='width:480pt;font-size:12pt;line-height:1.5'><colgroup><col style='width:80pt'>"
             "<col style='width:400pt'></colgroup>" + header + '<tbody>' + rows + '</tbody></table>')

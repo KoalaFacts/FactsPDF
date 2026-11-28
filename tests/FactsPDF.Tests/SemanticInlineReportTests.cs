@@ -6,6 +6,9 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class SemanticInlineReportTests
 {
+    // The example reports use headings and table headers; the user-agent sheet makes them bold, which needs a bold font chain these tests do not supply.
+    private const string BoldPin = "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>";
+
     private static readonly PdfOptions Page = new() { PageWidth = 260, PageHeight = 180, Margin = 12 };
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
@@ -153,6 +156,6 @@ public sealed class SemanticInlineReportTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
             directory = directory.Parent;
         Assert.That(directory, Is.Not.Null);
-        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+        return BoldPin + File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
     }
 }
