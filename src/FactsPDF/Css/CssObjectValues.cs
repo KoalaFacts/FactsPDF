@@ -111,9 +111,10 @@ internal static class CssObjectValues
         var amount = length is null ? default : Length(length, rootFontSize, elementFontSize, offset);
         return keyword switch
         {
-            null => amount.IsPercent ? new(amount.Value, 0) : new(0, amount.Value),
-            "left" or "top" => length is null ? new(0, 0) : amount.IsPercent ? new(amount.Value, 0) : new(0, amount.Value),
-            "right" or "bottom" => length is null ? new(100, 0) : amount.IsPercent ? new(100 - amount.Value, 0) : new(100, -amount.Value),
+            // A calc() of a percentage and a length keeps its length part in Fixed.
+            null => amount.IsPercent ? new(amount.Value, amount.Fixed) : new(0, amount.Value),
+            "left" or "top" => length is null ? new(0, 0) : amount.IsPercent ? new(amount.Value, amount.Fixed) : new(0, amount.Value),
+            "right" or "bottom" => length is null ? new(100, 0) : amount.IsPercent ? new(100 - amount.Value, -amount.Fixed) : new(100, -amount.Value),
             _ => ObjectAxis.Centre
         };
     }
@@ -124,6 +125,6 @@ internal static class CssObjectValues
         var negative = text.StartsWith('-');
         var magnitude = negative || text.StartsWith('+') ? text[1..] : text;
         var length = CssBoxValues.Length(magnitude, offset, rootFontSize, allowRem: true, elementFontSize, allowEm: true);
-        return negative ? new CssLength(-length.Value, length.IsPercent) : length;
+        return negative ? new CssLength(-length.Value, length.IsPercent, -length.Fixed) : length;
     }
 }

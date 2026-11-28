@@ -90,6 +90,10 @@ public sealed partial class ObjectFitTests
     [TestCase("object-fit:none;object-position:25%", 10, 35, 60, 30)]
     [TestCase("object-fit:contain;object-position:right bottom", 0, 50, 100, 50)]
     [TestCase("object-fit:none;object-position:2em 1em;font-size:10pt", 20, 10, 60, 30)]
+    // calc() of a percentage and a length keeps both parts (checked against Chrome's raster).
+    [TestCase("object-fit:none;object-position:calc(10pt + 25%) 0", 20, 0, 60, 30)]
+    [TestCase("object-fit:none;object-position:right calc(5pt + 25%) top 0", 25, 0, 60, 30)]
+    [TestCase("object-fit:none;object-position:calc(-10pt + 50%) calc(5pt + 10%)", 10, 12, 60, 30)]
     public void PositionPlacesTheContent(string style, double x, double top, double width, double height) =>
         Expect(style, x, top, width, height);
 
