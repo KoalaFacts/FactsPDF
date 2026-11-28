@@ -328,9 +328,14 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
 
 // M5 retains the box tree; M6 computes geometry; M7 paints single-page
 // borders/backgrounds; M8 slices continued decorations across page fragments.
-internal readonly record struct CssLength(double Value, bool IsPercent = false)
+// A length in points, or (IsPercent) a percentage of the containing block plus Fixed points, which only
+// a calc() sum of a percentage and a length produces.
+internal readonly record struct CssLength(double Value, bool IsPercent = false, double Fixed = 0)
 {
-    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;
+    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 + Fixed : Value;
+
+    /// <summary>Whether the length is a percentage plus a fixed length (see calc()).</summary>
+    internal bool IsMixed => IsPercent && Fixed != 0;
 }
 
 // Specified values are retained until the containing block's content width is known.

@@ -42,9 +42,14 @@ internal sealed record StyledHtmlToken(string Value, HtmlAttributes AttributeMap
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
 internal static class HtmlTokens
 {
+    // The HTML void elements: their start tags never take an end tag, so a trailing slash is allowed.
+    private static bool VoidName(string name) => name is "area" or "base" or "br" or "col" or "embed" or "hr"
+        or "img" or "input" or "link" or "meta" or "param" or "source" or "track" or "wbr";
+
     public static IEnumerable<HtmlToken> Read(string html, CancellationToken cancellation)
     {
         var i = 0;
+        var foreign = 0; // open svg elements: foreign content, where a self-closing slash closes the element
         while (i < html.Length)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -83,6 +88,7 @@ internal static class HtmlTokens
             if (closing)
             {
                 if (i >= html.Length || html[i++] != '>') throw Invalid("Malformed end tag.", start);
+                if (name == "svg" && foreign > 0) foreign--;
                 yield return new(HtmlTokenKind.End, name, false, start);
                 continue;
             }
@@ -158,6 +164,10 @@ internal static class HtmlTokens
             {
                 ReleaseAttributeScratch(scratch);
             }
+            // The HTML parser ignores the slash of a start tag that is neither void nor foreign
+            // content: <div/> opens a div, which a later end tag closes.
+            if (selfClosing && foreign == 0 && name != "svg" && !VoidName(name)) selfClosing = false;
+            if (name == "svg" && !selfClosing) foreign++;
             yield return styleValueOffset >= 0
                 ? new StyledHtmlToken(name, attrs!, selfClosing, start, styleValueOffset, styleOriginOffsets)
                 : attrs is null

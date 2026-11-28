@@ -556,8 +556,8 @@ internal static class HtmlDocumentReader
                 if (box.Width is null && box.Height is null) box = box with { Width = new CssLength(canvasWidth * 0.75) };
                 return new ImageNode(null, style, box, offset, null, canvas);
             }
-            var width = box.Width ?? ReplacedLength(widthAttribute, 225, offset);
-            var height = box.Height ?? ReplacedLength(heightAttribute, 112.5, offset);
+            var width = box.Width ?? new CssLength(225);
+            var height = box.Height ?? new CssLength(112.5);
             var empty = svg.Add(new SvgGraphic { ViewBox = (0, 0, 1, 1), Shapes = [] });
             return new ImageNode(null, style, box with { Width = width, Height = height }, offset, null, empty);
         }
@@ -798,6 +798,7 @@ internal static class HtmlDocumentReader
             int? listStart = null, listValue = null;
             var listReversed = false;
             ListMarkerKind? listTypeHint = null;
+            CssDeclaration? widthHint = null, heightHint = null;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
@@ -861,6 +862,11 @@ internal static class HtmlDocumentReader
                 else if (name == "link" && attribute is "href" or "type" or "sizes" or "hreflang" or "crossorigin"
                     or "as" or "color" or "integrity" or "referrerpolicy") { }
                 else if (name == "img" && attribute is "src" or "alt") { }
+                // Presentational hints for CSS width and height, below every author declaration.
+                else if (attribute == "width" && HtmlPresentationalHints.Width(name))
+                    widthHint = HtmlPresentationalHints.Declaration(CssProperty.Width, attribute, value, token.Offset);
+                else if (attribute == "height" && HtmlPresentationalHints.Height(name))
+                    heightHint = HtmlPresentationalHints.Declaration(CssProperty.Height, attribute, value, token.Offset);
                 // The svg's own attributes (size, viewBox, paint, accessibility) are read by SvgReader.
                 else if (name == "svg" && SvgReader.RootAttribute(attribute)) { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
@@ -883,7 +889,12 @@ internal static class HtmlDocumentReader
                     hidden = true;
                 }
                 else if (attribute is "id" or "class" or "title" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
-                else if (ReplacedTag(name) && attribute is "width" or "height")
+                // An event handler content attribute only runs script on an event; FactsPDF runs no
+                // script (see script elements) and a printed page receives no events, so it changes nothing.
+                else if (attribute.Length > 2 && attribute.StartsWith("on", StringComparison.Ordinal)) { }
+                // A canvas's width and height are its intrinsic size, not CSS hints (video and iframe use the
+                // presentational hints above).
+                else if (name == "canvas" && attribute is "width" or "height")
                 {
                     if (attribute == "width") widthAttribute = value; else heightAttribute = value;
                 }
@@ -956,7 +967,7 @@ internal static class HtmlDocumentReader
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name) || HiddenTag(name),
                     token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br",
-                    hidden: hidden || HiddenTag(name), listTypeHint: listTypeHint,
+                    hidden: hidden || HiddenTag(name), listTypeHint: listTypeHint, widthHint: widthHint, heightHint: heightHint,
                     pseudoName: SubjectAlias(name) ?? (name != source && Container(name) ? name : null), uaName: firstSummary ? "summary" : name == "iframe" ? borderless ? "iframe-borderless" : "iframe" : name == "fieldset" ? name : null);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             if (name == "slot")
@@ -1185,20 +1196,6 @@ internal static class HtmlDocumentReader
         if (value.Length == 0 || value.Length > 5 || !value.All(char.IsAsciiDigit) || value == "0")
             throw new FactsPdfException("FPDF1103", "canvas width and height must be positive integers of at most five digits.", offset);
         return int.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    // The width or height attribute of a video or iframe as a CSS length: a number of px, or a percentage.
-    private static CssLength ReplacedLength(string? value, double fallbackPoints, int offset)
-    {
-        if (value is null) return new CssLength(fallbackPoints);
-        var percent = value.EndsWith('%');
-        var number = percent ? value[..^1] : value;
-        if (number.Length == 0 || number.Length > 6 || number.Count(c => c == '.') > 1 || number.Any(c => c != '.' && !char.IsAsciiDigit(c))
-            || number[0] == '.' || number[^1] == '.')
-            throw new FactsPdfException("FPDF1103", "width and height attributes must be a number of px or a percentage.", offset);
-        var parsed = double.Parse(number, System.Globalization.CultureInfo.InvariantCulture);
-        if (parsed <= 0) throw new FactsPdfException("FPDF1103", "width and height attributes must be positive.", offset);
-        return percent ? new CssLength(parsed, IsPercent: true) : new CssLength(parsed * 0.75);
     }
 
     /// <summary>The most tables that may nest: a table, one in its cell, and one in that table's cell.</summary>

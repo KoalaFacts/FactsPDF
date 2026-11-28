@@ -57,6 +57,7 @@ public sealed class ReplacedBoxElementTests
     [TestCase("<p>A <iframe width='100' height='60'></iframe> B</p>", 75, 45)]
     [TestCase("<p>A <iframe width='50%'></iframe> B</p>", 174, 112.5)]
     [TestCase("<p>A <iframe style='width:200px'></iframe> B</p>", 150, 112.5)]
+    [TestCase("<p>A <iframe width='abc' height='-3'></iframe> B</p>", 225, 112.5)]
     public void VideoAndIframeTakeEachDimensionIndependentlyFromAttributesAndCss(string html, double width, double height)
         => AssertSize(html, width, height);
 
@@ -123,7 +124,6 @@ public sealed class ReplacedBoxElementTests
     [TestCase("<iframe srcdoc='x'></iframe>", "FPDF1103")]
     [TestCase("<iframe scrolling='yes'></iframe>", "FPDF1103")]
     [TestCase("<iframe frameborder='2'></iframe>", "FPDF1103")]
-    [TestCase("<iframe width='abc'></iframe>", "FPDF1103")]
     [TestCase("<canvas width='0'></canvas>", "FPDF1103")]
     [TestCase("<canvas width='12px'></canvas>", "FPDF1103")]
     [TestCase("<canvas width='-5'></canvas>", "FPDF1103")]

@@ -247,7 +247,7 @@
     },
     {
       "id": "D1-html-height-refusal",
-      "html": "<style>body{margin:0}</style><img src=\"chart\" height=\"100\">",
+      "html": "<style>body{margin:0}</style><table><tr><td height=\"100\"><img src=\"chart\"></td></tr></table>",
       "resources": {
         "chart": "rgb-420.jpg"
       },
