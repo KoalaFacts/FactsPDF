@@ -51,7 +51,7 @@ public sealed class TextSizeAdjustTests
     [TestCase("text-size-adjust:12pt")]
     [TestCase("-webkit-text-size-adjust:100% 100%")]
     [TestCase("-webkit-text-size-adjust:always")]
-    [TestCase("text-size-adjust:calc(100%)")]
+    [TestCase("text-size-adjust:env(x)")]
     [TestCase("-ms-text-size-adjust:12pt")]
     [TestCase("-moz-text-size-adjust:always")]
     public void OtherValuesFail(string declaration)

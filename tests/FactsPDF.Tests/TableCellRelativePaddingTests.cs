@@ -118,7 +118,7 @@ public sealed class TableCellRelativePaddingTests
     }
 
     [TestCase("padding:-1em", "FPDF1202")]
-    [TestCase("padding:calc(1em + 2pt)", "FPDF1202")]
+    [TestCase("padding:env(x)", "FPDF1202")]
     [TestCase("padding:10000rem", "FPDF1202")]
     [TestCase("padding:10rem", "FPDF1302")]
     public void UnsupportedOrOverwideCellPaddingPreservesDestination(string style, string code)

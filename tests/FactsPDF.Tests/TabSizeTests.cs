@@ -49,7 +49,7 @@ public sealed class TabSizeTests
     [TestCase("tab-size:auto")]
     [TestCase("tab-size:4 4")]
     [TestCase("tab-size:'4'")]
-    [TestCase("tab-size:calc(4)")]
+    [TestCase("tab-size:env(x)")]
     [TestCase("-moz-tab-size:wide")]
     public void OtherValuesFailWithoutOutput(string declaration)
     {

@@ -142,6 +142,20 @@ internal static class CssSyntaxAdapter
                     ValidateInteractionOnly(name, node);
                     continue;
                 }
+                // A math function (calc(), min(), max(), clamp()) or a viewport length resolves against the
+                // element's font sizes and the page area, so the declaration is compiled per element once
+                // those are known, like a var() declaration. The expression is checked now.
+                if (CssMath.Contains(node.Values))
+                {
+                    if (name == "font")
+                        throw new FactsPdfException("FPDF1202",
+                            "Math functions and viewport lengths are not supported inside the font shorthand; write font-size and line-height separately.", node.Span.Start);
+                    _ = CssMath.Resolve(node.Values, new(12, 12, 600, 800, name is "font-size" or "line-height" ? 12 : null), name);
+                    budget.UsesVariables = true;
+                    output.Add(CssDeclaration.Create(CssProperty.Pending, name, CssVariables.Text(node.Values), node.Important,
+                        budget.Declaration(node.Span.Start), node.Span.Start, new CssPendingValue(node, hostSelectors, hostElement is not null)));
+                    continue;
+                }
                 // font: expands into the longhands it covers, each compiled by the code of that longhand.
                 if (name == "font")
                 {

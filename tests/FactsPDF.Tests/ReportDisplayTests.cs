@@ -114,7 +114,7 @@ public sealed class ReportDisplayTests
         Assert.That(Render(hidden + visible,
             Page with { MaxDisplayCommands = 2 }),
             Is.EqualTo(Render(visible, Page with { MaxDisplayCommands = 2 })));
-        Reject("<section style='display:none'><p style='padding:calc(1pt + 2pt)'>" +
+        Reject("<section style='display:none'><p style='padding:env(x)'>" +
             "NOT OUTPUT</p></section>", "FPDF1202");
         Reject("<section style='display:none'><img src=missing /></section>", "FPDF1604");
     }

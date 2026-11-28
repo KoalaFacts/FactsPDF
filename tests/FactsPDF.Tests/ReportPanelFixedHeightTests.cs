@@ -157,7 +157,7 @@ public sealed class ReportPanelFixedHeightTests
 
     [TestCase("<section style='height:30%'>A</section>", "FPDF1202")]
     [TestCase("<section style='height:-5pt'>A</section>", "FPDF1202")]
-    [TestCase("<section style='height:calc(90pt)'>A</section>", "FPDF1202")]
+    [TestCase("<section style='height:env(x)'>A</section>", "FPDF1202")]
     [TestCase("<section style='height:30000pt'>A</section>", "FPDF1202")]
     [TestCase("<p style='height:90pt'>A</p>", "FPDF1201")]
     [TestCase("<ul style='height:90pt'><li>A</li></ul>", "FPDF1201")]

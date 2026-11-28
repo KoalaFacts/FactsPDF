@@ -219,7 +219,7 @@ public sealed class OrphansWidowsTests
     }
 
     [TestCase("p{orphans:2 3}")]
-    [TestCase("p{widows:calc(1 + 2)}")]
+    [TestCase("p{widows:env(x)}")]
     [TestCase("p{orphans:}")]
     public void MalformedDeclarationsFailFpdf1202(string css)
         => RejectWithoutOutput(Doc(css, P("T", 3)), "FPDF1202");

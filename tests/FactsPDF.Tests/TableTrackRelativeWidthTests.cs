@@ -119,7 +119,7 @@ public sealed class TableTrackRelativeWidthTests
     }
 
     [TestCase("12em", "-1em", "5rem", "FPDF1202")]
-    [TestCase("12em", "calc(2em + 1pt)", "5rem", "FPDF1202")]
+    [TestCase("12em", "env(x)", "5rem", "FPDF1202")]
     [TestCase("12em", "0em", "5rem", "FPDF1302")]
     [TestCase("12em", "3em", "5rem", "FPDF1302")]
     [TestCase("9em", "2em", "5rem", "FPDF1302")]

@@ -64,6 +64,20 @@ internal static class CssBoxValues
     {
         result = default; error = null;
         if (value == "0") { result = new CssLength(0); return true; }
+        // The percentage plus length a calc() sum resolves to: P%+Npt or P%-Npt (see CssMath).
+        if (value.IndexOf('%') is var percentAt and > 0 && percentAt < value.Length - 1 && value[percentAt + 1] is '+' or '-'
+            && value.EndsWith("pt", StringComparison.Ordinal))
+        {
+            if (!double.TryParse(value.AsSpan(0, percentAt), NumberStyles.Float, CultureInfo.InvariantCulture, out var percentage)
+                || !double.TryParse(value.AsSpan(percentAt + 1, value.Length - percentAt - 3), NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out var fixedPart)
+                || !double.IsFinite(percentage) || !double.IsFinite(fixedPart))
+            { error = "Box length must be a finite decimal."; return false; }
+            if (percentage < 0 || percentage > 10_000 || Math.Abs(fixedPart) > 14_400)
+            { error = "Box length is outside the bounded range."; return false; }
+            result = new CssLength(percentage, true, fixedPart);
+            return true;
+        }
         double scale;
         bool percent;
         ReadOnlySpan<char> number;

@@ -131,7 +131,7 @@ public sealed class ReportPanelVerticalMarginTests
 
     [TestCase("<div style='margin-top:auto'>A</div>", "FPDF1202")]
     [TestCase("<article style='margin-top:-1pt'>A</article>", "FPDF1202")]
-    [TestCase("<article style='margin-top:calc(1pt + 2pt)'>A</article>", "FPDF1202")]
+    [TestCase("<article style='margin-top:env(x)'>A</article>", "FPDF1202")]
     [TestCase("<div style='margin:15000pt 0'>A</div>", "FPDF1202")]
     [TestCase("<body style='margin-top:4pt'>A</body>", "FPDF1201")]
     [TestCase("<span style='margin-top:4pt'>A</span>", "FPDF1201")]

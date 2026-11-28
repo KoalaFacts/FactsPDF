@@ -48,7 +48,11 @@ internal sealed class CssStylesheets
     private sealed record ComputedBox(string Element, BoxStyle ParentBox, double RootFontSize, double FontSize,
         Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, BoxStyle Box);
     private readonly CssBudget budget;
+    private readonly PdfOptions options;
     private readonly CssSyntaxLimits syntaxLimits;
+    // What the element being computed gives em, rem and font-size percentages in math functions.
+    private double mathParentFontSize, mathElementFontSize, mathRootFontSize;
+    private (double Width, double Height)? viewport;
     // Whether a selector reads sibling positions or emptiness, and the script and template elements
     // collection dropped (each with the token index it preceded), which still count as siblings.
     private bool usesStructure;
@@ -93,6 +97,7 @@ internal sealed class CssStylesheets
     {
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
+        this.options = options;
         budget = new(options, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, Cancellation: token);
     }
@@ -919,12 +924,31 @@ internal sealed class CssStylesheets
             while (environments.Count < depth) environments.Add(CssCustomEnvironment.Empty);
             environments.Add(environment);
             var used = 0;
-            foreach (var pending in pendingDeclarations)
-                foreach (var substituted in Substitute(pending, environment, element.Name))
+            // font-size first: em and a percentage in its math refer to the parent's size, and every other
+            // math value refers to this element's final font-size, known once its font-size declaration won.
+            mathParentFontSize = parent.FontSize; mathRootFontSize = rootFontSize;
+            mathElementFontSize = parent.FontSize;
+            for (var pass = 0; pass < 2; pass++)
+            {
+                if (pass == 1) mathElementFontSize = ElementFontSize();
+                foreach (var pending in pendingDeclarations)
                 {
-                    if (used == substitutionSlots.Count) substitutionSlots.Add(new CssDeclaration.Slot());
-                    Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
+                    if ((pending.Shared.Name == "font-size") != (pass == 0)) continue;
+                    foreach (var substituted in Substitute(pending, environment, element.Name))
+                    {
+                        if (used == substitutionSlots.Count) substitutionSlots.Add(new CssDeclaration.Slot());
+                        Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
+                    }
                 }
+            }
+        }
+
+        // The element's computed font size from the font-size declaration that won so far.
+        double ElementFontSize()
+        {
+            if (winners[(int)CssProperty.FontSize] is not { } size || size.Declaration.Value is "revert" or "revert-layer")
+                return defaults.FontSize;
+            return CssDeclarations.Apply(defaults with { }, parent, initial, size.Declaration, paragraph, rootFontSize).FontSize;
         }
         // A winning revert computes the property as if the author origin declared nothing for it: the
         // user-agent defaults below apply, or inheritance. Chrome 158 also discards the presentational
@@ -1230,6 +1254,7 @@ internal sealed class CssStylesheets
         var name = payload.Node.Name;
         var values = new List<CssSyntaxComponent>();
         var shape = new CssSubstitution();
+        var cacheable = true;
         if (!CssVariables.Substitute(payload.Node.Values, values, ref shape, pending.Offset, 1, budget, syntaxLimits,
                 (string reference, out CssVariableValue value) => environment.TryGet(reference, budget, pending.Offset, out value), out var missing))
         {
@@ -1237,6 +1262,13 @@ internal sealed class CssStylesheets
                 $"var({missing}) in '{name}' has no value and no fallback: the custom property is not defined on this element or its ancestors, is initial, is part of a reference cycle or failed its own substitution.",
                 pending.Offset);
             return budget.Warnings is null ? throw error : Unset(pending, payload, element, key, error);
+        }
+        // Math functions and viewport lengths resolve against this element's font sizes and the page
+        // area, so a declaration holding one is compiled for every element (never shared by environment).
+        if (CssMath.Contains(values))
+        {
+            cacheable = false;
+            values = CssMath.Resolve(values, MathContext(name), name);
         }
         // A substituted CSS-wide keyword applies as that keyword (Chrome 158), so it compiles like the
         // literal declaration below.
@@ -1257,8 +1289,31 @@ internal sealed class CssStylesheets
                 throw substituted;
             return Unset(pending, payload, element, key, substituted);
         }
-        Cache(key, compiled, null, shape.Nodes);
+        if (cacheable) Cache(key, compiled, null, shape.Nodes);
         return compiled;
+    }
+
+    private CssMathContext MathContext(string property)
+    {
+        var (width, height) = Viewport();
+        return property switch
+        {
+            "font-size" => new(mathParentFontSize, mathRootFontSize, width, height, mathParentFontSize),
+            "line-height" => new(mathElementFontSize, mathRootFontSize, width, height, mathElementFontSize),
+            _ => new(mathElementFontSize, mathRootFontSize, width, height, null)
+        };
+    }
+
+    // The page area (page size less margins) that vw, vh, vmin and vmax are percentages of in print,
+    // as Chrome resolves them against the @page size and margins.
+    private (double Width, double Height) Viewport()
+    {
+        if (viewport is { } known) return known;
+        var page = PageRules is { } rules
+            ? rules.Apply(options, new TextStyle(mathRootFontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left))
+            : options;
+        var sides = page.SideMargins ?? new PageMargins(page.Margin, page.Margin, page.Margin, page.Margin);
+        return (viewport = (page.PageWidth - sides.Left - sides.Right, page.PageHeight - sides.Top - sides.Bottom)).Value;
     }
 
     private void Cache((CssDeclaration, CssCustomEnvironment, string?) key, CssDeclaration[] compiled, FactsPdfException? warning, long nodes)

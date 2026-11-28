@@ -140,7 +140,7 @@ public sealed class ReportPanelMarginTests
     [TestCase("<ol style='margin-top:5%'><li>A</li></ol>", "FPDF1201")]
     [TestCase("<span style='margin-left:2pt'>A</span>", "FPDF1201")]
     [TestCase("<div style='margin-left:-2pt'>A</div>", "FPDF1202")]
-    [TestCase("<div style='margin-left:calc(2pt + 3pt)'>A</div>", "FPDF1202")]
+    [TestCase("<div style='margin-left:env(x)'>A</div>", "FPDF1202")]
     [TestCase("<div style='width:240pt;margin-left:30pt'>A</div>", "FPDF1302")]
     public void InvalidOrOutOfScopePanelMarginsPreserveOriginalDestination(string html, string code)
         => Reject(html, code);

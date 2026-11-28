@@ -244,7 +244,7 @@ public sealed class ReportPanelMinHeightTests
     [TestCase("<section style='min-height:10%'>A</section>", "FPDF1202")]
     [TestCase("<section style='min-height:auto'>A</section>", "FPDF1202")]
     [TestCase("<section style='min-height:-1pt'>A</section>", "FPDF1202")]
-    [TestCase("<section style='min-height:calc(20pt + 5pt)'>A</section>", "FPDF1202")]
+    [TestCase("<section style='min-height:env(x)'>A</section>", "FPDF1202")]
     [TestCase("<section style='min-height:15000pt'>A</section>", "FPDF1202")]
     [TestCase("<style>.never{min-height:15%}</style><section>A</section>", "FPDF1202")]
     [TestCase("<style>section{min-height:15%;min-height:0}</style><section>A</section>", "FPDF1202")]

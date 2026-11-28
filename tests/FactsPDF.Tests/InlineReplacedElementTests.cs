@@ -202,7 +202,7 @@ public sealed class InlineReplacedElementTests
     [TestCase("<svg style='display:inline-flex'></svg>", "FPDF1202")]
     [TestCase("<img src='gray' style='display:none'>", "FPDF1201")]
     [TestCase("<p><img src='gray' style='vertical-align:sub'></p>", "FPDF1202")]
-    [TestCase("<p><img src='gray' style='vertical-align:calc(1pt)'></p>", "FPDF1202")]
+    [TestCase("<p><img src='gray' style='vertical-align:env(x)'></p>", "FPDF1202")]
     [TestCase("<p>A <span style='vertical-align:2pt'>B</span></p>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:100pt'></colgroup><tbody><tr><td style='vertical-align:text-top'>A</td></tr></tbody></table>", "FPDF1202")]
     [TestCase("<table><tbody><tr><td>A<svg width='50%' height='10'></svg></td></tr></tbody></table>", "FPDF1302")]

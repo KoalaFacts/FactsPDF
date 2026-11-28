@@ -75,7 +75,7 @@ public sealed class UnusedZeroInsetTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf(at, StringComparison.Ordinal)), css);
     }
 
-    [TestCase("ul{margin:4vh}")]
+    [TestCase("ul{margin:4ex}")]
     [TestCase("tr{padding:-}")]
     public void MalformedInsetsStillFail(string css)
     {

@@ -114,7 +114,7 @@ public sealed class BlockGeometryTests
     [TestCase("width:-1pt")]
     [TestCase("padding:1pt 2pt 3pt 4pt 5pt")]
     [TestCase("padding:1pt auto")]
-    [TestCase("width:calc(100% - 10pt)")]
+    [TestCase("width:env(x)")]
     [TestCase("padding-left:-2%")]
     [TestCase("padding:1pt,2pt")]
     public void InvalidBoxDeclarationsAreRejectedBeforeWriting(string css)

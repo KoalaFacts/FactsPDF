@@ -124,7 +124,7 @@ public sealed class HorizontalParagraphMarginTests
     [TestCase("margin-left:-1pt", "FPDF1202")]
     [TestCase("margin-top:auto", "FPDF1202")]
     [TestCase("margin:-10% 0", "FPDF1202")]
-    [TestCase("margin-left:calc(10% - 1pt)", "FPDF1202")]
+    [TestCase("margin-left:env(x)", "FPDF1202")]
     [TestCase("margin:1pt 2pt 3pt 4pt 5pt", "FPDF1202")]
     public void UnsupportedValuesFailWithoutChangingAnExistingDestination(string css, string code)
         => Reject("<style>.unused{" + css + "}</style><p style='" + css + "'>A</p>", code);
