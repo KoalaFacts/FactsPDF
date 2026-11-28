@@ -139,14 +139,6 @@ internal static class InlineCss
                     throw Invalid("word-spacing must be from 0pt to 24pt.", offset);
                 style.WordSpacing = wordGap;
                 break;
-            case "hyphens":
-                style.NoHyphens = value switch
-                {
-                    "manual" => false,
-                    "none" => true,
-                    _ => throw Invalid("hyphens supports none and manual.", offset)
-                };
-                break;
             case "text-transform":
                 style.Transform = value switch
                 {
@@ -157,16 +149,24 @@ internal static class InlineCss
                     _ => throw Invalid("text-transform supports only none, uppercase, lowercase and capitalize for ASCII letters.", offset)
                 };
                 break;
-            case "white-space" when paragraph && !inline:
-                if (value is not ("normal" or "nowrap" or "pre-line" or "pre-wrap" or "pre"))
-                    throw Invalid("Only normal, nowrap, pre-line, bounded pre-wrap and no-soft-wrap pre are supported.", offset);
-                style.NoWrap = value is "nowrap" or "pre";
-                style.PreserveLineBreaks = value is "pre-line" or "pre-wrap" or "pre";
-                style.PreserveSpaces = value is "pre-wrap" or "pre";
+            case "white-space-collapse":
+                // CSS Text 4: collapse, preserve (spaces and newlines), preserve-breaks (newlines only) or
+                // break-spaces (preserve, and the spaces never hang).
+                (style.PreserveLineBreaks, style.PreserveSpaces, style.BreakSpaces) = value switch
+                {
+                    "collapse" => (false, false, false), "preserve" => (true, true, false),
+                    "preserve-breaks" => (true, false, false), "break-spaces" => (true, true, true),
+                    _ => throw Invalid("white-space-collapse supports collapse, preserve, preserve-breaks and break-spaces.", offset)
+                };
                 break;
-            case "overflow-wrap" when paragraph && !inline:
-                // Emergency breaking applies only to the whole report
-                // paragraph/heading, never a silently ignored inline span.
+            case "text-wrap-mode":
+                style.NoWrap = value switch
+                {
+                    "wrap" => false, "nowrap" => true,
+                    _ => throw Invalid("text-wrap-mode supports wrap and nowrap.", offset)
+                };
+                break;
+            case "overflow-wrap":
                 // CSS Text 3: anywhere breaks exactly like break-word and differs
                 // only in min-content sizing (automatic table column widths).
                 (style.BreakWords, style.BreakAnywhere) = value switch
@@ -175,16 +175,55 @@ internal static class InlineCss
                     _ => throw Invalid("overflow-wrap supports only normal, break-word and anywhere.", offset)
                 };
                 break;
-            case "word-break" when paragraph && !inline:
-                // Every already-supported simple glyph can end a line;
-                // unlike emergency wrapping, this consumes remaining width.
+            case "word-break":
                 // CSS Text 3: the legacy break-word value is word-break:normal
                 // plus overflow-wrap:anywhere whatever overflow-wrap says, so it
                 // gets its own flag instead of overwriting BreakWords.
-                (style.BreakAll, style.BreakWordsByWordBreak) = value switch
+                (style.BreakAll, style.KeepAll, style.BreakWordsByWordBreak) = value switch
                 {
-                    "normal" => (false, false), "break-all" => (true, false), "break-word" => (false, true),
-                    _ => throw Invalid("word-break supports only normal, break-all and break-word.", offset)
+                    "normal" => (false, false, false), "break-all" => (true, false, false), "keep-all" => (false, true, false),
+                    "break-word" => (false, false, true),
+                    _ => throw Invalid("word-break supports only normal, break-all, keep-all and break-word.", offset)
+                };
+                break;
+            case "line-break":
+                style.LineBreak = value switch
+                {
+                    "auto" or "normal" => LineBreakStrictness.Normal, "strict" => LineBreakStrictness.Strict,
+                    "loose" => LineBreakStrictness.Loose, "anywhere" => LineBreakStrictness.Anywhere,
+                    _ => throw Invalid("line-break supports auto, normal, strict, loose and anywhere.", offset)
+                };
+                break;
+            case "tab-size":
+                // A non-negative number of space advances, or a non-negative length.
+                if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tabs)
+                    && double.IsFinite(tabs) && tabs >= 0 && tabs <= 1000 && !value.StartsWith('+'))
+                    style.TabSize = (float)tabs;
+                else
+                {
+                    double tabLength;
+                    if (value.EndsWith("em", StringComparison.Ordinal) && !value.EndsWith("rem", StringComparison.Ordinal)
+                        && double.TryParse(value[..^2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ems))
+                        tabLength = ems * style.FontSize;
+                    else try { tabLength = Length(value, offset); }
+                    catch (FactsPdfException) { throw Invalid("tab-size supports only a non-negative number or length.", offset); }
+                    if (!double.IsFinite(tabLength) || tabLength < 0 || tabLength > 14_400) throw Invalid("tab-size supports only a non-negative number or length.", offset);
+                    style.TabSize = -(float)tabLength; // a length is stored negated (a zero length is the number zero, which is the same)
+                }
+                break;
+            case "hyphens":
+                style.NoHyphens = value switch
+                {
+                    "manual" => false, "none" => true,
+                    "auto" => throw Invalid("hyphens:auto needs a hyphenation dictionary, which is not available; use manual or none.", offset),
+                    _ => throw Invalid("hyphens supports manual and none.", offset)
+                };
+                break;
+            case "visibility":
+                style.Visibility = value switch
+                {
+                    "visible" => TextVisibility.Visible, "hidden" => TextVisibility.Hidden, "collapse" => TextVisibility.Collapse,
+                    _ => throw Invalid("visibility supports visible, hidden and collapse.", offset)
                 };
                 break;
             case "text-indent" when paragraph && !inline:

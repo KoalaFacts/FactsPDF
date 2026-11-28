@@ -71,13 +71,6 @@ public sealed class TabSizeTests
         Assert.That(error!.SourceOffset, Is.EqualTo(html.IndexOf("-4", StringComparison.Ordinal)));
     }
 
-    [Test]
-    public void PreservedTabsStillFailWhateverTheTabSize()
-    {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='white-space:pre;tab-size:4'>A\tB</p>"));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1305"));
-    }
-
     [TestCase("-o-tab-size:4")]
     [TestCase("-webkit-tab-size:4")]
     public void UnaliasedPrefixedNamesStillFail(string declaration)

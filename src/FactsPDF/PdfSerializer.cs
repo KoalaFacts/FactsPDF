@@ -53,15 +53,20 @@ internal static class PdfSerializer
                 cancellation.ThrowIfCancellationRequested();
                 contents.Clear();
                 alpha.Clear();
-                PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha);
-                PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
+                if (o.PrintShrink != 1) contents.Append("q ").AppendInvariant(1 / o.PrintShrink, "0.#######").Append(" 0 0 ").AppendInvariant(1 / o.PrintShrink, "0.#######").Append(" 0 0 cm\n");
+                PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha, pages[i].Clips);
+                PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha,
+                    pages[i].Clips.Count == 0 ? null : new PdfClipping(pages[i], PdfClipping.Kind.Discs, o.PageHeight));
                 images.Append(contents, pages[i], o, cancellation, ref alpha);
                 // PDF character spacing is persistent graphics text state
                 // across BT/ET. Restore zero explicitly after a tracked run,
                 // but preserve byte-identical legacy PDFs that never track.
                 var previousTracking = 0d;
+                var runClipping = pages[i].Clips.Count == 0 ? null : new PdfClipping(pages[i], PdfClipping.Kind.Runs, o.PageHeight);
+                var runIndex = 0;
                 foreach (var run in pages[i].Runs)
                 {
+                    runClipping?.Enter(contents, runIndex++);
                     var color = run.Style.Color;
                     if (color.IsInvisible)
                     {
@@ -110,8 +115,10 @@ internal static class PdfSerializer
                     PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
                     if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
-                page.Clear().Append(4 + 2 * i).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth, Number).Append(' ')
-                    .AppendInvariant(o.PageHeight, Number).Append("] /Resources << /Font << /F1 3 0 R >>");
+                runClipping?.Finish(contents);
+                if (o.PrintShrink != 1) contents.Append("Q\n");
+                page.Clear().Append(4 + 2 * i).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth / o.PrintShrink, Number).Append(' ')
+                    .AppendInvariant(o.PageHeight / o.PrintShrink, Number).Append("] /Resources << /Font << /F1 3 0 R >>");
                 images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
                 alpha.AppendResources(page);
                 page.Append(" >> /Contents ").Append(5 + 2 * i).Append(" 0 R");

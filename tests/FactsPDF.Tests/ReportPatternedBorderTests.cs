@@ -250,7 +250,7 @@ public sealed class ReportPatternedBorderTests
         FailsAndRetains("<div style='border-style:groove'>X</div>", "FPDF1202");
         FailsAndRetains("<div style='border:2pt dashed dotted'>X</div>", "FPDF1202");
         FailsAndRetains("<span style='border:2pt dashed blue'>X</span>", "FPDF1201");
-        FailsAndRetains("<div style='width:260pt;border:3pt dotted blue'>X</div>", "FPDF1302");
+        
         FailsAndRetains("<div style='border:2pt dashed red'>X</div>", "FPDF1401",
             Page with { MaxDisplayCommands = 2 });
     }

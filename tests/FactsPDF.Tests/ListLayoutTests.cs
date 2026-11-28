@@ -254,10 +254,6 @@ public sealed class ListLayoutTests
     }
 
     [Test]
-    public void GutterCannotOverflowNarrowList()
-        => Fails("<div style='width:20pt'><ol><li>A</li></ol></div>", "FPDF1302", source: true);
-
-    [Test]
     public void ListPaginationAndOutputBudgetsProtectOutput()
     {
         var words = string.Join(" ", Enumerable.Repeat("alpha", 50));

@@ -47,6 +47,12 @@
 // are reviewed against Chrome; an author rule that sets the property keeps winning.
 // A run that rendered before (or failed for another reason) and now fails FPDF1507 is this kind too: headings and th are bold in
 // the sheet, so an example with a heading and no bold font chain needs one (or font-weight:normal).
+// overflow-and-line-breaking — an existing example's content that overflowed its box or the page, or whose
+// text wrapped differently, now prints as Chrome does: lines break at the Unicode line breaking opportunities
+// Chrome uses (after a hyphen before a digit, at a slash, around CJK text), spaces, tabs and the white-space
+// values wrap and hang as in CSS Text, and overflowing text, boxes and images overflow instead of failing with
+// FPDF1302 (content wider than the page prints scaled down). Both CLIs render and the PDF bytes differ, or the
+// base failed FPDF1302 for an overflow the head now renders, or both fail and the head's failure is no longer an overflow one.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -85,7 +91,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
   difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet', 'overflow-and-line-breaking'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -232,6 +238,23 @@ function boldChainFailure(base: RunResult, head: RunResult): boolean {
 
 const decoratedFailure = /^FPDF1302: Decorated box fragment exceeds the usable page area\.$/m;
 
+// The FPDF1302 messages of content that did not fit its box or the page, which a browser overflows (or prints scaled).
+const formerOverflowFailure = new RegExp('^FPDF1302: (?:Box outer width exceeds containing content width|Paragraph horizontal margins exceed ' +
+  'containing width|Auto margins cannot fit the specified box width|An unbreakable text segment exceeds the usable page width|' +
+  'An individual glyph cannot fit within the report text width|A preserved space cannot fit within the report text width|' +
+  'The first word cannot fit after first-line indentation|First-line indentation leaves no usable text width|' +
+  'Image content dimensions must be positive and the outer width must fit its containing content|' +
+  'Fixed-height report panel content exceeds available height)\\.$', 'm');
+
+/** Whether the base failed because content overflowed where the head renders it or fails differently. */
+function overflowChanged(base: RunResult, head: RunResult): boolean {
+  if (base.exitCode !== 3 || base.pdf !== null || !formerOverflowFailure.test(base.stderr.replace(/\r\n/g, '\n'))) return false;
+  if (head.exitCode === 0) return head.pdf !== null && head.pdf.subarray(0, 5).toString('latin1') === '%PDF-';
+  // Another failure now shows where the overflow failure used to stop the run (a later check, or a different box).
+  return head.exitCode === 3 && head.pdf === null && /^FPDF\d+: /m.test(head.stderr) &&
+    !formerOverflowFailure.test(head.stderr.replace(/\r\n/g, '\n'));
+}
+
 /** Whether one side renders and the other fails only at a decorated box's bottom edge. */
 function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
   return rendered.exitCode === 0 && rendered.pdf !== null && failed.exitCode === 3 && failed.pdf === null &&
@@ -276,6 +299,7 @@ export function classifyDifferences(base: RunResult, head: RunResult, newExample
     kinds.push('ua-stylesheet');
   }
   if (!newExample && boldChainFailure(base, head)) kinds.push('ua-stylesheet');
+  if (!newExample && (rendered || overflowChanged(base, head))) kinds.push('overflow-and-line-breaking');
   if (kinds.length > 0 || base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return kinds;
   }

@@ -3,7 +3,7 @@ namespace FactsPDF;
 internal enum CssProperty
 {
     FontSize, FontWeight, FontStyle, Color, LineHeight, TextAlign, MarginTop, MarginBottom, BreakBefore, BreakAfter, TextDecoration,
-    WhiteSpace, OverflowWrap, TextIndent, LetterSpacing, WordSpacing, TextTransform, Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
+    WhiteSpaceCollapse, TextWrapMode, OverflowWrap, TextIndent, LetterSpacing, WordSpacing, TextTransform, Width, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, BackgroundColor,
     BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
     BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
     BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor,
@@ -15,6 +15,7 @@ internal enum CssProperty
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
     BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet,
+    TabSize, LineBreak, Visibility, OverflowX, OverflowY, TextOverflow,
     // The animation longhands the cascade carries (CssAnimations): lists of layers, applied as a
     // keyframe state rather than to a style, so they stay the last cascade slots.
     AnimationName, AnimationDuration, AnimationDelay, AnimationIterationCount, AnimationDirection,
@@ -96,7 +97,7 @@ internal static class CssDeclarations
     internal static TextStyle Apply(TextStyle style, TextStyle parent, TextStyle initial, CssDeclaration declaration, bool paragraph, double rootFontSize)
     {
         var property = declaration.Property;
-        if (!paragraph && property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
+        if (!paragraph && property is CssProperty.MarginTop or CssProperty.MarginBottom or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore or CssProperty.BreakAfter or CssProperty.TextIndent)
             throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
         if (declaration.Value is not ("inherit" or "initial" or "unset"))
         {
@@ -225,8 +226,8 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
-            or CssProperty.Orphans or CssProperty.Widows or CssProperty.Hyphens;
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpaceCollapse or CssProperty.TextWrapMode or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TabSize or CssProperty.LineBreak or CssProperty.Visibility or CssProperty.Hyphens or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
+            or CssProperty.Orphans or CssProperty.Widows;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         switch (property)
         {
@@ -238,7 +239,6 @@ internal static class CssDeclarations
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
             case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
             case CssProperty.BorderCollapse: style.CollapseBorders = source.CollapseBorders; break;
-            case CssProperty.Hyphens: style.NoHyphens = source.NoHyphens; break;
             case CssProperty.Orphans: style.Orphans = source.Orphans; break;
             case CssProperty.Widows: style.Widows = source.Widows; break;
             case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
@@ -246,9 +246,14 @@ internal static class CssDeclarations
             case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;
             case CssProperty.TextDecorationThickness: style.DecorationThickness = source.DecorationThickness; break;
             case CssProperty.TextUnderlineOffset: style.UnderlineOffset = source.UnderlineOffset; break;
-            case CssProperty.WhiteSpace: style.NoWrap = source.NoWrap; style.PreserveLineBreaks = source.PreserveLineBreaks; style.PreserveSpaces = source.PreserveSpaces; break;
+            case CssProperty.WhiteSpaceCollapse: style.PreserveLineBreaks = source.PreserveLineBreaks; style.PreserveSpaces = source.PreserveSpaces; style.BreakSpaces = source.BreakSpaces; break;
+            case CssProperty.TextWrapMode: style.NoWrap = source.NoWrap; break;
             case CssProperty.OverflowWrap: style.BreakWords = source.BreakWords; style.BreakAnywhere = source.BreakAnywhere; break;
-            case CssProperty.WordBreak: style.BreakAll = source.BreakAll; style.BreakWordsByWordBreak = source.BreakWordsByWordBreak; break;
+            case CssProperty.WordBreak: style.BreakAll = source.BreakAll; style.KeepAll = source.KeepAll; style.BreakWordsByWordBreak = source.BreakWordsByWordBreak; break;
+            case CssProperty.TabSize: style.TabSize = source.TabSize; break;
+            case CssProperty.LineBreak: style.LineBreak = source.LineBreak; break;
+            case CssProperty.Visibility: style.Visibility = source.Visibility; break;
+            case CssProperty.Hyphens: style.NoHyphens = source.NoHyphens; break;
             case CssProperty.TextIndent: style.FirstLineIndent = source.FirstLineIndent; break;
             case CssProperty.LetterSpacing: style.LetterSpacing = source.LetterSpacing; break;
             case CssProperty.WordSpacing: style.WordSpacing = source.WordSpacing; break;
@@ -264,6 +269,7 @@ internal static class CssDeclarations
     internal static bool IsBoxProperty(CssProperty property) => property >= CssProperty.Width && property <= CssProperty.MaxWidth || property is CssProperty.BorderRadius or CssProperty.MinHeight or CssProperty.Height or CssProperty.MaxHeight
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
+        or CssProperty.OverflowX or CssProperty.OverflowY or CssProperty.TextOverflow
         or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
         or CssProperty.BackgroundClip or CssProperty.TableLayout or CssProperty.ObjectFit or CssProperty.ObjectPosition
         or CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet
@@ -303,6 +309,28 @@ internal static class CssDeclarations
         if (CssFlexValues.IsFlexOrGridProperty(property))
         {
             CssFlexValues.Apply(current, parent, declaration, rootFontSize, elementFontSize);
+            return current;
+        }
+        if (property is CssProperty.OverflowX or CssProperty.OverflowY)
+        {
+            var kind = value switch
+            {
+                "visible" => OverflowKind.Visible, "hidden" => OverflowKind.Hidden, "clip" => OverflowKind.Clip,
+                "scroll" => OverflowKind.Scroll, "auto" => OverflowKind.Auto,
+                _ when wide => property == CssProperty.OverflowX ? from.OverflowX : from.OverflowY,
+                _ => throw new FactsPdfException("FPDF1202", "overflow supports visible, hidden, clip, scroll and auto.", declaration.Offset)
+            };
+            if (property == CssProperty.OverflowX) current.OverflowX = kind; else current.OverflowY = kind;
+            return current;
+        }
+        if (property == CssProperty.TextOverflow)
+        {
+            current.TextOverflowEllipsis = value switch
+            {
+                "clip" => false, "ellipsis" => true,
+                _ when wide => from.TextOverflowEllipsis,
+                _ => throw new FactsPdfException("FPDF1202", "text-overflow supports clip and ellipsis.", declaration.Offset)
+            };
             return current;
         }
         if (property is CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius

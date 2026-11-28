@@ -39,13 +39,23 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    // Sized for the common properties; grown by Offer the first time a stylesheet sets one of the later ones
-    // (background-clip, table-layout, hyphens, object-fit, object-position, the counter properties), so a
-    // page that uses none pays nothing for them.
-    private Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
+    // The cascade tables are pooled per thread like the token list: they are taken by a sheet and returned when the
+    // document has been read (ReturnPooled), so a conversion allocates them only the first time.
+    private readonly Winner?[] winners;
+    [ThreadStatic] private static Winner?[]? pooledWinners, pooledUserAgentWinners;
+    [ThreadStatic] private static CssStylesheets? lastCreated;
+
+    /// <summary>Returns the calling thread's most recent sheet's cascade tables to the pool; call once its document is read.</summary>
+    internal static void ReturnPooled()
+    {
+        if (lastCreated is not { } sheet) return;
+        lastCreated = null;
+        Array.Clear(sheet.winners); Array.Clear(sheet.userAgentWinners);
+        pooledWinners = sheet.winners; pooledUserAgentWinners = sheet.userAgentWinners;
+    }
     // The user-agent declarations that won for the element being computed (see UserAgentStyleSheet),
     // merged into winners for every property no author declaration (or a revert) decided.
-    private readonly Winner?[] userAgentWinners = new Winner?[UserAgentStyleSheet.Properties.Length];
+    private readonly Winner?[] userAgentWinners;
     // Matching the user-agent rules is no author work: it never charges the conversion's CSS budgets.
     private readonly CssBudget userAgentBudget;
     // Text styles computed from nothing but user-agent declarations on a shared parent style, by parent,
@@ -141,6 +151,10 @@ internal sealed class CssStylesheets
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         this.options = options;
+        winners = pooledWinners ?? new Winner?[(int)CssProperty.TextOverflow + 1];
+        userAgentWinners = pooledUserAgentWinners ?? new Winner?[UserAgentStyleSheet.Properties.Length];
+        pooledWinners = pooledUserAgentWinners = null;
+        lastCreated = this;
         budget = new(options, token);
         userAgentBudget = new(UserAgentStyleSheet.Unlimited, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, Cancellation: token);
@@ -921,8 +935,6 @@ internal sealed class CssStylesheets
         void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity, int layer)
         {
             budget.Work(declaration.Offset);
-            if (declaration.Property is >= CssProperty.BackgroundClip and <= CssProperty.CounterSet && winners.Length <= (int)CssProperty.JustifySelf + 1)
-                Array.Resize(ref winners, (int)CssProperty.CounterSet + 1);
             if (declaration.Property is CssProperty.Custom or CssProperty.Pending)
             {
                 (declaration.Property == CssProperty.Custom ? customDeclarations : pendingDeclarations)
@@ -1270,10 +1282,9 @@ internal sealed class CssStylesheets
                     "Report-panel page breaks support auto/page, not avoid.", declaration.Offset);
             if (!paragraph && !panelMargin && !panelPageBreak && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
-                or CssProperty.BreakAfter or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
-                && !(reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
-                    or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent))
-                && !(cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)))
+                or CssProperty.BreakAfter or CssProperty.TextIndent)
+                && !(reportTextFlowHost && declaration.Property is CssProperty.TextIndent)
+                && !(cellTextIndentHost && declaration.Property is CssProperty.TextIndent))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             // box-sizing changes nothing on <html> (no width or height is accepted there) or on
             // non-replaced inline text (CSS Box Sizing: width and height do not apply), so the
@@ -1297,6 +1308,9 @@ internal sealed class CssStylesheets
             // A row or row group background paints under its cells (TableMarkup gives it to
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
+                // overflow and text-overflow do nothing on an inline box, as in a browser; table parts need their own geometry.
+                && !(declaration.Property is CssProperty.OverflowX or CssProperty.OverflowY or CssProperty.TextOverflow
+                    && subject is not ("table" or "thead" or "tbody" or "tfoot" or "tr" or "td" or "th" or "caption" or "col" or "colgroup"))
                 && !(declaration.Property == CssProperty.BoxSizing && BoxSizingNoOpHost(subject))
                 // The root element's background is the page canvas (DocumentRoot.CanvasColor).
                 && !(declaration.Property == CssProperty.BackgroundColor && subject == "html")
@@ -1307,6 +1321,12 @@ internal sealed class CssStylesheets
                 && !(parent.CollapseBorders && subject is "tr" or "thead" or "tbody" or "tfoot"
                     && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
+            // A hidden or collapsed table part would still paint its cells' backgrounds and borders here, and a
+            // collapsed row or column must leave the table layout; neither is implemented.
+            if (declaration.Property == CssProperty.Visibility && declaration.Value is "hidden" or "collapse"
+                && subject is "tr" or "td" or "th" or "thead" or "tbody" or "tfoot" or "col" or "colgroup" or "caption")
+                throw new FactsPdfException("FPDF1201",
+                    $"visibility:{declaration.Value} is not supported on table parts; hide the whole table or its content instead.", declaration.Offset);
             var candidate = new Winner(declaration, isInline, specificity, layer); var old = winners[(int)declaration.Property];
             if (budget.UsesRevertLayer) offered.Add(candidate);
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;
@@ -1625,9 +1645,8 @@ internal sealed class CssStylesheets
                         : parent;
                 if (!styleOwned) { style = style with { }; styleOwned = true; }
                 CssDeclarations.Apply(style, inheritedParent, initial, declaration,
-                    paragraph || winner.UserAgent || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
-                        or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
-                        || cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
+                    paragraph || winner.UserAgent || reportTextFlowHost && declaration.Property is CssProperty.TextIndent
+                        || cellTextIndentHost && declaration.Property is CssProperty.TextIndent, computedRoot);
             }
         }
         if (box.BackgroundClip == BackgroundClip.ContentBox && (box.PaddingTop.IsPercent || box.PaddingRight.IsPercent
@@ -1765,10 +1784,10 @@ internal sealed class CssStylesheets
                 or CssProperty.LineHeight or CssProperty.TextDecoration or CssProperty.TextDecorationColor
                 or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness
                 or CssProperty.TextUnderlineOffset or CssProperty.TextTransform or CssProperty.LetterSpacing
-                or CssProperty.WordSpacing or CssProperty.Hyphens:
+                or CssProperty.WordSpacing or CssProperty.Hyphens or CssProperty.Visibility:
                 return false;
-            case CssProperty.TextAlign or CssProperty.TextAlignLast or CssProperty.TextIndent or CssProperty.WhiteSpace
-                or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.Orphans or CssProperty.Widows
+            case CssProperty.TextAlign or CssProperty.TextAlignLast or CssProperty.TextIndent or CssProperty.WhiteSpaceCollapse
+                or CssProperty.TextWrapMode or CssProperty.TabSize or CssProperty.LineBreak or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.Orphans or CssProperty.Widows
                 or CssProperty.BorderCollapse:
             {
                 // Inherited text flow of the block the text sits in: the span keeps inheriting it.
@@ -1778,9 +1797,12 @@ internal sealed class CssStylesheets
                     CssProperty.TextAlign => parent.Alignment == TextAlignment.Left,
                     CssProperty.TextAlignLast => parent.LastLineAlignment is null,
                     CssProperty.TextIndent => parent.FirstLineIndent.Value == 0,
-                    CssProperty.WhiteSpace => !parent.NoWrap && !parent.PreserveLineBreaks && !parent.PreserveSpaces,
+                    CssProperty.WhiteSpaceCollapse => !parent.PreserveLineBreaks && !parent.PreserveSpaces && !parent.BreakSpaces,
+                    CssProperty.TextWrapMode => !parent.NoWrap,
+                    CssProperty.TabSize => parent.TabSize == 8,
+                    CssProperty.LineBreak => parent.LineBreak == LineBreakStrictness.Normal,
                     CssProperty.OverflowWrap => !parent.BreakWords && !parent.BreakAnywhere,
-                    CssProperty.WordBreak => !parent.BreakAll && !parent.BreakWordsByWordBreak,
+                    CssProperty.WordBreak => !parent.BreakAll && !parent.BreakWordsByWordBreak && !parent.KeepAll,
                     CssProperty.Orphans => parent.Orphans == 0,
                     CssProperty.Widows => parent.Widows == 0,
                     _ => !parent.CollapseBorders

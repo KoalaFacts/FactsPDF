@@ -66,11 +66,11 @@ public sealed class ListMarkerPositionTests
     }
 
     [Test]
-    public void AuthoredTextIndentStillRejectsFirstWordThatCannotFit()
+    public void AuthoredTextIndentLeavesAFirstWordThatCannotFitOverflowingItsLine()
     {
         const string html = "<p style='width:100pt;text-indent:20pt'>ABCDEFGHIJKL</p>";
-        var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        var run = Layout(html).SelectMany(p => p.Runs).Single();
+        Assert.That(run.X, Is.EqualTo(Page.MarginLeft + 20).Within(0.001), "the word starts after the indent and overflows the box, as in Chrome");
     }
 
     [Test]

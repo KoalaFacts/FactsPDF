@@ -63,8 +63,9 @@ public sealed partial class HyphensTests
     [Test]
     public void HyphensNoneIgnoresSoftHyphens()
     {
+        // Without its soft hyphens the word cannot break and overflows its line, as in Chrome.
         var html = $"<div style='width:70pt;hyphens:none'>aa {Word} bb</div>";
-        Assert.That(Failure(html).Code, Is.EqualTo("FPDF1302"));
+        Assert.That(Lines(html), Is.EqualTo(new[] { "aa", "Supercalifragilistic", "bb" }));
         Assert.That(Render("<div style='hyphens:none'>aa Super&shy;cali bb</div>"),
             Is.EqualTo(Render("<div>aa Supercali bb</div>")));
         Assert.That(Lines("<div style='width:100pt;hyphens:none'>aa Super&shy;cali bb</div>"),
@@ -77,7 +78,7 @@ public sealed partial class HyphensTests
         var narrow = $"<div style='hyphens:none'><div style='width:70pt;hyphens:manual'>aa {Word} bb</div></div>";
         Assert.That(Lines(narrow), Is.EqualTo(new[] { "aa Super-", "cali-", "fragil-", "istic bb" }));
         var inherited = $"<div style='hyphens:none'><div style='width:70pt;hyphens:inherit'>aa {Word} bb</div></div>";
-        Assert.That(Failure(inherited).Code, Is.EqualTo("FPDF1302"));
+        Assert.That(Lines(inherited), Is.EqualTo(new[] { "aa", "Supercalifragilistic", "bb" }));
         var initial = $"<div style='hyphens:none'><div style='width:70pt;hyphens:initial'>aa {Word} bb</div></div>";
         Assert.That(Lines(initial), Is.EqualTo(Lines(narrow)));
     }
@@ -112,11 +113,13 @@ public sealed partial class HyphensTests
     }
 
     [Test]
-    public void AWordWhoseSegmentsAreTooWideStillFails()
+    public void AWordWhoseSegmentsAreTooWideOverflowsAfterItsFirstHyphen()
     {
-        Assert.That(Failure("<div style='width:40pt'>Super&shy;califragilistic</div>").Code, Is.EqualTo("FPDF1302"));
-        // A hyphen that does not fit after its segment is no break point.
-        Assert.That(Failure("<div style='width:36pt'>Super&shy;cali</div>").Code, Is.EqualTo("FPDF1302"));
+        // As in Chrome: a segment too wide for the line overflows it after the break.
+        Assert.That(Lines("<div style='width:40pt'>Super&shy;califragilistic</div>"), Is.EqualTo(new[] { "Super-", "califragilistic" }));
+        // A hyphen that does not fit is no break point while another fits; where none fits Chrome still breaks there.
+        Assert.That(Lines("<div style='width:36pt'>Super&shy;cali</div>"), Is.EqualTo(new[] { "Super-", "cali" }));
+        Assert.That(Lines("<div style='width:20pt'>Super&shy;cali</div>"), Is.EqualTo(new[] { "Super-", "cali" }));
     }
 
     [Test]

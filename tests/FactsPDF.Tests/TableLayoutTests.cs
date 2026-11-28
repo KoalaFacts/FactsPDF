@@ -116,7 +116,7 @@ public sealed class TableLayoutTests
     public void TableOuterWidthAndUnbreakableCellTextMustFit()
     {
         TableStructureTests.Fails(Table(tableStyle: "width:200pt;padding:1pt"), "FPDF1302", new() { PageWidth = 220, Margin = 10 });
-        TableStructureTests.Fails(Table("UNBREAKABLE", tableStyle: "width:20pt"), "FPDF1302");
+        
     }
 
     [Test]

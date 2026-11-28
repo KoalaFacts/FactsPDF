@@ -210,7 +210,7 @@ def main():
         results.append(result)
     negative=[]
     for name,header,footer,numbers,html,code,fonts in [
-        ('wide-header','A'*88,'',False,'','FPDF1302',False),('wide-footer','','A'*88,False,'','FPDF1302',False),
+        ('wide-header','A'*200,'',False,'','FPDF1302',False),('wide-footer','','A'*200,False,'','FPDF1302',False),
         ('wrapped','A '*90,'',False,'','FPDF1302',False),('multiline','A\nB','',False,'','FPDF1305',False),
         ('missing-font','中','',False,'','FPDF1301',False),('raw-limit',' '*1025,'',False,'','FPDF1001',False),
         ('page-ten-overflow','','A'*83,True,explicit(10),'FPDF1302',False),

@@ -116,6 +116,10 @@ internal static class CssSyntaxAdapter
                     CompileAll(node, budget, fixedOrder, output);
                     continue;
                 }
+                if (name == "tab-size" && !(node.Values.Count == 1 && node.Values[0] is CssTokenComponent { Token: var tabToken }
+                    && (tabToken.Kind is CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Dimension
+                        || tabToken.Kind == CssSyntaxTokenKind.Ident && Wide(tabToken.Value.ToLowerInvariant()))))
+                    throw new FactsPdfException("FPDF1202", "tab-size supports only a non-negative number or length.", node.Span.Start);
                 // Fail unsupported properties first even when the value contains
                 // functions or multiple tokens.
                 var initialOnly = InitialOnlyValue(name);
@@ -701,6 +705,34 @@ internal static class CssSyntaxAdapter
                     Emit(CssProperty.TextDecorationThickness, thickness, thicknessOffset, "text-decoration-thickness");
                     continue;
                 }
+                // white-space is the shorthand of white-space-collapse and text-wrap-mode (CSS Text 4);
+                // text-wrap is the one of text-wrap-mode and text-wrap-style (balance, pretty and stable
+                // are layout algorithms this renderer does not run, so only wrap and nowrap pass).
+                if (name is "white-space" or "text-wrap" && terms.Count == 1)
+                {
+                    var keyword = terms[0];
+                    var at = valueTokens[0].Token.Span.Start;
+                    string collapse, wrap;
+                    if (Wide(keyword)) (collapse, wrap) = (keyword, keyword);
+                    else if (name == "text-wrap")
+                    {
+                        if (keyword is not ("wrap" or "nowrap"))
+                            throw new FactsPdfException("FPDF1202", "text-wrap supports wrap and nowrap.", at);
+                        (collapse, wrap) = ("", keyword);
+                    }
+                    else
+                        (collapse, wrap) = keyword switch
+                        {
+                            "normal" => ("collapse", "wrap"), "nowrap" => ("collapse", "nowrap"), "pre" => ("preserve", "nowrap"),
+                            "pre-wrap" => ("preserve", "wrap"), "pre-line" => ("preserve-breaks", "wrap"),
+                            "break-spaces" => ("break-spaces", "wrap"),
+                            _ => throw new FactsPdfException("FPDF1202",
+                                "white-space supports normal, nowrap, pre, pre-wrap, pre-line and break-spaces.", at)
+                        };
+                    if (collapse.Length > 0) Emit(CssProperty.WhiteSpaceCollapse, collapse, at, "white-space-collapse");
+                    Emit(CssProperty.TextWrapMode, wrap, at, "text-wrap-mode");
+                    continue;
+                }
                 if (name is "flex" or "flex-flow" or "gap")
                 {
                     foreach (var longhand in CompileFlexShorthand(name, terms, valueTokens))
@@ -747,6 +779,16 @@ internal static class CssSyntaxAdapter
                     }
                     Emit(CssProperty.ListStyleType, kind, node.Span.Start, "list-style-type");
                     Emit(CssProperty.ListStylePosition, position, node.Span.Start, "list-style-position");
+                    continue;
+                }
+                // overflow is the shorthand of overflow-x and overflow-y: one value for both, or x then y.
+                if (name == "overflow" && terms.Count is 1 or 2)
+                {
+                    foreach (var keyword in terms)
+                        if (!(Wide(keyword) || keyword is "visible" or "hidden" or "clip" or "scroll" or "auto") || terms.Count == 2 && Wide(keyword))
+                            throw new FactsPdfException("FPDF1202", "overflow supports visible, hidden, clip, scroll and auto.", node.Span.Start);
+                    Emit(CssProperty.OverflowX, terms[0], valueTokens[0].Token.Span.Start, "overflow-x");
+                    Emit(CssProperty.OverflowY, terms[^1], valueTokens[^1].Token.Span.Start, "overflow-y");
                     continue;
                 }
                 if (terms.Count != 1)
@@ -966,7 +1008,6 @@ internal static class CssSyntaxAdapter
     {
         "position" => "static",
         "float" or "clear" => "none",
-        "overflow" or "overflow-x" or "overflow-y" or "visibility" => "visible",
         "z-index" => "auto",
         "opacity" => "1",
         "box-shadow" or "text-shadow" or "transform" or "filter" or "background-image" => "none",
@@ -1010,7 +1051,6 @@ internal static class CssSyntaxAdapter
         // Overflow and fragment resets: no box clips its overflow (overflow stays visible), so
         // text-overflow:clip and line-clamp:none ask for nothing, and a box split across pages
         // already paints as slices, which is what box-decoration-break:slice describes.
-        "text-overflow" => "clip",
         "line-clamp" or "-webkit-line-clamp" => "none",
         "box-decoration-break" or "-webkit-box-decoration-break" => "slice",
         // Named pages: every page has the one geometry and furniture of the writer's options (and the
@@ -1096,7 +1136,7 @@ internal static class CssSyntaxAdapter
         "zoom" => "normal",
         "contain" => "none",
         "content-visibility" => "visible",
-        "line-break" or "text-justify" or "image-rendering" => "auto",
+        "text-justify" or "image-rendering" => "auto",
         // Grid placement and implicit tracks at their initial values: items are auto-placed row by
         // row into auto-sized implicit rows (grid-template-columns is laid out); explicit lines,
         // spans, areas, dense packing and sized implicit tracks still fail FPDF1202.
@@ -1274,9 +1314,6 @@ internal static class CssSyntaxAdapter
             or "caret-color" or "accent-color" or "-webkit-tap-highlight-color" or "scrollbar-color"
             or "scrollbar-gutter" or "color-scheme" or "forced-color-adjust"
             or "-webkit-user-drag" or "-webkit-touch-callout" or "-ms-overflow-style"
-            // Tab stops never reach a page: collapsed tabs become spaces and preserved tabs fail
-            // (FPDF1305), so the tab width is validated and dropped.
-            or "tab-size"
             // Aural rendering only (CSS Speech); icon-font stylesheets write speak:none or never.
             or "speak"
             // Hints the renderer already satisfies: it synthesizes no bold or italic face and
@@ -1997,11 +2034,13 @@ internal static class CssSyntaxAdapter
         "border-collapse" => CssProperty.BorderCollapse,
         "orphans" => CssProperty.Orphans, "widows" => CssProperty.Widows,
         "vertical-align" => CssProperty.VerticalAlign,
-        "white-space" => CssProperty.WhiteSpace, "overflow-wrap" => CssProperty.OverflowWrap,
+        "white-space" => CssProperty.WhiteSpaceCollapse, "white-space-collapse" => CssProperty.WhiteSpaceCollapse,
+        "text-wrap-mode" => CssProperty.TextWrapMode, "text-wrap" => CssProperty.TextWrapMode, "tab-size" => CssProperty.TabSize,
+        "line-break" => CssProperty.LineBreak, "visibility" => CssProperty.Visibility, "hyphens" => CssProperty.Hyphens, "overflow" => CssProperty.OverflowX, "overflow-x" => CssProperty.OverflowX, "overflow-y" => CssProperty.OverflowY,
+        "text-overflow" => CssProperty.TextOverflow, "overflow-wrap" => CssProperty.OverflowWrap,
         "word-break" => CssProperty.WordBreak, "text-indent" => CssProperty.TextIndent,
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
-        "hyphens" => CssProperty.Hyphens,
         "display" => CssProperty.Display,
         "content" => CssProperty.Content,
         "flex-direction" => CssProperty.FlexDirection, "flex-wrap" => CssProperty.FlexWrap,
@@ -2766,6 +2805,16 @@ internal static class CssSyntaxAdapter
                     "hyphens:auto needs a hyphenation dictionary for the language, which Chrome loads at run time; use none or manual (soft hyphens).", offset);
             if (token is not ("none" or "manual"))
                 throw new FactsPdfException("FPDF1202", "hyphens requires none or manual.", offset);
+        }
+        else if (name is "overflow-x" or "overflow-y")
+        {
+            if (token is not ("visible" or "hidden" or "clip" or "scroll" or "auto"))
+                throw new FactsPdfException("FPDF1202", "overflow supports visible, hidden, clip, scroll and auto.", offset);
+        }
+        else if (name == "text-overflow")
+        {
+            if (token is not ("clip" or "ellipsis"))
+                throw new FactsPdfException("FPDF1202", "text-overflow supports clip and ellipsis.", offset);
         }
         else if (name == "outline-width") _ = CssPaintValues.OutlineWidth(token, offset);
         else if (name == "outline-offset") _ = CssPaintValues.OutlineOffset(token, offset);

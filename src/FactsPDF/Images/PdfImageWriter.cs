@@ -48,8 +48,11 @@ internal sealed class PdfImageWriter
     internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation,
         ref PdfAlphaStates alpha)
     {
+        var clipping = page.Clips.Count == 0 ? null : new PdfClipping(page, PdfClipping.Kind.Images, options.PageHeight);
+        var imageIndex = 0;
         foreach (var placed in page.Images)
         {
+            clipping?.Enter(content, imageIndex++);
             cancellation.ThrowIfCancellationRequested();
             if (placed.Decoration is { } decoration)
                 PdfPaintSerializer.Append(content,
@@ -74,6 +77,7 @@ internal sealed class PdfImageWriter
                 .Append(" cm /Im").Append(indices[placed.Image!] + 1).Append(" Do Q\n");
             Check(content.Length, options.MaxOutputBytes);
         }
+        clipping?.Finish(content);
     }
 
     // The used rectangle of the image's pixels inside the content box for object-fit and object-position:

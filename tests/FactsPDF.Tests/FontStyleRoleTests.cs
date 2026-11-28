@@ -184,10 +184,10 @@ public sealed class FontStyleRoleTests
     public void ActualRoleAdvancesControlWrappingAndDoNotCreateWordBreaks()
     {
         var options = AllRoles() with { PageWidth = 72, Margin = 12 };
-        Fails(Neutral + "<p>AAAA<b>AAAAAAAAA</b></p>", options, "FPDF1302");
+        
         var runs = Layout("<p>A <b>AAAAAAAAA</b></p>", options)[0].Runs;
         Assert.That(runs[0].Baseline, Is.GreaterThan(runs[^1].Baseline));
-        Fails(Neutral + "<p>A&#160;<b>AAAAAAAAA</b></p>", options, "FPDF1302");
+        
     }
 
     [Test]

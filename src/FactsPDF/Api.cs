@@ -11,6 +11,11 @@ internal sealed record PdfOptions
     public double Margin { get; init; } = 36;
     /// <summary>Per-side margins from a CSS <c>@page</c> rule whose sides differ; null uses <see cref="Margin"/> on every side.</summary>
     internal PageMargins? SideMargins { get; init; }
+    /// <summary>
+    /// How much larger the layout page is than the printed one: content wider than the page is laid
+    /// out at a wider page and printed scaled down by this factor, as Chrome does (see PdfConverter).
+    /// </summary>
+    internal double PrintShrink { get; init; } = 1;
     /// <summary>The writer set the paper size or orientation explicitly (<see cref="PdfPageSetup"/>), so a CSS <c>@page</c> size must agree.</summary>
     internal bool PageSizeExplicit { get; init; }
     /// <summary>The writer set the margin explicitly (<see cref="PdfPageSetup.Margin"/>), so CSS <c>@page</c> margins must agree.</summary>

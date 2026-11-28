@@ -11,7 +11,15 @@ internal static class TextLayout
         double MarginTop = 0, double MinimumOuterHeight = 0,
         int OpeningMarginPage = -1, int OpeningPaddingPage = -1,
         double? FixedOuterHeight = null,
-        bool TopPending = false, double CommittedStrut = 0, bool ClosesEdges = false);
+        bool TopPending = false, double CommittedStrut = 0, bool ClosesEdges = false,
+        TextVisibility Visibility = TextVisibility.Visible, double BottomEdges = 0,
+        int RunStart = 0, int DiscStart = 0, int ImageStart = 0, int BoxStart = 0)
+    {
+        internal bool ClipX => Style.ClipsX;
+        internal bool ClipY => Style.ClipsY;
+        internal bool AutoX => Style.AutoX;
+        internal bool AutoY => Style.AutoY;
+    }
 
     // The layout state to return to if a break-inside:avoid box has to move to the next page.
     private sealed class AvoidProbe(List<BlockLayoutStep> group, int sourceOffset)
@@ -39,6 +47,20 @@ internal static class TextLayout
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
         => LayoutCore(paragraphs.Select(p => (BlockLayoutStep)new LayoutParagraph(p, o.MarginLeft,
             o.ContentWidth)), o, cancellation);
+
+    /// <summary>The right-most x the pages paint anything at: text, boxes, images and list markers.</summary>
+    internal static double OverflowRight(List<LayoutPage> pages)
+    {
+        var right = double.NegativeInfinity;
+        foreach (var page in pages)
+        {
+            foreach (var run in page.Runs) right = Math.Max(right, run.X + run.Width);
+            foreach (var box in page.PaintBoxes) if (box.Width > 0 && box.Height > 0) right = Math.Max(right, box.X + box.Width);
+            foreach (var image in page.Images) right = Math.Max(right, image.X + image.Width);
+            foreach (var disc in page.Discs) right = Math.Max(right, disc.X + disc.Radius);
+        }
+        return right;
+    }
 
     // The element whose line height is largest on the line is the one to change.
     private static int TallestGlyphOffset(TextLines.Line line, int fallback)
@@ -227,6 +249,8 @@ internal static class TextLayout
                 {
                     CommittedStrut = commits ? keptStrut : 0,
                     StartPage = pages.Count - 1,
+                    // The block now starts a fresh page: nothing on it precedes the block.
+                    RunStart = 0, DiscStart = 0, ImageStart = 0, BoxStart = 0,
                     StartY = o.MarginTop + leading + keptStrut,
                     // StartPage can be rebased for an unpainted continuation.
                     // Already occupied opening margins/padding belong to their
@@ -315,6 +339,57 @@ internal static class TextLayout
             contentEpoch++;
             for (var i = 0; i < opened.Count; i++)
                 opened[i] = opened[i] with { HasOccupiedDescendant = true };
+        }
+        // The innermost room the paragraph's lines may use before a clipping fixed-height ancestor cuts them off.
+        double ClipBottomLimit()
+        {
+            var limit = double.PositiveInfinity;
+            for (var i = 0; i < opened.Count; i++)
+                if (opened[i].ClipY && opened[i].FixedOuterHeight is { } height && !opened[i].TopPending)
+                    limit = Math.Min(limit, opened[i].StartY + height - opened[i].BottomEdges);
+            return limit;
+        }
+        // Clips what a closing overflow box holds to its padding box, one region per page it spans.
+        void ApplyClip(OpenBlock scope, double paddingBottom, double minimumExtra)
+        {
+            var finalPage = pages.Count - 1;
+            var minimumEnd = scope.StartPage == finalPage ? scope.StartY + scope.Top : o.MarginTop;
+            var finish = Math.Max(minimumEnd, y + pendingTopPadding + pendingClosedPadding) + paddingBottom + minimumExtra;
+            if (scope.FixedOuterHeight is { } fixedHeight && scope.StartPage == finalPage) finish = Math.Max(finish, scope.StartY + fixedHeight);
+            var style = scope.Style;
+            var borderLeft = style.BorderLeft.EffectiveWidth; var borderRight = style.BorderRight.EffectiveWidth;
+            for (var p = scope.StartPage; p <= finalPage; p++)
+            {
+                var first = p == scope.StartPage; var last = p == finalPage;
+                var page = pages[p];
+                var top = (first ? scope.StartY + style.BorderTop.EffectiveWidth : o.MarginTop);
+                var end = (last ? finish - style.BorderBottom.EffectiveWidth : bottom);
+                var x = scope.X + borderLeft; var width = Math.Max(0, scope.Width - borderLeft - borderRight);
+                var runStart = first ? scope.RunStart : 0; var discStart = first ? scope.DiscStart : 0;
+                var imageStart = first ? scope.ImageStart : 0; var boxStart = first ? scope.BoxStart : 0;
+                if (page.Runs.Count == runStart && page.Discs.Count == discStart && page.Images.Count == imageStart
+                    && page.PaintBoxes.Count == boxStart) continue;
+                var region = new ClipRegion(x, top, width, Math.Max(0, end - top), scope.ClipX, scope.ClipY,
+                    runStart, page.Runs.Count, discStart, page.Discs.Count, imageStart, page.Images.Count);
+                var id = page.Clips.Count + 1;
+                foreach (var inner in page.Clips)
+                    if (inner.Parent == 0 && inner.RunStart >= runStart && inner.DiscStart >= discStart && inner.ImageStart >= imageStart
+                        && (inner.RunEnd > inner.RunStart || inner.DiscEnd > inner.DiscStart || inner.ImageEnd > inner.ImageStart))
+                        inner.Parent = id;
+                page.WritableClips.Add(region);
+                for (var b = boxStart; b < page.PaintBoxes.Count; b++)
+                    if (page.PaintBoxes[b].Clip == 0) page.PaintBoxes[b] = page.PaintBoxes[b] with { Clip = id };
+                // An axis that computes to auto draws a scrollbar once its content overflows.
+                if (scope.AutoX)
+                {
+                    for (var r = runStart; r < page.Runs.Count; r++)
+                        if (page.Runs[r].X + page.Runs[r].Width > x + width + 0.01)
+                            throw new FactsPdfException("FPDF1201", "A box that scrolls (overflow:auto, or hidden beside a visible axis) prints a scrollbar when its content overflows; not supported.", scope.SourceOffset);
+                    for (var b = boxStart; b < page.PaintBoxes.Count; b++)
+                        if (page.PaintBoxes[b].X + page.PaintBoxes[b].Width > x + width + 0.01)
+                            throw new FactsPdfException("FPDF1201", "A box that scrolls (overflow:auto, or hidden beside a visible axis) prints a scrollbar when its content overflows; not supported.", scope.SourceOffset);
+                }
+            }
         }
         void Process(BlockLayoutStep step)
         {
@@ -429,7 +504,10 @@ internal static class TextLayout
                     OpeningPaddingPage: pages.Count - 1,
                     FixedOuterHeight: begin.FixedOuterHeight,
                     TopPending: true, CommittedStrut: committedStrut,
-                    ClosesEdges: closesEdges));
+                    ClosesEdges: closesEdges,
+                    Visibility: begin.Visibility, BottomEdges: begin.BottomEdges,
+                    RunStart: pages[^1].Runs.Count, DiscStart: pages[^1].Discs.Count,
+                    ImageStart: pages[^1].Images.Count, BoxStart: pages[^1].PaintBoxes.Count));
                 if (closesTop)
                 {
                     // Padding, a border or a formatting-context edge keeps this margin from
@@ -479,8 +557,15 @@ internal static class TextLayout
                     var requiredOuterHeight = Math.Max(scope.MinimumOuterHeight, scope.FixedOuterHeight ?? 0);
                     if (scope.FixedOuterHeight.HasValue &&
                         naturalEnd > scope.StartY + requiredOuterHeight + 0.000001)
-                        throw new FactsPdfException("FPDF1302",
-                            "Fixed-height report panel content exceeds available height.", scope.SourceOffset);
+                    {
+                        // Content taller than the box overflows it (or is clipped to it); what follows starts
+                        // below the box, not below the content. A scrolling box would print a scrollbar.
+                        if (scope.AutoY && scope.ClipY)
+                            throw new FactsPdfException("FPDF1201", "A box that scrolls (overflow:auto, or hidden beside a visible axis) prints a scrollbar when its content overflows; not supported.", scope.SourceOffset);
+                        y = scope.StartY + requiredOuterHeight - closing.PaddingBottom;
+                        pendingTopPadding = pendingClosedPadding = 0;
+                        naturalEnd = scope.StartY + requiredOuterHeight;
+                    }
                     minimumExtra = Math.Max(0, scope.StartY + requiredOuterHeight - naturalEnd);
                 }
                 if (end is not null && opened.Count == 0)
@@ -499,6 +584,7 @@ internal static class TextLayout
                     for (var i = 0; i < opened.Count; i++)
                         opened[i] = opened[i] with { TopConsumed = true };
                 }
+                if (scope.ClipX || scope.ClipY) ApplyClip(scope, closing.PaddingBottom, minimumExtra);
                 var emittedPaint = false;
                 if (scope.Style.HasPaint)
                 {
@@ -609,8 +695,12 @@ internal static class TextLayout
                                 throw new FactsPdfException("FPDF1302",
                                     "Report outline extends outside the physical PDF page.", scope.SourceOffset);
                         }
-                        ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
-                        pages[pageIndex].PaintBoxes.Add(painted);
+                        // visibility:hidden keeps the box's room but paints nothing.
+                        if (scope.Visibility == TextVisibility.Visible)
+                        {
+                            ChargeDisplayCommands(painted.CommandCount, scope.SourceOffset);
+                            pages[pageIndex].PaintBoxes.Add(painted);
+                        }
                         // Only paint generated on this page can make this page
                         // occupied. An ancestor's earlier fragment cannot.
                         if (pageIndex == finalPage)
@@ -679,9 +769,13 @@ internal static class TextLayout
                 breakTop = false;
                 var painted = new PaintedBox(image.X, y, image.OuterWidth, image.OuterHeight,
                     image.Node.BoxStyle, image.Node.Style.Color, paintOrder++, SourceOffset: image.Node.SourceOffset);
-                ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
-                if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
-                pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height, image.Node.Vector, Placement: image.Node.Placement));
+                if (image.Node.Style.Visibility == TextVisibility.Visible)
+                {
+                    ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
+                    if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
+                    if (image.Width > 0 && image.Height > 0)
+                        pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height, image.Node.Vector, Placement: image.Node.Placement));
+                }
                 y += image.OuterHeight;
                 pendingTopPadding = pendingClosedPadding = strut = 0;
                 contentEpoch++;
@@ -707,6 +801,10 @@ internal static class TextLayout
                 var freshSpace = new TableFreshSpace(bottom - o.MarginTop, MoveUnconsumedBlocksToNewPage(apply: false));
                 var measured = TableLayout.Measure(table, o, resolved,
                     chargeDisplayCommands, ensureDisplayCommands, cancellation, freshSpace);
+                // The room of a hidden table is kept, but its cells' backgrounds and borders would still be painted.
+                if (table.Node.Style.Visibility != TextVisibility.Visible && measured.PaintBoxes.Count > 0)
+                    throw new FactsPdfException("FPDF1201",
+                        "visibility:hidden on a table whose cells have backgrounds or borders is not supported.", table.Node.SourceOffset);
                 // A validated but invisible table does not occupy page space.
                 // Leave deferred breaks and ancestor decoration for the next
                 // visible content, just as an empty undecorated block does.
@@ -1096,10 +1194,15 @@ internal static class TextLayout
             var pendingMarker = item.Marker;
             var lineIndex = 0;
             var lineFragmentEnd = LineBreakControl.FragmentEnd(heights, 0, y, bottom, control);
+            var clipLimit = ClipBottomLimit();
             do
             {
                 cancellation.ThrowIfCancellationRequested();
                 var line = lines.Current;
+                // Lines below a clipping fixed-height box are cut off, not carried onto another page.
+                if (y >= clipLimit - 0.000001) break;
+                if (item.Ellipsis && line.Width > item.ContentWidth - line.FirstLineIndent + 0.000001)
+                    line = Ellipsize(line, item.ContentWidth - line.FirstLineIndent, o, resolved, paragraph.SourceOffset);
                 if (line.Height > bottom - o.MarginTop)
                     throw new FactsPdfException("FPDF1302", "Line height exceeds the usable page height.",
                         TallestGlyphOffset(line, paragraphOffset));
@@ -1119,7 +1222,11 @@ internal static class TextLayout
                     // with that line. Outside markers retain the legacy gutter.
                     var markerRightX = marker.Inside
                         ? x - 0.5 * marker.Style.FontSize : item.MarkerRightX;
-                    if (marker.Text is not null)
+                    if (marker.Style.Visibility != TextVisibility.Visible)
+                    {
+                        // visibility:hidden keeps the marker's room and paints nothing.
+                    }
+                    else if (marker.Text is not null)
                     {
                         // Generated ordinal labels have their own measured marker-width
                         // box. An inherited paragraph indent belongs to item text, not
@@ -1178,12 +1285,13 @@ internal static class TextLayout
             // Pages before the outermost open block's first page are never written again.
             var firstPage = pages.Count - 1;
             for (var i = 0; i < opened.Count; i++) firstPage = Math.Min(firstPage, opened[i].StartPage);
-            var counts = new int[(pages.Count - firstPage) * 4];
+            var counts = new int[(pages.Count - firstPage) * 5];
             for (var i = firstPage; i < pages.Count; i++)
             {
-                var k = (i - firstPage) * 4;
+                var k = (i - firstPage) * 5;
                 counts[k] = pages[i].Runs.Count; counts[k + 1] = pages[i].PaintBoxes.Count;
                 counts[k + 2] = pages[i].Discs.Count; counts[k + 3] = pages[i].Images.Count;
+                counts[k + 4] = pages[i].Clips.Count;
             }
             return new(group, sourceOffset)
             {
@@ -1196,11 +1304,12 @@ internal static class TextLayout
         }
         void Restore(AvoidProbe probe)
         {
-            var count = probe.FirstPage + probe.Counts.Length / 4;
+            var count = probe.FirstPage + probe.Counts.Length / 5;
             pages.RemoveRange(count, pages.Count - count);
             for (var i = probe.FirstPage; i < count; i++)
             {
-                var k = (i - probe.FirstPage) * 4;
+                var k = (i - probe.FirstPage) * 5;
+                pages[i].Clips.RemoveRange(probe.Counts[k + 4], pages[i].Clips.Count - probe.Counts[k + 4]);
                 pages[i].Runs.RemoveRange(probe.Counts[k], pages[i].Runs.Count - probe.Counts[k]);
                 pages[i].PaintBoxes.RemoveRange(probe.Counts[k + 1], pages[i].PaintBoxes.Count - probe.Counts[k + 1]);
                 pages[i].Discs.RemoveRange(probe.Counts[k + 2], pages[i].Discs.Count - probe.Counts[k + 2]);

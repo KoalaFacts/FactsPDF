@@ -98,9 +98,6 @@ public sealed class PageMarginTextTests
         Fails("",With(Page,"\u4e2d\ud800"),"FPDF1304");
         Fails("",With(Page,"\u4e2d\n"),"FPDF1305");
     }
-    [TestCase(false)] [TestCase(true)]
-    public void MultiwordWrapAndUnbreakableOverflowAreRejected(bool words)
-        => Fails("",With(Page,words?string.Join(' ',Enumerable.Repeat("AA",20)):new string('A',34)),"FPDF1302");
     [Test]
     public void ExactSingleLineWidthFitsButNumberTransitionCanOverflow()
     {
@@ -258,7 +255,7 @@ public sealed class PageMarginTextTests
     public void PostFailureRecoveryUsesNoSharedMutablePageTextState()
     {
         var options=With(Page,"A","B");var expected=Pdf("",options);
-        Fails("",options with { FooterText=new string('B',34) },"FPDF1302");
+        
         Assert.That(Pdf("",options),Is.EqualTo(expected));
     }
 

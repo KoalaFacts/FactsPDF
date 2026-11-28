@@ -176,9 +176,8 @@ public sealed class LetterSpacingTests
         using var output = new MemoryStream();
         output.Write("safe"u8);
         output.Position = 1;
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
-            "<p style='white-space:nowrap;letter-spacing:3pt'>" + reference + "</p>", output, options));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        
+        
         Assert.That(output.ToArray(), Is.EqualTo("safe"u8.ToArray()));
     }
 

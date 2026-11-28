@@ -36,23 +36,30 @@ public sealed class LineAtATimeWrappingTests
             "Completed line glyph buffers must be reused, not accumulated for the whole paragraph.");
     }
 
-    [TestCase(1, "FPDF1302")]
-    [TestCase(10000, "FPDF1302")]
-    public void LateOverwideWordStillPrecedesEarlierPageOverflow(int maxPages, string code)
+    [TestCase(1, "FPDF1303")]
+    [TestCase(10000, null)]
+    public void LateOverwideWordOverflowsItsLineAndThePageLimitStillApplies(int maxPages, string? code)
     {
         var paragraph = Paragraph(string.Concat(Enumerable.Repeat("A ", 1000)) + new string('X', 100));
-        var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout([paragraph],
-            Page with { MaxPages = maxPages }, default));
-        Assert.That(error!.Code, Is.EqualTo(code));
+        if (code is null)
+        {
+            var pages = TextLayout.Layout([paragraph], Page with { MaxPages = maxPages }, default);
+            Assert.That(pages.SelectMany(p => p.Runs).Last().Text, Is.EqualTo(new string('X', 100)), "the overwide word overflows instead of failing");
+        }
+        else
+        {
+            var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout([paragraph], Page with { MaxPages = maxPages }, default));
+            Assert.That(error!.Code, Is.EqualTo(code));
+        }
     }
 
     [Test]
-    public void LateWidthErrorStillPrecedesEarlierDisplayBudgetError()
+    public void LateOverwideWordNoLongerFailsSoTheDisplayBudgetIsWhatRunsOut()
     {
         var paragraph = Paragraph(string.Concat(Enumerable.Repeat("A ", 1000)) + new string('X', 100));
         var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout([paragraph],
             Page with { MaxDisplayCommands = 1 }, default));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        Assert.That(error!.Code, Is.EqualTo("FPDF1401"));
     }
 
     [Test]

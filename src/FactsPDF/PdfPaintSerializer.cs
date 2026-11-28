@@ -14,10 +14,12 @@ internal static class PdfPaintSerializer
     private static readonly TextDecoration[] DecorationOrder =
         [TextDecoration.Underline, TextDecoration.LineThrough, TextDecoration.Overline];
     internal static void AppendDiscs(StringBuilder output, IReadOnlyList<PlacedDisc> discs,
-        int maxOutputBytes, CancellationToken cancellation, ref PdfAlphaStates alpha)
+        int maxOutputBytes, CancellationToken cancellation, ref PdfAlphaStates alpha, PdfClipping? clipping = null)
     {
+        var discIndex = 0;
         foreach (var disc in discs)
         {
+            clipping?.Enter(output, discIndex++);
             cancellation.ThrowIfCancellationRequested();
             var x = disc.X; var y = disc.Y; var r = disc.Radius;
             if (!double.IsFinite(x + y + r) || r <= 0)
@@ -53,6 +55,7 @@ internal static class PdfPaintSerializer
             if (output.Length > maxOutputBytes)
                 throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.", disc.SourceOffset);
         }
+        clipping?.Finish(output);
     }
 
     // Decorations follow the already wrapped, font-resolved glyph advances.
@@ -117,10 +120,13 @@ internal static class PdfPaintSerializer
     }
 
     internal static void Append(StringBuilder output, IReadOnlyList<PaintedBox> boxes,
-        double pageHeight, int maxOutputBytes, CancellationToken cancellation, ref PdfAlphaStates alpha)
+        double pageHeight, int maxOutputBytes, CancellationToken cancellation, ref PdfAlphaStates alpha,
+        IReadOnlyList<ClipRegion>? clips = null)
     {
+        var chain = clips is { Count: > 0 } ? new List<int>() : null;
         foreach (var box in boxes.OrderBy(x => x.Order))
         {
+            if (chain is not null) PdfClipping.MoveBoxClip(output, clips!, chain, box.Clip, pageHeight);
             cancellation.ThrowIfCancellationRequested();
             var s = box.Style;
             var x = box.X;
@@ -167,6 +173,7 @@ internal static class PdfPaintSerializer
                     horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
             AppendOutline(output, box, pageHeight, maxOutputBytes, ref alpha);
         }
+        if (chain is not null) PdfClipping.MoveBoxClip(output, clips!, chain, 0, pageHeight);
     }
 
 

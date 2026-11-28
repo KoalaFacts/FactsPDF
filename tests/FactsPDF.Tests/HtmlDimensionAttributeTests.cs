@@ -89,10 +89,4 @@ public sealed class HtmlDimensionAttributeTests
         Assert.That(ex.Code, Is.EqualTo("FPDF1103"));
     }
 
-    [Test]
-    public void AZeroWidthImageIsAnExplicitFailureNotASilentApproximation()
-    {
-        var ex = Assert.Throws<FactsPdfException>(() => Pdf(Img("width='0'")))!;
-        Assert.That(ex.Code, Is.EqualTo("FPDF1302"));
-    }
 }

@@ -165,7 +165,8 @@ def generate_corpus(root: Path) -> list[dict]:
          'Second section 第二部分', 'No repeated or missing content. 内容不应重复或缺失。',
          'Third section 第三部分', 'The bottom border ends here. 下边框在这里结束。']
     add('B03', 'baseline', b, ['fragmentation', 'text-unicode'], '<section class="panel"><h1>'+b[0]+'</h1><h2>'+b[1]+'</h2><p>'+b[2]+'</p><h2 class="next" style="padding-top:10pt">'+b[3]+'</h2><p>'+b[4]+'</p><h2 class="next" style="padding-top:10pt">'+b[5]+'</h2><p>'+b[6]+'</p></section>')
-    add('N-wide', 'negative', [], ['output-protection'], '<p>'+'X'*500+'</p>', expected_code='FPDF1302')
+    # A line taller than the page still fails before any output (an overwide word now overflows as in Chrome).
+    add('N-wide', 'negative', [], ['output-protection'], "<p style='font-size:144pt;line-height:1440pt'>X</p>", expected_code='FPDF1302')
     add('N-pages', 'negative', [], ['page-budget'], '<p>One</p><p class="next">Two</p>', expected_code='FPDF1303', api_only=True, max_pages=1)
     for tag, scalar in [('high', 0xD800), ('low', 0xDC00)]:
         add('N-utf16-'+tag, 'negative', [], ['invalid-utf16'], '<p>runtime-invalid-input</p>', expected_code='FPDF1304', api_only=True, invalid_scalar=scalar)
@@ -185,7 +186,7 @@ def generate_corpus(root: Path) -> list[dict]:
     for ident, req in [('T-page-furniture', ['page-number', 'header-footer']),
                        ('T-heading-keep', ['heading-with-paragraph']), ('T-complete-report', ['all-report-capabilities'])]:
         add(ident, 'target', [], req)
-    add('N-zero', 'negative', [], ['zero-width'], "<div style='width:0'>X</div>", expected_code='FPDF1302')
+    add('N-zero', 'negative', [], ['oversized-box'], "<div style='height:2000pt'>X</div>", expected_code='FPDF1302')
     for ident, option, amount, code in [
         ('N-input', 'MaxInputCharacters', 10, 'FPDF1001'),
         ('N-elements', 'MaxElements', 2, 'FPDF1002'),

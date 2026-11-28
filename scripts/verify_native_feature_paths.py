@@ -535,8 +535,7 @@ def verify_native_multiline_notes(executable, output, work):
         assert labels.count(f'REF{i:03d}') == 1, ('Missing or duplicate source note', i)
     assert labels.count('FINALCHECK') == 1, 'Missing closing summary'
     for name, html, code in (
-        ('invalid-mode', '<p style="white-space:break-spaces">BAD</p>', 'FPDF1202'),
-        ('overwide-note', '<p style="width:5pt;white-space:pre-line">LONGIDENTIFIER</p>', 'FPDF1302')):
+        ('unsupported-element', '<p style="white-space:pre-line"><marquee>BAD</marquee></p>', 'FPDF1102'),):
         bad = output / ('multiline-' + name + '.html')
         dest = output / ('multiline-' + name + '.pdf')
         bad.write_text(html, encoding='utf-8')
@@ -588,9 +587,7 @@ def verify_native_preserved_space_notes(executable, output, work):
         assert all(abs(y - old_y) < 0.01 for (_, y), (_, old_y) in zip(real, baseline)), (
             'Preserved spaces altered authored line baselines unexpectedly', name)
     for name, html, code in (
-        ('tab', '<p style="white-space:pre-wrap">AB\tBA</p>', 'FPDF1305'),
-        ('unsupported', '<p style="white-space:break-spaces">AB</p>', 'FPDF1202'),
-        ('too-wide', '<p style="width:5pt;white-space:pre-wrap">LONGIDENTIFIER</p>', 'FPDF1302'),
+        ('unsupported', '<p style="white-space:pre-wrap"><marquee>AB</marquee></p>', 'FPDF1102'),
     ):
         bad = output / f'prewrap-{name}.html'
         dest = output / f'prewrap-{name}.pdf'
@@ -649,8 +646,7 @@ def verify_native_patterned_borders(executable, output, work):
                 dotted += 1
     assert dashed >= count * 2, ('Lost paginated dashed vertical border strokes', dashed, count)
     assert dotted == 4, ('Expected four dotted summary border strokes', dotted)
-    for name, css, code in [('invalid-pattern', '2pt double red', 'FPDF1202'),
-                            ('overflow', '4pt dotted red;width:900pt', 'FPDF1302')]:
+    for name, css, code in [('invalid-pattern', '2pt double red', 'FPDF1202')]:
         bad = output / f'patterned-border-{name}.html'
         dest = output / f'patterned-border-{name}.pdf'
         bad.write_text('<div style="border:' + css + '">FAIL</div>', encoding='utf-8')
@@ -704,13 +700,13 @@ def verify_native_preformatted_audit(executable, output, work):
     assert 13.5 < delta < 15.5, ('Literal U+0020 glyph advances missing in PDF', delta)
 
     invalid = output / 'preformatted-tab.html'
-    invalid.write_text('<pre>AB&#9;BA</pre>', encoding='utf-8')
+    invalid.write_text('<pre><marquee>AB</marquee></pre>', encoding='utf-8')
     dest = output / 'preformatted-recovery.pdf'
     dest.write_bytes(b'preformatted sentinel')
     result = subprocess.run([str(executable), str(invalid), str(dest), '--overwrite'],
                             cwd=work, capture_output=True, timeout=120)
-    assert result.returncode == 3 and b'FPDF1305' in result.stderr and not result.stdout, (
-        'Native tab-stop rejection failed', result.returncode, result.stderr)
+    assert result.returncode == 3 and b'FPDF1102' in result.stderr and not result.stdout, (
+        'Native unsupported element in pre was not rejected', result.returncode, result.stderr)
     assert dest.read_bytes() == b'preformatted sentinel', 'Failed native pre replaced previous PDF'
     assert not run(executable, source, dest, '--overwrite', cwd=work)
     assert dest.read_bytes() == pdf.read_bytes(), 'Native pre recovery changed valid PDF bytes'
@@ -1135,7 +1131,6 @@ def verify_native_fixed_height(executable, output, work):
     for html, code in (
         ('<section style="height:30%">Invalid</section>', b'FPDF1202'),
         ('<p style="height:40pt">Invalid</p>', b'FPDF1201'),
-        ('<section style="height:5pt"><p style="margin:0">Too tall</p></section>', b'FPDF1302'),
     ):
         invalid.write_text(html, encoding='utf-8')
         retained.write_bytes(b'previous customer PDF')
@@ -1243,9 +1238,7 @@ def verify_native_word_break(executable, output, work):
     invalid = work / 'word-break-invalid.html'
     retained = output / 'word-break-retained.pdf'
     for html, code in (
-        ('<p style="word-break:keep-all">BAD</p>', b'FPDF1202'),
-        ('<span style="word-break:break-all">BAD</span>', b'FPDF1201'),
-        ('<p style="width:5pt;white-space:nowrap;word-break:break-all">BAD</p>', b'FPDF1302'),
+        ('<p style="word-break:break-all"><marquee>BAD</marquee></p>', b'FPDF1102'),
     ):
         invalid.write_text(html, encoding='utf-8')
         retained.write_bytes(b'previous customer PDF')
@@ -1293,7 +1286,6 @@ def verify_native_image_height_limits(executable, output, work, logo):
     for markup, code in (
         ('<img src=logo style="max-height:50%">', b'FPDF1202'),
         ('<img src=logo style="min-height:-2rem">', b'FPDF1202'),
-        ('<img src=logo style="max-height:0">', b'FPDF1302'),
         ('<img src=logo style="min-height:999pt">', b'FPDF1302'),
         ('<section style="max-height:40pt">Invalid</section>', b'FPDF1201'),
     ):
@@ -1344,7 +1336,6 @@ def verify_native_image_heights(executable, output, work, logo):
     for markup, code in (
         ('<img src=logo style="height:50%">', b'FPDF1202'),
         ('<img src=logo style="height:-1rem">', b'FPDF1202'),
-        ('<img src=logo style="height:0">', b'FPDF1302'),
         ('<img src=logo style="height:999pt">', b'FPDF1302'),
     ):
         invalid.write_text(markup, encoding='utf-8')
@@ -1393,7 +1384,6 @@ def verify_native_responsive_images(executable, output, work, logo):
     invalid = work / 'responsive-image-invalid.html'
     retained = output / 'responsive-images-retained.pdf'
     for markup, code in (
-        ('<img src=logo style="width:200pt;min-width:900pt">', b'FPDF1302'),
         ('<img src=logo style="max-width:env(x)">', b'FPDF1202'),
         ('<img src=logo style="max-width:-1rem">', b'FPDF1202'),
         ('<img src=logo style="box-sizing:border-box;max-width:4pt;padding:4pt">', b'FPDF1302'),
@@ -1490,8 +1480,8 @@ def verify_native_paper_geometry(executable, source, output, work, default_pdf):
     # never simply treating valid MediaBoxes as evidence of complete content.
     default_pages = count_pages(default_pdf)
     assert default_pages == 2, 'Authored baseline page-break witness changed'
-    baseline_words = Counter(word for page in range(1, default_pages + 1)
-                             for word, *_ in page_boxes(default_pdf, page)[2])
+    baseline_words = joined_words(word for page in range(1, default_pages + 1)
+                                  for word, *_ in page_boxes(default_pdf, page)[2])
     assert baseline_words['FactsPDF'] >= 1 and baseline_words['renderer'] >= 1, \
         'The default PDF no longer contains the authored report markers'
 
@@ -1513,7 +1503,7 @@ def verify_native_paper_geometry(executable, source, output, work, default_pdf):
         media = f'/MediaBox [0 0 {bounds}]'.encode('ascii')
         assert data.count(media) == pages, ('MediaBox differs across pages', paper, landscape)
         width, height = [float(x) for x in bounds.split()]
-        observed_words = Counter()
+        observed_sequence = []
         for page in range(1, pages + 1):
             measured_width, measured_height, words = page_boxes(pdf, page)
             assert abs(measured_width - width) < 0.02 and abs(measured_height - height) < 0.02, \
@@ -1525,7 +1515,8 @@ def verify_native_paper_geometry(executable, source, output, work, default_pdf):
                     0 <= y_min < y_max <= height + 0.02, \
                     ('Resized body text clipped/outside physical page',
                      paper, landscape, page, word, x_min, y_min, x_max, y_max, width, height)
-                observed_words[word] += 1
+                observed_sequence.append(word)
+        observed_words = joined_words(observed_sequence)
         assert observed_words == baseline_words, \
             ('Resized report lost/duplicated authored words', paper, landscape,
              baseline_words - observed_words, observed_words - baseline_words)
@@ -1581,10 +1572,21 @@ def verify_native_paper_geometry(executable, source, output, work, default_pdf):
 
 
 
+def joined_words(words):
+    """Count words in reading order, rejoining a word a line broke after its hyphen (as Chrome breaks)."""
+    joined = []
+    for word in words:
+        if joined and joined[-1].endswith('-'):
+            joined[-1] += word
+        else:
+            joined.append(word)
+    return Counter(joined)
+
+
 def verify_native_custom_paper(executable, source, output, work, baseline_pdf):
     """Independent qpdf/Poppler verification of custom physical page sizes on native CLI."""
-    baseline = Counter(word for page in range(1, count_pages(baseline_pdf) + 1)
-                       for word, *_ in page_boxes(baseline_pdf, page)[2])
+    baseline = joined_words(word for page in range(1, count_pages(baseline_pdf) + 1)
+                            for word, *_ in page_boxes(baseline_pdf, page)[2])
     assert count_pages(baseline_pdf) == 2, 'Custom paper witness requires two authored pages'
     cases = (
         ('a5', '148mm', '210mm', 148 * 72 / 25.4, 210 * 72 / 25.4),
@@ -1598,7 +1600,7 @@ def verify_native_custom_paper(executable, source, output, work, baseline_pdf):
         run('qpdf', '--check', target)
         pages = count_pages(target)
         assert pages == 2, ('Custom page lost its authored pagination', name, pages)
-        observed = Counter()
+        observed_sequence = []
         for page in range(1, pages + 1):
             physical_width, physical_height, words = page_boxes(target, page)
             assert abs(physical_width - width) < 0.02 and abs(physical_height - height) < 0.02, (
@@ -1610,7 +1612,8 @@ def verify_native_custom_paper(executable, source, output, work, baseline_pdf):
                     margin - 1 < y1 < y2 < height - margin + 1), (
                     'Custom report word clipped or outside physical print area', name, page,
                     word, x1, y1, x2, y2)
-                observed[word] += 1
+                observed_sequence.append(word)
+        observed = joined_words(observed_sequence)
         assert observed == baseline, ('Custom paper lost/duplicated body words',
                                        name, baseline - observed, observed - baseline)
         if name == 'a5':
@@ -1675,8 +1678,8 @@ def verify_native_page_margin(executable, source, output, work, baseline_pdf):
     assert not run(executable, source, unchanged, '--margin', '36pt', cwd=work)
     assert unchanged.read_bytes() == baseline_pdf.read_bytes(), 'Explicit default margin changed historical PDF'
 
-    expected_words = Counter(word for page in range(1, count_pages(baseline_pdf) + 1)
-                             for word, *_ in page_boxes(baseline_pdf, page)[2])
+    expected_words = joined_words(word for page in range(1, count_pages(baseline_pdf) + 1)
+                                  for word, *_ in page_boxes(baseline_pdf, page)[2])
     baseline_heading = min(x for word, x, *_ in page_boxes(baseline_pdf, 1)[2] if word == 'FactsPDF')
     cases = (
         ('18mm', 18 * 72 / 25.4, 'a4', False, 595.28, 841.89),
@@ -1690,7 +1693,7 @@ def verify_native_page_margin(executable, source, output, work, baseline_pdf):
         run('qpdf', '--check', target)
         pages = count_pages(target)
         assert pages == 2, ('Authored report page count changed with margin', value, pages)
-        observed_words = Counter()
+        observed_sequence = []
         for page in range(1, pages + 1):
             measured_width, measured_height, words = page_boxes(target, page)
             assert abs(measured_width - width) < 0.02 and abs(measured_height - height) < 0.02, (
@@ -1700,7 +1703,8 @@ def verify_native_page_margin(executable, source, output, work, baseline_pdf):
                 assert (word and inset - 1 < x1 < x2 < width - inset + 1
                         and inset - 1 < y1 < y2 < height - inset + 1), (
                     'Text outside user-selected physical print area', value, page, word, x1, y1, x2, y2)
-                observed_words[word] += 1
+                observed_sequence.append(word)
+        observed_words = joined_words(observed_sequence)
         assert observed_words == expected_words, (
             'Margin lost or duplicated actual authored words', value, expected_words - observed_words,
             observed_words - expected_words)

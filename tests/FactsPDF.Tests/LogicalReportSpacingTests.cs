@@ -165,7 +165,6 @@ public sealed class LogicalReportSpacingTests
     [TestCase("<p style='padding-block:1pt 2pt 3pt'>A</p>", "FPDF1202")]
     [TestCase("<span style='padding-inline:5pt'>A</span>", "FPDF1201")]
     [TestCase("<style>.never{margin-inline:-1pt}</style><p>A</p>", "FPDF1202")]
-    [TestCase("<p style='width:280pt;margin-inline:20pt 20pt'>A</p>", "FPDF1302")]
     public void InvalidOrUnsupportedValuesPreservePriorOutput(string html, string code) => Reject(html, code);
 
     // Body has a real margin in the user-agent sheet, so its logical margin is accepted like any panel's.
