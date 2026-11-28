@@ -1393,7 +1393,7 @@ def verify_native_responsive_images(executable, output, work, logo):
     retained = output / 'responsive-images-retained.pdf'
     for markup, code in (
         ('<img src=logo style="width:200pt;min-width:900pt">', b'FPDF1302'),
-        ('<img src=logo style="max-width:calc(100% - 1pt)">', b'FPDF1202'),
+        ('<img src=logo style="max-width:env(x)">', b'FPDF1202'),
         ('<img src=logo style="max-width:-1rem">', b'FPDF1202'),
         ('<img src=logo style="box-sizing:border-box;max-width:4pt;padding:4pt">', b'FPDF1302'),
     ):
@@ -1946,7 +1946,7 @@ def verify_native_logical_borders(executable, output, work):
     saved = output / 'logical-border-preserved.pdf'
     for css in ('border-inline:1pt double red',
                 'border-block:1pt solid rgba(2,3,4,5px)',
-                'border-inline-start:calc(2pt + 1pt) solid blue'):
+                'border-inline-start:env(x) solid blue'):
         invalid.write_text('<style>.absent{' + css + '}</style><p>SAFE</p>', encoding='utf-8')
         saved.write_bytes(b'customer PDF protected')
         result = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
@@ -1988,7 +1988,7 @@ def verify_native_logical_border_components(executable, output, work):
     for css in ('border-inline-width:1pt 2pt 3pt',
                 'border-block-style:solid double',
                 'border-inline-color:rgba(2,3,4,5px)',
-                'border-block-end-width:calc(2pt + 1pt)'):
+                'border-block-end-width:env(x)'):
         invalid.write_text('<style>.unmatched{' + css + '}</style><p>SAFE</p>', encoding='utf-8')
         saved.write_bytes(b'original customer PDF protected')
         result = subprocess.run([str(executable), str(invalid), str(saved), '--overwrite'],
