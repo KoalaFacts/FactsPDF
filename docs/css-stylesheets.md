@@ -301,8 +301,12 @@ marks of the user-agent sheet's `quotes:auto` (curly double quotes, curly single
 quotes when nested), drawn in the `q`'s own text style; normal text with no
 supplied font uses the ASCII `"` and `'`, and `cite` is metadata only
 (`QuoteElementTests.cs`). `bdi` renders like `span`: every run is laid out left
-to right, so it isolates nothing (`BdiElementTests.cs`). `mark`, `sub` and `sup`
-still fail `FPDF1102`; `big` is inline text with `font-size:larger`.
+to right, so it isolates nothing (`BdiElementTests.cs`). `label`, `output`, `map`,
+`picture`, `bdo` (with `dir=ltr`) and valid custom element names (`x-card`) are
+inline text the same way; `form`, `details`, `summary` and `fieldset` are blocks, and
+`slot` is `display:contents` (see "More HTML elements" in
+[feature notes](feature-notes.md#more-html-elements-printed-as-chrome-prints-them-source-only)).
+`mark`, `sub` and `sup` still fail `FPDF1102`; `big` is inline text with `font-size:larger`.
 
 The [44-change source](../examples/report-inline-changes.html)
 and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)

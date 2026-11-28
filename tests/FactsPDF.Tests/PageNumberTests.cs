@@ -104,7 +104,7 @@ public sealed class PageNumberTests
 
     [Test]
     public void BodyFailureStillPrecedesFooterFailure()
-        => Fails("<video>x</video>",Numbered(Page with { Margin=0 }),"FPDF1102");
+        => Fails("<marquee>x</marquee>",Numbered(Page with { Margin=0 }),"FPDF1102");
 
     [Test]
     public void CultureDoesNotChangeDecimalCounters()

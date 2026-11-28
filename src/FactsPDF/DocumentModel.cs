@@ -44,7 +44,10 @@ internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double
 }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
-internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
+// Disclosure is the first summary of a details element: its user-agent marker, a triangle that
+// points right while the details is closed and down while it is open. Author CSS can only replace it
+// (list-style-type:none removes it); it is never written as a type name.
+internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None, Disclosure }
 // Each channel is held as one byte (n/255): every colour CSS gives FactsPDF is a byte per channel,
 // and A is the CSS alpha quantised to one byte, as Chrome's PDF backend stores paint alpha. Four
 // bytes keep a colour smaller than the three doubles it replaced, so alpha costs no style or
@@ -336,11 +339,13 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
         var top = isFirstFragment ? Math.Min(Math.Max(0, height), style.BorderTop.EffectiveWidth) : 0;
         var bottom = isLastFragment ? Math.Min(Math.Max(0, height), style.BorderBottom.EffectiveWidth) : 0;
         var middleHeight = Math.Max(0, height - top - bottom);
+        // A groove is two bands, so it costs two rectangles.
+        static int Edge(BorderEdge edge) => edge.Pattern == BorderPattern.Groove ? 2 : 1;
         return outline + (width > 0 && height > 0 && style.BackgroundColor.HasValue ? 1 : 0)
-            + (width > 0 && top > 0 && !style.BorderTop.Transparent ? 1 : 0)
-            + (width > 0 && bottom > 0 && !style.BorderBottom.Transparent ? 1 : 0)
-            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
-            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? 1 : 0);
+            + (width > 0 && top > 0 && !style.BorderTop.Transparent ? Edge(style.BorderTop) : 0)
+            + (width > 0 && bottom > 0 && !style.BorderBottom.Transparent ? Edge(style.BorderBottom) : 0)
+            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? Edge(style.BorderLeft) : 0)
+            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? Edge(style.BorderRight) : 0);
     }
 }
 
@@ -360,7 +365,9 @@ internal readonly record struct CssLength(double Value, bool IsPercent = false, 
 // All properties in BoxStyle are non-inherited by default.
 // The pattern affects PDF strokes, while the existing Solid bit continues to
 // distinguish painted borders from CSS none without changing legacy boxes.
-internal enum BorderPattern { Solid, Dashed, Dotted }
+// Groove is the user-agent border of fieldset (2px groove): two bands of one colour, which only that
+// element's default can produce (author border-style values stay solid, dashed, dotted and none).
+internal enum BorderPattern { Solid, Dashed, Dotted, Groove }
 internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
 {
     internal BorderPattern Pattern { get; init; } = BorderPattern.Solid;
