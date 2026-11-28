@@ -40,7 +40,7 @@ public sealed class ParagraphPercentageVerticalMarginTests
     [TestCase("pre")]
     public void VerticalPercentagesMatchResolvedPointMarginsAndActualPaint(string tag)
     {
-        var actual = $"<{tag} style='margin:10% 0 5%;padding:4pt;background:#ddeeff'>Report text</{tag}>" +
+        var actual = $"<{tag} style='margin:10% 0 5%;padding:4pt;background:#ddeeff;font-weight:normal'>Report text</{tag}>" +
             "<p style='margin:0'>Following text</p>";
         var oracle = actual.Replace("margin:10% 0 5%", "margin:26pt 0 13pt");
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));

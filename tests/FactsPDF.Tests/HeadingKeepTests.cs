@@ -154,7 +154,7 @@ public sealed class HeadingKeepTests
     public void FirstHeadingInUnconsumedMarginedPanelLosesItsMarginsOnGroupPageMove(string tag)
     {
         var options = Page with { PageWidth = 300, PageHeight = 150, Margin = 20 };
-        const string css = "<style>html,body{margin:0}p,h2,h3{font-size:12pt;line-height:1;margin-bottom:0}</style>";
+        const string css = "<style>html,body{margin:0}p,h2,h3{font-size:12pt;line-height:1;margin-bottom:0;font-weight:normal}</style>";
         var lead = "<p style='margin:0'>" + string.Join("<br>", Enumerable.Repeat("LEAD", 7)) + "</p>";
         var panel = "<section style='margin-top:25pt;background:blue'>" +
             $"<{tag} style='break-after:avoid;margin-top:12pt;margin-bottom:0'>TITLE</{tag}>" +

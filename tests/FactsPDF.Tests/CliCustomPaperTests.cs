@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class CliCustomPaperTests
 {
-    private static string Report => "<h1>Business statement</h1>" +
+    private static string Report => "<h1 style='font-weight:normal'>Business statement</h1>" +
         string.Concat(Enumerable.Range(1, 120).Select(i =>
             $"<p>Entry {i:D3}: audited invoice, delivery and settlement details.</p>"));
 

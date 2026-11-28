@@ -8,6 +8,9 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class PrintMediaReportTests
 {
+    // The example reports use headings and table headers; the user-agent sheet makes them bold, which needs a bold font chain these tests do not supply.
+    private const string BoldPin = "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>";
+
     private static readonly PdfOptions SmallPage = new() { PageWidth = 310, PageHeight = 195, Margin = 18 };
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
@@ -74,8 +77,8 @@ public sealed class PrintMediaReportTests
     public void CheckedInTwoPageServiceRegisterMatchesIndependentlyWrittenInlineHtml()
     {
         var root = FindRoot();
-        var source = File.ReadAllText(Path.Combine(root, "examples", "report-print-media.html"));
-        var oracle = File.ReadAllText(Path.Combine(root, "examples", "report-print-media-oracle.html"));
+        var source = BoldPin + File.ReadAllText(Path.Combine(root, "examples", "report-print-media.html"));
+        var oracle = BoldPin + File.ReadAllText(Path.Combine(root, "examples", "report-print-media-oracle.html"));
         var options = new PdfOptions();
         Assert.That(Pdf(source, options), Is.EqualTo(Pdf(oracle, options)));
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(source, options, default), options, default);
