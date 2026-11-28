@@ -981,9 +981,9 @@ jobs:
           $expectedVersion = 'FactsPDF.Cli 0.1.0-preview.1+' + (& git rev-parse HEAD).Trim()
           $actualVersion = & artifacts/windows-native/FactsPDF.Cli.exe --version
           if ($LASTEXITCODE -ne 0 -or $actualVersion -ne $expectedVersion) { throw "Windows Native AOT CLI build identity mismatch: $actualVersion" }
-          & $pythonExe -m unittest discover -s scripts -p test_windows_aot.py -v
+          & $pythonExe -m unittest discover -s scripts -p test_native_aot.py -v
           if ($LASTEXITCODE -ne 0) { throw "Windows acceptance guard tests failed" }
-          & $pythonExe scripts/verify_windows_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence
+          & $pythonExe scripts/verify_native_aot.py --executable artifacts/windows-native/FactsPDF.Cli.exe --output artifacts/windows-aot-evidence
           if ($LASTEXITCODE -ne 0) { throw "Actual Windows Native AOT acceptance failed" }
           & $pythonExe -m unittest discover -s scripts -p test_native_feature_paths.py -v
           if ($LASTEXITCODE -ne 0) { throw "Native feature acceptance guard tests failed" }
@@ -1071,7 +1071,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Independent Windows native ZIP extraction/inventory failed" }
           $env:PATH = (Join-Path $env:MSYS2_LOCATION 'ucrt64\bin') + ';' + $env:PATH
           $extractedCli = Join-Path $env:RUNNER_TEMP 'factspdf-private-windows-extracted/FactsPDF.Native/FactsPDF.Cli.exe'
-          & $pythonExe scripts/verify_windows_aot.py --executable $extractedCli --output artifacts/windows-private-native-aot-evidence
+          & $pythonExe scripts/verify_native_aot.py --executable $extractedCli --output artifacts/windows-private-native-aot-evidence
           if ($LASTEXITCODE -ne 0) { throw "Extracted Windows native PDF/recovery verification failed" }
           & $pythonExe scripts/verify_native_feature_paths.py --executable $extractedCli --output artifacts/windows-private-native-feature-evidence
           if ($LASTEXITCODE -ne 0) { throw "Extracted Windows native furniture/long-row verification failed" }
