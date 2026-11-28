@@ -111,6 +111,10 @@ public sealed class HiddenElementTests
     }
 
     [Test]
+    public void TheHiddenAttributeChangesNothingOnElementsThatAreAlreadyNotShown()
+        => Assert.That(Pdf("<p>A</p><datalist hidden></datalist><dialog hidden>x</dialog><audio hidden></audio><track hidden><p>B</p>"), Is.EqualTo(Pdf("<p>A</p><p>B</p>")));
+
+    [Test]
     public void SiblingPositionsCountHiddenElements()
         => Assert.That(Pdf("<style>p:nth-child(4){color:#c00}</style><p>Z</p><noscript>x</noscript><datalist></datalist><p>A</p>"),
             Is.EqualTo(Pdf("<style>p:nth-child(2){color:#c00}</style><p>Z</p><p>A</p>")));

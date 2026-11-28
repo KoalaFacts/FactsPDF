@@ -900,8 +900,10 @@ internal static class HtmlDocumentReader
                 {
                     if (value.Length != 0 && !value.Equals("hidden", StringComparison.OrdinalIgnoreCase))
                         throw new FactsPdfException("FPDF1103", "hidden accepts only an empty boolean attribute or 'hidden'.", token.Offset);
-                    if (!(ParagraphTag(name) || Container(name) && name is not ("body" or "html" or "ol" or "ul" or "menu" or "li"))
-                        || table is not null || AnyFrame(stack, f => ListTag(f.Name) || f.Name == "li"))
+                    // Elements that are display:none anyway (or have no box) take it as they are.
+                    if (!(name is "source" or "track" or "area" or "embed" || HiddenTag(name))
+                        && (!(ParagraphTag(name) || Container(name) && name is not ("body" or "html" or "ol" or "ul" or "menu" or "li"))
+                            || table is not null || AnyFrame(stack, f => ListTag(f.Name) || f.Name == "li")))
                         throw new FactsPdfException("FPDF1103",
                             "hidden is supported only on ordinary report blocks outside lists and tables.", token.Offset);
                     hidden = true;
