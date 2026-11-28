@@ -725,6 +725,14 @@ internal static class HtmlDocumentReader
                 result.CanvasColor = boxStyle.BackgroundColor;
                 if (boxStyle.IsFlexContainer) result.FlexRootOffset = Math.Max(token.Offset, 0);
             }
+            // CSS Backgrounds 3, section 2.11.2: when the root element has no background the body's
+            // background paints the canvas, and the body box itself paints none.
+            var paintedBodyBox = boxStyle;
+            if (name == "body" && result.CanvasColor is null && boxStyle.BackgroundColor is { } bodyBackground)
+            {
+                result.CanvasColor = bodyBackground;
+                paintedBodyBox = boxStyle with { BackgroundColor = null, BackgroundUsesCurrentColor = false };
+            }
             if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
             if (stack.Count - impliedOpen > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             object? before = null, after = null;
@@ -793,9 +801,9 @@ internal static class HtmlDocumentReader
             // width) adds no box, so a page without body tags keeps its read tree; a styled one paints
             // and lays out like an explicit body.
             if (BoxTag(name) && (table?.Cell is null || cellBlocks > 0 || ListTag(name))
-                && !(implied && boxStyle with { BorderBoxSizing = false } == BoxStyle.Initial))
+                && !(implied && paintedBodyBox with { BorderBoxSizing = false } == BoxStyle.Initial))
             {
-                box = new BlockNode(name, style, boxStyle, token.Offset)
+                box = new BlockNode(name, style, paintedBodyBox, token.Offset)
                 {
                     ListStart = listStart, ListValue = listValue, ListReversed = listReversed
                 };
