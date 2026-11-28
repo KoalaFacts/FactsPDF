@@ -542,8 +542,8 @@ targeted NUnit layout/recovery tests and Linux/Windows Native AOT
 qpdf/Poppler validation paths exercise actual font/text placement,
 painted geometry and multi-page output. Paragraph/heading vertical
 percentages and direct percentage-panel inheritance still reject rather
-than reinterpret units. No general margin collapse, customer package,
-human approval or commercial rights are implied.
+than reinterpret units. No general margin collapse, customer package
+or human approval is implied.
 
 ### Current-source report display suppression
 

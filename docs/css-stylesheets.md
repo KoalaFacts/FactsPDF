@@ -257,7 +257,7 @@ and [independent explicit CSS control](../examples/report-inline-changes-oracle.
 are checked by `SemanticInlineReportTests.cs` and the real Native AOT
 qpdf/Poppler report parity and original-output recovery verifier.
 Engine source [a1300f39](https://github.com/KoalaFacts/FactsPDF/commit/a1300f3943efcf92426836b963e72d28b078e192).
-No binary release, commercial rights, manual page signoff or
+No binary release, manual page signoff or
 independent review is inferred from the implementation source.
 
 ## Bounded `@media print` / `@media all` for PDF report stylesheets (source-only)
@@ -915,8 +915,8 @@ Failures preserve the original PDF destination. Tests cover API/CLI, actual
 PDF paint streams, TrueType glyph widths, inline overrides and multipage flow.
 See [printable 60-entry report](../examples/report-text-decoration-paint.html)
 and [regressions](../tests/FactsPDF.Tests/TextDecorationPaintTests.cs).
-Exact-head CI, independent review, retained binary, human PDF approval and
-commercial rights remain separate from this source implementation.
+Exact-head CI, independent review, retained binary and human PDF approval
+remain separate from this source implementation.
 ## Current-source computed font-relative border widths (candidate)
 
 The existing bordered-report path accepts `em` (own final computed
@@ -2106,8 +2106,8 @@ box `width`, `min-width`, `max-width` and padding (see below), while a distinct
 scoped implementation supports paragraph/heading `rem` margins. General container vertical
 margins, borders, `letter-spacing`, `word-spacing`, table/image/column dimensions,
 `ex/ch/lh/rlh` and `calc()` remain unsupported.
-Real current-head CI, independent code review, installable packaging,
-commercial rights and human page approval are separate gates.
+Real current-head CI, independent code review, installable packaging
+and human page approval are separate gates.
 
 ## Current-source root-relative report box lengths
 
