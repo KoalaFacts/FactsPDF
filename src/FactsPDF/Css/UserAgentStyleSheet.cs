@@ -35,6 +35,9 @@ internal static class UserAgentStyleSheet
         address,i,cite,em,var,dfn{font-style:italic}
         b,strong,th{font-weight:bold}
         small{font-size:smaller}
+        sub{vertical-align:sub;font-size:smaller}
+        sup{vertical-align:super;font-size:smaller}
+        mark{background-color:yellow;color:black}
         big{font-size:larger}
         u,ins{text-decoration:underline}
         s,del{text-decoration:line-through}

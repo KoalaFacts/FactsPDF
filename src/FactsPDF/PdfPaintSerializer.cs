@@ -147,9 +147,9 @@ internal static class PdfPaintSerializer
             // Short first/last fragments clip the border to their own bounds;
             // these exact heights are also used by PaintedBox.CommandCount.
             var top = box.TopBorderHeight;
-            var right = s.BorderRight.EffectiveWidth;
+            var right = box.RightBorderWidth;
             var bottom = box.BottomBorderHeight;
-            var left = s.BorderLeft.EffectiveWidth;
+            var left = box.LeftBorderWidth;
             if (top > 0)
                 Border(output, s.BorderTop, box.TextColor, x, y, width, top,
                     horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);

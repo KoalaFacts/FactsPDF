@@ -60,13 +60,8 @@ public sealed class InlineZeroBoxResetTests
         Assert.That(Pdf(Doc("a{background-color:transparent;color:#c00}")), Is.EqualTo(Pdf(Doc("a{color:#c00}"))));
     }
 
-    [TestCase("a{background-color:#ff0}", "#ff0")]
-    [TestCase("span{background-color:inherit}", "inherit")]
-    [TestCase("span{margin:2pt}", "2pt")]
-    [TestCase("span{margin-left:1em}", "1em")]
-    [TestCase("a{padding:0 4px}", "4px")]
-    [TestCase("small{margin:inherit}", "inherit")]
-    [TestCase("span{margin:0 auto}", "auto")]
+    [TestCase("span{border-radius:3pt}", "3pt")]
+    [TestCase("a{outline:1pt solid red}", "1pt")]
     public void InlineBoxValuesThatWouldRenderStillFailWithoutOutput(string css, string at)
     {
         var html = Doc(css);

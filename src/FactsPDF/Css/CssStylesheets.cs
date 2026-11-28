@@ -560,6 +560,8 @@ internal sealed class CssStylesheets
         // A pseudo-element is matched through its originating element but validated and computed
         // as the box it generates: an inline span or a block div.
         var subject = pseudoName ?? element.Name;
+        // An inline element that lays out as an inline box; a child of a flex or grid container is a blockified item instead.
+        var inlineBox = HtmlDocumentReader.InlineTag(subject) && !parentBox.HasItems;
         customDeclarations.Clear(); pendingDeclarations.Clear();
         var cellParagraph = subject == "p" && AnyElement(path, e => e.Name is "td" or "th") && !InCellList(path);
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
@@ -598,7 +600,7 @@ internal sealed class CssStylesheets
             // A cell's baseline row alignment is not implemented (rejected below). An img or svg
             // keeps it, since it can win over another alignment of the image.
             if (declaration.Property == CssProperty.VerticalAlign && declaration.Value == "baseline"
-                && subject is not ("td" or "th" or "img" or "svg"))
+                && subject is not ("td" or "th" or "img" or "svg") && !inlineBox)
                 return;
             // A br has no width, height or children, so box-sizing (validated when parsed) changes
             // nothing there and *{box-sizing:border-box} does not fail on a line break.
@@ -610,6 +612,7 @@ internal sealed class CssStylesheets
             // and dropped. Inline text has no box here, so a zero margin or padding and a transparent
             // background (normalize.css a{background-color:transparent}, *{margin:0;padding:0}) are
             // dropped there too. Any value that would move or paint the content still fails below.
+            if (inlineBox && InlineNoEffect(declaration.Property)) return;
             if (RootZeroInset(subject, declaration) || InlineZeroBox(subject, declaration)
                 || TablePartMargin(subject, declaration) || UnusedZeroInset(subject, declaration))
                 return;
@@ -714,7 +717,8 @@ internal sealed class CssStylesheets
                 subject is not ("ol" or "ul" or "menu" or "li"))
                 throw new FactsPdfException("FPDF1201",
                     "List marker properties are supported only on ol, ul and li.", declaration.Offset);
-            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg"))
+            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg")
+                && !inlineBox)
             {
                 if (subject is not ("td" or "th"))
                     throw new FactsPdfException("FPDF1201",
@@ -867,7 +871,8 @@ internal sealed class CssStylesheets
                 or CssProperty.MarginLeft or CssProperty.MarginRight or CssProperty.BreakBefore
                 or CssProperty.BreakAfter or CssProperty.TextIndent)
                 && !(reportTextFlowHost && declaration.Property is CssProperty.TextIndent)
-                && !(cellTextIndentHost && declaration.Property is CssProperty.TextIndent))
+                && !(cellTextIndentHost && declaration.Property is CssProperty.TextIndent)
+                && !(inlineBox && declaration.Property is CssProperty.MarginLeft or CssProperty.MarginRight))
                 throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings or scoped report panels.", declaration.Offset);
             // box-sizing changes nothing on <html> (no width or height is accepted there) or on
             // non-replaced inline text (CSS Box Sizing: width and height do not apply), so the
@@ -891,6 +896,7 @@ internal sealed class CssStylesheets
             // A row or row group background paints under its cells (TableMarkup gives it to
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
+                && !(inlineBox && InlineBoxProperty(declaration.Property))
                 // overflow and text-overflow do nothing on an inline box, as in a browser; table parts need their own geometry.
                 && !(declaration.Property is CssProperty.OverflowX or CssProperty.OverflowY or CssProperty.TextOverflow
                     && subject is not ("table" or "thead" or "tbody" or "tfoot" or "tr" or "td" or "th" or "caption" or "col" or "colgroup"))
@@ -1088,7 +1094,7 @@ internal sealed class CssStylesheets
                     "inside" => true,
                     _ => throw new InvalidOperationException("Unvalidated list marker position.")
                 };
-            else if (declaration.Property == CssProperty.VerticalAlign && element.Name is "img" or "svg")
+            else if (declaration.Property == CssProperty.VerticalAlign && (element.Name is "img" or "svg" || inlineBox))
                 Own().InlineAlign = declaration.Value is "inherit" ? parentBox.InlineAlign
                     : declaration.Value is "initial" or "unset" ? default
                     : InlineVerticalAlign.TryParse(declaration.Value, out var inlineAlign, style.FontSize, rootFontSize)
@@ -1398,6 +1404,18 @@ internal sealed class CssStylesheets
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
                 allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
     }
+
+    // The box properties an inline element lays out as an inline box (InlineBox).
+    private static bool InlineBoxProperty(CssProperty property) =>
+        property is >= CssProperty.PaddingTop and <= CssProperty.PaddingLeft or CssProperty.BackgroundColor
+            or >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor or CssProperty.MarginLeft or CssProperty.MarginRight
+            or CssProperty.BoxSizing;
+
+    // Width, height and the vertical margins do not apply to a non-replaced inline box, so a
+    // declaration of them changes nothing and is validated and dropped, as a browser ignores it.
+    private static bool InlineNoEffect(CssProperty property) =>
+        property is CssProperty.Width or CssProperty.MinWidth or CssProperty.MaxWidth or CssProperty.Height
+            or CssProperty.MinHeight or CssProperty.MaxHeight or CssProperty.MarginTop or CssProperty.MarginBottom;
 
     // Inline text elements lay out no box of their own: a zero margin or padding leaves the text
     // where it is, and a transparent background (also background:none) paints nothing. initial and

@@ -63,6 +63,8 @@ internal sealed class PdfImageWriter
                 SvgPainter.Append(content, vector, placed, options, ref alpha);
                 continue;
             }
+            // An inline box's paint travels as a decoration with no image of its own.
+            if (placed.Image is null) continue;
             content.Append("q ").AppendInvariant(placed.Width, Number).Append(" 0 0 ").AppendInvariant(placed.Height, Number).Append(' ')
                 .AppendInvariant(placed.X, Number).Append(' ').AppendInvariant(options.PageHeight - placed.Top - placed.Height, Number)
                 .Append(" cm /Im").Append(indices[placed.Image!] + 1).Append(" Do Q\n");

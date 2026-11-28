@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Collections;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace FactsPDF;
@@ -10,14 +11,21 @@ internal static class TextLines
     // An inline img or svg is one atomic glyph: its Scalar is -(run index + 2) in its paragraph
     // (-1 stays "no glyph" for the break scans) and Width1000 holds its outer width in points;
     // letter- and word-spacing never apply to it.
-    internal readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000, int SourceOffset = -1)
+    // An inline box's start or end (see InlineBox) is a glyph too: its Scalar is -(run index + 2)
+    // like an atom's and Width1000 holds the width of its edges in points, but line breaking sees
+    // through it (the break analysis runs over the text and atoms alone).
+    internal enum GlyphKind : byte { Text, Atom, BoxStart, BoxEnd }
+    internal readonly record struct Glyph(int Scalar, TextStyle Style, PdfFont? Font, double Width1000, int SourceOffset = -1,
+        GlyphKind Kind = GlyphKind.Text)
     {
-        internal bool IsAtom => Scalar < -1;
+        internal bool IsAtom => Kind == GlyphKind.Atom;
+        internal bool IsBoxEdge => Kind >= GlyphKind.BoxStart;
+        internal bool IsFixedWidth => Kind != GlyphKind.Text;
         internal int AtomRun => -Scalar - 2;
         // PDF Tc adds fixed character spacing after each shown glyph, across
         // ASCII and embedded CID TrueType font runs. Layout must count the
         // identical advance before wrapping, centring or underlining.
-        public double Width => IsAtom ? Width1000 : Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
+        public double Width => IsFixedWidth ? Width1000 : Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
             + (Scalar == 32 ? Style.WordSpacing : 0);
     }
     // An inline image placed on a line: its geometry and the height of its outer box's top above
@@ -25,8 +33,22 @@ internal static class TextLines
     internal readonly record struct InlineAtom(ImageNode Node, ImageLayout.Geometry Geometry, double Top, string? LinkUri);
     // Glyph and atom storage is borrowed until the next MoveNext. Each consumer copies
     // every placed text run before advancing; the iterator reuses its glyph storage.
+    // One line's piece of an inline box: its baseline Shift above the line's baseline (negative lowers
+    // it), the font box (Ascent and Descent in points) its background and borders surround, the edges
+    // that lie above and below that box and whether it continues from an earlier line. The remaining
+    // fields are the wrapper's working state while it places the line.
+    internal struct InlineFragment
+    {
+        internal InlineBox Box;
+        internal double Shift, Ascent, Descent, MarginLeft, MarginRight, PaddingTop, PaddingBottom;
+        internal bool Continued;
+        internal double Relative, SubAscent, SubDescent;
+        internal int Parent, Root;
+        internal bool Deferred;
+    }
     internal readonly record struct Line(List<Glyph> Glyphs, double Width, double Height, double Ascent, double Descent,
-        double FirstLineIndent = 0, TextAlignment? AlignmentOverride = null, List<InlineAtom>? Atoms = null);
+        double FirstLineIndent = 0, TextAlignment? AlignmentOverride = null, List<InlineAtom>? Atoms = null,
+        List<InlineFragment>? Fragments = null);
 
     /// <summary>
     /// The used box of an inline img or svg in a line whose containing block is
@@ -57,15 +79,66 @@ internal static class TextLines
         List<PlacedImage>? images = null, double topOrigin = 0)
     {
         var atom = 0;
+        var nextFragment = 0;
+        // The boxes open at this point, innermost last: the fragment, where its box began and where its
+        // paint goes among the line's images (a box paints under everything inside it).
+        var open = line.Fragments is null ? null : OpenFragments ??= [];
+        open?.Clear();
+        if (line.Fragments is { } continued)
+            while (nextFragment < continued.Count && continued[nextFragment].Continued)
+                open!.Add((nextFragment++, x, images?.Count ?? 0));
+        var shift = open is { Count: > 0 } ? line.Fragments![open[^1].Fragment].Shift : 0;
+        void Close(bool continues, double right)
+        {
+            var (index, left, imageIndex) = open![^1];
+            open.RemoveAt(open.Count - 1);
+            shift = open.Count > 0 ? line.Fragments![open[^1].Fragment].Shift : 0;
+            var fragment = line.Fragments![index];
+            var box = fragment.Box;
+            if (box.Style.Visibility != TextVisibility.Visible) return;
+            var omitLeft = fragment.Continued;
+            var boxLeft = omitLeft ? left : left + fragment.MarginLeft;
+            var boxRight = continues ? right : right - fragment.MarginRight;
+            var baselineY = baseline + fragment.Shift;
+            var top = baselineY + fragment.Ascent + fragment.PaddingTop + box.Box.BorderTop.EffectiveWidth;
+            var height = fragment.Ascent + fragment.Descent + fragment.PaddingTop + fragment.PaddingBottom
+                + box.Box.BorderTop.EffectiveWidth + box.Box.BorderBottom.EffectiveWidth;
+            var width = Math.Max(0, boxRight - boxLeft);
+            var painted = new PaintedBox(0, 0, width, height, box.Box, box.Style.Color, 0, SourceOffset: box.SourceOffset,
+                OmitLeftEdge: omitLeft, OmitRightEdge: continues);
+            var commands = painted.CommandCount;
+            if (commands == 0) return;
+            charge(commands, box.SourceOffset);
+            if (images is null)
+                throw new FactsPdfException("FPDF1201", "A background or border on an inline element is not supported here (table captions and page headers and footers).", box.SourceOffset);
+            images.Insert(Math.Min(imageIndex, images.Count),
+                new PlacedImage(null, boxLeft, topOrigin - top, width, height, SourceOffset: box.SourceOffset, Decoration: painted));
+        }
         for (var start = 0; start < line.Glyphs.Count;)
         {
             var first = line.Glyphs[start];
+            if (first.Kind == GlyphKind.BoxStart)
+            {
+                if (line.Fragments is not null && nextFragment < line.Fragments.Count)
+                {
+                    open!.Add((nextFragment, x, images?.Count ?? 0));
+                    shift = line.Fragments[nextFragment++].Shift;
+                }
+                x += first.Width; start++;
+                continue;
+            }
+            if (first.Kind == GlyphKind.BoxEnd)
+            {
+                if (open is { Count: > 0 }) Close(false, x + first.Width);
+                x += first.Width; start++;
+                continue;
+            }
             if (!first.IsAtom && first.Style.Visibility != TextVisibility.Visible)
             {
                 // visibility:hidden keeps the text's room and paints nothing.
                 var hidden = 0d;
                 var stop = start;
-                while (stop < line.Glyphs.Count && !line.Glyphs[stop].IsAtom && line.Glyphs[stop].Style.Visibility != TextVisibility.Visible)
+                while (stop < line.Glyphs.Count && line.Glyphs[stop].Kind == GlyphKind.Text && line.Glyphs[stop].Style.Visibility != TextVisibility.Visible)
                     hidden += line.Glyphs[stop++].Width;
                 x += hidden; start = stop;
                 continue;
@@ -101,7 +174,7 @@ internal static class TextLines
             {
                 utf16Length = 1; width = first.Width; end = start + 1;
             }
-            while (first.Scalar != 9 && end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
+            while (first.Scalar != 9 && end < line.Glyphs.Count && line.Glyphs[end].Kind == GlyphKind.Text && line.Glyphs[end].Style == first.Style
                 && ReferenceEquals(line.Glyphs[end].Font, first.Font) && line.Glyphs[end].Scalar != 9)
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
@@ -122,12 +195,17 @@ internal static class TextLines
                 });
             // Only default-ignorable characters: nothing to paint, just their (zero) advance.
             if (text.Length == 0) { x += width; start = end; continue; }
+            var runBaseline = baseline + shift;
             target.Add(sourceOffset >= 0 && (first.Style.Decoration != TextDecoration.None || first.Style.LinkUri is not null)
-                ? new LocatedText(text, x, baseline, first.Style, first.Font, width, sourceOffset)
-                : new PlacedText(text, x, baseline, first.Style, first.Font, width));
+                ? new LocatedText(text, x, runBaseline, first.Style, first.Font, width, sourceOffset)
+                : new PlacedText(text, x, runBaseline, first.Style, first.Font, width));
             x += width; start = end;
         }
+        // Boxes still open end with the line and continue on the next one.
+        while (open is { Count: > 0 }) Close(true, x);
     }
+
+    [ThreadStatic] private static List<(int Fragment, double Left, int ImageIndex)>? OpenFragments;
 
     /// <summary>
     /// Ends a line that overflows its box (text-overflow:ellipsis) with an ellipsis: the glyphs that fit beside
@@ -166,6 +244,7 @@ internal static class TextLines
         {
             cancellation.ThrowIfCancellationRequested();
             if (run is InlineImageRun) return true;
+            if (run is InlineBoxRun { IsStart: true } boxRun && boxRun.Box.HasHorizontalEdge) return true;
             if (run.IsBreak) continue;
             foreach (var character in run.Text)
             {
@@ -247,6 +326,15 @@ internal static class TextLines
         private readonly LineBreakAnalyzer analyzer = new();
         private int[] scalars = [];
         private byte[] opportunities = [];
+        // For the break analysis, which sees text and atoms but no inline box edges: where each of those
+        // sits in the window, and for each window position the nearest text or atom before it (or -1).
+        private int[] textIndex = [];
+        private int[] prevText = [];
+        // The inline boxes open at the start of the next line, and one line's boxes with their shifts.
+        private readonly List<InlineBox> openBoxes = [];
+        private readonly List<InlineFragment> fragments = [];
+        private readonly List<int> boxStack = [];
+        private readonly List<double> atomShifts = [];
         // Created by the first line with an inline image, so text-only wrapping allocates nothing more.
         private List<InlineAtom>? atoms;
         private bool rented;
@@ -285,6 +373,7 @@ internal static class TextLines
             wrapper.rented = true;
             wrapper.started = wrapper.done = wrapper.readerDone = false;
             wrapper.next = 0;
+            wrapper.openBoxes.Clear();
             wrapper.paragraph = paragraph;
             wrapper.available = available;
             wrapper.options = options;
@@ -305,6 +394,7 @@ internal static class TextLines
             all.Clear();
             current.Clear();
             atoms?.Clear();
+            fragments.Clear(); openBoxes.Clear(); boxStack.Clear(); atomShifts.Clear();
             paragraph = null!; options = null!; resolved = null!; firstMarker = null;
             Current = default; cancellation = default; reader = default;
             if (all.Capacity <= MaxPooledGlyphs && current.Capacity <= MaxPooledGlyphs) pooled = this;
@@ -376,20 +466,47 @@ internal static class TextLines
             {
                 scalars = new int[Math.Max(count, scalars.Length * 2)];
                 opportunities = new byte[scalars.Length];
+                textIndex = new int[scalars.Length];
+                prevText = new int[scalars.Length];
             }
-            for (var i = 0; i < count; i++) scalars[i] = all[i].Scalar;
-            var style = paragraph.Style;
-            analyzer.Analyze(scalars.AsSpan(0, count), style.LineBreak,
-                style.KeepAll ? WordBreakMode.KeepAll : style.BreakAll ? WordBreakMode.BreakAll : WordBreakMode.Normal)
-                .CopyTo(opportunities);
-            // break-spaces: a soft wrap opportunity follows every preserved space, even before another one.
-            for (var i = 1; i < count; i++)
+            // Inline box edges are invisible to the analysis: it runs over the text and atoms alone.
+            var texts = 0;
+            var last = -1;
+            for (var i = 0; i < count; i++)
             {
-                if (all[i - 1].Scalar == 32 && all[i - 1].Style.BreakSpaces && all[i].Scalar != 10)
-                    opportunities[i] = LineBreakAnalyzer.Allowed;
-                // A soft hyphen breaks only where hyphens is manual (the initial value).
-                else if (all[i - 1].Scalar == 0xAD && all[i - 1].Style.NoHyphens) opportunities[i] = LineBreakAnalyzer.No;
+                prevText[i] = last;
+                if (all[i].IsBoxEdge) continue;
+                scalars[texts] = all[i].Scalar;
+                textIndex[texts++] = i;
+                last = i;
             }
+            var style = paragraph.Style;
+            var found = analyzer.Analyze(scalars.AsSpan(0, texts), style.LineBreak,
+                style.KeepAll ? WordBreakMode.KeepAll : style.BreakAll ? WordBreakMode.BreakAll : WordBreakMode.Normal);
+            Array.Clear(opportunities, 0, count);
+            for (var k = 1; k < texts; k++)
+            {
+                // A break between two text positions falls before the start edges of the boxes that open
+                // there and after the end edges of those that close, so an edge stays with the text it
+                // touches: start edges begin the next line, end edges finish the line before.
+                var slot = textIndex[k];
+                for (var i = textIndex[k - 1] + 1; i < textIndex[k]; i++)
+                    if (all[i].Kind == GlyphKind.BoxStart) { slot = i; break; }
+                var before = all[textIndex[k - 1]];
+                // break-spaces: a soft wrap opportunity follows every preserved space, even before another one.
+                if (before.Scalar == 32 && before.Style.BreakSpaces && all[textIndex[k]].Scalar != 10)
+                    opportunities[slot] = LineBreakAnalyzer.Allowed;
+                // A soft hyphen breaks only where hyphens is manual (the initial value).
+                else if (before.Scalar == 0xAD && before.Style.NoHyphens) opportunities[slot] = LineBreakAnalyzer.No;
+                else opportunities[slot] = found[k];
+            }
+        }
+
+        // The next text or atom at or after window position i, or -1.
+        private int NextText(int i)
+        {
+            for (; i < all.Count; i++) if (!all[i].IsBoxEdge) return i;
+            return -1;
         }
 
         // Whether glyph `index` exists, with its break decision final.
@@ -420,9 +537,11 @@ internal static class TextLines
         // wrapping is off only where both sides forbid it.
         private bool MayWrapBefore(int i)
         {
-            if (opportunities[i] == LineBreakAnalyzer.No) return false;
-            var previous = all[i - 1];
-            return previous.Scalar == 32 ? !previous.Style.NoWrap : !(previous.Style.NoWrap && all[i].Style.NoWrap);
+            if (opportunities[i] == LineBreakAnalyzer.No || prevText[i] < 0) return false;
+            var previous = all[prevText[i]];
+            var next = all[i].IsBoxEdge ? NextText(i) : i;
+            if (next < 0) return false;
+            return previous.Scalar == 32 ? !previous.Style.NoWrap : !(previous.Style.NoWrap && all[next].Style.NoWrap);
         }
 
         // The advance of a glyph at offset x of its line; a tab runs to the next tab stop.
@@ -461,14 +580,14 @@ internal static class TextLines
                 var glyph = all[i];
                 if (glyph.Scalar == 10) { end = i; next = i + 1; break; }
                 // A line that ends at a soft hyphen shows a hyphen, which has to fit as well.
-                if (i > start && MayWrapBefore(i) && (all[i - 1].Scalar != 0xAD || fit + HyphenWidth(all[i - 1]) <= capacity)) lastBreak = i;
+                if (i > start && MayWrapBefore(i) && (all[prevText[i]].Scalar != 0xAD || fit + HyphenWidth(all[prevText[i]]) <= capacity)) lastBreak = i;
                 var advance = Advance(glyph, offset + total);
                 var hangs = Hangs(glyph);
                 var candidate = hangs ? fit : total + advance;
                 if (!glyph.Style.NoWrap && candidate > capacity)
                 {
                     if (lastBreak > start) { end = lastBreak; next = lastBreak; soft = true; break; }
-                    if (i > start && (glyph.Style.EmergencyBreak || glyph.Style.BreakAnywhere))
+                    if (i > start && glyph.Kind != GlyphKind.BoxEnd && (glyph.Style.EmergencyBreak || glyph.Style.BreakAnywhere))
                     {
                         end = i; next = i; soft = true; break;
                     }
@@ -493,21 +612,29 @@ internal static class TextLines
                 width += glyph.Width;
             }
             // A soft hyphen that ends the line becomes a visible hyphen.
-            if (soft && end > start && all[end - 1].Scalar == 0xAD)
+            if (soft && end > start && prevText[end] >= start && all[prevText[end]].Scalar == 0xAD)
             {
-                var hyphen = HyphenGlyph(all[end - 1]);
-                current.Add(hyphen);
+                var hyphen = HyphenGlyph(all[prevText[end]]);
+                current.Insert(prevText[end] - start + 1, hyphen);
                 width += hyphen.Width;
             }
-            while (current.Count > 0 && IsCollapsibleSpace(current[^1]))
+            // The collapsible spaces at the end go; the box edges that follow them stay.
+            for (var g = current.Count - 1; g >= 0; g--)
             {
-                width -= current[^1].Width;
-                current.RemoveAt(current.Count - 1);
+                if (current[g].IsBoxEdge) continue;
+                if (!IsCollapsibleSpace(current[g])) break;
+                width -= current[g].Width;
+                current.RemoveAt(g);
             }
             // Preserved spaces that hang at a soft wrap stay painted but take no part in aligning the line;
             // before a forced break or at the end of the text they count.
             if (soft)
-                for (var g = current.Count - 1; g >= 0 && current[g].Scalar == 32 && Hangs(current[g]); g--) width -= current[g].Width;
+                for (var g = current.Count - 1; g >= 0; g--)
+                {
+                    if (current[g].IsBoxEdge) continue;
+                    if (current[g].Scalar != 32 || !Hangs(current[g])) break;
+                    width -= current[g].Width;
+                }
             return soft;
         }
 
@@ -677,32 +804,180 @@ internal static class TextLines
                 descent = Math.Max(descent, markerDescent);
             }
             var hasAtoms = false;
+            var hasBoxes = openBoxes.Count > 0;
             foreach (var glyph in current)
             {
-                // An inline image's parent inline box contributes its own leading-adjusted
-                // height, as an empty inline box does in standards mode.
-                var (glyphAscent, glyphDescent) = Metrics(glyph.Style, glyph.SourceOffset);
-                ascent = Math.Max(ascent, glyphAscent);
-                descent = Math.Max(descent, glyphDescent);
                 hasAtoms |= glyph.IsAtom;
+                hasBoxes |= glyph.IsBoxEdge;
             }
             atoms?.Clear();
-            if (hasAtoms) (ascent, descent) = PlaceAtoms(ascent, descent);
+            fragments.Clear();
+            atomShifts.Clear();
+            if (hasBoxes) (ascent, descent) = PlaceBoxes(ascent, descent);
+            else
+                foreach (var glyph in current)
+                {
+                    // An inline image's parent inline box contributes its own leading-adjusted
+                    // height, as an empty inline box does in standards mode.
+                    var (glyphAscent, glyphDescent) = Metrics(glyph.Style, glyph.SourceOffset);
+                    ascent = Math.Max(ascent, glyphAscent);
+                    descent = Math.Max(descent, glyphDescent);
+                }
+            if (hasAtoms) (ascent, descent) = PlaceAtoms(ascent, descent, hasBoxes);
             return new(current, paintedWidth, ascent + descent, ascent, descent,
                 firstLine ? firstIndent : 0,
-                softWrapped ? null : paragraph.Style.LastLineAlignment, hasAtoms ? atoms : null);
+                softWrapped ? null : paragraph.Style.LastLineAlignment, hasAtoms ? atoms : null,
+                hasBoxes ? fragments : null);
+        }
+
+        // Walks the line's glyphs with the inline boxes open at its start, giving every box its baseline
+        // shift and every glyph, atom and box the line height it asks for at that shift. A box aligned to
+        // the top or bottom of the line is measured on its own (with what it holds) and placed after the
+        // rest, growing the line only when taller than it. Returns the line's ascent and descent.
+        private (double Ascent, double Descent) PlaceBoxes(double ascent, double descent)
+        {
+            boxStack.Clear();
+            for (var i = 0; i < openBoxes.Count; i++) PushBox(openBoxes[i], true);
+            foreach (var glyph in current)
+            {
+                if (glyph.Kind == GlyphKind.BoxStart)
+                    PushBox(((InlineBoxRun)paragraph.Runs[glyph.AtomRun]).Box, false);
+                else if (glyph.Kind == GlyphKind.BoxEnd)
+                {
+                    if (boxStack.Count > 0) boxStack.RemoveAt(boxStack.Count - 1);
+                }
+                else
+                {
+                    if (glyph.IsAtom)
+                    {
+                        atomShifts.Add(boxStack.Count > 0 ? fragments[boxStack[^1]].Relative : 0);
+                        // The atom's own box is added by PlaceAtoms; its parent inline box still counts.
+                    }
+                    var (glyphAscent, glyphDescent) = Metrics(glyph.Style, glyph.SourceOffset);
+                    Contribute(glyphAscent, glyphDescent);
+                }
+            }
+            openBoxes.Clear();
+            foreach (var openIndex in boxStack) openBoxes.Add(fragments[openIndex].Box);
+            var span = CollectionsMarshal.AsSpan(fragments);
+            for (var i = 0; i < span.Length; i++)
+            {
+                ref var fragment = ref span[i];
+                if (!fragment.Deferred) continue;
+                var height = fragment.SubAscent + fragment.SubDescent;
+                var lineHeight = ascent + descent;
+                if (fragment.Box.Align.Kind == InlineAlignKind.Top)
+                {
+                    if (height > lineHeight) descent += height - lineHeight;
+                    fragment.Shift = ascent - fragment.SubAscent;
+                }
+                else
+                {
+                    if (height > lineHeight) ascent += height - lineHeight;
+                    fragment.Shift = -(descent - fragment.SubDescent);
+                }
+            }
+            for (var i = 0; i < span.Length; i++)
+            {
+                ref var fragment = ref span[i];
+                if (!fragment.Deferred) fragment.Shift = fragment.Root < 0 ? fragment.Relative : span[fragment.Root].Shift + fragment.Relative;
+            }
+            return (ascent, descent);
+
+            void Contribute(double glyphAscent, double glyphDescent)
+            {
+                var top = boxStack.Count > 0 ? boxStack[^1] : -1;
+                var relative = top >= 0 ? fragments[top].Relative : 0;
+                var root = top >= 0 ? fragments[top].Root : -1;
+                if (root >= 0)
+                {
+                    var rooted = CollectionsMarshal.AsSpan(fragments);
+                    rooted[root].SubAscent = Math.Max(rooted[root].SubAscent, glyphAscent + relative);
+                    rooted[root].SubDescent = Math.Max(rooted[root].SubDescent, glyphDescent - relative);
+                }
+                else
+                {
+                    ascent = Math.Max(ascent, glyphAscent + relative);
+                    descent = Math.Max(descent, glyphDescent - relative);
+                }
+            }
+
+            void PushBox(InlineBox box, bool continued)
+            {
+                var parent = boxStack.Count > 0 ? boxStack[^1] : -1;
+                var deferred = box.Align.Kind is InlineAlignKind.Top or InlineAlignKind.Bottom;
+                var edges = box.Resolve(available);
+                var (fontAscent, fontDescent) = FontBoxRounded(box.Style, box.SourceOffset);
+                var index = fragments.Count;
+                fragments.Add(new InlineFragment
+                {
+                    Box = box, Ascent = fontAscent, Descent = fontDescent, MarginLeft = edges.MarginLeft,
+                    MarginRight = edges.MarginRight, PaddingTop = edges.PaddingTop, PaddingBottom = edges.PaddingBottom,
+                    Continued = continued, Parent = parent, Deferred = deferred,
+                    Root = deferred ? index : parent >= 0 ? fragments[parent].Root : -1,
+                    Relative = deferred ? 0 : (parent >= 0 ? fragments[parent].Relative : 0) + OwnShift(box),
+                });
+                boxStack.Add(index);
+                var (boxAscent, boxDescent) = Metrics(box.Style, box.SourceOffset);
+                Contribute(boxAscent, boxDescent);
+            }
+        }
+
+        // The distance vertical-align raises an inline box's baseline above its parent's (negative lowers).
+        private double OwnShift(InlineBox box)
+        {
+            var align = box.Align;
+            switch (align.Kind)
+            {
+                case InlineAlignKind.Sub: return -SubSuperShift(box.ParentStyle, 5);
+                case InlineAlignKind.Super: return SubSuperShift(box.ParentStyle, 3);
+                case InlineAlignKind.Shift:
+                    return align.IsPercent
+                        ? align.Shift / 100 * LineHeight(box.Style, FontRoles.Chain(options, FontRoles.Role(box.Style), box.SourceOffset))
+                        : align.Shift;
+                case InlineAlignKind.TextTop:
+                    return FontBoxRounded(box.ParentStyle, box.SourceOffset).Ascent - FontBoxRounded(box.Style, box.SourceOffset).Ascent;
+                case InlineAlignKind.TextBottom:
+                    return FontBoxRounded(box.Style, box.SourceOffset).Descent - FontBoxRounded(box.ParentStyle, box.SourceOffset).Descent;
+                case InlineAlignKind.Middle:
+                {
+                    var (ascent, descent) = Metrics(box.Style, box.SourceOffset);
+                    return XHeight(box.ParentStyle, box.SourceOffset) / 2 - (ascent - descent) / 2;
+                }
+                default: return 0;
+            }
+        }
+
+        // Blink raises super by a third and lowers sub by a fifth of the parent's font size in CSS pixels
+        // (held in 1/64 pixel units, as its LayoutUnit does), plus one pixel.
+        private static double SubSuperShift(TextStyle parent, int divisor)
+        {
+            var fixedSize = Math.Round(parent.FontSize * PixelsPerPoint * 64, MidpointRounding.AwayFromZero);
+            return (Math.Floor(fixedSize / divisor) + 64) / 64 / PixelsPerPoint;
+        }
+
+        // The font box an inline box's background and borders surround: the first font's ascent and
+        // descent, each rounded to whole CSS pixels as Blink does, in points.
+        private (double Ascent, double Descent) FontBoxRounded(TextStyle style, int sourceOffset)
+        {
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
+            if (fonts.Count == 0) return (style.FontSize * 0.8, style.FontSize * 0.2);
+            var (ascent, descent, _) = PixelMetrics(fonts[0], style.FontSize);
+            return (ascent / PixelsPerPoint, descent / PixelsPerPoint);
         }
 
         // CSS 2.1 §10.8: each inline image's outer box is aligned to its parent's baseline,
         // x-height or text box, which extends the line's ascent and descent; top and bottom
         // images are then aligned to the line box itself, growing it only when taller than it.
-        private (double Ascent, double Descent) PlaceAtoms(double ascent, double descent)
+        private (double Ascent, double Descent) PlaceAtoms(double ascent, double descent, bool hasBoxes)
         {
             var atoms = this.atoms ??= [];
             var deferred = false;
+            var atomIndex = 0;
             foreach (var glyph in current)
             {
                 if (!glyph.IsAtom) continue;
+                var raise = hasBoxes ? atomShifts[atomIndex++] : 0;
                 var image = ((InlineImageRun)paragraph.Runs[glyph.AtomRun]).Image;
                 var geometry = AtomGeometry(image, available);
                 var height = geometry.OuterHeight;
@@ -720,6 +995,7 @@ internal static class TextLines
                 if (align.Kind is InlineAlignKind.Top or InlineAlignKind.Bottom) deferred = true;
                 else
                 {
+                    top += raise;
                     ascent = Math.Max(ascent, top);
                     descent = Math.Max(descent, height - top);
                 }
@@ -852,6 +1128,24 @@ internal static class TextLines
                         Current = new Glyph(10, run.Style, null, 0, run.SourceOffset);
                         return true;
                     }
+                    if (run is InlineBoxRun boxRun)
+                    {
+                        // An inline box edge takes room but is no text: a collapsed space before it stays
+                        // before it, and it neither ends a word nor starts the text after it.
+                        var edges = boxRun.Box.Resolve(containingWidth);
+                        var edge = new Glyph(-(runIndex + 2), run.Style, null, boxRun.IsStart ? edges.Start : edges.End,
+                            run.SourceOffset, boxRun.IsStart ? GlyphKind.BoxStart : GlyphKind.BoxEnd);
+                        runIndex++;
+                        if (pendingSpace.HasValue)
+                        {
+                            Current = pendingSpace.Value;
+                            pendingSpace = null;
+                            queuedAtom = edge;
+                            return true;
+                        }
+                        Current = edge;
+                        return true;
+                    }
                     if (run is InlineImageRun image)
                     {
                         // An atomic inline: a collapsed space before it is kept, one after it
@@ -859,7 +1153,7 @@ internal static class TextLines
                         previousCarriageReturn = false;
                         insideAsciiWord = false;
                         var glyph = new Glyph(-(runIndex + 2), run.Style, null,
-                            AtomGeometry(image.Image, containingWidth).OuterWidth, run.SourceOffset);
+                            AtomGeometry(image.Image, containingWidth).OuterWidth, run.SourceOffset, GlyphKind.Atom);
                         runIndex++;
                         if (pendingSpace.HasValue)
                         {

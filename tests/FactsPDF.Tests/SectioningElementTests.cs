@@ -62,7 +62,7 @@ public sealed class SectioningElementTests
     [TestCase("<p><span><hgroup>A</hgroup></span></p>", "FPDF1101")]
     [TestCase("<search>A</hgroup>", "FPDF1101")]
     [TestCase("<hgroup href='x'>A</hgroup>", "FPDF1103")]
-    [TestCase("<mark>A</mark>", "FPDF1102")]
+    [TestCase("<ruby>A</ruby>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code)
     {
         using var output = new MemoryStream();

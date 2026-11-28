@@ -13,7 +13,7 @@ internal static class TextDecorationCommands
         System.Numerics.BitOperations.PopCount((uint)decoration);
 }
 internal enum TextDecorationPattern { Solid, Dashed, Dotted }
-internal enum InlineAlignKind : byte { Baseline, Middle, Top, Bottom, TextTop, TextBottom, Shift }
+internal enum InlineAlignKind : byte { Baseline, Middle, Top, Bottom, TextTop, TextBottom, Shift, Sub, Super }
 // An atomic inline's vertical-align. Shift raises the box's bottom above the baseline by an
 // absolute length in points (negative lowers it), or by a percentage of the line-height.
 internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double Shift = 0, bool IsPercent = false)
@@ -29,9 +29,11 @@ internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double
             "bottom" => new(InlineAlignKind.Bottom),
             "text-top" => new(InlineAlignKind.TextTop),
             "text-bottom" => new(InlineAlignKind.TextBottom),
+            "sub" => new(InlineAlignKind.Sub),
+            "super" => new(InlineAlignKind.Super),
             _ => default,
         };
-        if (value is "baseline" or "middle" or "top" or "bottom" or "text-top" or "text-bottom") return true;
+        if (value is "baseline" or "middle" or "top" or "bottom" or "text-top" or "text-bottom" or "sub" or "super") return true;
         var negative = value.StartsWith('-');
         var magnitude = negative || value.StartsWith('+') ? value[1..] : value;
         if (magnitude.Length == 0 || magnitude[0] is '-' or '+'
@@ -164,6 +166,11 @@ internal record TextRun(string Text, TextStyle Style, bool IsBreak = false, int 
 // and inherits; the image's own box style is on Image.
 internal sealed record InlineImageRun(ImageNode Image, TextStyle Style)
     : TextRun("", Style, false, Image.SourceOffset);
+// The start or end of an inline element's box (see InlineBox): its padding, border and margin take
+// room in the line, its background and borders are painted around the text it holds, and its
+// vertical-align shifts the text. Style is the box's own text style.
+internal sealed record InlineBoxRun(InlineBox Box, bool IsStart, TextStyle Style)
+    : TextRun("", Style, false, Box.SourceOffset);
 internal sealed record Paragraph(TextStyle Style, int SourceOffset = -1) : BlockChild
 {
     private const uint AnonymousBit = 0x8000_0000;
@@ -246,6 +253,15 @@ internal struct TextRunList : IReadOnlyList<TextRun>
         }
     }
 
+    /// <summary>Removes the last run, which must exist.</summary>
+    internal void RemoveLast()
+    {
+        if (count == 0) throw new InvalidOperationException("The run list is empty.");
+        if (items is TextRun[] array) array[count - 1] = null!;
+        else items = null;
+        count--;
+    }
+
     internal readonly bool HasBreak()
     {
         for (var i = 0; i < count; i++)
@@ -288,7 +304,7 @@ internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, 
 internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double Width, double Height,
     SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null)
 {
-    internal int CommandCount => Vector?.CommandCount ?? 1;
+    internal int CommandCount => Vector?.CommandCount ?? (Image is null ? 0 : 1);
 }
 /// <summary>
 /// A rectangle (the padding box of an overflow:hidden, clip, scroll or auto box, in top-origin page points)
@@ -310,10 +326,16 @@ internal sealed class LayoutPage
     public List<PlacedImage> Images { get; } = [];
 }
 
+// OmitLeftEdge and OmitRightEdge: a fragment of an inline box that continues from an earlier line or
+// onto a later one (box-decoration-break:slice) has no left or right border there.
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
     BoxStyle Style, Rgb TextColor, int Order,
-    bool IsFirstFragment = true, bool IsLastFragment = true, int SourceOffset = -1, int Clip = 0)
+    bool IsFirstFragment = true, bool IsLastFragment = true, int SourceOffset = -1, int Clip = 0,
+    bool OmitLeftEdge = false, bool OmitRightEdge = false)
 {
+    internal double LeftBorderWidth => OmitLeftEdge ? 0 : Style.BorderLeft.EffectiveWidth;
+    internal double RightBorderWidth => OmitRightEdge ? 0 : Style.BorderRight.EffectiveWidth;
+
     // A page fragment can be shorter than its specified border. Use the same
     // clipped geometry for serialization and display-command accounting.
     internal double TopBorderHeight => IsFirstFragment
@@ -324,12 +346,12 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
     // Counts the optional outline as a single PDF stroke command.
     // Exactly the nonzero rectangles emitted by PdfPaintSerializer.Rect.
     // An empty background or vertical edge of a zero-height box costs 0.
-    public int CommandCount => CountCommands(Width, Height, Style, IsFirstFragment, IsLastFragment);
+    public int CommandCount => CountCommands(Width, Height, Style, IsFirstFragment, IsLastFragment, OmitLeftEdge, OmitRightEdge);
 
     // The same count for a box that has not been allocated, so a caller can charge a
     // paint-free box and skip creating it.
     internal static int CountCommands(double width, double height, BoxStyle style,
-        bool isFirstFragment = true, bool isLastFragment = true)
+        bool isFirstFragment = true, bool isLastFragment = true, bool omitLeftEdge = false, bool omitRightEdge = false)
     {
         if (style.HasRoundedCorners)
             return width > 0 && height > 0
@@ -343,8 +365,8 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
         return outline + (width > 0 && height > 0 && style.BackgroundColor.HasValue ? 1 : 0)
             + (width > 0 && top > 0 && !style.BorderTop.Transparent ? 1 : 0)
             + (width > 0 && bottom > 0 && !style.BorderBottom.Transparent ? 1 : 0)
-            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
-            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? 1 : 0);
+            + (middleHeight > 0 && !omitLeftEdge && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
+            + (middleHeight > 0 && !omitRightEdge && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? 1 : 0);
     }
 }
 

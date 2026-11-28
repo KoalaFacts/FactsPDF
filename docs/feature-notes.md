@@ -573,6 +573,18 @@ style; normal text without a supplied font gets the ASCII `"` and `'`
 (`QuoteElementTests.cs`). `<bdi>` renders like `<span>`; FactsPDF lays out every
 run left to right, so it isolates nothing (`BdiElementTests.cs`).
 
+### Inline boxes: padding, borders, background, margins and vertical-align on inline text
+
+Inline elements are laid out as inline boxes: horizontal padding, borders and margins take room
+in the line, the background and borders paint around the text on each line the element spans
+(no border where it continues), vertical padding and borders never change the line height, and
+`vertical-align` (`sub`, `super`, lengths, percentages, `middle`, `text-top`, `text-bottom`,
+`top`, `bottom`) shifts the text and grows the line box as Chrome does. `sub`, `sup` and `mark`
+are supported with the user-agent sheet's styles. Source-only: the layout is covered by
+`InlineBoxModelTests.cs`; Chrome comparisons run in the integration pass. Width and height on an
+inline box are ignored; `border-radius`, `outline` and flex-item children with these properties
+still fail `FPDF1201`.
+
 The HTML `dir="ltr"` attribute (any ASCII case) is accepted on every element and changes nothing:
 it names the only direction FactsPDF lays out, so the PDF is byte-identical to the page without it.
 Email and document builders put it on `html`, `body`, tables and paragraphs. `dir="rtl"`,

@@ -9,7 +9,8 @@ internal static class HtmlDocumentReader
     // AlignStart: the element's computed text-align is its initial value, start, which a th or
     // caption child turns into the user-agent centre (see ReadTree).
     private readonly record struct Frame(string Name, TextStyle Style, BoxStyle BoxStyle, BlockNode? Box,
-        int SourceOffset = -1, int ChildStart = 0, bool AlignStart = true, bool FlexItem = false, object? After = null);
+        int SourceOffset = -1, int ChildStart = 0, bool AlignStart = true, bool FlexItem = false, object? After = null,
+        InlineBox? Inline = null);
 
     // The text and computed style of an inline ::before or ::after box.
     private sealed record GeneratedText(string Text, TextStyle Style);
@@ -44,7 +45,7 @@ internal static class HtmlDocumentReader
     // its text direction, and every run is laid out left to right, so it renders like span.
     internal static bool InlineTag(string name) => name is "span" or "b" or "strong" or "i" or "em"
         or "small" or "big" or "u" or "s" or "del" or "ins" or "a" or "code" or "kbd" or "samp" or "var" or "cite" or "dfn"
-        or "time" or "data" or "abbr" or "q" or "bdi";
+        or "time" or "data" or "abbr" or "q" or "bdi" or "sub" or "sup" or "mark";
 
     // The quotation mark a q at this nesting level opens or closes (CSS quotes for English:
     // the outer pair, then the inner pair for every deeper level). Text in the built-in font
@@ -352,6 +353,9 @@ internal static class HtmlDocumentReader
             if (generatedStyle.FontSize is < 1 or > 144)
                 throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", offset);
             var text = content[1..];
+            if (!block && InlineBox.HasBoxFeatures(generatedBox))
+                throw new FactsPdfException("FPDF1201",
+                    "Padding, borders, margins, a background or vertical-align on an inline ::before or ::after box are not supported.", offset);
             if (!block) return new GeneratedText(text, generatedStyle);
             var node = new BlockNode("div", generatedStyle, generatedBox, offset);
             if (text.Length > 0)
@@ -420,6 +424,36 @@ internal static class HtmlDocumentReader
                 anonymous = true;
             }
             current.Runs.Add(new InlineImageRun(node, parentStyle.KeepWithNext ? parentStyle with { KeepWithNext = false } : parentStyle));
+        }
+
+        // The start or end of an inline element's box (see InlineBox) in the open paragraph. An element
+        // that holds nothing and has no horizontal edge takes no part in layout, so its start is dropped
+        // again (and the paragraph it opened with it).
+        void AddInlineBoxEdge(InlineBox box, bool start)
+        {
+            if (start)
+            {
+                if (current is null)
+                {
+                    current = FlatCell() && table!.Cell is { } cell
+                        ? new Paragraph(cell.Style, cell.SourceOffset)
+                        : new Paragraph(stack[^1].Style, stack[^1].SourceOffset);
+                    anonymous = true;
+                    box.OpenedParagraph = true;
+                }
+                current.Runs.Add(new InlineBoxRun(box, true, box.Style));
+                return;
+            }
+            if (current is null) return;
+            var runs = current.Runs.Count;
+            if (runs > 0 && !box.HasHorizontalEdge && current.Runs[runs - 1] is InlineBoxRun { IsStart: true } last
+                && ReferenceEquals(last.Box, box))
+            {
+                current.Runs.RemoveLast();
+                if (box.OpenedParagraph && runs == 1) { current = null; anonymous = false; currentPadding = null; }
+                return;
+            }
+            current.Runs.Add(new InlineBoxRun(box, false, box.Style));
         }
 
         for (var t = 0; t < tokens.Count; t++)
@@ -492,6 +526,7 @@ internal static class HtmlDocumentReader
                 if (ParagraphTag(name) || Container(name)) Flush();
                 AfterBox();
                 if (name == "q") Add(Quote(stack, open: false, options), stack[^1].Style);
+                if (stack[^1].Inline is { } endingBox) AddInlineBoxEdge(endingBox, false);
                 if (stack[^1].FlexItem) Flush();
                 Pop(); continue;
             }
@@ -796,8 +831,14 @@ internal static class HtmlDocumentReader
             // item: close the anonymous paragraph before and after the inline element.
             var flexItem = InlineTag(name) && (table is null || cellBlocks > 0) && stack[^1].Box is { BoxStyle.HasItems: true };
             if (flexItem) Flush();
-            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, alignStart, flexItem, after));
+            if (flexItem && InlineBox.HasBoxFeatures(boxStyle))
+                throw new FactsPdfException("FPDF1201",
+                    "Padding, borders, margins, a background or vertical-align on an inline child of a flex or grid container are not supported; the child is a blockified item.", token.Offset);
+            var elementBox = InlineTag(name) && !flexItem && InlineBox.Needed(boxStyle, style, parent)
+                ? new InlineBox(boxStyle, style, parent, token.Offset) : null;
+            stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, alignStart, flexItem, after, elementBox));
             if (box is not null && table?.Cell is not null) cellBlocks++;
+            if (elementBox is not null) AddInlineBoxEdge(elementBox, true);
             if (name == "q") Add(Quote(stack, open: true, options), style);
             if (ParagraphTag(name))
             {

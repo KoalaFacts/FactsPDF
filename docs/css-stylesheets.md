@@ -301,8 +301,33 @@ marks of the user-agent sheet's `quotes:auto` (curly double quotes, curly single
 quotes when nested), drawn in the `q`'s own text style; normal text with no
 supplied font uses the ASCII `"` and `'`, and `cite` is metadata only
 (`QuoteElementTests.cs`). `bdi` renders like `span`: every run is laid out left
-to right, so it isolates nothing (`BdiElementTests.cs`). `mark`, `sub` and `sup`
-still fail `FPDF1102`; `big` is inline text with `font-size:larger`.
+to right, so it isolates nothing (`BdiElementTests.cs`). `mark`, `sub` and `sup` are
+inline boxes with the user-agent sheet's styles (see Inline boxes below); `big` is inline
+text with `font-size:larger`.
+
+### Inline boxes
+
+An inline element with padding, a border, a horizontal margin, a background, a
+vertical-align other than `baseline` or a font size or line height of its own is an inline
+box (`InlineBoxModelTests.cs`). Its left edge (margin, border, padding) takes room before its
+first glyph and its right edge after its last, so an edge stays with the text it touches at a
+line break: a start edge begins the next line, an end edge finishes the line before. When the
+box wraps, each line paints its own fragment around the font box (the first font's ascent and
+descent, each rounded to whole CSS pixels as Chrome does) plus the vertical padding and
+borders, which never change the line's height. A fragment that continues from an earlier line
+has no left border and padding, one that continues onto a later line no right ones
+(`box-decoration-break:slice`). Percentage padding and margins resolve against the containing
+block's width. Width, height, min and max sizes and vertical margins do not apply to an inline
+box and are accepted and ignored, as in a browser. `border-radius` and `outline` on an inline
+box, and any of these on a child of a flex or grid container, still fail `FPDF1201`.
+
+`vertical-align` on inline text takes `baseline`, `sub`, `super`, `text-top`, `text-bottom`,
+`middle`, `top`, `bottom`, lengths and percentages (of the element's own line height). The
+shifts of nested boxes add up. `super` raises and `sub` lowers the box by a third and a fifth of
+the parent's font size in CSS pixels (kept in 1/64 pixel units, as Chrome's layout does) plus one
+pixel. A shifted box makes the line box taller above or below, like Chrome's line height
+computation. `sub` and `sup` get `vertical-align` and a `smaller` font size, and `mark` a yellow
+background with black text, from the user-agent sheet, so author CSS overrides them.
 
 The [44-change source](../examples/report-inline-changes.html)
 and [independent explicit CSS control](../examples/report-inline-changes-oracle.html)

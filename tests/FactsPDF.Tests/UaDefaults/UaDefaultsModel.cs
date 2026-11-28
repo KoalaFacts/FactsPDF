@@ -42,6 +42,7 @@ internal sealed class UaDefaultsModel
     private readonly Dictionary<int, TableCell> captions = [];
     private readonly Dictionary<int, ImageNode> images = [];
     private readonly Dictionary<int, TextRun> runs = [];
+    private readonly Dictionary<int, InlineBoxRun> boxRuns = [];
     private readonly List<TextRun> breaks = [];
     private readonly List<(int Offset, TextStyle Style)> paragraphs = [];
     private readonly List<(int Offset, TableRow Row, TextStyle TableStyle)> orderedRows = [];
@@ -95,7 +96,8 @@ internal sealed class UaDefaultsModel
         paragraphs.Add((paragraph.SourceOffset, paragraph.Style));
         foreach (var run in paragraph.Runs)
         {
-            if (run is InlineImageRun inline) images.TryAdd(inline.Image.SourceOffset, inline.Image);
+            if (run is InlineBoxRun edge) { if (edge.IsStart) boxRuns.TryAdd(edge.SourceOffset, edge); }
+            else if (run is InlineImageRun inline) images.TryAdd(inline.Image.SourceOffset, inline.Image);
             else if (run.IsBreak) breaks.Add(run);
             else runs.TryAdd(run.SourceOffset, run);
         }
@@ -162,6 +164,11 @@ internal sealed class UaDefaultsModel
             var run = runs.TryGetValue(offset, out var found) ? found : tag == "br" ? breaks.FirstOrDefault() : null;
             text = run?.Style ?? paragraphs.Last(p => p.Offset <= offset).Style;
             display = "inline";
+            if (boxRuns.TryGetValue(offset, out var edgeRun))
+                verticalAlign = edgeRun.Box.Align.Kind switch
+                {
+                    InlineAlignKind.Sub => "sub", InlineAlignKind.Super => "super", _ => "baseline",
+                };
         }
 
         values["display"] = display;
