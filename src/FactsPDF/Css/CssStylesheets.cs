@@ -568,6 +568,15 @@ internal sealed class CssStylesheets
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
             }
+            // object-fit and object-position fit an img's pixels into its content box. Every element
+            // records them, since a child may inherit them, but only an img has replaced content to
+            // place (an inline svg ignores them as well).
+            if (declaration.Property is CssProperty.ObjectFit or CssProperty.ObjectPosition)
+            {
+                var fitCandidate = new Winner(declaration, isInline, specificity); var fitOld = winners[(int)declaration.Property];
+                if (!fitOld.HasValue || fitCandidate.Beats(fitOld.Value)) winners[(int)declaration.Property] = fitCandidate;
+                return;
+            }
             // background-clip moves the edge the background colour is painted to on a report panel,
             // paragraph or heading outside lists and tables. Elsewhere the colour is painted to the border
             // box, which is the initial value; any other clip there would be silently ignored.

@@ -60,11 +60,40 @@ internal sealed class PdfImageWriter
                 SvgPainter.Append(content, vector, placed, options, ref alpha);
                 continue;
             }
-            content.Append("q ").AppendInvariant(placed.Width, Number).Append(" 0 0 ").AppendInvariant(placed.Height, Number).Append(' ')
-                .AppendInvariant(placed.X, Number).Append(' ').AppendInvariant(options.PageHeight - placed.Top - placed.Height, Number)
+            var (imageX, imageTop, imageWidth, imageHeight) = (placed.X, placed.Top, placed.Width, placed.Height);
+            content.Append("q ");
+            if (placed.Placement is { } placement)
+            {
+                // object-fit: the pixels are scaled and positioned inside the content box, which clips them.
+                content.AppendInvariant(placed.X, Number).Append(' ').AppendInvariant(options.PageHeight - placed.Top - placed.Height, Number)
+                    .Append(' ').AppendInvariant(placed.Width, Number).Append(' ').AppendInvariant(placed.Height, Number).Append(" re W n ");
+                (imageX, imageTop, imageWidth, imageHeight) = Fit(placed, placement);
+            }
+            content.AppendInvariant(imageWidth, Number).Append(" 0 0 ").AppendInvariant(imageHeight, Number).Append(' ')
+                .AppendInvariant(imageX, Number).Append(' ').AppendInvariant(options.PageHeight - imageTop - imageHeight, Number)
                 .Append(" cm /Im").Append(indices[placed.Image!] + 1).Append(" Do Q\n");
             Check(content.Length, options.MaxOutputBytes);
         }
+    }
+
+    // The used rectangle of the image's pixels inside the content box for object-fit and object-position:
+    // the natural size is the pixel size at 0.75pt per pixel, scaled by the fit and placed by the position.
+    private static (double X, double Top, double Width, double Height) Fit(PlacedImage placed, ObjectPlacement placement)
+    {
+        var naturalWidth = placed.Image!.PixelWidth * 0.75;
+        var naturalHeight = placed.Image.PixelHeight * 0.75;
+        var contain = Math.Min(placed.Width / naturalWidth, placed.Height / naturalHeight);
+        var scale = placement.Fit switch
+        {
+            ObjectFit.Contain => contain,
+            ObjectFit.Cover => Math.Max(placed.Width / naturalWidth, placed.Height / naturalHeight),
+            ObjectFit.None => 1,
+            ObjectFit.ScaleDown => Math.Min(1, contain),
+            _ => throw new InvalidOperationException("Fill needs no placement.")
+        };
+        var width = naturalWidth * scale;
+        var height = naturalHeight * scale;
+        return (placed.X + placement.X.Resolve(placed.Width - width), placed.Top + placement.Y.Resolve(placed.Height - height), width, height);
     }
 
     internal void WriteObject(Stream output, int index, int id, int limit, CancellationToken cancellation)

@@ -81,7 +81,8 @@ internal static class TextLines
                     geometry.OuterWidth, geometry.OuterHeight, node.BoxStyle, node.Style.Color, 0, SourceOffset: node.SourceOffset);
                 charge(node.CommandCount + (placed.LinkUri is null ? 0 : 1), node.SourceOffset);
                 images.Add(new PlacedImage(node.Image, x + geometry.Left, outerTop + geometry.Top,
-                    geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration));
+                    geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration,
+                    node.Placement));
                 x += first.Width;
                 start++;
                 continue;

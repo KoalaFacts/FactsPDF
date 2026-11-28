@@ -262,7 +262,8 @@ internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, 
 // Decoration: an inline image's own padding, border and background, painted just before it, with
 // X and Top relative to the image's (so moving the image moves it too).
 internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double Width, double Height,
-    SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null)
+    SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null,
+    ObjectPlacement? Placement = null)
 {
     internal int CommandCount => Vector?.CommandCount ?? 1;
 }
@@ -407,6 +408,8 @@ internal sealed record BoxStyle
     public Rgb? BackgroundColor { get; set; } // null: transparent
     // The box edge the background colour is painted to (background-clip); not inherited.
     public BackgroundClip BackgroundClip { get; set; }
+    // object-fit and object-position of an img; not inherited.
+    public ObjectPlacement ObjectPlacement { get; set; } = ObjectPlacement.Initial;
     // Retain the currentColor token when background:inherit is authored on a
     // child: its actual ink resolves against the receiving element's colour.
     // The renderer still consumes only the final BackgroundColor RGB value.
@@ -637,6 +640,8 @@ internal sealed record ImageNode(PdfImage? Image, TextStyle Style, BoxStyle BoxS
     // The natural width in points (one CSS px is 0.75pt); an svg's default is 300px.
     internal double NaturalWidth => Vector is null ? Image!.PixelWidth * 0.75 : 225;
     internal int CommandCount => Vector?.CommandCount ?? 1;
+    // object-fit and object-position of a raster image; null for fill, which stretches it to the box.
+    internal ObjectPlacement? Placement => BoxStyle.ObjectPlacement.Fit == ObjectFit.Fill || Image is null ? null : BoxStyle.ObjectPlacement;
 }
 
 internal sealed class DocumentRoot

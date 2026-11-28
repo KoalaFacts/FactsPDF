@@ -421,6 +421,27 @@ internal static class CssDeclarations
             }
             return current;
         }
+        if (property == CssProperty.ObjectFit)
+        {
+            current.ObjectPlacement = current.ObjectPlacement with
+            {
+                Fit = value == "inherit" ? parent.ObjectPlacement.Fit : wide ? ObjectFit.Fill : CssObjectValues.Fit(value, declaration.Offset)
+            };
+            return current;
+        }
+        if (property == CssProperty.ObjectPosition)
+        {
+            if (value == "inherit")
+                current.ObjectPlacement = current.ObjectPlacement with { X = parent.ObjectPlacement.X, Y = parent.ObjectPlacement.Y };
+            else if (wide)
+                current.ObjectPlacement = current.ObjectPlacement with { X = ObjectAxis.Centre, Y = ObjectAxis.Centre };
+            else
+            {
+                var (x, y) = CssObjectValues.Position(value, declaration.Offset, rootFontSize, elementFontSize);
+                current.ObjectPlacement = current.ObjectPlacement with { X = x, Y = y };
+            }
+            return current;
+        }
         if (property == CssProperty.BackgroundClip)
         {
             current.BackgroundClip = value switch

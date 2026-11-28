@@ -820,6 +820,8 @@ internal static class CssSpecValidity
         ["background-attachment"] = "[scroll | fixed | local]#",
         ["background-origin"] = "[border-box | padding-box | content-box]#",
         ["hyphens"] = "none | manual | auto",
+        ["object-fit"] = "fill | contain | cover | none | scale-down",
+        ["object-position"] = "[left | center | right | top | bottom | <length-percentage>] | [left | center | right | <length-percentage>] [top | center | bottom | <length-percentage>] | [center | [left | right] <length-percentage>?] && [center | [top | bottom] <length-percentage>?]",
         ["background-clip"] = "[border-box | padding-box | content-box | text | border-area | -webkit-text]#",
         ["background-repeat"] = "[repeat-x | repeat-y | [repeat | space | round | no-repeat]{1,2}]#",
         ["background-size"] = "[cover | contain | [<length-percentage [0,]> | auto]{1,2}]#",

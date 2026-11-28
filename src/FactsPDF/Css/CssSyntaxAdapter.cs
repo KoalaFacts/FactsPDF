@@ -195,6 +195,15 @@ internal static class CssSyntaxAdapter
                     var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
                     output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
                 }
+                // object-position: one to four position terms, kept normalised and parsed when the
+                // winner is computed (em and rem need the element's font size).
+                if (name == "object-position" && !(valueTokens.Length == 1 && Wide(terms[0])))
+                {
+                    var joined = string.Join(' ', terms);
+                    _ = CssObjectValues.Position(joined, node.Span.Start, 16, 16);
+                    Emit(property, joined, node.Span.Start);
+                    continue;
+                }
                 // Logical border component declarations use the existing *physical*
                 // per-side width/style/colour cascade slots. The pair forms accept
                 // one or two values (start/end); individual sides exactly one.
@@ -1892,6 +1901,8 @@ internal static class CssSyntaxAdapter
         "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
         "background-clip" => CssProperty.BackgroundClip,
+        "object-fit" => CssProperty.ObjectFit,
+        "object-position" => CssProperty.ObjectPosition,
         "border-inline-width" or "border-inline-start-width" => CssProperty.BorderLeftWidth,
         "border-inline-end-width" => CssProperty.BorderRightWidth,
         "border-block-width" or "border-block-start-width" => CssProperty.BorderTopWidth,
@@ -2440,6 +2451,7 @@ internal static class CssSyntaxAdapter
                 throw new FactsPdfException("FPDF1202",
                     "vertical-align supports baseline, middle, top, bottom, text-top, text-bottom, lengths and percentages (table cells: top, middle and bottom).", offset);
         }
+        else if (name == "object-fit") _ = CssObjectValues.Fit(token, offset);
         else if (name == "hyphens")
         {
             if (token == "auto")

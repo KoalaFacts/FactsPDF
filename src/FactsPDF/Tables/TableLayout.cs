@@ -315,7 +315,7 @@ internal static class TableLayout
                         });
                         charge(image.CommandCount, image.SourceOffset);
                         images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
-                            geometry.Width, geometry.Height, image.Vector));
+                            geometry.Width, geometry.Height, image.Vector, Placement: image.Placement));
                         var imageIndex = images.Count - 1;
                         var decorationStart = imageBoxes.Count;
                         var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,
