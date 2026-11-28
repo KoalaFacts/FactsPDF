@@ -25,10 +25,10 @@ public sealed class BodyCanvasBackgroundTests
     }
 
     [Test]
-    public void BodyBackgroundCoversEveryPageIncludingTheMargins()
+    public void TheBodyBackgroundBecomesTheCanvas()
     {
-        var one = HtmlDocumentReader.ReadTree("<body style='background:#cde'><p>A</p></body>", Page, default);
-        Assert.That(one.CanvasColor, Is.EqualTo(new Rgb(0xcc / 255d, 0xdd / 255d, 0xee / 255d)).Or.Not.Null);
+        var root = HtmlDocumentReader.ReadTree("<body style='background:#cde'><p>A</p></body>", Page, default);
+        Assert.That(root.CanvasColor, Is.Not.Null);
     }
 
     [Test]
