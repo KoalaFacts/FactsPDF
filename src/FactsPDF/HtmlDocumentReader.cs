@@ -721,6 +721,7 @@ internal static class HtmlDocumentReader
             {
                 rootFontSize = style.FontSize;
                 result.RootStyle = style;
+                sheets.ComputedRoot = style;
                 result.CanvasColor = boxStyle.BackgroundColor;
                 if (boxStyle.IsFlexContainer) result.FlexRootOffset = Math.Max(token.Offset, 0);
             }

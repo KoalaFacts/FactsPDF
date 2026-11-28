@@ -137,7 +137,7 @@ public sealed class HorizontalRuleTests
     [TestCase("<hr style='margin-top:-2pt'>", "FPDF1202")]
     [TestCase("<hr style='border-radius:8pt'>", "FPDF1201")]
     [TestCase("<hr style='text-align:center'>", "FPDF1201")]
-    [TestCase("<hr style='width:100ex'>", "FPDF1202")]
+    [TestCase("<hr style='width:100rex'>", "FPDF1202")]
     [TestCase("<style>hr{border-top:3pt double red}</style><hr>", "FPDF1202")]
     [TestCase("<style>hr{margin-top:-2pt;margin-top:0}</style><hr>", "FPDF1202")]
     public void UnsupportedValuesAndNestingPreserveTarget(string html, string code)

@@ -147,7 +147,7 @@ public sealed class MinMaxWidthTests
     [TestCase("<p style='min-width:none'>Wrong keyword</p>", "FPDF1202")]
     [TestCase("<p style='max-width:-1pt'>Negative</p>", "FPDF1202")]
     [TestCase("<p style='min-width:env(x)'>Function</p>", "FPDF1202")]
-    [TestCase("<style>.never{max-width:3ex}</style><p>A</p>", "FPDF1202")]
+    [TestCase("<style>.never{max-width:3rex}</style><p>A</p>", "FPDF1202")]
     [TestCase("<span style='max-width:50pt'>Inline</span>", "FPDF1201")]
     [TestCase("<img src='logo' style='min-width:-1rem'>", "FPDF1202")]
     [TestCase("<table><tr><td style='max-width:50pt'>A</td></tr></table>", "FPDF1201")]

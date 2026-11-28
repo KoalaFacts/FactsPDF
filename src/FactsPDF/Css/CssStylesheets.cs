@@ -71,6 +71,8 @@ internal sealed class CssStylesheets
         Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, bool UserAgentVerticalAlign, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly PdfOptions options;
+    /// <summary>The html element's computed text style once it is read, for rlh.</summary>
+    internal TextStyle? ComputedRoot { get; set; }
     private readonly CssSyntaxLimits syntaxLimits;
     // What the element being computed gives em, rem and font-size percentages in math functions.
     // State only math, animations, layers and revert-layer need, allocated on first use.
@@ -1377,7 +1379,13 @@ internal sealed class CssStylesheets
         // repeats one style. FontSize and Color precede every box property in the enum, and no other
         // declaration changes them, so they are final at the first box declaration. A cached box was
         // stored only after its whole computation succeeded, so skipped box declarations cannot fail.
-        var boxChecked = false; var boxShared = false; var boxKey = 0;
+        // A value in ex, ch, lh or rlh depends on the element's font and line height, which the box cache
+        // key does not hold: such an element is computed on its own and never shares or fills the cache.
+        var metricUnits = false;
+        for (var index = 0; index < winners.Length && !metricUnits; index++)
+            metricUnits = winners[index] is { } metric && metric.Declaration.Property < CssProperty.Custom
+                && CssBoxValues.UsesFontMetricUnit(metric.Declaration.Value);
+        var boxChecked = metricUnits; var boxShared = false; var boxKey = 0;
         // An element whose text declarations all come from the user-agent sheet, on a shared parent
         // style, computes the same text style as an earlier sibling of its name: it shares that style
         // (the user-agent sheet gives every paragraph the same margins, every b the same weight).
@@ -1398,6 +1406,8 @@ internal sealed class CssStylesheets
             var declaration = winner.Declaration;
             if (declaration.Property == CssProperty.Content || declaration.Property >= CssProperty.AnimationName) continue;
             if (userAgentTextStyle && !WritesBox(subject, declaration.Property)) continue;
+            CssBoxValues.Metrics = metricUnits && declaration.Property != CssProperty.FontSize
+                ? FontMetricScales(style, parent, initial, elementOffset) : null;
             if (WritesBox(subject, declaration.Property))
             {
                 if (boxShared) continue;
@@ -1552,7 +1562,8 @@ internal sealed class CssStylesheets
                      ?? winners[(int)CssProperty.BorderBottomLeftRadius]?.Declaration.Offset
                      ?? elementOffset);
         }
-        if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
+        CssBoxValues.Metrics = null;
+        if (boxChecked && !boxShared && !metricUnits && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(subject, parentBox, rootFontSize, style.FontSize, style.Color,
                 listTypeHint, BoxWrites(subject), winners[(int)CssProperty.VerticalAlign] is { UserAgent: true }, box);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
@@ -1885,6 +1896,28 @@ internal sealed class CssStylesheets
         || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
                 or "ul" or "ol" or "menu" or "li" or "table" or "body")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
+
+    // Points per ex, ch, lh and rlh as Chrome computes them: the x-height (OS/2 sxHeight) and the advance of
+    // "0" of the element's first font, the element's line height (the parent's for line-height itself, which
+    // the property switch below resolves) and the root's. The built-in font has Courier's metrics.
+    private CssBoxValues.FontMetricScales FontMetricScales(TextStyle style, TextStyle parent, TextStyle root, int offset)
+    {
+        var fonts = FontRoles.Chain(options, FontRoles.Role(style), offset);
+        var font = fonts.Count == 0 ? null : fonts[0];
+        var zero = font is null ? (ushort)0 : font.GlyphFor('0');
+        return new(style.FontSize * (font is null ? 0.426 : font.XHeight1000 / 1000),
+            style.FontSize * (font is null ? 0.6 : zero == 0 ? 0.5 : font.Width1000(zero) / 1000),
+            LineHeightOf(style), LineHeightOf(ComputedRoot ?? root));
+
+        double LineHeightOf(TextStyle target)
+        {
+            if (target.AbsoluteLineHeight is { } absolute) return absolute;
+            if (!target.HasNormalLineHeight) return target.FontSize * target.LineHeight;
+            var chain = FontRoles.Chain(options, FontRoles.Role(target), offset);
+            return chain.Count == 0 ? target.FontSize * 1.2
+                : TextLines.LineWrapper.NormalLineHeight(chain[0], target.FontSize);
+        }
+    }
 
     private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,
         ListMarkerKind? listTypeHint, int first)

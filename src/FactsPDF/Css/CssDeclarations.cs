@@ -149,7 +149,7 @@ internal static class CssDeclarations
                 }
             }
             if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextIndent
-                && declaration.Value.EndsWith("em", StringComparison.Ordinal))
+                && (declaration.Value.EndsWith("em", StringComparison.Ordinal) || CssBoxValues.UsesFontMetricUnit(declaration.Value)))
             {
                 // Compute the winner after font-size; inherit fixed-point metrics.
                 var value = CssBoxValues.Length(declaration.Value, declaration.Offset,
@@ -167,7 +167,7 @@ internal static class CssDeclarations
                 return style;
             }
             if ((property is CssProperty.MarginTop or CssProperty.MarginBottom)
-                && declaration.Value.EndsWith("em", StringComparison.Ordinal))
+                && (declaration.Value.EndsWith("em", StringComparison.Ordinal) || CssBoxValues.UsesFontMetricUnit(declaration.Value)))
             {
                 // Compute only the winning margin: rem from the root,
                 // em from this element's final font-size, both as points.

@@ -5,6 +5,22 @@ namespace FactsPDF;
 /// <summary>Strict bounded CSS report box lengths, independent of culture and browser APIs.</summary>
 internal static class CssBoxValues
 {
+    /// <summary>Points per ex, ch, lh and rlh for the element being computed.</summary>
+    internal sealed record FontMetricScales(double Ex, double Ch, double LineHeight, double RootLineHeight);
+
+    // Set by the cascade only while it applies the declarations of one element whose values use a
+    // font-relative unit; without it (syntax checks) ex, ch, lh and rlh validate with a scale of 1.
+    [ThreadStatic] internal static FontMetricScales? Metrics;
+
+    /// <summary>Whether a computed length is a plain number with an ex, ch, lh or rlh unit.</summary>
+    internal static bool UsesFontMetricUnit(string value) => value.Length > 2 && IsMetricUnit(value);
+
+    private static bool IsMetricUnit(ReadOnlySpan<char> value) =>
+        value.EndsWith("rlh", StringComparison.Ordinal)
+        || value.Length > 2 && (value.EndsWith("ex", StringComparison.Ordinal) && !value.EndsWith("rex", StringComparison.Ordinal)
+            || value.EndsWith("ch", StringComparison.Ordinal) && !value.EndsWith("rch", StringComparison.Ordinal)
+            || value.EndsWith("lh", StringComparison.Ordinal));
+
     // rem uses the computed html root; em uses the target element's own
     // computed font size after cascade. Syntax checks leave scales null;
     // unsupported contexts retain fail-closed defaults.
@@ -101,11 +117,19 @@ internal static class CssBoxValues
         else if (allowEm && !value.EndsWith("rem", StringComparison.Ordinal)
             && value.EndsWith("em", StringComparison.Ordinal))
         { number = value.AsSpan(0, value.Length - 2); scale = elementFontSize ?? 1; percent = false; }
+        else if (allowRem && value.EndsWith("rlh", StringComparison.Ordinal))
+        { number = value.AsSpan(0, value.Length - 3); scale = Metrics?.RootLineHeight ?? 1; percent = false; }
+        else if (allowEm && IsMetricUnit(value))
+        {
+            number = value.AsSpan(0, value.Length - 2); percent = false;
+            scale = value.EndsWith("ex", StringComparison.Ordinal) ? Metrics?.Ex ?? 1
+                : value.EndsWith("ch", StringComparison.Ordinal) ? Metrics?.Ch ?? 1 : Metrics?.LineHeight ?? 1;
+        }
         else if (value.EndsWith('%'))
         { number = value.AsSpan(0, value.Length - 1); scale = 1; percent = true; }
         else if (IsExactlyUnitlessZero(value))
         { result = new CssLength(0); return true; }
-        else { error = "Box lengths require pt, px, mm, cm, in, pc, q, %, scoped rem/em, or unitless zero."; return false; }
+        else { error = "Box lengths require pt, px, mm, cm, in, pc, q, %, scoped rem/em/ex/ch/lh/rlh, or unitless zero."; return false; }
 
         if (!double.TryParse(number, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var parsed) || !double.IsFinite(parsed))
