@@ -1597,11 +1597,13 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Direct children | `.report > p`, mixed child/descendant chains |
 | Root pseudo-class | `:root`, `:root p`, `:root > body`, `html:root` |
 | Structural pseudo-classes | `tr:nth-of-type(even)`, `li:first-child`, `p:last-of-type`, `.divider:empty` ([contract](#structural-pseudo-classes-and-not)) |
-| Negation | `.divider:not(:empty)`, `p:not(.note, #summary)` (compound arguments only) |
+| Logical | `:is()`, `:where()` (forgiving lists), `:not()` with selector lists and complex arguments, `:has()` with relative selectors ([contract](#selectors-level-4)) |
+| Print-state pseudo-classes | `:lang()`, `:dir()`, `:link`, `:read-only`, `:read-write`, and `:hover`, `:focus`, `:visited`, `:target` and the other states that never match when printed |
+| Namespaces | `@namespace`, `ns|E`, `*|E`, `|E`, `[ns|attr]` as Chrome treats them in HTML documents |
 | Pseudo-elements | `.note::before`, `.divider::after`, legacy `:before`/`:after` with string `content` |
 | Inline declarations | Existing `style="..."` attributes with the same supported values |
 
-HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. CSS identifiers in this increment are ASCII; escaped and non-ASCII selector syntax is rejected. A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
+HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitive. Class attributes are split on HTML whitespace after attribute entity decoding. Escaped and non-ASCII identifiers are supported ([Selectors Level 4](#selectors-level-4)). A synthetic document root is not an element and cannot match `*`. The existing partial HTML tree-construction rules still apply; no browser DOM conformance is claimed.
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
@@ -1624,7 +1626,7 @@ No `link` stylesheet fetching, external files, `@import` or at-rules other than 
   and `An+B`, with its sign and whitespace rules (`2n + 1` and `-n+3` are valid,
   `- n+3`, `+ n` and `2n+ +1` fail). Values beyond ±1,000,000,000 fail: Chrome
   stops matching some valid selectors near the 32-bit limits. The `of S` form
-  fails.
+  is described under [Selectors Level 4](#selectors-level-4).
 - Every element counts as a sibling, as in the browser's DOM: `style`, `br`,
   `hr`, `col`, and `script` and `template` elements that are dropped before
   rendering. Implied `p` and `li` end tags close siblings as the HTML parser
@@ -1635,18 +1637,34 @@ No `link` stylesheet fetching, external files, `@import` or at-rules other than 
   parser drops after `<pre>` does not count.
 - `:not()` takes a list of compound selectors (`:not(.a, p.b:first-child)`,
   `:not(:root)`, nested `:not()` up to 32 levels and 32 arguments, `FPDF1205`
-  beyond). A combinator inside it fails, although Chrome accepts complex
-  arguments.
+  beyond). Complex arguments work as described under Selectors Level 4.
 
 Matching is charged to `MaxCssMatchOperations` (`FPDF1205`); positions are
 computed in one pass over the reader's own tokens with the reader's own implied
 end tags, only when a stylesheet uses a structural pseudo-class. Invalid An+B,
-empty or complex `:not()` arguments, `:is()`, `:where()`, `:has()`, `:hover`
-and other pseudo-classes, and pseudo-elements (`::before`, `:before`) fail
-`FPDF1203`. A matched rule still fails like any other when its declaration is
+and empty `:not()` arguments fail `FPDF1203`. A matched rule still fails like any other when its declaration is
 unsupported on the element: `tr:nth-of-type(even){background-color:#f7f7f7}`
 fails `FPDF1201` and `.divider:not(:empty){gap:1rem}` `FPDF1202`, as without
 the pseudo-class.
+
+### Selectors Level 4
+
+Selectors are parsed from CSS Syntax components (`CssSelectorParser`) as Chrome 158 parses them; the accepted and rejected forms below were checked against Chrome (`SelectorMatchingTests.cs`: about 800 `querySelectorAll` and stylesheet results; `scripts/css_syntax_browser_differential.py`: 898 CSSOM cases).
+
+- `:is()` and `:where()` take a forgiving list: an empty entry or one Chrome cannot parse is dropped and the rest still counts (`:is(:foo, p)` is `:is(p)`, `:is()` matches nothing). `:where()` has specificity 0; `:is()`, `:not()` and `:has()` take that of their most specific argument.
+- `:not()` takes selector lists with combinators (`:not(div > p, .a + .b)`) and is not forgiving. `:has()` takes relative selectors (`> p`, `+ h2`, `~ .x`, `p b`); `:has()` inside `:has()` is invalid. Matching walks the document tree from the right, tries each (compound, element) pair once, caches `:has()` answers per element and charges every step to `MaxCssMatchOperations` (`FPDF1205`).
+- `:nth-child(An+B of S)` and `:nth-last-child(An+B of S)` count the siblings that match the selector list `S` (the keyword is lower-case `of`, as in Chrome); `:nth-of-type()` has no `of` form.
+- `:lang(range)` takes one identifier (Chrome 158 accepts no list, string or wildcard) and matches the nearest `lang` attribute by prefix up to a hyphen, ASCII case-insensitively; an empty `lang` means no language. `:dir(ltr)` matches every element (every run is laid out left to right), `:dir(rtl)` none. `:link` and `:any-link` match `a` and `area` with `href` (and svg `a` with `href` or `xlink:href`); `:read-write` matches `contenteditable` elements and what they contain, `:read-only` the other HTML elements.
+- A printed page has no user action, focus, visited link, URL fragment, fullscreen, popover, media playback or form interaction, so `:hover`, `:active`, `:focus`, `:focus-visible`, `:focus-within`, `:visited`, `:target`, `:fullscreen`, `:modal`, `:popover-open`, `:open`, `:user-valid`, `:user-invalid`, `:autofill`, `:host`, `:host()`, `:state()`, the media states and the form states (`:enabled`, `:disabled`, `:checked`, `:required`, `:valid`, ...) never match, and `:not(:hover)` matches everything. Every element the reader accepts is a plain content element, so the form states match nothing until a control element is added (see `CssElementState`).
+- Attribute selectors read every attribute the markup carries. An attribute name is any run of characters except white space, quotes, `/`, `<`, `=` and `>`, lower-cased in ASCII only, so `[data-x]`, `[a\:b]`, `[é]` and `[*|href]` work; element and attribute names match ASCII case-insensitively in HTML documents. The values of the HTML enumerated attributes (`type`, `dir`, `rel`, `target`, `lang`, `align`, ...) compare ASCII case-insensitively on HTML elements, every other value case-sensitively, and the `i` flag folds ASCII letters. Chrome 158 does not know the `s` flag, so it makes the selector invalid. Empty operands of `^=`, `$=`, `*=` and `~=` match nothing and `|=""` matches only an empty value. An attribute that HTML or SVG defines and the reader does not model still fails `FPDF1103` (`align`, `border`, `popover`); an attribute neither defines, and `role`, `aria-*`, `tabindex`, `contenteditable` and the other global attributes that print nothing, are accepted and kept.
+- Identifiers use the full CSS escape syntax (`#\31 23`, `.a\:b`, `.\1F600`, non-ASCII names); an ID selector must be an identifier (`#1a` is invalid, `#\31 a` is not). Class and ID values compare case-sensitively.
+- `@namespace [prefix] url(...)|"..."` must precede every rule but `@charset`, `@import` and `@layer` statements; a late or malformed one is dropped (`FPDF1204` in strict mode). `ns|E`, `*|E`, `|E`, `ns|*` and `[ns|attr]` follow Chrome in HTML documents: HTML elements are in the XHTML namespace and the descendants of an svg element in the SVG namespace (except inside `foreignObject`, `desc` and `title`); a default namespace limits every compound, also inside `:not()` and `:is()`; an undeclared prefix is invalid; `|E`, MathML and any other URI select nothing.
+- The nesting selector `&` may stand anywhere (`.x &`, `& + &`, `span&`, `:not(&)`): a single parent selector merges into its compound, a parent list or a complex parent becomes `:is()`, so no expansion limit applies.
+- Pseudo-elements: `::before` and `::after` are generated boxes; `::marker`, `::first-line` and `::first-letter` are valid and fail `FPDF1203`; the others Chrome accepts (`::selection`, `::placeholder`, `::backdrop`, `::-webkit-scrollbar`, `::part()`, ...) paint nothing in a static print, so their rules never match. An unknown pseudo-class or pseudo-element, an unbalanced combinator and the other forms Chrome rejects are invalid: strict mode fails `FPDF1203`, non-strict mode drops the rule.
+
+### Conditional group rules
+
+The block of `@media`, `@supports`, `@layer`, `@container`, `@scope` and `@starting-style` outside a style rule is a rule list (CSS Syntax "consume a list of rules"): a declaration written there starts a qualified rule whose prelude runs to the next block, so its invalid selector drops it together with that rule, and a trailing declaration is dropped alone (`FPDF1203` in strict mode). Inside a style rule the block holds declarations and nested rules. An empty `@media{}` query list matches every medium.
 
 ### Sibling combinators
 
@@ -1729,9 +1747,9 @@ The table below is the contract (class A: invalid, dropped as a browser drops it
 | A | `FPDF1202` | `padding` with `auto` and a border width as a percentage (the whole declaration, including the shorthands) | Dropped; the message says Invalid CSS |
 | B | `FPDF1201` | A property the specifications or Chrome know but FactsPDF does not render (`grid-template-columns`, `table-layout`), and every applicability rule (box properties on inline text, list properties outside lists, margins in table cells, …) | Fails |
 | B | `FPDF1202` | A valid value FactsPDF does not render: `position:absolute`, `display:flex`, `font-style:oblique`, `transform:rotate(5deg)`, `background:url(…)`, a computed size outside the renderer's range, a CSS-wide keyword the property cannot render (`display:initial`, also from `var(--x, initial)`), and a `var()` declaration whose `unset` the renderer cannot render (`display:var(--missing)` computes to `inline`) | Fails |
-| B | `FPDF1203` | Valid selectors FactsPDF does not match: other pseudo-classes and pseudo-elements (`:hover`, `::before`, `:not(…)`), `&` needing `:is()` to match a complex selector | Fails |
+| B | `FPDF1203` | Valid selectors FactsPDF does not match: the pseudo-elements `::marker`, `::first-line` and `::first-letter` | Fails |
 | B | `FPDF1204` | Known at-rules (`@font-face`, `@import`, `@supports`, `@layer`, `@container`, `@namespace`, `@charset`, …), `@page` forms outside [its supported subset](#css-page-paper-margins-and-margin-boxes) (page selectors such as `@page :first`), media queries other than one `print` or `all` (`@media screen`, also as a `style` element's `media`), declarations directly inside `@media`, and `link` stylesheets | Fails |
-| B | any | What cannot be proven invalid: values of properties without a grammar here (`box-shadow`, `background`, `transform`, `filter`, transitions, animations, grid, …), values holding a known function (`calc()`, `rgb()`), values that are valid in quirks mode (unitless lengths, hashless hex colours), arguments of functional pseudo-classes (`:is(…)`, `:nth-child(…)`), namespace prefixes and the nesting selector | Fails, as in strict mode |
+| B | any | What cannot be proven invalid: values of properties without a grammar here (`box-shadow`, `background`, `transform`, `filter`, transitions, animations, grid, …), values holding a known function (`calc()`, `rgb()`), values that are valid in quirks mode (unitless lengths, hashless hex colours), arguments of functional pseudo-classes (`:is(…)`, `:nth-child(…)`), the nesting selector | Fails, as in strict mode |
 | C | `FPDF1205` and the other limit codes | Every resource limit (`MaxCssCharacters`, `MaxCssSelectors`, `MaxCssDeclarations`, `MaxCssMatchOperations`, `MaxCssSyntaxNodes`, `MaxCssSyntaxDepth`, element, depth, page and output limits) | Fails |
 
 **Declarations directly inside `@media` (decision: they keep failing).** CSS Syntax's current error recovery parses `@media print { color: red; p { … } }` as a dropped declaration followed by a valid rule, and FactsPDF's parser builds that tree, but Chrome 158 (whose `@media` block still uses the older rule-list parsing) drops `color: red; p { … }` together as one invalid rule, so the following rule never applies. Dropping only the declaration would render that rule where Chrome does not, and dropping both would contradict the specification and every other browser that follows it; the input fails `FPDF1204` in both modes instead.
