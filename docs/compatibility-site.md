@@ -433,6 +433,20 @@ list replaces its marker gutter. No status or count moves (full 45, partial 270,
 `ec32e9e8abb49946aecda0f7381a9c0b237a65fad2950595b281cf27a56a4e8f`. The entries below
 describe the state at their own dates.
 
+## Tables in cells, footer-only tables and free-text link targets
+
+A candidate change replaces strings in place for the `html.a`, `html.base`, `attr.12`
+(`href`/`target`/`rel`), `html.table`, `html.td`, `html.th`, `html.tfoot` and `pdf.tables` rows:
+a table may stand directly in a table cell (at most three levels), a table may be only a
+`tfoot`, a `thead` and a `tfoot`, or have its `tfoot` before the `tbody`, and in non-strict mode
+an `a href` that is not an absolute HTTPS or mailto URL draws its text as a link with no
+annotation and a warning. No status or count moves (full 45, partial 270, none 95; 418 records,
+52 accepted CSS property names unchanged). Dataset SHA-256 (LF bytes, as
+`git show :site/data/compatibility.json` prints them):
+`88a2d77651036388502b66ae04bf3e054f89aead39573562e454bf44d3cb4be1`; English layer
+`site/src/audit-english-nested-tables.mjs`, ordered source-text SHA-256
+`a7f0ad66cac08b0986ca75f7a64ba65cd76c1609913644a1924ca8f35bcc8ef2`. The entries below
+describe the state at their own dates.
 ## The user-agent stylesheet
 
 A candidate change replaces strings in place for the `html.body`, `html.blockquote`, `html.figure`, `html.dl`,
@@ -443,9 +457,9 @@ supported elements take Chrome's user-agent defaults (the 8px `body` margin, 1em
 Chrome's `hr` bevel, `big`) and `line-height:normal` reads the first font's metrics. Twenty-one English strings are
 replaced in place, so no count or status moves (full 45, partial 270, none 95; 418 records, 52 accepted CSS property
 names unchanged). Current dataset SHA-256:
-`95d2ff6ede5ccd149b55b48032d3b786906013533a2271ba6d7e66176a4662b4`; English layer
+`25012f0dc6714b42b7d251f955942d9b0e65e27d11ed96b68a1b57bd4c64f9de`; English layer
 `site/src/audit-english-ua-stylesheet.mjs`, ordered source-text SHA-256
-`e07bb3f74607b3dbf0f943c403d9ff33647c7f71ec567c71f2d9b207cf21e49c`. The older entries below describe the state at
+`902d229f96ecf1e6a15a9c5dc5fbba4feae50b390f9cd5668f01c192f8a19ef2`. The older entries below describe the state at
 their own dates.
 
 ## Block margin collapsing, list and table margins and cell paragraph padding

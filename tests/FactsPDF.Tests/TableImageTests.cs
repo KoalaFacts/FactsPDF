@@ -69,7 +69,7 @@ public sealed class TableImageTests
         Assert.That(page.Runs.Single().Baseline, Is.LessThan(841.89 - 48));
     }
 
-    [TestCase("<div></div>")][TestCase(TableStructureTests.One)]
+    [TestCase("<div></div>")]
     public void ForbiddenBlockContentBothOrdersFailsWithoutChangingOutput(string other)
     {
         TableStructureTests.Fails(Cell(other + Img), "FPDF1101", Options());

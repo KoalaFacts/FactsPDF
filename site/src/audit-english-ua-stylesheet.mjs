@@ -1,10 +1,10 @@
-import { englishAudit as previous } from './audit-english-cell-placement.mjs';
+import { englishAudit as previous } from './audit-english-nested-tables.mjs';
 
 // The user-agent stylesheet: Chrome's default margins, sizes, weight and list padding replace the 8pt/24pt blockquote, dl, dd, figure,
 // p and hr defaults and the list marker gutter, body takes the 8px margin, line-height:normal reads the font metrics and big joins
 // small: twenty-one strings replaced in place, so no count or status moves.
 if (previous.length !== 916) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = 'e07bb3f74607b3dbf0f943c403d9ff33647c7f71ec567c71f2d9b207cf21e49c';
+export const sourceDigest = '902d229f96ecf1e6a15a9c5dc5fbba4feae50b390f9cd5668f01c192f8a19ef2';
 const entries = [...previous];
 entries.splice(30, 1,
   "Ordinary LTR blockquotes take Chrome's 1em vertical and 40px horizontal default margins, nested paragraphs, inherited fonts, optional width, opaque background, uniform borders, padding and searchable paginated PDF text. One-to-four physical border-radius shorthand values and four independent single-corner longhands draw actual separate cubic PDF corners, with normal per-corner CSS cascade and first/last page caps.");
@@ -17,9 +17,9 @@ entries.splice(62, 1,
 entries.splice(64, 1,
   "A block container like blockquote: default 1em top and bottom and 40px left and right margins; width, padding, background, borders, the CSS cascade and pagination.");
 entries.splice(67, 1,
-  "Heading paragraphs with Chrome's default font-size multipliers (2 to .67em), margins, bold (the regular face when no bold chain is supplied) and text layout. break-after:avoid enables the bounded heading-with-first-paragraph keep.");
+  "Heading paragraphs with Chrome's default font-size multipliers (2 to .67em), margins, bold (like b, it needs a bold font chain) and text layout. break-after:avoid enables the bounded heading-with-first-paragraph keep.");
 entries.splice(68, 1,
-  "Bold by default, softly: without a bold font chain the regular face is kept instead of failing; no bookmarks or Tagged PDF. Keep applies only to a heading and the first nonempty text paragraph in the same ordinary container outside lists; over-page combinations fall back to normal pagination.");
+  "Bold by default like b: FPDF1507 without a bold font chain, font-weight:normal keeps the regular face; no bookmarks or Tagged PDF. Keep applies only to a heading and the first nonempty text paragraph in the same ordinary container outside lists; over-page combinations fall back to normal pagination.");
 entries.splice(72, 1,
   "Standalone void <hr> or <hr /> with Chrome's four-sided 1px border (top and left #9a9a9a, bottom and right #eee, 1.5pt tall) and 0.5em outer margins above and below. Scoped width/min/max-width, box-sizing, padding, background, colour, solid borders and four-sided margins change real PDF paint, text position and pagination.");
 entries.splice(85, 1,

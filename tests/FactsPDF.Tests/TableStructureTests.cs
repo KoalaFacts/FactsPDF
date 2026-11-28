@@ -90,14 +90,7 @@ public sealed class TableStructureTests
     public void TableDoesNotRepairOrNestInsideTextElements(string tag)
         => Fails($"<{tag}>" + One + $"</{tag}>", "FPDF1101");
 
-    [Test]
-    public void TableCannotBeNestedInsideAnotherTableOrItsCell()
-    {
-        Fails(One.Replace("<td>A", "<td>" + One), "FPDF1101");
-    }
-
     [TestCase("<div>A</div>")]
-    [TestCase(One)]
     public void CellsRejectDeferredBlockContent(string content)
         => Fails(One.Replace("<td>A", "<td>" + content), "FPDF1101");
 

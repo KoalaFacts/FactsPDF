@@ -234,6 +234,8 @@ internal static class HtmlDocumentReader
         // The box of the open cell paragraph when it has padding; cell paragraphs have no other box.
         BoxStyle? currentPadding = null;
         TableMarkup? table = null;
+        // The tables a nested table (a table directly in a cell of another) interrupts, innermost last.
+        Stack<TableMarkup>? outerTables = null;
         // Open block boxes (a list and its items) inside the current table cell: their content is a
         // block tree, kept whole as one cell content, while a flat cell holds text and images only.
         var cellBlocks = 0;
@@ -479,7 +481,7 @@ internal static class HtmlDocumentReader
                 {
                     if (name is "td" or "th" or "caption") { AfterText(); Flush(); }
                     table!.End(name, token.Offset);
-                    if (name == "table") table = null;
+                    if (name == "table") table = outerTables is { Count: > 0 } ? outerTables.Pop() : null;
                     Pop(); continue;
                 }
                 AfterText();
@@ -499,7 +501,7 @@ internal static class HtmlDocumentReader
             if (token.SelfClosing && name is not ("img" or "svg" or "hr" or "br" or "meta" or "link" or "base" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && table is not null)
-                throw new FactsPdfException("FPDF1101", "A table cannot be nested inside another table or a table cell.", token.Offset);
+                CheckNestedTable(table, outerTables?.Count ?? 0, cellBlocks, stack[^1].Name, token.Offset);
             if (TableMarkup.IsTag(name) && name != "table" && table is null)
                 throw new FactsPdfException("FPDF1101", "Table structural elements require their explicit table parents.", token.Offset);
             // A preformatted report block is an explicitly closed, non-nested
@@ -522,7 +524,7 @@ internal static class HtmlDocumentReader
                     ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
-            table?.CheckChild(stack[^1].Name, name, token.Offset, cellBlocks > 0);
+            if (name != "table") table?.CheckChild(stack[^1].Name, name, token.Offset, cellBlocks > 0);
             if (StartClosesParagraph(stack[^1].Name, name, table is not null && cellBlocks == 0)) Close();
             if (StartClosesListItem(stack[^1].Name, name)) Close();
             // A table start tag closes an open p (the HTML parser, standards mode); any other text
@@ -573,6 +575,7 @@ internal static class HtmlDocumentReader
             }
             var columnSpan = 1;
             string? href = null;
+            var hrefGiven = false;
             var hidden = false;
             var linkRel = false;
             var baseHrefOrTarget = false;
@@ -588,7 +591,12 @@ internal static class HtmlDocumentReader
                     // Declarations were parsed once during source collection.
                 }
                 else if (attribute == "href" && name == "a")
-                    href = PdfLinkAnnotations.ValidateUri(value, token.Offset);
+                {
+                    // Non-strict mode keeps the text as a link (blue, underlined) without an annotation
+                    // when the target is not an absolute HTTPS or mailto URI.
+                    hrefGiven = true;
+                    href = PdfLinkAnnotations.ValidateUri(value, token.Offset, options.CssWarnings);
+                }
                 // A PDF link annotation always opens its URI outside the document, so the browsing
                 // context (target) and the hyperlink relations (noopener, nofollow, ...) change nothing.
                 else if (name == "a" && attribute == "target") AnchorTarget("a", value, token.Offset);
@@ -661,11 +669,14 @@ internal static class HtmlDocumentReader
             }
             if (name == "a")
             {
-                if (href is null) throw new FactsPdfException("FPDF1103", "a requires a bounded HTTPS or mailto href.", token.Offset);
+                if (!hrefGiven) throw new FactsPdfException("FPDF1103", "a requires a bounded HTTPS or mailto href.", token.Offset);
                 if (AnyFrame(stack, frame => frame.Name == "a"))
                     throw new FactsPdfException("FPDF1101", "Nested links are not supported.", token.Offset);
-                if (!styleOwned) { style = style with { }; styleOwned = true; }
-                style.LinkUri = href;
+                if (href is not null)
+                {
+                    if (!styleOwned) { style = style with { }; styleOwned = true; }
+                    style.LinkUri = href;
+                }
             }
             if (name == "link")
             {
@@ -710,8 +721,19 @@ internal static class HtmlDocumentReader
             if (name == "table")
             {
                 Flush();
-                table = new(new TableNode(style, boxStyle, token.Offset));
-                children.Add(table.Node);
+                var node = new TableNode(style, boxStyle, token.Offset);
+                if (table is not null)
+                {
+                    // A table in a cell is block content of that cell, laid out like a list in one: a
+                    // wrapper block holds it, and the cell lays the wrapper out as a fragment.
+                    var cell = table.Cell!;
+                    var wrapper = new BlockNode("div", cell.Style, BoxStyle.Initial, token.Offset);
+                    wrapper.Add(node);
+                    cell.Contents.Add(new TableCellBlock(wrapper));
+                    (outerTables ??= new()).Push(table);
+                }
+                else children.Add(node);
+                table = new(node);
                 stack.Add(new(name, style, boxStyle, null, token.Offset, 0, alignStart));
                 continue;
             }
@@ -813,6 +835,23 @@ internal static class HtmlDocumentReader
         }
         else if (width is null && height is null) width = new CssLength(100, IsPercent: true);
         return width == box.Width && height == box.Height ? box : box with { Width = width, Height = height };
+    }
+
+    /// <summary>The most tables that may nest: a table, one in its cell, and one in that table's cell.</summary>
+    internal const int MaxTableNesting = 3;
+
+    // A table may start directly in a td or th that holds no list box (the cell is flat or already
+    // holds blocks); anywhere else the nesting would need layout this engine does not have.
+    private static void CheckNestedTable(TableMarkup outer, int outerCount, int cellBlocks, string parent, int offset)
+    {
+        if (outer.Cell is null || parent is not ("td" or "th"))
+            throw new FactsPdfException("FPDF1101",
+                "A table can be nested only directly inside a td or th cell, not in a caption, a row or another element.", offset);
+        if (cellBlocks > 0)
+            throw new FactsPdfException("FPDF1101", "A table cannot be nested inside a list in a table cell.", offset);
+        if (outerCount + 2 > MaxTableNesting)
+            throw new FactsPdfException("FPDF1003",
+                $"Tables nest at most {MaxTableNesting} levels deep (a table, one in its cell and one in that table's cell).", offset);
     }
 
     // The runs a paragraph element opened just before `start` will hold: one per text token, one

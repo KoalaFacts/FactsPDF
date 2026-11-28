@@ -773,9 +773,10 @@ test('tfoot is a partial table footer of ordinary body rows, in English', async 
   const { englishFeature } = await localisation();
   const [table, thead, tfoot] = ['html.table', 'html.thead', 'html.tfoot'].map(id => englishFeature(data.features.find(x => x.id === id)));
   assert.equal(tfoot.status, 'partial');
-  assert.match(tfoot.scope, /directly after the nonempty tbody/);
+  assert.match(tfoot.scope, /after the tbody, before it \(laid out after the body rows\) or alone/);
   assert.match(tfoot.limitations, /not repeated on each page fragment/);
-  assert.doesNotMatch(table.limitations, /tfoot/);
+  assert.match(tfoot.limitations, /Chrome repeats the footer on every page/);
+  assert.match(table.limitations, /a second tfoot, a second tbody, a thead after the tbody or a lone thead fail FPDF1101/);
   assert.doesNotMatch(thead.limitations, /tfoot/);
   for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(tfoot[field], han, field);
 });
