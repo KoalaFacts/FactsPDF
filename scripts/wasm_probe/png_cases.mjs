@@ -17,7 +17,7 @@ export async function inspectPngImages({ page, output, executable, dll }) {
     window.factspdfProbe.convertImages(html, {}, [{ name: 'sample', bytes: Uint8Array.from(bytes) }], true),
   { html, bytes }), 30000, 'PNG WASM conversion');
   for (const item of manifest.cases) {
-    const html = '<div style="width:264pt;background-color:#204060">' +
+    const html = '<style>body{margin:0}</style><div style="width:264pt;background-color:#204060">' +
       '<img src="sample" style="width:264pt"></div>' + `<p>PNG-${item.name}</p>`;
     const imagePath = join(root, item.file);
     const source = join(output, `PNG-${item.name}.html`);

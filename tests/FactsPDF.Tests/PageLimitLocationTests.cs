@@ -9,7 +9,8 @@ public sealed class PageLimitLocationTests
 {
     private const string First = "<p>First page.</p>\n";
     // A first line almost as tall as the usable page, so whatever follows needs page two.
-    private const string Filler = "<p style='line-height:760pt'>Filler.</p>\n";
+    // The reset keeps the pre-user-agent geometry: no body margin and an 8pt gap below paragraphs only.
+    private const string Filler = "<style>html,body{margin:0}p{margin:0 0 8pt}</style><p style='line-height:760pt'>Filler.</p>\n";
     private static readonly PdfImage Image = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"));
 
     private static FactsPdfException Fails(string html, int maxPages = 1)
@@ -83,14 +84,14 @@ public sealed class PageLimitLocationTests
     [Test]
     public void HeadingKeptWithItsNextBlockPointsAtTheHeading()
     {
-        const string html = "<p style='line-height:740pt;margin:0'>F</p><h2 id='heading' style='break-after:avoid'>H</h2><p>a<br>b<br>c<br>d</p>";
+        const string html = "<p style='line-height:740pt;margin:0'>F</p><h2 id='heading' style='font-weight:normal;break-after:avoid'>H</h2><p>a<br>b<br>c<br>d</p>";
         Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='heading'")));
     }
 
     [Test]
     public void ForcedBreakBeforeAHeadingPointsAtIt()
     {
-        const string html = First + "<h2 id='heading' style='break-before:page'>Heading</h2><p>Body.</p>";
+        const string html = First + "<h2 id='heading' style='font-weight:normal;break-before:page'>Heading</h2><p>Body.</p>";
         Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='heading'")));
     }
 

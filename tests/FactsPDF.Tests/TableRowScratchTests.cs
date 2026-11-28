@@ -11,7 +11,9 @@ public sealed class TableRowScratchTests
 {
     private static string Table(int rows, string cell)
     {
-        var html = new StringBuilder("<table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
+        // The table fills the page content box, so the user-agent body margin is zeroed; cells keep the
+        // pre-UA-sheet shape (no padding, top aligned) unless styled inline.
+        var html = new StringBuilder("<style>body{margin:0}td{padding:0;vertical-align:top}</style><table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
             + "<col style=\"width:140pt\"></colgroup><tbody>");
         for (var i = 0; i < rows; i++) html.Append("<tr>").Append(cell).Append(cell).Append(cell).Append("</tr>");
         return html.Append("</tbody></table>").ToString();

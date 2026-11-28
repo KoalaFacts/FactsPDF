@@ -70,7 +70,7 @@ public sealed class ParagraphArrayCapacityTests
     {
         var tree = HtmlDocumentReader.ReadTree(
             "<table><colgroup><col style=\"width:100pt\"></colgroup><tbody><tr><td><p>a <span>b</span></p></td></tr></tbody></table>", new PdfOptions(), default);
-        var cell = ((TableNode)tree.Children[0]).Rows[0].Cells[0];
+        var cell = ((TableNode)((BlockNode)tree.Children[0]).Children[0]).Rows[0].Cells[0]; // the table sits in the body
         var runs = ((TableCellText)cell.Contents[0]).Paragraph.Runs;
         Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "a ", "b" }));
         Assert.That(runs.Capacity, Is.EqualTo(2));

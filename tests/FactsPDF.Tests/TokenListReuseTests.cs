@@ -10,7 +10,7 @@ namespace FactsPDF.Tests;
 [NonParallelizable]
 public sealed class TokenListReuseTests
 {
-    private const string Page = "<style>p{color:#036}</style><h1>T</h1><p class='a' style='margin:2pt'>A &amp; B</p><ul><li>x</li></ul>";
+    private const string Page = "<style>p{color:#036}h1{font-weight:normal}</style><h1>T</h1><p class='a' style='margin:2pt'>A &amp; B</p><ul><li>x</li></ul>";
 
     private static string Paragraphs(int count)
     {

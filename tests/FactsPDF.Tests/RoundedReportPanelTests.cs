@@ -8,23 +8,38 @@ namespace FactsPDF.Tests;
 public sealed class RoundedReportPanelTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 240, Margin = 20 };
+
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
     private static byte[] Pdf(string html, PdfOptions? page = null)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, page ?? Page);
+        PdfConverter.Convert(Neutral(html), stream, page ?? Page);
         return stream.ToArray();
     }
     private static LayoutPage[] Layout(string html, PdfOptions? page = null)
     {
         var options = page ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default).ToArray();
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), options, default), options, default).ToArray();
     }
     private static void FailsProtected(string html, string expected)
     {
         using var target = new MemoryStream();
         target.Write("ORIGINAL-CUSTOMER-PDF"u8);
         target.Position = 7;
-        var failure = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, target, Page));
+        var failure = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), target, Page));
         Assert.That(failure!.Code, Is.EqualTo(expected));
         Assert.That(target.ToArray(), Is.EqualTo("ORIGINAL-CUSTOMER-PDF"u8.ToArray()));
         Assert.That(target.Position, Is.EqualTo(7));
@@ -108,7 +123,7 @@ public sealed class RoundedReportPanelTests
             "background:blue'><p>Top</p><div style='background:blue'>" +
             "Inner</div><div style='background:blue;border-radius:inherit'>Inherited</div>" +
             "<div style='background:blue;border-radius:initial'>Initial</div></div>";
-        var outer = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        var outer = (BlockNode)HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single();
         Assert.That(outer.BoxStyle.CornerRadius, Is.EqualTo(8));
         var boxes = outer.Children.OfType<BlockNode>().ToArray();
         Assert.That(boxes, Has.Length.EqualTo(4));
@@ -207,7 +222,7 @@ public sealed class RoundedReportPanelTests
             "<div style='border-radius:inherit'>A</div>" +
             "<div style='border-radius:initial'>B</div>" +
             "<div style='border-radius:unset'>C</div></section>";
-        var outer = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        var outer = (BlockNode)HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single();
         Assert.That((outer.BoxStyle.CornerRadius, outer.BoxStyle.CornerTopRightRadius,
             outer.BoxStyle.CornerBottomRightRadius, outer.BoxStyle.CornerBottomLeftRadius),
             Is.EqualTo((12d, 9d, 6d, 3d)));

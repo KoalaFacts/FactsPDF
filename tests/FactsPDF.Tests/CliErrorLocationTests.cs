@@ -21,11 +21,11 @@ public sealed class CliErrorLocationTests
         => Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, new MemoryStream()))!;
 
     [TestCase("<p style=\"display:inline-flex\">x</p>", 1, 19)]
-    [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p style=\"display:inline-flex\">x</p>", 3, 21)]
-    [TestCase("<h1>Title</h1>\r\n<p>ok</p>\r\n<p style=\"display:inline-flex\">x</p>", 3, 19)]
+    [TestCase("<h1 style=\"font-weight:normal\">Title</h1>\n<p>ok</p>\n  <p style=\"display:inline-flex\">x</p>", 3, 21)]
+    [TestCase("<h1 style=\"font-weight:normal\">Title</h1>\r\n<p>ok</p>\r\n<p style=\"display:inline-flex\">x</p>", 3, 19)]
     [TestCase("<p>a</p>\n<!-- 😀😀 --><p style=\"display:inline-flex\">x</p>", 2, 30)]
-    [TestCase("<h1>Title</h1>\r<p>ok</p>\r<p style=\"display:inline-flex\">x</p>", 3, 19)]
-    [TestCase("<h1>Title</h1>\r\n\n\r<p style=\"display:inline-flex\">x</p>", 4, 19)]
+    [TestCase("<h1 style=\"font-weight:normal\">Title</h1>\r<p>ok</p>\r<p style=\"display:inline-flex\">x</p>", 3, 19)]
+    [TestCase("<h1 style=\"font-weight:normal\">Title</h1>\r\n\n\r<p style=\"display:inline-flex\">x</p>", 4, 19)]
     public void SourceDiagnosticsReportLineAndColumnOfTheCoreOffset(string html, int line, int column)
     {
         var core = CoreError(html);
@@ -35,7 +35,7 @@ public sealed class CliErrorLocationTests
         Assert.That(lines, Is.EqualTo(new[] { core.Message, $"Location: line {line}, column {column}." }));
     }
 
-    [TestCase("<h1>Title</h1>\n<p>ok</p>\n  <p>中</p>", 3, 3)]
+    [TestCase("<h1 style=\"font-weight:normal\">Title</h1>\n<p>ok</p>\n  <p>中</p>", 3, 3)]
     [TestCase("<p>ok</p>\n<p>Short <span>WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW</span></p>", 2, 10)]
     [TestCase("<p>ok</p>\n<p>i<br>\n  <span style='line-height:1000pt'>y</span></p>", 3, 3)]
     [TestCase("<p>ok</p>\n\n <p style='line-height:1000pt'>i</p>", 3, 2)]

@@ -8,17 +8,32 @@ public sealed class HorizontalAutoMarginTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var target = new MemoryStream();
-        PdfConverter.Convert(html, target, options ?? Page);
+        PdfConverter.Convert(Neutral(html), target, options ?? Page);
         return target.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var page = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, page, default), page, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), page, default), page, default);
     }
 
     private static void Reject(string html, string code)
@@ -26,7 +41,7 @@ public sealed class HorizontalAutoMarginTests
         using var target = new MemoryStream();
         target.Write("original-output"u8);
         target.Position = 4;
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, target, Page));
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), target, Page));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(target.ToArray(), Is.EqualTo("original-output"u8.ToArray()));
         Assert.That(target.Position, Is.EqualTo(4));
@@ -109,7 +124,7 @@ public sealed class HorizontalAutoMarginTests
     public void HeadingKeepUsesSameCenteredWidthAndPageBreakAsRendering()
     {
         var settings = Page with { PageHeight = 110 };
-        const string lead = "<style>p,h2{font-size:10pt;line-height:2;margin-top:0;margin-bottom:0}</style>" +
+        const string lead = "<style>p,h2{font-size:10pt;line-height:2;margin-top:0;margin-bottom:0;font-weight:normal}</style>" +
             "<p>PRELUDE<br>PRELUDE</p>";
         const string auto = "<h2 style='width:100pt;margin:0 auto;break-after:avoid'>INSPECTION</h2>" +
             "<p style='width:100pt;margin:0 auto'>ALPHA<br>BETA<br>GAMMA</p>";
@@ -122,8 +137,23 @@ public sealed class HorizontalAutoMarginTests
     [TestCase("<p style='margin:auto'>Invalid vertical auto</p>", "FPDF1202")]
     [TestCase("<p style='margin:0 auto 0 -1pt'>Invalid negative</p>", "FPDF1202")]
     [TestCase("<p style='width:260pt;padding:10pt;margin:0 auto'>Too wide</p>", "FPDF1302")]
-    [TestCase("<body style='margin-left:auto'>Still unsupported body</body>", "FPDF1201")]
     [TestCase("<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><p style='margin:0 auto'>Invalid cell</p></td></tr></tbody></table>", "FPDF1201")]
     public void InvalidOrUnsupportedGeometryPreservesDestination(string html, string code)
         => Reject(html, code);
+
+    // The body is a real box with the 6pt user-agent margin, so an auto side computes to 0 like in a
+    // browser: it is no longer unsupported and renders like the explicit zero on that side.
+    [TestCase("margin-left:auto", "margin-left:0")]
+    [TestCase("margin:0 auto", "margin:0")]
+    public void AnAutoMarginOnTheBodyComputesToZero(string auto, string zero)
+    {
+        static byte[] Raw(string html)
+        {
+            using var target = new MemoryStream();
+            PdfConverter.Convert(html, target, Page);
+            return target.ToArray();
+        }
+
+        Assert.That(Raw($"<body style='{auto}'>A</body>"), Is.EqualTo(Raw($"<body style='{zero}'>A</body>")));
+    }
 }

@@ -32,7 +32,7 @@ public sealed class TableCellContentsTests
     private static TableCell[] Cells(string html)
     {
         var root = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
-        var table = (TableNode)root.Children[0];
+        var table = (TableNode)((BlockNode)root.Children[0]).Children[0]; // inside the body
         return [.. table.Rows.SelectMany(row => row.Cells)];
     }
 

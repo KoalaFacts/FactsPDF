@@ -21,8 +21,9 @@ public sealed class TemplateElementTests
         "<p>Invoice 42</p><p>Total</p>")]
     [TestCase("<html><head><title>T</title><template><p>Draft</p></template></head><body><p>A</p></body></html>",
         "<html><head><title>T</title></head><body><p>A</p></body></html>")]
-    [TestCase("<table><colgroup><col style='width:236pt'></colgroup><template><col></template><tbody><template><tr><td>x</td></tr></template><tr><td>Row</td></tr></tbody></table>",
-        "<table><colgroup><col style='width:236pt'></colgroup><tbody><tr><td>Row</td></tr></tbody></table>")]
+    // 224pt = 260 - 2*12 page margin - 2*6 body margin.
+    [TestCase("<table><colgroup><col style='width:224pt'></colgroup><template><col></template><tbody><template><tr><td>x</td></tr></template><tr><td>Row</td></tr></tbody></table>",
+        "<table><colgroup><col style='width:224pt'></colgroup><tbody><tr><td>Row</td></tr></tbody></table>")]
     [TestCase("<ul><template><li>Hidden</li></template><li>Shown</li></ul>", "<ul><li>Shown</li></ul>")]
     [TestCase("<div><template><button>Buy</button><form><input></form><x-card>C</x-card></template>Text</div>",
         "<div>Text</div>")]

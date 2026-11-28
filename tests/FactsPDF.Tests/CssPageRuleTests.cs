@@ -97,7 +97,7 @@ public sealed class CssPageRuleTests
     public void AsymmetricMarginsMoveAndNarrowTheBodyAndPaginateOnTheRemainingHeight()
     {
         const string longText = "<p>" + "alpha beta gamma delta epsilon zeta eta theta iota kappa " + "</p>";
-        var html = "<style>@page{size:300pt 200pt;margin:10pt 20pt 30pt 40pt}p{margin:0;font-size:10pt;line-height:12pt}</style>"
+        var html = "<style>@page{size:300pt 200pt;margin:10pt 20pt 30pt 40pt}body{margin:0}p{margin:0;font-size:10pt;line-height:12pt}</style>"
             + string.Concat(Enumerable.Repeat(longText, 10));
         var effective = Effective(html);
         Assert.That(effective.SideMargins, Is.EqualTo(new PageMargins(10, 20, 30, 40)));

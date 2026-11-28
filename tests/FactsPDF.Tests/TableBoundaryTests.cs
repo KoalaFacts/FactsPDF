@@ -4,6 +4,9 @@ namespace FactsPDF.Tests;
 
 public sealed class TableBoundaryTests
 {
+    // The geometry below assumes no body margin and unpadded top-aligned cells, not the user-agent defaults.
+    private const string Reset = "<style>html,body{margin:0}td,th{padding:0;vertical-align:top}</style>";
+
     [Test]
     public void TablesRetainInputCssAndFontResourceLimits()
     {
@@ -80,9 +83,9 @@ public sealed class TableBoundaryTests
     [Test]
     public void EmptyZeroAreaPaintStaysFreeButDecoratedEmptyCellsAreCharged()
     {
-        var empty = "<p>A</p>" + TableLayoutTests.Table("", cellStyle: "background-color:red");
+        var empty = Reset + "<p>A</p>" + TableLayoutTests.Table("", cellStyle: "background-color:red");
         Assert.That(TableLayoutTests.Pdf(empty, new() { MaxDisplayCommands = 1 }), Is.Not.Empty);
-        var painted = TableLayoutTests.Table("", cellStyle: "padding:2pt;background-color:red;border:1pt solid blue");
+        var painted = Reset + TableLayoutTests.Table("", cellStyle: "padding:2pt;background-color:red;border:1pt solid blue");
         Assert.That(TableLayoutTests.Pdf(painted, new() { MaxDisplayCommands = 5 }), Is.Not.Empty);
         Fails(painted, new() { MaxDisplayCommands = 4 }, "FPDF1401");
     }
@@ -92,7 +95,7 @@ public sealed class TableBoundaryTests
     {
         var o = new PdfOptions { PageWidth = 220, PageHeight = 130, Margin = 10,
             Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420")) } };
-        var html = "<body style='font-size:10pt;line-height:2'><style>ul,ol{margin:0}</style><section style='padding:4pt;border:1pt solid red'>"
+        var html = "<body style='font-size:10pt;line-height:2'><style>html,body{margin:0}td{padding:0;vertical-align:top}ul,ol{margin:0}</style><section style='padding:4pt;border:1pt solid red'>"
             + "<ol><li>BEFORE</li></ol><img src='chart' style='width:120pt'>"
             + TableLayoutTests.Table("A<br>B<br>C", cellStyle: "border:1pt solid blue")
             + "<ul><li>AFTER</li></ul></section></body>";
@@ -115,7 +118,7 @@ public sealed class TableBoundaryTests
     public void TextFreeTableCanOccupyEntireMiddlePage()
     {
         var o = new PdfOptions { PageHeight = 100, Margin = 10 };
-        var html = "<p style='break-after:page'>BEFORE</p>" + TableLayoutTests.Table("<br><br><br><br>", cellStyle: "background-color:red") + "<p>AFTER</p>";
+        var html = Reset + "<p style='break-after:page'>BEFORE</p>" + TableLayoutTests.Table("<br><br><br><br>", cellStyle: "background-color:red") + "<p>AFTER</p>";
         var pages = TableLayoutTests.Layout(html, o);
         Assert.That(pages, Has.Count.EqualTo(3));
         Assert.That(pages[1].Runs, Is.Empty);
@@ -126,7 +129,7 @@ public sealed class TableBoundaryTests
     public void CancellationIsObservedDuringMeasuredCommandRetention()
     {
         var o = new PdfOptions();
-        var tree = HtmlDocumentReader.ReadTree(TableLayoutTests.Table("A<br>B<br>C"), o, default);
+        var tree = HtmlDocumentReader.ReadTree(Reset + TableLayoutTests.Table("A<br>B<br>C"), o, default);
         var step = (LayoutTable)BlockLayout.Steps(tree, o, default).Single();
         using var cts = new CancellationTokenSource();
         var retained = 0;

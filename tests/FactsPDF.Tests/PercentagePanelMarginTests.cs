@@ -14,17 +14,21 @@ public sealed class PercentagePanelMarginTests
         PageWidth = 300, PageHeight = 500, Margin = 20
     };
 
+    // Every percentage and page-height figure below assumes the 260pt page content width and the whole
+    // page height, so the user-agent 8px body margin is reset for each rendering.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var target = new MemoryStream();
-        PdfConverter.Convert(html, target, options ?? Page);
+        PdfConverter.Convert(NoBodyMargin + html, target, options ?? Page);
         return target.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default);
     }
 
     private static void RejectPreservingOutput(string html, string code, PdfOptions? options = null)
@@ -33,7 +37,7 @@ public sealed class PercentagePanelMarginTests
         target.Write("previous-pdf"u8);
         target.Position = 3;
         var exception = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert(html, target, options ?? Page));
+            PdfConverter.Convert(NoBodyMargin + html, target, options ?? Page));
         Assert.That(exception!.Code, Is.EqualTo(code));
         Assert.That(target.ToArray(), Is.EqualTo("previous-pdf"u8.ToArray()));
         Assert.That(target.Position, Is.EqualTo(3));
@@ -145,10 +149,24 @@ public sealed class PercentagePanelMarginTests
     [TestCase("<section style='margin-top:-1%'>INVALID</section>", "FPDF1202")]
     [TestCase("<section style='margin-top:10001%'>INVALID</section>", "FPDF1202")]
     [TestCase("<section style='margin:10% 0 auto'>INVALID</section>", "FPDF1202")]
-    [TestCase("<body style='margin-top:10%'>INVALID</body>", "FPDF1201")]
     [TestCase("<ol style='margin-top:10%'><li>INVALID</li></ol>", "FPDF1201")]
     public void UnsupportedMarginsFailExplicitlyWithoutChangingTheExistingPdf(string html, string code)
         => RejectPreservingOutput(html, code);
+
+    // The body is a real box with a margin of its own, so a percentage resolves against the page
+    // content width like any other block: 10% of 260pt is 26pt.
+    [Test]
+    public void BodyPercentageMarginResolvesAgainstThePageContentWidth()
+    {
+        var body = Layout("<body style='margin-top:10%'><p style='margin:0'>BODY</p></body>");
+        var reference = Layout("<body style='margin-top:26pt'><p style='margin:0'>BODY</p></body>");
+        Assert.That(body.Single().Runs.Single().Baseline,
+            Is.EqualTo(reference.Single().Runs.Single().Baseline).Within(0.000001));
+        Assert.That(Render("<body style='margin-top:10%'><p style='margin:0'>BODY</p></body>"),
+            Is.EqualTo(Render("<body style='margin-top:26pt'><p style='margin:0'>BODY</p></body>")));
+        Assert.That(body.Single().Runs.Single().Baseline,
+            Is.EqualTo(Layout("<p style='margin:26pt 0 0'>BODY</p>").Single().Runs.Single().Baseline).Within(0.000001));
+    }
 
     [TestCase("<style>p{margin-top:-5%}p{margin-top:0!important}</style><p>BAD</p>")]
     [TestCase("<style>h2{margin-bottom:-8%}h2{margin-bottom:0!important}</style><h2>BAD</h2>")]

@@ -14,8 +14,24 @@ public sealed class FlexLayoutTests
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
     private const double FirstBaseline = 500 - 20 - 10.8;
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact flex coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
+        html = Neutral(html);
         var settings = options ?? Page;
         return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
     }
@@ -26,7 +42,7 @@ public sealed class FlexLayoutTests
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? Page);
+        PdfConverter.Convert(Neutral(html), output, options ?? Page);
         return output.ToArray();
     }
 
@@ -34,7 +50,7 @@ public sealed class FlexLayoutTests
     {
         using var output = new MemoryStream();
         output.Write("keep"u8);
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, options ?? Page));
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), output, options ?? Page));
         Assert.That(error!.Code, Is.EqualTo(code), error.Message);
         Assert.That(Encoding.ASCII.GetString(output.ToArray()), Is.EqualTo("keep"));
         return error;
@@ -307,7 +323,7 @@ public sealed class FlexLayoutTests
     [TestCase("flex:40pt", 1, 1)]
     public void FlexShorthandComputesItsFactors(string declaration, double grow, double shrink)
     {
-        var root = HtmlDocumentReader.ReadTree($"<div style='display:flex'><div style='{declaration}'>A</div></div>", Page, default);
+        var root = HtmlDocumentReader.ReadTree(Reset + $"<div style='display:flex'><div style='{declaration}'>A</div></div>", Page, default);
         var item = (BlockNode)((BlockNode)root.Children[0]).Children[0];
         Assert.That(item.BoxStyle.Flex.Grow, Is.EqualTo(grow));
         Assert.That(item.BoxStyle.Flex.Shrink, Is.EqualTo(shrink));

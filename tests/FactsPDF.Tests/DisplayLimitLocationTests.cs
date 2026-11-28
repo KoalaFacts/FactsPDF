@@ -85,9 +85,9 @@ public sealed class DisplayLimitLocationTests
     [Test]
     public void AHeadingPointsAtItsHeading()
     {
-        const string html = Prefix + "<h2 id='title'>Title</h2>";
+        const string html = Prefix + "<h2 id='title' style='font-weight:normal'>Title</h2>";
         var error = FailsOneCommandShort(html);
-        Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='title'>")));
+        Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='title'")));
     }
 }
 

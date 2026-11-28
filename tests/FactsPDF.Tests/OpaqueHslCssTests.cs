@@ -112,6 +112,8 @@ public sealed class OpaqueHslCssTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
             directory = directory.Parent;
         Assert.That(directory, Is.Not.Null, "FactsPDF source root not found.");
-        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+        // The user-agent stylesheet makes headings bold, which needs a bold font chain; these tests are about colour.
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name))
+            .Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
     }
 }

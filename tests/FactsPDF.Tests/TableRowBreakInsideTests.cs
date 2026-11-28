@@ -34,10 +34,11 @@ public sealed class TableRowBreakInsideTests
     private static string Lines(string prefix, int count)
         => string.Join("<br>", Enumerable.Range(1, count).Select(i => $"{prefix}{i:00}"));
 
-    // Every cell line is 12pt tall and the usable page is 360pt, so a fresh fragment holds the
+    // The resets (no body margin, unpadded top-aligned cells) keep the page arithmetic of the Chrome
+    // comparison: every cell line is 12pt tall and the usable page is 360pt, so a fresh fragment holds the
     // 12pt header and 29 more lines (348pt).
     private static string Doc(string css, string rows, string before = "", string tableStyle = "") =>
-        "<!doctype html><html><head><style>th{font-weight:normal}td,th{padding:0}" + css + "</style></head><body>" +
+        "<!doctype html><html><head><style>html,body{margin:0}th{font-weight:normal}td,th{padding:0;vertical-align:top}" + css + "</style></head><body>" +
         before + $"<table class='report' style='width:200pt;font-size:10pt;line-height:12pt{tableStyle}'>" +
         "<colgroup><col style='width:60pt'><col style='width:140pt'></colgroup>" +
         "<thead><tr><th>ID</th><th>Description</th></tr></thead><tbody>" + rows +

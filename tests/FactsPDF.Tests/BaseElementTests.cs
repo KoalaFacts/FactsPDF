@@ -18,7 +18,7 @@ public sealed class BaseElementTests
         return output.ToArray();
     }
 
-    private const string Body = "<body><h1>Statement 42</h1><p>Total due: $120. <a href=\"https://example.com/pay\">Pay online</a></p></body></html>";
+    private const string Body = "<body><h1 style=\"font-weight:normal\">Statement 42</h1><p>Total due: $120. <a href=\"https://example.com/pay\">Pay online</a></p></body></html>";
 
     private static string Document(string head) =>
         "<!doctype html><html><head><meta charset=utf-8>" + head + "<title>T</title><style>p{margin:0 0 4pt}</style></head>" + Body;
