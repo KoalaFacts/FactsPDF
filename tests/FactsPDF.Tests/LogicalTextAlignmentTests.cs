@@ -45,9 +45,9 @@ public sealed class LogicalTextAlignmentTests
     public void ParagraphAndHeadingValuesPaintAtPhysicalSideCoordinates(
         string logical, string physical, bool right)
     {
-        var source = "<h2 style='text-align:" + logical + "'>Quality</h2>" +
+        var source = "<h2 style='font-weight:normal;text-align:" + logical + "'>Quality</h2>" +
                      "<p style='text-align:" + logical + "'>Invoice AB-24</p>";
-        var oracle = "<h2 style='text-align:" + physical + "'>Quality</h2>" +
+        var oracle = "<h2 style='font-weight:normal;text-align:" + physical + "'>Quality</h2>" +
                      "<p style='text-align:" + physical + "'>Invoice AB-24</p>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)),
             "A logical value must reach glyph painting, not only parse.");

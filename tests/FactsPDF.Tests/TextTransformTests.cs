@@ -51,8 +51,8 @@ public sealed class TextTransformTests
         const string label = "Invoice ref ab-1042";
         Assert.That(Pdf("<p style='text-transform:uppercase'>" + label + "</p>"),
             Is.EqualTo(Pdf("<p>INVOICE REF AB-1042</p>")));
-        Assert.That(Pdf("<h2 style='text-transform:lowercase'>INVOICE REF AB-1042</h2>"),
-            Is.EqualTo(Pdf("<h2>invoice ref ab-1042</h2>")));
+        Assert.That(Pdf("<h2 style='font-weight:normal;text-transform:lowercase'>INVOICE REF AB-1042</h2>"),
+            Is.EqualTo(Pdf("<h2 style='font-weight:normal'>invoice ref ab-1042</h2>")));
         Assert.That(Layout(NoBodyMargin + "<p style='text-transform:uppercase'>" + label + "</p>")
             .Single().Runs.Single().Text, Is.EqualTo("INVOICE REF AB-1042"));
     }

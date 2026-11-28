@@ -109,8 +109,8 @@ public sealed class CurrentColorReportTests
     [Test]
     public void MultiPageReportKeepsTextPositionsAndPdfBytesAgainstIndependentHexOracle()
     {
-        var source = File.ReadAllText(Path.Combine(FindRoot(), "examples", "report-current-colour.html"));
-        var control = File.ReadAllText(Path.Combine(FindRoot(), "examples", "report-current-colour-oracle.html"));
+        var source = ReadExample("report-current-colour.html");
+        var control = ReadExample("report-current-colour-oracle.html");
         var actual = Pdf(source);
         Assert.That(actual, Is.EqualTo(Pdf(control)),
             "PDF fill, text and decoration bytes must match a separately authored fixed-RGB control.");
@@ -146,6 +146,11 @@ public sealed class CurrentColorReportTests
     [TestCase("background:linear-gradient(currentcolor,blue)")]
     [TestCase("background:rgba(1,2,3,none)")]
     public void UnsupportedColourSyntaxFailsBeforeChangingPdf(string css) => Reject(css);
+
+    // The report's h1 only carries the ink cascade, so it is pinned to the regular weight.
+    private static string ReadExample(string name)
+        => File.ReadAllText(Path.Combine(FindRoot(), "examples", name))
+            .Replace("</head>", "<style>h1{font-weight:normal}</style></head>", StringComparison.Ordinal);
 
     private static string FindRoot()
     {

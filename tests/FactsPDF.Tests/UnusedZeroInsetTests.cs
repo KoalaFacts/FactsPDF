@@ -25,7 +25,7 @@ public sealed class UnusedZeroInsetTests
     }
 
     private static string Doc(string css) =>
-        $"<!doctype html><html><head><style>th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
+        $"<!doctype html><html><head><style>h2,th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
 
     [TestCase("table{margin:0}")]
     [TestCase("table{margin:initial}")]

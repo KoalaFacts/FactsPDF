@@ -14,7 +14,7 @@ public sealed class RootZeroInsetTests
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 400, Margin = 20 };
 
     private const string Content =
-        "<h2>Invoice</h2><div style='border:1pt solid #333;padding:4pt'><p>Paid in full</p></div><p>Thanks</p>";
+        "<h2 style='font-weight:normal'>Invoice</h2><div style='border:1pt solid #333;padding:4pt'><p>Paid in full</p></div><p>Thanks</p>";
 
     private static byte[] Pdf(string html)
     {

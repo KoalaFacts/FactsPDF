@@ -45,7 +45,7 @@ public sealed class RootRelativeMarginTests
         string relative, string absolute)
     {
         const string open = "<html style='font-size:15pt'><body style='font-size:9pt;margin:0'>" +
-            "<h2 style='font-size:12pt;width:100pt;background:#f0f6fa;border:1pt solid blue;";
+            "<h2 style='font-weight:normal;font-size:12pt;width:100pt;background:#f0f6fa;border:1pt solid blue;";
         const string close = "'>SERVICE</h2><p>Following section</p></body></html>";
         Assert.That(Render(open + relative + close), Is.EqualTo(Render(open + absolute + close)));
     }
