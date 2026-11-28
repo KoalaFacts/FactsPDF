@@ -1890,9 +1890,10 @@ internal static class CssSyntaxAdapter
     {
         if (component is not CssFunctionComponent function) return component;
         var name = function.Name.ToLowerInvariant();
+        if (name is "lab" or "lch" or "oklab" or "oklch" or "color") return ModernColor(name, function);
         if (name is not ("rgb" or "rgba" or "hsl" or "hsla"))
             throw new FactsPdfException("FPDF1202",
-                "Only rgb()/rgba() and bounded hsl()/hsla() colour functions are supported.", function.Span.Start);
+                "Only rgb()/rgba(), hsl()/hsla(), lab(), lch(), oklab(), oklch() and color() colour functions are supported.", function.Span.Start);
 
         var tokens = new List<CssSyntaxToken>();
         var spaced = new List<bool>();
@@ -2025,6 +2026,87 @@ internal static class CssSyntaxAdapter
                     "RGB channels must be all integers 0–255 or all percentages 0–100%.", token.Span.Start);
         }
         return Lowered($"{channels[0]:x2}{channels[1]:x2}{channels[2]:x2}");
+    }
+
+    // lab(), lch(), oklab(), oklch() and color() (CSS Color 4): space-separated channels with an optional
+    // "/ alpha", converted to sRGB as Chrome paints them (CssModernColors) and lowered to #rrggbb[aa]. The
+    // keyword none is a missing channel, which paints as zero. Relative colour syntax (from) and
+    // dashed colour spaces need CSS Color 5 and @color-profile and fail.
+    private static CssTokenComponent ModernColor(string name, CssFunctionComponent function)
+    {
+        var tokens = new List<CssSyntaxToken>();
+        foreach (var entry in function.Values)
+        {
+            if (entry is not CssTokenComponent item)
+                throw new FactsPdfException("FPDF1202", "Nested colour functions are unsupported.", entry.Span.Start);
+            if (item.Token.Kind != CssSyntaxTokenKind.Whitespace) tokens.Add(item.Token);
+        }
+        var at = 0;
+        CssModernColors.Space space = default;
+        if (name == "color")
+        {
+            if (tokens.Count == 0 || tokens[0].Kind != CssSyntaxTokenKind.Ident)
+                throw new FactsPdfException("FPDF1202", "color() starts with a colour space name.", function.Span.Start);
+            if (tokens[0].Value.Equals("from", StringComparison.OrdinalIgnoreCase))
+                throw new FactsPdfException("FPDF1202", "Relative colour syntax (from) is not supported.", tokens[0].Span.Start);
+            if (!CssModernColors.TrySpace(tokens[0].Value, out space))
+                throw new FactsPdfException("FPDF1202",
+                    "color() supports srgb, srgb-linear, display-p3, a98-rgb, prophoto-rgb, rec2020, xyz, xyz-d50 and xyz-d65; other names need @color-profile.",
+                    tokens[0].Span.Start);
+            at = 1;
+        }
+        else if (tokens.Count > 0 && tokens[0].Kind == CssSyntaxTokenKind.Ident
+            && tokens[0].Value.Equals("from", StringComparison.OrdinalIgnoreCase))
+            throw new FactsPdfException("FPDF1202", "Relative colour syntax (from) is not supported.", tokens[0].Span.Start);
+        var rest = tokens.Count - at;
+        var hasAlpha = rest == 5 && tokens[at + 3] is { Kind: CssSyntaxTokenKind.Delim, Value: "/" };
+        if (rest != 3 && !hasAlpha)
+            throw new FactsPdfException("FPDF1202",
+                $"{name}() needs three space-separated channels with an optional / alpha.", function.Span.Start);
+        // percent: the value one hundred percent stands for, or 0 when percentages are not allowed.
+        double Channel(int index, double percent, bool angle = false)
+        {
+            var token = tokens[at + index];
+            if (token.Kind == CssSyntaxTokenKind.Ident && token.Value.Equals("none", StringComparison.OrdinalIgnoreCase)) return 0;
+            if (!double.TryParse(token.Value, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value))
+                throw new FactsPdfException("FPDF1202", $"{name}() channels are numbers, percentages or none.", token.Span.Start);
+            switch (token.Kind)
+            {
+                case CssSyntaxTokenKind.Number: return value;
+                case CssSyntaxTokenKind.Percentage when percent != 0 && !angle: return value * percent / 100;
+                case CssSyntaxTokenKind.Dimension when angle:
+                    return token.Unit?.ToLowerInvariant() switch
+                    {
+                        "deg" => value,
+                        "grad" => value * 0.9,
+                        "turn" => value * 360,
+                        "rad" => value * 180 / Math.PI,
+                        _ => throw new FactsPdfException("FPDF1202", "A hue angle uses deg, grad, rad or turn.", token.Span.Start)
+                    };
+                default:
+                    throw new FactsPdfException("FPDF1202", $"{name}() channel is not valid here.", token.Span.Start);
+            }
+        }
+        var (r, g, b) = name switch
+        {
+            "lab" => CssModernColors.FromLab(Channel(0, 100), Channel(1, 125), Channel(2, 125)),
+            "lch" => CssModernColors.FromLch(Channel(0, 100), Channel(1, 150), Channel(2, 0, angle: true)),
+            "oklab" => CssModernColors.FromOklab(Channel(0, 1), Channel(1, 0.4), Channel(2, 0.4)),
+            "oklch" => CssModernColors.FromOklch(Channel(0, 1), Channel(1, 0.4), Channel(2, 0, angle: true)),
+            _ => CssModernColors.FromColor(space, Channel(0, 1), Channel(1, 1), Channel(2, 1))
+        };
+        var alpha = 255;
+        if (hasAlpha)
+        {
+            var token = tokens[^1];
+            alpha = token.Kind == CssSyntaxTokenKind.Ident && token.Value.Equals("none", StringComparison.OrdinalIgnoreCase)
+                ? 0 : AlphaByte(token);
+        }
+        static int Byte(double channel) => (int)Math.Round(channel * 255, MidpointRounding.AwayFromZero);
+        var hex = $"{Byte(r):x2}{Byte(g):x2}{Byte(b):x2}";
+        if (alpha != 255) hex += alpha.ToString("x2", System.Globalization.CultureInfo.InvariantCulture);
+        return new CssTokenComponent(new CssSyntaxToken(CssSyntaxTokenKind.Hash, hex, "#" + hex, function.Span));
     }
 
     // CSS clamps colour alpha (a number or a percentage) to [0, 1]. Chrome paints it as one
