@@ -106,9 +106,9 @@ jobs:
         env:
           MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: |
-          $bin = Join-Path $env:MSYS2_LOCATION 'clangarm64in'
+          $bin = Join-Path $env:MSYS2_LOCATION 'clangarm64\bin'
           Add-Content -LiteralPath $env:GITHUB_PATH -Value $bin
-          # Git for Windows' bash re-prepends its own clangarm64in (an old xpdf-style
+          # Git for Windows' bash re-prepends its own clangarm64\bin (an old xpdf-style
           # pdftotext) ahead of GITHUB_PATH entries, so bash steps prepend this explicitly.
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "FACTSPDF_MSYS2_BIN=$bin"
       - name: Record toolchain and tool versions
