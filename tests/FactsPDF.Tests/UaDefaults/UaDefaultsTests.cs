@@ -40,7 +40,8 @@ public sealed class UaDefaultsTests
 
     private static bool Supported(string name)
         => HtmlDocumentReader.ParagraphTag(name) || HtmlDocumentReader.Container(name) || HtmlDocumentReader.InlineTag(name)
-            || TableMarkup.IsTag(name) || name is "img" or "svg" or "hr" or "br";
+            || TableMarkup.IsTag(name) || HtmlDocumentReader.VoidInlineTag(name) || HtmlDocumentReader.ReplacedTag(name)
+            || HtmlDocumentReader.HiddenTag(name) || name is "img" or "svg" or "hr" or "br";
 
     private static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 

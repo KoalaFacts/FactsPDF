@@ -37,7 +37,7 @@ internal sealed class HtmlElementPositions
     }
 
     // Elements the reader never opens: void elements and those it skips.
-    private static bool Void(string name) => name is "img" or "hr" or "br" or "meta" or "link" or "base" or "col";
+    private static bool Void(string name) => name is "img" or "hr" or "br" or "meta" or "link" or "base" or "col" || HtmlDocumentReader.VoidInlineTag(name);
 
     /// <param name="tokens">The collected document tokens.</param>
     /// <param name="dropped">Script and template elements collection removed, each with the token

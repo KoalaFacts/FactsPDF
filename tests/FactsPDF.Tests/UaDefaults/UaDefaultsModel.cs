@@ -116,11 +116,11 @@ internal sealed class UaDefaultsModel
         double textMarginBefore = 0, textMarginAfter = 0;
 
         if (tag == "html") { text = root.RootStyle; display = "block"; }
-        else if (blocks.TryGetValue(offset, out var block) && block.Name == tag)
+        else if (blocks.TryGetValue(offset, out var block) && block.Name == (tag is "form" or "details" or "summary" or "fieldset" ? "div" : tag))
         {
             text = block.Style;
             box = block.BoxStyle;
-            display = tag == "li" ? "list-item" : "block";
+            display = tag == "li" || tag == "summary" && block.BoxStyle.MarkerKind == ListMarkerKind.Disclosure ? "list-item" : "block";
             textMarginBefore = block.Style.MarginBefore;
             textMarginAfter = block.Style.MarginAfter;
         }
@@ -147,12 +147,17 @@ internal sealed class UaDefaultsModel
         }
         else if (tag == "col") { text = null; display = "table-column"; }
         else if (tag == "colgroup") { text = null; display = null; }
-        else if (tag is "img" or "svg" && images.TryGetValue(offset, out var image))
+        else if (tag is "img" or "svg" or "canvas" or "video" or "iframe" && images.TryGetValue(offset, out var image))
         {
             text = image.Style;
             box = image.BoxStyle;
             display = image.BoxStyle.DisplayBlock ? "block" : "inline";
             verticalAlign = image.BoxStyle.InlineAlign.Kind.ToString().ToLowerInvariant();
+        }
+        // Elements the reader reads and drops: a display:none element builds no box.
+        else if (tag is "source" or "track" or "area" or "embed" or "datalist" or "dialog" or "audio")
+        {
+            text = null; display = "none";
         }
         else
         {
@@ -202,7 +207,12 @@ internal sealed class UaDefaultsModel
     private static void Border(Dictionary<string, string?> values, string side, BorderEdge edge)
     {
         values["border-" + side + "-width"] = Points(edge.EffectiveWidth);
-        values["border-" + side + "-style"] = edge.Solid ? "solid" : "none";
+        values["border-" + side + "-style"] = !edge.Solid ? "none" : edge.Pattern switch
+        {
+            BorderPattern.Inset => "inset",
+            BorderPattern.Groove => "groove",
+            _ => "solid",
+        };
     }
 
     private static string Length(CssLength length, double extraPoints = 0)
@@ -233,6 +243,7 @@ internal sealed class UaDefaultsModel
         ListMarkerKind.UpperAlpha => "upper-alpha",
         ListMarkerKind.LowerRoman => "lower-roman",
         ListMarkerKind.UpperRoman => "upper-roman",
+        ListMarkerKind.Disclosure => "disclosure-closed",
         _ => "none",
     };
 }

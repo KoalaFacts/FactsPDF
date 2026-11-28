@@ -596,8 +596,80 @@ never apply and `src` is never loaded; its attributes must still tokenize. The e
 (`FPDF1101`), a script inside `title` or `colgroup` (where HTML would close the column group and
 shift the columns) fails `FPDF1101`, scripts count toward `MaxElements` (`FPDF1002`), and data where `<!--` is
 followed by `<script` (the double-escaped form, where a browser would not end the element at
-`</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is still
-unsupported.
+`</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is dropped the
+same way (see the next section).
+
+### More HTML elements, printed as Chrome prints them (source only)
+
+Each element below was `FPDF1102` before. Every behaviour was probed in headless Chrome
+(print-to-PDF, scripting enabled, DejaVu faces) and the tests pin it; whatever a page's resource,
+script or a player would change fails explicitly instead of printing something else.
+
+- **Custom elements** (`x-card`, any valid custom element name: a lower-case letter, a hyphen, no
+  reserved name) are `HTMLElement`s with no user-agent style, so they lay out as inline spans, take
+  any attribute (and attribute selectors, `x-card[variant=big]`), and become a block like `div` when
+  author CSS sets `display:block`, `flex` or `grid` (a stylesheet rule or a `style` attribute),
+  or disappear with their subtree for `display:none`. `display:inline-block` and a block custom
+  element inside a paragraph still fail (`FPDF1201`, `FPDF1101`). A name without a hyphen is an
+  unknown element and still fails `FPDF1102` (`CustomAndInlineElementTests.cs`).
+- **`label`, `output`, `map`, `picture` and `bdo`** are inline like `span` (`for`, `form`, `name` change
+  nothing); `bdo` takes `dir="ltr"` only, since every run is laid out left to right (`dir="rtl"` needs the
+  bidi algorithm and fails `FPDF1103`). `picture` draws the `img` inside it: FactsPDF has no `srcset`,
+  `type` or `media` selection, so `source` (`src`, `srcset`, `sizes`, `type`, `width`, `height`) is accepted
+  and ignored and the fallback `img`, bound like any `img`, is the picture; a `source` `media` condition
+  fails `FPDF1103`. `source`, `track` and `area` are `display:none` and draw nothing; an author
+  `display` that shows one (Chrome builds an empty block box for it) draws that empty block when it
+  stands between blocks and fails `FPDF1101` inside inline content, a list or a table, like any block
+  there (an `embed` has no box whatever its display).
+- **`slot`** has no shadow tree here, so it is `display:contents`: its text stays in the line around
+  it and its blocks join the block around it. A box property or a text decoration on it fails
+  `FPDF1201` (a `display:contents` element has no box to paint), as does a slot directly in a flex or
+  grid container.
+- **`form`** is a block like `div` (no margin); its submission attributes change nothing and a nested
+  `form` fails `FPDF1101` (the HTML parser ignores the inner start tag).
+- **`wbr`** is a soft wrap opportunity with no glyph: the line breaker reads it as U+200B (also
+  accepted literally) and may wrap after it, so `AAAA<wbr>BBBB` wraps where a long word cannot fit and
+  stays on one line otherwise. Inside `white-space:nowrap` or `pre` text it fails `FPDF1201` (Chrome still
+  wraps there, which this line breaker does not model).
+- **`noscript`** is never printed: with scripting enabled the parser reads its content as raw text and the
+  user-agent sheet gives it `display:none !important`, so it is dropped with its content exactly like
+  `script` (end tag required, counted against `MaxElements`). **`datalist`**, a closed **`dialog`** and an
+  **`audio`** without `controls` are `display:none` too: the subtree is skipped unread (an unsupported
+  element inside does not fail, the elements still count toward `MaxElements`). An author `display`
+  that shows a `dialog` or `datalist` fails `FPDF1201`, `dialog[open]` (positioned absolutely and centred)
+  fails `FPDF1103`, and `audio[controls]` (a player is painted) fails `FPDF1103`. `option` and
+  `optgroup` are accepted inside `datalist` only; elsewhere they still fail `FPDF1102`.
+- **`details` and `summary`**: `details` is a block and its first `summary` a list item whose
+  `list-style: inside disclosure-closed` marker is a triangle (right-pointing while closed, down-pointing
+  with `open`, 1.059em wide on the baseline, in the summary's text colour; `list-style:none` removes
+  it, other marker types and `list-style-position:outside` fail `FPDF1201`). A closed details prints its
+  summary only; an open one prints the rest after it, and a second `summary` is a plain block. The
+  summary must be the first child: text or elements before it, and a details without one (which prints
+  a localized default label), fail `FPDF1101`; `details::before`/`::after` fail `FPDF1201`.
+- **`fieldset`** is a block with a 2px `groove` border in `ThreeDFace` (#f0f0f0, outer band darker),
+  2px side margins and `0.35em 0.75em 0.625em` padding of the fieldset's own font size; author borders
+  and padding replace them. Its `legend` is not supported (`FPDF1102`): a legend is drawn over the top
+  border, which needs layout this engine does not have.
+- **`canvas`, `video` and `iframe`** are replaced boxes with nothing to draw: a `canvas` is as large as its
+  `width` and `height` attributes (300 by 150 CSS px by default) and keeps that ratio when CSS gives one
+  dimension; `video` and `iframe` take `width` and `height` (px or percent) as CSS hints, each
+  independent and defaulting to 300px and 150px; an `iframe` also has its `inset` border (2px, #eee and
+  its darker shade, `frameborder="0"` or `border:0` removes it) and fails `FPDF1201` with another text
+  colour or `border-color` on that inset border. Their children are never rendered. A `video` with
+  `controls`, `src`, `poster` or a `source`, an `iframe` with `src`, `srcdoc` or `scrolling`, and a
+  `canvas` size that is not a positive integer fail `FPDF1103`; FactsPDF runs no scripts, so a canvas a script
+  would draw prints blank. An **`embed`** without `src` prints nothing (with `src` or `type`:
+  `FPDF1103`), and an **`object`** prints its fallback content inline (with `data`, `type` or `usemap`:
+  `FPDF1103`, since FactsPDF never loads the resource).
+- **`ruby`, `rt` and `rp`** still fail `FPDF1102`: Chrome draws `rt` as a half-size annotation above the base
+  text and grows the line box and the ruby's width to fit it, which needs inline layout with
+  per-segment ascent and width that the line breaker does not have.
+
+The two-tone borders (`inset` for the iframe, `groove` for the fieldset) can only come from those
+defaults: author `border-style: inset` and `groove` still fail `FPDF1202`
+(`CustomAndInlineElementTests.cs`, `WordBreakElementTests.cs`, `HiddenElementTests.cs`,
+`ReplacedBoxElementTests.cs`, `DetailsSummaryFieldsetTests.cs`, and the Chrome probes in
+`tests/fixtures/ua-defaults`).
 
 `<meta>` in the head accepts `charset=utf-8` and named metadata: `name` or `property` with
 `content` (viewport, description, author, generator, Open Graph `og:*`). A static render never
