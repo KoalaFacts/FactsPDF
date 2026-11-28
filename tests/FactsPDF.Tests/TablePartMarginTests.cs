@@ -25,7 +25,7 @@ public sealed class TablePartMarginTests
     }
 
     private static string Doc(string css) =>
-        $"<!doctype html><html><head><style>th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
+        $"<!doctype html><html><head><style>h1,h2,h3,h4,h5,h6,th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
 
     [TestCase("td,th{margin:0}")]
     [TestCase("tr,thead,tbody,col,colgroup,td,th{margin:0}")]

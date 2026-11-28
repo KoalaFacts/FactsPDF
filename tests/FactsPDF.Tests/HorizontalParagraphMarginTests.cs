@@ -43,7 +43,7 @@ public sealed class HorizontalParagraphMarginTests
     [TestCase("margin:2mm 10% 3mm 4mm", "margin-top:2mm;margin-right:10%;margin-bottom:3mm;margin-left:4mm")]
     public void ShorthandMatchesIndependentlyAuthoredLonghandsInActualPdf(string shorthand, string longhands)
     {
-        const string start = "<div style='width:180pt;padding:5pt;background:#f0f6fa'><h2 style='";
+        const string start = "<style>h2{font-weight:normal}</style><div style='width:180pt;padding:5pt;background:#f0f6fa'><h2 style='";
         const string end = "'>Equipment inspection</h2><p style='margin:0 4pt 3pt'>Checked all equipment.</p></div>";
         Assert.That(Pdf(start + shorthand + end), Is.EqualTo(Pdf(start + longhands + end)));
     }

@@ -205,7 +205,7 @@ public sealed class BlockBoxTreeTests
     [Test]
     public void RealAsciiPdfBytesMatchTheExistingFlatLayoutSerializer()
     {
-        const string html = "<style>html,body{margin:0}div p{color:red}</style>" +
+        const string html = "<style>html,body{margin:0}h2{font-weight:normal}div p{color:red}</style>" +
             "<body><div>Before<p>Colored</p><section><h2>Heading</h2>" +
             "<p>End</p></section>Trailing</div></body>";
         var options = new PdfOptions();

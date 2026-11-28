@@ -30,7 +30,7 @@ public sealed class CustomPropertyTests
     // p{margin:0} comes first so the author rules still win: the user-agent 1em paragraph margins would
     // otherwise collapse with a panel margin of the same size and hide the effect the tests compare.
     private static string Document(string css, string body = Content) =>
-        $"<!doctype html><html><head><style>p{{margin:0}}{css}</style></head><body>{body}</body></html>";
+        $"<!doctype html><html><head><style>h1,h2,h3,h4,h5,h6,th{{font-weight:normal}}p{{margin:0}}{css}</style></head><body>{body}</body></html>";
 
     private static FactsPdfException Fails(string html, string code)
     {
@@ -68,12 +68,15 @@ public sealed class CustomPropertyTests
     {
         var examples = Path.Combine(FindRoot(), "examples");
         var variable = File.ReadAllText(Path.Combine(examples, "report-custom-properties.html"));
+        var weightPin = "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>";
         var oracle = File.ReadAllText(Path.Combine(examples, "report-custom-properties-oracle.html"));
         Assert.That(variable, Does.Contain("var(--ex-brand)").And.Contain("--ex-brand: var(--ex-red-700)"));
         Assert.That(oracle, Does.Not.Contain("var("));
         var tokens = System.Text.RegularExpressions.Regex.Count(variable, @"^\s+--ex-[\w-]+:", System.Text.RegularExpressions.RegexOptions.Multiline);
         Assert.That(tokens, Is.GreaterThanOrEqualTo(70));
         var options = new PdfOptions();
+        variable = weightPin + variable;
+        oracle = weightPin + oracle;
         var pdf = Pdf(variable, options);
         Assert.That(pdf, Is.EqualTo(Pdf(oracle, options)));
         var a5 = new PdfOptions { PageWidth = 420, PageHeight = 595, Margin = 30 };

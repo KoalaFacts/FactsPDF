@@ -124,7 +124,7 @@ public sealed class HorizontalAutoMarginTests
     public void HeadingKeepUsesSameCenteredWidthAndPageBreakAsRendering()
     {
         var settings = Page with { PageHeight = 110 };
-        const string lead = "<style>p,h2{font-size:10pt;line-height:2;margin-top:0;margin-bottom:0}</style>" +
+        const string lead = "<style>p,h2{font-size:10pt;line-height:2;margin-top:0;margin-bottom:0;font-weight:normal}</style>" +
             "<p>PRELUDE<br>PRELUDE</p>";
         const string auto = "<h2 style='width:100pt;margin:0 auto;break-after:avoid'>INSPECTION</h2>" +
             "<p style='width:100pt;margin:0 auto'>ALPHA<br>BETA<br>GAMMA</p>";
