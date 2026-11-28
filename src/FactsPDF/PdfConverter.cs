@@ -31,6 +31,7 @@ internal static class PdfConverter
         PageFurnitureLayout.Validate(options);
         options = FontRoles.Snapshot(options);
         options = ImageResources.Snapshot(options, cancellationToken);
+        options = StylesheetResources.Snapshot(options, cancellationToken);
         if (!options.Strict) options = options with { CssWarnings = new CssWarnings(options.MaxCssWarnings) };
         if ((options.HeaderText?.Length ?? 0) > 1024 || (options.FooterText?.Length ?? 0) > 1024)
             throw new FactsPdfException("FPDF1001", "Each header/footer field is limited to 1024 UTF-16 units.");
@@ -54,6 +55,10 @@ internal static class PdfConverter
         if (overflow > options.PageWidth - options.MarginRight + 0.01)
         {
             var shrink = Math.Min((overflow - options.MarginLeft) / options.ContentWidth, MaxPrintShrink);
+            // Whether Chrome's media queries see the wider layout page is not modelled.
+            if (document.UsesPageAreaMedia)
+                throw new FactsPdfException("FPDF1204",
+                    "Content wider than the page prints scaled down, which media queries on width, height, aspect-ratio or orientation do not support.");
             if (options.PageFurniture is not null || options.PageNumbers || options.HeaderText is not null || options.FooterText is not null)
                 throw new FactsPdfException("FPDF1302",
                     "Content wider than the page prints scaled down, which page headers, footers and numbers do not support.");
@@ -132,7 +137,7 @@ internal static class PdfConverter
         if (!double.IsFinite(o.FontSize) || o.FontSize is < 1 or > 144)
             return (o.FontSize, "FontSize must be from 1 to 144 points.");
         if (o.MaxInputCharacters < 1 || o.MaxElements < 1 || o.MaxDepth < 1 || o.MaxPages < 1 || o.MaxOutputBytes < 1 || o.MaxTotalFontBytes < 1 || o.MaxCssSyntaxNodes < 1 || o.MaxCssSyntaxDepth < 1 || o.MaxCssCustomProperties < 1 || o.MaxDisplayCommands < 1 || o.MaxCssWarnings < 1
-            || o.MaxImageResources < 1 || o.MaxTotalImageBytes < 1)
+            || o.MaxImageResources < 1 || o.MaxTotalImageBytes < 1 || o.MaxStylesheetResources < 1)
             return (null, "All resource limits must be positive.");
         return null;
     }

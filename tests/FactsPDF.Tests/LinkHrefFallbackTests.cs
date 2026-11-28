@@ -28,12 +28,12 @@ public sealed class LinkHrefFallbackTests
     [TestCase("../orders")]
     [TestCase("#section")]
     [TestCase("")]
-    [TestCase("http://example.com/insecure")]
+    [TestCase("http://example.com")]
     [TestCase("javascript:alert(1)")]
     [TestCase("file:///secret")]
     [TestCase("data:text/html,x")]
     [TestCase("https://user:pass@example.com/")]
-    [TestCase("https://example.com/page#fragment")]
+    [TestCase("https://example.com:443/page#fragment")]
     [TestCase("mailto:sales@example.com?subject=hi")]
     public void StrictModeFailsAndNonStrictModeDrawsTheTextWithoutAnAnnotation(string href)
     {

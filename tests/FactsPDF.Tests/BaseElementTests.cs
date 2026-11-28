@@ -63,23 +63,31 @@ public sealed class BaseElementTests
         });
     }
 
-    // base must not make FactsPDF resolve relative links: they fail exactly as without it.
-    [TestCase("/pay")]
-    [TestCase("pay")]
-    [TestCase("//example.com/pay")]
-    [TestCase("#total")]
-    public void RelativeLinksFailExactlyAsWithoutBase(string href)
+    // A relative href resolves against an absolute http(s) base href, as Chrome resolves it (R5x-resources-links-media).
+    [TestCase("/pay", "https://example.com/pay")]
+    [TestCase("pay", "https://example.com/app/pay")]
+    [TestCase("../pay?id=7", "https://example.com/pay?id=7")]
+    [TestCase("#total", "https://example.com/app/#total")]
+    public void RelativeLinksResolveAgainstAnAbsoluteBase(string href, string expected)
     {
         var body = "<p><a href=\"" + href + "\">Pay</a></p>";
-        var plain = Assert.Throws<FactsPdfException>(() => Pdf("<head><title>T</title></head>" + body))!;
-        var based = Assert.Throws<FactsPdfException>(() =>
-            Pdf("<head><base href=\"https://example.com/app/\"><title>T</title></head>" + body))!;
-        Assert.Multiple(() =>
-        {
-            Assert.That(based.Code, Is.EqualTo("FPDF1103"));
-            Assert.That(based.Code, Is.EqualTo(plain.Code));
-            Assert.That(based.Message, Is.EqualTo(plain.Message));
-        });
+        var text = System.Text.Encoding.Latin1.GetString(
+            Pdf("<head><base href=\"https://example.com/app/\"><title>T</title></head>" + body));
+        Assert.That(text, Does.Contain("/URI <" + Convert.ToHexString(System.Text.Encoding.ASCII.GetBytes(expected)) + ">"));
+    }
+
+    // Over-correction: without a base, with a relative base (which resolves against the unknown document
+    // URL), and for scheme-relative references, relative links keep failing exactly as before.
+    [TestCase("<head><title>T</title></head>", "/pay")]
+    [TestCase("<head><base href=\"/\"><title>T</title></head>", "/pay")]
+    [TestCase("<head><base href=\"./app/\"><title>T</title></head>", "pay")]
+    [TestCase("<head><base href=\"https://example.com/app/\"><title>T</title></head>", "//example.com/pay")]
+    [TestCase("<head><base href=\"https://example.com/app/\"><title>T</title></head>", "%70ay")]
+    [TestCase("<head><title>T</title></head>", "#total")]
+    public void RelativeLinksWithoutAnAbsoluteBaseStillFail(string head, string href)
+    {
+        var ex = Assert.Throws<FactsPdfException>(() => Pdf(head + "<p><a href=\"" + href + "\">Pay</a></p>"))!;
+        Assert.That(ex.Code, Is.EqualTo("FPDF1103"));
     }
 
     [Test]

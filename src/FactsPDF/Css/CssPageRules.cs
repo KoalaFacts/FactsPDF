@@ -35,6 +35,9 @@ internal sealed class CssPageRules
     private readonly CssDeclaration?[] margins = new CssDeclaration?[4];
     private readonly MarginBox?[] boxes = new MarginBox?[6];
 
+    /// <summary>Whether a rule sets the page size or a margin, which changes the page area.</summary>
+    internal bool ChangesPageArea => size is not null || Array.Exists(margins, m => m is not null);
+
     private static bool Wins(bool important, int order, bool currentImportant, int currentOrder)
         => important != currentImportant ? important : order >= currentOrder;
 

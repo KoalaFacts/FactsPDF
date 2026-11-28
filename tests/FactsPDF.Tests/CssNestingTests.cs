@@ -124,6 +124,6 @@ public sealed class CssNestingTests
     }
 
     [Test]
-    public void NestedAtRulesOtherThanMediaAndLayerFail()
-        => Assert.That(Assert.Throws<FactsPdfException>(() => Pdf(Doc(".a{@supports (color:red){color:red}}", Body)))!.Code, Is.EqualTo("FPDF1203"));
+    public void NestedAtRulesOtherThanMediaSupportsAndLayerFail()
+        => Assert.That(Assert.Throws<FactsPdfException>(() => Pdf(Doc(".a{@container (min-width:1px){color:red}}", Body)))!.Code, Is.EqualTo("FPDF1203"));
 }

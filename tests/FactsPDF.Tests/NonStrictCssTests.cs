@@ -143,11 +143,11 @@ public sealed class NonStrictCssTests
     [TestCase("@font-face{font-family:x}")]
     [TestCase("@page:first{margin:0}")]
     [TestCase("@import url(x.css);")]
-    [TestCase("@media screen{p{color:red}}")]
+    [TestCase("@media (hover:hover){p{color:red}}")]
     [TestCase("@media print{color:red}")]
     [TestCase("p{display:var(--missing)}")]
     [TestCase(":root{--d:flex}p{display:var(--d)}")]
-    [TestCase("", "<style media='screen'>p{color:red}</style><p>x</p>", Description = "style media other than print or all")]
+    [TestCase("", "<style media='(prefers-color-scheme:dark)'>p{color:red}</style><p>x</p>", Description = "style media with an unmodelled feature")]
     [TestCase("span{margin-top:4pt}", "<p><span>x</span></p>")]
     public void ValidButUnsupportedCssFailsInBothModes(string css, string? body = null)
     {

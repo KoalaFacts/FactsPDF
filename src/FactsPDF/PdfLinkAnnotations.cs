@@ -102,9 +102,9 @@ internal sealed class PdfLinkAnnotations
     /// <summary>The link target of an <c>a href</c>: a valid absolute HTTPS or mailto URI, or in strict mode the
     /// FPDF1103 failure. Non-strict mode (<paramref name="warnings"/> set) reports the same failure as a warning
     /// and returns null: the text is then drawn as an ordinary link but no annotation is written.</summary>
-    internal static string? ValidateUri(string input, int offset, CssWarnings? warnings)
+    internal static string? ValidateUri(string input, int offset, CssWarnings? warnings, Uri? baseUri = null)
     {
-        try { return ValidateUri(input, offset); }
+        try { return ValidateUri(input, offset, baseUri); }
         catch (FactsPdfException error) when (warnings is not null)
         {
             warnings.Add(error);
@@ -112,7 +112,96 @@ internal sealed class PdfLinkAnnotations
         }
     }
 
-    internal static string ValidateUri(string input, int offset)
+    /// <summary>The link target Chrome writes for an <c>a href</c>: an absolute HTTPS URL or mailto address as
+    /// written (the original subset), an absolute HTTP or HTTPS URL (fragments allowed) already in the serialized
+    /// form Chrome writes, or a relative reference resolved against the base element's absolute URL.</summary>
+    internal static string ValidateUri(string input, int offset, Uri? baseUri = null)
+    {
+        try { return ValidateOriginal(input, offset); }
+        catch (FactsPdfException)
+        {
+            if (Serialized(input) is { } absolute) return absolute;
+            if (baseUri is not null && Resolve(input, baseUri) is { } resolved) return resolved;
+            throw;
+        }
+    }
+
+    /// <summary>The URL relative link hrefs resolve against: the base href when it is an absolute HTTP or
+    /// HTTPS URL in the conservative character set; otherwise null (a relative base would resolve against
+    /// the document's own URL, which FactsPDF does not know).</summary>
+    internal static Uri? BaseUri(string href)
+    {
+        if (href.Length is < 8 or > 2048 || !SafeCharacters(href) || DecodesUnreserved(href)) return null;
+        if (!href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !href.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return null;
+        return Uri.TryCreate(href, UriKind.Absolute, out var parsed) && parsed.Scheme is "http" or "https"
+            && parsed.Host.Length > 0 && parsed.UserInfo.Length == 0 ? parsed : null;
+    }
+
+    // An absolute http(s) URL Chrome writes unchanged: its serialization equals the text. Only RFC 3986
+    // unreserved and reserved characters (no apostrophe, which a special URL's query percent-encodes) and
+    // valid percent escapes are allowed, so the serializations of .NET and of the URL Standard agree.
+    private static string? Serialized(string input)
+    {
+        if (input.Length is < 8 or > 2048 || !SafeCharacters(input)) return null;
+        if (!input.StartsWith("http://", StringComparison.Ordinal) && !input.StartsWith("https://", StringComparison.Ordinal)) return null;
+        if (!Uri.TryCreate(input, UriKind.Absolute, out var parsed) || parsed.Scheme is not ("http" or "https")
+            || parsed.Host.Length == 0 || parsed.UserInfo.Length > 0)
+            return null;
+        return string.Equals(parsed.AbsoluteUri, input, StringComparison.Ordinal) ? input : null;
+    }
+
+    // A relative reference (path, query or fragment) resolved against the base URL, as Chrome resolves it.
+    // Scheme-relative references, other schemes and escapes of unreserved characters (which .NET decodes
+    // and the URL Standard keeps) are refused.
+    private static string? Resolve(string input, Uri baseUri)
+    {
+        if (input.Length is < 1 or > 2048 || !SafeCharacters(input) || DecodesUnreserved(input)
+            || input.StartsWith("//", StringComparison.Ordinal) || HasScheme(input))
+            return null;
+        if (!Uri.TryCreate(baseUri, input, out var resolved) || resolved.Scheme is not ("http" or "https")
+            || resolved.UserInfo.Length > 0)
+            return null;
+        var text = resolved.AbsoluteUri;
+        return text.Length <= 2048 && SafeCharacters(text) ? text : null;
+    }
+
+    private static bool SafeCharacters(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '_' or '~' or ':' or '/' or '?' or '#' or '@'
+                or '!' or '$' or '&' or '(' or ')' or '*' or '+' or ',' or ';' or '=') continue;
+            if (c == '%' && i + 2 < text.Length && Uri.IsHexDigit(text[i + 1]) && Uri.IsHexDigit(text[i + 2])) { i += 2; continue; }
+            return false;
+        }
+        return true;
+    }
+
+    // Whether a percent escape encodes an unreserved character (ALPHA, DIGIT, '-', '.', '_', '~').
+    private static bool DecodesUnreserved(string text)
+    {
+        for (var i = text.IndexOf('%'); i >= 0 && i + 2 < text.Length; i = text.IndexOf('%', i + 1))
+        {
+            var value = int.Parse(text.AsSpan(i + 1, 2), System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture);
+            if (char.IsAsciiLetterOrDigit((char)value) || value is '-' or '.' or '_' or '~') return true;
+        }
+        return false;
+    }
+
+    private static bool HasScheme(string text)
+    {
+        if (text.Length == 0 || !char.IsAsciiLetter(text[0])) return false;
+        for (var i = 1; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c == ':') return true;
+            if (!(char.IsAsciiLetterOrDigit(c) || c is '+' or '-' or '.')) return false;
+        }
+        return false;
+    }
+
+    private static string ValidateOriginal(string input, int offset)
     {
         if (input.Length is < 8 or > 2048 ||
             input.Any(c => c is < '!' or > '~' or '"' or '<' or '>' or '\\' || c == (char)96))
@@ -156,7 +245,7 @@ internal sealed class PdfLinkAnnotations
     }
 
     private static FactsPdfException Invalid(int offset) => new("FPDF1103",
-        "Link href requires an absolute ASCII HTTPS URL or one mailto address (max 2048 chars).", offset);
+        "Link href requires an absolute ASCII HTTPS URL or one mailto address, an absolute HTTP(S) URL written as Chrome serializes it, or a relative reference with an absolute HTTP(S) base href (max 2048 chars); in-document #fragment links are not supported.", offset);
 
     private const string Number = "0.######";
 }

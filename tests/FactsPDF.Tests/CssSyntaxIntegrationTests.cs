@@ -39,7 +39,7 @@ public sealed class CssSyntaxIntegrationTests
     [Test]
     public void ValidUnimplementedSupportsAtRuleIsRejectedAsUnsupportedRenderingNotInvalidSyntax()
     {
-        Failure("<style>@supports(display:grid){p{color:red}}</style><p>A</p>", "FPDF1204");
+        Failure("<style>@supports(display:ruby){p{color:red}}</style><p>A</p>", "FPDF1204");
     }
 
     [Test]

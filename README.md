@@ -62,6 +62,7 @@ stdin/stdout). Common options:
 | `--font`, `--font-bold`, `--font-italic`, `--font-bold-italic` | TrueType font files, see [below](#fonts-and-images) |
 | `--subset-fonts` | Embed only the glyphs used |
 | `--image name=path.png` | Bind an image resource, see [below](#fonts-and-images) |
+| `--stylesheet href=path.css` | Supply the stylesheet a `<link rel="stylesheet">` or `@import` names by this exact href; nothing is downloaded ([contract](docs/css-stylesheets.md#external-stylesheets-and-import)) |
 | `--overwrite` | Allow replacing an existing output file |
 | `--strict false` (or `--strict=false`) | Non-strict CSS: drop CSS that is invalid per the specifications, as a browser does, and print each as a warning (exit 0); default `true` ([contract](docs/css-stylesheets.md#strict-and-non-strict-css)) |
 | `--help`, `--version` | Show usage, or the exact build version and commit |

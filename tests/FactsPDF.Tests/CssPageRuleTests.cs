@@ -249,7 +249,7 @@ public sealed class CssPageRuleTests
     [TestCase("@page{@media print{}}", "FPDF1204")]
     [TestCase("@page{@bottom-center x{content:'x'}}", "FPDF1204")]
     [TestCase("@page{@bottom-center{p{}}}", "FPDF1204")]
-    [TestCase("@media screen{@page{margin:1cm}}", "FPDF1204")]
+    [TestCase("@media (hover:none){@page{margin:1cm}}", "FPDF1204")]
     [TestCase("@page{padding:1cm}", "FPDF1201")]
     [TestCase("@page{margin-inline:1cm}", "FPDF1201")]
     [TestCase("@page{bleed:3mm}", "FPDF1201")]

@@ -201,7 +201,7 @@ public sealed class ReportHyperlinksTests
     [TestCase("<a href='#page'>Local fragment</a>", "FPDF1103")]
     [TestCase("<a href='https://user:pass@example.com'>Credentials</a>", "FPDF1103")]
     [TestCase("<a href='https://example.com/%ZZ'>Broken escape</a>", "FPDF1103")]
-    [TestCase("<a href='https://example.com/orders#section'>Unsupported fragment</a>", "FPDF1103")]
+    [TestCase("<a href='https://EXAMPLE.com/orders#section'>Not serialized as Chrome writes it</a>", "FPDF1103")]
     [TestCase("<a href='mailto:sales@example.com%0Asubject'>Encoded mailto injection</a>", "FPDF1103")]
     [TestCase("<a href='mailto:sales@example.com?subject=hi'>Email query</a>", "FPDF1103")]
     [TestCase("<a href='mailto:alice@example.com/not-an-address'>Mailbox path</a>", "FPDF1103")]

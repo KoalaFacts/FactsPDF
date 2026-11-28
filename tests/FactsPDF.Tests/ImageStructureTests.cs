@@ -70,7 +70,7 @@ public sealed class ImageStructureTests
     [TestCase("<img>", "FPDF1103")]
     [TestCase("<img src=''>", "FPDF1103")]
     [TestCase("<img src='https://example.invalid/chart.jpg'>", "FPDF1103")]
-    [TestCase("<img src='data:image/jpeg;base64,AA=='>", "FPDF1103")]
+    [TestCase("<img src='data:image/gif;base64,AA=='>", "FPDF1103")]
     [TestCase("<img src='/tmp/chart.jpg'>", "FPDF1103")]
     [TestCase("<img src='chart' srcset='chart'>", "FPDF1103")]
     [TestCase("<img src='chart' style='height:100%'>", "FPDF1202")]

@@ -55,6 +55,20 @@ public sealed class PdfWriter
         return new(Options with { Images = new ReadOnlyDictionary<string, PdfImage>(images) });
     }
 
+    /// <summary>Supplies the text of an external stylesheet that <c>&lt;link rel="stylesheet" href="..."&gt;</c> or
+    /// <c>@import</c> names; the same href replaces the earlier stylesheet. FactsPDF never downloads: the page's
+    /// href must match <paramref name="href"/> exactly (case-sensitive, not resolved against <c>&lt;base&gt;</c>).</summary>
+    /// <param name="href">The URL text exactly as the page writes it: 1–2048 printable ASCII characters without white space, quotes, <c>&lt;</c>, <c>&gt;</c>, <c>\</c> or backticks.</param>
+    /// <param name="css">The stylesheet's CSS text. It is checked like an embedded style element and counts against the CSS character budget each time it is applied.</param>
+    public PdfWriter WithStylesheet(string href, string css)
+    {
+        ArgumentNullException.ThrowIfNull(css);
+        if (!StylesheetResources.ValidName(href))
+            throw new ArgumentException("Use 1–2048 printable ASCII characters without white space, quotes, '<', '>', backslashes or backticks.", nameof(href));
+        var sheets = new Dictionary<string, string>(Options.Stylesheets, StringComparer.Ordinal) { [href] = css };
+        return new(Options with { Stylesheets = new ReadOnlyDictionary<string, string>(sheets) });
+    }
+
     /// <summary>Sets the paper size, orientation and margins.</summary>
     /// <param name="configure">Configures the page, starting from this writer's current page settings.</param>
     public PdfWriter WithPage(Action<PdfPageSetup> configure)
@@ -482,6 +496,10 @@ public sealed class PdfLimitsSetup
     /// <summary>Maximum combined encoded size of all bound images in bytes (FPDF1603). Default 32 MiB.</summary>
     /// <param name="value">A positive limit.</param>
     public PdfLimitsSetup MaxTotalImageBytes(int value) => Set(value, o => o with { MaxTotalImageBytes = value });
+
+    /// <summary>Maximum number of supplied stylesheets (FPDF1205). Default 16.</summary>
+    /// <param name="value">A positive limit.</param>
+    public PdfLimitsSetup MaxStylesheetResources(int value) => Set(value, o => o with { MaxStylesheetResources = value });
 
     /// <summary>Maximum UTF-16 units of CSS in style elements and attributes (FPDF1205). Default 262,144.</summary>
     /// <param name="value">A positive limit.</param>

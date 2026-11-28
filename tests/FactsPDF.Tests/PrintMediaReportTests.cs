@@ -114,14 +114,14 @@ public sealed class PrintMediaReportTests
         finally { File.Delete(name); }
     }
 
-    [TestCase("@media screen{p{color:red}}", "FPDF1204")]
-    [TestCase("@media print,screen{p{color:red}}", "FPDF1204")]
-    [TestCase("@media (min-width:300px){p{color:red}}", "FPDF1204")]
-    [TestCase("@media print and (color){p{color:red}}", "FPDF1204")]
+    [TestCase("@media (hover:hover){p{color:red}}", "FPDF1204")]
+    [TestCase("@media print,(pointer:fine){p{color:red}}", "FPDF1204")]
+    [TestCase("@media (min-resolution:2dppx){p{color:red}}", "FPDF1204")]
+    [TestCase("@media screen or print{p{color:red}}", "FPDF1204")]
     [TestCase("@media print;", "FPDF1204")]
-    [TestCase("@media print{ @supports(display:grid){p{color:red}} }", "FPDF1204")]
+    [TestCase("@media print{ @supports(display:ruby){p{color:red}} }", "FPDF1204")]
     [TestCase("@media print{color:red; p{color:blue}}", "FPDF1204")]
-    [TestCase("@supports(display:grid){p{color:red}}", "FPDF1204")]
+    [TestCase("@supports font-tech(color-COLRv1){p{color:red}}", "FPDF1204")]
     [TestCase("@import 'https://example.invalid/a.css';", "FPDF1204")]
     [TestCase("@media print{.unmatched{padding:-1pt}}", "FPDF1202")]
     [TestCase("@media all{.unmatched{display:inline-flex}}", "FPDF1202")]

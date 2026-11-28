@@ -348,7 +348,7 @@ internal static class HtmlDocumentReader
         // CSS counters, tracked only when a stylesheet sets or prints one.
         var counterScopes = sheets.UsesCounters ? new CounterScopes() : null;
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
-        var result = new DocumentRoot { PageRules = sheets.PageRules };
+        var result = new DocumentRoot { PageRules = sheets.PageRules, UsesPageAreaMedia = sheets.UsesPageAreaMedia };
         Paragraph? current = null;
         // The box of the open cell paragraph when it has padding; cell paragraphs have no other box.
         BoxStyle? currentPadding = null;
@@ -360,6 +360,11 @@ internal static class HtmlDocumentReader
         var cellBlocks = 0;
         var anonymous = false;
         var elements = 0; var insideStyle = false; var baseSeen = false;
+        // The base element's absolute http(s) URL, which relative link hrefs resolve against; null when
+        // there is none or it is not one (a relative base resolves against the unknown document URL).
+        Uri? baseUri = null;
+        // Images written inline as data: URLs, decoded on first use.
+        DataUriImages? dataImages = null;
         SvgDocument? svg = null;
         // html, head and body frames the HTML parser implied (HtmlImpliedElements): they are part of
         // the tree selectors see, but no element or depth limit counts them.
@@ -776,11 +781,12 @@ internal static class HtmlDocumentReader
                 continue;
             }
             if (!implied && ++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", token.Offset);
-            // A stylesheet link fails as an unsupported style source wherever it appears, before
-            // any placement check.
+            // A stylesheet link with other link types fails as an unsupported style source wherever it
+            // appears, before any placement check; rel="stylesheet" alone was applied by CssStylesheets.
+            var stylesheetLink = false;
             if (name == "link")
                 foreach (var (attribute, value) in token.Attributes!)
-                    if (attribute == "rel") LinkRelations(value, token.Offset);
+                    if (attribute == "rel") stylesheetLink = LinkRelations(value, token.Offset);
             // An svg is foreign content, where a self-closing tag closes the element.
             if (token.SelfClosing && !VoidInlineTag(name) && name is not ("img" or "svg" or "hr" or "br" or "meta" or "link" or "base" or "col"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
@@ -894,15 +900,19 @@ internal static class HtmlDocumentReader
                     // Non-strict mode keeps the text as a link (blue, underlined) without an annotation
                     // when the target is not an absolute HTTPS or mailto URI.
                     hrefGiven = true;
-                    href = PdfLinkAnnotations.ValidateUri(value, token.Offset, options.CssWarnings);
+                    href = PdfLinkAnnotations.ValidateUri(value, token.Offset, options.CssWarnings, baseUri);
                 }
                 // A PDF link annotation always opens its URI outside the document, so the browsing
                 // context (target) and the hyperlink relations (noopener, nofollow, ...) change nothing.
                 else if (name == "a" && attribute == "target") AnchorTarget("a", value, token.Offset);
-                // base only sets the URL that relative URLs resolve against and the default link
-                // target. Links must already be absolute and images are named resources, so neither
-                // is ever resolved; the href is never read, and target is held to the a rule.
-                else if (name == "base" && attribute == "href") baseHrefOrTarget = true;
+                // base sets the URL that relative link hrefs resolve against (when it is an absolute
+                // http or https URL) and the default link target, held to the a rule. Images and
+                // stylesheets are caller-supplied resources named by their exact text, never resolved.
+                else if (name == "base" && attribute == "href")
+                {
+                    baseHrefOrTarget = true;
+                    baseUri = PdfLinkAnnotations.BaseUri(value);
+                }
                 else if (name == "base" && attribute == "target")
                 {
                     AnchorTarget("base", value, token.Offset);
@@ -941,6 +951,8 @@ internal static class HtmlDocumentReader
                 // manifest) is never fetched or painted by a static render. A stylesheet link would
                 // change the render, and external resources are never loaded, so it fails FPDF1204 like @import.
                 else if (name == "link" && attribute == "rel") linkRel = true; // validated before placement
+                // A stylesheet link's media query list was evaluated when its stylesheet was applied.
+                else if (name == "link" && attribute == "media" && stylesheetLink) { }
                 else if (name == "link" && attribute is "href" or "type" or "sizes" or "hreflang" or "crossorigin"
                     or "as" or "color" or "integrity" or "referrerpolicy") { }
                 else if (name == "img" && attribute is "src" or "alt") { }
@@ -1130,9 +1142,13 @@ internal static class HtmlDocumentReader
             }
             if (name == "img")
             {
-                if (!token.Attributes.TryGetValue("src", out var resourceName) || !ImageResources.ValidName(resourceName))
+                if (!token.Attributes.TryGetValue("src", out var resourceName))
                     throw new FactsPdfException("FPDF1103", "img requires an explicit resource name in src; paths and URLs are unsupported.", token.Offset);
-                if (!options.Images.TryGetValue(resourceName, out var image))
+                PdfImage? image;
+                if (DataUriImages.IsDataUri(resourceName)) image = (dataImages ??= new(options, cancellation)).Load(resourceName, token.Offset);
+                else if (!ImageResources.ValidName(resourceName))
+                    throw new FactsPdfException("FPDF1103", "img requires an explicit resource name or a data:image URL in src; paths and URLs are unsupported.", token.Offset);
+                else if (!options.Images.TryGetValue(resourceName, out image))
                     throw new FactsPdfException("FPDF1604", $"Image resource '{resourceName}' was not supplied.", token.Offset);
                 AddReplaced(new ImageNode(image, style, boxStyle, token.Offset, token.Attributes.GetValueOrDefault("alt")),
                     name, token.Offset);
@@ -1358,12 +1374,15 @@ internal static class HtmlDocumentReader
         if (!any) throw new FactsPdfException("FPDF1103", "a rel must name at least one link type.", offset);
     }
 
-    private static void LinkRelations(string value, int offset)
+    // Whether the link is a stylesheet link (rel="stylesheet" alone), whose caller-supplied stylesheet
+    // CssStylesheets applied; any other combination with stylesheet (alternate stylesheet) still fails.
+    private static bool LinkRelations(string value, int offset)
     {
+        if (value.AsSpan().Trim(" \t\r\n\f").Equals("stylesheet", StringComparison.OrdinalIgnoreCase)) return true;
         // Any stylesheet token decides the diagnosis, whatever other tokens come first.
         foreach (var range in value.AsSpan().SplitAny(" \t\r\n\f"))
             if (value.AsSpan()[range].Equals("stylesheet", StringComparison.OrdinalIgnoreCase))
-                throw new FactsPdfException("FPDF1204", "External stylesheets are not loaded; use a style element.", offset);
+                throw new FactsPdfException("FPDF1204", "Only rel=\"stylesheet\" alone is supported; alternate stylesheets and other link types combined with it are not applied.", offset);
         var rest = value.AsSpan();
         var any = false;
         while (true)
@@ -1381,6 +1400,7 @@ internal static class HtmlDocumentReader
             rest = rest[end..];
         }
         if (!any) throw new FactsPdfException("FPDF1103", "link requires a non-empty rel.", offset);
+        return false;
     }
 
     private static int ParseListOrdinal(string value, int offset, CancellationToken cancellation)

@@ -8,7 +8,7 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--strict true|false]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--stylesheet href=path ...] [--strict true|false]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
@@ -26,6 +26,7 @@ public static class CliApplication
         "Structured furniture cannot be combined with --page-numbers, --header-text or --footer-text, including empty legacy text.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
         "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n" +
+        "--stylesheet href=path supplies the UTF-8 CSS text of an external stylesheet that <link rel=stylesheet href> or @import names by this exact href (at most 16; nothing is downloaded).\n" +
         "--strict true (default) fails on every CSS construct that is not rendered exactly. --strict false (also --strict=false) drops CSS that is invalid per the CSS specifications, as a browser does, prints each as a warning on stderr and still exits 0; valid but unsupported CSS still fails.\n" +
         "--version prints the built CLI informational version for deployment and support; no document or resources are read.\n";
 
@@ -56,6 +57,7 @@ public static class CliApplication
             string? title = null; string? author = null; string? subject = null; string? keywords = null;
             bool? strict = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
+            var stylesheetPaths = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
@@ -140,6 +142,17 @@ public static class CliApplication
                     if (imagePaths.Count >= 16 || !imagePaths.TryAdd(name, Path.GetFullPath(path)))
                         throw new ArgumentException("At most 16 uniquely named images are allowed.");
                 }
+                else if (arg == "--stylesheet")
+                {
+                    if (++i >= args.Length) throw new ArgumentException("--stylesheet requires href=path.");
+                    var equal = args[i].IndexOf('=');
+                    if (equal <= 0) throw new ArgumentException("--stylesheet requires href=path.");
+                    var href = args[i][..equal]; var path = args[i][(equal + 1)..];
+                    if (string.IsNullOrWhiteSpace(path) || path == "-" || path.StartsWith("--", StringComparison.Ordinal))
+                        throw new ArgumentException("--stylesheet requires an href and a file path.");
+                    if (stylesheetPaths.Count >= 16 || !stylesheetPaths.TryAdd(href, Path.GetFullPath(path)))
+                        throw new ArgumentException("At most 16 stylesheets with distinct hrefs are allowed.");
+                }
                 else if (arg.StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException("Unknown or repeated option.");
                 else paths.Add(arg);
             }
@@ -152,6 +165,7 @@ public static class CliApplication
             if (destination is not null && (source is not null && string.Equals(source, destination, comparison)
                 || fontPaths.Any(path => string.Equals(path.Path, destination, comparison))
                 || imagePaths.Values.Any(path => string.Equals(path, destination, comparison))
+                || stylesheetPaths.Values.Any(path => string.Equals(path, destination, comparison))
                 || furniturePath is not null && string.Equals(furniturePath, destination, comparison)))
                 throw new ArgumentException("Output must be different from the input HTML and every supplied font, image or PageFurniture file.");
             if (destination is not null && File.Exists(destination) && !overwrite)
@@ -222,6 +236,16 @@ public static class CliApplication
                 using var imageStream = File.OpenRead(path);
                 var image = PdfImage.FromStream(imageStream, new PdfImageLimits { MaxBytes = Math.Min(8_388_608, remaining) }, cancellationToken);
                 writer = writer.WithImage(name, image); totalImageBytes += image.ByteLength;
+            }
+            var stylesheetCharacters = 0;
+            foreach (var (href, path) in stylesheetPaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var remaining = defaults.MaxCssCharacters - stylesheetCharacters;
+                if (remaining <= 0) throw new FactsPdfException("FPDF1205", "Supplied stylesheets exceed MaxCssCharacters.");
+                using var cssStream = File.OpenRead(path);
+                var css = ReadInput(cssStream, remaining, cancellationToken);
+                writer = writer.WithStylesheet(href, css); stylesheetCharacters += css.Length;
             }
             if (source is null) html = ReadInput(input, defaults.MaxInputCharacters, cancellationToken);
             else { using var file = File.OpenRead(source); html = ReadInput(file, defaults.MaxInputCharacters, cancellationToken); }

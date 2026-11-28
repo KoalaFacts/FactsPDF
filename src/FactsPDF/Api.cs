@@ -73,6 +73,10 @@ internal sealed record PdfOptions
     public int MaxImageResources { get; init; } = 16;
     /// <summary>Maximum combined encoded size in bytes of all supplied images.</summary>
     public int MaxTotalImageBytes { get; init; } = 33_554_432;
+    /// <summary>Caller-supplied stylesheets by the exact href that <c>link rel="stylesheet"</c> and <c>@import</c> name; nothing is downloaded.</summary>
+    public IReadOnlyDictionary<string, string> Stylesheets { get; init; } = StylesheetResources.Empty;
+    /// <summary>Maximum number of entries in <see cref="Stylesheets"/>.</summary>
+    public int MaxStylesheetResources { get; init; } = 16;
     /// <summary>Opt in to glyph subsetting where the supplied font permits it; otherwise embed fully.</summary>
     public bool SubsetFonts { get; init; }
     /// <summary>Maximum UTF-16 units of CSS across embedded style elements and style attributes.</summary>

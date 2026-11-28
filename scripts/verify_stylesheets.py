@@ -1426,7 +1426,7 @@ def main():
                         and 0 <= float(word.attrib['yMin']) <= float(word.attrib['yMax']) <= float(page.attrib['height'])):
                     raise AssertionError('Print media text extends beyond page geometry')
         invalid = temp / 'invalid.html'
-        invalid.write_text('<style>@media screen{p{color:red}}</style><p>Must not render</p>',
+        invalid.write_text('<style>@media (hover:hover){p{color:red}}</style><p>Must not render</p>',
                            encoding='utf-8')
         actual_pdf.write_bytes(b'original-approved-report')
         rejected = subprocess.run([str(exe), str(invalid), str(actual_pdf), '--overwrite'],

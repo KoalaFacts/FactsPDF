@@ -256,7 +256,9 @@ internal sealed class CssStylesheets
             {
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
                 if (kept) depth.Read(item);
-                if (item.Value == "style") ignoredStyle = ValidateStyleElement(item, sheet.budget.Warnings);
+                if (item.Value == "style") ignoredStyle = sheet.ValidateStyleElement(item);
+                // A stylesheet link applies the caller-supplied stylesheet here, in document order.
+                else if (item.Value == "link") sheet.LinkStylesheet(item);
                 else if (item is StyledHtmlToken styled)
                 {
                     var css = styled.Attributes!["style"];
@@ -267,6 +269,12 @@ internal sealed class CssStylesheets
         }
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
         shape.Finish(tokens);
+        // Chrome evaluates page-area media features against the page area @page leaves; the
+        // evaluator reads the writer's page, so the two must not disagree.
+        if (sheet.pageAreaMediaOffset >= 0 && sheet.PageRules is { ChangesPageArea: true })
+            throw new FactsPdfException("FPDF1204",
+                "Media features that read the page area (width, height, aspect-ratio, orientation) are not supported together with an @page size or margin; set the page with the writer options instead.",
+                sheet.pageAreaMediaOffset);
         sheet.FinalizeLayers();
         return sheet;
     }
@@ -331,14 +339,16 @@ internal sealed class CssStylesheets
     // absent, empty or an ASCII case-insensitive match for text/css (no parameters, no white space;
     // Chrome 158 agrees), so any other type is not a stylesheet: strict mode fails FPDF1204 as it
     // always has, and non-strict mode ignores the whole element (with its other attributes) and warns.
-    private static bool ValidateStyleElement(HtmlToken token, CssWarnings? warnings)
+    private bool ValidateStyleElement(HtmlToken token)
     {
         if (token.SelfClosing) throw new FactsPdfException("FPDF1101", "style requires an HTML end tag.", token.Offset);
-        if (warnings is not null && token.Attributes!.TryGetValue("type", out var type) && !CssType(type))
+        if (budget.Warnings is { } warnings && token.Attributes!.TryGetValue("type", out var type) && !CssType(type))
         {
             warnings.Add("FPDF1204", "Only text/css style elements are supported.", token.Offset);
             return true;
         }
+        // A style element whose media query list does not match when printing is not applied.
+        var ignored = false;
         foreach (var (name, value) in token.Attributes!)
         {
             if (name == "type")
@@ -348,8 +358,7 @@ internal sealed class CssStylesheets
             }
             else if (name == "media")
             {
-                var media = value.Trim().ToLowerInvariant();
-                if (media is not ("" or "all" or "print")) throw new FactsPdfException("FPDF1204", "Only empty/all/print style media are supported.", token.Offset);
+                if (!MediaAttributeMatches(value, token.Offset)) ignored = true;
             }
             // dir="ltr" is accepted on every element, as in the document reader (R5ci).
             else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)
@@ -357,7 +366,7 @@ internal sealed class CssStylesheets
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
-        return false;
+        return ignored;
     }
 
     private static bool CssType(string type) => type.Length == 0 || type.Equals("text/css", StringComparison.OrdinalIgnoreCase);
@@ -662,7 +671,7 @@ internal sealed class CssStylesheets
     }
 
     private void ParseRules(IReadOnlyList<CssRuleNode> rules)
-        => ParseBlock(rules, parents: null, layer: null);
+        => ParseSheet(rules, layer: null, chain: null);
 
     // The rules of a stylesheet or of a conditional group rule (parents null), or the contents of a style
     // rule or of a group rule nested in one (parents: the selectors of the enclosing style rule, which the
@@ -706,10 +715,12 @@ internal sealed class CssStylesheets
         }
         // An unknown at-rule, and @media without a block, are invalid: a browser drops
         // the whole at-rule (to its semicolon or with its block).
+        var isMedia = at.Name.Equals("media", StringComparison.OrdinalIgnoreCase);
+        var isSupports = at.Name.Equals("supports", StringComparison.OrdinalIgnoreCase);
         if (budget.Warnings is { } dropped && (CssSpecValidity.UnknownAtRule(at.Name)
-            || at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) && at.Contents is null))
+            || (isMedia || isSupports) && at.Contents is null))
         {
-            dropped.Add(nested ? "FPDF1203" : "FPDF1204", nested ? "Nested CSS rules are not supported by the PDF renderer." : "Only block-form @media print/all is supported.", at.Span.Start);
+            dropped.Add(nested ? "FPDF1203" : "FPDF1204", nested ? "Nested CSS rules are not supported by the PDF renderer." : "Only block-form @media and @supports rules are supported.", at.Span.Start);
             return;
         }
         // Paged-media page context: size, margins and the six top/bottom margin boxes.
@@ -729,35 +740,318 @@ internal sealed class CssStylesheets
             if (inner is not null) ParseBlock(at.Contents!, parents, inner);
             return;
         }
-        // Bounded print-only conditionals: no device queries, imports or ignored rules. They reuse the
-        // exact same selector, declaration, cascade and resource budgets as top-level CSS, and nest in
+        // Conditional group rules: @media evaluated as Chrome evaluates it when printing, and @supports
+        // against Chrome's grammar (see CssMediaQueries and CssSupports). A block whose condition does
+        // not hold is ignored whole, as a browser ignores it; a matching block reuses the exact same
+        // selector, declaration, cascade and resource budgets as top-level CSS, and the rules nest in
         // one another and in style rules.
-        if (!at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) || at.Contents is null)
+        if (!(isMedia || isSupports) || at.Contents is null)
         {
+            var reason = at.Name.Equals("container", StringComparison.OrdinalIgnoreCase)
+                ? "@container queries need size containment, which is not supported."
+                : at.Name.Equals("import", StringComparison.OrdinalIgnoreCase)
+                    ? "@import is supported only at the top of a stylesheet, before every other rule."
+                    : null;
             if (nested)
-                throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", at.Span.Start);
-            throw new FactsPdfException("FPDF1204", "Only block-form @media print/all is supported.", at.Span.Start);
+                throw new FactsPdfException("FPDF1203", reason ?? "Nested CSS rules are not supported by the PDF renderer.", at.Span.Start);
+            throw new FactsPdfException("FPDF1204", reason ?? "Only block-form @media and @supports rules are supported.", at.Span.Start);
         }
-        var prelude = at.Prelude
-            .Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
-            .ToArray();
-        if (prelude.Length != 1 || prelude[0] is not CssTokenComponent
-            { Token.Kind: CssSyntaxTokenKind.Ident } medium ||
-            !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
-              || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
-            throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", at.Span.Start);
+        var matches = isMedia ? MediaMatches(at.Prelude, at.Span.Start) : SupportsMatches(at.Prelude, at.Span.Start) == true;
+        if (!matches) return;
         var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", at.Span.Start);
-        // A print stylesheet may carry @keyframes, which is validated and dropped, @page, which compiles
-        // like a top-level one, and nested @media and @layer.
+        // A conditional block may carry @keyframes, which is validated and dropped, @page, which compiles
+        // like a top-level one, and nested @media, @supports and @layer.
         if (!nested && contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode inner
                 && (inner.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("page", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("media", StringComparison.OrdinalIgnoreCase)
+                    || inner.Name.Equals("supports", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("layer", StringComparison.OrdinalIgnoreCase)))))
             throw new FactsPdfException("FPDF1204",
                 "Nested media, other at-rules and loose declarations are unsupported.", at.Span.Start);
         ParseBlock(contents, parents, layer);
+    }
+
+    // ---- Media queries, @supports, @import and stylesheet links ----
+
+    // Where the first media query that read the page area was written, or -1.
+    private int pageAreaMediaOffset = -1;
+
+    /// <summary>Whether a media query read the page area (width, height, aspect-ratio or orientation).</summary>
+    internal bool UsesPageAreaMedia => pageAreaMediaOffset >= 0;
+
+    private static readonly char[] HtmlSpace = [' ', '\t', '\n', '\f', '\r'];
+
+    // The page area the writer's options leave, which Chrome's print viewport is (see Viewport()).
+    private (double Width, double Height) MediaPageArea() => (options.ContentWidth, options.ContentHeight);
+
+    // Whether a media query list matches when printing. A malformed query is "not all": strict mode
+    // fails, non-strict mode warns and lets the other queries decide.
+    private bool MediaMatches(IReadOnlyList<CssSyntaxComponent> prelude, int offset)
+    {
+        budget.Token.ThrowIfCancellationRequested();
+        var outcome = CssMediaQueries.Evaluate(prelude, MediaPageArea, offset);
+        if (outcome.UsesPageArea && pageAreaMediaOffset < 0) pageAreaMediaOffset = offset;
+        if (outcome.Invalid is { } message)
+        {
+            var error = new FactsPdfException("FPDF1204", "Malformed media query: " + message, offset);
+            if (budget.Warnings is not { } warnings) throw error;
+            warnings.Add(error);
+        }
+        return outcome.Matches;
+    }
+
+    // The media attribute of a style element or stylesheet link. The common values skip parsing.
+    private bool MediaAttributeMatches(string value, int offset)
+    {
+        var trimmed = value.AsSpan().Trim(HtmlSpace);
+        if (trimmed.IsEmpty || trimmed.Equals("all", StringComparison.OrdinalIgnoreCase) || trimmed.Equals("print", StringComparison.OrdinalIgnoreCase))
+            return true;
+        budget.Characters(value.Length, offset);
+        IReadOnlyList<CssSyntaxComponent>? prelude = null;
+        // Braces and semicolons cannot be part of a media query list; the value is parsed as the
+        // prelude of an @media rule.
+        if (value.AsSpan().IndexOfAny("{};") < 0)
+        {
+            try
+            {
+                var source = CssSourceText.Create("@media " + value + "{}", offset, syntaxLimits);
+                var result = CssSyntaxParser.ParseStylesheet(source, syntaxLimits);
+                if (result.Diagnostics.Count == 0 && result.Rules is [CssAtRuleNode { Contents: not null } rule]) prelude = rule.Prelude;
+            }
+            catch (CssSyntaxLimitException error) { throw new FactsPdfException("FPDF1205", error.Message, offset); }
+        }
+        if (prelude is null)
+        {
+            var error = new FactsPdfException("FPDF1204", "Malformed media query in the media attribute.", offset);
+            if (budget.Warnings is not { } warnings) throw error;
+            warnings.Add(error);
+            return false;
+        }
+        return MediaMatches(prelude, offset);
+    }
+
+    // Whether an @supports condition holds; null for a malformed condition, which a browser drops with
+    // its rule (strict mode fails instead).
+    private bool? SupportsMatches(IReadOnlyList<CssSyntaxComponent> prelude, int offset)
+    {
+        budget.Token.ThrowIfCancellationRequested();
+        try { return CssSupports.Evaluate(prelude, SupportsDeclaration, SupportsSelector, offset); }
+        catch (CssSupports.MalformedException malformed)
+        {
+            var error = new FactsPdfException("FPDF1204", "Malformed @supports condition: " + malformed.Message, offset);
+            if (budget.Warnings is not { } warnings) throw error;
+            warnings.Add(error);
+            return null;
+        }
+    }
+
+    // Chrome's answer to a declaration test, or null when FactsPDF cannot know it (see CssSupports).
+    private bool? SupportsDeclaration(CssDeclarationNode node)
+    {
+        if (CssVariables.IsCustomPropertyName(node.Name)) return !CssSpecValidity.HasInvalidTokens(node.Values);
+        var lower = node.Name.ToLowerInvariant();
+        if (CssSpecValidity.InvalidDeclaration(node.Name, CssSyntaxAdapter.CanonicalName(lower), node.Values)) return false;
+        // A value holding var() is valid when parsed, whatever it substitutes to.
+        if (CssVariables.ContainsVar(node.Values)) return true;
+        try
+        {
+            CssSyntaxAdapter.CompileKnownDeclarations([node], budget, recover: false);
+            return true;
+        }
+        catch (FactsPdfException error) when (error.Code is "FPDF1201" or "FPDF1202" or "FPDF1203") { return null; }
+    }
+
+    // Chrome's answer to selector(), or null when FactsPDF cannot know it.
+    private bool? SupportsSelector(IReadOnlyList<CssSyntaxComponent> selector, int offset)
+    {
+        if (CssSpecValidity.InvalidSelectorList(selector)) return false;
+        try
+        {
+            CssSyntaxAdapter.CompileSelectors(selector, budget, offset);
+            return true;
+        }
+        catch (FactsPdfException error) when (error.Code == "FPDF1203") { return null; }
+    }
+
+    // A stylesheet's top-level rules: @import rules first (after @charset and @layer statements), then
+    // the rest. chain holds the stylesheet resources being applied, outermost first.
+    private void ParseSheet(IReadOnlyList<CssRuleNode> rules, Layer? layer, List<string>? chain)
+    {
+        var importsAllowed = true;
+        var start = 0;
+        for (var r = 0; r < rules.Count; r++)
+        {
+            if (rules[r] is CssAtRuleNode at && at.Name.Equals("import", StringComparison.OrdinalIgnoreCase))
+            {
+                if (r > start) ParseBlock(rules.Skip(start).Take(r - start).ToArray(), parents: null, layer);
+                start = r + 1;
+                if (!importsAllowed)
+                {
+                    // A browser ignores an @import after any other rule.
+                    var error = new FactsPdfException("FPDF1204",
+                        "@import must come before every rule other than @charset and @layer statements.", at.Span.Start);
+                    if (budget.Warnings is not { } warnings) throw error;
+                    warnings.Add(error);
+                    continue;
+                }
+                ParseImport(at, layer, chain ?? []);
+                continue;
+            }
+            if (!(rules[r] is CssAtRuleNode { Contents: null } statement
+                    && (statement.Name.Equals("layer", StringComparison.OrdinalIgnoreCase) || statement.Name.Equals("charset", StringComparison.OrdinalIgnoreCase))))
+                importsAllowed = false;
+        }
+        if (start == 0) ParseBlock(rules, parents: null, layer);
+        else if (start < rules.Count) ParseBlock(rules.Skip(start).ToArray(), parents: null, layer);
+    }
+
+    private static CssSyntaxComponent[] WithoutWhitespace(IEnumerable<CssSyntaxComponent> values)
+        => values.Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }).ToArray();
+
+    // @import <url> [layer | layer(<name>)]? [supports(<condition> | <declaration>)]? <media-query-list>?;
+    private void ParseImport(CssAtRuleNode at, Layer? layer, List<string> chain)
+    {
+        var offset = at.Span.Start;
+        var items = WithoutWhitespace(at.Prelude);
+        string? href = null;
+        if (at.Contents is null && items.Length > 0)
+            href = items[0] switch
+            {
+                CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Url or CssSyntaxTokenKind.String } url } => url.Value,
+                CssFunctionComponent function when function.Name.Equals("url", StringComparison.OrdinalIgnoreCase)
+                    && WithoutWhitespace(function.Values) is [CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.String } quoted }] => quoted.Value,
+                _ => null,
+            };
+        var i = 1;
+        var layered = false;
+        string[]? layerName = null;
+        var malformed = href is null;
+        if (!malformed && i < items.Length && items[i] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word }
+            && word.Value.Equals("layer", StringComparison.OrdinalIgnoreCase))
+        {
+            layered = true;
+            i++;
+        }
+        else if (!malformed && i < items.Length && items[i] is CssFunctionComponent layerFunction
+            && layerFunction.Name.Equals("layer", StringComparison.OrdinalIgnoreCase))
+        {
+            var name = WithoutWhitespace(layerFunction.Values);
+            var next = 0;
+            if (TryLayerName(name, ref next, out var segments) && next == name.Length)
+            {
+                layered = true;
+                layerName = segments;
+                i++;
+            }
+            else malformed = true;
+        }
+        if (malformed)
+        {
+            var error = new FactsPdfException("FPDF1204", "@import takes a URL or string, then optionally layer, supports() and media queries, and no block.", offset);
+            if (budget.Warnings is not { } warnings) throw error;
+            warnings.Add(error);
+            return;
+        }
+        var conditionHolds = true;
+        if (i < items.Length && items[i] is CssFunctionComponent supports && supports.Name.Equals("supports", StringComparison.OrdinalIgnoreCase))
+        {
+            // supports() takes a condition or a bare declaration, which tests like one in parentheses.
+            var inner = WithoutWhitespace(supports.Values);
+            IReadOnlyList<CssSyntaxComponent> condition = inner.Length >= 2 && inner[0] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Ident }
+                && inner[1] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Colon }
+                ? [new CssBlockComponent(CssSyntaxTokenKind.OpenParen, supports.Values, supports.Span)]
+                : supports.Values;
+            // A malformed condition drops the import in non-strict mode, as a browser drops it.
+            if (SupportsMatches(condition, offset) is not { } holds) return;
+            conditionHolds = holds;
+            i++;
+        }
+        conditionHolds &= MediaMatches(items[i..], offset);
+        if (!conditionHolds)
+        {
+            if (layered)
+                throw new FactsPdfException("FPDF1204", "An @import into a cascade layer whose media or supports() condition does not hold is not supported.", offset);
+            return;
+        }
+        var target = layer;
+        if (layered)
+        {
+            if (layerName is null) target = AnonymousLayer(layer);
+            else foreach (var segment in layerName) target = LayerAt(target, segment);
+        }
+        ApplyStylesheetResource(href!, offset, target, chain);
+    }
+
+    // A <link rel="stylesheet">: the caller-supplied stylesheet its href names, applied at this point of
+    // the document, unless its media query list does not match. Other rel values are the reader's.
+    private void LinkStylesheet(HtmlToken token)
+    {
+        if (!token.Attributes!.TryGetValue("rel", out var rel) || !rel.AsSpan().Trim(HtmlSpace).Equals("stylesheet", StringComparison.OrdinalIgnoreCase))
+            return;
+        string? href = null, media = null;
+        foreach (var (name, value) in token.Attributes!)
+        {
+            if (name == "rel") continue;
+            if (name == "href") href = value;
+            else if (name == "media") media = value;
+            else if (name == "type")
+            {
+                if (!CssType(value)) throw new FactsPdfException("FPDF1204", "Only text/css stylesheet links are supported.", token.Offset);
+            }
+            // Fetch hints and global attributes change nothing once the stylesheet is supplied.
+            else if (name is "crossorigin" or "referrerpolicy" or "hreflang" or "id" or "class" or "lang"
+                || name.StartsWith("data-", StringComparison.Ordinal) || name.Length > 2 && name.StartsWith("on", StringComparison.Ordinal)
+                || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)) { }
+            // title makes a preferred or alternate stylesheet set, integrity checks the fetched bytes and
+            // disabled turns the sheet off: none is modelled.
+            else throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on a stylesheet link.", token.Offset);
+        }
+        if (href is null || href.AsSpan().Trim(HtmlSpace).IsEmpty)
+            throw new FactsPdfException("FPDF1103", "A stylesheet link requires a non-empty href.", token.Offset);
+        if (media is not null && !MediaAttributeMatches(media, token.Offset)) return;
+        ApplyStylesheetResource(href, token.Offset, layer: null, chain: []);
+    }
+
+    // Parses and applies a caller-supplied stylesheet. Every error inside it is reported at the link or
+    // @import that applied it.
+    private void ApplyStylesheetResource(string href, int offset, Layer? layer, List<string> chain)
+    {
+        budget.Token.ThrowIfCancellationRequested();
+        var shown = href.Length > 80 ? href[..80] + "..." : href;
+        if (!options.Stylesheets.TryGetValue(href, out var css))
+            throw new FactsPdfException("FPDF1204",
+                $"The stylesheet '{shown}' was not supplied. FactsPDF never downloads stylesheets: supply its text under this exact href (WithStylesheet, CLI --stylesheet).", offset);
+        if (chain.Contains(href, StringComparer.Ordinal))
+            throw new FactsPdfException("FPDF1204", $"The stylesheet '{shown}' imports itself.", offset);
+        if (chain.Count >= StylesheetResources.MaxImportDepth)
+            throw new FactsPdfException("FPDF1205", $"Stylesheet imports are nested deeper than {StylesheetResources.MaxImportDepth}.", offset);
+        budget.Characters(css.Length, offset);
+        chain.Add(href);
+        try
+        {
+            var rules = ParseSource(css, offset, declarationsOnly: false, new ConstantOffsets(offset, css.Length + 1)).Rules;
+            ParseSheet(rules, layer, chain);
+        }
+        catch (FactsPdfException error) when (error.SourceOffset == offset && !error.Message.Contains("In stylesheet '", StringComparison.Ordinal))
+        {
+            var reason = error.Message.StartsWith(error.Code + ": ", StringComparison.Ordinal) ? error.Message[(error.Code.Length + 2)..] : error.Message;
+            throw new FactsPdfException(error.Code, $"In stylesheet '{shown}': {reason}", offset);
+        }
+        finally { chain.RemoveAt(chain.Count - 1); }
+    }
+
+    // Maps every code unit of a supplied stylesheet to the page offset of the link or @import applying it.
+    private sealed class ConstantOffsets(int offset, int count) : IReadOnlyList<int>
+    {
+        public int this[int index] => (uint)index < (uint)count ? offset : throw new ArgumentOutOfRangeException(nameof(index));
+        public int Count => count;
+        public IEnumerator<int> GetEnumerator()
+        {
+            for (var i = 0; i < count; i++) yield return offset;
+        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private void ParseStyleRule(CssQualifiedRuleNode rule, CssSelector[]? parents, Layer? layer)
