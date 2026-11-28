@@ -410,6 +410,8 @@ internal sealed record BoxStyle
     public BackgroundClip BackgroundClip { get; set; }
     // object-fit and object-position of an img; not inherited.
     public ObjectPlacement ObjectPlacement { get; set; } = ObjectPlacement.Initial;
+    // table-layout:fixed on a table: columns come from the table width, the col widths and the first row.
+    public bool FixedTableLayout { get; set; }
     // Retain the currentColor token when background:inherit is authored on a
     // child: its actual ink resolves against the receiving element's colour.
     // The renderer still consumes only the final BackgroundColor RGB value.

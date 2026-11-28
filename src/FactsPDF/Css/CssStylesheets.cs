@@ -571,7 +571,7 @@ internal sealed class CssStylesheets
             // object-fit and object-position fit an img's pixels into its content box. Every element
             // records them, since a child may inherit them, but only an img has replaced content to
             // place (an inline svg ignores them as well).
-            if (declaration.Property is CssProperty.ObjectFit or CssProperty.ObjectPosition)
+            if (declaration.Property is CssProperty.ObjectFit or CssProperty.ObjectPosition or CssProperty.TableLayout)
             {
                 var fitCandidate = new Winner(declaration, isInline, specificity); var fitOld = winners[(int)declaration.Property];
                 if (!fitOld.HasValue || fitCandidate.Beats(fitOld.Value)) winners[(int)declaration.Property] = fitCandidate;

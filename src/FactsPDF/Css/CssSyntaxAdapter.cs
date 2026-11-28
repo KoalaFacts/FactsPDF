@@ -1902,6 +1902,7 @@ internal static class CssSyntaxAdapter
         "background" or "background-color" => CssProperty.BackgroundColor,
         "background-clip" => CssProperty.BackgroundClip,
         "object-fit" => CssProperty.ObjectFit,
+        "table-layout" => CssProperty.TableLayout,
         "object-position" => CssProperty.ObjectPosition,
         "border-inline-width" or "border-inline-start-width" => CssProperty.BorderLeftWidth,
         "border-inline-end-width" => CssProperty.BorderRightWidth,
@@ -2452,6 +2453,11 @@ internal static class CssSyntaxAdapter
                     "vertical-align supports baseline, middle, top, bottom, text-top, text-bottom, lengths and percentages (table cells: top, middle and bottom).", offset);
         }
         else if (name == "object-fit") _ = CssObjectValues.Fit(token, offset);
+        else if (name == "table-layout")
+        {
+            if (token is not ("auto" or "fixed"))
+                throw new FactsPdfException("FPDF1202", "table-layout requires auto or fixed.", offset);
+        }
         else if (name == "hyphens")
         {
             if (token == "auto")

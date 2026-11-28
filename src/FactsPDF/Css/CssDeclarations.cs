@@ -421,6 +421,11 @@ internal static class CssDeclarations
             }
             return current;
         }
+        if (property == CssProperty.TableLayout)
+        {
+            current.FixedTableLayout = value == "inherit" ? parent.FixedTableLayout : !wide && value == "fixed";
+            return current;
+        }
         if (property == CssProperty.ObjectFit)
         {
             current.ObjectPlacement = current.ObjectPlacement with
