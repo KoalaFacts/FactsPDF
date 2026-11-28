@@ -8,7 +8,7 @@ public sealed class BoundaryTests
 {
     [TestCase("&nbsp;", "FPDF1301")]
     [TestCase("\u2003", "FPDF1301")]
-    [TestCase("<body><head><title>bad position</title></head><p>A</p></body>", "FPDF1101")]
+    [TestCase("<body><head id=h><title>bad position</title></head><p>A</p></body>", "FPDF1101")]
     public void UnsupportedBoundaryInputCannotDisappearSilently(string html, string code)
     {
         using var output = new MemoryStream();

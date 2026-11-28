@@ -130,7 +130,7 @@ public sealed class HorizontalRuleTests
     [TestCase("<p>text<hr></p>", "FPDF1101")]
     [TestCase("<ul><hr></ul>", "FPDF1101")]
     [TestCase("<div><span><hr></span></div>", "FPDF1101")]
-    [TestCase("<hr></hr>", "FPDF1101")]
+    [TestCase("<p><b>text<hr></b></p>", "FPDF1101")]
     [TestCase("<hr src='https://example.com/secret'>", "FPDF1103")]
     [TestCase("<hr style='margin-top:auto'>", "FPDF1202")]
     [TestCase("<hr style='margin-top:-5%'>", "FPDF1202")]

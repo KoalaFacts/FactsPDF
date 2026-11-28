@@ -171,7 +171,7 @@ internal sealed class CssStylesheets
         // Sized once instead of doubling past the pooled capacity (each doubling copies every
         // reference so far). Within the element limit, so an input that fails it early pays for
         // no more slots than it may hold. Up to four more hold the html, head and body tags the HTML
-        // parser implies (HtmlImpliedElements).
+        // parser implies (HtmlImpliedElements); a page that omits end tags grows the list as usual.
         tokens.EnsureCapacity((int)Math.Min(EstimateTokens(html), 3L * options.MaxElements + 2) + 4);
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
@@ -237,14 +237,19 @@ internal sealed class CssStylesheets
                 (sheet.dropped ??= []).Add((tokens.Count, raw, item));
                 continue;
             }
+            var appended = tokens.Count;
             var kept = shape.Add(tokens, item);
+            // The end tags written out (the omitted ones the parser implies, then the token itself)
+            // close elements in the early depth check as they do in the reader. The parser holds an
+            // explicit </head> back until body content starts, but the early depth check closes head
+            // there: it may only under-count the reader's depth, never exceed it.
+            for (var k = appended; k < tokens.Count; k++)
+                if (tokens[k] is { Kind: HtmlTokenKind.End } closing and not ImpliedHtmlToken) depth.Read(closing);
+            if (!kept && item.Kind == HtmlTokenKind.End && item.Value == "head") depth.Read(item);
             if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title")
                 insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
             else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
                 insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
-            // The parser holds an explicit </head> back until body content starts, but the early depth
-            // check closes head there: it may only under-count the reader's depth, never exceed it.
-            if (item.Kind == HtmlTokenKind.End && (kept || item.Value == "head")) depth.Read(item);
             if (item.Kind == HtmlTokenKind.End && item.Value == "style") ignoredStyle = false;
             if (item.Kind == HtmlTokenKind.StyleText && ignoredStyle) ignoredStyle = false;
             else if (item.Kind == HtmlTokenKind.StyleText)
@@ -266,7 +271,7 @@ internal sealed class CssStylesheets
             }
         }
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
-        shape.Finish(tokens);
+        shape.Finish(tokens, html.Length);
         sheet.FinalizeLayers();
         return sheet;
     }
@@ -352,8 +357,7 @@ internal sealed class CssStylesheets
                 if (media is not ("" or "all" or "print")) throw new FactsPdfException("FPDF1204", "Only empty/all/print style media are supported.", token.Offset);
             }
             // dir="ltr" is accepted on every element, as in the document reader (R5ci).
-            else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)
-                || name.Length > 2 && name.StartsWith("on", StringComparison.Ordinal)
+            else if (!(HtmlGlobalAttributes.NoEffect(name)
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }

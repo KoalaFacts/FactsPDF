@@ -48,11 +48,12 @@ public sealed class MetaNameContentTests
     [TestCase("<head><meta name=' color-scheme ' content=dark></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta content=dark name=color-scheme></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta http-equiv=refresh content=5></head><p>A</p>", "FPDF1103")]
-    [TestCase("<head><meta itemprop=name content=A></head><p>A</p>", "FPDF1103")]
+    [TestCase("<head><meta http-equiv=content-language content=fr></head><p>A</p>", "FPDF1103")]
+    [TestCase("<head><meta http-equiv=content-type content='text/html; charset=shift_jis'></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><meta name=viewport content=x style='color:red'></head><p>A</p>", "FPDF1103")]
-    [TestCase("<head><meta charset=latin1 name=viewport content=x></head><p>A</p>", "FPDF1103")]
-    [TestCase("<p>A<meta name=viewport content=x></p>", "FPDF1101")]
-    [TestCase("<body><meta name=viewport content=x><p>A</p></body>", "FPDF1101")]
+    [TestCase("<head><meta charset=shift_jis name=viewport content=x></head><p>A</p>", "FPDF1103")]
+    [TestCase("<style>meta{display:block}</style><p>A<meta name=viewport content=x></p>", "FPDF1201")]
+    [TestCase("<table><tr><meta name=viewport content=x><td>A</td></tr></table>", "FPDF1101")]
     public void UnsupportedMetaStillFails(string html, string code)
     {
         using var output = new MemoryStream();

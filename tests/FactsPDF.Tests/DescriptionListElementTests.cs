@@ -67,7 +67,7 @@ public sealed class DescriptionListElementTests
     [TestCase("<ul><li><dl><dt>A</dt></dl></li></ul>", "FPDF1101")]
     [TestCase("<table><tr><td><dd>A</dd></td></tr></table>", "FPDF1101")]
     [TestCase("<p><span><dt>A</dt></span></p>", "FPDF1101")]
-    [TestCase("<dl><dt>A</dl>", "FPDF1101")]
+    [TestCase("<dl><dt><em>A</dl>B", "FPDF1101")]
     [TestCase("<dd href='x'>A</dd>", "FPDF1103")]
     public void UnsupportedUsesStillFail(string html, string code)
     {

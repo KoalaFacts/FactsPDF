@@ -114,7 +114,7 @@ public sealed class BlockquoteReportTests
 
     [TestCase("<ol><blockquote>quote</blockquote></ol>", "FPDF1101")]
     [TestCase("<div><span><blockquote>quote</blockquote></span></div>", "FPDF1101")]
-    [TestCase("<blockquote><p>unclosed</p>", "FPDF1101")]
+    [TestCase("<blockquote><i>quote</blockquote>B", "FPDF1101")]
     [TestCase("<blockquote cite='https://example.com'>quote</blockquote>", "FPDF1103")]
     [TestCase("<blockquote style='margin-top:-2pt'>quote</blockquote>", "FPDF1202")]
     [TestCase("<blockquote style='margin-top:-10%'>quote</blockquote>", "FPDF1202")]

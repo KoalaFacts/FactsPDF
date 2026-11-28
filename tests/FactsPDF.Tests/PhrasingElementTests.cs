@@ -98,7 +98,7 @@ public sealed class PhrasingElementTests
     [TestCase("<p>A <var style='text-align-last:center'>A</var></p>", "FPDF1201")]
     [TestCase("<p>A <code style='margin:2pt'>A</code></p>", "FPDF1201")]
     [TestCase("<code><div>Bad nesting</div></code>", "FPDF1101")]
-    [TestCase("<p><kbd>Unclosed</p>", "FPDF1101")]
+    [TestCase("<p><code>Unclosed</p>B", "FPDF1101")]
     [TestCase("<p><dfn datetime='x'>A</dfn></p>", "FPDF1103")]
     [TestCase("<p><mark>A</mark></p>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code) => Reject(html, code);

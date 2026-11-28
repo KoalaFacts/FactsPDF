@@ -50,10 +50,8 @@ public sealed class LinkMetadataTests
     [TestCase("<head><link rel='  ' href=/a></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><link rel=icon href=/a media=print></head><p>A</p>", "FPDF1103")]
     [TestCase("<head><link rel=icon href=/a style='color:red'></head><p>A</p>", "FPDF1103")]
-    [TestCase("<body><link rel=icon href=/a><p>A</p></body>", "FPDF1101")]
-    [TestCase("<p>A<link rel=icon href=/a></p>", "FPDF1101")]
+    [TestCase("<style>link{display:block}</style><p>A<link rel=icon href=/a></p>", "FPDF1201")]
     [TestCase("<head><title>T<link rel=icon href=/a></title></head><p>A</p>", "FPDF1101")]
-    [TestCase("<head><link rel=icon href=/a></link></head><p>A</p>", "FPDF1101")]
     public void UnsupportedLinksStillFail(string html, string code)
     {
         using var output = new MemoryStream();

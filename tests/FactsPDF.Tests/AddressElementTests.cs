@@ -63,7 +63,7 @@ public sealed class AddressElementTests
     }
 
     [TestCase("<p><span><address>A</address></span></p>", "FPDF1101")]
-    [TestCase("<address>A</div>", "FPDF1101")]
+    [TestCase("<address><b>A</address>B", "FPDF1101")]
     [TestCase("<address href='x'>A</address>", "FPDF1103")]
     public void UnsupportedUsesStillFail(string html, string code)
     {

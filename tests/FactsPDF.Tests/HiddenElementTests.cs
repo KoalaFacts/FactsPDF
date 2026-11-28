@@ -97,11 +97,13 @@ public sealed class HiddenElementTests
     public void AnAudioWithControlsFailsBecauseItDrawsAPlayer()
         => Assert.That(Fails("<audio controls></audio>").Code, Is.EqualTo("FPDF1103"));
 
+    // The end of the input closes a hidden element as it closes any other, so everything after its
+    // start tag is inside it and hidden, as in Chrome.
     [TestCase("<p>A</p><datalist>x</p><p>B</p>")]
     [TestCase("<p>A</p><dialog>x<p>B</p>")]
     [TestCase("<p>A</p><audio>x<p>B</p>")]
-    public void AnUnclosedHiddenElementFails(string html)
-        => Assert.That(Fails(html).Code, Is.EqualTo("FPDF1101"));
+    public void AnUnclosedHiddenElementHidesTheRestOfTheDocument(string html)
+        => Assert.That(Pdf(html), Is.EqualTo(Pdf("<p>A</p>")));
 
     [Test]
     public void ElementsInsideAHiddenSubtreeStillCountTowardTheElementLimit()

@@ -94,11 +94,12 @@ internal readonly record struct CssAttributeMatch(
     string Name, CssAttributeOperator Operator, string? Value, bool IgnoreCase);
 
 // :first-child is :nth-child(1), :last-of-type is :nth-last-of-type(1), and so on.
-internal enum CssPseudoKind : byte { NthChild, NthLastChild, NthOfType, NthLastOfType, OnlyChild, OnlyOfType, Empty, Not, Root }
+internal enum CssPseudoKind : byte { NthChild, NthLastChild, NthOfType, NthLastOfType, OnlyChild, OnlyOfType, Empty, Not, Root, Lang }
 
 /// <summary>A pseudo-class. The nth kinds match the positions A×n+B for n ≥ 0; Not matches an
-/// element that none of its compounds match.</summary>
-internal sealed record CssPseudoClass(CssPseudoKind Kind, long A = 0, long B = 0, CssCompound[]? Not = null);
+/// element that none of its compounds match; Lang matches an element whose language (its own or
+/// its nearest ancestor's lang attribute) is Language or starts with Language and a hyphen.</summary>
+internal sealed record CssPseudoClass(CssPseudoKind Kind, long A = 0, long B = 0, CssCompound[]? Not = null, string? Language = null);
 
 // How a compound relates to the one before it: the descendant (white space), child (>),
 // next-sibling (+) and subsequent-sibling (~) combinators.
@@ -242,9 +243,10 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 if (tokens[i].Kind != CssTokenKind.Identifier)
                     throw CssTokens.Invalid("Expected an attribute name.", current.Offset);
                 var name = tokens[i++].Text.ToLowerInvariant();
-                var supported = name is "id" or "class" or "title" or "lang"
-                    or "href" or "src" or "alt" or "hidden"
-                    || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5
+                var supported = name is "href" or "src" or "alt" or "hidden"
+                    // id, class, title, lang, data-*, role, aria-* and the other global attributes
+                    // that print nothing themselves but can be selected.
+                    || HtmlGlobalAttributes.NoEffect(name) && name != "data-"
                     // A custom element takes any attribute (the page's own, such as variant or open).
                     || type is not null && HtmlDocumentReader.IsCustomElement(type);
                 if (!supported)
@@ -354,6 +356,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             structural = true;
             return new(nthKind, a, b);
         }
+        if (Keyword(name.Text, "lang")) return new(CssPseudoKind.Lang, Language: ParseLanguageRange(name.Arguments!, name.Offset));
         if (!Keyword(name.Text, "not"))
             throw CssTokens.Invalid($"Unsupported pseudo-class ':{name.Text}()'.", colon);
         CssBudget.Check(depth < MaxNotDepth, ":not() may nest at most 32 levels.", name.Offset);
@@ -379,6 +382,44 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         }
         weight = best;
         return new(CssPseudoKind.Not, Not: compounds.ToArray());
+    }
+
+    // :lang() with one language range that is a primary language subtag: 1 to 8 ASCII letters, as an
+    // identifier or a string. For such a range basic and extended filtering (the two matchings
+    // browsers have used) agree, so a match does not depend on which one Chrome applies; a range
+    // with subtags, a wildcard or a list fails instead.
+    private static string ParseLanguageRange(IReadOnlyList<CssSyntaxComponent> arguments, int offset)
+    {
+        const string Unsupported = ":lang() supports one primary language subtag (1 to 8 ASCII letters), such as :lang(en) or :lang(de).";
+        string? range = null;
+        foreach (var argument in arguments)
+        {
+            if (argument is not CssTokenComponent { Token: var token }) throw CssTokens.Invalid(Unsupported, argument.Span.Start);
+            if (token.Kind == CssSyntaxTokenKind.Whitespace) continue;
+            if (range is not null || token.Kind is not (CssSyntaxTokenKind.Ident or CssSyntaxTokenKind.String))
+                throw CssTokens.Invalid(Unsupported, token.Span.Start);
+            range = token.Value;
+        }
+        if (range is null || range.Length is 0 or > 8 || !range.All(char.IsAsciiLetter)) throw CssTokens.Invalid(Unsupported, offset);
+        return range;
+    }
+
+    /// <summary>Whether an element's language matches a primary-subtag range: the language is the
+    /// range or starts with it and a hyphen, ASCII case-insensitively. An empty lang attribute means
+    /// the language is unknown, which no range matches.</summary>
+    internal static bool LanguageMatches(string? language, string range) =>
+        language is not null && language.StartsWith(range, StringComparison.OrdinalIgnoreCase)
+        && (language.Length == range.Length || language[range.Length] == '-');
+
+    /// <summary>The language of the element at <paramref name="depth"/> of the ancestor path (or of a
+    /// sibling of it standing in for that entry): its own lang attribute, else the nearest
+    /// ancestor's; null when no element sets one.</summary>
+    internal static string? Language(in CssElement element, IReadOnlyList<CssElement> path, int depth)
+    {
+        if (element.Attributes.TryGetValue("lang", out var own)) return own;
+        for (var d = Math.Min(depth, path.Count) - 1; d >= 0; d--)
+            if (path[d].Attributes.TryGetValue("lang", out var inherited)) return inherited;
+        return null;
     }
 
     // Pseudo-class and An+B keywords are ASCII case-insensitive; no other case mapping applies.
@@ -556,7 +597,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
     internal bool Matches(IReadOnlyList<CssElement> path, CssBudget budget, HtmlElementPositions? positions = null)
     {
         if (siblings) return MatchesWithSiblings(path, budget, positions);
-        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], path.Count == 1, budget, positions)) return false;
+        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], path.Count == 1, budget, positions, path, path.Count - 1)) return false;
         if (parts.Length == 1) return true;
         if (parts.Length > path.Count) return false;
         // Dynamic programming preserves all possible ancestors in mixed child/descendant chains.
@@ -571,7 +612,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             {
                 budget.Work(offset); below |= candidates[n + 1];
                 var reachable = parts[p + 1].Combinator == CssCombinator.Child ? candidates[n + 1] : below;
-                if (reachable && MatchesCompound(parts[p], path[n], n == 0, budget, positions)) { next[n] = true; any = true; }
+                if (reachable && MatchesCompound(parts[p], path[n], n == 0, budget, positions, path, n)) { next[n] = true; any = true; }
             }
             if (!any) return false;
             next.CopyTo(candidates);
@@ -585,7 +626,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
     // times the elements near the path, every step charged to the match budget.
     private bool MatchesWithSiblings(IReadOnlyList<CssElement> path, CssBudget budget, HtmlElementPositions? positions)
     {
-        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], path.Count == 1, budget, positions)) return false;
+        if (path.Count == 0 || !MatchesCompound(parts[^1], path[^1], path.Count == 1, budget, positions, path, path.Count - 1)) return false;
         if (parts.Length == 1) return true;
         if (positions is null || path[^1].Token < 0)
             throw new InvalidOperationException("Sibling combinators need the document's element positions.");
@@ -596,7 +637,7 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             if (failed is not null && failed.Contains(key)) return false;
             budget.Work(offset);
             var element = depth < path.Count && path[depth].Token == node ? path[depth] : positions.Element(node);
-            var found = MatchesCompound(parts[part], element, depth == 0 && path[0].Token == node, budget, positions)
+            var found = MatchesCompound(parts[part], element, depth == 0 && path[0].Token == node, budget, positions, path, depth)
                 && (part == 0 || Related(part, depth, node));
             if (!found) (failed ??= []).Add(key);
             return found;
@@ -624,7 +665,9 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
     }
 
     // first: the element is the first entry of the ancestor path, the document's root element.
-    private bool MatchesCompound(CssCompound part, in CssElement element, bool first, CssBudget budget, HtmlElementPositions? positions)
+    // depth: the path entry the element is (or, for a sibling, stands beside), for its ancestors.
+    private bool MatchesCompound(CssCompound part, in CssElement element, bool first, CssBudget budget, HtmlElementPositions? positions,
+        IReadOnlyList<CssElement> path, int depth)
     {
         budget.Work(offset);
         if (part.Type is not null && !part.Type.Equals(element.Name, StringComparison.OrdinalIgnoreCase)) return false;
@@ -638,11 +681,12 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 return false;
         }
         foreach (var pseudo in part.PseudoClasses)
-            if (!MatchesPseudoClass(pseudo, element, first, budget, positions)) return false;
+            if (!MatchesPseudoClass(pseudo, element, first, budget, positions, path, depth)) return false;
         return true;
     }
 
-    private bool MatchesPseudoClass(CssPseudoClass pseudo, in CssElement element, bool first, CssBudget budget, HtmlElementPositions? positions)
+    private bool MatchesPseudoClass(CssPseudoClass pseudo, in CssElement element, bool first, CssBudget budget, HtmlElementPositions? positions,
+        IReadOnlyList<CssElement> path, int depth)
     {
         budget.Work(offset);
         // :root is the html element with no parent: the first entry of the ancestor path, which the
@@ -651,9 +695,10 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         if (pseudo.Kind == CssPseudoKind.Not)
         {
             foreach (var compound in pseudo.Not!)
-                if (MatchesCompound(compound, element, first, budget, positions)) return false;
+                if (MatchesCompound(compound, element, first, budget, positions, path, depth)) return false;
             return true;
         }
+        if (pseudo.Kind == CssPseudoKind.Lang) return LanguageMatches(Language(element, path, depth), pseudo.Language!);
         if (positions is null)
             throw new InvalidOperationException("Structural pseudo-classes need the document's element positions.");
         var position = positions[element.Token];

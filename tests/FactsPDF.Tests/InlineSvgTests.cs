@@ -421,7 +421,7 @@ public sealed class InlineSvgTests
     [TestCase("<div><span><svg style='display:block'></svg></span></div>")]
     [TestCase("<ul><li><svg style='display:block'></svg></li></ul>")]
     [TestCase("<svg><g></svg>")]
-    [TestCase("<svg><g>")]
+    [TestCase("<svg><g></g></g></svg>")]
     [TestCase("<svg><title><g/></title></svg>")]
     public void MisplacedOrMalformedSvgFailsFpdf1101(string html) => Reject(html, "FPDF1101");
 

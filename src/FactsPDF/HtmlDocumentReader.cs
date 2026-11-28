@@ -28,18 +28,11 @@ internal static class HtmlDocumentReader
         internal bool Done;
         internal object? Result;
     }
+    // The metadata elements HTML also allows in body, where the user-agent sheet hides them.
+    private static bool MetadataTag(string name) => name is "title" or "meta" or "link" or "base";
     internal static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     internal static bool ListTag(string name) => name is "ol" or "ul" or "menu";
 
-    // The end tags the reader implies, shared with HtmlElementPositions so both build one tree.
-    // Before a start tag: a paragraph or block closes an open p (outside tables), an li an open li.
-    internal static bool StartClosesParagraph(string top, string name, bool inTable)
-        => !inTable && top == "p" && (ParagraphTag(name) || Container(name) || name is "table" or "dialog");
-    internal static bool StartClosesListItem(string top, string name) => name == "li" && top == "li";
-    // Before an end tag: a block's end tag closes an open p (outside tables), a list's an open li.
-    internal static bool EndClosesParagraph(string top, string name, bool inTable)
-        => !inTable && top == "p" && name != "p" && Container(name);
-    internal static bool EndClosesListItem(string top, string name) => ListTag(name) && top == "li";
     // header, footer, main, nav, aside, hgroup, search and figcaption are blocks with no user-agent style beyond
     // display:block, so they render exactly like div, section and article; figure renders like
     // blockquote (the HTML user-agent sheet gives both the same margins).
@@ -132,11 +125,11 @@ internal static class HtmlDocumentReader
     /// <summary>
     /// The open elements the document reader will hold, replayed while the collecting pass reads
     /// the tokens, so a nesting flood fails with FPDF1003 before the rest of the page is tokenized
-    /// (R1c1). It mirrors the reader's pushes and implicit pops (an open <c>p</c> closed by a
-    /// block, an open <c>li</c> by the next <c>li</c> or the list's end) and is never deeper than
-    /// the reader's stack, so it only fails documents the reader would fail at the same tag. It
-    /// stops checking at the first table (where the reader keeps an open <c>p</c>), unsupported
-    /// element or unmatched end tag, leaving those to the reader and its own error codes. Because
+    /// (R1c1). It reads the tokens with the end tags the HTML parser implies already written out
+    /// (HtmlImpliedElements), mirrors the reader's pushes and pops and is never deeper than the
+    /// reader's stack, so it only fails documents the reader would fail at the same tag. It
+    /// stops checking at the first table, unsupported element or unmatched end tag, leaving those
+    /// to the reader and its own error codes. Because
     /// this pass runs before the reader, a reader-only error (an unsupported attribute, a nesting
     /// rule) on the same or an earlier tag is reported as FPDF1003 instead, as FPDF1002 and CSS
     /// errors from this pass already are.
@@ -223,18 +216,15 @@ internal static class HtmlDocumentReader
                 stopped = true;
                 return;
             }
-            var top = open.Count == 0 ? null : open[^1];
+            // Omitted end tags are already written out (HtmlImpliedElements), so every end tag the
+            // reader accepts closes the innermost open element.
             if (token.Kind == HtmlTokenKind.End)
             {
-                if (top == "p" && name != "p" && Container(name)) top = PopAndPeek();
-                if (ListTag(name) && top == "li") top = PopAndPeek();
-                if (top != name) { stopped = true; return; }
+                if (open.Count == 0 || open[^1] != name) { stopped = true; return; }
                 open.RemoveAt(open.Count - 1);
                 return;
             }
             if (token.SelfClosing) { stopped = true; return; } // FPDF1101 in the reader
-            if ((ParagraphTag(name) || Container(name)) && top == "p") top = PopAndPeek();
-            if (name == "li" && top == "li") PopAndPeek();
             Check(token);
             open.Add(name);
         }
@@ -243,12 +233,6 @@ internal static class HtmlDocumentReader
         private void Check(HtmlToken token)
         {
             if (open.Count >= maxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
-        }
-
-        private string? PopAndPeek()
-        {
-            open.RemoveAt(open.Count - 1);
-            return open.Count == 0 ? null : open[^1];
         }
     }
 
@@ -706,7 +690,7 @@ internal static class HtmlDocumentReader
             var implied = token is ImpliedHtmlToken;
             if (implied && token.Kind == HtmlTokenKind.Start) { impliedOpen++; impliedHead |= name == "head"; }
             else if (token.Kind == HtmlTokenKind.End && name == "head" && impliedHead) { impliedOpen--; impliedHead = false; }
-            else if (implied && token.Kind == HtmlTokenKind.End && name == "tbody") impliedOpen--;
+            else if (implied && token.Kind == HtmlTokenKind.End && name is "tbody" or "tr" or "colgroup") impliedOpen--;
             if (token.Kind == HtmlTokenKind.Start && IsCustomElement(name) && !token.SelfClosing)
             {
                 path.Add(CssElement.From(token, t));
@@ -741,8 +725,6 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
             {
-                if (EndClosesParagraph(stack[^1].Name, name, table is not null && cellBlocks == 0)) Close();
-                if (EndClosesListItem(stack[^1].Name, name)) Close();
                 if (stack.Count == 1 || stack[^1].Name != name)
                     throw new FactsPdfException("FPDF1101", name == "p"
                         ? "An unmatched </p> (for example after a table that closed its paragraph) would make a browser insert an empty paragraph; remove it."
@@ -808,9 +790,10 @@ internal static class HtmlDocumentReader
                     ListTag(f.Name) || f.Name == "li")))
                 throw new FactsPdfException("FPDF1101",
                     "hr must be a standalone block outside paragraphs, lists and tables.", token.Offset);
-            if (name != "table") table?.CheckChild(stack[^1].Name, name, token.Offset, cellBlocks > 0);
-            if (StartClosesParagraph(stack[^1].Name, name, table is not null && cellBlocks == 0)) Close();
-            if (StartClosesListItem(stack[^1].Name, name)) Close();
+            // Metadata in a cell is cell content the user-agent sheet hides; anywhere else in a table
+            // the parser would move it in front of the table (foster parenting), which is not reproduced.
+            if (name != "table" && !(MetadataTag(name) && table?.Cell is not null))
+                table?.CheckChild(stack[^1].Name, name, token.Offset, cellBlocks > 0);
             // A table start tag closes an open p (the HTML parser, standards mode); any other text
             // element still open around it would have to be split around the table, which only inline
             // elements in a block, list item or body can be (the text before it is its own line box).
@@ -826,7 +809,7 @@ internal static class HtmlDocumentReader
             // A slot is display:contents: it is no box, so a block inside it joins the block around the slot.
             if ((ParagraphTag(name) || Container(name)) && AnyFrame(stack, f => ParagraphTag(f.Name) || InlineTag(f.Name) && f.Name != "slot"))
                 throw new FactsPdfException("FPDF1101", "Unsupported block/inline nesting.", token.Offset);
-            if (ListTag(stack[^1].Name) && name != "li" || name == "li" && !ListTag(stack[^1].Name))
+            if (ListTag(stack[^1].Name) && name != "li" && !MetadataTag(name) || name == "li" && !ListTag(stack[^1].Name))
                 throw new FactsPdfException("FPDF1101", "li must be a direct child of ol/ul, whose only element children are li.", token.Offset);
             if (ListTag(name) && CountFrames(stack, f => ListTag(f.Name)) >= 2)
                 throw new FactsPdfException("FPDF1101", "Lists support at most two nested levels.", token.Offset);
@@ -835,8 +818,18 @@ internal static class HtmlDocumentReader
                 throw new FactsPdfException("FPDF1101", "Unsupported head/title content.", token.Offset);
             if (name == "head" && stack[^1].Name is not ("html" or "#root"))
                 throw new FactsPdfException("FPDF1101", "head must be at document level.", token.Offset);
-            if (name is "title" or "meta" or "link" or "base" && stack[^1].Name != "head")
-                throw new FactsPdfException("FPDF1101", "title/meta/link/base must be inside head.", token.Offset);
+            // In body the parser inserts title, meta, link and base where they are written (the "in
+            // head" rules from "in body"); the user-agent sheet hides them, so they print nothing
+            // unless author CSS shows them, which would need a box this reader never builds.
+            if (MetadataTag(name) && stack[^1].Name != "head")
+            {
+                path.Add(CssElement.From(token, t));
+                var metadataDisplay = sheets.AuthorDisplay(path, default);
+                path.RemoveAt(path.Count - 1);
+                if (metadataDisplay is not (null or "none"))
+                    throw new FactsPdfException("FPDF1201",
+                        $"{name} is display:none in the user-agent sheet; an author display that shows it is not supported.", token.Offset);
+            }
             if (name == "base")
             {
                 if (baseSeen) throw new FactsPdfException("FPDF1101", "A document may have only one base element.", token.Offset);
@@ -877,6 +870,7 @@ internal static class HtmlDocumentReader
             string? widthAttribute = null, heightAttribute = null;
             var borderless = false;
             var detailsOpen = false;
+            var contentTypePragma = false;
             int? listStart = null, listValue = null;
             var listReversed = false;
             ListMarkerKind? listTypeHint = null;
@@ -926,7 +920,19 @@ internal static class HtmlDocumentReader
                 // A presentational hint below every author declaration (see CssStylesheets.Compute).
                 else if (attribute == "type" && name is "ol" or "ul" or "li")
                     listTypeHint = ListMarkerTypes.TypeAttribute(name, value, token.Offset);
-                else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
+                // The page is already characters: a declared encoding FactsPDF decodes (see HtmlEncoding) changes
+                // nothing here; any other one would have needed a decoder, so it fails.
+                else if (name == "meta" && attribute == "charset") HtmlEncoding.RequireLabel(value, token.Offset);
+                // content-type only restates the encoding (its charset is checked below), and X-UA-Compatible
+                // picks a legacy Internet Explorer mode Chrome ignores. Other pragmas (refresh, default-style,
+                // content-language, content-security-policy, set-cookie) change loading or the language.
+                else if (name == "meta" && attribute == "http-equiv")
+                {
+                    // Matched without trimming, as the HTML parser matches pragma names.
+                    if (value.Equals("content-type", StringComparison.OrdinalIgnoreCase)) contentTypePragma = true;
+                    else if (!value.Equals("x-ua-compatible", StringComparison.OrdinalIgnoreCase))
+                        throw new FactsPdfException("FPDF1103", $"meta http-equiv '{value}' is not supported; only content-type and X-UA-Compatible are.", token.Offset);
+                }
                 // Named and Open Graph metadata (viewport, description, author, generator, og:title)
                 // is document metadata a static page render never reads. color-scheme is the one
                 // standard name that changes the rendered canvas and text colours, so it still fails.
@@ -970,10 +976,11 @@ internal static class HtmlDocumentReader
                             "hidden is supported only on ordinary report blocks outside lists and tables.", token.Offset);
                     hidden = true;
                 }
-                else if (attribute is "id" or "class" or "title" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
-                // An event handler content attribute only runs script on an event; FactsPDF runs no
-                // script (see script elements) and a printed page receives no events, so it changes nothing.
-                else if (attribute.Length > 2 && attribute.StartsWith("on", StringComparison.Ordinal)) { }
+                // Global attributes Chrome prints nothing for (HtmlGlobalAttributes): identity, event handlers
+                // (FactsPDF runs no script and a printed page receives no events), accessibility, focus and
+                // editing hints, microdata.
+                else if (HtmlGlobalAttributes.NoEffect(attribute)) { }
+                else if (name == "html" && attribute == "xmlns" && value == HtmlGlobalAttributes.HtmlNamespace) { }
                 // A canvas's width and height are its intrinsic size, not CSS hints (video and iframe use the
                 // presentational hints above).
                 else if (name == "canvas" && attribute is "width" or "height")
@@ -1011,7 +1018,13 @@ internal static class HtmlDocumentReader
                 if (!baseHrefOrTarget) throw new FactsPdfException("FPDF1103", "base requires an href or target attribute.", token.Offset);
                 continue;
             }
-            if (name == "meta") continue;
+            if (name == "meta")
+            {
+                if (contentTypePragma && token.Attributes!.GetValueOrDefault("content") is { } content
+                    && HtmlEncoding.ContentCharset(content) is { } charset)
+                    HtmlEncoding.RequireLabel(charset, token.Offset);
+                continue;
+            }
             if (VoidInlineTag(name))
             {
                 path.Add(CssElement.From(token, t));
@@ -1188,7 +1201,16 @@ internal static class HtmlDocumentReader
             stack.Add(new(name, style, boxStyle, box, token.Offset, children.Count, alignStart, flexItem, after,
                 name != source ? source : null));
             if (box is not null && table?.Cell is not null) cellBlocks++;
-            if (name == "q") Add(Quote(stack, open: true, options), style);
+            if (name == "q")
+            {
+                // quotes:auto picks the quotation marks of the element's language (lang); FactsPDF
+                // has the English ones only, so a q in any other known language fails.
+                if (CssSelector.Language(path[^1], path, path.Count - 1) is { Length: > 0 } language
+                    && !CssSelector.LanguageMatches(language, "en"))
+                    throw new FactsPdfException("FPDF1103",
+                        $"q in language '{language}' would print that language's quotation marks; only English (or no lang) is supported.", token.Offset);
+                Add(Quote(stack, open: true, options), style);
+            }
             if (name == "details") detailsStates.Add(new DetailsState { Open = detailsOpen });
             if (firstSummary)
             {
@@ -1216,7 +1238,8 @@ internal static class HtmlDocumentReader
             if (realizedBefore is BlockNode beforeBox) children.Add(beforeBox);
             else if (realizedBefore is GeneratedText beforeText) Add(beforeText.Text, beforeText.Style);
         }
-        // HTML permits omitted p/body/html end tags; other unclosed elements are rejected here.
+        // The end of the input closes every element: HtmlImpliedElements has written the end tags of
+        // all but body and html, which close here.
         while (table is null && stack.Count > 1 && stack[^1].Name is "p" or "body" or "html")
         {
             Close(); // attach under the correct parent BEFORE popping

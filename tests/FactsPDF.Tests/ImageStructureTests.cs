@@ -66,7 +66,7 @@ public sealed class ImageStructureTests
     [TestCase("<ul><li><div><img src='chart' style='display:block'></div></li></ul>", "FPDF1101")]
     [TestCase("<img src='chart' style='display:none'>", "FPDF1201")]
     [TestCase("<img src='chart' style='margin-left:2pt;display:inline'>", "FPDF1201")]
-    [TestCase("<img src='chart'></img>", "FPDF1101")]
+    [TestCase("<p><img src='chart'></p></p>", "FPDF1101")]
     [TestCase("<img>", "FPDF1103")]
     [TestCase("<img src=''>", "FPDF1103")]
     [TestCase("<img src='https://example.invalid/chart.jpg'>", "FPDF1103")]

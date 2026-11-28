@@ -92,7 +92,7 @@ public sealed class FigureElementTests
 
     [TestCase("<table><tr><td><figure>A</figure></td></tr></table>", "FPDF1101")]
     [TestCase("<p><span><figcaption>A</figcaption></span></p>", "FPDF1101")]
-    [TestCase("<figure>A</figcaption>", "FPDF1101")]
+    [TestCase("<figure><b>A</figure>B", "FPDF1101")]
     [TestCase("<figure href='x'>A</figure>", "FPDF1103")]
     public void UnsupportedUsesStillFail(string html, string code)
     {

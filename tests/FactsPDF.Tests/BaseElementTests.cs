@@ -38,10 +38,11 @@ public sealed class BaseElementTests
     public void BaseBeforeBodyContentGoesIntoTheImpliedHead()
         => Assert.That(Pdf("<base href=/><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
 
-    [TestCase("<body><base href=/><p>A</p></body>", "FPDF1101")]
-    [TestCase("<p>A<base href=/></p>", "FPDF1101")]
+    // In body a base is valid (HtmlTreeBuilderTests); in table structure the parser would move it
+    // in front of the table, and author CSS that shows it needs a box.
+    [TestCase("<table><tbody><base href=/><tr><td>A</td></tr></tbody></table>", "FPDF1101")]
+    [TestCase("<style>base{display:block}</style><p>A<base href=/></p>", "FPDF1201")]
     [TestCase("<head><title>T<base href=/></title></head><p>A</p>", "FPDF1101")]
-    [TestCase("<head><base href=/></base></head><p>A</p>", "FPDF1101")]
     [TestCase("<head><base href=/><base target=_blank></head><p>A</p>", "FPDF1101")]
     [TestCase("<head><base href=/></head><body><base href=/><p>A</p></body>", "FPDF1101")]
     [TestCase("<head><base></head><p>A</p>", "FPDF1103")]

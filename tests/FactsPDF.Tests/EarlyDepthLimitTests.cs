@@ -87,10 +87,12 @@ public sealed class EarlyDepthLimitTests
     [Test]
     public void AnUnmatchedEndTagKeepsItsOwnCode()
     {
-        var html = "<div></span>" + Repeat("<div>", 40) + "x";
+        // A stray end tag is ignored as the HTML parser ignores it; one that would close a span
+        // around an open formatting element (which Chrome reopens later) is rejected where it is.
+        var html = "<div><span><b></span>" + Repeat("<div>", 40) + "x";
         var error = Fails(html, 16);
         Assert.That(error.Code, Is.EqualTo("FPDF1101"));
-        Assert.That(error.SourceOffset, Is.EqualTo("<div>".Length));
+        Assert.That(error.SourceOffset, Is.EqualTo("<div><span><b>".Length));
     }
 
     [Test]

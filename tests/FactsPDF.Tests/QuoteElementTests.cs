@@ -56,7 +56,7 @@ public sealed class QuoteElementTests
     }
 
     [TestCase("<q><p>Block</p></q>", "FPDF1101")]
-    [TestCase("<p><q>Open</p>", "FPDF1101")]
+    [TestCase("<p><q><em>Open</p>B", "FPDF1101")]
     [TestCase("<q href='x'>A</q>", "FPDF1103")]
     [TestCase("<mark>A</mark>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code)

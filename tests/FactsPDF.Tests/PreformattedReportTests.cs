@@ -138,6 +138,6 @@ public sealed class PreformattedReportTests
     [TestCase("<ul><li><pre>AB</pre></li></ul>", "FPDF1101")]
     [TestCase("<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><pre>AB</pre></td></tr></tbody></table>", "FPDF1101")]
     [TestCase("<pre><p>AB</p></pre>", "FPDF1101")]
-    [TestCase("<pre/>", "FPDF1101")]
+    [TestCase("<pre><b>AB</pre>C", "FPDF1101")]
     public void InvalidAndUnsupportedInputsPreserveOriginalPdf(string html, string code) => Reject(html, code);
 }

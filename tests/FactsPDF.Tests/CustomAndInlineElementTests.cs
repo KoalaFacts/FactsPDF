@@ -67,8 +67,8 @@ public sealed class CustomAndInlineElementTests
     public void DisplayInlineBlockOnACustomElementStillFails()
         => Assert.That(Fails("<style>x-card{display:inline-block}</style><p>A <x-card>B</x-card></p>").Code, Is.EqualTo("FPDF1202"));
 
-    [TestCase("<p>A <x-card/>B</p>", "FPDF1101")]
-    [TestCase("<p>A <x-card>B</p>", "FPDF1101")]
+    [TestCase("<p>A <x-card><b>B</p>C", "FPDF1101")]
+    [TestCase("<x-card><p>B</p></x-card>", "FPDF1101")]
     [TestCase("<p>A <font-face>B</font-face></p>", "FPDF1102")]
     [TestCase("<p>A <xcard>B</xcard></p>", "FPDF1102")]
     public void OnlyValidCustomElementNamesAreAccepted(string html, string code)
