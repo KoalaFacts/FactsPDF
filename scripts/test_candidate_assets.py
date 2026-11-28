@@ -19,7 +19,7 @@ class CandidateAssetsTests(unittest.TestCase):
         assets.update({f'lib/{t}/FactsPDF.xml':b'<doc><assembly><name>FactsPDF</name></assembly><members><member name="T:FactsPDF.Pdf" /></members></doc>' for t in targets})
         if mutate:mutate(assets)
         if extra:assets.update(extra)
-        xml=f'<package><metadata><id>FactsPDF</id><version>{VERSION}</version><license type="file">LICENSE.md</license><readme>README.md</readme><repository type="git" url="https://github.com/KoalaFacts/FactsPDF" commit="{SHA}"/><dependencies>'+''.join(f'<group targetFramework="{t}"/>' for t in targets)+'</dependencies></metadata></package>'
+        xml=f'<package><metadata><id>FactsPDF</id><version>{VERSION}</version><license type="expression">Apache-2.0</license><readme>README.md</readme><repository type="git" url="https://github.com/KoalaFacts/FactsPDF" commit="{SHA}"/><dependencies>'+''.join(f'<group targetFramework="{t}"/>' for t in targets)+'</dependencies></metadata></package>'
         p=self.root/'candidate.nupkg'
         with ZipFile(p,'w') as z:
             z.writestr('FactsPDF.nuspec',xml)
