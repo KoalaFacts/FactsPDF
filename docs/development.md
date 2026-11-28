@@ -303,6 +303,7 @@ byte[] bytes = pdf.ToBytes("<h1>Example</h1><p>Hello PDF</p><img src=\"logo\">")
 | `WithImage(name, image)` | An image bound to `<img src="name">`; the same name replaces the earlier image |
 | `WithPage(p => …)` | `A4()` (default), `Letter()`, `Size(w, h, unit)`, `Landscape()`/`Portrait()`, `Margin(value, unit)` (default 36pt) |
 | `WithMetadata(m => …)` | PDF Info `Title`, `Author`, `Subject`, `Keywords` |
+| `WithTaggedPdf(bool)` | Tagged PDF (default `true`): structure tree, marked content, language, title and, when the document can meet it, the PDF/UA-1 identification (`PdfWriteResult.PdfUa`); `false` writes the untagged PDF ([contract](tagged-pdf.md)) |
 | `WithHeaderText`, `WithFooterText`, `WithPageNumbers` | Simple centred margin text; page numbers follow the footer as `text \| N` |
 | `WithPageFurniture(f => …)` | Six styled regions (`HeaderLeft` … `FooterRight`) with `{page}`/`{pages}`, plus `FirstPage(…)`; exclusive with the simple margin text |
 | `WithLimits(l => …)` | Every resource limit, such as `MaxPages`, `MaxElements`, `MaxOutputBytes`, `MaxCssWarnings` |
@@ -343,7 +344,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | Codes | Meaning |
 | --- | --- |
 | FPDF1001-1003 | Input/element/depth limit |
-| FPDF1101-1104 | HTML structure/element/attribute/reference error |
+| FPDF1101-1105 | HTML structure/element/attribute/reference error, or (a warning in non-strict mode) an img or svg without alt text in a tagged PDF |
 | FPDF1201-1206 | CSS property/value/syntax/source/budget error, or a CSS `@page` value that conflicts with an explicit writer page option |
 | FPDF1301-1306 | Text/font availability, layout/page limit, invalid UTF-16, unsupported text processing or invalid page furniture template |
 | FPDF1401 | Output-byte or display-command limit |

@@ -64,6 +64,8 @@ def expected_baseline(text,fonts,height,top):
 def commands(page,reader):
     painting=[];blocks=[];block=None
     for values,op in ContentStream(page.get_contents(),reader).operations:
+        # Tagged PDF marked content does not change what is painted: the body's operators are compared without it.
+        if op in (b'BMC',b'BDC',b'EMC'):continue
         if op==b'BT':
             assert block is None,'nested text';block=[]
         elif op==b'ET':

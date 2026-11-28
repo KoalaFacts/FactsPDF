@@ -21,6 +21,9 @@ internal sealed class PdfBuffer : Stream
         buffer = ArrayPool<byte>.Shared.Rent(Math.Clamp(limit, 1, 4096));
     }
 
+    /// <summary>Whether the serializer wrote the PDF/UA-1 identification (see <see cref="PdfWriteResult.PdfUa"/>).</summary>
+    internal bool PdfUa { get; set; }
+
     internal ReadOnlySpan<byte> WrittenSpan => buffer.AsSpan(0, length);
     internal ReadOnlyMemory<byte> WrittenMemory => buffer.AsMemory(0, length);
     internal byte[] ToArray() => WrittenSpan.ToArray();

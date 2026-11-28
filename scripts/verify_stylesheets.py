@@ -16,6 +16,10 @@ import xml.etree.ElementTree as ET
 
 
 def run(*args):
+    # The checks here compare equivalent documents (a blockquote with its div oracle, a stylesheet with inline
+    # styles) byte for byte, so the CLI writes the untagged PDF; scripts/verify_tagged_pdf.py covers the tagged one.
+    if len(args) > 2 and Path(str(args[0])).name.startswith('FactsPDF.Cli') and not str(args[1]).startswith('-') and '--untagged' not in args:
+        args = (*args, '--untagged')
     result = subprocess.run([str(arg) for arg in args], capture_output=True, timeout=120)
     if result.returncode:
         raise RuntimeError(f'{args[0]} exited {result.returncode}: ' + result.stderr.decode('utf-8', errors='replace'))

@@ -206,7 +206,7 @@ internal static class PageFurnitureLayout
                 foreach (var entry in staged)
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    AppendLine(entry.Line, entry.X, baseline, page.Runs, Charge, cancellation);
+                    AppendLine(entry.Line, entry.X, baseline, page.Runs, Charge, cancellation, kind: RunKind.Artifact);
                 }
             }
         }

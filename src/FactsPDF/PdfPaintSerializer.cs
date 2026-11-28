@@ -19,13 +19,21 @@ internal static class PdfPaintSerializer
         foreach (var disc in discs)
         {
             cancellation.ThrowIfCancellationRequested();
+            AppendDisc(output, disc, maxOutputBytes, ref alpha);
+        }
+    }
+
+    /// <summary>Appends one list marker disc, circle or square (nothing for an invisible one).</summary>
+    internal static void AppendDisc(StringBuilder output, PlacedDisc disc, int maxOutputBytes, ref PdfAlphaStates alpha)
+    {
+        {
             var x = disc.X; var y = disc.Y; var r = disc.Radius;
             if (!double.IsFinite(x + y + r) || r <= 0)
                 throw new InvalidOperationException("Invalid list disc geometry.");
             // Every vector marker consumes exactly one retained paint command.
             // Keep the legacy disc byte path identical for unstyled reports.
             var color = disc.Color;
-            if (color.IsInvisible) continue;
+            if (color.IsInvisible) return;
             if (disc.Kind == ListMarkerKind.Square)
             {
                 alpha.BeginPaint(output, color).AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ").AppendInvariant(x - r, Number).Append(' ').AppendInvariant(y - r, Number).Append(' ').AppendInvariant(2 * r, Number).Append(' ').AppendInvariant(2 * r, Number).Append(" re f Q\n");
@@ -55,14 +63,17 @@ internal static class PdfPaintSerializer
         }
     }
 
+    /// <summary>Whether <see cref="AppendTextDecoration"/> paints anything for the run.</summary>
+    internal static bool HasTextDecoration(PlacedText run) => run.Style.Decoration != TextDecoration.None && run.Width > 0 &&
+        !(run.Style.DecorationColor ?? run.Style.Color).IsInvisible;
+
     // Decorations follow the already wrapped, font-resolved glyph advances.
     // One painted path per selected line is emitted for each measured run,
     // keeping Courier and embedded TrueType geometry consistent.
     internal static void AppendTextDecoration(StringBuilder output, PlacedText run,
         int maxOutputBytes, ref PdfAlphaStates alpha)
     {
-        if (run.Style.Decoration == TextDecoration.None || run.Width <= 0 ||
-            (run.Style.DecorationColor ?? run.Style.Color).IsInvisible) return;
+        if (!HasTextDecoration(run)) return;
         var size = run.Style.FontSize;
         var thickness = run.Style.DecorationThickness ?? Math.Max(0.3, size * 0.06);
         foreach (var line in DecorationOrder)

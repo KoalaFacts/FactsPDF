@@ -24,6 +24,8 @@ internal sealed record PdfOptions
     internal double ContentHeight => SideMargins is { } sides ? PageHeight - sides.Top - sides.Bottom : PageHeight - 2 * Margin;
     /// <summary>The left edge that centres <paramref name="width"/> on the page area, as CSS centre margin boxes are.</summary>
     internal double CenterX(double width) => SideMargins is { } sides ? sides.Left + (ContentWidth - width) / 2 : (PageWidth - width) / 2;
+    /// <summary>Write Tagged PDF: a structure tree, marked content and the document language and title (default). Off reproduces the untagged output.</summary>
+    public bool Tagged { get; init; } = true;
     /// <summary>Optional PDF Info document title; null omits the field.</summary>
     public string? Title { get; init; }
     /// <summary>Optional PDF Info author (visible to PDF recipients).</summary>
@@ -102,7 +104,11 @@ internal readonly record struct PageMargins(double Top, double Right, double Bot
 /// <summary>Outcome of a successful <see cref="PdfWriter"/> write.</summary>
 /// <param name="PageCount">Number of pages in the generated PDF.</param>
 /// <param name="BytesWritten">Number of bytes written to the output.</param>
-public sealed record PdfWriteResult(int PageCount, long BytesWritten);
+public sealed record PdfWriteResult(int PageCount, long BytesWritten)
+{
+    /// <summary>Whether the PDF identifies itself as PDF/UA-1 (ISO 14289-1): tagged, with every font embedded, a document title and language, and alt text on every figure that is not decorative.</summary>
+    public bool PdfUa { get; init; }
+}
 
 /// <summary>Input that FactsPDF cannot render exactly, or that exceeds a resource limit.</summary>
 /// <remarks>Nothing is written to the output stream when this is thrown. Branch on <see cref="Code"/>,

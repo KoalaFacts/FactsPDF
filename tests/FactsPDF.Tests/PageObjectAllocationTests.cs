@@ -22,7 +22,7 @@ public sealed class PageObjectAllocationTests
     [TestCase(true)]
     public void SerializingAllocatesNoStringPerPageObject(bool embedFont)
     {
-        var options = embedFont ? new PdfOptions { Fonts = [Font], SubsetFonts = true } : new PdfOptions();
+        var options = embedFont ? new PdfOptions { Tagged = false, Fonts = [Font], SubsetFonts = true } : new PdfOptions { Tagged = false };
         var html = new StringBuilder();
         for (var i = 0; i < 600; i++) html.Append("<p style=\"break-after:page\">AB</p>");
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html.ToString(), options, default), options, default);
@@ -50,8 +50,7 @@ public sealed class PageObjectAllocationTests
         var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
         var image = PdfImage.FromBytes(png);
         var html = "<p><a href=\"https://example.com/a\">AB</a> <a href=\"https://example.com/b\">AB</a></p><img src=\"a\" style=\"width:10pt;height:10pt\"><img src=\"b\" style=\"width:10pt;height:10pt\"><img src=\"a\" style=\"width:10pt;height:10pt\">";
-        var options = new PdfOptions
-        {
+        var options = new PdfOptions { Tagged = false,
             PageWidth = 200, PageHeight = 300, Margin = 10,
             Images = new Dictionary<string, PdfImage> { ["a"] = image, ["b"] = PdfImage.FromBytes(png) },
             Fonts = embedFont ? [Font] : [], SubsetFonts = embedFont,
@@ -74,7 +73,7 @@ public sealed class PageObjectAllocationTests
     [TestCase(true)]
     public void SerializingAllocatesNoStringPerLinkAnnotation(bool embedFont)
     {
-        var options = embedFont ? new PdfOptions { Fonts = [Font], SubsetFonts = true } : new PdfOptions();
+        var options = embedFont ? new PdfOptions { Tagged = false, Fonts = [Font], SubsetFonts = true } : new PdfOptions { Tagged = false };
         var html = new StringBuilder();
         for (var i = 0; i < 600; i++)
             html.Append("<p style=\"break-after:page\"><a href=\"https://example.com/a\">AB</a> <a href=\"https://example.com/b\">AB</a> <a href=\"mailto:a@example.com\">AB</a></p>");
@@ -104,7 +103,7 @@ public sealed class PageObjectAllocationTests
         // a 1.2 line height (the supplied font's normal line height differs).
         var html = "<style>html,body{margin:0;line-height:1.2}p{margin:0 0 8pt}</style><p style=\"break-after:page\"><a href=\"https://example.com/a?x=1&amp;y=(2)\">AB</a></p>"
             + "<p style=\"break-after:page;font-size:7.3pt;margin-left:3.1415pt\"><a href=\"mailto:a.b+c@example.com\">AB</a></p><p>AB</p>";
-        var options = new PdfOptions { PageWidth = 200, PageHeight = 300, Margin = 10, Fonts = embedFont ? [Font] : [], SubsetFonts = embedFont };
+        var options = new PdfOptions { Tagged = false, PageWidth = 200, PageHeight = 300, Margin = 10, Fonts = embedFont ? [Font] : [], SubsetFonts = embedFont };
         using var output = new MemoryStream();
         PdfConverter.Convert(html, output, options);
         var text = Encoding.Latin1.GetString(output.ToArray());

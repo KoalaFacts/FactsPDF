@@ -8,17 +8,18 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--strict true|false]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--strict true|false] [--untagged]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
         "--page-size selects A4 (default, 595.28 x 841.89pt) or US Letter (612 x 792pt); --landscape swaps the physical page axes.\n" +
         "--page-width and --page-height must be supplied together, each 72-14400pt in pt/px/mm/cm/in; do not combine with --page-size or --landscape.\n" +
         "--margin sets one uniform margin (0 or pt/px/mm/cm/in; default 36pt) in the selected physical page size.\n" +
-        "--title/--author/--subject/--keywords set optional UTF-16 PDF Info metadata (1-1024 units each); never extracted from HTML.\n" +
+        "--title/--author/--subject/--keywords set optional UTF-16 PDF Info metadata (1-1024 units each); without --title a tagged PDF takes its title from the title element.\n" +
         "A CSS @page rule (size, margins, top/bottom margin boxes) applies when these options are omitted; an option that disagrees with it fails FPDF1206.\n" +
         "Margin boxes cannot be combined with --page-furniture, --page-numbers, --header-text or --footer-text. No printer bleed or content scaling.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +
+        "--untagged writes an untagged PDF; by default the PDF is tagged (structure tree, language from html lang, title from the title element).\n" +
         "--page-numbers adds normal 10pt decimal numbers in the existing bottom margin; default is off.\n" +
         "--header-text/--footer-text consume the next literal argument (including empty or --prefixed text); single-line, at most 1024 UTF-16 units.\n" +
         "Text is centered in existing margins; with --page-numbers the footer is text | N. Overflow fails; no wrapping.\n" +
@@ -49,7 +50,7 @@ public static class CliApplication
                 output.Write(Encoding.UTF8.GetBytes("FactsPDF.Cli " + version + "\n"));
                 return 0;
             }
-            var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false;
+            var paths = new List<string>(); var fontPaths = new List<(int Role, string Path)>(); var overwrite = false; var subsetFonts = false; var pageNumbers = false; var untagged = false;
             string? pageSize = null; var landscape = false; double? requestedMargin = null;
             double? requestedPageWidth = null; double? requestedPageHeight = null;
             string? headerText = null; string? footerText = null; string? furniturePath = null;
@@ -90,6 +91,7 @@ public static class CliApplication
                 else if (arg == "--subject" && subject is null) subject = ReadMetadataArgument(args, ref i, "--subject");
                 else if (arg == "--keywords" && keywords is null) keywords = ReadMetadataArgument(args, ref i, "--keywords");
                 else if (arg == "--subset-fonts" && !subsetFonts) subsetFonts = true;
+                else if (arg == "--untagged" && !untagged) untagged = true;
                 else if (arg == "--page-numbers" && !pageNumbers) pageNumbers = true;
                 else if (arg == "--header-text" && headerText is null)
                 {
@@ -208,6 +210,7 @@ public static class CliApplication
                 var font = PdfFont.FromStream(fontStream, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), cancellationToken);
                 fonts[role].Add(font); totalFontBytes += font.ByteLength;
             }
+            if (untagged) writer = writer.WithTaggedPdf(false);
             writer = writer.WithFonts(f =>
             {
                 f.Regular([.. fonts[0]]).Bold([.. fonts[1]]).Italic([.. fonts[2]]).BoldItalic([.. fonts[3]]);

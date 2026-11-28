@@ -29,8 +29,8 @@ internal static class UnicodePdfSerializer
         var images = new PdfImageWriter(pages, cancellation);
         var hasCourier = false;
         var fonts = new List<FontUse>(); var byFont = new Dictionary<PdfFont, FontUse>();
-        foreach (var page in pages)
-            foreach (var run in page.Runs)
+        foreach (var layoutPage in pages)
+            foreach (var run in layoutPage.Runs)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (run.Font is null) { hasCourier = true; continue; }
@@ -38,7 +38,12 @@ internal static class UnicodePdfSerializer
                 if (!byFont.TryGetValue(font, out var use)) { use = new FontUse(font, fonts.Count); fonts.Add(use); byFont.Add(font, use); }
                 foreach (var rune in run.Text.EnumerateRunes()) use.Register(rune.Value);
             }
-        var output = new PdfBuffer(o.MaxOutputBytes, cancellation); var offsets = new List<long> { 0 };
+        var output = new PdfBuffer(o.MaxOutputBytes, cancellation); var offsets = new RentedList<long>(); offsets.Add(0);
+        var content = ReusableBuilders.RentContent();
+        var page = ReusableBuilders.RentObjects();
+        // Tagged PDF: which structure element and marked-content sequence each painted item belongs to.
+        var plan = TagPlan.Create(pages, o, hasCourier, cancellation);
+        var marks = plan is null ? null : new MarkedContent();
         void Write(string value)
         {
             Span<byte> bytes = stackalloc byte[4096];
@@ -60,12 +65,19 @@ internal static class UnicodePdfSerializer
         try
         {
             Write("%PDF-1.7\n"); output.Write(new byte[] { 0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a });
-            Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
             var courierId = 3 + fonts.Count * 6;
             var firstPage = courierId + (hasCourier ? 1 : 0);
             var firstImage = firstPage + 2 * pages.Count;
-            var links = new PdfLinkAnnotations(pages, o, firstImage + images.ObjectCount, cancellation);
-            var page = new StringBuilder("<< /Type /Pages /Count ").Append(pages.Count).Append(" /Kids [");
+            var links = new PdfLinkAnnotations(pages, o, firstImage + images.ObjectCount, cancellation, plan);
+            plan?.Finish(firstImage + images.ObjectCount + links.Count);
+            if (plan is null) Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+            else
+            {
+                page.Clear().Append("<< /Type /Catalog /Pages 2 0 R");
+                plan.AppendCatalogEntries(page);
+                Obj(1, page.Append(" >>").ToString());
+            }
+            page.Clear().Append("<< /Type /Pages /Count ").Append(pages.Count).Append(" /Kids [");
             for (var i = 0; i < pages.Count; i++) (i > 0 ? page.Append(' ') : page).Append(firstPage + 2 * i).Append(" 0 R");
             Begin(2); PdfAscii.Write(output, page.Append("] >>\nendobj\n"), cancellation);
             foreach (var use in fonts)
@@ -129,24 +141,41 @@ internal static class UnicodePdfSerializer
                 Obj(courierId, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
                 resources += " /F0 " + courierId.ToString(CultureInfo.InvariantCulture) + " 0 R";
             }
-            var content = new StringBuilder();
             var alpha = new PdfAlphaStates();
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested(); content.Clear(); alpha.Clear();
+                marks?.Reset();
+                if (pages[i].PaintBoxes.Count > 0) marks?.Artifact(content);
                 PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha);
-                PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
-                images.Append(content, pages[i], o, cancellation, ref alpha);
+                if (plan is null) PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
+                else
+                    for (var d = 0; d < pages[i].Discs.Count; d++)
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        var discMcid = plan.DiscMcid(i, d);
+                        if (discMcid >= 0) marks!.Content(content, discMcid, plan.DiscTag(i, d)); else marks!.Artifact(content);
+                        PdfPaintSerializer.AppendDisc(content, pages[i].Discs[d], o.MaxOutputBytes, ref alpha);
+                    }
+                images.Append(content, pages[i], o, cancellation, ref alpha, plan, marks, i);
                 // Tc survives BT/ET in PDF text state. Track transitions,
                 // including back to zero, without touching legacy byte output.
                 var previousTracking = 0d;
-                foreach (var run in pages[i].Runs)
+                for (var runIndex = 0; runIndex < pages[i].Runs.Count; runIndex++)
                 {
+                    var run = pages[i].Runs[runIndex];
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
                     if (color.IsInvisible)
                     {
+                        if (marks is not null && PdfPaintSerializer.HasTextDecoration(run)) marks.Artifact(content);
                         PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes, ref alpha);
                         continue;
+                    }
+                    if (marks is not null)
+                    {
+                        var runMcid = plan!.RunMcid(i, runIndex);
+                        if (runMcid >= 0) marks.Content(content, runMcid, plan.RunTag(i, runIndex));
+                        else marks.Artifact(content, pagination: run.Owner == RunOwner.Artifact);
                     }
                     // A translucent run selects its alpha inside q/Q, which also restores Tc.
                     var translucent = color.A < 1;
@@ -169,15 +198,18 @@ internal static class UnicodePdfSerializer
                     }
                     content.Append(spaced ? ">] TJ ET\n" : "> Tj ET\n");
                     if (translucent) content.Append("Q\n");
+                    if (marks is not null && PdfPaintSerializer.HasTextDecoration(run)) marks.Artifact(content);
                     PdfPaintSerializer.AppendTextDecoration(content, run, o.MaxOutputBytes, ref alpha);
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
+                marks?.Close(content);
                 var pageId = firstPage + 2 * i;
                 page.Clear().Append(pageId).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth, Number).Append(' ')
                     .AppendInvariant(o.PageHeight, Number).Append("] /Resources << /Font << ").Append(resources).Append(" >>");
                 images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
                 alpha.AppendResources(page);
                 page.Append(" >> /Contents ").Append(pageId + 1).Append(" 0 R");
+                plan?.AppendPageEntries(page, i, links.HasAnnotations(i));
                 links.AppendPageEntry(page, i);
                 page.Append(" >>\nendobj\n");
                 if (pageId != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
@@ -202,6 +234,11 @@ internal static class UnicodePdfSerializer
                 links.AppendObject(page.Clear(), i, firstImage + images.ObjectCount + i);
                 PdfAscii.Write(output, page, cancellation);
             }
+            if (plan is not null)
+            {
+                plan.WriteObjects(output, ref offsets, page, firstPage, cancellation);
+                output.PdfUa = plan.PdfUa;
+            }
             int? infoId = null;
             var info = PdfDocumentMetadata.BuildInfo(o);
             if (info is not null)
@@ -211,11 +248,16 @@ internal static class UnicodePdfSerializer
             }
             var xref = output.Position;
             Write("xref\n0 " + offsets.Count.ToString(CultureInfo.InvariantCulture) + "\n0000000000 65535 f \n");
-            PdfAscii.WriteXrefEntries(output, offsets);
+            PdfAscii.WriteXrefEntries(output, offsets.Span);
             Write(FormattableString.Invariant($"trailer\n<< /Size {offsets.Count} /Root 1 0 R{(infoId is null ? "" : $" /Info {infoId.Value} 0 R")} >>\nstartxref\n{xref}\n%%EOF\n"));
             return output;
         }
         catch { output.Dispose(); throw; }
+        finally
+        {
+            offsets.Release(); plan?.Release();
+            ReusableBuilders.ReturnContent(content); ReusableBuilders.ReturnObjects(page);
+        }
     }
 
     // Appends the ToUnicode CMap: each code and the UTF-16BE hex of its scalar (a surrogate pair

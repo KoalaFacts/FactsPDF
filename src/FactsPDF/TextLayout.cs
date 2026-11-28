@@ -32,8 +32,20 @@ internal static class TextLayout
     // glyphs and pagination remain text-based. Traverse lazily without flattening
     // the box hierarchy into a second global paragraph list.
     public static List<LayoutPage> Layout(DocumentRoot document, PdfOptions o, CancellationToken cancellation)
-        => LayoutCore(BlockLayout.Steps(document, o, cancellation,
-            ListLayout.Prepare(document, o, cancellation)), o, cancellation);
+    {
+        // Tagged PDF: line placement splits runs where the structural owner changes (see TextLines.AppendLine).
+        var previous = DocumentStructure.Active;
+        DocumentStructure.Active = document.Structure;
+        try
+        {
+            var pages = LayoutCore(BlockLayout.Steps(document, o, cancellation,
+                ListLayout.Prepare(document, o, cancellation)), o, cancellation);
+            if (document.Structure is { } structure)
+                foreach (var page in pages) page.Structure = structure;
+            return pages;
+        }
+        finally { DocumentStructure.Active = previous; }
+    }
 
     // Compatibility path for existing font/layout tests.
     public static List<LayoutPage> Layout(List<Paragraph> paragraphs, PdfOptions o, CancellationToken cancellation)
@@ -120,9 +132,9 @@ internal static class TextLayout
         // One delegate per layout, not one per placed line or block.
         Action<int, int> chargeDisplayCommands = ChargeDisplayCommands;
         Action<int, int> ensureDisplayCommands = EnsureDisplayCommands;
-        void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1)
+        void PlaceLine(Line line, double x, double baseline, int sourceOffset = -1, RunKind kind = RunKind.Content)
             => AppendLine(line, x, baseline, pages[^1].Runs, chargeDisplayCommands, cancellation, sourceOffset,
-                pages[^1].Images, o.PageHeight);
+                pages[^1].Images, o.PageHeight, kind);
         var bottom = o.PageHeight - o.MarginBottom;
         // The page limit names the element whose content needed the extra page.
         void NewPage(int sourceOffset, bool forced = false)
@@ -1130,7 +1142,7 @@ internal static class TextLayout
                         markerParagraph.Runs.Add(new(marker.Text, markerStyle, SourceOffset: marker.SourceOffset));
                         using var markerLines = Wrap(markerParagraph, marker.Width, o, resolved, cancellation).GetEnumerator();
                         if (!markerLines.MoveNext()) throw new InvalidOperationException("Missing decimal marker line.");
-                        PlaceLine(markerLines.Current, markerRightX - marker.Width, baseline, marker.SourceOffset);
+                        PlaceLine(markerLines.Current, markerRightX - marker.Width, baseline, marker.SourceOffset, RunKind.Marker);
                     }
                     else
                     {

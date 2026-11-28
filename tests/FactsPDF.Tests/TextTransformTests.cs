@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class TextTransformTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 180, PageHeight = 240, Margin = 20 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 180, PageHeight = 240, Margin = 20 };
 
     // The narrow pages and single-run assertions below are sized without the default 8px body margin.
     private const string NoBodyMargin = "<style>html,body{margin:0}</style>";

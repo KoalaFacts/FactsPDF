@@ -1500,8 +1500,8 @@ For example:
 </blockquote>
 ```
 
-This is a bounded quote **layout** feature, not citation metadata, Tagged PDF
-or browser-complete `blockquote` semantics. `cite` attributes, nesting inside
+This is a bounded quote **layout** feature, not citation metadata
+or browser-complete `blockquote` semantics (the [tagged PDF](tagged-pdf.md) writes a `BlockQuote` structure element). `cite` attributes, nesting inside
 lists/tables/inline elements, negative vertical margins (and percentage vertical margins on paragraphs),
 CSS `height`, arbitrary/per-corner rounded geometry and arbitrary HTML are
 unsupported and explicitly rejected. The quote is source-only: it does not
@@ -1704,12 +1704,29 @@ printer bleed, an automatic paper fit or a released CLI. See
 `CliPageMarginTests.cs` and the real Linux/Windows Native AOT
 `verify_native_feature_paths.py` Poppler/qpdf geometry and text gates.
 
+### Tagged PDF and PDF/UA-1
+
+Every PDF is a Tagged PDF by default (`WithTaggedPdf(false)` and CLI `--untagged` write the untagged PDF of earlier
+releases, byte for byte). The HTML elements become a structure tree (`Document`, `Div`, `Sect`, `Art`, `Aside`,
+`BlockQuote`, `P`, `H1`–`H6`, `L`/`LI`/`Lbl`/`LBody`, `Table`/`THead`/`TBody`/`TFoot`/`TR`/`TH`/`TD` with `Scope` and
+`ColSpan`, `Caption`, `Link` with an object reference to its annotation, `Quote`, `Code`, `Strong`/`Em` through the
+`RoleMap`, and `Figure` with `Alt`), every text run, list marker and image is marked content of its element, backgrounds,
+borders, text decorations, decorative images (`alt=""`) and page furniture are artifacts, and the document language
+(`<html lang>`) and title (`--title`, else the `<title>` element) are written with `DisplayDocTitle` and XMP. A document
+with a document language and title, every font embedded, alt text on every figure and well-nested headings identifies
+itself as PDF/UA-1 (`PdfWriteResult.PdfUa`) and passes veraPDF's PDF/UA-1 profile. The mapping, the claim rules and the
+differences from Chrome are in the [Tagged PDF contract](tagged-pdf.md); `scripts/verify_tagged_pdf.py` and the
+`FactsPDF tagged PDF evidence` workflow run veraPDF over the examples. Tagging adds the structure objects to the output
+(about 135 bytes per paragraph) and no allocation beyond them: structure and marked-content tables are pooled arrays.
+
 ### Optional searchable PDF document properties (source-only)
 
 For invoices and inspection reports, set real PDF document information using
 `--title`, `--author`, `--subject` and `--keywords`, or the matching
 `WithMetadata(m => …)` writer settings. This is **PDF Info metadata**, not text
-printed on the page, extracted from HTML or a CSS feature:
+printed on the page or a CSS feature. A [tagged PDF](tagged-pdf.md) (the default) takes
+its title from the `title` element when `--title` is not given; the other fields are
+never extracted from HTML:
 
 ```sh
 dotnet run --project src/FactsPDF.Cli -- examples/first-document.html report.pdf --title "Facilities inspection — 澳新" --author "Koala Facts" --subject "Quarterly status" --keywords "inspection, report"

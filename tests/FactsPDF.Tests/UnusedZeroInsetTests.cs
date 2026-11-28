@@ -10,7 +10,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class UnusedZeroInsetTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 400, Margin = 20 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 300, PageHeight = 400, Margin = 20 };
 
     private const string Content =
         "<h2>Invoice</h2><p>Paid<br>in full</p><table style='width:200pt'><colgroup><col style='width:120pt'><col style='width:80pt'></colgroup>" +
@@ -87,7 +87,7 @@ public sealed class UnusedZeroInsetTests
     [Test]
     public void TheSdkAcceptsTheReset()
     {
-        var reset = FactsPDF.Pdf.Write().ToBytes(Doc("*{margin:0;padding:0}"));
-        Assert.That(reset, Is.EqualTo(FactsPDF.Pdf.Write().ToBytes(Doc(Insets))));
+        var reset = FactsPDF.Pdf.Write().WithTaggedPdf(false).ToBytes(Doc("*{margin:0;padding:0}"));
+        Assert.That(reset, Is.EqualTo(FactsPDF.Pdf.Write().WithTaggedPdf(false).ToBytes(Doc(Insets))));
     }
 }

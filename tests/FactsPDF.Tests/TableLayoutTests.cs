@@ -6,13 +6,13 @@ public sealed class TableLayoutTests
 {
     internal static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
-        options ??= new();
+        options ??= new() { Tagged = false };
         return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
     }
     internal static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options);
+        PdfConverter.Convert(html, output, options ?? new PdfOptions { Tagged = false });
         return output.ToArray();
     }
     internal static string Fixture(string name) => File.ReadAllText(Path.Combine(TestContext.CurrentContext.TestDirectory, "tables-e1", name + ".html"));
@@ -122,7 +122,7 @@ public sealed class TableLayoutTests
     [Test]
     public void EntireTableMovesOnceAndExactEmptyPageFitSucceeds()
     {
-        var options = new PdfOptions { PageHeight = 122, Margin = 10 };
+        var options = new PdfOptions { Tagged = false, PageHeight = 122, Margin = 10 };
         var pages = NLayout("<p style='margin-top:0;margin-bottom:0;font-size:10pt;line-height:2'>BEFORE</p>" + Fixture("points"), options);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Select(r => r.Text), Is.EqualTo(new[] { "BEFORE" }));
@@ -136,7 +136,7 @@ public sealed class TableLayoutTests
     [Test]
     public void NewAncestorLeadingDecorationMovesWithTableAndMustFit()
     {
-        var o = new PdfOptions { PageHeight = 100, Margin = 10 };
+        var o = new PdfOptions { Tagged = false, PageHeight = 100, Margin = 10 };
         var table = Table("A<br>B<br>C", cellStyle: "border:1pt solid blue"); // 62pt
         var pages = NLayout("<p style='margin-top:0;margin-bottom:0;font-size:10pt;line-height:2'>BEFORE</p><div style='padding:3pt;border:1pt solid red'>" + table + "</div>", o);
         Assert.That(pages, Has.Count.EqualTo(2));
@@ -161,7 +161,7 @@ public sealed class TableLayoutTests
         var fallback = PdfFont.FromBytes(FontFixture.Create());
         var italic = PdfFont.FromBytes(FontFixture.Create());
         var boldItalic = PdfFont.FromBytes(FontFixture.Create());
-        var o = new PdfOptions { Fonts = [normal], BoldFonts = [bold, fallback], ItalicFonts = [italic], BoldItalicFonts = [boldItalic] };
+        var o = new PdfOptions { Tagged = false, Fonts = [normal], BoldFonts = [bold, fallback], ItalicFonts = [italic], BoldItalicFonts = [boldItalic] };
         var html = "<table style='width:100pt'><colgroup><col style='width:100%'></colgroup><thead><tr><th>A中</th></tr></thead><tbody><tr><td>A<i>A</i><b><i>A</i></b></td></tr></tbody></table>";
         Assert.That(NLayout(html, o).Single().Runs.Select(r => r.Font), Is.EqualTo(new[] { bold, fallback, normal, italic, boldItalic }));
         TableStructureTests.Fails(html, "FPDF1507", o with { BoldFonts = [] });
@@ -172,7 +172,7 @@ public sealed class TableLayoutTests
     [Test]
     public void CjkWrapAndMixedInlineHeightShareParagraphMetrics()
     {
-        var o = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
+        var o = new PdfOptions { Tagged = false, Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         var content = "中文中文<br>A<span style='font-size:20pt;line-height:1.5'>A</span>";
         const string style = "width:30pt;font-size:10pt;line-height:2";
         var cell = NLayout(Table(content, style, "background-color:red"), o).Single();

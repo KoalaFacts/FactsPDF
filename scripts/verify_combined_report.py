@@ -187,6 +187,8 @@ def authored(count, sources, furniture=True, keep=True):
 def painted(page, reader):
     rectangles=[]; discs=[]; images=[]; color=(0,0,0); matrix=[1,0,0,1,0,0]; stack=[]; path=[]; seen_text=False
     for values, op in ContentStream(page.get_contents(),reader).operations:
+        # Tagged PDF marked content (BMC, BDC, EMC) does not change what is painted.
+        if op in (b'BMC',b'BDC',b'EMC'): continue
         assert op in (b'q',b'Q',b'rg',b'cm',b're',b'm',b'c',b'f',b'n',b'Do',b'BT',b'ET',b'Tf',b'Tm',b'Tj'), 'unexpected painting operator '+repr(op)
         if op == b'q': stack.append((color,matrix.copy()))
         elif op == b'Q': color,matrix=stack.pop()

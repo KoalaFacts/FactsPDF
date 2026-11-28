@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class AbbrElementTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 260, PageHeight = 180, Margin = 12 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 260, PageHeight = 180, Margin = 12 };
 
     private static byte[] Pdf(string html)
     {

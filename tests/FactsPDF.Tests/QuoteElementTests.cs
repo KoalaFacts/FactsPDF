@@ -9,7 +9,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class QuoteElementTests
 {
-    private static readonly PdfOptions BuiltIn = new() { PageWidth = 260, PageHeight = 300, Margin = 12 };
+    private static readonly PdfOptions BuiltIn = new() { Tagged = false, PageWidth = 260, PageHeight = 300, Margin = 12 };
 
     private static readonly PdfOptions Supplied = BuiltIn with
     {

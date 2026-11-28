@@ -15,7 +15,7 @@ public sealed class TableImageTests
             { var i = y * 129 + 1 + x * 4; rows[i] = 255; rows[i + 2] = 100; rows[i + 3] = (byte)(x % 3 == 0 ? 0 : x % 3 == 1 ? 128 : 255); }
         return PdfImage.FromBytes(PngFixture.Image(rows, 32, 16));
     }
-    internal static PdfOptions Options() => new() { Images = new Dictionary<string, PdfImage> { ["logo"] = Logo() } };
+    internal static PdfOptions Options() => new() { Tagged = false, Images = new Dictionary<string, PdfImage> { ["logo"] = Logo() } };
     // The expected geometry starts at the 36pt page margin with unpadded, top-aligned cells, so the
     // user-agent body margin, cell padding and middle alignment are reset.
     private const string Neutral = "<style>body{margin:0}td,th{padding:0;vertical-align:top}</style>";

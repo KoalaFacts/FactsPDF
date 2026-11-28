@@ -25,7 +25,7 @@ public sealed class PaintErrorLocationTests
     public void TooThinBorderPointsAtItsBox()
     {
         const string html = Prefix + "<div id='thin' style='border:0.0005pt dashed black'>x</div>";
-        var error = Fails(Pdf.Write(), html, Thin);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false), html, Thin);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<div id='thin'")));
     }
 
@@ -33,7 +33,7 @@ public sealed class PaintErrorLocationTests
     public void TooThinBorderOnANestedBoxPointsAtTheInnerBox()
     {
         const string html = Prefix + "<div style='border:1pt solid black'><p>a</p><div id='inner' style='border-top:0.0005pt dotted red'>x</div></div>";
-        var error = Fails(Pdf.Write(), html, Thin);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false), html, Thin);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<div id='inner'")));
     }
 
@@ -41,7 +41,7 @@ public sealed class PaintErrorLocationTests
     public void TooShortBorderEdgePointsAtItsBox()
     {
         const string html = Prefix + "<div id='flat' style='border-left:2pt dashed black;height:0.0001pt;width:10pt'></div>";
-        var error = Fails(Pdf.Write(), html, Short);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false), html, Short);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<div id='flat'")));
     }
 
@@ -49,7 +49,7 @@ public sealed class PaintErrorLocationTests
     public void TooThinTableCellBorderPointsAtTheCell()
     {
         const string html = Prefix + "<table style='width:160pt'><colgroup><col style='width:80pt'><col style='width:80pt'></colgroup><tbody><tr><td>a</td><td id='cell' style='border:0.0005pt dashed black'>b</td></tr></tbody></table>";
-        var error = Fails(Pdf.Write(), html, Thin);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false), html, Thin);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<td id='cell'")));
     }
 
@@ -59,7 +59,7 @@ public sealed class PaintErrorLocationTests
         var paragraphs = string.Concat(Enumerable.Repeat("<p>Row text.</p>", 120));
         var html = Prefix + "<table style='width:160pt'><colgroup><col style='width:160pt'></colgroup><tbody><tr><td id='tall' style='border:0.0005pt dashed black'>"
             + paragraphs + "</td></tr></tbody></table>";
-        var error = Fails(Pdf.Write(), html, Thin);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false), html, Thin);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<td id='tall'")));
     }
 
@@ -67,7 +67,7 @@ public sealed class PaintErrorLocationTests
     public void TooThinTableBorderPointsAtTheTable()
     {
         const string html = Prefix + "<table id='grid' style='width:80pt;border:0.0005pt dashed black'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>a</td></tr></tbody></table>";
-        var error = Fails(Pdf.Write(), html, Thin);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false), html, Thin);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<table id='grid'")));
     }
 
@@ -76,7 +76,7 @@ public sealed class PaintErrorLocationTests
     {
         var image = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"));
         const string html = Prefix + "<img id='pic' src='a' style='border:0.0005pt dashed black'>";
-        var error = Fails(Pdf.Write().WithImage("a", image), html, Thin);
+        var error = Fails(Pdf.Write().WithTaggedPdf(false).WithImage("a", image), html, Thin);
         Assert.That(error.SourceOffset, Is.EqualTo(OffsetOf(html, "<img id='pic'")));
     }
 }
@@ -107,7 +107,7 @@ public sealed class TextPaintErrorLocationTests
         {
             try
             {
-                Pdf.Write().WithLimits(limits => limits.MaxOutputBytes(limit)).ToBytes(html);
+                Pdf.Write().WithTaggedPdf(false).WithLimits(limits => limits.MaxOutputBytes(limit)).ToBytes(html);
                 break;
             }
             catch (FactsPdfException error) when (error.Message == "FPDF1401: PDF text decoration exceeds MaxOutputBytes.")
@@ -146,7 +146,7 @@ public sealed class TextPaintErrorLocationTests
     public void DecoratedAndLinkedRunsKeepTheirParagraphAndPlainRunsDoNot()
     {
         const string html = "<p>plain</p><p id='u'><u>under</u></p><p id='a'><a href='https://example.com/'>link</a></p>";
-        var options = new PdfOptions();
+        var options = new PdfOptions { Tagged = false };
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
         var runs = pages.SelectMany(page => page.Runs).ToList();
         Assert.That(runs.Single(run => run.Text == "plain").SourceOffset, Is.EqualTo(-1));

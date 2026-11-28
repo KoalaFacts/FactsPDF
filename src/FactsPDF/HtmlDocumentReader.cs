@@ -815,6 +815,7 @@ internal static class HtmlDocumentReader
         Flush();
         svg?.Resolve(tokens);
         result.Children.TakeChildren(children, 0);
+        if (options.Tagged) result.Structure = DocumentStructure.Build(tokens, cancellation);
         return result;
     }
     /// <summary>

@@ -17,7 +17,7 @@ internal static class PdfConverter
             cancellationToken.ThrowIfCancellationRequested();
             output.Write(data.Slice(offset, Math.Min(16_384, length - offset)));
         }
-        return new(pageCount, length);
+        return new(pageCount, length) { PdfUa = pdf.PdfUa };
     }
 
     // Returns the complete PDF in a pooled buffer; read it with WrittenSpan/WrittenMemory, then dispose it.
@@ -39,6 +39,22 @@ internal static class PdfConverter
             throw new FactsPdfException("FPDF1001", "HTML and page text exceed MaxInputCharacters.");
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
+        try { return Render(document, options, cancellationToken, out pageCount); }
+        finally { document.Structure?.Release(); }
+    }
+
+    private static PdfBuffer Render(DocumentRoot document, PdfOptions options, CancellationToken cancellationToken, out int pageCount)
+    {
+        if (document.Structure is { } structure)
+        {
+            // Tagged PDF takes the document title from the title element when none is set explicitly.
+            if (options.Title is null && structure.Title is { } documentTitle)
+                options = options with { Title = documentTitle };
+            if (structure.FiguresWithoutAlt > 0)
+                options.CssWarnings?.Add("FPDF1105", structure.FiguresWithoutAlt == 1
+                    ? "An img or svg has no alt text, so its Figure has no description (use alt=\"\" for decoration); the PDF is not PDF/UA."
+                    : $"{structure.FiguresWithoutAlt} img or svg elements have no alt text, so their Figures have no description (use alt=\"\" for decoration); the PDF is not PDF/UA.", -1);
+        }
         // CSS @page sets the page geometry and margin boxes before any layout reads them.
         if (document.PageRules is { } pageRules)
         {

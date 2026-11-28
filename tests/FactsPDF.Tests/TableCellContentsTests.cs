@@ -31,7 +31,7 @@ public sealed class TableCellContentsTests
 
     private static TableCell[] Cells(string html)
     {
-        var root = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
+        var root = HtmlDocumentReader.ReadTree(html, new PdfOptions { Tagged = false }, default);
         var table = (TableNode)((BlockNode)root.Children[0]).Children[0]; // inside the body
         return [.. table.Rows.SelectMany(row => row.Cells)];
     }
@@ -42,7 +42,7 @@ public sealed class TableCellContentsTests
     [Test]
     public void ReadingOneItemCellsAllocatesNoContentListPerCell()
     {
-        var options = new PdfOptions { Fonts = [Font], SubsetFonts = true };
+        var options = new PdfOptions { Tagged = false, Fonts = [Font], SubsetFonts = true };
         var small = ReadAllocated(Table(200), options);
         var large = ReadAllocated(Table(400), options);
         var perRow = (large - small) / 200.0;

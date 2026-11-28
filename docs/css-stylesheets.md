@@ -1248,7 +1248,7 @@ margin percentages/auto; height, arbitrary display, floating and elliptical/per-
 rounded border painting. A single physical radius with a uniform solid ring
 is separately supported. Existing unsupported CSS and unplaceable geometry reject
 with `FPDF1101/1103/1201/1202/1302`, preserving the original PDF output
-on conversion failure. Quoted content is **not** a tagged PDF quotation.
+on conversion failure. Quoted content is a `BlockQuote` structure element in the [tagged PDF](tagged-pdf.md).
 No separate font download or asset is involved.
 
 [44-item paginated quoted service report](../examples/report-blockquotes.html)

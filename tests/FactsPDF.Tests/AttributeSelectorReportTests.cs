@@ -7,10 +7,10 @@ namespace FactsPDF.Tests;
 public sealed class AttributeSelectorReportTests
 {
     private static byte[] Pdf(string html, PdfOptions? options = null)
-        => TableLayoutTests.Pdf(html, options ?? new PdfOptions());
+        => TableLayoutTests.Pdf(html, options ?? new PdfOptions { Tagged = false });
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
-        => TableLayoutTests.Layout(html, options ?? new PdfOptions());
+        => TableLayoutTests.Layout(html, options ?? new PdfOptions { Tagged = false });
 
     [Test]
     public void PresenceExactValueAndCaseSensitiveValuePaintRealPdf()
@@ -49,7 +49,7 @@ public sealed class AttributeSelectorReportTests
     [Test]
     public void FortyFourItemQuotationRetainsActualMultiPageTextAndBoxPaint()
     {
-        var options = new PdfOptions { PageWidth = 300, PageHeight = 180, Margin = 12 };
+        var options = new PdfOptions { Tagged = false, PageWidth = 300, PageHeight = 180, Margin = 12 };
         var actual = new StringBuilder("<style>p[data-band=late]{font-size:10pt;" +
             "line-height:20pt;color:#b22222;border-left:2pt solid red;padding-left:3pt}" +
             "</style>");
@@ -97,8 +97,7 @@ public sealed class AttributeSelectorReportTests
     [Test]
     public void AttributeSelectorActuallySizesAnExplicitImageResource()
     {
-        var options = new PdfOptions
-        {
+        var options = new PdfOptions { Tagged = false,
             Images = new Dictionary<string, PdfImage>
             {
                 ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"))
@@ -114,7 +113,7 @@ public sealed class AttributeSelectorReportTests
     [Test]
     public void TrueTypeAttributeStylingControlsSearchableUnicodeText()
     {
-        var options = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
+        var options = new PdfOptions { Tagged = false, Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         const string actual = "<style>p[lang=zh]{color:red}</style><p lang=zh>中文</p>";
         const string control = "<p style='color:red'>中文</p>";
         Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(control, options)));

@@ -56,10 +56,10 @@ internal static class PdfAscii
     /// Writes one cross-reference entry per object after the free entry at index 0, exactly as
     /// <c>offset.ToString("0000000000") + " 00000 n \n"</c> for each, without a string per entry.
     /// </summary>
-    internal static void WriteXrefEntries(Stream output, List<long> offsets)
+    internal static void WriteXrefEntries(Stream output, ReadOnlySpan<long> offsets)
     {
         Span<byte> line = stackalloc byte[32];
-        for (var i = 1; i < offsets.Count; i++)
+        for (var i = 1; i < offsets.Length; i++)
         {
             offsets[i].TryFormat(line, out var digits, "0000000000", CultureInfo.InvariantCulture);
             " 00000 n \n"u8.CopyTo(line[digits..]);

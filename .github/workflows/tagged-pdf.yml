@@ -1,0 +1,67 @@
+name: FactsPDF tagged PDF evidence
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: factspdf-tagged-pdf-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verapdf-pdfua-1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # veraPDF greenfield, the PDF/UA-1 (ISO 14289-1) profile. The installer is downloaded from the
+      # project's release server and must match this checksum, so a changed file fails the job.
+      VERAPDF_VERSION: 1.28.2
+      VERAPDF_SHA256: d1693a5f0bf0997180f6d97e8a5568b0cf39e27eee338d439c8adb58435c1e89
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.403'
+      - name: Install trusted fixture fonts
+        run: python3 scripts/ubuntu_packages.py packages fonts-dejavu-core fonts-droid-fallback
+      - name: Download and verify veraPDF
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/verapdf.zip" \
+            "https://software.verapdf.org/releases/1.28/verapdf-greenfield-${VERAPDF_VERSION}-installer.zip"
+          echo "${VERAPDF_SHA256}  $RUNNER_TEMP/verapdf.zip" | sha256sum --check -
+          unzip -q "$RUNNER_TEMP/verapdf.zip" -d "$RUNNER_TEMP/verapdf-installer"
+          cat > "$RUNNER_TEMP/verapdf-install.xml" <<XML
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <AutomatedInstallation langpack="eng">
+          <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
+          <com.izforge.izpack.panels.target.TargetPanel id="install_dir"><installpath>$RUNNER_TEMP/verapdf</installpath></com.izforge.izpack.panels.target.TargetPanel>
+          <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
+          <pack index="0" name="veraPDF Greenfield Validation model" selected="true"/>
+          <pack index="1" name="veraPDF Greenfield GUI" selected="false"/>
+          <pack index="2" name="veraPDF Mac and *nix Scripts" selected="true"/>
+          <pack index="3" name="veraPDF Batch files" selected="false"/>
+          <pack index="4" name="veraPDF Validation model documentation" selected="false"/>
+          <pack index="5" name="veraPDF Corpus and Validation profiles" selected="true"/>
+          <pack index="6" name="veraPDF Corpus and Validation profiles documentation" selected="false"/>
+          <pack index="7" name="veraPDF Sample Plugins" selected="false"/>
+          </com.izforge.izpack.panels.packs.PacksPanel>
+          <com.izforge.izpack.panels.install.InstallPanel id="install"/>
+          <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
+          </AutomatedInstallation>
+          XML
+          sed -i 's/^ *//' "$RUNNER_TEMP/verapdf-install.xml"
+          java -jar "$RUNNER_TEMP/verapdf-installer/verapdf-greenfield-${VERAPDF_VERSION}/verapdf-izpack-installer-${VERAPDF_VERSION}.jar" "$RUNNER_TEMP/verapdf-install.xml"
+          "$RUNNER_TEMP/verapdf/verapdf" --version
+      - name: Build the CLI
+        run: dotnet publish src/FactsPDF.Cli/FactsPDF.Cli.csproj -c Release -o artifacts/tagged-cli
+      - name: Create the example images
+        run: python3 scripts/png_fixtures.py --output artifacts/tagged-images
+      - name: Validate every example's tagged PDF against PDF/UA-1
+        run: |
+          python3 scripts/verify_tagged_pdf.py artifacts/tagged-cli/FactsPDF.Cli \
+            --verapdf "$RUNNER_TEMP/verapdf/verapdf" \
+            --font /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            --font /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf \
+            --images artifacts/tagged-images --output artifacts/tagged-pdf

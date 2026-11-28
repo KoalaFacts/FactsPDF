@@ -68,7 +68,7 @@ public sealed class ImpliedDocumentElementTests
     public void AnImpliedBodyIsTheSameBoxAsAnExplicitOne()
     {
         // The user-agent sheet gives body its 8px margin, so the implied body is a box holding the paragraph.
-        var root = HtmlDocumentReader.ReadTree("<p>A</p>", new PdfOptions(), default);
+        var root = HtmlDocumentReader.ReadTree("<p>A</p>", new PdfOptions { Tagged = false }, default);
         var body = (BlockNode)root.Children.Single();
         Assert.That(body.Name, Is.EqualTo("body"));
         Assert.That(((BlockNode)body.Children.Single()).Name, Is.EqualTo("p"));
@@ -79,8 +79,8 @@ public sealed class ImpliedDocumentElementTests
     public void ImpliedElementsCountAgainstNoLimit()
     {
         // Two elements are written; the implied html, head and body are not counted.
-        Assert.That(Pdf("<div><p>A</p></div>", new PdfOptions { MaxElements = 2 }), Is.Not.Empty);
-        Assert.That(Assert.Throws<FactsPdfException>(() => Pdf("<div><p>A</p></div><p>B</p>", new PdfOptions { MaxElements = 2 }))!.Code,
+        Assert.That(Pdf("<div><p>A</p></div>", new PdfOptions { Tagged = false, MaxElements = 2 }), Is.Not.Empty);
+        Assert.That(Assert.Throws<FactsPdfException>(() => Pdf("<div><p>A</p></div><p>B</p>", new PdfOptions { Tagged = false, MaxElements = 2 }))!.Code,
             Is.EqualTo("FPDF1002"));
     }
 

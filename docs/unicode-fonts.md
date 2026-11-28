@@ -45,7 +45,7 @@ The loader structurally checks sfnt table ranges, overlap, versions/lengths, met
 
 Embedding flags are checked conservatively. Installable/editable embedding is supported; no-subsetting flags result in full embedding. Restricted, bitmap-only and preview-only fonts are rejected. Preview-and-print requires read-only document handling that this increment does not implement. Actual copyright/license permission is the caller's responsibility; a flag is not a legal clearance.
 
-Collections (TTC/OTC), CFF/CFF2, WOFF/WOFF2, variable/color fonts, CSS `font-family` matching (a well-formed `font-family` list is accepted and falls back to the supplied chain) / `@font-face`, system font discovery, synthetic bold/italic, kerning, GSUB/GPOS, RTL and tagged PDF are not implemented here. Existing HTML and CSS limitations remain; see [the first-renderer guide](development.md).
+Collections (TTC/OTC), CFF/CFF2, WOFF/WOFF2, variable/color fonts, CSS `font-family` matching (a well-formed `font-family` list is accepted and falls back to the supplied chain) / `@font-face`, system font discovery, synthetic bold/italic, kerning, GSUB/GPOS, and RTL are not implemented here; tagged PDF is written for every font path (see [tagged PDF](tagged-pdf.md)). Existing HTML and CSS limitations remain; see [the first-renderer guide](development.md).
 
 ## Diagnostics
 

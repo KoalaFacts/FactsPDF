@@ -15,7 +15,7 @@ public sealed class ImpliedTableBodyAndCanvasTests
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? new PdfOptions());
+        PdfConverter.Convert(html, output, options ?? new PdfOptions { Tagged = false });
         return output.ToArray();
     }
 
@@ -41,7 +41,7 @@ public sealed class ImpliedTableBodyAndCanvasTests
     [Test]
     public void HtmlBackgroundPaintsEveryWholeSheet()
     {
-        var options = new PdfOptions { PageWidth = 200, PageHeight = 100, Margin = 10 };
+        var options = new PdfOptions { Tagged = false, PageWidth = 200, PageHeight = 100, Margin = 10 };
         var lines = string.Concat(Enumerable.Range(1, 12).Select(i => $"<p style='margin:0'>L{i}</p>"));
         var text = Encoding.Latin1.GetString(Pdf("<style>html{background-color:#eef3f7}</style>" + lines, options));
         // One full-sheet rectangle in the canvas colour on each of the pages.
@@ -70,7 +70,7 @@ public sealed class ImpliedTableBodyAndCanvasTests
     [Test]
     public void AnOverWideBodyInAFlexHtmlShrinksToThePage()
     {
-        var options = new PdfOptions { PageWidth = 300, PageHeight = 300, Margin = 20 };
+        var options = new PdfOptions { Tagged = false, PageWidth = 300, PageHeight = 300, Margin = 20 };
         const string content = "<table style='width:100%'><tr><td>A</td><td>B</td></tr></table><p>Text</p>";
         Assert.That(Pdf("<style>html{display:flex;justify-content:center}body{width:210mm;margin:0}</style>" + content, options),
             Is.EqualTo(Pdf("<style>body{margin:0}</style>" + content, options)));
@@ -82,7 +82,7 @@ public sealed class ImpliedTableBodyAndCanvasTests
         using var output = new MemoryStream();
         var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
             "<style>html{display:flex}body{width:210mm;flex-shrink:0}</style><p>A</p>", output,
-            new PdfOptions { PageWidth = 300, PageHeight = 300, Margin = 20 }));
+            new PdfOptions { Tagged = false, PageWidth = 300, PageHeight = 300, Margin = 20 }));
         Assert.That(error!.Code, Is.EqualTo("FPDF1201"));
     }
 }

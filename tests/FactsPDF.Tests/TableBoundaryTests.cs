@@ -11,8 +11,8 @@ public sealed class TableBoundaryTests
     public void TablesRetainInputCssAndFontResourceLimits()
     {
         var html = TableLayoutTests.Table();
-        Fails(html, new() { MaxInputCharacters = html.Length - 1 }, "FPDF1001");
-        Fails(html, new() { MaxCssDeclarations = 1 }, "FPDF1205");
+        Fails(html, new() { Tagged = false, MaxInputCharacters = html.Length - 1 }, "FPDF1001");
+        Fails(html, new() { Tagged = false, MaxCssDeclarations = 1 }, "FPDF1205");
         var font = PdfFont.FromBytes(FontFixture.Create());
         Fails(html, new() { Fonts = [font], MaxTotalFontBytes = font.ByteLength - 1 }, "FPDF1503");
     }
@@ -31,11 +31,11 @@ public sealed class TableBoundaryTests
         var html = TableLayoutTests.Table(tableStyle: "width:100pt;padding:1pt;border:1pt solid red;background-color:white",
             cellStyle: "padding:1pt;border:1pt solid blue;background-color:white");
         var expected = TableLayoutTests.Pdf(html);
-        Assert.That(TableLayoutTests.Pdf(html, new() { MaxDisplayCommands = 11 }), Is.EqualTo(expected)); //1 text + 5 cell + 5 table
-        Fails(html, new() { MaxDisplayCommands = 10 }, "FPDF1401");
+        Assert.That(TableLayoutTests.Pdf(html, new() { Tagged = false, MaxDisplayCommands = 11 }), Is.EqualTo(expected)); //1 text + 5 cell + 5 table
+        Fails(html, new() { Tagged = false, MaxDisplayCommands = 10 }, "FPDF1401");
         var fixture = TableLayoutTests.Fixture("points"); //10 text +9*4 border rectangles
-        Assert.That(TableLayoutTests.Pdf(fixture, new() { MaxDisplayCommands = 46 }), Is.EqualTo(TableLayoutTests.Pdf(fixture)));
-        Fails(fixture, new() { MaxDisplayCommands = 45 }, "FPDF1401");
+        Assert.That(TableLayoutTests.Pdf(fixture, new() { Tagged = false, MaxDisplayCommands = 46 }), Is.EqualTo(TableLayoutTests.Pdf(fixture)));
+        Fails(fixture, new() { Tagged = false, MaxDisplayCommands = 45 }, "FPDF1401");
     }
 
     [TestCase(false)] [TestCase(true)]
@@ -62,7 +62,7 @@ public sealed class TableBoundaryTests
     public void SpentBudgetRejectsNextCellBeforeGlyphOrWidthChecks(string next)
     {
         var html = "<table style='width:20pt'><colgroup><col style='width:10pt'><col style='width:10pt'></colgroup><tbody><tr><td>A</td><td>" + next + "</td></tr></tbody></table>";
-        Fails(html, new() { MaxDisplayCommands = 1 }, "FPDF1401");
+        Fails(html, new() { Tagged = false, MaxDisplayCommands = 1 }, "FPDF1401");
     }
 
     [Test]
@@ -84,10 +84,10 @@ public sealed class TableBoundaryTests
     public void EmptyZeroAreaPaintStaysFreeButDecoratedEmptyCellsAreCharged()
     {
         var empty = Reset + "<p>A</p>" + TableLayoutTests.Table("", cellStyle: "background-color:red");
-        Assert.That(TableLayoutTests.Pdf(empty, new() { MaxDisplayCommands = 1 }), Is.Not.Empty);
+        Assert.That(TableLayoutTests.Pdf(empty, new() { Tagged = false, MaxDisplayCommands = 1 }), Is.Not.Empty);
         var painted = Reset + TableLayoutTests.Table("", cellStyle: "padding:2pt;background-color:red;border:1pt solid blue");
-        Assert.That(TableLayoutTests.Pdf(painted, new() { MaxDisplayCommands = 5 }), Is.Not.Empty);
-        Fails(painted, new() { MaxDisplayCommands = 4 }, "FPDF1401");
+        Assert.That(TableLayoutTests.Pdf(painted, new() { Tagged = false, MaxDisplayCommands = 5 }), Is.Not.Empty);
+        Fails(painted, new() { Tagged = false, MaxDisplayCommands = 4 }, "FPDF1401");
     }
 
     [Test]

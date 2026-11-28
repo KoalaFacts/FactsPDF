@@ -7,10 +7,10 @@ namespace FactsPDF.Tests;
 public sealed class AttributeOperatorReportTests
 {
     private static byte[] Pdf(string html, PdfOptions? options = null)
-        => TableLayoutTests.Pdf(html, options ?? new PdfOptions());
+        => TableLayoutTests.Pdf(html, options ?? new PdfOptions { Tagged = false });
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
-        => TableLayoutTests.Layout(html, options ?? new PdfOptions());
+        => TableLayoutTests.Layout(html, options ?? new PdfOptions { Tagged = false });
 
     [TestCase("p[data-code^=INV-]", "INV-007", "XINV-007")]
     [TestCase("p[data-code$=\"-PAID\"]", "INV-PAID", "PAID-INV")]
@@ -75,7 +75,7 @@ public sealed class AttributeOperatorReportTests
         output.Position = 3;
         var saved = output.ToArray();
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
-            html, output, new PdfOptions { MaxCssMatchOperations = 1_000 }));
+            html, output, new PdfOptions { Tagged = false, MaxCssMatchOperations = 1_000 }));
         Assert.That(ex!.Code, Is.EqualTo("FPDF1205"));
         Assert.That(output.ToArray(), Is.EqualTo(saved));
         Assert.That(output.Position, Is.EqualTo(3));
@@ -100,7 +100,7 @@ public sealed class AttributeOperatorReportTests
         output.Position = 3;
         var saved = output.ToArray();
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(
-            html, output, new PdfOptions { MaxCssMatchOperations = 700 }));
+            html, output, new PdfOptions { Tagged = false, MaxCssMatchOperations = 700 }));
         Assert.That(ex!.Code, Is.EqualTo("FPDF1205"));
         Assert.That(output.ToArray(), Is.EqualTo(saved));
         Assert.That(output.Position, Is.EqualTo(3));
@@ -125,7 +125,7 @@ public sealed class AttributeOperatorReportTests
     [Test]
     public void FortyFourEntryReportChangesActualMultiPageTextAndBorderGeometry()
     {
-        var options = new PdfOptions { PageWidth = 300, PageHeight = 190, Margin = 12 };
+        var options = new PdfOptions { Tagged = false, PageWidth = 300, PageHeight = 190, Margin = 12 };
         var actual = new StringBuilder("<style>" +
             "article[data-kind|=invoice]{padding:4pt;background:#f5f5ff}" +
             "article[data-kind|=invoice] p[data-state^=overdue i]{" +
@@ -169,8 +169,7 @@ public sealed class AttributeOperatorReportTests
     [Test]
     public void SubstringAttributeSelectorSizesExplicitImage()
     {
-        var options = new PdfOptions
-        {
+        var options = new PdfOptions { Tagged = false,
             Images = new Dictionary<string, PdfImage>
             {
                 ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420"))
@@ -186,7 +185,7 @@ public sealed class AttributeOperatorReportTests
     [Test]
     public void CaseInsensitiveSelectorCanStyleSearchableTrueTypeGlyphs()
     {
-        var options = new PdfOptions { Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
+        var options = new PdfOptions { Tagged = false, Fonts = [PdfFont.FromBytes(FontFixture.Create())] };
         const string actual = "<style>p[lang|=zh i]{color:red}</style><p lang=ZH-Hans>中文</p>";
         const string oracle = "<p style='color:red'>中文</p>";
         Assert.That(Pdf(actual, options), Is.EqualTo(Pdf(oracle, options)));

@@ -46,15 +46,25 @@ internal sealed class PdfImageWriter
     }
 
     internal void Append(StringBuilder content, LayoutPage page, PdfOptions options, CancellationToken cancellation,
-        ref PdfAlphaStates alpha)
+        ref PdfAlphaStates alpha, TagPlan? plan = null, MarkedContent? marks = null, int pageIndex = 0)
     {
-        foreach (var placed in page.Images)
+        for (var index = 0; index < page.Images.Count; index++)
         {
+            var placed = page.Images[index];
             cancellation.ThrowIfCancellationRequested();
             if (placed.Decoration is { } decoration)
+            {
+                marks?.Artifact(content);
                 PdfPaintSerializer.Append(content,
                     [decoration with { X = placed.X + decoration.X, Top = placed.Top + decoration.Top }],
                     options.PageHeight, options.MaxOutputBytes, cancellation, ref alpha);
+            }
+            if (marks is not null && plan is not null)
+            {
+                var mcid = plan.ImageMcid(pageIndex, index);
+                if (mcid >= 0) marks.Content(content, mcid, plan.ImageTag(pageIndex, index));
+                else marks.Artifact(content);
+            }
             if (placed.Vector is { } vector)
             {
                 SvgPainter.Append(content, vector, placed, options, ref alpha);

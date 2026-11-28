@@ -18,6 +18,7 @@ public sealed class FontStyleRoleTests
 
     private static PdfOptions AllRoles() => new()
     {
+        Tagged = false,
         Fonts = [Font(200)], BoldFonts = [Font(400)],
         ItalicFonts = [Font(600)], BoldItalicFonts = [Font(800)]
     };
@@ -57,7 +58,7 @@ public sealed class FontStyleRoleTests
         var property = typeof(PdfOptions).GetProperty(name);
         Assert.That(property, Is.Not.Null);
         Assert.That(property!.PropertyType, Is.EqualTo(typeof(IReadOnlyList<PdfFont>)));
-        Assert.That(property.GetValue(new PdfOptions()), Is.Empty);
+        Assert.That(property.GetValue(new PdfOptions { Tagged = false }), Is.Empty);
     }
 
     [Test]
@@ -104,7 +105,7 @@ public sealed class FontStyleRoleTests
     [TestCase("b><i", "bold-italic")]
     public void MissingRoleCannotBorrowNormalOrAnotherRole(string tag, string role)
     {
-        var options = new PdfOptions { Fonts = [Font()] };
+        var options = new PdfOptions { Tagged = false, Fonts = [Font()] };
         var html = tag == "b><i" ? "<p><b><i>A</i></b></p>" : $"<p><{tag}>A</{tag}></p>";
         var error = Fails(html, options, "FPDF1507");
         Assert.That(error.Message, Does.Contain(role));
@@ -118,9 +119,9 @@ public sealed class FontStyleRoleTests
     {
         var first = Font(400, latinOnly: true); var second = Font(800);
         var options = tag switch {
-            "b" => new PdfOptions { BoldFonts = [first, second] },
-            "i" => new PdfOptions { ItalicFonts = [first, second] },
-            _ => new PdfOptions { BoldItalicFonts = [first, second] }
+            "b" => new PdfOptions { Tagged = false, BoldFonts = [first, second] },
+            "i" => new PdfOptions { Tagged = false, ItalicFonts = [first, second] },
+            _ => new PdfOptions { Tagged = false, BoldItalicFonts = [first, second] }
         };
         var html = tag == "b><i" ? "<p><b><i>A中A</i></b></p>" : $"<p><{tag}>A中A</{tag}></p>";
         var runs = Layout(html, options)[0].Runs;
@@ -131,7 +132,7 @@ public sealed class FontStyleRoleTests
     [TestCase(false)][TestCase(true)]
     public void SoleStyledChainCanMixWithFontlessCourier(bool subset)
     {
-        var options = new PdfOptions { ItalicFonts = [Font()], SubsetFonts = subset };
+        var options = new PdfOptions { Tagged = false, ItalicFonts = [Font()], SubsetFonts = subset };
         var pdf = Encoding.Latin1.GetString(Pdf("<p>Plain <i>中文</i> end</p>", options));
         Assert.That(pdf, Does.Contain("/BaseFont /Courier"));
         Assert.That(pdf, Does.Contain("/Subtype /Type0"));
@@ -143,7 +144,7 @@ public sealed class FontStyleRoleTests
     [Test]
     public void StyledMissingGlyphDoesNotBorrowNormalAndNormalDiagnosticStaysCompatible()
     {
-        var options = new PdfOptions { Fonts = [Font()], ItalicFonts = [Font(latinOnly: true)] };
+        var options = new PdfOptions { Tagged = false, Fonts = [Font()], ItalicFonts = [Font(latinOnly: true)] };
         var styled = Fails("<p><em>中</em></p>", options, "FPDF1504");
         Assert.That(styled.Message, Does.Contain("italic").And.Contain("U+4E2D"));
         Assert.That(styled.SourceOffset, Is.EqualTo(3));
@@ -156,7 +157,7 @@ public sealed class FontStyleRoleTests
     [Test]
     public void EmptyInlineDoesNotRequireFontsButParagraphStrutDoes()
     {
-        Pdf("<p>A<b></b><em> </em></p>", new PdfOptions { ItalicFonts = [Font()] });
+        Pdf("<p>A<b></b><em> </em></p>", new PdfOptions { Tagged = false, ItalicFonts = [Font()] });
         Pdf("<p style='font-weight:bold'></p>", new());
         var error = Fails("<p style='font-weight:bold'><span style='font-weight:normal'>A</span></p>", new(), "FPDF1507");
         Assert.That(error.SourceOffset, Is.Zero);
@@ -169,7 +170,7 @@ public sealed class FontStyleRoleTests
     {
         var regular = Font(); var italic = Font(latinOnly: true, ascent: 1200, descent: -200);
         var fallback = Font(ascent: 2000, descent: -1000);
-        var options = new PdfOptions { Fonts = [regular], ItalicFonts = [italic, fallback] };
+        var options = new PdfOptions { Tagged = false, Fonts = [regular], ItalicFonts = [italic, fallback] };
         var plain = Layout("<p><i>A</i></p><p>A</p>", options)[0].Runs;
         var mixed = Layout("<p><i>A中</i></p><p>A</p>", options)[0].Runs;
         Assert.That(mixed[0].Baseline, Is.EqualTo(plain[0].Baseline).Within(0.00001));
@@ -262,7 +263,7 @@ public sealed class FontStyleRoleTests
     [Test]
     public void UnusedRoleResourcesKeepOrdinaryPdfBytesAndDoNotInferFontMetadata()
     {
-        var options = new PdfOptions { Fonts = [Font()] };
+        var options = new PdfOptions { Tagged = false, Fonts = [Font()] };
         var bytes = Pdf("<p>A<span>B</span></p>", options);
         Assert.That(Pdf("<p>A<span>B</span></p>", options with { ItalicFonts = [Font()] }), Is.EqualTo(bytes));
         Assert.That(Pdf("<p>ASCII</p>", new() { BoldFonts = [Font()] }), Is.EqualTo(Pdf("<p>ASCII</p>", new())));
@@ -275,7 +276,7 @@ public sealed class FontStyleRoleTests
     [Test]
     public void FourRolesShareExistingCountAndUniqueObjectByteBudgets()
     {
-        var font = Font(); var options = new PdfOptions {
+        var font = Font(); var options = new PdfOptions { Tagged = false,
             Fonts = [font, font], BoldFonts = [font, font], ItalicFonts = [font, font], BoldItalicFonts = [font, font],
             MaxTotalFontBytes = font.ByteLength
         };
@@ -291,7 +292,7 @@ public sealed class FontStyleRoleTests
     [TestCase(false)][TestCase(true)]
     public void InvalidOriginalFontListKeepsItsExistingArgumentDiagnostic(bool oversized)
     {
-        var options = new PdfOptions { Fonts = oversized ? Enumerable.Repeat(Font(), 9).ToArray() : null! };
+        var options = new PdfOptions { Tagged = false, Fonts = oversized ? Enumerable.Repeat(Font(), 9).ToArray() : null! };
         var error = Assert.Throws<ArgumentException>(() => Pdf("A", options))!;
         Assert.That(error.Message, Does.StartWith("Supply a non-null font list with at most eight entries."));
         Assert.That(error.ParamName, Is.EqualTo("options"));
@@ -315,7 +316,7 @@ public sealed class FontStyleRoleTests
     [TestCase(false)][TestCase(true)]
     public void SecondPageMissingGlyphPreservesOutputAndRecoversWithSameOptions(bool subset)
     {
-        var options = new PdfOptions {
+        var options = new PdfOptions { Tagged = false,
             Fonts = [Font()], ItalicFonts = [Font(latinOnly: true), Font()], SubsetFonts = subset
         };
         const string first = "<p>A中<b></b><strong></strong><em></em></p>";

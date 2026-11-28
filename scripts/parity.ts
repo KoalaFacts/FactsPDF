@@ -47,6 +47,10 @@
 // are reviewed against Chrome; an author rule that sets the property keeps winning.
 // A run that rendered before (or failed for another reason) and now fails FPDF1507 is this kind too: headings and th are bold in
 // the sheet, so an example with a heading and no bold font chain needs one (or font-weight:normal).
+// tagged-pdf — an example renders a different PDF on both sides (both exit 0, same diagnostics): the head PDF is Tagged
+// PDF (a StructTreeRoot, MarkInfo, marked content, document language and title) and the base PDF is not, and the text
+// shown by the two is the same string of glyph codes in the same order, so only the tagging, the metadata and the
+// page's marked-content operators changed. Every example changes, so a tagging change declares this kind.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -85,7 +89,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
   difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet', 'tagged-pdf'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -238,6 +242,30 @@ function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
     decoratedFailure.test(failed.stderr.replace(/\r\n/g, '\n'));
 }
 
+/** The glyph codes every text-showing operator of every page shows, in order, whatever the BT/ET and marked-content shape. */
+export function shownText(pdf: Buffer): string {
+  const shown: string[] = [];
+  for (const block of pdf.toString('latin1').matchAll(/\bBT\b(.*?)\bET\b/gs)) {
+    for (const hex of block[1].matchAll(/<([0-9A-Fa-f]+)>/g)) {
+      shown.push(hex[1].toUpperCase());
+    }
+  }
+  return shown.join('');
+}
+
+/** Whether head is the Tagged PDF of what base wrote untagged: same exit code and diagnostics, same text shown. */
+export function onlyTagged(base: RunResult, head: RunResult): boolean {
+  if (base.exitCode !== 0 || head.exitCode !== 0 || base.pdf === null || head.pdf === null ||
+      head.pdf.subarray(0, 5).toString('latin1') !== '%PDF-' || base.pdf.equals(head.pdf) ||
+      withoutWrote(base.stderr) !== withoutWrote(head.stderr)) {
+    return false;
+  }
+  const baseText = base.pdf.toString('latin1');
+  const headText = head.pdf.toString('latin1');
+  return !baseText.includes('/StructTreeRoot') && headText.includes('/StructTreeRoot') && headText.includes('/MarkInfo') &&
+    shownText(base.pdf) === shownText(head.pdf);
+}
+
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
 export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false,
   hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind | null {
@@ -252,6 +280,7 @@ export function classifyDifference(base: RunResult, head: RunResult, newExample 
 export function classifyDifferences(base: RunResult, head: RunResult, newExample = false, hasTh = false,
   hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind[] {
   const kinds: ExpectedKind[] = [];
+  if (!newExample && onlyTagged(base, head)) kinds.push('tagged-pdf');
   if (hasTh && !newExample && base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     kinds.push('th-default-centred');

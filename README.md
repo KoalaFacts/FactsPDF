@@ -63,6 +63,7 @@ stdin/stdout). Common options:
 | `--subset-fonts` | Embed only the glyphs used |
 | `--image name=path.png` | Bind an image resource, see [below](#fonts-and-images) |
 | `--overwrite` | Allow replacing an existing output file |
+| `--untagged` | Write an untagged PDF; by default the PDF is [tagged](docs/tagged-pdf.md) (structure tree, language, title) |
 | `--strict false` (or `--strict=false`) | Non-strict CSS: drop CSS that is invalid per the specifications, as a browser does, and print each as a warning (exit 0); default `true` ([contract](docs/css-stylesheets.md#strict-and-non-strict-css)) |
 | `--help`, `--version` | Show usage, or the exact build version and commit |
 
@@ -158,7 +159,7 @@ A summary only. **For any specific property or value, look it up on
 | Wrapping | `white-space` `nowrap`/`pre`/`pre-line`/`pre-wrap`, `overflow-wrap:break-word`, `word-break:break-all` | [White space](docs/feature-notes.md#white-space-and-line-wrapping) |
 | Boxes | Width, min/max width, height, min-height, padding, margins, `margin:0 auto` centring, `box-sizing`, backgrounds, solid/dashed/dotted borders, rounded corners, LTR logical properties, single-line `display:flex` rows, `display:grid` columns | [Panels](docs/feature-notes.md#report-panels-and-box-sizing), [borders](docs/feature-notes.md#borders-and-rounded-corners) |
 | Tables | Fixed column widths, `colspan`, paragraph/image cells, repeated headers, long rows continuing across pages, cell `vertical-align` | [Tables](docs/tables.md) |
-| Pages | Automatic pagination, `break-before`/`break-after`/`break-inside`, heading keeps, headers/footers, page numbers, paper size, margins, PDF metadata | [Pages](docs/feature-notes.md#pages-pagination-and-document-properties) |
+| Pages | Tagged PDF (structure tree, language, title; PDF/UA-1 when the document can meet it), automatic pagination, `break-before`/`break-after`/`break-inside`, heading keeps, headers/footers, page numbers, paper size, margins, PDF metadata | [Tagged PDF](docs/tagged-pdf.md), [pages](docs/feature-notes.md#pages-pagination-and-document-properties) |
 | Runtime | .NET library for `net8.0`, `net9.0` and `net10.0`, CLI for `net10.0`; Linux and Windows x64 Native AOT are tested. Output is byte-identical for the same input, options and .NET runtime version; different .NET versions may produce different bytes (for example in compressed streams: fonts, images, content streams) with the same rendered content, so byte parity is checked on .NET 10 | [Build and verification](docs/development.md#native-aot-and-verification) |
 
 ## What is not supported

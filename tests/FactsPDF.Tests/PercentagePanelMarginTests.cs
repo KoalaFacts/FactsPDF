@@ -9,8 +9,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class PercentagePanelMarginTests
 {
-    private static readonly PdfOptions Page = new()
-    {
+    private static readonly PdfOptions Page = new() { Tagged = false,
         PageWidth = 300, PageHeight = 500, Margin = 20
     };
 

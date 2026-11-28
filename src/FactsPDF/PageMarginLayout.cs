@@ -98,7 +98,7 @@ internal static class PageMarginLayout
                     cancellation.ThrowIfCancellationRequested();
                     if (box.CommandCount > 0) CheckBody(options.PageHeight - box.Top, options.PageHeight - box.Top - box.Height);
                 }
-                AppendLine(line, x, baseline, page.Runs, Charge, cancellation);
+                AppendLine(line, x, baseline, page.Runs, Charge, cancellation, kind: RunKind.Artifact);
             }
         }
     }

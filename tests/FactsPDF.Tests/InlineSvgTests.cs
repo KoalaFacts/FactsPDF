@@ -450,18 +450,18 @@ public sealed class InlineSvgTests
     [Test]
     public void SvgNestingCountsTowardsMaxDepth()
     {
-        Reject("<svg><g><g><g></g></g></g></svg>", "FPDF1003", new PdfOptions { MaxDepth = 3 });
-        Assert.That(Pdf("<svg><g><g></g></g></svg>", new PdfOptions { MaxDepth = 3 }), Does.StartWith("%PDF"));
+        Reject("<svg><g><g><g></g></g></g></svg>", "FPDF1003", new PdfOptions { Tagged = false, MaxDepth = 3 });
+        Assert.That(Pdf("<svg><g><g></g></g></svg>", new PdfOptions { Tagged = false, MaxDepth = 3 }), Does.StartWith("%PDF"));
     }
 
     [Test]
     public void SvgPathSegmentsCountAsDisplayCommands()
     {
         const string svg = "<svg width='4' height='4'><path d='M0 0 1 1 2 2 3 3 4 4'/></svg>";
-        Assert.That(Pdf(svg, new PdfOptions { MaxDisplayCommands = 6 }), Does.StartWith("%PDF"));
-        Reject(svg, "FPDF1401", new PdfOptions { MaxDisplayCommands = 5 });
+        Assert.That(Pdf(svg, new PdfOptions { Tagged = false, MaxDisplayCommands = 6 }), Does.StartWith("%PDF"));
+        Reject(svg, "FPDF1401", new PdfOptions { Tagged = false, MaxDisplayCommands = 5 });
         Reject("<svg width='4' height='4'><path d='M0 0 1 1 2 2'/></svg><svg width='4' height='4'><path d='M0 0 1 1 2 2'/></svg>",
-            "FPDF1401", new PdfOptions { MaxDisplayCommands = 7 });
+            "FPDF1401", new PdfOptions { Tagged = false, MaxDisplayCommands = 7 });
     }
 
     [Test]

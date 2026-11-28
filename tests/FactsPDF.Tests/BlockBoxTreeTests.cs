@@ -99,7 +99,7 @@ public sealed class BlockBoxTreeTests
     public void TreeLayoutDoesNotChangeExistingAlignmentOfSpanLedAnonymousText()
     {
         const string html = "<div><span style='text-align:right'>A</span>B</div>";
-        var options = new PdfOptions();
+        var options = new PdfOptions { Tagged = false };
         var outer = Box(Box(Tree(html, options).Children.Single()).Children.Single());
         var anonymous = Text(outer.Children.Single());
         Assert.That(outer.Style.Alignment, Is.EqualTo(TextAlignment.Left));
@@ -166,7 +166,7 @@ public sealed class BlockBoxTreeTests
     {
         var html = "<div><section><article><p>A</p></article></section></div>";
         var ex = Assert.Throws<FactsPdfException>(() =>
-            Tree(html, new PdfOptions { MaxDepth = 3 }));
+            Tree(html, new PdfOptions { Tagged = false, MaxDepth = 3 }));
         Assert.That(ex!.Code, Is.EqualTo("FPDF1003"));
     }
 
@@ -177,7 +177,7 @@ public sealed class BlockBoxTreeTests
             "<body><section>Before <span style='color:red'>inline</span>" +
             "<p style='break-before:page'>Second page</p>" +
             "<article><p>After</p></article>tail</section></body>";
-        var options = new PdfOptions();
+        var options = new PdfOptions { Tagged = false };
         var treePages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
             options, default);
         var legacyPages = TextLayout.Layout(HtmlDocumentReader.Read(html, options, default),
@@ -194,7 +194,7 @@ public sealed class BlockBoxTreeTests
     {
         const string html = "<div><p>One</p><p style='break-before:page'></p>" +
             "<section><p>Two</p></section></div>";
-        var options = new PdfOptions();
+        var options = new PdfOptions { Tagged = false };
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default),
             options, default);
         Assert.That(pages.Count, Is.EqualTo(2));
@@ -208,7 +208,7 @@ public sealed class BlockBoxTreeTests
         const string html = "<style>html,body{margin:0}h2{font-weight:normal}div p{color:red}</style>" +
             "<body><div>Before<p>Colored</p><section><h2>Heading</h2>" +
             "<p>End</p></section>Trailing</div></body>";
-        var options = new PdfOptions();
+        var options = new PdfOptions { Tagged = false };
         var oldPages = TextLayout.Layout(HtmlDocumentReader.Read(html, options, default),
             options, default);
         using var oldPdf = PdfSerializer.Build(oldPages, options, default);
@@ -224,12 +224,12 @@ public sealed class BlockBoxTreeTests
     {
         const string html = "<div><p>A</p><section><p style='break-before:page'>B</p>" +
             "</section></div>";
-        var options = new PdfOptions { MaxPages = 1 };
+        var options = new PdfOptions { Tagged = false, MaxPages = 1 };
         var tree = HtmlDocumentReader.ReadTree(html, options, default);
         var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout(tree, options, default));
         Assert.That(error!.Code, Is.EqualTo("FPDF1303"));
         Assert.Throws<OperationCanceledException>(() =>
-            TextLayout.Layout(tree, new PdfOptions(), new CancellationToken(true)));
+            TextLayout.Layout(tree, new PdfOptions { Tagged = false }, new CancellationToken(true)));
     }
 
     [Test]

@@ -13,7 +13,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class LinkHrefFallbackTests
 {
-    private static readonly PdfWriter Writer = Pdf.Write().WithPage(p => p.Size(300, 400).Margin(20));
+    private static readonly PdfWriter Writer = Pdf.Write().WithTaggedPdf(false).WithPage(p => p.Size(300, 400).Margin(20));
 
     private static (byte[] Pdf, PdfWarnings? Warnings) NonStrict(string html)
     {

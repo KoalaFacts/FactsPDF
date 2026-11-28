@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { classifyDifference, classifyDifferences, compareRuns, type Difference, exitCodeOf, failures, optionSets, parseArguments, type RunResult, trailerKinds, workParent } from './parity.ts';
+import { classifyDifference, classifyDifferences, compareRuns, type Difference, exitCodeOf, failures, optionSets, parseArguments, type RunResult, shownText, trailerKinds, workParent } from './parity.ts';
 
 const pdf = (text: string) => Buffer.from(text, 'latin1');
 const ok = (bytes: string): RunResult => ({ exitCode: 0, stderr: '', pdf: pdf(bytes) });
@@ -175,6 +175,25 @@ test('block-margin-collapse explains rendered differences of existing examples w
   const failed = { exitCode: 3, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n', pdf: null };
   assert.ok(kinds(failed, before).includes('block-margin-collapse'));
   assert.deepEqual(kinds({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before), []);
+});
+
+test('tagged-pdf explains a PDF that only gained structure, marked content and metadata', () => {
+  const untagged = ok('%PDF-1.7 1 0 obj << /Type /Catalog >> endobj BT /F1 12 Tf <0041> Tj ET BT /F1 12 Tf [<0042> -80 <0043>] TJ ET');
+  const tagged = ok('%PDF-1.7 1 0 obj << /Type /Catalog /MarkInfo << /Marked true >> /StructTreeRoot 9 0 R >> endobj ' +
+    '/P <</MCID 0>> BDC BT /F1 12 Tf <0041> Tj ET /P <</MCID 1>> BDC EMC BT /F1 12 Tf [<0042> -80 <0043>] TJ ET EMC');
+  const kinds = (b: RunResult, a: RunResult, newExample = false) => classifyDifferences(b, a, newExample, false, false, false, false);
+  assert.ok(kinds(untagged, tagged).includes('tagged-pdf'));
+  assert.deepEqual(failures([{ example: 'x.html', set: 'defaults', reason: 'bytes', kind: 'tagged-pdf', kinds: kinds(untagged, tagged) }], ['tagged-pdf']),
+    { unexpected: [], unobserved: [] });
+  assert.ok(!kinds(untagged, tagged, true).includes('tagged-pdf'), 'a new example is not an existing one');
+  assert.ok(!kinds(tagged, tagged).includes('tagged-pdf'), 'identical PDFs are no difference');
+  assert.ok(!kinds(tagged, ok(tagged.pdf!.toString('latin1') + ' more')).includes('tagged-pdf'), 'a base that is already tagged');
+  assert.ok(!kinds(untagged, ok('%PDF-1.7 /StructTreeRoot /MarkInfo BT <0041> Tj ET')).includes('tagged-pdf'), 'other text shown');
+  assert.ok(!kinds(untagged, ok('%PDF-1.7 BT <0041> Tj ET <0042><0043>')).includes('tagged-pdf'), 'no structure');
+  assert.ok(!kinds(untagged, { ...tagged, stderr: 'warning\n' }).includes('tagged-pdf'), 'changed diagnostics');
+  assert.ok(!kinds(untagged, { ...tagged, exitCode: 3 }).includes('tagged-pdf'), 'a new failure');
+  assert.ok(!kinds(untagged, { exitCode: 0, stderr: '', pdf: null }).includes('tagged-pdf'), 'no PDF');
+  assert.equal(shownText(Buffer.from('BT <00aa> Tj ET <1234> BT [<0B> 5 <0c>] TJ ET', 'latin1')), '00AA0B0C');
 });
 
 test('ua-stylesheet explains rendered differences and moved decorated bottom edges of existing examples', () => {

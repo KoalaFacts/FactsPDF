@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class FigureElementTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 260, PageHeight = 300, Margin = 12 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 260, PageHeight = 300, Margin = 12 };
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
@@ -33,8 +33,7 @@ public sealed class FigureElementTests
     [Test]
     public void AnImageWithACaptionRendersLikeTheBlockquoteOracle()
     {
-        var options = new PdfOptions
-        {
+        var options = new PdfOptions { Tagged = false,
             PageWidth = 260, PageHeight = 300, Margin = 12,
             Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes("rgb-420")) }
         };

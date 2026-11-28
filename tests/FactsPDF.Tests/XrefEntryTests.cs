@@ -16,7 +16,7 @@ public sealed class XrefEntryTests
     {
         List<long> offsets = [0, 9, 15, 1_234_567, 9_999_999_999, 10_000_000_000, long.MaxValue];
         using var output = new MemoryStream();
-        PdfAscii.WriteXrefEntries(output, offsets);
+        PdfAscii.WriteXrefEntries(output, offsets.ToArray());
         var expected = new StringBuilder();
         foreach (var offset in offsets.Skip(1)) expected.Append(offset.ToString("0000000000", CultureInfo.InvariantCulture)).Append(" 00000 n \n");
         Assert.That(Encoding.ASCII.GetString(output.ToArray()), Is.EqualTo(expected.ToString()));

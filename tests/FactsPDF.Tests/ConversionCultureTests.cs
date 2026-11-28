@@ -44,14 +44,13 @@ public sealed class ConversionCultureTests
     public void PdfBytesDoNotDependOnTheCurrentCulture(string culture)
     {
         var font = PdfFont.FromBytes(Font);
-        var options = new PdfOptions
-        {
+        var options = new PdfOptions { Tagged = false,
             Fonts = [font], BoldFonts = [font], PageNumbers = true,
             PageWidth = 420.75, PageHeight = 595.5, Margin = 30.25, SubsetFonts = true, Title = "AB"
         };
         Assert.That(Render(culture, Report, options), Is.EqualTo(Render("", Report, options)));
         var ascii = "<p style=\"margin-left:0.5pt\">Report 1.5</p>";
-        Assert.That(Render(culture, ascii, new PdfOptions { PageNumbers = true }),
-            Is.EqualTo(Render("", ascii, new PdfOptions { PageNumbers = true })));
+        Assert.That(Render(culture, ascii, new PdfOptions { Tagged = false, PageNumbers = true }),
+            Is.EqualTo(Render("", ascii, new PdfOptions { Tagged = false, PageNumbers = true })));
     }
 }

@@ -9,8 +9,7 @@ namespace FactsPDF.Tests;
 public sealed class PhrasingElementTests
 {
     // Distinct fixture instances per role, so italic runs use a font object of their own.
-    private static readonly PdfOptions Page = new()
-    {
+    private static readonly PdfOptions Page = new() { Tagged = false,
         PageWidth = 260, PageHeight = 180, Margin = 12,
         Fonts = [PdfFont.FromBytes(FontFixture.Create())], BoldFonts = [PdfFont.FromBytes(FontFixture.Create())],
         ItalicFonts = [PdfFont.FromBytes(FontFixture.Create())], BoldItalicFonts = [PdfFont.FromBytes(FontFixture.Create())],
@@ -82,7 +81,7 @@ public sealed class PhrasingElementTests
     [TestCase("dfn")]
     public void ItalicElementsNeedAnItalicFontChainLikeEm(string tag)
     {
-        var standard = new PdfOptions { PageWidth = 260, PageHeight = 180, Margin = 12 };
+        var standard = new PdfOptions { Tagged = false, PageWidth = 260, PageHeight = 180, Margin = 12 };
         using var output = new MemoryStream();
         var ex = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert($"<p>A <{tag}>B</{tag}></p>", output, standard))!;
         Assert.That(ex.Code, Is.EqualTo("FPDF1507"));

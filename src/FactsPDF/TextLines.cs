@@ -5,6 +5,9 @@ using System.Text;
 
 namespace FactsPDF;
 
+/// <summary>What a placed line is for Tagged PDF: body content, a list marker or page furniture.</summary>
+internal enum RunKind : byte { Content, Marker, Artifact }
+
 internal static class TextLines
 {
     // An inline img or svg is one atomic glyph: its Scalar is -(run index + 2) in its paragraph
@@ -54,8 +57,11 @@ internal static class TextLines
     /// </summary>
     internal static void AppendLine(Line line, double x, double baseline, List<PlacedText> target,
         Action<int, int> charge, CancellationToken cancellation, int sourceOffset = -1,
-        List<PlacedImage>? images = null, double topOrigin = 0)
+        List<PlacedImage>? images = null, double topOrigin = 0, RunKind kind = RunKind.Content)
     {
+        // Tagged PDF: a run ends where the structural owner of its glyphs changes, so every run belongs to
+        // one structure element. Without a structure runs coalesce by style and font alone.
+        var structure = DocumentStructure.Active;
         var atom = 0;
         for (var start = 0; start < line.Glyphs.Count;)
         {
@@ -85,7 +91,8 @@ internal static class TextLines
             charge(1 + TextDecorationCommands.Count(first.Style.Decoration)
                 + (first.Style.LinkUri is null ? 0 : 1), sourceOffset); var width = 0d; var end = start; var utf16Length = 0;
             while (end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
-                && ReferenceEquals(line.Glyphs[end].Font, first.Font))
+                && ReferenceEquals(line.Glyphs[end].Font, first.Font)
+                && (structure is null || structure.HolderAt(line.Glyphs[end].SourceOffset) == structure.HolderAt(first.SourceOffset)))
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
                 var glyph = line.Glyphs[end++];
@@ -103,9 +110,16 @@ internal static class TextLines
                         offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
                     }
                 });
+            // Page furniture is appended after layout, when no structure is active, and is an artifact all the same.
+            var owner = kind == RunKind.Artifact ? RunOwner.Artifact : structure is null ? RunOwner.Unowned : kind switch
+            {
+                RunKind.Marker => RunOwner.Marker(first.SourceOffset),
+                _ => first.SourceOffset,
+            };
             target.Add(sourceOffset >= 0 && (first.Style.Decoration != TextDecoration.None || first.Style.LinkUri is not null)
-                ? new LocatedText(text, x, baseline, first.Style, first.Font, width, sourceOffset)
-                : new PlacedText(text, x, baseline, first.Style, first.Font, width));
+                ? new LocatedText(text, x, baseline, first.Style, first.Font, width, sourceOffset, owner)
+                : owner == RunOwner.Unowned ? new PlacedText(text, x, baseline, first.Style, first.Font, width)
+                : new OwnedText(text, x, baseline, first.Style, first.Font, width, owner));
             x += width; start = end;
         }
     }

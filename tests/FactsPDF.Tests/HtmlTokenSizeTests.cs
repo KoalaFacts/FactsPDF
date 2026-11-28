@@ -32,7 +32,7 @@ public sealed class HtmlTokenSizeTests
     public void ReadingAParagraphAllocatesSmallerTokens()
     {
         // 1,000 and 2,000 paragraphs stay under the reader's 8,192-token pooled list.
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -61,7 +61,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphAllocatesTokensWithoutAnAttributeField()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -75,7 +75,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphAllocatesTokensWithAOneByteKind()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -118,10 +118,10 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void StyledTokenOffsetsReachTheCascade()
     {
-        var bytes = Pdf.Write().ToBytes("<p>y</p><p style=\"color:#ff&#48;000\">x</p>");
+        var bytes = Pdf.Write().WithTaggedPdf(false).ToBytes("<p>y</p><p style=\"color:#ff&#48;000\">x</p>");
         Assert.That(Encoding.Latin1.GetString(bytes), Does.Contain("1 0 0 rg"));
         const string html = "<p>y</p><p style=\"color:r&#101;d; width:-1pt\">x</p>";
-        var error = Assert.Throws<FactsPdfException>(() => Pdf.Write().ToBytes(html))!;
+        var error = Assert.Throws<FactsPdfException>(() => Pdf.Write().WithTaggedPdf(false).ToBytes(html))!;
         // The origin map maps the decoded value back past the five-character reference.
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("-1pt", StringComparison.Ordinal)));
     }
@@ -132,7 +132,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphKeepsItsRunsWithoutAListObject()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -146,7 +146,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphKeepsItsChildWithoutAnArray()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -163,9 +163,9 @@ public sealed class HtmlTokenSizeTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
@@ -206,7 +206,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphKeepsItsRunWithoutAnArray()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -221,9 +221,9 @@ public sealed class HtmlTokenSizeTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
@@ -237,7 +237,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphAllocatesACompactBlockNode()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -252,9 +252,9 @@ public sealed class HtmlTokenSizeTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
@@ -268,7 +268,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphAllocatesACompactParagraph()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -283,9 +283,9 @@ public sealed class HtmlTokenSizeTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
@@ -393,7 +393,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphAllocatesACompactChildList()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -408,9 +408,9 @@ public sealed class HtmlTokenSizeTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;
@@ -499,7 +499,7 @@ public sealed class HtmlTokenSizeTests
     [Test]
     public void ReadingAParagraphAllocatesNoSeparateChildList()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var small = ReadAllocated(Paragraphs(1_000), options);
         var large = ReadAllocated(Paragraphs(2_000), options);
         var perParagraph = (large - small) / 1_000.0;
@@ -514,9 +514,9 @@ public sealed class HtmlTokenSizeTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;

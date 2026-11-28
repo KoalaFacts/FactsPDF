@@ -7,8 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class InheritedWhiteSpaceReportTests
 {
-    private static readonly PdfOptions Page = new()
-    {
+    private static readonly PdfOptions Page = new() { Tagged = false,
         PageWidth = 240, PageHeight = 180, Margin = 16
     };
 

@@ -6,7 +6,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class WordBreakTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 180, PageHeight = 220, Margin = 20 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 180, PageHeight = 220, Margin = 20 };
 
     private static List<PlacedText> Placed(string html, PdfOptions? page = null)
     {
@@ -84,7 +84,7 @@ public sealed class WordBreakTests
     {
         var report = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-word-break-identifiers.html"));
         var oracle = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-word-break-identifiers-oracle.html"));
-        var page = new PdfOptions();
+        var page = new PdfOptions { Tagged = false };
         Assert.That(Pdf(report, page), Is.EqualTo(Pdf(oracle, page)));
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(report, page, default), page, default);
         Assert.That(pages.Count, Is.GreaterThan(1));

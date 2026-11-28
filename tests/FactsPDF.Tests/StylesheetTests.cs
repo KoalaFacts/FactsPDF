@@ -11,7 +11,7 @@ public sealed class StylesheetTests
     private static List<Paragraph> Read(string css, string body = "<p>A</p>", PdfOptions? options = null)
         => HtmlDocumentReader.Read("<html><head><style>" + css + "</style></head><body>" + body + "</body></html>", options ?? new(), CancellationToken.None);
     private static byte[] Pdf(string html, PdfOptions? options = null)
-    { using var output = new MemoryStream(); PdfConverter.Convert(html, output, options); return output.ToArray(); }
+    { using var output = new MemoryStream(); PdfConverter.Convert(html, output, options ?? new PdfOptions { Tagged = false }); return output.ToArray(); }
     private static FactsPdfException Fails(string html, string code, PdfOptions? options = null)
     {
         using var output = new MemoryStream(); output.Write("keep"u8);
@@ -193,7 +193,7 @@ public sealed class StylesheetTests
         const string input = "<style>div{break-after:page}</style>" +
             "<div style='background:#eeeeff'><p style='margin:0'>A</p></div>" +
             "<p style='margin:0'>B</p>";
-        var options = new PdfOptions { PageWidth = 300, PageHeight = 220, Margin = 20 };
+        var options = new PdfOptions { Tagged = false, PageWidth = 300, PageHeight = 220, Margin = 20 };
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(input, options, default), options, default);
         Assert.That(pages, Has.Count.EqualTo(2));
         Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("A"));

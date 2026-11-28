@@ -6,7 +6,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class BlockquoteReportTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 320, PageHeight = 240, Margin = 20 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 320, PageHeight = 240, Margin = 20 };
 
     private static byte[] Render(string html, PdfOptions? settings = null)
     {

@@ -5,22 +5,25 @@ namespace FactsPDF;
 /// <summary>Page-local PDF URI link annotations over actually measured text runs.</summary>
 internal sealed class PdfLinkAnnotations
 {
-    private sealed record Link(int Id, double Left, double Bottom, double Right, double Top, string Uri);
+    // Contents is the alternate description Tagged PDF links carry; StructParent is -1 when untagged.
+    private sealed record Link(int Id, double Left, double Bottom, double Right, double Top, string Uri,
+        string? Contents = null, int StructParent = -1);
     private readonly List<Link> entries = [];
     private readonly List<int>[] pageIds;
 
     internal int Count => entries.Count;
 
     internal PdfLinkAnnotations(IReadOnlyList<LayoutPage> pages, PdfOptions options, int firstId,
-        CancellationToken cancellation)
+        CancellationToken cancellation, TagPlan? plan = null)
     {
         pageIds = new List<int>[pages.Count];
         for (var page = 0; page < pages.Count; page++)
         {
             cancellation.ThrowIfCancellationRequested();
             pageIds[page] = [];
-            foreach (var run in pages[page].Runs)
+            for (var runIndex = 0; runIndex < pages[page].Runs.Count; runIndex++)
             {
+                var run = pages[page].Runs[runIndex];
                 cancellation.ThrowIfCancellationRequested();
                 if (run.Style.LinkUri is not { } uri || run.Width <= 0) continue;
                 var left = Math.Max(0, run.X);
@@ -46,13 +49,15 @@ internal sealed class PdfLinkAnnotations
                     throw new FactsPdfException("FPDF1302",
                         "Linked text must have a visible bounded PDF annotation rectangle.", run.SourceOffset);
                 var id = checked(firstId + entries.Count);
-                entries.Add(new(id, left, bottom, right, top, uri));
+                var key = plan?.AddLinkTarget(plan.LinkNodeOfRun(page, runIndex), id, page, plan.LinkMcidOfRun(page, runIndex)) ?? -1;
+                entries.Add(new(id, left, bottom, right, top, uri, plan is null ? null : run.Text, key));
                 pageIds[page].Add(id);
             }
             // An inline image inside a link is clickable over its box, as Chrome's link
             // rectangles cover the image fragment.
-            foreach (var image in pages[page].Images)
+            for (var imageIndex = 0; imageIndex < pages[page].Images.Count; imageIndex++)
             {
+                var image = pages[page].Images[imageIndex];
                 cancellation.ThrowIfCancellationRequested();
                 if (image.LinkUri is not { } uri) continue;
                 var left = Math.Max(0, image.X);
@@ -64,11 +69,16 @@ internal sealed class PdfLinkAnnotations
                     throw new FactsPdfException("FPDF1302",
                         "A linked image must have a visible bounded PDF annotation rectangle.", image.SourceOffset);
                 var id = checked(firstId + entries.Count);
-                entries.Add(new(id, left, bottom, right, top, uri));
+                var key = plan?.AddLinkTarget(plan.LinkNodeOfImage(page, imageIndex), id, page, plan.LinkMcidOfImage(page, imageIndex)) ?? -1;
+                var alt = plan?.Structure.Alt(plan.Structure.Find(image.SourceOffset));
+                entries.Add(new(id, left, bottom, right, top, uri, plan is null ? null : string.IsNullOrWhiteSpace(alt) ? uri : alt.Trim(), key));
                 pageIds[page].Add(id);
             }
         }
     }
+
+    /// <summary>Whether the page has any link annotation.</summary>
+    internal bool HasAnnotations(int page) => pageIds[page].Count > 0;
 
     /// <summary>Appends the page's <c>/Annots</c> entry (nothing for a page without links).</summary>
     internal void AppendPageEntry(StringBuilder output, int page)
@@ -96,7 +106,10 @@ internal sealed class PdfLinkAnnotations
         // literal PDF syntax (parentheses, backslashes and ampersands are safe).
         // ValidateUri admits only printable ASCII, so each char is one byte.
         foreach (var c in a.Uri) output.AppendHex(c, 2);
-        output.Append("> >> >>\nendobj\n");
+        output.Append("> >>");
+        if (a.Contents is not null) TagPlan.AppendText(output.Append(" /Contents "), a.Contents);
+        if (a.StructParent >= 0) TagPlan.AppendStructParent(output, a.StructParent);
+        output.Append(" >>\nendobj\n");
     }
 
     /// <summary>The link target of an <c>a href</c>: a valid absolute HTTPS or mailto URI, or in strict mode the

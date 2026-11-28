@@ -55,6 +55,14 @@ public sealed class PdfWriter
         return new(Options with { Images = new ReadOnlyDictionary<string, PdfImage>(images) });
     }
 
+    /// <summary>Turns Tagged PDF output on or off; it is on by default.</summary>
+    /// <remarks>A tagged PDF has a structure tree (document, headings, paragraphs, lists, tables, links, figures with alt text),
+    /// marked content with page furniture, backgrounds and borders as artifacts, the document language from the html lang
+    /// attribute and the title from the title element. <see cref="PdfWriteResult.PdfUa"/> reports whether the result also
+    /// identifies itself as PDF/UA-1. Off writes the same untagged PDF as earlier releases.</remarks>
+    /// <param name="tagged">True to write Tagged PDF.</param>
+    public PdfWriter WithTaggedPdf(bool tagged) => new(Options with { Tagged = tagged });
+
     /// <summary>Sets the paper size, orientation and margins.</summary>
     /// <param name="configure">Configures the page, starting from this writer's current page settings.</param>
     public PdfWriter WithPage(Action<PdfPageSetup> configure)
@@ -187,7 +195,7 @@ public sealed class PdfWriter
         if (!output.CanWrite) throw new ArgumentException("Output must be writable.", nameof(output));
         using var pdf = PdfConverter.Render(html, Options, cancellationToken, out var pageCount);
         await output.WriteAsync(pdf.WrittenMemory, cancellationToken).ConfigureAwait(false);
-        return new(pageCount, pdf.Length);
+        return new(pageCount, pdf.Length) { PdfUa = pdf.PdfUa };
     }
 
     /// <summary>Renders <paramref name="html"/> into <paramref name="output"/>, for pipelines such as an
@@ -203,7 +211,7 @@ public sealed class PdfWriter
         using var pdf = PdfConverter.Render(html, Options, cancellationToken, out var pageCount);
         var data = pdf.WrittenSpan;
         output.Write(data);
-        return new(pageCount, data.Length);
+        return new(pageCount, data.Length) { PdfUa = pdf.PdfUa };
     }
 
     /// <summary>Renders <paramref name="html"/> and saves the PDF to <paramref name="path"/>, replacing any existing file.</summary>
@@ -226,7 +234,7 @@ public sealed class PdfWriter
             file.Flush(flushToDisk: true);
             cancellationToken.ThrowIfCancellationRequested();
         });
-        return new(pageCount, length);
+        return new(pageCount, length) { PdfUa = pdf.PdfUa };
     }
 
     /// <summary>Renders <paramref name="html"/> and saves the PDF to <paramref name="path"/> asynchronously, replacing any existing file.</summary>
@@ -257,7 +265,7 @@ public sealed class PdfWriter
             DeleteQuietly(temporary);
             throw;
         }
-        return new(pageCount, length);
+        return new(pageCount, length) { PdfUa = pdf.PdfUa };
     }
 
     private static void ReplaceFile(string path, Action<string> write)

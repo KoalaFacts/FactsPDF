@@ -256,13 +256,34 @@ internal record PlacedText(string Text, double X, double Baseline, TextStyle Sty
 {
     // -1: plain runs keep no offset, so they stay 64 bytes; see LocatedText.
     internal virtual int SourceOffset => -1;
+    // Which element's content the run is, for Tagged PDF: the start offset of the innermost element holding
+    // its first glyph, RunOwner.Unowned, RunOwner.Artifact (page furniture) or a list marker (RunOwner.Marker).
+    // Only OwnedText and LocatedText store it, so an untagged plain run stays 64 bytes.
+    internal virtual int Owner => RunOwner.Unowned;
+}
+// A run of a tagged document: the owner packs into the padding a plain run's object has no use for.
+internal sealed record OwnedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font, double Width,
+    int OwnerValue) : PlacedText(Text, X, Baseline, Style, Font, Width)
+{
+    internal override int Owner => OwnerValue;
+}
+
+// How a placed run names the element that owns it. Non-negative values are element start offsets.
+internal static class RunOwner
+{
+    internal const int Unowned = -1;
+    internal const int Artifact = -2;
+    internal static int Marker(int itemOffset) => -(itemOffset + 3);
+    internal static bool IsMarker(int owner) => owner <= -3;
+    internal static int MarkerItem(int owner) => -owner - 3;
 }
 // A decorated or linked run keeps its paragraph's source offset for the paint-stage
 // failures only such runs can raise; `with` copies keep the derived type and offset.
 internal sealed record LocatedText(string Text, double X, double Baseline, TextStyle Style, PdfFont? Font, double Width,
-    int Offset) : PlacedText(Text, X, Baseline, Style, Font, Width)
+    int Offset, int OwnerValue = RunOwner.Unowned) : PlacedText(Text, X, Baseline, Style, Font, Width)
 {
     internal override int SourceOffset => Offset;
+    internal override int Owner => OwnerValue;
 }
 // SourceOffset is the list item's; it packs beside Kind, so a disc stays 56 bytes.
 internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, ListMarkerKind Kind = ListMarkerKind.Disc,
@@ -277,6 +298,8 @@ internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double
 }
 internal sealed class LayoutPage
 {
+    /// <summary>The document's element structure, shared by every page; null for an untagged document.</summary>
+    internal DocumentStructure? Structure { get; set; }
     public List<PlacedText> Runs { get; } = [];
     public List<PaintedBox> PaintBoxes { get; } = [];
     public List<PlacedDisc> Discs { get; } = [];
@@ -645,6 +668,8 @@ internal sealed record ImageNode(PdfImage? Image, TextStyle Style, BoxStyle BoxS
 internal sealed class DocumentRoot
 {
     public BlockChildList Children { get; } = new();
+    /// <summary>The element structure Tagged PDF output is built from; null when tagging is off.</summary>
+    internal DocumentStructure? Structure { get; set; }
     public bool HasLists { get; set; }
     /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
     public CssPageRules? PageRules { get; set; }

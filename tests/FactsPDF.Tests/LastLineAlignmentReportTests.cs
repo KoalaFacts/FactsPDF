@@ -11,14 +11,14 @@ public sealed class LastLineAlignmentReportTests
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
-        var settings = options ?? new PdfOptions();
+        var settings = options ?? new PdfOptions { Tagged = false };
         return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, settings, default), settings, default);
     }
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(Neutral + html, output, options);
+        PdfConverter.Convert(Neutral + html, output, options ?? new PdfOptions { Tagged = false });
         return output.ToArray();
     }
 
@@ -124,7 +124,7 @@ public sealed class LastLineAlignmentReportTests
     public void ExplicitTrueTypeRetainsActualFontAndMeasuredLastLineGeometry()
     {
         var font = PdfFont.FromBytes(FontFixture.Create());
-        var options = new PdfOptions { Fonts = [font], PageWidth = 300, Margin = 30 };
+        var options = new PdfOptions { Tagged = false, Fonts = [font], PageWidth = 300, Margin = 30 };
         const string html = "<p style='width:110pt;font-size:10pt;margin:0;text-align-last:center'>AA<br>B</p>";
         var runs = Layout(html, options).Single().Runs;
         Assert.That(runs, Has.Count.EqualTo(2));

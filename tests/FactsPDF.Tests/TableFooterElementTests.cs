@@ -7,8 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class TableFooterElementTests
 {
-    private static readonly PdfOptions Page = new()
-    {
+    private static readonly PdfOptions Page = new() { Tagged = false,
         PageWidth = 260, PageHeight = 200, Margin = 12,
         Fonts = [PdfFont.FromBytes(FontFixture.Create())], BoldFonts = [PdfFont.FromBytes(FontFixture.Create())],
     };

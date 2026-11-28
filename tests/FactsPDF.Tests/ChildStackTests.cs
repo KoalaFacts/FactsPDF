@@ -33,7 +33,7 @@ public sealed class ChildStackTests
     public void TheRootKeepsExactlyItsChildren(int paragraphs, int capacity)
     {
         // The implied body is the root's only child and holds the paragraphs.
-        var root = HtmlDocumentReader.ReadTree(Paragraphs(paragraphs), new PdfOptions(), default);
+        var root = HtmlDocumentReader.ReadTree(Paragraphs(paragraphs), new PdfOptions { Tagged = false }, default);
         Assert.That(root.Children, Has.Count.EqualTo(1));
         var body = (BlockNode)root.Children[0];
         Assert.That(body.Children, Has.Count.EqualTo(paragraphs));
@@ -46,7 +46,7 @@ public sealed class ChildStackTests
     public void NestedBlocksKeepTheirChildrenInOrderInExactArrays()
     {
         const string html = "<div><p>A</p><div><p>B</p><p>C</p><p>D</p></div><p>E</p></div><p>F</p>";
-        var root = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
+        var root = HtmlDocumentReader.ReadTree(html, new PdfOptions { Tagged = false }, default);
         var body = (BlockNode)root.Children.Single();
         Assert.That(body.Children, Has.Count.EqualTo(2));
         Assert.That(body.Children.Capacity, Is.EqualTo(2));
@@ -65,7 +65,7 @@ public sealed class ChildStackTests
     public void AHiddenBlockIsDroppedWithItsChildrenAndDirectTextResumes()
     {
         const string html = "<div>Before <div style=\"display:none\"><p>X</p><div><p>Y</p></div></div>after<p>Z</p></div>";
-        var root = HtmlDocumentReader.ReadTree(html, new PdfOptions(), default);
+        var root = HtmlDocumentReader.ReadTree(html, new PdfOptions { Tagged = false }, default);
         var outer = (BlockNode)((BlockNode)root.Children.Single()).Children[0];
         Assert.That(outer.Children, Has.Count.EqualTo(2));
         var resumed = (Paragraph)outer.Children[0];
@@ -78,7 +78,7 @@ public sealed class ChildStackTests
     [Test]
     public void StackIsEmptyAndPooledAfterARead()
     {
-        HtmlDocumentReader.ReadTree("<div><p>A</p><p>B</p></div>", new PdfOptions(), default);
+        HtmlDocumentReader.ReadTree("<div><p>A</p><p>B</p></div>", new PdfOptions { Tagged = false }, default);
         var pooled = HtmlDocumentReader.PooledChildren;
         Assert.That(pooled, Is.Not.Null);
         Assert.That(pooled!.Value.Count, Is.Zero);
@@ -90,20 +90,20 @@ public sealed class ChildStackTests
     [TestCase("<div><p>A</p><div><p>B</p></div>", "FPDF1101")]
     public void StackIsEmptyAfterAFailedRead(string html, string code)
     {
-        var error = Assert.Throws<FactsPdfException>(() => HtmlDocumentReader.ReadTree(html, new PdfOptions(), default));
+        var error = Assert.Throws<FactsPdfException>(() => HtmlDocumentReader.ReadTree(html, new PdfOptions { Tagged = false }, default));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(HtmlDocumentReader.PooledChildren?.Count ?? 0, Is.Zero);
         // The next read starts from an empty stack and keeps only its own children.
-        var root = HtmlDocumentReader.ReadTree("<p>Next</p>", new PdfOptions(), default);
+        var root = HtmlDocumentReader.ReadTree("<p>Next</p>", new PdfOptions { Tagged = false }, default);
         Assert.That(root.Children, Has.Count.EqualTo(1));
     }
 
     [Test]
     public void StackLargerThanTheLimitIsNotKept()
     {
-        HtmlDocumentReader.ReadTree(Paragraphs(HtmlDocumentReader.MaxPooledChildren + 1), new PdfOptions { MaxElements = 100_000 }, default);
+        HtmlDocumentReader.ReadTree(Paragraphs(HtmlDocumentReader.MaxPooledChildren + 1), new PdfOptions { Tagged = false, MaxElements = 100_000 }, default);
         Assert.That(HtmlDocumentReader.PooledChildren, Is.Null);
-        HtmlDocumentReader.ReadTree("<p>A</p>", new PdfOptions(), default);
+        HtmlDocumentReader.ReadTree("<p>A</p>", new PdfOptions { Tagged = false }, default);
         Assert.That(HtmlDocumentReader.PooledChildren!.Value.Capacity, Is.LessThanOrEqualTo(HtmlDocumentReader.MaxPooledChildren));
     }
 
@@ -112,7 +112,7 @@ public sealed class ChildStackTests
     [Test]
     public void ReadingParagraphsAllocatesNoDoublingChildArrays()
     {
-        var options = new PdfOptions { MaxElements = 100_000 };
+        var options = new PdfOptions { Tagged = false, MaxElements = 100_000 };
         var perParagraph = (ReadAllocated(Paragraphs(2_000), options) - ReadAllocated(Paragraphs(1_000), options)) / 1_000.0;
         TestContext.Out.WriteLine($"read per paragraph: {perParagraph:F1} bytes");
         Assert.That(perParagraph, Is.LessThan(308));
@@ -125,9 +125,9 @@ public sealed class ChildStackTests
     {
         static long Converted(string html)
         {
-            for (var i = 0; i < 3; i++) Pdf.Write().ToBytes(html);
+            for (var i = 0; i < 3; i++) Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             var before = GC.GetAllocatedBytesForCurrentThread();
-            Pdf.Write().ToBytes(html);
+            Pdf.Write().WithTaggedPdf(false).ToBytes(html);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
         var perParagraph = (Converted(Paragraphs(400)) - Converted(Paragraphs(200))) / 200.0;

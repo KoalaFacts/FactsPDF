@@ -150,8 +150,8 @@ public sealed class TableRowFragmentationTests
         Assert.That(pages.Select(p => p.Runs.Count(r => r.Text.StartsWith('L'))), Is.EqualTo(new[] { 62, 62, 6 }));
         Assert.That(pages.Select(p => p.PaintBoxes.Single(b => b.Width == 120).Top + p.PaintBoxes.Single(b => b.Width == 120).Height), Is.EqualTo(new double[] { 795, 794, 123 }));
         Assert.That(Commands(pages), Is.EqualTo(186));
-        Assert.That(Pdf(html, new() { MaxDisplayCommands = 186 }), Is.EqualTo(Pdf(html)));
-        Fails(html, "FPDF1401", new() { MaxDisplayCommands = 185 });
+        Assert.That(Pdf(html, new() { Tagged = false, MaxDisplayCommands = 186 }), Is.EqualTo(Pdf(html)));
+        Fails(html, "FPDF1401", new() { Tagged = false, MaxDisplayCommands = 185 });
     }
 
     [Test]
@@ -221,7 +221,7 @@ public sealed class TableRowFragmentationTests
         var html = TableLayoutTests.Table("A", "width:40pt", "padding:1pt;border:1pt solid red;background-color:blue")
             .Replace("</tbody>", "<tr><td>UNBREAKABLEUNBREAKABLE</td></tr></tbody>");
         using var output = new MemoryStream();
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, new() { MaxDisplayCommands = 2 }))!;
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, new() { Tagged = false, MaxDisplayCommands = 2 }))!;
         Assert.That(error.Code, Is.EqualTo("FPDF1401"));
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("<td", StringComparison.Ordinal)));
     }

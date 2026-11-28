@@ -33,6 +33,10 @@ def validate_row_fixture(path):
 
 
 def run(*args, cwd=None, exit_code=0):
+    # Most checks compare equivalent documents (a feature with its hand-written oracle) byte for byte, so the CLI
+    # writes the untagged PDF; scripts/verify_tagged_pdf.py covers the tagged one.
+    if len(args) > 2 and Path(str(args[0])).name.startswith('FactsPDF.Cli') and not str(args[1]).startswith('-') and '--untagged' not in args:
+        args = (*args, '--untagged')
     process = subprocess.run([str(arg) for arg in args], cwd=cwd, capture_output=True, timeout=120)
     assert process.returncode == exit_code, (args, process.returncode,
                                              process.stderr.decode('utf-8', 'replace'))
