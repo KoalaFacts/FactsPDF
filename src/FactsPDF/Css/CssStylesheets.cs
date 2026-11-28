@@ -404,7 +404,7 @@ internal sealed class CssStylesheets
     private readonly Layer layerRoot = new("", null);
     // The valid @keyframes rules by name (the last of a name wins), and the declarations of their 0% and
     // 100% keyframes compiled when an animation first shows one.
-    private readonly Dictionary<string, CssAtRuleNode> keyframes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<(Layer? Layer, CssAtRuleNode Rule)>> keyframes = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Name, int Offset), CssDeclaration[]> keyframeStates = [];
     private int layerCount;
 
@@ -494,13 +494,26 @@ internal sealed class CssStylesheets
         return true;
     }
 
-    private void RegisterKeyframes(CssAtRuleNode at)
+    private void RegisterKeyframes(CssAtRuleNode at, Layer? layer)
     {
         var name = at.Prelude.First(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) as CssTokenComponent;
         var key = name!.Token.Value;
-        keyframes[key] = at;
-        keyframeStates.Remove((key, 0));
-        keyframeStates.Remove((key, 100));
+        if (!keyframes.TryGetValue(key, out var rules)) keyframes.Add(key, rules = []);
+        rules.Add((layer, at));
+    }
+
+    // The keyframes rule of a name that wins the cascade: those of a later layer (the unlayered ones last)
+    // win, and among rules of one layer the last written.
+    private CssAtRuleNode Keyframes(string name)
+    {
+        (Layer? Layer, CssAtRuleNode Rule) best = default!;
+        var order = int.MinValue;
+        foreach (var candidate in keyframes[name])
+        {
+            var candidateOrder = LayerOrder(candidate.Layer, false);
+            if (candidateOrder >= order) { best = candidate; order = candidateOrder; }
+        }
+        return best.Rule!;
     }
 
     // The offsets a keyframe selector names: from and to are 0% and 100%.
@@ -527,7 +540,7 @@ internal sealed class CssStylesheets
     {
         if (keyframeStates.TryGetValue((name, offset), out var cached)) return cached;
         var nodes = new List<CssDeclarationNode>();
-        foreach (var content in keyframes[name].Contents!)
+        foreach (var content in Keyframes(name).Contents!)
         {
             if (content is not CssQualifiedRuleNode rule || !KeyframeOffsets(rule.Prelude).Contains(offset)) continue;
             foreach (var item in rule.Contents)
@@ -548,7 +561,7 @@ internal sealed class CssStylesheets
             throw new FactsPdfException(error.Code, $"@keyframes {name} at {(offset == 0 ? "from" : "to")}, shown by the animation at print time: {reason}", error.SourceOffset);
         }
         if (compiled.Any(d => d.Property is CssProperty.Pending or CssProperty.Custom))
-            throw new FactsPdfException("FPDF1202", $"@keyframes {name} uses var() or math in a keyframe the animation shows; write the value out.", keyframes[name].Span.Start);
+            throw new FactsPdfException("FPDF1202", $"@keyframes {name} uses var() or math in a keyframe the animation shows; write the value out.", Keyframes(name).Span.Start);
         keyframeStates[(name, offset)] = compiled;
         return compiled;
     }
@@ -584,7 +597,7 @@ internal sealed class CssStylesheets
             if (outcome == CssAnimations.Outcome.Interpolated)
                 throw new FactsPdfException("FPDF1202",
                     $"The animation {name} would print a state between its keyframes (a delay or iteration count that ends inside an iteration, or a step easing that jumps at the start): only the first and last keyframe states are supported.",
-                    keyframes[name].Span.Start);
+                    Keyframes(name).Span.Start);
             (result ??= []).AddRange(KeyframeState(name, outcome == CssAnimations.Outcome.From ? 0 : 100, element));
         }
         return result;
@@ -637,7 +650,7 @@ internal sealed class CssStylesheets
         {
             // A malformed @keyframes rule (or keyframe) is dropped by a browser; every
             // keyframe is dropped here anyway, so the page is the same either way.
-            try { ValidateKeyframes(at); RegisterKeyframes(at); }
+            try { ValidateKeyframes(at); RegisterKeyframes(at, layer); }
             catch (FactsPdfException error) when (budget.Warnings is { } warnings) { warnings.Add(error); }
             return;
         }
