@@ -122,6 +122,29 @@ public sealed class OutputCancellationTests
         AssertNothingWritten(outputs);
     }
 
+    // Every failure before the copy (parse, unsupported CSS, element limit, output limit, layout) leaves
+    // each output as it was: the stream empty, the buffer empty and the existing file's bytes.
+    [TestCaseSource(nameof(AllPaths))]
+    public void EveryRenderFailureLeavesTheCallersOutputUntouched(OutputPath path)
+    {
+        var limited = Pdf.Write().WithLimits(l => l.MaxElements(3).MaxOutputBytes(2_000));
+        string[] failing =
+        [
+            "<p>&bogus;</p>",                                    // FPDF1104 character reference
+            "<p style='position:absolute'>A</p>",                // FPDF1202 unsupported CSS value
+            "<p style='colr:red'>A</p>",                         // FPDF1201 unknown property
+            "<p>A</p><p>B</p><p>C</p><p>D</p><p>E</p>",          // FPDF1002 element limit
+            "<p>" + string.Concat(Enumerable.Repeat("word ", 4_000)) + "</p>", // FPDF1401 output limit
+        ];
+        foreach (var html in failing)
+        {
+            var outputs = NewOutputs();
+            Assert.That(async () => await Run(limited, path, html, outputs, CancellationToken.None),
+                Throws.InstanceOf<FactsPdfException>(), html.Length > 40 ? html[..40] : html);
+            AssertNothingWritten(outputs);
+        }
+    }
+
     [TestCase(OutputPath.File)]
     [TestCase(OutputPath.FileAsync)]
     public void FailedMoveIntoPlaceLeavesNoTemporaryFile(OutputPath path)

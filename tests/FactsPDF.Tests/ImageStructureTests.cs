@@ -92,10 +92,9 @@ public sealed class ImageStructureTests
     }
 
     [Test]
-    public void DuplicateAttributePreservesTokenizerDiagnosticAndCssStillPreflights()
+    public void DuplicateAttributeKeepsTheFirstAndCssStillPreflights()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Tree("<img src=\"chart\" src=\"chart\">"));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1101")); Assert.That(error.SourceOffset, Is.EqualTo(17));
+        Assert.That(Tree("<img src=\"chart\" src=\"missing\">").Children.Count, Is.EqualTo(Tree("<img src=\"chart\">").Children.Count));
         // max-height:10pt is now valid for bound images; an unmatched
         // percentage declaration must still fail CSS preflight before the
         // unrelated missing src attribute on this input.

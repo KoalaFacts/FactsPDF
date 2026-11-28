@@ -40,6 +40,9 @@
 // parent and first or last child, empty blocks), padding and borders keep them apart,
 // margins adjoining an unforced page break are truncated, and a painted parent
 // excludes the margin that collapses out through its edge.
+// title-written — an existing example with a title element renders a PDF that
+// differs only by gaining the document information /Title (the page's title element is the PDF
+// Title, as in a browser): both exit 0, with the same diagnostics, and only the head PDF holds /Title.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -78,7 +81,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
   difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'title-written'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -222,8 +225,8 @@ function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
 
 /** The known kind of an intended change two differing runs show, or null when it is no known kind. */
 export function classifyDifference(base: RunResult, head: RunResult, newExample = false, hasTh = false,
-  hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind | null {
-  return classifyDifferences(base, head, newExample, hasTh, hasReplaced, hasList, hasBlock)[0] ?? null;
+  hasReplaced = false, hasList = false, hasBlock = false, hasTitle = false): ExpectedKind | null {
+  return classifyDifferences(base, head, newExample, hasTh, hasReplaced, hasList, hasBlock, hasTitle)[0] ?? null;
 }
 
 /**
@@ -232,8 +235,12 @@ export function classifyDifference(base: RunResult, head: RunResult, newExample 
  * later change declares on its own (a page with both a th and a div stays th-default-centred).
  */
 export function classifyDifferences(base: RunResult, head: RunResult, newExample = false, hasTh = false,
-  hasReplaced = false, hasList = false, hasBlock = false): ExpectedKind[] {
+  hasReplaced = false, hasList = false, hasBlock = false, hasTitle = false): ExpectedKind[] {
   const kinds: ExpectedKind[] = [];
+  if (hasTitle && !newExample && rendersDifferently(base, head) && base.pdf !== null && head.pdf !== null &&
+      !base.pdf.includes('/Title <') && head.pdf.includes('/Title <')) {
+    kinds.push('title-written');
+  }
   if (hasTh && !newExample && base.exitCode === 0 && head.exitCode === 0 && base.pdf !== null && head.pdf !== null &&
       head.pdf.subarray(0, 5).toString('latin1') === '%PDF-') {
     kinds.push('th-default-centred');
@@ -403,7 +410,8 @@ export async function checkParity(repo: string, options: ParityOptions): Promise
         const source = readFileSync(input, 'utf8');
         const kinds = classifyDifferences(base, head, isNewExample, /<th[\s>]/i.test(source), /<(img|svg)[\s>]/i.test(source),
           /<(ul|ol|menu)[\s>]/i.test(source),
-          /<(div|section|article|header|footer|main|nav|aside|blockquote|figure|figcaption|address|dl|dt|dd|li|hr|table)[\s>]/i.test(source));
+          /<(div|section|article|header|footer|main|nav|aside|blockquote|figure|figcaption|address|dl|dt|dd|li|hr|table)[\s>]/i.test(source),
+          /<title[\s>]/i.test(source));
         const kind = kinds[0] ?? null;
         if (isNewExample && kind === null) {
           // A new fixture is not silently exempt from parity: report why

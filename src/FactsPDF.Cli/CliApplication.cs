@@ -15,7 +15,7 @@ public static class CliApplication
         "--page-size selects A4 (default, 595.28 x 841.89pt) or US Letter (612 x 792pt); --landscape swaps the physical page axes.\n" +
         "--page-width and --page-height must be supplied together, each 72-14400pt in pt/px/mm/cm/in; do not combine with --page-size or --landscape.\n" +
         "--margin sets one uniform margin (0 or pt/px/mm/cm/in; default 36pt) in the selected physical page size.\n" +
-        "--title/--author/--subject/--keywords set optional UTF-16 PDF Info metadata (1-1024 units each); never extracted from HTML.\n" +
+        "--title/--author/--subject/--keywords set optional UTF-16 PDF Info metadata (1-1024 units each); only the page title element supplies a Title when --title is omitted.\n" +
         "A CSS @page rule (size, margins, top/bottom margin boxes) applies when these options are omitted; an option that disagrees with it fails FPDF1206.\n" +
         "Margin boxes cannot be combined with --page-furniture, --page-numbers, --header-text or --footer-text. No printer bleed or content scaling.\n" +
         "--subset-fonts embeds only needed glyphs where permitted; default is full embedding.\n" +

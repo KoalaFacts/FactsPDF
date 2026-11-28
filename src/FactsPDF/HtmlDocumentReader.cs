@@ -255,7 +255,7 @@ internal static class HtmlDocumentReader
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
-        var result = new DocumentRoot { PageRules = sheets.PageRules };
+        var result = new DocumentRoot { PageRules = sheets.PageRules, Title = sheets.DocumentTitle };
         Paragraph? current = null;
         // The box of the open cell paragraph when it has padding; cell paragraphs have no other box.
         BoxStyle? currentPadding = null;
@@ -612,9 +612,12 @@ internal static class HtmlDocumentReader
             {
                 if (attribute == "style")
                 {
-                    if (name is "head" or "title" or "meta" or "link" or "base" or "br")
-                        throw new FactsPdfException("FPDF1103", "Styling this metadata/void element is not supported.", token.Offset);
-                    // Declarations were parsed once during source collection.
+                    // Declarations were parsed once during source collection (and validated there). The
+                    // metadata elements of head are display:none, so what a style attribute declares on
+                    // them changes nothing, except a display that would show head itself.
+                    if (name == "head" && CssStylesheets.CouldShowElement((token as StyledHtmlToken)?.InlineDeclarations ?? default))
+                        throw new FactsPdfException("FPDF1103", "A head with a display other than none would print its content, which is not supported.", token.Offset);
+
                 }
                 else if (attribute == "href" && name == "a")
                 {
@@ -653,17 +656,10 @@ internal static class HtmlDocumentReader
                 // A presentational hint below every author declaration (see CssStylesheets.Compute).
                 else if (attribute == "type" && name is "ol" or "ul" or "li")
                     listTypeHint = ListMarkerTypes.TypeAttribute(name, value, token.Offset);
-                else if (name == "meta" && attribute == "charset" && value.Equals("utf-8", StringComparison.OrdinalIgnoreCase)) { }
-                // Named and Open Graph metadata (viewport, description, author, generator, og:title)
-                // is document metadata a static page render never reads. color-scheme is the one
-                // standard name that changes the rendered canvas and text colours, so it still fails.
-                else if (name == "meta" && attribute is "name" or "property" or "content")
-                {
-                    // Trimmed, so a padded name fails rather than guessing whether a browser trims it.
-                    if (attribute == "name" && (value.AsSpan().Trim().Equals("color-scheme", StringComparison.OrdinalIgnoreCase)
-                        || value.AsSpan().Trim().Equals("supported-color-schemes", StringComparison.OrdinalIgnoreCase)))
-                        throw new FactsPdfException("FPDF1103", "meta color-scheme is not supported.", token.Offset);
-                }
+                // meta's own attributes were judged when the tags were collected (HtmlMeta): a UTF-8
+                // charset, any other name, property, content, http-equiv or itemprop that a static
+                // render never reads, and a color-scheme that resolves to light.
+                else if (name == "meta" && attribute is "charset" or "name" or "property" or "content" or "http-equiv" or "itemprop" or "media") { }
                 // A link that only names a related resource (icon, canonical, alternate, preconnect,
                 // manifest) is never fetched or painted by a static render. A stylesheet link would
                 // change the render, and external resources are never loaded, so it fails FPDF1204 like @import.
@@ -741,7 +737,7 @@ internal static class HtmlDocumentReader
                 result.CanvasColor = boxStyle.BackgroundColor;
                 if (boxStyle.IsFlexContainer) result.FlexRootOffset = Math.Max(token.Offset, 0);
             }
-            if (name == "br") { path.RemoveAt(path.Count - 1); Add("", parent, true); continue; }
+            if (name == "br") { path.RemoveAt(path.Count - 1); if (!boxStyle.DisplayNone) Add("", parent, true); continue; }
             if (stack.Count - impliedOpen > options.MaxDepth) throw new FactsPdfException("FPDF1003", "Nesting limit exceeded.", token.Offset);
             object? before = null, after = null;
             if (sheets.HasPseudoRules && name is not ("head" or "title"))

@@ -253,12 +253,10 @@ public sealed class ListMarkerStyleTests
         Fails("<ol style='list-style-type:diamond'><li>A</li></ol>", "FPDF1202");
         Fails("<ul style='list-style-type:lower-alpha upper-alpha'><li>A</li></ul>", "FPDF1202");
         Fails("<li style='list-style-type:100'>A</li>", "FPDF1202");
-        Fails("<p style='list-style-type:decimal'>A</p>", "FPDF1201");
-        Fails("<span style='list-style-type:disc'>A</span>", "FPDF1201");
+        Fails("<table><tr><td style='list-style-type:disc'>A</td></tr></table>", "FPDF1201");
         Fails("<ol style='list-style:disc inside outside'><li>A</li></ol>", "FPDF1202");
         Fails("<style>.unused {list-style-type:diamond}</style><ol><li>A</li></ol>", "FPDF1202");
         Fails("<ol style='list-style-type:circle square'><li>A</li></ol>", "FPDF1202");
-        Fails("<p style='list-style-type:circle'>A</p>", "FPDF1201");
     }
 
     [Test]

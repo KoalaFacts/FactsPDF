@@ -163,20 +163,27 @@ public sealed class NonStrictCssTests
 
     // HTML processes a style element only when its type is absent, empty or text/css (ASCII
     // case-insensitive; Chrome 158 ignores text/css with parameters or white space too). Any other
-    // type is not a stylesheet: non-strict mode ignores the whole element, strict mode fails FPDF1204.
+    // type is not a stylesheet and not an error: both modes ignore the whole element, with no warning.
     [TestCase("text/less")]
     [TestCase("text/css; charset=utf-8")]
     [TestCase(" text/css")]
     [TestCase("text/x-template")]
-    public void ANonCssStyleElementIsIgnored(string type)
+    public void ANonCssStyleElementIsIgnoredInBothModes(string type)
     {
         var html = $"<!doctype html><html><head><style type='{type}' media='screen' data-x>p{{colr:red;color:navy}}</style><style>h1{{color:navy}}</style></head><body><h1>T</h1><p>x</p></body></html>";
-        var strict = Strict(html);
-        Assert.That(strict.Code, Is.EqualTo("FPDF1204"));
+        var expected = Writer.ToBytes("<!doctype html><html><head><style>h1{color:navy}</style></head><body><h1>T</h1><p>x</p></body></html>");
+        Assert.That(Writer.WithStrict(true).ToBytes(html), Is.EqualTo(expected));
         var (pdf, warnings) = NonStrict(html);
-        Assert.That(pdf, Is.EqualTo(Writer.ToBytes("<!doctype html><html><head><style>h1{color:navy}</style></head><body><h1>T</h1><p>x</p></body></html>")));
-        Assert.That(warnings.Items, Has.Count.EqualTo(1));
-        AssertWarningIsTheStrictError(warnings.Items[0], strict);
+        Assert.That(pdf, Is.EqualTo(expected));
+        Assert.That(warnings.Items, Is.Empty);
+    }
+
+    // Over-correction guard: an element that is still a stylesheet keeps failing for what it holds.
+    [Test]
+    public void AStyleElementWithAnUnsupportedMediaOrAttributeStillFails()
+    {
+        Assert.That(Strict("<!doctype html><html><head><style media='screen'>p{color:navy}</style></head><body><p>x</p></body></html>").Code, Is.EqualTo("FPDF1204"));
+        Assert.That(Strict("<!doctype html><html><head><style type='text/less' onload='x'>p{color:navy}</style></head><body><p>x</p></body></html>").Code, Is.EqualTo("FPDF1103"));
     }
 
     [TestCase("TEXT/CSS")]

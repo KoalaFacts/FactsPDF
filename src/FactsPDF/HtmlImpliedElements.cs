@@ -33,6 +33,9 @@ internal sealed class HtmlImpliedElements
     // The state of each table a nested table (in one of its cells) interrupts, innermost last.
     private readonly Stack<(bool Section, bool Implied)> outerTables = new();
 
+    /// <summary>Whether the body has started, so a metadata element now stays where it is.</summary>
+    internal bool InBody => mode == Mode.InBody;
+
     private static bool HeadContent(string name) => name is "style" or "script" or "template" or "title" or "meta" or "link" or "base";
 
     /// <summary>Appends <paramref name="token"/> to <paramref name="tokens"/>, after the html, head

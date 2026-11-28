@@ -15,6 +15,9 @@ public sealed class CharacterReferenceDecodeTests
     [TestCase("&#128512; &#x1F600;", "\U0001F600 \U0001F600")]
     [TestCase("& alone, &; and &&amp;", "& alone, &; and &&")]
     [TestCase("&#1;", "\u0001")]
+    // A C1 control reference reads as windows-1252 (Chrome 158 prints an ellipsis for &#x85;).
+    [TestCase("&#x80;&#133;&#x9F;&#x81;&#x8D;", "€…Ÿ\u0081\u008D")]
+    [TestCase("&#x7F;&#xA0;", "\u007F ")]
     public void DecodesSupportedReferences(string text, string expected)
         => Assert.That(HtmlTokens.Decode(text, 0), Is.EqualTo(expected));
 

@@ -128,7 +128,6 @@ public sealed class ListMarkerPositionTests
     [TestCase("<ol style='list-style:inside outside'><li>A</li></ol>", "FPDF1202")]
     [TestCase("<ol style='list-style:decimal circle'><li>A</li></ol>", "FPDF1202")]
     [TestCase("<ol style='list-style:disc url(x.png)'><li>A</li></ol>", "FPDF1202")]
-    [TestCase("<p style='list-style-position:inside'>A</p>", "FPDF1201")]
     [TestCase("<style>.unmatched{list-style-position:centre}</style><ol><li>A</li></ol>", "FPDF1202")]
     public void InvalidPositionsAndContextsPreserveDestination(string html, string code)
     {

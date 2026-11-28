@@ -11,6 +11,25 @@ internal static class PdfDocumentMetadata
         ("Subject", options.Subject), ("Keywords", options.Keywords)
     ];
 
+    /// <summary>
+    /// The PDF Title a browser writes for a title element's text: <c>document.title</c> with its
+    /// control characters (except vertical tab) read as spaces, runs of spaces collapsed and the
+    /// ends stripped of white space. Null when nothing is left (a browser then falls back to the page's URL).
+    /// </summary>
+    internal static string? NormalizeHtmlTitle(string text)
+    {
+        var builder = new StringBuilder(text.Length);
+        foreach (var ch in text)
+        {
+            var space = ch is ' ' or '\t' or '\n' or '\f' or '\r' or (>= '\u0001' and <= '\u0008')
+                or (>= '\u000E' and <= '\u001F') or '\u007F';
+            if (!space) builder.Append(ch);
+            else if (builder.Length > 0 && builder[^1] != ' ') builder.Append(' ');
+        }
+        var title = builder.ToString().Trim(); // every Unicode white space, as a browser strips
+        return title.Length == 0 ? null : title;
+    }
+
     internal static int Validate(PdfOptions options)
     {
         var total = 0;

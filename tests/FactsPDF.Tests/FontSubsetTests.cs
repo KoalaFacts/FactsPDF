@@ -101,6 +101,17 @@ public sealed class FontSubsetTests
         FontFixture.U16(data, at + 10, 0x103); FontFixture.U16(data, at + 18, 500);
         Assert.That(Assert.Throws<FactsPdfException>(() => Subset(data, 0x6587))!.Code, Is.EqualTo("FPDF1506"));
     }
+    // Reserved composite flag bits (0x0010, 0x2000-0x8000) are ignored, as FreeType ignores them; Chrome
+    // embeds fonts that set them, and the component record is copied with only its glyph id rewritten.
+    [TestCase(0x0010)] [TestCase(0x2000)] [TestCase(0x4000)] [TestCase(0x8000)] [TestCase(0xe010)]
+    public void ReservedCompositeFlagsAreIgnored(int reserved)
+    {
+        var data = Composite(5); FontFixture.U16(data, GlyphOffset(data, 7) + 10, 3 | reserved);
+        var s = Subset(data, 0x6587);
+        var parent = GlyphOffset(s.Bytes, s.GlyphMap[7]);
+        Assert.That(U16(s.Bytes, parent + 10), Is.EqualTo(3 | reserved));
+        Assert.That(U16(s.Bytes, parent + 12), Is.EqualTo(s.GlyphMap[5]));
+    }
     [Test]
     public void ConflictingCompositeScalesFailExplicitly()
     {

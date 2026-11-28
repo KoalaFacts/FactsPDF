@@ -76,6 +76,31 @@ public sealed class UnicodeFontTests
     [TestCase(0)] [TestCase(8)] [TestCase(256)]
     public void AcceptsFullEmbeddingPermissions(int fsType)
         => Assert.That(Font(fsType: (ushort)fsType).GlyphFor(65), Is.EqualTo(2));
+    // A Microsoft symbol cmap (platform 3, encoding 0) names its glyphs U+F0xx; Chrome 158 prints Latin text
+    // in such a font through those glyphs, so the plain code and the U+F000 form reach the same glyph.
+    [Test]
+    public void ASymbolCmapMapsLatinCodesThroughTheFPage()
+    {
+        var font = PdfFont.FromBytes(FontFixture.Create(symbol: true));
+        Assert.Multiple(() =>
+        {
+            Assert.That(font.GlyphFor(65), Is.EqualTo(2));
+            Assert.That(font.GlyphFor(0xF041), Is.EqualTo(2));
+            Assert.That(font.GlyphFor(66), Is.EqualTo(3));
+            Assert.That(font.GlyphFor(0x4e2d), Is.Zero);
+        });
+        using var output = new MemoryStream();
+        PdfConverter.Convert("<p>AB</p>", output, new PdfOptions { Fonts = [font] });
+        Assert.That(output.Length, Is.GreaterThan(0));
+    }
+    [Test]
+    public void AUnicodeCmapStillBeatsASymbolOneAndMissingCodesStayMissing()
+    {
+        var font = PdfFont.FromBytes(FontFixture.Create());
+        Assert.That(font.GlyphFor(0xF041), Is.Zero);
+        var symbol = PdfFont.FromBytes(FontFixture.Create(symbol: true));
+        Assert.That(Assert.Throws<FactsPdfException>(() => PdfConverter.Convert("<p>Z</p>", new MemoryStream(), new PdfOptions { Fonts = [symbol] }))!.Code, Is.EqualTo("FPDF1504"));
+    }
     [TestCase("OTTO")] [TestCase("ttcf")] [TestCase("wOFF")] [TestCase("wOF2")]
     public void RejectsUnsupportedFontContainers(string header)
     {

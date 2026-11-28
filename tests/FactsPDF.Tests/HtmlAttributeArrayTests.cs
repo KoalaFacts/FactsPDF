@@ -55,21 +55,20 @@ public sealed class HtmlAttributeArrayTests
         Assert.That(pairs, Is.EqualTo(new[] { "id=a", "class=b", "colspan=2", "data-x=&" }));
     }
 
-    // Duplicates fail at the duplicate's name, whether it is found by direct comparison or, past
-    // sixteen attributes, through the per-thread name set.
+    // A repeated attribute keeps its first value (the HTML parser's recovery), whether the repeat is found by
+    // direct comparison or, past sixteen attributes, through the per-thread name set.
     [TestCase(2)]
     [TestCase(16)]
     [TestCase(17)]
     [TestCase(40)]
-    public void ADuplicateAttributeFailsAtItsName(int distinct)
+    public void ADuplicateAttributeKeepsTheFirstValue(int distinct)
     {
         var html = new StringBuilder("<p");
         for (var i = 0; i < distinct; i++) html.Append(" a").Append(i).Append("=v");
-        var duplicateAt = html.Length + 1;
         html.Append(" A1=w>");
-        var error = Assert.Throws<FactsPdfException>(() => Read(html.ToString()))!;
-        Assert.That(error.Message, Does.Contain("Duplicate attribute."));
-        Assert.That(error.SourceOffset, Is.EqualTo(duplicateAt));
+        var attributes = Read(html.ToString())[0].Attributes!;
+        Assert.That(attributes, Has.Count.EqualTo(distinct));
+        Assert.That(attributes["a1"], Is.EqualTo("v"));
     }
 
     [TestCase(17)]
@@ -88,7 +87,7 @@ public sealed class HtmlAttributeArrayTests
     [Test]
     public void AFailedTagLeavesNoAttributesBehind()
     {
-        Assert.Throws<FactsPdfException>(() => Read("<p id=a class=b id=c>"));
+        Assert.Throws<FactsPdfException>(() => Read("<p id=a class=b id=&bogus;>"));
         Assert.Throws<FactsPdfException>(() => Read("<p id=a class=\"b>"));
         var attributes = Read("<p title=t>")[0].Attributes!;
         Assert.That(attributes.Select(pair => pair.Key), Is.EqualTo(new[] { "title" }));

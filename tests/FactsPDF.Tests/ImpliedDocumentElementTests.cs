@@ -43,7 +43,9 @@ public sealed class ImpliedDocumentElementTests
     public void HeadContentBeforeBodyContentGoesIntoHead()
     {
         // style, meta, link, base and title before body content are head elements in Chrome.
-        Assert.That(Pdf("<meta charset=utf-8><link rel=icon href=/i.png><title>T</title><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
+        Assert.That(Pdf("<meta charset=utf-8><link rel=icon href=/i.png><p>A</p>"), Is.EqualTo(Pdf("<p>A</p>")));
+        // The title is head metadata too: it is the PDF Title and prints nothing.
+        Assert.That(System.Text.Encoding.Latin1.GetString(Pdf("<meta charset=utf-8><title>T</title><p>A</p>")), Does.Contain("/Title <FEFF0054>"));
         // A style after </head> is still put into head, so p stays body's first child.
         Assert.That(Colors("<html><head></head><style>body > p:first-child{color:#f00}</style><body><p>A</p></body></html>"),
             Is.EqualTo(new[] { Red }));

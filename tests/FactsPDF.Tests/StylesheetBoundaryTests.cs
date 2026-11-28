@@ -79,9 +79,6 @@ public sealed class StylesheetBoundaryTests
         Assert.That(error!.Code, Is.EqualTo("FPDF1202"));
     }
     [Test]
-    public void MatchedBrStyleIsExplicitlyUnsupported()
-    {
-        var error = Assert.Throws<FactsPdfException>(() => Read("<style>br{color:red}</style><p>A<br>B</p>"));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1103"));
-    }
+    public void MatchedBrStyleIsAcceptedAndChangesNothing()
+        => Assert.That(Read("<style>br{color:red;margin:3pt}</style><p>A<br>B</p>"), Is.Not.Null);
 }

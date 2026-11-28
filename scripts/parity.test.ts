@@ -177,6 +177,19 @@ test('block-margin-collapse explains rendered differences of existing examples w
   assert.deepEqual(kinds({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before), []);
 });
 
+test('title-written explains a PDF that only gained the document title', () => {
+  const before = ok('%PDF-1.7 a');
+  const after = ok('%PDF-1.7 a /Title <FEFF0054>');
+  const kinds = (b: RunResult, a: RunResult, newExample = false, hasTitle = true) =>
+    classifyDifferences(b, a, newExample, false, false, false, false, hasTitle);
+  assert.equal(kinds(before, after)[0], 'title-written');
+  assert.ok(!kinds(before, after, false, false).includes('title-written'), 'an example without a title element is never this kind');
+  assert.ok(!kinds(before, after, true).includes('title-written'), 'a new example is not an existing one');
+  assert.ok(!kinds(after, before).includes('title-written'), 'losing a title is not this kind');
+  assert.ok(!kinds(before, ok('%PDF-1.7 b')).includes('title-written'), 'a difference without a new /Title is not this kind');
+  assert.ok(!kinds(before, { ...after, stderr: 'warning\n' }).includes('title-written'), 'changed diagnostics are not this kind');
+});
+
 test('a broad kind never hides a narrower one declared on its own', () => {
   // A page with a th and a div that moved its header text: a later change declaring only
   // th-default-centred must accept it, although the margin kinds also explain it.

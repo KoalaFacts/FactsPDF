@@ -143,12 +143,18 @@ public sealed class TableVerticalAlignmentTests
     public void UnsupportedCellAlignmentsRemainStrictAndOutputPreserving(string css, string code)
         => Reject(TwoCells(css), code);
 
-    [TestCase("<p style='vertical-align:middle'>TEXT</p>")]
-    [TestCase("<div style='vertical-align:bottom'>TEXT</div>")]
     [TestCase("<span style='vertical-align:middle'>TEXT</span>")]
-    [TestCase("<table style='vertical-align:middle'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>T</td></tr></tbody></table>")]
-    public void OutsideTableCellsNeverAcceptIgnoredVerticalAlign(string html)
+    public void InlineTextNeverAcceptsVerticalAlign(string html)
         => Reject(html, "FPDF1201");
+
+    // On a block box vertical-align applies to nothing (Chrome 158 prints the page unchanged), so a valid
+    // value is accepted and dropped.
+    [TestCase("<p style='vertical-align:middle'>TEXT</p>", "<p>TEXT</p>")]
+    [TestCase("<div style='vertical-align:bottom'>TEXT</div>", "<div>TEXT</div>")]
+    [TestCase("<table style='vertical-align:middle'><colgroup><col style='width:100%'></colgroup><tbody><tr><td>T</td></tr></tbody></table>",
+        "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td>T</td></tr></tbody></table>")]
+    public void OnABlockBoxVerticalAlignIsDropped(string html, string oracle)
+        => Assert.That(Pdf(html), Is.EqualTo(Pdf(oracle)));
 
     [TestCase("<p style='vertical-align:baseline'>TEXT <span style='VERTICAL-ALIGN:BASELINE'>MORE</span></p>", "<p>TEXT <span>MORE</span></p>")]
     [TestCase("<style>*{vertical-align:baseline}</style><div><p>TEXT</p></div>", "<div><p>TEXT</p></div>")]

@@ -175,7 +175,6 @@ public sealed class StylesheetTests
     public void UnsupportedOrMalformedCssFailsWithoutOutput(string css, string code)
         => Fails("<style>" + css + "</style><p>A</p>", code);
     [TestCase("<style media=screen>p{color:red}</style><p>A</p>", "FPDF1204")]
-    [TestCase("<style type='text/less'>p{color:red}</style><p>A</p>", "FPDF1204")]
     [TestCase("<link rel=stylesheet href='https://example.invalid/a.css'><p>A</p>", "FPDF1204")]
     [TestCase("<p><style>p{color:red}</style>A</p>", "FPDF1101")]
     [TestCase("<style>p{color:red}", "FPDF1101")]

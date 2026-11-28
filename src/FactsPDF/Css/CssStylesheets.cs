@@ -54,6 +54,10 @@ internal sealed class CssStylesheets
     private bool usesStructure;
     private List<(int Token, string Name)>? dropped;
 
+    /// <summary>The text of the document's first title element, normalised as <c>document.title</c>
+    /// is, or null when the page has no title element or its title is blank.</summary>
+    internal string? DocumentTitle { get; private set; }
+
     /// <summary>The document's element positions, built by <see cref="TrackPositions"/> only when a
     /// selector needs them.</summary>
     internal HtmlElementPositions? Positions { get; private set; }
@@ -114,6 +118,9 @@ internal sealed class CssStylesheets
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
         var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
+        // The document's title is its first title element in tree order (also one in body, which
+        // is dropped here like script because it is never rendered); only that element's text counts.
+        var titleSeen = false; var captureTitle = false; var droppedTitle = false; var svgDepth = 0;
         // A style element whose type is not CSS is not a stylesheet: non-strict mode ignores its text.
         var ignoredStyle = false;
         var shape = new HtmlImpliedElements();
@@ -129,9 +136,6 @@ internal sealed class CssStylesheets
                     continue;
                 }
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
-                // Title text is plain text in HTML, so markup there would show literally; reject it
-                // like any other element inside title instead of silently changing the title.
-                if (insideTitle) throw new FactsPdfException("FPDF1101", "template cannot be inside title.", item.Offset);
                 // A declarative shadow root is rendered by browsers, so dropping it would lose content.
                 if (item.Attributes!.ContainsKey("shadowrootmode"))
                     throw new FactsPdfException("FPDF1103", "Declarative shadow DOM (template shadowrootmode) is not supported.", item.Offset);
@@ -161,7 +165,6 @@ internal sealed class CssStylesheets
                     continue;
                 }
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
-                if (insideTitle) throw new FactsPdfException("FPDF1101", "script cannot be inside title.", item.Offset);
                 // In a colgroup, HTML closes the column group before a script, so the following col
                 // would start a new column group; dropping the script would shift the columns.
                 if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
@@ -170,9 +173,66 @@ internal sealed class CssStylesheets
                 (sheet.dropped ??= []).Add((tokens.Count, "script"));
                 continue;
             }
+            // A title inside svg is the svg's own element, not the document title.
+            if (item.Value == "svg")
+            {
+                if (item.Kind == HtmlTokenKind.Start && !item.SelfClosing) svgDepth++;
+                else if (item.Kind == HtmlTokenKind.End && svgDepth > 0) svgDepth--;
+            }
+            if (droppedTitle)
+            {
+                if (item.Kind == HtmlTokenKind.Text)
+                {
+                    if (captureTitle) sheet.DocumentTitle = PdfDocumentMetadata.NormalizeHtmlTitle(HtmlTokens.Decode(item.Value, item.Offset));
+                    continue;
+                }
+                if (item.Kind == HtmlTokenKind.End && item.Value == "title") { droppedTitle = false; captureTitle = false; continue; }
+            }
+            // meta is judged once, in head or body (a browser accepts it in both and renders neither).
+            if (item.Kind == HtmlTokenKind.Start && item.Value == "meta" && svgDepth == 0)
+            {
+                HtmlMeta.Validate(item);
+                if (shape.InBody)
+                {
+                    if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                    if (item is StyledHtmlToken inBodyMeta)
+                    {
+                        var css = inBodyMeta.Attributes!["style"];
+                        sheet.budget.Characters(css.Length, item.Offset);
+                        inBodyMeta.InlineDeclarations = sheet.CompileStyleAttribute(css, item.Value, item.StyleValueOffset, item.StyleOriginOffsets);
+                        if (CouldShowElement(inBodyMeta.InlineDeclarations))
+                            throw new FactsPdfException("FPDF1103", "A meta in body with a display other than none would take space, which is not supported.", item.Offset);
+                    }
+                    (sheet.dropped ??= []).Add((tokens.Count, "meta"));
+                    continue;
+                }
+            }
+            // A title in body is metadata the parser leaves in place (display:none): it counts as a
+            // sibling but is dropped with its text, and its style attribute is still validated.
+            if (item.Kind == HtmlTokenKind.Start && item.Value == "title" && svgDepth == 0 && shape.InBody)
+            {
+                if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
+                if (item is StyledHtmlToken inBodyTitle)
+                {
+                    var css = inBodyTitle.Attributes!["style"];
+                    sheet.budget.Characters(css.Length, item.Offset);
+                    inBodyTitle.InlineDeclarations = sheet.CompileStyleAttribute(css, item.Value, item.StyleValueOffset, item.StyleOriginOffsets);
+                    if (CouldShowElement(inBodyTitle.InlineDeclarations))
+                        throw new FactsPdfException("FPDF1103", "A title in body with a display other than none would print its text, which is not supported.", item.Offset);
+                }
+                captureTitle = !titleSeen; titleSeen = true; droppedTitle = true;
+                (sheet.dropped ??= []).Add((tokens.Count, "title"));
+                continue;
+            }
             var kept = shape.Add(tokens, item);
-            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title")
-                insideTitle = item.Kind == HtmlTokenKind.Start && !item.SelfClosing;
+            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "title" && svgDepth == 0)
+            {
+                insideTitle = item.Kind == HtmlTokenKind.Start;
+                if (item.Kind == HtmlTokenKind.Start) { captureTitle = !titleSeen; titleSeen = true; }
+                else captureTitle = false;
+            }
+            else if (item.Kind == HtmlTokenKind.Text && insideTitle && captureTitle)
+                sheet.DocumentTitle = PdfDocumentMetadata.NormalizeHtmlTitle(HtmlTokens.Decode(item.Value, item.Offset));
             else if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "colgroup" or "thead" or "tbody" or "tfoot" or "tr" or "table")
                 insideColgroup = item.Kind == HtmlTokenKind.Start && !item.SelfClosing && item.Value == "colgroup";
             // The parser holds an explicit </head> back until body content starts, but the early depth
@@ -189,7 +249,18 @@ internal sealed class CssStylesheets
             {
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
                 if (kept) depth.Read(item);
-                if (item.Value == "style") ignoredStyle = ValidateStyleElement(item, sheet.budget.Warnings);
+                if (item.Value == "style")
+                {
+                    ignoredStyle = ValidateStyleElement(item);
+                    if (item is StyledHtmlToken styledSheet)
+                    {
+                        var css = styledSheet.Attributes!["style"];
+                        sheet.budget.Characters(css.Length, item.Offset);
+                        styledSheet.InlineDeclarations = sheet.CompileStyleAttribute(css, item.Value, item.StyleValueOffset, item.StyleOriginOffsets);
+                        if (CouldShowElement(styledSheet.InlineDeclarations))
+                            throw new FactsPdfException("FPDF1103", "A style element with a display other than none would print its CSS text, which is not supported.", item.Offset);
+                    }
+                }
                 else if (item is StyledHtmlToken styled)
                 {
                     var css = styled.Attributes!["style"];
@@ -201,6 +272,20 @@ internal sealed class CssStylesheets
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
         shape.Finish(tokens);
         return sheet;
+    }
+    /// <summary>
+    /// Whether a compiled style attribute sets <c>display</c> to something other than <c>none</c> (or to a
+    /// <c>var()</c> that could): the one declaration that can make a metadata element a browser keeps hidden
+    /// by default paint something. Every other declaration on such an element changes nothing.
+    /// </summary>
+    internal static bool CouldShowElement(InlineStyle inline)
+    {
+        if (inline.Declarations is not { } declarations) return false;
+        foreach (var declaration in declarations)
+            if (declaration.Property == CssProperty.Display && declaration.Value != "none"
+                || declaration.Property == CssProperty.Pending && declaration.Name.Equals("display", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
     }
     /// <summary>
     /// Compiles one style attribute. A page usually repeats the same few style texts (every cell
@@ -263,32 +348,31 @@ internal sealed class CssStylesheets
     // absent, empty or an ASCII case-insensitive match for text/css (no parameters, no white space;
     // Chrome 158 agrees), so any other type is not a stylesheet: strict mode fails FPDF1204 as it
     // always has, and non-strict mode ignores the whole element (with its other attributes) and warns.
-    private static bool ValidateStyleElement(HtmlToken token, CssWarnings? warnings)
+    // Whether the element is ignored. A style whose type is neither empty nor text/css is not a
+    // stylesheet (HTML "update a style block"): browsers skip it, its media never matters, and it
+    // is no error. Strict and non-strict conversion both ignore it without a warning.
+    private static bool ValidateStyleElement(HtmlToken token)
     {
         if (token.SelfClosing) throw new FactsPdfException("FPDF1101", "style requires an HTML end tag.", token.Offset);
-        if (warnings is not null && token.Attributes!.TryGetValue("type", out var type) && !CssType(type))
-        {
-            warnings.Add("FPDF1204", "Only text/css style elements are supported.", token.Offset);
-            return true;
-        }
+        var ignored = token.Attributes!.TryGetValue("type", out var type) && !CssType(type);
         foreach (var (name, value) in token.Attributes!)
         {
-            if (name == "type")
-            {
-                if (!CssType(value))
-                    throw new FactsPdfException("FPDF1204", "Only text/css style elements are supported.", token.Offset);
-            }
-            else if (name == "media")
+            if (name == "type") continue;
+            // Compiled (and validated) by Collect like any style attribute; a display that would show the
+            // sheet's own text is refused there.
+            if (name == "style") continue;
+            if (name == "media")
             {
                 var media = value.Trim().ToLowerInvariant();
-                if (media is not ("" or "all" or "print")) throw new FactsPdfException("FPDF1204", "Only empty/all/print style media are supported.", token.Offset);
+                if (!ignored && media is not ("" or "all" or "print"))
+                    throw new FactsPdfException("FPDF1204", "Only empty/all/print style media are supported.", token.Offset);
             }
             // dir="ltr" is accepted on every element, as in the document reader (R5ci).
             else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
-        return false;
+        return ignored;
     }
 
     private static bool CssType(string type) => type.Length == 0 || type.Equals("text/css", StringComparison.OrdinalIgnoreCase);
@@ -508,6 +592,10 @@ internal sealed class CssStylesheets
     {
         Winner? display = null, content = null;
         var element = path[^1];
+        // var() in the pseudo-element's own display or content, and the custom properties it
+        // declares, are resolved here against the originating element's computed custom properties,
+        // as Compute does for the rest of the box.
+        List<Deferral>? customs = null, pendings = null;
         void Scan(List<Rule> rules)
         {
             foreach (var rule in rules)
@@ -521,6 +609,11 @@ internal sealed class CssStylesheets
                     { if (display is not { } old || candidate.Beats(old)) display = candidate; }
                     else if (declaration.Property == CssProperty.Content)
                     { if (content is not { } old || candidate.Beats(old)) content = candidate; }
+                    else if (declaration.Property == CssProperty.Custom)
+                        (customs ??= []).Add(new(declaration.Shared, declaration.Order, declaration.Offset, false, rule.Selector.Specificity));
+                    else if (declaration.Property == CssProperty.Pending
+                        && declaration.Name.ToLowerInvariant() is "content" or "display")
+                        (pendings ??= []).Add(new(declaration.Shared, declaration.Order, declaration.Offset, false, rule.Selector.Specificity));
                 }
             }
         }
@@ -528,6 +621,28 @@ internal sealed class CssStylesheets
         if (types.TryGetValue(element.Name, out var typeRules)) Scan(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Scan(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Scan(classRules);
+        if (pendings is not null)
+        {
+            var depth = path.Count - 1;
+            var environment = depth < environments.Count ? environments[depth] : CssCustomEnvironment.Empty;
+            if (customs is not null)
+            {
+                customDeclarations.Clear(); customDeclarations.AddRange(customs);
+                environment = ResolveCustomProperties(environment);
+                customDeclarations.Clear();
+            }
+            foreach (var pending in pendings)
+                foreach (var substituted in Substitute(pending, environment, "span"))
+                {
+                    // At the var() declaration's own cascade position, not the substitution's.
+                    var kept = new Winner(CssDeclaration.Create(substituted.Property, substituted.Name, substituted.Value,
+                        substituted.Important, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
+                    if (substituted.Property == CssProperty.Display)
+                    { if (display is not { } old || kept.Beats(old)) display = kept; }
+                    else if (substituted.Property == CssProperty.Content)
+                    { if (content is not { } old || kept.Beats(old)) content = kept; }
+                }
+        }
         return (display?.Declaration.Value, content?.Declaration.Value);
     }
 
@@ -599,6 +714,19 @@ internal sealed class CssStylesheets
             if (declaration.Property is CssProperty.Orphans or CssProperty.Widows
                 && (HtmlDocumentReader.InlineTag(element.Name) || element.Name is "br" or "img" or "hr" or "col"))
                 return;
+            // A line break takes no style: Chrome 158 lays out a br with any font, line-height, margin, padding,
+            // border or alignment exactly like a plain one. Only display:none removes the break; every other
+            // display value (block, inline, flex ...) still breaks the line, so it is stored as block.
+            if (subject == "br")
+            {
+                if (declaration.Property != CssProperty.Display) return;
+                var brDisplay = declaration.Value is "none" ? "none" : "block";
+                var br = new Winner(CssDeclaration.Create(CssProperty.Display, "display", brDisplay, declaration.Important,
+                    declaration.Order, declaration.Offset), isInline, specificity);
+                var brOld = winners[(int)CssProperty.Display];
+                if (!brOld.HasValue || br.Beats(brOld.Value)) winners[(int)CssProperty.Display] = br;
+                return;
+            }
             if (!allowStyling) throw new FactsPdfException("FPDF1103", "Styling this void element is not supported.", elementOffset);
             // Only existing ordinary block-flow elements can be suppressed.
             // Lists/tables/images/inline/metadata have different layout and
@@ -692,8 +820,20 @@ internal sealed class CssStylesheets
             }
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
                 subject is not ("ol" or "ul" or "menu" or "li"))
-                throw new FactsPdfException("FPDF1201",
-                    "List marker properties are supported only on ol, ul and li.", declaration.Offset);
+            {
+                // list-style is inherited, so on a block container it reaches the lists below it (an ul or
+                // ol keeps its own user-agent type; the position is inherited). Elements that cannot
+                // hold a list (inline text, br, img, svg, hr, col) take the validated value and drop it.
+                if (subject is "br" or "img" or "svg" or "hr" or "col" || HtmlDocumentReader.InlineTag(subject)) return;
+                if (!(HtmlDocumentReader.ParagraphTag(subject) || HtmlDocumentReader.Container(subject)))
+                    throw new FactsPdfException("FPDF1201",
+                        "List marker properties are supported on lists, list items and block containers, not on table parts.", declaration.Offset);
+            }
+            // vertical-align applies only to inline-level and table-cell boxes; on a block box (a paragraph,
+            // heading, panel, list, table or rule) any valid value changes nothing, as in a browser.
+            if (declaration.Property == CssProperty.VerticalAlign
+                && (HtmlDocumentReader.ParagraphTag(subject) || HtmlDocumentReader.Container(subject) || subject is "table" or "hr" or "caption"))
+                return;
             if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg"))
             {
                 if (subject is not ("td" or "th"))
@@ -906,7 +1046,9 @@ internal sealed class CssStylesheets
         }
         if (budget.UsesVariables)
         {
-            var depth = path.Count - 1;
+            // A pseudo-element is a child of its originating element: it inherits that element's
+            // custom properties and its own never replace the element's for its children.
+            var depth = pseudo == CssPseudoElement.None ? path.Count - 1 : path.Count;
             var parentEnvironment = depth > 0 && depth - 1 < environments.Count ? environments[depth - 1] : CssCustomEnvironment.Empty;
             var environment = customDeclarations.Count == 0 ? parentEnvironment : ResolveCustomProperties(parentEnvironment);
             if (environments.Count > depth) environments.RemoveRange(depth, environments.Count - depth);

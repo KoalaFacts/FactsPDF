@@ -146,10 +146,6 @@ public sealed class BorderBoxSizingTests
         Assert.That(Pdf(declared), Is.EqualTo(Pdf(plain)));
     }
 
-    [Test]
-    public void StylingALineBreakOtherwiseStillFails()
-        => FailClosed("<style>*{box-sizing:border-box;color:red}</style><p>A<br>B</p>", "FPDF1103");
-
     private static string Table(string tableStyle, string colWidth, string css = "") =>
         $"<html><head><style>{css}</style></head><body><table style='{tableStyle}'><colgroup><col style='width:{colWidth}'></colgroup>" +
         "<tbody><tr><td>Head</td></tr><tr><td style='padding:4pt'><p>Cell <span>text</span></p></td></tr></tbody></table></body></html>";

@@ -63,7 +63,8 @@ internal sealed class SubsetGlyphClosure
         {
             token.ThrowIfCancellationRequested(); Check(at + 4 <= glyph.Length, "Truncated composite component.");
             flags = U16(glyph, at); var child = U16(glyph, at + 2);
-            Check((flags & 0xe010) == 0, "Reserved composite flags are unsupported.");
+            // Reserved flag bits (0x0010 and 0x2000-0x8000) are ignored, as FreeType ignores them: the
+            // component record is copied unchanged apart from its glyph id.
             Check(result.Count > 0 || (flags & 2) != 0, "The first composite component must use XY positioning.");
             var scales = flags & (8 | 64 | 128); Check(scales is 0 or 8 or 64 or 128, "Conflicting composite transforms.");
             Check((flags & 0x1800) != 0x1800, "Conflicting composite offset flags.");

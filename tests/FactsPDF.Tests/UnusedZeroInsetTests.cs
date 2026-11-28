@@ -64,7 +64,6 @@ public sealed class UnusedZeroInsetTests
     [TestCase("tr{padding:2pt}", "2pt", "FPDF1201")]
     [TestCase("tbody{padding:inherit}", "inherit", "FPDF1201")]
     [TestCase("col{padding-left:1px}", "1px", "FPDF1201")]
-    [TestCase("br{margin:1pt}", "<br>", "FPDF1103")]
     public void NonZeroInsetsStillFailWithoutOutput(string css, string at, string code)
     {
         var html = Doc(css);

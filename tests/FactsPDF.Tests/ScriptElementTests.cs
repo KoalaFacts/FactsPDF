@@ -32,6 +32,15 @@ public sealed class ScriptElementTests
     [TestCase("<template><script>x()</script><p>T</p></template><p>Body</p>", "<p>Body</p>")]
     [TestCase("<table><colgroup><col style='width:236pt'></colgroup><script></script><tbody><tr><td>Row</td></tr></tbody></table>",
         "<table><colgroup><col style='width:236pt'></colgroup><tbody><tr><td>Row</td></tr></tbody></table>")]
+    // The escaped and double-escaped script data states (Chrome 158 prints A and B for each): inside
+    // "<!--" a "<script" hides the next "</script", and "-->" returns to the plain state.
+    [TestCase("<p>A</p><script><!--<script>x</script>--></script><p>B</p>", "<p>A</p><p>B</p>")]
+    [TestCase("<p>A</p><script><!-- <SCRIPT\n> </script> </script><p>B</p>", "<p>A</p><p>B</p>")]
+    [TestCase("<p>A</p><script><!-- x </script><p>B</p>", "<p>A</p><p>B</p>")]
+    [TestCase("<p>A</p><script><!-- <script> --> </script><p>B</p>", "<p>A</p><p>B</p>")]
+    [TestCase("<p>A</p><script><!--> <script> </script><p>B</p>", "<p>A</p><p>B</p>")]
+    [TestCase("<p>A</p><script><!-- <scripty> </script><p>B</p>", "<p>A</p><p>B</p>")]
+    [TestCase("<p>A</p><script><!-- <script/> </script/> </script ><p>B</p>", "<p>A</p><p>B</p>")]
     public void RendersAsIfAbsent(string html, string without)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(without)));
 
@@ -57,8 +66,7 @@ public sealed class ScriptElementTests
     [TestCase("<p>A</p><script>x()", "FPDF1101", 8)]
     [TestCase("<p>A</p><script>x()</scriptx>", "FPDF1101", 8)]
     [TestCase("<p>A</p></script>", "FPDF1101", 8)]
-    [TestCase("<head><title>Ti<script>x</script>tle</title></head>", "FPDF1101", 15)]
-    [TestCase("<p>A</p><script><!--<script>x</script>--></script>", "FPDF1101", 16)]
+    [TestCase("<p>A</p><script><!-- <script> </script><p>B</p>", "FPDF1101", 8)]
     [TestCase("<table><colgroup><script></script><col style='width:50pt'><col style='width:186pt'></colgroup><tbody><tr><td>A</td><td>B</td></tr></tbody></table>", "FPDF1101", 17)]
     [TestCase("<table><colgroup><col style='width:50pt'><script></script><col style='width:186pt'><tbody><tr><td>A</td><td>B</td></tr></tbody></table>", "FPDF1101", 41)]
     public void UnclosedStrayOrDoubleEscapedScriptsFail(string html, string code, int offset)

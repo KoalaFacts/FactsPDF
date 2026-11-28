@@ -54,11 +54,11 @@ public sealed class HtmlTokenNameTests
     }
 
     [Test]
-    public void DuplicateAttributesInDifferentCaseStillFail()
+    public void DuplicateAttributesInDifferentCaseKeepTheFirst()
     {
-        var error = Assert.Throws<FactsPdfException>(() => Read("<td Class=a CLASS=b>"));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1101"));
-        Assert.That(error.Message, Does.Contain("Duplicate attribute."));
+        var attributes = Read("<td Class=a CLASS=b>")[0].Attributes!;
+        Assert.That(attributes, Has.Count.EqualTo(1));
+        Assert.That(attributes["class"], Is.EqualTo("a"));
     }
 
     [AllocationBudget]

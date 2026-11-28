@@ -45,6 +45,9 @@ internal static class HtmlTokens
     public static IEnumerable<HtmlToken> Read(string html, CancellationToken cancellation)
     {
         var i = 0;
+        // Open svg elements: a title inside one is an svg element with ordinary content, not the
+        // document's RCDATA title.
+        var svgDepth = 0;
         while (i < html.Length)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -83,6 +86,7 @@ internal static class HtmlTokens
             if (closing)
             {
                 if (i >= html.Length || html[i++] != '>') throw Invalid("Malformed end tag.", start);
+                if (name == "svg" && svgDepth > 0) svgDepth--;
                 yield return new(HtmlTokenKind.End, name, false, start);
                 continue;
             }
@@ -102,9 +106,9 @@ internal static class HtmlTokens
                     if (html[i] == '/' && i + 1 < html.Length && html[i + 1] == '>')
                     { selfClosing = true; i++; break; }
                     var attrStart = i;
-                    while (i < html.Length && NameCharacter(html[i])) i++;
+                    while (i < html.Length && AttributeNameCharacter(html[i])) i++;
                     if (i == attrStart) throw Invalid("Malformed attribute.", i);
-                    var attribute = LowerName(html, attrStart, i);
+                    var attribute = LowerAttributeName(html, attrStart, i);
                     SkipSpace(html, ref i);
                     var value = "";
                     var rawValueStart = attrStart;
@@ -142,12 +146,20 @@ internal static class HtmlTokens
                         var decoded = value;
                         int[]? offsets = null;
                         if (hasReferences) (decoded, offsets) = DecodeWithOriginOffsets(value, rawValueStart);
-                        if (!AddAttribute(scratch, attribute, decoded)) throw Invalid("Duplicate attribute.", attrStart);
-                        styleValueOffset = rawValueStart;
-                        styleOriginOffsets = offsets;
+                        // A repeated attribute is a parse error the HTML parser recovers from by keeping
+                        // the first, so a repeated style attribute leaves the first one's offsets.
+                        if (AddAttribute(scratch, attribute, decoded))
+                        {
+                            styleValueOffset = rawValueStart;
+                            styleOriginOffsets = offsets;
+                        }
                     }
-                    else if (!AddAttribute(scratch, attribute, Decode(value, attrStart)))
-                        throw Invalid("Duplicate attribute.", attrStart);
+                    else
+                    {
+                        // The value of a repeated attribute is still decoded, so an invalid character
+                        // reference in it fails as it would elsewhere.
+                        _ = AddAttribute(scratch, attribute, Decode(value, attrStart));
+                    }
                     SkipSpace(html, ref i);
                 }
                 if (i >= html.Length || html[i] != '>') throw Invalid("Unterminated start tag.", start);
@@ -158,6 +170,9 @@ internal static class HtmlTokens
             {
                 ReleaseAttributeScratch(scratch);
             }
+            var rcdataTitle = name == "title" && svgDepth == 0;
+            if (rcdataTitle) selfClosing = false; // the slash is ignored: title still opens its text
+            if (name == "svg" && !selfClosing) svgDepth++;
             yield return styleValueOffset >= 0
                 ? new StyledHtmlToken(name, attrs!, selfClosing, start, styleValueOffset, styleOriginOffsets)
                 : attrs is null
@@ -180,31 +195,80 @@ internal static class HtmlTokens
                 yield return new(HtmlTokenKind.StyleText, html[i..end], false, i);
                 i = end;
             }
-            else if (name == "script")
+            else if (rcdataTitle)
             {
-                // Script data ends at the first "</script" followed by a delimiter, as in browsers,
-                // which also ignore a self-closing slash on script. FactsPDF runs no scripts, so the
-                // data is skipped and never becomes a token. "<!--" followed by "<script" would put
-                // a browser in the double-escaped state, where "</script>" does not end the element;
-                // that case fails instead of guessing where the element ends.
+                // RCDATA: markup inside title is literal text (character references still decode,
+                // in the collecting pass), and the element ends at the first "</title" followed by
+                // a delimiter. The self-closing slash is ignored, as in browsers.
                 var end = i;
                 while (true)
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    end = html.IndexOf("</script", end, StringComparison.OrdinalIgnoreCase);
-                    if (end < 0) throw Invalid("Unclosed script element.", start);
-                    var after = end + 8;
+                    end = html.IndexOf("</title", end, StringComparison.OrdinalIgnoreCase);
+                    if (end < 0) throw Invalid("Unclosed title element.", start);
+                    var after = end + 7;
                     if (after < html.Length && (Space(html[after]) || html[after] is '>' or '/')) break;
                     end = after;
                 }
-                var data = html.AsSpan(i, end - i);
-                var comment = data.IndexOf("<!--", StringComparison.Ordinal);
-                if (comment >= 0 && data[comment..].Contains("<script", StringComparison.OrdinalIgnoreCase))
-                    throw Invalid("A nested '<script' after '<!--' inside script data is not supported.", i + comment);
+                if (end > i) yield return new(HtmlTokenKind.Text, html[i..end], false, i);
                 i = end;
+            }
+            else if (name == "script")
+            {
+                // FactsPDF runs no scripts, so the data is skipped and never becomes a token. The
+                // data ends where a browser's tokenizer ends it, which ignores a self-closing slash
+                // on script and follows the escaped and double-escaped states.
+                i = ScriptDataEnd(html, i, start, cancellation);
             }
         }
     }
+
+    // The offset of the "</script" that ends the script data starting at `from`, following the
+    // HTML tokenizer's script data states: "<!--" enters the escaped state, where a "<script"
+    // (the double-escaped state) hides the next "</script" from the end-tag check, and "-->"
+    // returns to the plain state. A "</script" in the double-escaped state only leaves it.
+    private static int ScriptDataEnd(string html, int from, int elementStart, CancellationToken cancellation)
+    {
+        const int Plain = 0, Escaped = 1, DoubleEscaped = 2;
+        var state = Plain; var dashes = 0;
+        for (var i = from; i < html.Length;)
+        {
+            if ((i & 0xFFF) == 0) cancellation.ThrowIfCancellationRequested();
+            var ch = html[i];
+            if (ch == '<')
+            {
+                dashes = 0;
+                if (state == Plain && html.AsSpan(i).StartsWith("<!--", StringComparison.Ordinal))
+                {
+                    state = Escaped; dashes = 2; i += 4;
+                }
+                else if (TagNameAt(html, i + 2, "script") && html[i + 1] == '/')
+                {
+                    if (state != DoubleEscaped) return i;
+                    state = Escaped; i += 8;
+                }
+                else if (state == Escaped && TagNameAt(html, i + 1, "script"))
+                {
+                    state = DoubleEscaped; i += 7;
+                }
+                else i++;
+            }
+            else
+            {
+                if (ch == '-') dashes++;
+                else if (ch == '>' && dashes >= 2 && state != Plain) { state = Plain; dashes = 0; }
+                else dashes = 0;
+                i++;
+            }
+        }
+        throw Invalid("Unclosed script element.", elementStart);
+    }
+
+    // Whether `name` starts at `at` (ASCII case-insensitively) and is followed by a tag delimiter.
+    private static bool TagNameAt(string html, int at, string name)
+        => at + name.Length < html.Length
+            && string.Compare(html, at, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0
+            && (Space(html[at + name.Length]) || html[at + name.Length] is '>' or '/');
 
     /// <summary>Decode one style attribute while retaining original HTML boundaries for CSS diagnostics.</summary>
     private static (string Decoded, int[] OriginalOffsets) DecodeWithOriginOffsets(string raw, int rawStart)
@@ -288,10 +352,19 @@ internal static class HtmlTokens
     {
         var hex = name.Length > 1 && name[1] is 'x' or 'X';
         var number = name[(hex ? 2 : 1)..];
-        return int.TryParse(number, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.None,
-            CultureInfo.InvariantCulture, out var scalar) && scalar > 0 && Rune.IsValid(scalar)
-            ? new Rune(scalar) : null;
+        if (!int.TryParse(number, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.None,
+                CultureInfo.InvariantCulture, out var scalar) || scalar <= 0 || !Rune.IsValid(scalar)) return null;
+        // A reference to a C1 control reads as the windows-1252 character at that code (&#x85; is an
+        // ellipsis), the way the HTML parser decodes it.
+        if (scalar is >= 0x80 and <= 0x9F) scalar = Windows1252[scalar - 0x80];
+        return new Rune(scalar);
     }
+
+    private static readonly int[] Windows1252 =
+    [
+        0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+        0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178
+    ];
 
     private const int MaxPooledAttributes = 1_024;
     [ThreadStatic] private static List<KeyValuePair<string, string>>? attributeScratch;
@@ -347,6 +420,24 @@ internal static class HtmlTokens
 
     private static string LowerName(string html, int start, int end) =>
         KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known) ? known : html[start..end].ToLowerInvariant();
+
+    // An attribute name is any run of characters except white space, controls, quotes, "<", ">", "/" and "="
+    // (HTML), so data-* names such as data-a.b or data-café are names too. Tag names stay ASCII.
+    private static bool AttributeNameCharacter(char ch)
+        => ch > ' ' && ch is not ('"' or '\'' or '<' or '>' or '/' or '=') && !char.IsControl(ch) && !char.IsWhiteSpace(ch);
+
+    // HTML lower-cases only ASCII letters in an attribute name.
+    private static string LowerAttributeName(string html, int start, int end)
+    {
+        if (KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known)) return known;
+        var name = html[start..end];
+        foreach (var ch in name)
+            if (char.IsAsciiLetterUpper(ch)) return string.Create(name.Length, name, static (span, source) =>
+            {
+                for (var i = 0; i < span.Length; i++) span[i] = char.IsAsciiLetterUpper(source[i]) ? (char)(source[i] | 0x20) : source[i];
+            });
+        return name;
+    }
 
     public static bool Space(char ch) => ch is ' ' or '\t' or '\r' or '\n' or '\f';
 

@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0, bool quotationMarks = false)
+        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0, bool quotationMarks = false, bool symbol = false)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -47,8 +47,14 @@ internal static class FontFixture
             map[0x2170] = 2; // small Roman numeral one
             map[0x24d0] = 3; // circled small Latin a
         }
+        // A Microsoft symbol font (platform 3, encoding 0) keys its Latin-range characters by U+F000 + code.
+        if (symbol)
+        {
+            format12 = false;
+            foreach (var (cp, glyph) in map.ToArray()) { map.Remove(cp); if (cp is >= 0x20 and <= 0xFF) map[0xF000 + cp] = glyph; }
+        }
         foreach (var cp in map.Keys.ToArray())
-            if ((latinOnly && cp > 255) || (!format12 && cp > 65535)) map.Remove(cp);
+            if ((latinOnly && cp > 255 && !symbol) || (!format12 && cp > 65535)) map.Remove(cp);
         byte[] sub;
         if (format12)
         {
@@ -75,7 +81,7 @@ internal static class FontFixture
             U16(sub, 14 + (n - 1) * 2, 65535); U16(sub, 16 + n * 2 + (n - 1) * 2, 65535);
             U16(sub, 16 + n * 4 + (n - 1) * 2, 1);
         }
-        var cmap = new byte[12 + sub.Length]; U16(cmap, 2, 1); U16(cmap, 4, 3); U16(cmap, 6, format12 ? 10 : 1); U32(cmap, 8, 12); sub.CopyTo(cmap, 12);
+        var cmap = new byte[12 + sub.Length]; U16(cmap, 2, 1); U16(cmap, 4, 3); U16(cmap, 6, symbol ? 0 : format12 ? 10 : 1); U32(cmap, 8, 12); sub.CopyTo(cmap, 12);
         var head = new byte[54]; U32(head, 0, 0x00010000); U32(head, 12, 0x5f0f3cf5); U16(head, 18, 1000); U16(head, 40, 900); U16(head, 42, 700); U16(head, 50, 1);
         var hhea = new byte[36]; U32(hhea, 0, 0x00010000); U16(hhea, 4, 800); U16(hhea, 6, unchecked((ushort)-200)); U16(hhea, 10, 1000); U16(hhea, 18, 1); U16(hhea, 34, 11);
         // emptyGlyphs appends that many outline-less glyphs after the twelve real ones, so a test can

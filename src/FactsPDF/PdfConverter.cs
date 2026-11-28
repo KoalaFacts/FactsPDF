@@ -39,6 +39,9 @@ internal static class PdfConverter
             throw new FactsPdfException("FPDF1001", "HTML and page text exceed MaxInputCharacters.");
 
         var document = HtmlDocumentReader.ReadTree(html, options, cancellationToken);
+        // The page's title element is the PDF Title, as in a browser's print output, unless the
+        // caller set one explicitly.
+        if (options.Title is null && document.Title is not null) options = options with { Title = document.Title };
         // CSS @page sets the page geometry and margin boxes before any layout reads them.
         if (document.PageRules is { } pageRules)
         {

@@ -2,12 +2,15 @@ using static FactsPDF.SfntDirectory;
 
 namespace FactsPDF;
 
-/// <summary>A single consistently selected Unicode cmap; format 12 is preferred over 4.</summary>
+/// <summary>A single consistently selected cmap: a Unicode one (format 12 preferred over 4) or, for a symbol
+/// font that has none, the Microsoft symbol cmap (platform 3, encoding 0, format 4).</summary>
 internal sealed class UnicodeCmap
 {
     private readonly byte[] bytes;
     private readonly int format;
     private readonly int count;
+    // The Microsoft symbol cmap keys its glyphs by U+F000 + the character code of the font's own encoding.
+    private readonly bool symbol;
 
     internal UnicodeCmap(ReadOnlySpan<byte> table, int glyphCount, CancellationToken cancellation)
     {
@@ -21,13 +24,15 @@ internal sealed class UnicodeCmap
             var at = 4 + i * 8; var platform = U16(table, at); var encoding = U16(table, at + 2);
             var offset = U32(table, at + 4);
             Need(offset >= 4 + 8 * records && (long)offset + 2 <= table.Length, "Invalid cmap subtable offset.");
-            if (!(platform == 0 || platform == 3 && encoding is 1 or 10)) continue;
+            var isSymbol = platform == 3 && encoding == 0;
+            if (!(platform == 0 || platform == 3 && encoding is 1 or 10 || isSymbol)) continue;
             var candidate = U16(table, (int)offset);
-            if (candidate is not (4 or 12)) continue;
-            var score = (candidate == 12 ? 10 : 0) + (platform == 3 ? 1 : 0);
-            if (score > bestScore) { bestScore = score; bestOffset = (int)offset; }
+            if (candidate is not (4 or 12) || isSymbol && candidate != 4) continue;
+            // Any Unicode cmap beats the symbol one.
+            var score = isSymbol ? 0 : 1 + (candidate == 12 ? 10 : 0) + (platform == 3 ? 1 : 0);
+            if (score > bestScore) { bestScore = score; bestOffset = (int)offset; symbol = isSymbol; }
         }
-        if (bestOffset < 0) throw new FactsPdfException("FPDF1502", "A Unicode cmap format 4 or 12 is required.");
+        if (bestOffset < 0) throw new FactsPdfException("FPDF1502", "A Unicode cmap format 4 or 12 (or a Microsoft symbol cmap format 4) is required.");
         var sub = table[bestOffset..]; format = U16(sub, 0);
         var length = format == 12 ? U32(sub, 4) : U16(sub, 2);
         Need(length <= sub.Length && length >= (format == 12 ? 16 : 24), "Invalid cmap length.");
@@ -71,6 +76,14 @@ internal sealed class UnicodeCmap
     }
 
     internal ushort GlyphFor(int scalar)
+    {
+        var glyph = Lookup(scalar);
+        // A symbol font names its characters U+F020-U+F0FF; text typed as the plain character code
+        // (as a browser's symbol fonts are used) reaches the same glyph.
+        return glyph == 0 && symbol && scalar is >= 0x20 and <= 0xFF ? Lookup(0xF000 + scalar) : glyph;
+    }
+
+    private ushort Lookup(int scalar)
     {
         if (scalar < 0 || scalar > 0x10ffff || scalar is >= 0xd800 and <= 0xdfff || format == 4 && scalar > 65535) return 0;
         var lo = 0; var hi = count - 1;

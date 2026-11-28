@@ -323,6 +323,30 @@ public sealed class CustomPropertyTests
         Assert.That(Pdf(Document(shallow.ToString())), Is.EqualTo(Pdf(Document("p{color:#2e7d32}"))));
     }
 
+    // A pseudo-element is a child of its originating element for custom properties: it sees the
+    // element's, its own declarations never reach the element's children, and var() works in its
+    // content and display (Chrome 158 prints each page like its literal twin).
+    [TestCase("p{--c:#c00}p::before{content:'x ';color:var(--c)}", "p::before{content:'x ';color:#c00}")]
+    [TestCase("p{--c:#c00}p::before{content:'x ';--c:#06c;color:var(--c)}", "p::before{content:'x ';color:#06c}")]
+    [TestCase("p::before{--t:'>> ';content:var(--t)}", "p::before{content:'>> '}")]
+    [TestCase("p{--t:'>> '}p::before{content:var(--t)}", "p::before{content:'>> '}")]
+    [TestCase("p::before{content:var(--none,'>> ')}", "p::before{content:'>> '}")]
+    [TestCase("p{--t:'<<'}p::after{content:var(--t)}", "p::after{content:'<<'}")]
+    [TestCase("div{--d:block}div::before{content:'x';display:var(--d)}", "div::before{content:'x';display:block}")]
+    public void VarInAPseudoElementResolvesAgainstItsElement(string css, string literal)
+    {
+        const string body = "<div><p>Aa</p></div>";
+        Assert.That(Pdf(Document(css, body)), Is.EqualTo(Pdf(Document(literal, body))));
+    }
+
+    [Test]
+    public void APseudoElementsCustomPropertyDoesNotReachTheElementsChildren()
+    {
+        const string body = "<p>Aa<span>Bb</span></p>";
+        Assert.That(Pdf(Document("p{--c:#c00}span{color:var(--c)}p::before{content:'x ';--c:#06c}", body)),
+            Is.EqualTo(Pdf(Document("span{color:#c00}p::before{content:'x '}", body))));
+    }
+
     [Test]
     public void SubstitutionWorkIsChargedToTheMatchBudget()
     {

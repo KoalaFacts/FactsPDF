@@ -163,6 +163,6 @@ public sealed class CliPdfMetadataTests
         var help = Encoding.UTF8.GetString(result.Pdf);
         foreach (var field in new[] { "title", "author", "subject", "keywords" })
             Assert.That(help, Does.Contain("--" + field + " text"));
-        Assert.That(help, Does.Contain("never extracted from HTML"));
+        Assert.That(help, Does.Contain("only the page title element supplies a Title"));
     }
 }

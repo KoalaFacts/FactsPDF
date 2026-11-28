@@ -168,7 +168,7 @@ Design-token stylesheets declare colours, font sizes and spacing once as custom 
 
 ### Strict and non-strict CSS
 
-Strict mode stays the default: every CSS construct FactsPDF does not render exactly fails with its `FPDF` code. Non-strict mode (`Pdf.Write().WithStrict(false)`, CLI `--strict false` or `--strict=false`) drops CSS that is invalid per the CSS specifications exactly as a browser drops it, so a stylesheet written for browsers with a typo or a stray vendor prefix still renders: an unknown property (`colr:red`, `-moz-transform`) or at-rule (`@frobnicate`), a value its property cannot take (`color:bogus`, `padding:-4pt`, five `margin` values), an invalid selector list (the whole rule), CSS Syntax errors (bad strings, stray braces) and `var()` declarations invalid at computed-value time (which compute as `unset`). Each is reported as a `PdfWarning` with the code, message and location strict mode throws (`WithWarnings(handler)`; the CLI prints `warning FPDF1201: … Location: line 4, column 6.` and exits 0), in source order and bounded by `MaxCssWarnings`. A `style` element with a non-CSS `type` (`text/less`, `text/css; charset=utf-8`) is not a stylesheet in browsers, so non-strict mode ignores the whole element with a warning. Valid CSS FactsPDF does not implement (`position:absolute`, `:hover`, `@font-face`, `display:flex`) still fails in both modes, and declarations written directly inside `@media` keep failing because Chrome drops the following rule with them, and so does every limit. The page renders byte-identical to the same page with the dropped CSS removed. Invalidity is decided by superset grammars, Chrome's property list and the specifications' selector and at-rule names, checked against Chrome 158 (no vector the grammars reject is accepted by Chrome); what cannot be proven invalid fails as in strict mode ([contract](css-stylesheets.md#strict-and-non-strict-css), `NonStrictCssTests.cs`).
+Strict mode stays the default: every CSS construct FactsPDF does not render exactly fails with its `FPDF` code. Non-strict mode (`Pdf.Write().WithStrict(false)`, CLI `--strict false` or `--strict=false`) drops CSS that is invalid per the CSS specifications exactly as a browser drops it, so a stylesheet written for browsers with a typo or a stray vendor prefix still renders: an unknown property (`colr:red`, `-moz-transform`) or at-rule (`@frobnicate`), a value its property cannot take (`color:bogus`, `padding:-4pt`, five `margin` values), an invalid selector list (the whole rule), CSS Syntax errors (bad strings, stray braces) and `var()` declarations invalid at computed-value time (which compute as `unset`). Each is reported as a `PdfWarning` with the code, message and location strict mode throws (`WithWarnings(handler)`; the CLI prints `warning FPDF1201: … Location: line 4, column 6.` and exits 0), in source order and bounded by `MaxCssWarnings`. Valid CSS FactsPDF does not implement (`position:absolute`, `:hover`, `@font-face`, `display:flex`) still fails in both modes, and declarations written directly inside `@media` keep failing because Chrome drops the following rule with them, and so does every limit. The page renders byte-identical to the same page with the dropped CSS removed. Invalidity is decided by superset grammars, Chrome's property list and the specifications' selector and at-rule names, checked against Chrome 158 (no vector the grammars reject is accepted by Chrome); what cannot be proven invalid fails as in strict mode ([contract](css-stylesheets.md#strict-and-non-strict-css), `NonStrictCssTests.cs`).
 
 ### Print-only stylesheet rules for business reports (source-only)
 
@@ -579,33 +579,56 @@ Email and document builders put it on `html`, `body`, tables and paragraphs. `di
 `dir="auto"` and an empty `dir` still fail `FPDF1103`, and `[dir]` attribute selectors still fail
 `FPDF1203` (`DirLtrAttributeTests.cs`).
 
-`<template>` and everything inside it are dropped, as HTML treats template contents as an inert
+An attribute name is any run of characters HTML allows (not white space, controls, quotes, `<`, `>`, `/` or `=`; only ASCII letters are lower-cased), so `data-*` attributes with dots or non-ASCII letters (`data-a.b`, `data-café`) tokenize and are ignored like any `data-*`, and `title`, `id`, `class`, `lang` and `data-*` are accepted on every supported element (`AttributeNameTests.cs`). A repeated attribute keeps its first value, as the HTML parser does (the repeated `style` is ignored). A `title` attribute prints nothing: Chrome draws no tooltip and no text for it in a PDF, and `abbr[title]` keeps its dotted underline.
+
+, as HTML treats template contents as an inert
 fragment that never renders: the PDF is byte-identical to the page without the element, in the
 head, in containers, lists and tables, and nested. Style elements and style attributes inside it
 are not compiled, and elements FactsPDF does not otherwise support may appear there. The contents
-must still tokenize: an invalid character reference in an attribute fails as it would elsewhere. The end tag is required (`FPDF1101`), a template inside `title`
-fails `FPDF1101`, the contents still count toward `MaxElements` (`FPDF1002`), and a
+must still tokenize: an invalid character reference in an attribute fails as it would elsewhere. The end tag is required (`FPDF1101`), the contents still count
+toward `MaxElements` (`FPDF1002`), and a
 declarative shadow root (`shadowrootmode`), which browsers do render, fails `FPDF1103`
 (`TemplateElementTests.cs`).
 
 `<script>` is dropped with its data and attributes, since FactsPDF runs no scripts and HTML never
 renders the element: the PDF is byte-identical to the page without it, in the head, containers,
-paragraphs, lists and tables. Script data ends at the first `</script` followed by a delimiter, as
-in browsers (which also ignore a self-closing slash on `script`), so markup and styles inside it
-never apply and `src` is never loaded; its attributes must still tokenize. The end tag is required
-(`FPDF1101`), a script inside `title` or `colgroup` (where HTML would close the column group and
-shift the columns) fails `FPDF1101`, scripts count toward `MaxElements` (`FPDF1002`), and data where `<!--` is
-followed by `<script` (the double-escaped form, where a browser would not end the element at
-`</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is still
-unsupported.
+paragraphs, lists and tables. Script data ends where a browser's tokenizer ends it: at the first
+`</script` followed by a delimiter (a self-closing slash on `script` is ignored), except that after
+`<!--` a `<script` starts the double-escaped state in which `</script>` only leaves that state and
+`-->` returns to plain data, so markup and styles inside it never apply and `src` is never loaded
+(Chrome 158 prints the same pages for every escaped form in `ScriptElementTests.cs`). Its
+attributes must still tokenize. The end tag is required (`FPDF1101`), a script inside `colgroup`
+(where HTML would close the column group and shift the columns) fails `FPDF1101`, and scripts count
+toward `MaxElements` (`FPDF1002`). `noscript` is still unsupported.
 
-`<meta>` in the head accepts `charset=utf-8` and named metadata: `name` or `property` with
-`content` (viewport, description, author, generator, Open Graph `og:*`). A static render never
-reads it, so the PDF is byte-identical to the page without it, and it does not change the PDF
-title or document information. `name=color-scheme` and `supported-color-schemes` fail
-`FPDF1103`, since they change the canvas and text colours a browser paints; `http-equiv`,
-`itemprop` and `style` fail `FPDF1103`, and a meta outside the head fails `FPDF1101`
-(`MetaNameContentTests.cs`).
+`<title>` is the PDF Title: the first title element of the page (in the head, or one the parser
+leaves in the body; an svg `title` is the graphic's own element) gives `/Title` the text Chrome
+writes for `document.title` (character references decoded, control characters read as spaces, runs
+of spaces collapsed, white space stripped), unless the caller sets `Title` (`WithMetadata`,
+`--title`). A page with no title text writes no `/Title`; Chrome then writes the source file name,
+which FactsPDF never sees. The text is RCDATA, so markup inside it is literal text and `</title`
+ends it; an unclosed title fails `FPDF1101`. The title is never printed on the page
+(`TitleElementTests.cs`).
+
+`<meta>` is accepted in the head and in the body, where a browser also keeps it and renders none of
+it: `charset` and `http-equiv=content-type` naming UTF-8 (any WHATWG label), and every other
+`name`, `property`, `content`, `http-equiv` or `itemprop` that a static render never reads
+(viewport, description, author, generator, Open Graph `og:*`, `X-UA-Compatible`, microdata), so the
+PDF is byte-identical to the page without it. `name=color-scheme` follows Chrome's print
+resolution (the content is the CSS `color-scheme` grammar; the name matches ASCII
+case-insensitively and is not trimmed): every value that allows light, is `normal` or is invalid
+prints exactly like the page without it, and a value that names `dark` and not `light` (Chrome prints
+a #121212 canvas with white text) fails `FPDF1103`. A charset other than UTF-8, `http-equiv=refresh`,
+an enforced `Content-Security-Policy` (which can block the page's own styles) and `style` on a
+meta also fail `FPDF1103` (`MetaNameContentTests.cs`).
+
+A `style` attribute is accepted on every element FactsPDF accepts, including the display:none metadata
+elements of head (`head`, `title`, `meta`, `link`, `base`): its declarations are validated like any
+others and change nothing, as nothing of head prints; only a `display` that would show `head` (or a body
+`title` or `meta`) fails `FPDF1103`. A `br` takes any style and breaks the line exactly like a plain one
+(Chrome 158: font, line-height, margin, padding, border, alignment, `display:block` change nothing);
+`display:none` on a `br`, inline or from a stylesheet, removes the break
+(`HeadAndVoidElementStyleTests.cs`).
 
 `<link>` in the head is accepted when every `rel` type only names a related resource or a
 connection hint: `icon` (and `shortcut`, `apple-touch-icon`, `mask-icon`), `manifest`,
@@ -1709,7 +1732,7 @@ printer bleed, an automatic paper fit or a released CLI. See
 For invoices and inspection reports, set real PDF document information using
 `--title`, `--author`, `--subject` and `--keywords`, or the matching
 `WithMetadata(m => …)` writer settings. This is **PDF Info metadata**, not text
-printed on the page, extracted from HTML or a CSS feature:
+printed on the page or a CSS feature (only the `<title>` default below comes from the HTML):
 
 ```sh
 dotnet run --project src/FactsPDF.Cli -- examples/first-document.html report.pdf --title "Facilities inspection — 澳新" --author "Koala Facts" --subject "Quarterly status" --keywords "inspection, report"
@@ -1726,7 +1749,7 @@ never put confidential data or credentials in them.**
 Source NUnit verifies exact API/CLI PDF bytes, the two serialization
 paths, PNG, text pages, bounded errors and recovery; Linux/Windows Native
 AOT checks additionally use Poppler `pdfinfo`, qpdf and original body
-geometry. Not XMP, HTML `<title>` inference, PDF/UA tagging, an updated
+geometry. Without a `Title` field the page's `<title>` is the PDF Title (see the `<title>` note above). Not XMP, PDF/UA tagging, an updated
 private candidate, a public release or customer rights.
 
 ### Print-ready report section page boundaries (source-only)
