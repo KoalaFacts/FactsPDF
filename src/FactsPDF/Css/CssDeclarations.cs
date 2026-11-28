@@ -16,6 +16,7 @@ internal enum CssProperty
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
     BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet,
     TabSize, LineBreak, Visibility, OverflowX, OverflowY, TextOverflow,
+    Opacity, Transform, TransformOrigin, BoxShadow,
     // The animation longhands the cascade carries (CssAnimations): lists of layers, applied as a
     // keyframe state rather than to a style, so they stay the last cascade slots.
     AnimationName, AnimationDuration, AnimationDelay, AnimationIterationCount, AnimationDirection,
@@ -273,6 +274,7 @@ internal static class CssDeclarations
         or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
         or CssProperty.BackgroundClip or CssProperty.TableLayout or CssProperty.ObjectFit or CssProperty.ObjectPosition
         or CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet
+        or CssProperty.Opacity or CssProperty.Transform or CssProperty.TransformOrigin or CssProperty.BoxShadow
         || CssFlexValues.IsFlexOrGridProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
@@ -487,6 +489,30 @@ internal static class CssDeclarations
                 var (x, y) = CssObjectValues.Position(value, declaration.Offset, rootFontSize, elementFontSize);
                 current.ObjectPlacement = current.ObjectPlacement with { X = x, Y = y };
             }
+            return current;
+        }
+        // opacity, transform, transform-origin and box-shadow: paint effects, none inherited.
+        if (property is CssProperty.Opacity or CssProperty.Transform or CssProperty.TransformOrigin or CssProperty.BoxShadow)
+        {
+            var effects = current.Effects;
+            var source = from.Effects;
+            effects = property switch
+            {
+                CssProperty.Opacity => effects with { Opacity = wide ? source.Opacity : CssEffects.Opacity(value) },
+                CssProperty.Transform => effects with
+                {
+                    Transform = wide ? source.Transform : CssEffects.Transform(value, declaration.Offset, rootFontSize, elementFontSize)
+                },
+                CssProperty.TransformOrigin => effects with
+                {
+                    Origin = wide ? source.Origin : CssEffects.Origin(value, declaration.Offset, rootFontSize, elementFontSize)
+                },
+                _ => effects with
+                {
+                    Shadows = wide ? source.Shadows : CssEffects.Shadows(value, declaration.Offset, rootFontSize, elementFontSize, elementColor)
+                },
+            };
+            if (effects != current.Effects) current.Effects = effects;
             return current;
         }
         if (property == CssProperty.BackgroundClip)

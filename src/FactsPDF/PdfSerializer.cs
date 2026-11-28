@@ -11,6 +11,9 @@ internal static class PdfSerializer
         var images = new PdfImageWriter(pages, cancellation);
         var firstImage = 4 + 2 * pages.Count;
         var links = new PdfLinkAnnotations(pages, o, firstImage + images.ObjectCount, cancellation);
+        // Opacity below 1 and transforms (PdfEffects); created only for pages that use them.
+        var effects = pages.Exists(p => p.Effects.Count > 0) ? new PdfEffects(pages, firstImage + images.ObjectCount + links.Count) : null;
+        List<int>? pageForms = null;
         void Write(string text)
         {
             if (output.Length + text.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF exceeds MaxOutputBytes.");
@@ -54,74 +57,23 @@ internal static class PdfSerializer
                 contents.Clear();
                 alpha.Clear();
                 if (o.PrintShrink != 1) contents.Append("q ").AppendInvariant(1 / o.PrintShrink, "0.#######").Append(" 0 0 ").AppendInvariant(1 / o.PrintShrink, "0.#######").Append(" 0 0 cm\n");
-                PdfPaintSerializer.Append(contents, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha, pages[i].Clips);
-                PdfPaintSerializer.AppendDiscs(contents, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha,
-                    pages[i].Clips.Count == 0 ? null : new PdfClipping(pages[i], PdfClipping.Kind.Discs, o.PageHeight));
-                images.Append(contents, pages[i], o, cancellation, ref alpha);
-                // PDF character spacing is persistent graphics text state
-                // across BT/ET. Restore zero explicitly after a tracked run,
-                // but preserve byte-identical legacy PDFs that never track.
-                var previousTracking = 0d;
-                var runClipping = pages[i].Clips.Count == 0 ? null : new PdfClipping(pages[i], PdfClipping.Kind.Runs, o.PageHeight);
-                var runIndex = 0;
-                foreach (var run in pages[i].Runs)
+                if (effects is null || pages[i].Effects.Count == 0) _ = Layer(contents, pages[i], images, o, cancellation, ref alpha);
+                else
                 {
-                    runClipping?.Enter(contents, runIndex++);
-                    var color = run.Style.Color;
-                    if (color.IsInvisible)
-                    {
-                        PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
-                        continue;
-                    }
-                    // A translucent run selects its alpha inside q/Q, which also restores Tc.
-                    var translucent = color.A < 1;
-                    var tracked = previousTracking != run.Style.LetterSpacing;
-                    if (!translucent) previousTracking = run.Style.LetterSpacing;
-                    if (translucent) alpha.BeginPaint(contents, color);
-                    contents.Append("BT /F1 ").AppendInvariant(run.Style.FontSize, Number).Append(" Tf ");
-                    if (tracked) contents.AppendInvariant(run.Style.LetterSpacing, Number).Append(" Tc ");
-                    contents.AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ");
-                    contents.Append("1 0 0 1 ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(run.Baseline, Number).Append(" Tm ");
-                    if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
-                    {
-                        contents.Append('<');
-                        PdfAscii.AppendHex(contents, run.Text);
-                        contents.Append("> Tj ET\n");
-                    }
-                    else
-                    {
-                        // PDF Tw does not reliably position two-byte CID space codes.
-                        // Explicit TJ displacements match the shared glyph-width model.
-                        contents.Append('[');
-                        var start = 0;
-                        for (var j = 0; j < run.Text.Length; j++)
-                        {
-                            if (run.Text[j] != ' ') continue;
-                            contents.Append('<');
-                            PdfAscii.AppendHex(contents, run.Text.AsSpan(start, j + 1 - start));
-                            contents.Append("> ");
-                            contents.AppendInvariant(-run.Style.WordSpacing * 1000 / run.Style.FontSize, Number).Append(' ');
-                            start = j + 1;
-                        }
-                        if (start < run.Text.Length)
-                        {
-                            contents.Append('<');
-                            PdfAscii.AppendHex(contents, run.Text.AsSpan(start));
-                            contents.Append('>');
-                        }
-                        contents.Append("] TJ ET\n");
-                    }
-                    if (translucent) contents.Append("Q\n");
-                    PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
-                    if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
+                    (pageForms ??= []).Clear();
+                    effects.Append(contents, pages[i], i, o, Writer(images, o, cancellation), ref alpha, pageForms);
                 }
-                runClipping?.Finish(contents);
                 if (o.PrintShrink != 1) contents.Append("Q\n");
                 page.Clear().Append(4 + 2 * i).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth / o.PrintShrink, Number).Append(' ')
-                    .AppendInvariant(o.PageHeight / o.PrintShrink, Number).Append("] /Resources << /Font << /F1 3 0 R >>");
-                images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
+                    .AppendInvariant(o.PageHeight / o.PrintShrink, Number).Append("] /Resources ");
+                var resourcesStart = page.Length;
+                page.Append("<< /Font << /F1 3 0 R >>");
+                var forms = effects is not null && pages[i].Effects.Count > 0 ? pageForms : null;
+                images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation, forms);
                 alpha.AppendResources(page);
-                page.Append(" >> /Contents ").Append(5 + 2 * i).Append(" 0 R");
+                page.Append(" >>");
+                if (forms is { Count: > 0 }) effects!.SetResources(i, page.ToString(resourcesStart, page.Length - resourcesStart));
+                page.Append(" /Contents ").Append(5 + 2 * i).Append(" 0 R");
                 links.AppendPageEntry(page, i);
                 page.Append(" >>\nendobj\n");
                 if (4 + 2 * i != offsets.Count) throw new InvalidOperationException("PDF object sequence is inconsistent.");
@@ -148,6 +100,7 @@ internal static class PdfSerializer
                 links.AppendObject(page.Clear(), i, firstImage + images.ObjectCount + i);
                 WriteText(page);
             }
+            effects?.WriteObjects(output, offsets, o, cancellation);
             int? infoId = null;
             var info = PdfDocumentMetadata.BuildInfo(o);
             if (info is not null)
@@ -163,6 +116,78 @@ internal static class PdfSerializer
         }
         catch { output.Dispose(); throw; }
     }
+
+    // One view of a page (PdfEffects): boxes, list markers, images and runs. Returns the Tc it leaves set.
+    private static double Layer(StringBuilder contents, LayoutPage view, PdfImageWriter images, PdfOptions o,
+        CancellationToken cancellation, ref PdfAlphaStates alpha)
+    {
+        PdfPaintSerializer.Append(contents, view.PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha, view.Clips);
+        PdfPaintSerializer.AppendDiscs(contents, view.Discs, o.MaxOutputBytes, cancellation, ref alpha,
+            view.Clips.Count == 0 ? null : new PdfClipping(view, PdfClipping.Kind.Discs, o.PageHeight));
+        images.Append(contents, view, o, cancellation, ref alpha);
+        // PDF character spacing is persistent graphics text state
+        // across BT/ET. Restore zero explicitly after a tracked run,
+        // but preserve byte-identical legacy PDFs that never track.
+        var previousTracking = 0d;
+        var runClipping = view.Clips.Count == 0 ? null : new PdfClipping(view, PdfClipping.Kind.Runs, o.PageHeight);
+        var runIndex = 0;
+        foreach (var run in view.Runs)
+        {
+            runClipping?.Enter(contents, runIndex++);
+            var color = run.Style.Color;
+            if (color.IsInvisible)
+            {
+                PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
+                continue;
+            }
+            // A translucent run selects its alpha inside q/Q, which also restores Tc.
+            var translucent = color.A < 1;
+            var tracked = previousTracking != run.Style.LetterSpacing;
+            if (!translucent) previousTracking = run.Style.LetterSpacing;
+            if (translucent) alpha.BeginPaint(contents, color);
+            contents.Append("BT /F1 ").AppendInvariant(run.Style.FontSize, Number).Append(" Tf ");
+            if (tracked) contents.AppendInvariant(run.Style.LetterSpacing, Number).Append(" Tc ");
+            contents.AppendInvariant(color.R, Number).Append(' ').AppendInvariant(color.G, Number).Append(' ').AppendInvariant(color.B, Number).Append(" rg ");
+            contents.Append("1 0 0 1 ").AppendInvariant(run.X, Number).Append(' ').AppendInvariant(run.Baseline, Number).Append(" Tm ");
+            if (run.Style.WordSpacing == 0 || !run.Text.Contains(' '))
+            {
+                contents.Append('<');
+                PdfAscii.AppendHex(contents, run.Text);
+                contents.Append("> Tj ET\n");
+            }
+            else
+            {
+                // PDF Tw does not reliably position two-byte CID space codes.
+                // Explicit TJ displacements match the shared glyph-width model.
+                contents.Append('[');
+                var start = 0;
+                for (var j = 0; j < run.Text.Length; j++)
+                {
+                    if (run.Text[j] != ' ') continue;
+                    contents.Append('<');
+                    PdfAscii.AppendHex(contents, run.Text.AsSpan(start, j + 1 - start));
+                    contents.Append("> ");
+                    contents.AppendInvariant(-run.Style.WordSpacing * 1000 / run.Style.FontSize, Number).Append(' ');
+                    start = j + 1;
+                }
+                if (start < run.Text.Length)
+                {
+                    contents.Append('<');
+                    PdfAscii.AppendHex(contents, run.Text.AsSpan(start));
+                    contents.Append('>');
+                }
+                contents.Append("] TJ ET\n");
+            }
+            if (translucent) contents.Append("Q\n");
+            PdfPaintSerializer.AppendTextDecoration(contents, run, o.MaxOutputBytes, ref alpha);
+            if (contents.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
+        }
+        runClipping?.Finish(contents);
+        return previousTracking;
+    }
+
+    private static PdfLayerWriter Writer(PdfImageWriter images, PdfOptions o, CancellationToken cancellation) =>
+        (StringBuilder contents, LayoutPage view, ref PdfAlphaStates alpha) => Layer(contents, view, images, o, cancellation, ref alpha);
 
     private const string Number = "0.###";
 }

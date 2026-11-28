@@ -1005,6 +1005,18 @@ internal sealed class CssStylesheets
                     "background-clip padding-box and content-box are supported on report panels, paragraphs and headings outside lists and tables; elsewhere only border-box.",
                     declaration.Offset);
             }
+            // Paint effects (opacity, transform, box-shadow) are painted on report panels, paragraphs and
+            // headings outside lists and tables, which lay out as page-flow block boxes. Elsewhere the
+            // initial value (and transform-origin, which moves nothing without a transform) changes
+            // nothing and is dropped; inherit is dropped only when the parent's value is the initial one.
+            if (declaration.Property is CssProperty.Opacity or CssProperty.Transform or CssProperty.TransformOrigin or CssProperty.BoxShadow
+                && (pseudo != CssPseudoElement.None || !ClipHost(subject, path)))
+            {
+                if (EffectNoOp(declaration, parentBox)) return;
+                throw new FactsPdfException("FPDF1201",
+                    $"{declaration.Name} is painted only on report panels, paragraphs and headings outside lists and tables (inline text needs the inline box model); elsewhere only its initial value is accepted.",
+                    declaration.Offset);
+            }
             // content generates boxes only for ::before and ::after; on an element it changes
             // nothing (as in a browser), so the validated value is dropped there.
             if (declaration.Property == CssProperty.Content && pseudo == CssPseudoElement.None) return;
@@ -1663,6 +1675,11 @@ internal sealed class CssStylesheets
                 winners[(int)CssProperty.BackgroundClip]?.Declaration.Offset ?? elementOffset);
         if (userAgentTextOnly && !userAgentTextStyle && styleOwned && userAgentTextStyles.Count < MaxUserAgentTextStyles)
             userAgentTextStyles[userAgentTextKey] = style;
+        // A shadow of a rounded box follows the corner curves grown by the spread; not drawn.
+        if (box.HasRoundedCorners && box.Effects.Shadows is not null)
+            throw new FactsPdfException("FPDF1201",
+                "box-shadow on a box with rounded corners is not supported.",
+                winners[(int)CssProperty.BoxShadow]?.Declaration.Offset ?? elementOffset);
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)
             throw new FactsPdfException("FPDF1201",
                 "Rectangular report outlines cannot be combined with rounded corners.",
@@ -1750,6 +1767,8 @@ internal sealed class CssStylesheets
     {
         var property = declaration.Property;
         var value = declaration.Value;
+        // Paint effects are checked with their own hosts (EffectNoOp).
+        if (property is CssProperty.Opacity or CssProperty.Transform or CssProperty.TransformOrigin or CssProperty.BoxShadow) return false;
         // A list marker shows only on a list item, and a list item lies directly in a list.
         if (property is CssProperty.ListStyleType or CssProperty.ListStylePosition
             && subject is not ("ol" or "ul" or "menu" or "li")) return true;
@@ -1835,6 +1854,21 @@ internal sealed class CssStylesheets
             or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
         && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
             or "td" or "th" or "thead" or "tbody" or "tfoot");
+
+    // Whether an effect declaration on an element that cannot paint effects changes nothing: the initial
+    // value, any transform-origin, or inherit from a parent whose value is the initial one.
+    private static bool EffectNoOp(CssDeclaration declaration, BoxStyle parentBox)
+    {
+        var value = declaration.Value;
+        if (declaration.Property == CssProperty.TransformOrigin || value is "initial" or "unset" or "revert" or "revert-layer") return true;
+        var effects = value == "inherit" ? parentBox.Effects : null;
+        return declaration.Property switch
+        {
+            CssProperty.Opacity => effects is not null ? effects.Opacity >= 1 : CssEffects.Opacity(value) >= 1,
+            CssProperty.Transform => effects is not null ? effects.Transform is null : value == "none",
+            _ => effects is not null ? effects.Shadows is null : value == "none",
+        };
+    }
 
     private static bool RootFlexNoOp(CssDeclaration declaration) =>
         declaration.Property is CssProperty.JustifyContent or CssProperty.AlignItems or CssProperty.FlexDirection

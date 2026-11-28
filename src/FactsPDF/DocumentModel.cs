@@ -319,6 +319,47 @@ internal sealed class LayoutPage
     public List<PaintedBox> PaintBoxes { get; } = [];
     public List<PlacedDisc> Discs { get; } = [];
     public List<PlacedImage> Images { get; } = [];
+    // Created by the first box with opacity below 1 or a transform, so a page without one allocates no list.
+    private List<EffectRegion>? effects;
+    private static readonly List<EffectRegion> NoEffects = [];
+    public List<EffectRegion> Effects => effects ?? NoEffects;
+    internal List<EffectRegion> WritableEffects => effects ??= [];
+
+    /// <summary>Puts a box under everything else on the page (the canvas), keeping the effect regions' box ranges.</summary>
+    internal void InsertBackdrop(PaintedBox box)
+    {
+        PaintBoxes.Insert(0, box);
+        if (effects is null) return;
+        for (var i = 0; i < effects.Count; i++)
+            effects[i] = effects[i].ShiftBoxes(1);
+    }
+}
+
+/// <summary>
+/// The page fragment of a box that creates a stacking context through a paint effect: opacity below 1
+/// (Alpha, the opacity quantised to a byte as Chrome's PDF backend stores it) and/or a transform
+/// (Transform: the PDF cm operands in page coordinates, the transform-origin already folded in). It holds
+/// the page's runs, list markers, images and paint boxes in the given index ranges. Like every stacking
+/// context with z-index:auto (CSS 2 Appendix E, step 8) it paints after all the in-flow content around it,
+/// in tree order (Order is the box's paint order). Parent is the enclosing region's number plus one, or 0;
+/// ClipCount is how many clip regions the page held when the region was made, which tells the clips inside
+/// it (made before it) from the ones around it (made after it).
+/// </summary>
+internal sealed record EffectRegion(byte Alpha, PdfMatrix? Transform, int Order, int SourceOffset,
+    int RunStart, int RunEnd, int DiscStart, int DiscEnd, int ImageStart, int ImageEnd, int BoxStart, int BoxEnd,
+    int ClipCount)
+{
+    public int Parent { get; set; }
+
+    internal EffectRegion ShiftBoxes(int by) => this with { BoxStart = BoxStart + by, BoxEnd = BoxEnd + by, Parent = Parent };
+}
+
+/// <summary>A 2D affine matrix with the PDF cm operand order: x' = A x + C y + E, y' = B x + D y + F.</summary>
+internal readonly record struct PdfMatrix(double A, double B, double C, double D, double E, double F)
+{
+    internal static PdfMatrix Identity => new(1, 0, 0, 1, 0, 0);
+    internal bool IsSingular => Math.Abs(A * D - B * C) < 1e-12;
+    internal (double X, double Y) Apply(double x, double y) => (A * x + C * y + E, B * x + D * y + F);
 }
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
@@ -347,7 +388,9 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
                 ? (style.BackgroundColor.HasValue ? 1 : 0)
                   + (style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
                 : 0;
-        var outline = width > 0 && height > 0 && style.Outline.EffectiveWidth > 0 ? 1 : 0;
+        // Each box-shadow layer is one filled path (see PdfPaintSerializer.Shadows).
+        var outline = (width > 0 && height > 0 && style.Outline.EffectiveWidth > 0 ? 1 : 0)
+            + (width > 0 && height > 0 ? style.Effects.Shadows?.Length ?? 0 : 0);
         var top = isFirstFragment ? Math.Min(Math.Max(0, height), style.BorderTop.EffectiveWidth) : 0;
         var bottom = isLastFragment ? Math.Min(Math.Max(0, height), style.BorderBottom.EffectiveWidth) : 0;
         var middleHeight = Math.Max(0, height - top - bottom);
@@ -474,10 +517,12 @@ internal sealed record BoxStyle
     // The box edge the background colour is painted to (background-clip); not inherited.
     // The rarely set properties share one lazily created reference, so a box that sets none of them costs
     // eight bytes: background-clip, object-fit and object-position, table-layout and the counter lists.
-    private sealed record Rare(BackgroundClip Clip, ObjectPlacement Placement, bool FixedTable, CounterOps Counters)
+    private sealed record Rare(BackgroundClip Clip, ObjectPlacement Placement, bool FixedTable, CounterOps Counters, PaintEffects Effects)
     {
-        internal static readonly Rare Default = new(BackgroundClip.BorderBox, ObjectPlacement.Initial, false, CounterOps.None);
+        internal static readonly Rare Default = new(BackgroundClip.BorderBox, ObjectPlacement.Initial, false, CounterOps.None, PaintEffects.None);
     }
+    // opacity, transform, transform-origin and box-shadow; not inherited.
+    public PaintEffects Effects { get => (rare ?? Rare.Default).Effects; set => rare = (rare ?? Rare.Default) with { Effects = value }; }
     private Rare? rare;
     public BackgroundClip BackgroundClip { get => (rare ?? Rare.Default).Clip; set => rare = (rare ?? Rare.Default) with { Clip = value }; }
     // object-fit and object-position of an img; not inherited.
@@ -519,7 +564,8 @@ internal sealed record BoxStyle
     public bool HasLayoutPaint => BackgroundColor.HasValue ||
         BorderTop.EffectiveWidth > 0 || BorderRight.EffectiveWidth > 0 ||
         BorderBottom.EffectiveWidth > 0 || BorderLeft.EffectiveWidth > 0;
-    public bool HasPaint => HasLayoutPaint || Outline.EffectiveWidth > 0;
+    // A box shadow is ink like an outline: it never anchors layout.
+    public bool HasPaint => HasLayoutPaint || Outline.EffectiveWidth > 0 || Effects.Shadows is not null;
 }
 
 internal enum BoxDisplay { Block, Flex, Grid }

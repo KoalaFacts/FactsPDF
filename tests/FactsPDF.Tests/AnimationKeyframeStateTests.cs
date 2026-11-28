@@ -132,12 +132,13 @@ public sealed class AnimationKeyframeStateTests
     }
 
     [Test]
-    public void AFadeInShowsItsInvisibleStartAndFailsBecauseOpacityIsNotRendered()
+    public void AFadeInShowsItsInvisibleStart()
     {
         const string fade = "@keyframes fade{from{opacity:0}to{opacity:1}}";
-        var error = Assert.Throws<FactsPdfException>(() => Pdf($"<style>{fade}.a{{animation:fade 1s}}</style><p class=a>T</p>"))!;
-        Assert.That(error.Code, Is.EqualTo("FPDF1202"));
-        Assert.That(error.Message, Does.Contain("@keyframes fade"));
+        // Chrome prints the time-zero state: the paragraph at opacity 0, exactly as if it were written on it.
+        Assert.That(Pdf($"<style>{fade}.a{{animation:fade 1s}}</style><p class=a>T</p>"),
+            Is.EqualTo(Pdf("<p class=a style='opacity:0'>T</p>")));
+        Assert.That(Pdf("<p class=a style='opacity:0'>T</p>"), Is.Not.EqualTo(Pdf("<p class=a>T</p>")));
         // Its end state is the opacity already in effect, so it prints like the page without it.
         Assert.That(Pdf($"<style>{fade}.a{{animation:fade 0s forwards}}</style><p class=a>T</p>"), Is.EqualTo(Pdf("<p class=a>T</p>")));
         // The state is only compiled when an animation shows it.

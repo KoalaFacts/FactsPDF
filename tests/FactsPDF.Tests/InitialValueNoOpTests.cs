@@ -3,8 +3,8 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// position, float, clear, overflow(-x/-y), visibility, z-index, opacity, box-shadow,
-/// text-shadow, transform, filter, background-image, clip-path, backdrop-filter, mix-blend-mode,
+/// position, float, clear, overflow(-x/-y), visibility, z-index,
+/// text-shadow, filter, background-image, clip-path, backdrop-filter, mix-blend-mode,
 /// isolation and the font tuning properties (font-feature-settings, font-variation-settings,
 /// font-variant-ligatures/-numeric, font-stretch, font-optical-sizing, font-size-adjust), zoom,
 /// contain, content-visibility, line-break, text-justify and image-rendering are accepted at
@@ -131,12 +131,11 @@ public sealed class InitialValueNoOpTests
     [TestCase("float:left")]
     [TestCase("clear:both")]
     [TestCase("z-index:1")]
-    [TestCase("opacity:0.5")]
-    [TestCase("opacity:50%")]
+    [TestCase("opacity:0.5 0.5")]
     [TestCase("opacity:visible")]
     [TestCase("box-shadow:0 0 2pt #000")]
     [TestCase("text-shadow:1px 1px #ccc")]
-    [TestCase("transform:rotate(90deg)")]
+    [TestCase("transform:perspective(-1px)")]
     [TestCase("filter:grayscale(1)")]
     [TestCase("background-image:url(a.png)")]
     [TestCase("background-image:none none")]
@@ -312,9 +311,7 @@ public sealed class InitialValueNoOpTests
         Assert.That(error.SourceOffset, Is.EqualTo(html.IndexOf("left", StringComparison.Ordinal)));
     }
 
-    [TestCase("<p style='transform:rotate(90deg)'>A</p>", "transform supports only none", "rotate")]
     [TestCase("<style>.unused{background-image:url(a.png)}</style><p>A</p>", "background-image supports only none", "url")]
-    [TestCase("<p style='opacity:calc(1)'>A</p>", "opacity supports only 1", "calc")]
     [TestCase("<p style='border-spacing:2pt'>A</p>", "border-spacing supports only 0 (one or two zero lengths)", "2pt")]
     [TestCase("<style>td{empty-cells:hide}</style><p>A</p>", "empty-cells supports only show", "hide")]
     [TestCase("<p style='offset-rotate:reverse'>A</p>", "offset-rotate supports only auto", "reverse")]

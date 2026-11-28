@@ -209,6 +209,9 @@ internal static partial class FlexLayout
             else if (item.Output is { } output)
             {
                 var page = output.Page;
+                if (page.Effects.Count > 0)
+                    throw new FactsPdfException("FPDF1201",
+                        "opacity below 1 and transforms are not supported inside flex and grid items.", page.Effects[0].SourceOffset);
                 var commands = page.Discs.Count + page.Images.Count;
                 foreach (var run in page.Runs)
                     commands += 1 + TextDecorationCommands.Count(run.Style.Decoration) + (run.Style.LinkUri is null ? 0 : 1);

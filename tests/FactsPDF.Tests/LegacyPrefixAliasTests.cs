@@ -84,8 +84,8 @@ public sealed class LegacyPrefixAliasTests
 
     [TestCase("<p style='-webkit-box-shadow:0 1px 2px #000'>A</p>", "FPDF1202")]
     [TestCase("<p style='-moz-box-shadow:inset 0 1px 1px rgba(0,0,0,.075)'>A</p>", "FPDF1202")]
-    [TestCase("<p style='-webkit-transform:rotate(45deg)'>A</p>", "FPDF1202")]
-    [TestCase("<p style='-ms-transform:translateX(4px)'>A</p>", "FPDF1202")]
+    [TestCase("<p style='-webkit-transform:perspective(9px) rotateY(9deg)'>A</p>", "FPDF1202")]
+    [TestCase("<p style='-ms-transform:translateX(4ex)'>A</p>", "FPDF1202")]
     [TestCase("<p style='-webkit-filter:blur(2px)'>A</p>", "FPDF1202")]
     [TestCase("<p style='-webkit-clip-path:circle(50%)'>A</p>", "FPDF1202")]
     [TestCase("<p style='-webkit-backdrop-filter:blur(4px)'>A</p>", "FPDF1202")]

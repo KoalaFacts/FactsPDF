@@ -135,6 +135,14 @@ internal static class PdfPaintSerializer
             var height = box.Height;
             if (!double.IsFinite(x + y + width + height) || width < 0 || height < 0)
                 throw new InvalidOperationException("Invalid paint rectangle.");
+            var shadows = width > 0 && height > 0 ? s.Effects.Shadows : null;
+            if (shadows is not null)
+            {
+                // A sliced box would need its shadow cut at each page edge like its background.
+                if (!box.IsFirstFragment || !box.IsLastFragment)
+                    throw new FactsPdfException("FPDF1302", "box-shadow on a box that spans pages is not supported.", box.SourceOffset);
+                Shadows(output, box, shadows, inset: false, pageHeight, maxOutputBytes, ref alpha);
+            }
             if (s.HasRoundedCorners)
             {
                 RoundedBox(output, box, pageHeight, maxOutputBytes, ref alpha);
@@ -149,6 +157,7 @@ internal static class PdfPaintSerializer
                     Rect(output, s.BackgroundColor.Value, x + fillLeft, y + fillTop, fillWidth, fillHeight, pageHeight,
                         maxOutputBytes, box.SourceOffset, ref alpha);
             }
+            if (shadows is not null) Shadows(output, box, shadows, inset: true, pageHeight, maxOutputBytes, ref alpha);
 
             // Slice does not repeat horizontal borders on intermediate pages.
             // Short first/last fragments clip the border to their own bounds;
@@ -176,6 +185,67 @@ internal static class PdfPaintSerializer
         if (chain is not null) PdfClipping.MoveBoxClip(output, clips!, chain, 0, pageHeight);
     }
 
+
+    private const double Unbounded = 1_000_000;
+
+    // box-shadow without blur, as Chrome paints it (CSS Backgrounds 3, section 7.1): an outer shadow is the
+    // border box moved by the offsets and grown by the spread, painted only outside the border box, under
+    // the background; an inset shadow fills the padding box outside the padding box moved by the offsets
+    // and shrunk by the spread, over the background and under the border. The first layer is on top, so
+    // the layers are painted last first. Each layer is one filled path inside q/Q.
+    private static void Shadows(StringBuilder output, PaintedBox box, BoxShadow[] shadows, bool inset,
+        double pageHeight, int maxOutputBytes, ref PdfAlphaStates alpha)
+    {
+        var s = box.Style;
+        var left = box.X; var top = box.Top; var width = box.Width; var height = box.Height;
+        if (inset)
+        {
+            left += s.BorderLeft.EffectiveWidth; top += s.BorderTop.EffectiveWidth;
+            width -= s.BorderLeft.EffectiveWidth + s.BorderRight.EffectiveWidth;
+            height -= s.BorderTop.EffectiveWidth + s.BorderBottom.EffectiveWidth;
+            if (width <= 0 || height <= 0) return;
+        }
+        for (var i = shadows.Length - 1; i >= 0; i--)
+        {
+            var shadow = shadows[i];
+            if (shadow.Inset != inset) continue;
+            var c = shadow.Color;
+            var grow = inset ? -shadow.Spread : shadow.Spread;
+            var shapeLeft = left + shadow.X - grow; var shapeTop = top + shadow.Y - grow;
+            var shapeWidth = width + 2 * grow; var shapeHeight = height + 2 * grow;
+            if (!double.IsFinite(shapeLeft + shapeTop + shapeWidth + shapeHeight))
+                throw new FactsPdfException("FPDF1302", "Invalid box-shadow geometry.", box.SourceOffset);
+            alpha.BeginPaint(output, c);
+            if (!inset)
+            {
+                if (shapeWidth <= 0 || shapeHeight <= 0) { output.Append("Q\n"); continue; }
+                // Clip to the outside of the border box (even-odd), then fill the shadow rectangle.
+                AppendRect(output, -Unbounded, -Unbounded, 2 * Unbounded, 2 * Unbounded);
+                AppendRect(output, left, pageHeight - top - height, width, height);
+                output.Append("W* n ");
+                output.AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ').AppendInvariant(c.B, Number).Append(" rg ");
+                AppendRect(output, shapeLeft, pageHeight - shapeTop - shapeHeight, shapeWidth, shapeHeight);
+                output.Append("f Q\n");
+            }
+            else
+            {
+                // Clip to the padding box, then fill everything outside the moved, shrunk hole (even-odd).
+                AppendRect(output, left, pageHeight - top - height, width, height);
+                output.Append("W n ");
+                output.AppendInvariant(c.R, Number).Append(' ').AppendInvariant(c.G, Number).Append(' ').AppendInvariant(c.B, Number).Append(" rg ");
+                AppendRect(output, -Unbounded, -Unbounded, 2 * Unbounded, 2 * Unbounded);
+                if (shapeWidth > 0 && shapeHeight > 0)
+                    AppendRect(output, shapeLeft, pageHeight - shapeTop - shapeHeight, shapeWidth, shapeHeight);
+                output.Append("f* Q\n");
+            }
+            if (output.Length > maxOutputBytes)
+                throw new FactsPdfException("FPDF1401", "PDF box-shadow content exceeds MaxOutputBytes.", box.SourceOffset);
+        }
+    }
+
+    private static void AppendRect(StringBuilder output, double x, double y, double width, double height) =>
+        output.AppendInvariant(x, Number).Append(' ').AppendInvariant(y, Number).Append(' ')
+            .AppendInvariant(width, Number).Append(' ').AppendInvariant(height, Number).Append(" re ");
 
     // One PDF paint operation, separated from border geometry and text flow.
     // Side strokes continue on every page; horizontal strokes are present

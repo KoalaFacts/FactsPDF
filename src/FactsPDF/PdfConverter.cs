@@ -72,7 +72,7 @@ internal static class PdfConverter
         {
             var sheet = BoxStyle.Initial with { BackgroundColor = canvas };
             foreach (var page in pages)
-                page.PaintBoxes.Insert(0, new PaintedBox(0, 0, options.PageWidth, options.PageHeight, sheet, canvas, int.MinValue));
+                page.InsertBackdrop(new PaintedBox(0, 0, options.PageWidth, options.PageHeight, sheet, canvas, int.MinValue));
         }
         long displayCommands = 0;
         foreach (var page in pages)

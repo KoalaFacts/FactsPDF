@@ -184,6 +184,28 @@ internal static class CssSyntaxAdapter
                         budget.Declaration(node.Span.Start), node.Span.Start, new CssPendingValue(node, hostSelectors, hostElement is not null)));
                     continue;
                 }
+                // Paint effects (CssEffects): opacity, transform, transform-origin and box-shadow, kept as
+                // normalised text and computed per element once its font sizes and colour are known.
+                if (name is "opacity" or "transform" or "transform-origin" or "box-shadow")
+                {
+                    string effectValue;
+                    if (name == "opacity") effectValue = CssEffects.CompileOpacity(node);
+                    else if (name == "transform") effectValue = CssEffects.CompileTransform(node);
+                    else if (name == "box-shadow") effectValue = CssEffects.CompileShadows(CanonicalValues(node));
+                    else
+                    {
+                        var originKeyword = FirstIdent(node)?.ToLowerInvariant();
+                        if (originKeyword is not null && Wide(originKeyword) && NonWhitespaceCount(node) == 1) effectValue = originKeyword;
+                        else if (TransformOrigin(node)) effectValue = string.Join(' ', OriginTerms(node));
+                        else throw new FactsPdfException("FPDF1202",
+                            "transform-origin supports only one or two positions (left, center, right, top, bottom, a length or a percentage) and an optional length.",
+                            FirstComponentOffset(node));
+                    }
+                    if (effectValue == "revert-layer") budget.UsesRevertLayer = true;
+                    output.Add(CssDeclaration.Create(property, name, effectValue, node.Important,
+                        fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start), node.Span.Start));
+                    continue;
+                }
                 // font: expands into the longhands it covers, each compiled by the code of that longhand.
                 if (name == "font")
                 {
@@ -1009,8 +1031,7 @@ internal static class CssSyntaxAdapter
         "position" => "static",
         "float" or "clear" => "none",
         "z-index" => "auto",
-        "opacity" => "1",
-        "box-shadow" or "text-shadow" or "transform" or "filter" or "background-image" => "none",
+        "text-shadow" or "filter" or "background-image" => "none",
         // Compositing and clipping resets: nothing is blended, isolated or clipped.
         "clip-path" or "backdrop-filter" => "none",
         "mix-blend-mode" => "normal",
@@ -1237,7 +1258,8 @@ internal static class CssSyntaxAdapter
         "border-bottom-width", "border-left-width", "border-top-style", "border-right-style",
         "border-bottom-style", "border-left-style", "border-top-color", "border-right-color",
         "border-bottom-color", "border-left-color", "table-layout", "object-fit", "object-position",
-        "counter-reset", "counter-increment", "counter-set", "vertical-align"
+        "counter-reset", "counter-increment", "counter-set", "vertical-align",
+        "opacity", "transform", "transform-origin", "box-shadow"
     ];
 
     private static void CompileAll(CssDeclarationNode node, CssBudget budget, int fixedOrder, List<CssDeclaration> output)
@@ -1303,7 +1325,7 @@ internal static class CssSyntaxAdapter
         name is "cursor" or "pointer-events" or "user-select" or "resize" or "print-color-adjust"
             or "text-rendering" or "-webkit-font-smoothing" or "-moz-osx-font-smoothing"
             or "text-size-adjust" or "appearance" or "backface-visibility" or "touch-action"
-            or "will-change" or "transform-origin" or "transition" or "transition-property" or "transition-duration"
+            or "will-change" or "transition" or "transition-property" or "transition-duration"
             or "transition-timing-function" or "transition-delay" or "transition-behavior"
             or "animation" or "animation-name" or "animation-duration" or "animation-timing-function"
             or "animation-delay" or "animation-iteration-count" or "animation-direction"
@@ -1576,6 +1598,39 @@ internal static class CssSyntaxAdapter
             if (first == 2 ? kind is 2 or 4 or 5 : first != 3 && kind == 1) return false;
         }
         return count > 0;
+    }
+
+    private static int FirstComponentOffset(CssDeclarationNode node)
+    {
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) return node.Values[i].Span.Start;
+        return node.Span.Start;
+    }
+
+    private static int NonWhitespaceCount(CssDeclarationNode node)
+    {
+        var count = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) count++;
+        return count;
+    }
+
+    // The lower-cased terms of a validated transform-origin (see TransformOrigin), a bare zero as 0.
+    private static List<string> OriginTerms(CssDeclarationNode node)
+    {
+        var terms = new List<string>(3);
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            if (node.Values[i] is not CssTokenComponent { Token: var token } || token.Kind == CssSyntaxTokenKind.Whitespace) continue;
+            terms.Add(token.Kind switch
+            {
+                CssSyntaxTokenKind.Number => "0",
+                CssSyntaxTokenKind.Percentage => token.Value + "%",
+                CssSyntaxTokenKind.Dimension => (token.Value + token.Unit).ToLowerInvariant(),
+                _ => token.Value.ToLowerInvariant()
+            });
+        }
+        return terms;
     }
 
     private static int OriginComponent(CssSyntaxToken token)
@@ -2084,6 +2139,8 @@ internal static class CssSyntaxAdapter
         "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
         "background-clip" => CssProperty.BackgroundClip,
+        "opacity" => CssProperty.Opacity, "transform" => CssProperty.Transform,
+        "transform-origin" => CssProperty.TransformOrigin, "box-shadow" => CssProperty.BoxShadow,
         "object-fit" => CssProperty.ObjectFit,
         "table-layout" => CssProperty.TableLayout,
         "counter-reset" => CssProperty.CounterReset,

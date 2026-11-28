@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// backface-visibility only matters for a 3D-transformed element (transform accepts only none)
+/// backface-visibility only matters for a 3D-transformed element that shows its back face (which fails)
 /// and touch-action only selects which touch gestures a screen handles. Neither can change a
 /// PDF page, so their keywords are validated and dropped and the page renders byte-identical
 /// to the page without the declaration.

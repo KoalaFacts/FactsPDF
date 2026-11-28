@@ -134,7 +134,7 @@ public sealed class NonStrictCssTests
     [TestCase("p{position:absolute}")]
     [TestCase("p{display:flex}")]
     [TestCase("p{font-style:oblique}")]
-    [TestCase("p{transform:rotate(5deg)}")]
+    [TestCase("p{transform:perspective(9px) rotateY(9deg)}")]
     [TestCase("p{grid-template-areas:'a'}")]
     [TestCase("p{background:url(x.png)}")]
     [TestCase("div{display:var(--missing, initial)}", "<div>x</div>")]

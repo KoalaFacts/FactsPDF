@@ -28,10 +28,19 @@ internal sealed class PdfImageWriter
     /// Appends the page's <c>/XObject</c> resource entries (nothing for a page without images). The
     /// byte limit applies to the entries alone, as when they were built as a separate string.
     /// </summary>
-    internal void AppendResources(StringBuilder output, LayoutPage page, int firstObject, int limit, CancellationToken cancellation)
+    internal void AppendResources(StringBuilder output, LayoutPage page, int firstObject, int limit, CancellationToken cancellation,
+        List<int>? forms = null)
     {
         // An inline svg is painted in the content stream itself and needs no XObject.
-        if (!page.Images.Exists(placed => placed.Image is not null)) return;
+        if (!page.Images.Exists(placed => placed.Image is not null))
+        {
+            // The transparency groups of opacity below 1 (PdfEffects) are XObjects too.
+            if (forms is not { Count: > 0 }) return;
+            output.Append(" /XObject <<");
+            PdfEffects.AppendFormEntries(output, forms);
+            output.Append(" >>");
+            return;
+        }
         var start = output.Length;
         output.Append(" /XObject <<"); var seen = new HashSet<int>();
         foreach (var placed in page.Images)
@@ -42,6 +51,7 @@ internal sealed class PdfImageWriter
             if (seen.Add(index)) output.Append(" /Im").Append(index + 1).Append(' ').Append(firstObject + index).Append(" 0 R");
             Check(output.Length - start, limit);
         }
+        if (forms is { Count: > 0 }) PdfEffects.AppendFormEntries(output, forms);
         output.Append(" >>");
     }
 

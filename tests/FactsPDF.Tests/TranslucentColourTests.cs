@@ -180,7 +180,7 @@ public sealed class TranslucentColourTests
     [TestCase("color:rgb(1 2 3 /)")]
     [TestCase("color:rgb(1 2 3 / 0.5 / 1)")]
     [TestCase("color:#12345")]
-    [TestCase("opacity:0.5")]
+    [TestCase("opacity:0.5 1")]
     public void MalformedAlphaAndOpacityStillFailBeforeWriting(string css)
     {
         using var stream = new MemoryStream();

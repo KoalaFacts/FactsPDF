@@ -3,9 +3,9 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// transform-origin only moves the point a transform pivots around. The only accepted transform
-/// is none, so a well-formed origin moves nothing: it is validated and dropped and the page
-/// renders byte-identical to the page without it.
+/// transform-origin only moves the point a transform pivots around, so on a box without a
+/// transform a well-formed origin moves nothing and the page renders byte-identical to the page
+/// without it (TransformTests covers the origin of a transformed box).
 /// </summary>
 [TestFixture]
 public sealed class TransformOriginTests

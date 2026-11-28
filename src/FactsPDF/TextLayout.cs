@@ -54,6 +54,31 @@ internal static class TextLayout
         var right = double.NegativeInfinity;
         foreach (var page in pages)
         {
+            if (page.Effects.Exists(region => region.Transform is not null))
+            {
+                // Content a transform moves overflows where it is painted, which layout checked
+                // (CheckTransformed) to stay inside the page area; its untransformed place does not count.
+                static bool Moved(LayoutPage target, int index, Func<EffectRegion, (int Start, int End)> range)
+                {
+                    foreach (var region in target.Effects)
+                    {
+                        if (region.Transform is null) continue;
+                        var (start, end) = range(region);
+                        if (index >= start && index < end) return true;
+                    }
+                    return false;
+                }
+                for (var i = 0; i < page.Runs.Count; i++)
+                    if (!Moved(page, i, r => (r.RunStart, r.RunEnd))) right = Math.Max(right, page.Runs[i].X + page.Runs[i].Width);
+                for (var i = 0; i < page.PaintBoxes.Count; i++)
+                    if (page.PaintBoxes[i] is { Width: > 0, Height: > 0 } box && !Moved(page, i, r => (r.BoxStart, r.BoxEnd)))
+                        right = Math.Max(right, box.X + box.Width);
+                for (var i = 0; i < page.Images.Count; i++)
+                    if (!Moved(page, i, r => (r.ImageStart, r.ImageEnd))) right = Math.Max(right, page.Images[i].X + page.Images[i].Width);
+                for (var i = 0; i < page.Discs.Count; i++)
+                    if (!Moved(page, i, r => (r.DiscStart, r.DiscEnd))) right = Math.Max(right, page.Discs[i].X + page.Discs[i].Radius);
+                continue;
+            }
             foreach (var run in page.Runs) right = Math.Max(right, run.X + run.Width);
             foreach (var box in page.PaintBoxes) if (box.Width > 0 && box.Height > 0) right = Math.Max(right, box.X + box.Width);
             foreach (var image in page.Images) right = Math.Max(right, image.X + image.Width);
@@ -391,6 +416,96 @@ internal static class TextLayout
                 }
             }
         }
+        // Records the stacking context of a closing box with opacity below 1 or a transform: one region per
+        // page it spans, holding everything the box painted there (see EffectRegion). A transform applies to
+        // the whole border box, so a transformed box must sit on one page.
+        void AddEffectRegions(OpenBlock scope, double paddingBottom, double minimumExtra)
+        {
+            var effects = scope.Style.Effects;
+            var finalPage = pages.Count - 1;
+            if (effects.Transform is not null && scope.StartPage != finalPage)
+                throw new FactsPdfException("FPDF1302",
+                    "A transformed box cannot span pages: Chrome transforms the box's page fragments, which is not supported; keep it on one page (break-inside:avoid).",
+                    scope.SourceOffset);
+            var minimumEnd = scope.StartPage == finalPage ? scope.StartY + scope.Top : o.MarginTop;
+            var finish = Math.Max(minimumEnd, y + pendingTopPadding + pendingClosedPadding) + paddingBottom + minimumExtra;
+            for (var p = scope.StartPage; p <= finalPage; p++)
+            {
+                var first = p == scope.StartPage; var last = p == finalPage;
+                var page = pages[p];
+                var runStart = first ? scope.RunStart : 0; var discStart = first ? scope.DiscStart : 0;
+                var imageStart = first ? scope.ImageStart : 0; var boxStart = first ? scope.BoxStart : 0;
+                if (page.Runs.Count == runStart && page.Discs.Count == discStart && page.Images.Count == imageStart
+                    && page.PaintBoxes.Count == boxStart) continue;
+                PdfMatrix? matrix = null;
+                if (effects.Transform is not null)
+                {
+                    var top = first ? scope.StartY : o.MarginTop;
+                    var end = last ? finish : bottom;
+                    var (topDown, pdf) = CssEffects.Resolve(effects, scope.X, top, scope.Width, Math.Max(0, end - top), o.PageHeight, scope.SourceOffset);
+                    matrix = pdf;
+                    CheckTransformed(page, topDown, runStart, discStart, imageStart, boxStart, scope.SourceOffset);
+                }
+                var region = new EffectRegion(effects.Alpha, matrix, scope.Order, scope.SourceOffset,
+                    runStart, page.Runs.Count, discStart, page.Discs.Count, imageStart, page.Images.Count,
+                    boxStart, page.PaintBoxes.Count, page.Clips.Count);
+                var id = page.Effects.Count + 1;
+                foreach (var inner in page.Effects)
+                    if (inner.Parent == 0 && inner.RunStart >= runStart && inner.DiscStart >= discStart
+                        && inner.ImageStart >= imageStart && inner.BoxStart >= boxStart)
+                        inner.Parent = id;
+                page.WritableEffects.Add(region);
+            }
+        }
+        // A transformed box's links would need transformed annotation rectangles, and content it moves off
+        // the sheet or past the right edge of the page area (where Chrome would print the page scaled down)
+        // is not supported. Text extends from a font size above its baseline to a third of it below.
+        void CheckTransformed(LayoutPage page, PdfMatrix m, int runStart, int discStart, int imageStart, int boxStart, int sourceOffset)
+        {
+            var (minX, minY, maxX, maxY) = (double.PositiveInfinity, double.PositiveInfinity, double.NegativeInfinity, double.NegativeInfinity);
+            void Corner(double px, double py)
+            {
+                var (tx, ty) = m.Apply(px, py);
+                minX = Math.Min(minX, tx); maxX = Math.Max(maxX, tx);
+                minY = Math.Min(minY, ty); maxY = Math.Max(maxY, ty);
+            }
+            void Include(double left, double top, double width, double height)
+            {
+                Corner(left, top); Corner(left + width, top);
+                Corner(left, top + height); Corner(left + width, top + height);
+            }
+            for (var i = runStart; i < page.Runs.Count; i++)
+            {
+                var run = page.Runs[i];
+                if (run.Style.LinkUri is not null)
+                    throw new FactsPdfException("FPDF1201", "Links inside a transformed box are not supported.", sourceOffset);
+                var size = run.Style.FontSize;
+                Include(run.X, o.PageHeight - run.Baseline - size, run.Width, size * 4 / 3);
+            }
+            for (var i = discStart; i < page.Discs.Count; i++)
+            {
+                var disc = page.Discs[i];
+                Include(disc.X - disc.Radius, o.PageHeight - disc.Y - disc.Radius, 2 * disc.Radius, 2 * disc.Radius);
+            }
+            for (var i = imageStart; i < page.Images.Count; i++)
+            {
+                var image = page.Images[i];
+                if (image.LinkUri is not null)
+                    throw new FactsPdfException("FPDF1201", "Links inside a transformed box are not supported.", sourceOffset);
+                Include(image.X, image.Top, image.Width, image.Height);
+            }
+            for (var i = boxStart; i < page.PaintBoxes.Count; i++)
+            {
+                var box = page.PaintBoxes[i];
+                if (box.Width > 0 && box.Height > 0) Include(box.X, box.Top, box.Width, box.Height);
+            }
+            if (double.IsPositiveInfinity(minX)) return;
+            if (minX < -0.01 || minY < -0.01 || maxY > o.PageHeight + 0.01)
+                throw new FactsPdfException("FPDF1302", "A transform moves content off the PDF page.", sourceOffset);
+            if (maxX > o.PageWidth - o.MarginRight + 0.01)
+                throw new FactsPdfException("FPDF1302",
+                    "A transform moves content past the right edge of the page area, where Chrome prints the page scaled down; not supported.", sourceOffset);
+        }
         void Process(BlockLayoutStep step)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -707,6 +822,8 @@ internal static class TextLayout
                             emittedPaint |= painted.CommandCount > 0;
                     }
                 }
+                if (scope.Style.Effects.CreatesStackingContext)
+                    AddEffectRegions(scope, closing.PaddingBottom, minimumExtra);
                 if (scope.ContentEpoch == contentEpoch && !scope.TopConsumed)
                 {
                     // No laid-out text or retained first fragment consumed
@@ -1310,6 +1427,17 @@ internal static class TextLayout
             {
                 var k = (i - probe.FirstPage) * 5;
                 pages[i].Clips.RemoveRange(probe.Counts[k + 4], pages[i].Clips.Count - probe.Counts[k + 4]);
+                // An effect region made since the capture holds something placed since then.
+                if (pages[i].Effects.Count > 0)
+                {
+                    var effects = pages[i].WritableEffects;
+                    for (var e = effects.Count - 1; e >= 0; e--)
+                        if (effects[e].RunEnd > probe.Counts[k] || effects[e].BoxEnd > probe.Counts[k + 1]
+                            || effects[e].DiscEnd > probe.Counts[k + 2] || effects[e].ImageEnd > probe.Counts[k + 3])
+                            effects.RemoveAt(e);
+                    foreach (var region in effects)
+                        if (region.Parent > effects.Count) region.Parent = 0;
+                }
                 pages[i].Runs.RemoveRange(probe.Counts[k], pages[i].Runs.Count - probe.Counts[k]);
                 pages[i].PaintBoxes.RemoveRange(probe.Counts[k + 1], pages[i].PaintBoxes.Count - probe.Counts[k + 1]);
                 pages[i].Discs.RemoveRange(probe.Counts[k + 2], pages[i].Discs.Count - probe.Counts[k + 2]);
