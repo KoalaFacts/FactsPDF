@@ -1076,3 +1076,16 @@ test('::before and ::after generated content is partial, in English', async () =
   assert.equal(data.features.find(x => x.id === 'selector.pseudo').status, 'partial');
   assert.match(translate(data.css_inventory_note), /adding the content name; this took it from 398 to 399/);
 });
+
+test('the font shorthand is partial, in English', async () => {
+  const { englishFeature } = await localisation();
+  const font = englishFeature(data.features.find(x => x.id === 'css.font'));
+  assert.equal(font.status, 'partial');
+  assert.match(font.scope, /\[font-style \|\| font-variant \|\| font-weight \|\| font-stretch\] font-size \[\/ line-height\] font-family/);
+  assert.match(font.scope, /a later font overrides an earlier font-weight and the reverse, as in Chrome/);
+  assert.match(font.limitations, /system font keywords \(caption, icon, menu, message-box, small-caption, status-bar\) need a platform font/);
+  assert.match(font.test_reference, /FontShorthandTests\.cs/);
+  for (const field of ['scope', 'limitations', 'stage', 'evidence_level']) assert.doesNotMatch(font[field], han, field);
+  assert.doesNotMatch(englishFeature(data.features.find(x => x.id === 'css.line-height')).limitations, /font shorthand\.|arbitrary CSS font shorthand/);
+  assert.match(englishFeature(data.features.find(x => x.id === 'css.font-family')).limitations, /the family part of the font shorthand is likewise only validated and dropped/);
+});

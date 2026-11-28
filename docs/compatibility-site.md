@@ -455,12 +455,25 @@ and `css.line-height` rows, the list marker rows and the `<body>` sentence share
 supported elements take Chrome's user-agent defaults (the 8px `body` margin, 1em `p`, `dl` and block margins,
 `blockquote` and `figure` insets of 40px, heading sizes and bold (needing a bold chain like `b`), 40px list padding with hanging markers,
 Chrome's `hr` bevel, `big`) and `line-height:normal` reads the first font's metrics. Twenty-one English strings are
-replaced in place, so no count or status moves (full 45, partial 270, none 95; 418 records, 52 accepted CSS property
+replaced in place, so no count or status moves (full 45, partial 271, none 94; 418 records, 52 accepted CSS property
 names unchanged). Current dataset SHA-256:
-`25012f0dc6714b42b7d251f955942d9b0e65e27d11ed96b68a1b57bd4c64f9de`; English layer
+`0a81c02cebb762a7246948473a4d666535f5d95e9118a3ec0bbfc324ddd9d717`; English layer
 `site/src/audit-english-ua-stylesheet.mjs`, ordered source-text SHA-256
-`902d229f96ecf1e6a15a9c5dc5fbba4feae50b390f9cd5668f01c192f8a19ef2`. The older entries below describe the state at
+`c1540c492087eb7783f7d259e4d73e171425fb7e4faa223f8b50cabc518bcc38`. The older entries below describe the state at
 their own dates.
+
+## The font shorthand
+
+A candidate change moves the `css.font` row from none to partial and revises the `css.font-family`
+and `css.line-height` limitations, which said the `font` shorthand was unsupported: `font` expands
+into the longhands at its position in the cascade, resets the ones it does not mention and fails
+`FPDF1202` for the values the longhands cannot draw and for system font keywords. Full 45, partial
+271, none 94; 418 records, 52 accepted CSS property names unchanged. Dataset SHA-256 (LF bytes, as
+`git show :site/data/compatibility.json` prints them):
+`dd9a7e03cfeb2573ae3ccaba89d6847858e3dca099ac41f1f50edb287160b1c1`; English layer
+`site/src/audit-english-font-shorthand.mjs`, ordered source-text SHA-256
+`493abbc2ebbdd395627b1e4a10871086b14368c3aca35ad7e0ae05426de9337d`. The entries below
+describe the state at their own dates.
 
 ## Block margin collapsing, list and table margins and cell paragraph padding
 

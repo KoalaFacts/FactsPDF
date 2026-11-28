@@ -111,7 +111,7 @@ internal static class CssSyntaxAdapter
                 // Fail unsupported properties first even when the value contains
                 // functions or multiple tokens.
                 var initialOnly = InitialOnlyValue(name);
-                var property = initialOnly is null && !IsInteractionOnly(name) ? Property(name, node.Span.Start) : default;
+                var property = initialOnly is null && !IsInteractionOnly(name) && name != "font" ? Property(name, node.Span.Start) : default;
                 // A supported property whose value holds var() can be checked only after substitution,
                 // for each element it applies to (CSS Custom Properties: valid at parse time when the
                 // var() syntax is). It keeps one cascade order for every declaration it expands into.
@@ -140,6 +140,12 @@ internal static class CssSyntaxAdapter
                 if (IsInteractionOnly(name))
                 {
                     ValidateInteractionOnly(name, node);
+                    continue;
+                }
+                // font: expands into the longhands it covers, each compiled by the code of that longhand.
+                if (name == "font")
+                {
+                    CompileFont(node, budget, hostSelectors, hostElement, fixedOrder, output);
                     continue;
                 }
                 // content: none, normal or one or more strings, the text of a ::before or ::after box.
@@ -737,6 +743,49 @@ internal static class CssSyntaxAdapter
         output.Clear(); // drop the references before the list waits in its slot
         if (output.Capacity <= MaxPooledDeclarations) pooledDeclarations = output;
         return compiled;
+    }
+
+    // The font shorthand (CSS Fonts 4) sets font-style, font-variant, font-weight, font-stretch, font-size,
+    // line-height and font-family together, and resets the ones it does not mention to their initial
+    // values. Each longhand is compiled by CompileKnownDeclarations as a declaration of its own at the
+    // shorthand's position, so a value the renderer cannot draw (small-caps, a stretch keyword, oblique,
+    // a numeric weight that is not a hundred) fails or is dropped exactly as that longhand does. The
+    // longhands the renderer keeps no state for (font-variant, font-stretch, font-family and the
+    // font-variant-*, font-size-adjust, font-kerning ... resets) are validated and dropped, so their
+    // reset has nothing to override. A system font keyword needs a platform font and fails.
+    private static void CompileFont(CssDeclarationNode node, CssBudget budget, CssSelector[]? hostSelectors,
+        string? hostElement, int fixedOrder, List<CssDeclaration> output)
+    {
+        var split = CssFontShorthand.Parse(node.Values);
+        var start = node.Span.Start;
+        if (split.Form == CssFontShorthand.Form.Invalid)
+            throw new FactsPdfException("FPDF1202",
+                "font requires [font-style || font-variant || font-weight || font-stretch] font-size [/ line-height] font-family, a system font keyword or a CSS-wide keyword; font-variant is normal or small-caps and font-stretch a keyword.",
+                start);
+        if (split.Form == CssFontShorthand.Form.SystemFont)
+            throw new FactsPdfException("FPDF1202",
+                "A system font keyword in font needs a platform font, which the renderer never discovers: write font-size, font-weight, font-style and line-height explicitly.",
+                node.Values[0].Span.Start);
+        var longhands = new List<CssDeclarationNode>(7);
+        void Add(string name, CssSyntaxComponent[] values) => longhands.Add(new CssDeclarationNode(name, values, node.Important, node.Span));
+        CssSyntaxComponent[] Normal() =>
+            [new CssTokenComponent(new CssSyntaxToken(CssSyntaxTokenKind.Ident, "normal", "normal", new CssSourceSpan(start, 0)))];
+        if (split.Form == CssFontShorthand.Form.CssWide)
+        {
+            var keyword = CssFontShorthand.Slice(node.Values, new(0, node.Values.Count));
+            foreach (var name in new[] { "font-style", "font-weight", "font-size", "line-height" }) Add(name, keyword);
+        }
+        else
+        {
+            Add("font-style", split.Style.Present ? CssFontShorthand.Slice(node.Values, split.Style) : Normal());
+            if (split.Variant.Present) Add("font-variant", CssFontShorthand.Slice(node.Values, split.Variant));
+            Add("font-weight", split.Weight.Present ? CssFontShorthand.Slice(node.Values, split.Weight) : Normal());
+            if (split.Stretch.Present) Add("font-stretch", CssFontShorthand.Slice(node.Values, split.Stretch));
+            Add("font-size", CssFontShorthand.Slice(node.Values, split.Size));
+            Add("line-height", split.LineHeight.Present ? CssFontShorthand.Slice(node.Values, split.LineHeight) : Normal());
+            Add("font-family", CssFontShorthand.Slice(node.Values, split.Family));
+        }
+        output.AddRange(CompileKnownDeclarations(longhands, budget, hostSelectors, hostElement, fixedOrder, recover: false));
     }
 
     /// <summary>The property a legacy, prefixed or alias name shares its cascade slot, values and errors with.</summary>

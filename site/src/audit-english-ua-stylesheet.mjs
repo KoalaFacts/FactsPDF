@@ -1,10 +1,10 @@
-import { englishAudit as previous } from './audit-english-nested-tables.mjs';
+import { englishAudit as previous } from './audit-english-font-shorthand.mjs';
 
 // The user-agent stylesheet: Chrome's default margins, sizes, weight and list padding replace the 8pt/24pt blockquote, dl, dd, figure,
 // p and hr defaults and the list marker gutter, body takes the 8px margin, line-height:normal reads the font metrics and big joins
 // small: twenty-one strings replaced in place, so no count or status moves.
-if (previous.length !== 916) throw new Error('Earlier English audit cardinality changed.');
-export const sourceDigest = '902d229f96ecf1e6a15a9c5dc5fbba4feae50b390f9cd5668f01c192f8a19ef2';
+if (previous.length !== 920) throw new Error('Earlier English audit cardinality changed.');
+export const sourceDigest = 'c1540c492087eb7783f7d259e4d73e171425fb7e4faa223f8b50cabc518bcc38';
 const entries = [...previous];
 entries.splice(30, 1,
   "Ordinary LTR blockquotes take Chrome's 1em vertical and 40px horizontal default margins, nested paragraphs, inherited fonts, optional width, opaque background, uniform borders, padding and searchable paginated PDF text. One-to-four physical border-radius shorthand values and four independent single-corner longhands draw actual separate cubic PDF corners, with normal per-corner CSS cascade and first/last page caps.");
@@ -31,7 +31,7 @@ entries.splice(97, 1,
 entries.splice(111, 1,
   "<small> renders secondary text at five-sixths of its computed parent font size and <big> at six-fifths, affecting measured PDF glyphs, wrapping and pagination; CSS overrides and resource protection still apply.");
 entries.splice(213, 1,
-  "No zero/negative values, out-of-range multipliers, lh/rlh/calc() or arbitrary CSS font shorthand. This typography audit covers rem on this text-length path, not box geometry.");
+  "No zero/negative values, out-of-range multipliers or lh/rlh/calc(); a line-height inside the font shorthand follows the same rules. This typography audit covers rem on this text-length path, not box geometry.");
 entries.splice(219, 1,
   "Direct paragraph percentages in lists/tables reject FPDF1201; vertical margins collapse as in CSS 2 (see applicability); negative values, vertical auto and calc remain unsupported. <body> has the 8px user-agent margin, which an author margin replaces; <html> accepts only a zero margin, which changes no output (the page margin options frame the content); a nonzero value still fails FPDF1201. Image and inline margins remain excluded; unfit PDF geometry FPDF1302 preserves previous output. Exception: a zero margin on inline text (span/b/strong/i/em/small/u/s/del/ins/a) is accepted and changes no output; other values still fail FPDF1201. A zero margin on table rows, row groups, columns, column groups and cells (tr/thead/tbody/col/colgroup/td/th) is the initial value and is accepted with no change to output; nonzero values still fail FPDF1201. A zero margin on br and svg is accepted with no change to output; margin-top and margin-bottom on li, ul, ol, menu and table are real outside margins (see applicability), and a table accepts only a zero left or right margin (a nonzero value, auto included, fails FPDF1201).");
 entries.splice(288, 1,
@@ -42,13 +42,13 @@ entries.splice(296, 1,
   "LTR only: direction switches, RTL and vertical writing remain unsupported. Negative lengths, calc and mixed CSS-wide shorthand terms reject. Apart from <body> margins and a zero margin on <html>, image/inline margins and nonzero table-cell paragraph side margins retain their limits; overwide geometry raises FPDF1302 and preserves the original PDF. Exception: a zero margin on inline text (span/b/strong/i/em/small/u/s/del/ins/a) is accepted and changes no output; other values still fail FPDF1201. A zero margin on table rows, row groups, columns, column groups and cells (tr/thead/tbody/col/colgroup/td/th) is the initial value and is accepted with no change to output; nonzero values still fail FPDF1201. A zero margin on br and svg is accepted with no change to output; margin-top and margin-bottom on li, ul, ol, menu and table are real outside margins (see applicability), and a table accepts only a zero left or right margin (a nonzero value, auto included, fails FPDF1201).");
 entries.splice(300, 1,
   "List/table paragraph percentages fail FPDF1201; vertical auto, negative values and calc remain unsupported. RTL/vertical writing, image, table structure and inline margins excluded; body takes margins (8px by default) and html accepts only a zero margin, with no effect. FPDF1201/1202/1302 errors preserve previous PDF; not full CSS Logical Properties. Exception: a zero margin on inline text (span/b/strong/i/em/small/u/s/del/ins/a) is accepted and changes no output; other values still fail FPDF1201. A zero margin on table rows, row groups, columns, column groups and cells (tr/thead/tbody/col/colgroup/td/th) is the initial value and is accepted with no change to output; nonzero values still fail FPDF1201. A zero margin on br and svg is accepted with no change to output; margin-top and margin-bottom on li, ul, ol, menu and table are real outside margins (see applicability), and a table accepts only a zero left or right margin (a nonzero value, auto included, fails FPDF1201).");
-entries.splice(390, 1,
+entries.splice(394, 1,
   "Only ol/ul/li: disc, hollow-circle, solid-square, decimal, lower-alpha, upper-alpha, lower-roman, upper-roman and none. Actual PDF vector outlines/fills or searchable text labels, hanging marker position and first-line placement across pages; cascade, inheritance and !important supported.");
-entries.splice(561, 1,
+entries.splice(565, 1,
   "normal (the default: the first font's ascent, descent and line gap rounded to whole pixels like Chrome; 1.2 for the built-in font), %/em based on current element size, rem based on html root size, and pt/px/mm/cm/in compute absolute heights inherited as fixed values, affecting actual PDF leading and page breaks.");
-entries.splice(562, 1,
+entries.splice(566, 1,
   "Only bounded text line-height support. Zero/negative values, out-of-range multipliers, lh/rlh/calc() still reject explicitly.");
 export const englishAudit = Object.freeze(entries);
-if (englishAudit.length !== 916 ||
+if (englishAudit.length !== 920 ||
   englishAudit.some(value => typeof value !== 'string' || !value.trim() || /[㐀-鿿]/u.test(value)))
   throw new Error('Incomplete English audit layer.');
