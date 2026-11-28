@@ -200,7 +200,7 @@ test('ua-stylesheet explains rendered differences and moved decorated bottom edg
   const before = ok('%PDF-1.7 old defaults');
   const after = ok('%PDF-1.7 chrome defaults');
   const kinds = (b: RunResult, a: RunResult, newExample = false) => classifyDifferences(b, a, newExample, false, false, false, false);
-  assert.deepEqual(kinds(before, after), ['orphans-widows-initial-2', 'ua-stylesheet', 'overflow-and-line-breaking']);
+  assert.deepEqual(kinds(before, after), ['orphans-widows-initial-2', 'ua-stylesheet', 'overflow-and-line-breaking', 'block-box-model']);
   assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
   assert.ok(!kinds(before, { ...after, stderr: 'warning\n' }).includes('ua-stylesheet'), 'changed diagnostics are not a layout difference');
   assert.ok(!kinds(before, { ...after, exitCode: 3, pdf: null }).includes('ua-stylesheet'), 'a new failure is not a layout difference');
@@ -267,4 +267,21 @@ test('a changed rendered page is the declared orphans/widows initial-value kind'
   const moved: Difference = { example: 'a.html', set: 'defaults', reason: 'PDF bytes differ', kind: 'orphans-widows-initial-2' };
   assert.deepEqual(failures([moved], []), { unexpected: [moved], unobserved: [] });
   assert.deepEqual(failures([moved], ['orphans-widows-initial-2']), { unexpected: [], unobserved: [] });
+});
+
+test('block-box-model explains rendered differences and lifted box refusals of existing examples', () => {
+  const kinds = (b: RunResult, a: RunResult, newExample = false) => classifyDifferences(b, a, newExample, false, false, false, false);
+  const before = ok('%PDF-1.7 font-size large was 14.4pt');
+  const after = ok('%PDF-1.7 font-size large is 13.5pt');
+  assert.ok(kinds(before, after).includes('block-box-model'));
+  assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
+  assert.ok(!kinds(before, { ...after, stderr: 'warning
+' }).includes('block-box-model'), 'changed diagnostics are not a layout difference');
+  const refused = { exitCode: 3, stderr: "FPDF1201: Height limits apply only to scoped report panels or direct images.
+Location: line 3, column 1.
+", pdf: null };
+  assert.ok(kinds(refused, after).includes('block-box-model'), 'a box declaration the head now renders');
+  assert.ok(!kinds(after, refused).includes('block-box-model'), 'a new refusal is not a box model change');
+  assert.ok(!kinds({ ...refused, stderr: 'FPDF1302: Line height exceeds the usable page height.
+' }, after).includes('block-box-model'));
 });

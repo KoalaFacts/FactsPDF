@@ -128,15 +128,15 @@ internal static class InlineCss
                 // A deliberately bounded fixed advance; no font metrics,
                 // relative units or shaping are inferred at parse time.
                 var tracking = value == "normal" ? 0 : Length(value, offset);
-                if (!double.IsFinite(tracking) || tracking is < 0 or > 24)
-                    throw Invalid("letter-spacing must be from 0pt to 24pt.", offset);
+                if (!double.IsFinite(tracking) || tracking is < 0 or > 1000)
+                    throw Invalid("letter-spacing must be from 0pt to 1000pt.", offset);
                 style.LetterSpacing = tracking;
                 break;
             case "word-spacing":
                 // Only collapsed U+0020 space glyphs receive a fixed extra advance.
                 var wordGap = value == "normal" ? 0 : Length(value, offset);
-                if (!double.IsFinite(wordGap) || wordGap is < 0 or > 24)
-                    throw Invalid("word-spacing must be from 0pt to 24pt.", offset);
+                if (!double.IsFinite(wordGap) || wordGap is < 0 or > 1000)
+                    throw Invalid("word-spacing must be from 0pt to 1000pt.", offset);
                 style.WordSpacing = wordGap;
                 break;
             case "text-transform":
@@ -294,13 +294,15 @@ internal static class InlineCss
 
     internal static double? KeywordFontSize(string value, double parentFontSize) => value switch
     {
-        "xx-small" => 7.2,
-        "x-small" => 9,
-        "small" => 10,
+        // Chrome's table for a 16px medium (Blink's font size table), in points.
+        "xx-small" => 6.75,
+        "x-small" => 7.5,
+        "small" => 9.75,
         "medium" => 12,
-        "large" => 14.4,
+        "large" => 13.5,
         "x-large" => 18,
         "xx-large" => 24,
+        "xxx-large" or "-webkit-xxx-large" => 36,
         "smaller" => parentFontSize * (5d / 6d),
         "larger" => parentFontSize * (6d / 5d),
         _ => null

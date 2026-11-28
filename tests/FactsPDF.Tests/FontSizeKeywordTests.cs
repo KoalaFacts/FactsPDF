@@ -18,13 +18,15 @@ public sealed class FontSizeKeywordTests
         return output.ToArray();
     }
 
-    [TestCase("xx-small", 7.2)]
-    [TestCase("x-small", 9d)]
-    [TestCase("small", 10d)]
+    [TestCase("xx-small", 6.75)]
+    [TestCase("x-small", 7.5)]
+    [TestCase("small", 9.75)]
     [TestCase("medium", 12d)]
-    [TestCase("large", 14.4)]
+    [TestCase("large", 13.5)]
     [TestCase("x-large", 18d)]
     [TestCase("xx-large", 24d)]
+    [TestCase("xxx-large", 36d)]
+    [TestCase("-webkit-xxx-large", 36d)]
     public void AbsoluteKeywordUsesDocumentedPointScale(string keyword, double points)
     {
         var html = "<p style='font-size:" + keyword + "'>Business report</p>";

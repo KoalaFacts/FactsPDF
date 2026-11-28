@@ -53,6 +53,10 @@
 // values wrap and hang as in CSS Text, and overflowing text, boxes and images overflow instead of failing with
 // FPDF1302 (content wider than the page prints scaled down). Both CLIs render and the PDF bytes differ, or the
 // base failed FPDF1302 for an overflow the head now renders, or both fail and the head's failure is no longer an overflow one.
+// block-box-model — an existing example's box sizes, lengths, font-size keywords or html/body box now print as Chrome
+// does: font-size keywords use Chrome's size table, ex/ch/lh/rlh lengths resolve, box sizes apply to every block, and
+// the body background paints the page canvas. Both CLIs render and the PDF bytes differ, or the base refused
+// a box declaration (FPDF1201/FPDF1202) that the head now renders.
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -91,7 +95,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
   difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet', 'overflow-and-line-breaking'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet', 'overflow-and-line-breaking', 'block-box-model'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -255,6 +259,14 @@ function overflowChanged(base: RunResult, head: RunResult): boolean {
     !formerOverflowFailure.test(head.stderr.replace(/\r\n/g, '\n'));
 }
 
+/** Whether the base refused a CSS declaration (FPDF1201 or FPDF1202) that the head renders. */
+function refusalLifted(base: RunResult, head: RunResult): boolean {
+  return base.exitCode === 3 && base.pdf === null && /^FPDF120[12]: /m.test(base.stderr.replace(/
+/g, '
+')) &&
+    head.exitCode === 0 && head.pdf !== null && head.pdf.subarray(0, 5).toString('latin1') === '%PDF-';
+}
+
 /** Whether one side renders and the other fails only at a decorated box's bottom edge. */
 function decoratedOverflow(rendered: RunResult, failed: RunResult): boolean {
   return rendered.exitCode === 0 && rendered.pdf !== null && failed.exitCode === 3 && failed.pdf === null &&
@@ -300,6 +312,7 @@ export function classifyDifferences(base: RunResult, head: RunResult, newExample
   }
   if (!newExample && boldChainFailure(base, head)) kinds.push('ua-stylesheet');
   if (!newExample && (rendered || overflowChanged(base, head))) kinds.push('overflow-and-line-breaking');
+  if (!newExample && (rendered || refusalLifted(base, head))) kinds.push('block-box-model');
   if (kinds.length > 0 || base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return kinds;
   }

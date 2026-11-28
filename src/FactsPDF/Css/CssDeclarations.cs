@@ -154,9 +154,9 @@ internal static class CssDeclarations
                 // Compute the winner after font-size; inherit fixed-point metrics.
                 var value = CssBoxValues.Length(declaration.Value, declaration.Offset,
                     rootFontSize, allowRem: true, elementFontSize: style.FontSize, allowEm: true).Value;
-                if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing && value > 24)
+                if (property is CssProperty.LetterSpacing or CssProperty.WordSpacing && value > 1000)
                     throw new FactsPdfException("FPDF1202",
-                        "Computed letter/word spacing must be from 0pt to 24pt.", declaration.Offset);
+                        "Computed letter/word spacing must be from 0pt to 1000pt.", declaration.Offset);
                 switch (property)
                 {
                     case CssProperty.LetterSpacing: style.LetterSpacing = value; break;

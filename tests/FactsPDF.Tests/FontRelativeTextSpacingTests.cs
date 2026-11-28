@@ -134,8 +134,8 @@ public sealed class FontRelativeTextSpacingTests
     }
 
     [TestCase("letter-spacing:-0.1em", "FPDF1202")]
-    [TestCase("letter-spacing:3em", "FPDF1202")]
-    [TestCase("word-spacing:3rem", "FPDF1202")]
+    [TestCase("letter-spacing:100em", "FPDF1202")]
+    [TestCase("word-spacing:100rem", "FPDF1202")]
     [TestCase("word-spacing:-0.1rem", "FPDF1202")]
     [TestCase("word-spacing:10%", "FPDF1202")]
     [TestCase("text-indent:-0.2em", "FPDF1202")]
