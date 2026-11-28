@@ -14,7 +14,8 @@ internal enum CssProperty
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
-    TabSize, LineBreak, Visibility, OverflowX, OverflowY, TextOverflow, Hyphens,
+    BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet,
+    TabSize, LineBreak, Visibility, OverflowX, OverflowY, TextOverflow,
     // The animation longhands the cascade carries (CssAnimations): lists of layers, applied as a
     // keyframe state rather than to a style, so they stay the last cascade slots.
     AnimationName, AnimationDuration, AnimationDelay, AnimationIterationCount, AnimationDirection,
@@ -270,6 +271,8 @@ internal static class CssDeclarations
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
         or CssProperty.OverflowX or CssProperty.OverflowY or CssProperty.TextOverflow
         or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
+        or CssProperty.BackgroundClip or CssProperty.TableLayout or CssProperty.ObjectFit or CssProperty.ObjectPosition
+        or CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet
         || CssFlexValues.IsFlexOrGridProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
@@ -446,6 +449,55 @@ internal static class CssDeclarations
                 current.MarginRight = wide ? from.MarginRight : length;
                 current.MarginRightAuto = wide ? from.MarginRightAuto : auto;
             }
+            return current;
+        }
+        if (property is CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet)
+        {
+            var source = value == "inherit" ? parent.Counters : wide ? CounterOps.None : null;
+            var list = source is null ? CounterOps.Parse(value) : null;
+            current.Counters = property switch
+            {
+                CssProperty.CounterReset => current.Counters with { Reset = source is null ? list : source.Reset },
+                CssProperty.CounterIncrement => current.Counters with { Increment = source is null ? list : source.Increment },
+                _ => current.Counters with { Set = source is null ? list : source.Set }
+            };
+            return current;
+        }
+        if (property == CssProperty.TableLayout)
+        {
+            current.FixedTableLayout = value == "inherit" ? parent.FixedTableLayout : !wide && value == "fixed";
+            return current;
+        }
+        if (property == CssProperty.ObjectFit)
+        {
+            current.ObjectPlacement = current.ObjectPlacement with
+            {
+                Fit = value == "inherit" ? parent.ObjectPlacement.Fit : wide ? ObjectFit.Fill : CssObjectValues.Fit(value, declaration.Offset)
+            };
+            return current;
+        }
+        if (property == CssProperty.ObjectPosition)
+        {
+            if (value == "inherit")
+                current.ObjectPlacement = current.ObjectPlacement with { X = parent.ObjectPlacement.X, Y = parent.ObjectPlacement.Y };
+            else if (wide)
+                current.ObjectPlacement = current.ObjectPlacement with { X = ObjectAxis.Centre, Y = ObjectAxis.Centre };
+            else
+            {
+                var (x, y) = CssObjectValues.Position(value, declaration.Offset, rootFontSize, elementFontSize);
+                current.ObjectPlacement = current.ObjectPlacement with { X = x, Y = y };
+            }
+            return current;
+        }
+        if (property == CssProperty.BackgroundClip)
+        {
+            current.BackgroundClip = value switch
+            {
+                "inherit" => parent.BackgroundClip,
+                "padding-box" => BackgroundClip.PaddingBox,
+                "content-box" => BackgroundClip.ContentBox,
+                _ => BackgroundClip.BorderBox
+            };
             return current;
         }
         if (property == CssProperty.BackgroundColor)

@@ -252,8 +252,8 @@ public sealed class OverflowAndLineBreakingTests
     {
         Assert.That(Text("<div style='width:36pt'>abc&#173;defgh</div>"), Is.EqualTo(new[] { "abc-", "defgh" }));
         Assert.That(Text("<div style='width:100pt'>abc&#173;defgh</div>"), Is.EqualTo(new[] { "abcdefgh" }), "no hyphen where no break is needed");
-        Assert.That(Text("<div style='width:28pt'>abc&#173;defgh</div>"), Is.EqualTo(new[] { "abcdefgh" }),
-            "the hyphen would not fit beside abc, so the word overflows whole");
+        Assert.That(Text("<div style='width:28pt'>abc&#173;defgh</div>"), Is.EqualTo(new[] { "abc-", "defgh" }),
+            "where no break fits, Chrome still breaks at the soft hyphen and lets the hyphen overflow");
         Assert.That(Text("<div style='width:36pt;hyphens:none'>abc&#173;defgh</div>"), Is.EqualTo(new[] { "abcdefgh" }));
         Assert.That(Assert.Throws<FactsPdfException>(() => Pdf("<div style='hyphens:auto'>x</div>"))!.Code, Is.EqualTo("FPDF1202"),
             "automatic hyphenation needs a dictionary");

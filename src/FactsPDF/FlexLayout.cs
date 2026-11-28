@@ -204,7 +204,7 @@ internal static partial class FlexLayout
                 budget.Charge(imageNode.CommandCount + box.CommandCount, imageNode.SourceOffset, options);
                 if (box.CommandCount > 0) boxes.Add(box);
                 images.Add(new(imageNode.Image, itemX + item.Image.Left, top + item.Image.Top,
-                    item.ImageWidth, item.ImageHeight, imageNode.Vector));
+                    item.ImageWidth, item.ImageHeight, imageNode.Vector, Placement: imageNode.Placement));
             }
             else if (item.Output is { } output)
             {

@@ -143,12 +143,15 @@ internal sealed class CssStylesheets
     /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
     internal CssPageRules? PageRules { get; private set; }
 
+    /// <summary>Whether any declaration sets a counter or prints one, so the reader tracks counters.</summary>
+    internal bool UsesCounters => budget.UsesCounters;
+
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         this.options = options;
-        winners = pooledWinners ?? new Winner?[(int)CssProperty.Hyphens + 1];
+        winners = pooledWinners ?? new Winner?[(int)CssProperty.TextOverflow + 1];
         userAgentWinners = pooledUserAgentWinners ?? new Winner?[UserAgentStyleSheet.Properties.Length];
         pooledWinners = pooledUserAgentWinners = null;
         lastCreated = this;
@@ -895,7 +898,12 @@ internal sealed class CssStylesheets
         if (types.TryGetValue(element.Name, out var typeRules)) Scan(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Scan(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Scan(classRules);
-        return (display?.Declaration.Value, content?.Declaration.Value);
+        // all:initial and all:unset give the pseudo-element display:inline; revert gives its user-agent value
+        // (inline too); inherit would take the originating element's display, which is not tracked here.
+        var displayValue = display?.Declaration is { Name: "all" } fromAll
+            ? fromAll.Value is "initial" or "unset" or "revert" or "revert-layer" ? "inline" : "inherit"
+            : display?.Declaration.Value;
+        return (displayValue, content?.Declaration.Value);
     }
 
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
@@ -949,6 +957,53 @@ internal sealed class CssStylesheets
                 if (budget.UsesRevertLayer) offered.Add(reverting);
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
+            }
+            // all:initial|inherit|unset gives display its initial value (inline) or the parent's. The report
+            // renderer lays out inline text and replaced elements inline and report panels as blocks, so
+            // the keyword is accepted where it leaves the element's display as it is and fails where it
+            // would turn a block into inline text or the other way round.
+            if (declaration.Name == "all" && declaration.Property == CssProperty.Display)
+            {
+                var effective = declaration.Value switch
+                {
+                    "initial" or "unset" => "inline",
+                    _ => path.Count > 1 && parentBox.Flex.Display == BoxDisplay.Block && !parentBox.DisplayNone
+                        && (HtmlDocumentReader.Container(path[^2].Name) || HtmlDocumentReader.ParagraphTag(path[^2].Name)) ? "block"
+                        : path.Count > 1 && HtmlDocumentReader.InlineTag(path[^2].Name) ? "inline" : null
+                };
+                var blockHost = (HtmlDocumentReader.Container(subject) || HtmlDocumentReader.ParagraphTag(subject))
+                    && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr" or "td" or "th" or "thead" or "tbody" or "tfoot");
+                if (HtmlDocumentReader.InlineTag(subject) && effective == "inline") return;
+                if (!(effective == "inline" && subject is "img" or "svg" || effective == "block" && (blockHost || subject is "img" or "svg")))
+                    throw new FactsPdfException("FPDF1201",
+                        $"all:{declaration.Value} would change the display of this element to {effective ?? "the parent's"}, which the report renderer cannot lay out; all supports revert and revert-layer everywhere, and initial, inherit and unset on inline text and on blocks that inherit block display.",
+                        declaration.Offset);
+                declaration = CssDeclaration.Create(CssProperty.Display, "display", effective!, declaration.Important, declaration.Order, declaration.Offset);
+            }
+            else if (declaration.Name == "all" && declaration.Value is not ("revert" or "revert-layer")
+                && AllChangesNothing(declaration, subject, parent, parentBox))
+                return;
+            // object-fit and object-position fit an img's pixels into its content box. Every element
+            // records them, since a child may inherit them, but only an img has replaced content to
+            // place (an inline svg ignores them as well).
+            if (declaration.Property is CssProperty.ObjectFit or CssProperty.ObjectPosition or CssProperty.TableLayout
+                or CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet)
+            {
+                var fitCandidate = new Winner(declaration, isInline, specificity); var fitOld = winners[(int)declaration.Property];
+                if (!fitOld.HasValue || fitCandidate.Beats(fitOld.Value)) winners[(int)declaration.Property] = fitCandidate;
+                return;
+            }
+            // background-clip moves the edge the background colour is painted to on a report panel,
+            // paragraph or heading outside lists and tables. Elsewhere the colour is painted to the border
+            // box, which is the initial value; any other clip there would be silently ignored.
+            if (declaration.Property == CssProperty.BackgroundClip && !ClipHost(subject, path))
+            {
+                // Inline text, br and column boxes paint no background here, so no clip changes anything.
+                if (declaration.Value is "border-box" or "initial" or "unset" or "inherit"
+                    || HtmlDocumentReader.InlineTag(subject) || subject is "br" or "col" or "colgroup") return;
+                throw new FactsPdfException("FPDF1201",
+                    "background-clip padding-box and content-box are supported on report panels, paragraphs and headings outside lists and tables; elsewhere only border-box.",
+                    declaration.Offset);
             }
             // content generates boxes only for ::before and ::after; on an element it changes
             // nothing (as in a browser), so the validated value is dropped there.
@@ -1539,6 +1594,19 @@ internal sealed class CssStylesheets
                     "inherit" => parentBox.AvoidBreakInside,
                     _ => throw new InvalidOperationException("Unvalidated break-inside.")
                 };
+            else if (declaration.Property == CssProperty.BackgroundClip)
+            {
+                // The background shorthand resets the clip on every element that sets one: skip the
+                // private box copy when nothing changes.
+                var clip = declaration.Value switch
+                {
+                    "inherit" => parentBox.BackgroundClip,
+                    "padding-box" => BackgroundClip.PaddingBox,
+                    "content-box" => BackgroundClip.ContentBox,
+                    _ => BackgroundClip.BorderBox
+                };
+                if (box.BackgroundClip != clip) Own().BackgroundClip = clip;
+            }
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
@@ -1581,6 +1649,18 @@ internal sealed class CssStylesheets
                         || cellTextIndentHost && declaration.Property is CssProperty.TextIndent, computedRoot);
             }
         }
+        if (box.BackgroundClip == BackgroundClip.ContentBox && (box.PaddingTop.IsPercent || box.PaddingRight.IsPercent
+                || box.PaddingBottom.IsPercent || box.PaddingLeft.IsPercent))
+            throw new FactsPdfException("FPDF1201",
+                "background-clip:content-box with a percentage padding is not supported.",
+                winners[(int)CssProperty.BackgroundClip]?.Declaration.Offset ?? elementOffset);
+        // A rounded content box shrinks every corner radius by the padding on both axes; that is a
+        // circle only when the four paddings agree.
+        if (box.BackgroundClip == BackgroundClip.ContentBox && box.HasRoundedCorners
+            && (box.PaddingTop != box.PaddingRight || box.PaddingTop != box.PaddingBottom || box.PaddingTop != box.PaddingLeft))
+            throw new FactsPdfException("FPDF1201",
+                "background-clip:content-box on a rounded box requires equal padding on all four sides.",
+                winners[(int)CssProperty.BackgroundClip]?.Declaration.Offset ?? elementOffset);
         if (userAgentTextOnly && !userAgentTextStyle && styleOwned && userAgentTextStyles.Count < MaxUserAgentTextStyles)
             userAgentTextStyles[userAgentTextKey] = style;
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)
@@ -1654,6 +1734,108 @@ internal sealed class CssStylesheets
     // html{display:flex} only centres a body narrower than the page in a browser window; the
     // layout accepts it where the body fills the page width, where every flex container property
     // places nothing (one item, no free space, the line as tall as the item).
+    private static bool ReportPanel(string subject) =>
+        subject is "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search"
+            or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd";
+
+    // all:initial|inherit|unset names every property, including those that do nothing on this element.
+    // Returns true when the keyword leaves the element exactly as it is without the declaration, so the
+    // property's own applicability checks need not run: the property does not show on this element
+    // (list markers on anything but a list, box properties of inline text) or its value is already what
+    // the keyword gives (an inherited property on inline text that unset or inherit keeps inheriting,
+    // initial where the parent holds the initial value). It fails where the keyword would change what
+    // the element shows and the renderer cannot (an inherited indent, the parent's padding or border on
+    // inline text), and returns false for properties the cascade applies on the element as usual.
+    private static bool AllChangesNothing(CssDeclaration declaration, string subject, TextStyle parent, BoxStyle parentBox)
+    {
+        var property = declaration.Property;
+        var value = declaration.Value;
+        // A list marker shows only on a list item, and a list item lies directly in a list.
+        if (property is CssProperty.ListStyleType or CssProperty.ListStylePosition
+            && subject is not ("ol" or "ul" or "menu" or "li")) return true;
+        // Height limits apply to report panels and images only; elsewhere even auto and none are rejected.
+        // initial and unset give those, and inherit gives the parent's limit, which must then be none.
+        if (property is CssProperty.Height or CssProperty.MinHeight or CssProperty.MaxHeight
+            && !(subject is "img" or "svg" || property != CssProperty.MaxHeight && ReportPanel(subject)))
+        {
+            var inherited = property switch
+            {
+                CssProperty.Height => parentBox.Height, CssProperty.MinHeight => parentBox.MinHeight, _ => parentBox.MaxHeight
+            };
+            if (value == "inherit" && inherited is not null)
+                throw new FactsPdfException("FPDF1201", $"all:inherit would copy the parent's {declaration.Name} limit to an element that takes none.", declaration.Offset);
+            return true;
+        }
+        // Outlines paint on report panels only; a parent's outline copied by inherit would show nowhere else.
+        if (property is CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
+            && !ReportPanel(subject))
+        {
+            if (value == "inherit" && parentBox.Outline.EffectiveWidth > 0)
+                throw new FactsPdfException("FPDF1201", "all:inherit would copy the parent's outline to an element that cannot paint one.", declaration.Offset);
+            return true;
+        }
+        // vertical-align places table cell content and inline images; it does nothing on a block or text.
+        if (property == CssProperty.VerticalAlign && subject is not ("td" or "th" or "img" or "svg")
+            && !HtmlDocumentReader.InlineTag(subject)) return true;
+        if (!HtmlDocumentReader.InlineTag(subject)) return false;
+        switch (property)
+        {
+            case CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color
+                or CssProperty.LineHeight or CssProperty.TextDecoration or CssProperty.TextDecorationColor
+                or CssProperty.TextDecorationStyle or CssProperty.TextDecorationThickness
+                or CssProperty.TextUnderlineOffset or CssProperty.TextTransform or CssProperty.LetterSpacing
+                or CssProperty.WordSpacing or CssProperty.Hyphens or CssProperty.Visibility:
+                return false;
+            case CssProperty.TextAlign or CssProperty.TextAlignLast or CssProperty.TextIndent or CssProperty.WhiteSpaceCollapse
+                or CssProperty.TextWrapMode or CssProperty.TabSize or CssProperty.LineBreak or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.Orphans or CssProperty.Widows
+                or CssProperty.BorderCollapse:
+            {
+                // Inherited text flow of the block the text sits in: the span keeps inheriting it.
+                if (value is "unset" or "inherit") return true;
+                var initial = property switch
+                {
+                    CssProperty.TextAlign => parent.Alignment == TextAlignment.Left,
+                    CssProperty.TextAlignLast => parent.LastLineAlignment is null,
+                    CssProperty.TextIndent => parent.FirstLineIndent.Value == 0,
+                    CssProperty.WhiteSpaceCollapse => !parent.PreserveLineBreaks && !parent.PreserveSpaces && !parent.BreakSpaces,
+                    CssProperty.TextWrapMode => !parent.NoWrap,
+                    CssProperty.TabSize => parent.TabSize == 8,
+                    CssProperty.LineBreak => parent.LineBreak == LineBreakStrictness.Normal,
+                    CssProperty.OverflowWrap => !parent.BreakWords && !parent.BreakAnywhere,
+                    CssProperty.WordBreak => !parent.BreakAll && !parent.BreakWordsByWordBreak && !parent.KeepAll,
+                    CssProperty.Orphans => parent.Orphans == 0,
+                    CssProperty.Widows => parent.Widows == 0,
+                    _ => !parent.CollapseBorders
+                };
+                if (initial) return true;
+                throw new FactsPdfException("FPDF1201",
+                    $"all:initial on inline text would reset the text flow it inherits ({declaration.Name} resets it here), which the report renderer cannot apply to a span.",
+                    declaration.Offset);
+            }
+            default:
+                // Every other property is not inherited, so inline text starts at its initial value, which
+                // initial and unset give. inherit would copy the parent's padding, border, margin sides,
+                // background or outline onto the text, which the renderer cannot draw.
+                if (value != "inherit") return true;
+                if (parentBox.HasLayoutPaint || parentBox.Outline.EffectiveWidth > 0 || parentBox.HasItems
+                    || parentBox.PaddingLeft.Value != 0 || parentBox.PaddingRight.Value != 0
+                    || parentBox.PaddingTop.Value != 0 || parentBox.PaddingBottom.Value != 0
+                    || parentBox.MarginLeft.Value != 0 || parentBox.MarginRight.Value != 0)
+                    throw new FactsPdfException("FPDF1201",
+                        "all:inherit would copy the parent's box properties (padding, borders, margins, background, outline or flex item properties) onto inline text, which the report renderer cannot draw.",
+                        declaration.Offset);
+                return true;
+        }
+    }
+
+    // Elements whose background colour is painted by the report panel and paragraph box painter, which
+    // clips it to the padding or content box.
+    private static bool ClipHost(string subject, IReadOnlyList<CssElement> path) =>
+        subject is ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+            or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+        && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
+            or "td" or "th" or "thead" or "tbody" or "tfoot");
+
     private static bool RootFlexNoOp(CssDeclaration declaration) =>
         declaration.Property is CssProperty.JustifyContent or CssProperty.AlignItems or CssProperty.FlexDirection
             or CssProperty.FlexWrap or CssProperty.ColumnGap or CssProperty.RowGap;

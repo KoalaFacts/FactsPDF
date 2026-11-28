@@ -292,7 +292,8 @@ internal sealed record PlacedDisc(double X, double Y, double Radius, Rgb Color, 
 // Decoration: an inline image's own padding, border and background, painted just before it, with
 // X and Top relative to the image's (so moving the image moves it too).
 internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double Width, double Height,
-    SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null)
+    SvgGraphic? Vector = null, string? LinkUri = null, int SourceOffset = -1, PaintedBox? Decoration = null,
+    ObjectPlacement? Placement = null)
 {
     internal int CommandCount => Vector?.CommandCount ?? 1;
 }
@@ -376,6 +377,7 @@ internal readonly record struct CssLength(double Value, bool IsPercent = false, 
 // All properties in BoxStyle are non-inherited by default.
 // The pattern affects PDF strokes, while the existing Solid bit continues to
 // distinguish painted borders from CSS none without changing legacy boxes.
+internal enum BackgroundClip { BorderBox, PaddingBox, ContentBox }
 // Groove is the user-agent border of fieldset (2px groove): two bands of one colour, which only that
 // element's default can produce (author border-style values stay solid, dashed, dotted and none).
 internal enum BorderPattern { Solid, Dashed, Dotted, Groove }
@@ -469,6 +471,21 @@ internal sealed record BoxStyle
     // intact rather than letting its paragraphs split between PDF pages.
     public bool AvoidBreakInside { get; set; }
     public Rgb? BackgroundColor { get; set; } // null: transparent
+    // The box edge the background colour is painted to (background-clip); not inherited.
+    // The rarely set properties share one lazily created reference, so a box that sets none of them costs
+    // eight bytes: background-clip, object-fit and object-position, table-layout and the counter lists.
+    private sealed record Rare(BackgroundClip Clip, ObjectPlacement Placement, bool FixedTable, CounterOps Counters)
+    {
+        internal static readonly Rare Default = new(BackgroundClip.BorderBox, ObjectPlacement.Initial, false, CounterOps.None);
+    }
+    private Rare? rare;
+    public BackgroundClip BackgroundClip { get => (rare ?? Rare.Default).Clip; set => rare = (rare ?? Rare.Default) with { Clip = value }; }
+    // object-fit and object-position of an img; not inherited.
+    public ObjectPlacement ObjectPlacement { get => (rare ?? Rare.Default).Placement; set => rare = (rare ?? Rare.Default) with { Placement = value }; }
+    // table-layout:fixed on a table: columns come from the table width, the col widths and the first row.
+    public bool FixedTableLayout { get => (rare ?? Rare.Default).FixedTable; set => rare = (rare ?? Rare.Default) with { FixedTable = value }; }
+    // counter-reset, counter-increment and counter-set; not inherited.
+    public CounterOps Counters { get => (rare ?? Rare.Default).Counters; set => rare = (rare ?? Rare.Default) with { Counters = value }; }
     // Retain the currentColor token when background:inherit is authored on a
     // child: its actual ink resolves against the receiving element's colour.
     // The renderer still consumes only the final BackgroundColor RGB value.
@@ -699,6 +716,8 @@ internal sealed record ImageNode(PdfImage? Image, TextStyle Style, BoxStyle BoxS
     // The natural width in points (one CSS px is 0.75pt); an svg's default is 300px.
     internal double NaturalWidth => Vector is null ? Image!.PixelWidth * 0.75 : 225;
     internal int CommandCount => Vector?.CommandCount ?? 1;
+    // object-fit and object-position of a raster image; null for fill, which stretches it to the box.
+    internal ObjectPlacement? Placement => BoxStyle.ObjectPlacement.Fit == ObjectFit.Fill || Image is null ? null : BoxStyle.ObjectPlacement;
 }
 
 internal sealed class DocumentRoot

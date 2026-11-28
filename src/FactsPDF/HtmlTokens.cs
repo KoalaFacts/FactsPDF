@@ -301,7 +301,7 @@ internal static class HtmlTokens
             var name = text[(i + 1)..end];
             var named = name switch
             {
-                "amp" => '&', "lt" => '<', "gt" => '>', "quot" => '"', "apos" => '\'', "nbsp" => '\u00a0', _ => '\0'
+                "amp" => '&', "lt" => '<', "gt" => '>', "quot" => '"', "apos" => '\'', "nbsp" => '\u00a0', "shy" => '\u00ad', _ => '\0'
             };
             if (named != '\0') destination[written++] = named;
             else if (name.StartsWith('#') && NumericReference(name) is { } rune)

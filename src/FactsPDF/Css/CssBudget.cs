@@ -8,6 +8,8 @@ internal sealed class CssBudget(PdfOptions options, CancellationToken token)
     internal CssWarnings? Warnings => options.CssWarnings;
     /// <summary>Whether any compiled declaration is a custom property or holds var().</summary>
     internal bool UsesVariables { get; set; }
+    /// <summary>Whether a stylesheet or style attribute sets a counter property or uses counter() or counters().</summary>
+    internal bool UsesCounters { get; set; }
     /// <summary>Whether any compiled declaration is revert-layer, which the cascade resolves against the other declarations offered.</summary>
     internal bool UsesRevertLayer { get; set; }
     internal void Characters(int count, int offset)

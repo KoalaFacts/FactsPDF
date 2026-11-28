@@ -166,9 +166,32 @@ Automatic layout fails `FPDF1302` for percentage cell padding, image sizes or
 `text-indent` (they would depend on the width being computed) and for a
 `colspan` cell with its own `width`. Cell `em`/`rem` widths and `min-width`/
 `max-width` fail `FPDF1201`. `table-layout` is not implemented and fails
-`FPDF1201`: `fixed` sizes columns from the first row alone and lets wider
-content overflow its column, which FactsPDF would have to clip or reject.
-[Example report](../examples/report-auto-table-layout.html).
+`FPDF1201`. [Example report](../examples/report-auto-table-layout.html).
+
+### `table-layout: fixed`
+
+`table-layout: fixed` on a table with a `width` other than `auto` sizes the columns from the table
+width, the `col` widths and the cells of the **first row** alone, ignoring the content and the
+widths of later rows, as Chrome does:
+
+1. A column takes its `col` width (`width:auto` counts as none).
+2. Otherwise it takes the width of its first-row cell: a content-box `width` plus the cell's padding
+   and borders (the whole `width` with `box-sizing:border-box`), a percentage of the table width plus
+   the padding and borders of a content-box cell; a spanning cell divides its width equally over the
+   columns it covers that have none.
+3. Percentages past a total of 100% are scaled down together; a `0` width is a width.
+4. Columns without a width share what is left of the table width equally, or get none.
+5. The table is as wide as its `width` (limited by `min-width` and `max-width`) or the sum of the
+   columns when that is wider; when every column has a width and they sum to less, they grow in
+   proportion. A collapsed-border table shares the width less its outer half borders.
+
+A table with `width:auto` uses [automatic layout](#automatic-column-widths) whatever `table-layout`
+says, as in Chrome, and `table-layout:auto` is the initial value. Chrome lets content wider than its
+fixed column overflow; FactsPDF wraps at the column and fails `FPDF1302` when an unbreakable word, or
+a column left with no width, cannot fit. Over 30 synthetic tables (equal columns, first-row and `col`
+widths, percentages, padding and borders, spanning cells, widths above and below the table width,
+`min-width`/`max-width`, collapsed borders) agree with Chrome 158 within 0.75pt. Pinned by
+`TableFixedLayoutTests`.
 
 ## Vertical alignment in whole table rows
 

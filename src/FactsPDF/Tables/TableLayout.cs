@@ -106,12 +106,14 @@ internal static class TableLayout
         // Unless every column has an explicit width, columns use automatic layout;
         // with auto table width the table then shrinks to its max-content width.
         // A cell width also takes automatic layout, where it constrains its column.
-        var automatic = !table.Columns.TrueForAll(column => column.Width is not null) || HasCellWidth(table);
+        // table-layout:fixed with a table width other than auto sizes the columns from the first row alone.
+        var fixedLayout = table.BoxStyle.FixedTableLayout && table.BoxStyle.Width is not null && specifiedWidth is not null;
+        var automatic = !fixedLayout && (!table.Columns.TrueForAll(column => column.Width is not null) || HasCellWidth(table));
         // A table whose columns all have explicit widths is as wide as their sum (or its width);
         // a min-width or max-width that changes that width hands it to automatic layout, where the
         // fixed columns are constrained columns that share the growth in proportion to their widths.
         var constrainedWidth = specifiedWidth;
-        if (!automatic && (minWidth is not null || maxWidth is not null))
+        if (!automatic && !fixedLayout && (minWidth is not null || maxWidth is not null))
         {
             var fixedSum = 0d;
             var allFixed = true;
@@ -133,14 +135,22 @@ internal static class TableLayout
             }
             else if (specifiedWidth is null && allFixed) specifiedWidth = natural;
         }
-        var width = automatic
+        double fixedWidth = 0;
+        if (fixedLayout)
+        {
+            fixedWidth = specifiedWidth!.Value;
+            if (maxWidth is { } fixedCap) fixedWidth = Math.Min(fixedWidth, fixedCap);
+            if (minWidth is { } fixedFloor) fixedWidth = Math.Max(fixedWidth, fixedFloor);
+            fixedWidth = TableAutoLayout.ResolveFixed(table, fixedWidth, tracks);
+        }
+        var width = fixedLayout ? fixedWidth : automatic
             ? TableAutoLayout.Resolve(table, constrainedWidth, item.AvailableWidth - edges.Left - edges.Right, tracks,
                 options, resolved, cancellation, minWidth, maxWidth)
             : specifiedWidth ?? item.AvailableWidth - edges.Left - edges.Right;
         var outerWidth = width + edges.Left + edges.Right;
         if (width <= 0 || outerWidth > item.AvailableWidth + 0.000001)
             throw Geometry("Table outer width exceeds containing content width or is zero.", table.SourceOffset);
-        if (!automatic)
+        if (!automatic && !fixedLayout)
         {
             // A collapsed table's column widths are authored against its whole width; its columns
             // share the width less the outer halves of its collapsed borders in proportion, which
@@ -315,7 +325,7 @@ internal static class TableLayout
                         });
                         charge(image.CommandCount, image.SourceOffset);
                         images.Add(new(image.Image, imageX + geometry.Left, top + height + geometry.Top,
-                            geometry.Width, geometry.Height, image.Vector));
+                            geometry.Width, geometry.Height, image.Vector, Placement: image.Placement));
                         var imageIndex = images.Count - 1;
                         var decorationStart = imageBoxes.Count;
                         var imageBox = new PaintedBox(imageX, top + height, geometry.OuterWidth,

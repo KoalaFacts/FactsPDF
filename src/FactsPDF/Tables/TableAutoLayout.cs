@@ -319,6 +319,89 @@ internal static class TableAutoLayout
         result[last] = Math.Max(columns.Minimums[last], target - others);
     }
 
+    /// <summary>
+    /// table-layout:fixed (with a table width other than auto): the column widths come from the table
+    /// width, the <c>col</c> widths and the cells of the first row alone, not from any content. A
+    /// column's width is its <c>col</c> width, else the width of its first-row cell (a content-box cell
+    /// width plus the cell's padding and borders, divided equally over the columns a spanning cell
+    /// covers); percentages are of the table width, scaled down together when they pass 100%. The columns
+    /// without a width share what is left of the table width equally (none when nothing is left); with
+    /// none left to give, widths short of the table width grow in proportion. Returns the used content
+    /// width: the table width, or the sum of the columns when that is wider. Fills
+    /// <paramref name="tracks"/>.
+    /// </summary>
+    internal static double ResolveFixed(TableNode table, double width, double[] tracks)
+    {
+        var count = tracks.Length;
+        var absolute = new double[count];
+        var percent = new double[count];
+        // The padding and borders a content-box percentage cell adds to its share of the table.
+        var percentEdges = new double[count];
+        var kind = new byte[count]; // 0 auto, 1 length, 2 percentage
+        for (var i = 0; i < table.Columns.Count && i < count; i++)
+        {
+            if (table.Columns[i].Width is not { } columnWidth) continue;
+            if (columnWidth.IsPercent) { percent[i] = columnWidth.Value; kind[i] = 2; }
+            else { absolute[i] = columnWidth.Value; kind[i] = 1; }
+        }
+        if (table.Rows.Count > 0)
+        {
+            var column = 0;
+            foreach (var cell in table.Rows[0].Cells)
+            {
+                var span = cell.ColumnSpan;
+                if (cell.BoxStyle.Width is { } cellWidth && column + span <= count)
+                {
+                    var box = cell.BoxStyle;
+                    if (!box.BorderBoxSizing && (box.PaddingLeft.IsPercent || box.PaddingRight.IsPercent))
+                        throw Geometry("Percentage cell padding is not supported in table-layout:fixed; give the column an explicit col width.", cell.SourceOffset);
+                    var edges = box.BorderBoxSizing ? 0 : Edges(box);
+                    var total = cellWidth.IsPercent ? cellWidth.Value : cellWidth.Value + edges;
+                    for (var j = column; j < column + span; j++)
+                    {
+                        if (kind[j] != 0) continue;
+                        if (cellWidth.IsPercent) { percent[j] = total / span; percentEdges[j] = edges / span; kind[j] = 2; }
+                        else { absolute[j] = total / span; kind[j] = 1; }
+                    }
+                }
+                column += span;
+            }
+        }
+        var percentSum = 0d;
+        for (var i = 0; i < count; i++) if (kind[i] == 2) percentSum += percent[i];
+        var percentScale = percentSum > 100 ? 100 / percentSum : 1;
+        double sum = 0;
+        var autoCount = 0;
+        for (var i = 0; i < count; i++)
+        {
+            switch (kind[i])
+            {
+                case 2: tracks[i] = percent[i] * percentScale * width / 100 + percentEdges[i]; break;
+                case 1: tracks[i] = absolute[i]; break;
+                default: tracks[i] = 0; autoCount++; continue;
+            }
+            sum += tracks[i];
+        }
+        if (autoCount > 0)
+        {
+            var share = Math.Max(0, width - sum) / autoCount;
+            for (var i = 0; i < count; i++)
+                if (kind[i] == 0) { tracks[i] = share; sum += share; }
+        }
+        else if (sum > 0 && sum < width)
+        {
+            var scale = width / sum;
+            for (var i = 0; i < count; i++) tracks[i] *= scale;
+            sum = width;
+        }
+        else if (sum == 0)
+        {
+            for (var i = 0; i < count; i++) tracks[i] = width / count;
+            sum = width;
+        }
+        return Math.Max(width, sum);
+    }
+
     private static double Edges(BoxStyle box)
         => box.PaddingLeft.Value + box.BorderLeft.EffectiveWidth + box.PaddingRight.Value + box.BorderRight.EffectiveWidth;
 

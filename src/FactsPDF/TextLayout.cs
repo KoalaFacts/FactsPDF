@@ -774,7 +774,7 @@ internal static class TextLayout
                     ChargeDisplayCommands(painted.CommandCount, image.Node.SourceOffset);
                     if (painted.CommandCount > 0) pages[^1].PaintBoxes.Add(painted);
                     if (image.Width > 0 && image.Height > 0)
-                        pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height, image.Node.Vector));
+                        pages[^1].Images.Add(new(image.Node.Image, image.ContentX, y + image.ContentTop, image.Width, image.Height, image.Node.Vector, Placement: image.Node.Placement));
                 }
                 y += image.OuterHeight;
                 pendingTopPadding = pendingClosedPadding = strut = 0;

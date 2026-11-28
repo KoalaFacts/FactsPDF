@@ -757,6 +757,27 @@ independent code review, public/private new binary delivery, human page
 approval or commercial distribution rights.
 
 
+### Background clip, object fit, table layout, hyphens, counters, `all` and named pages
+
+Eight properties that were rejected now print as Chrome prints them, each with its remaining
+failures explicit (full contracts in [CSS stylesheets](css-stylesheets.md#property-scope)):
+
+- `background-clip: padding-box | content-box` clips a report panel's, paragraph's or heading's
+  background colour to that edge, with rounded corners and page fragments handled; the
+  `background` shorthand resets it. `background-repeat`, `-position` and `-size` are valid values
+  that change nothing without a background image and are accepted everywhere. `text`, `border-area`,
+  list items, tables and cells still fail.
+- `object-fit` and `object-position` place an `img`'s pixels in its content box, clipped to it.
+- `table-layout: fixed` takes the columns from the table width, `col` widths and first row
+  ([tables](tables.md#table-layout-fixed)).
+- `hyphens: manual | none` with `&shy;` (now a named character reference) break words at soft
+  hyphens and print a hyphen; `auto` fails because Chrome needs run-time dictionaries.
+- `counter-reset`, `counter-increment`, `counter-set` and `counter()`/`counters()` in `::before` and
+  `::after` content, with Chrome's scoping and the implicit `list-item` counter.
+- `all` expands at its position into every modelled property; `revert` works everywhere, the other
+  keywords wherever the element's `display` stays what it is.
+- `page: auto` is accepted; named pages fail (one page geometry per document).
+
 ### The font shorthand
 
 `font` is the most common way report stylesheets set typography: `font:12pt F`, `font:bold italic 14px/2 F`, `font:16px/20px F` followed by `font-weight:bold`, `font:inherit` on a form control or a table cell. It expands into the longhands at the declaration's own place in the cascade (same specificity, `!important` and origin), and each part is compiled by the code of that longhand, so the PDF bytes equal those of the longhand declarations. What `font` does not mention is reset, as in Chrome: `font-weight:bold` followed by `font:12pt F` is regular again, `line-height:40pt` followed by `font:12pt F` is `normal` again, and a later `font-weight:bold` still wins over an earlier `font`. A CSS-wide keyword applies to every longhand it covers.

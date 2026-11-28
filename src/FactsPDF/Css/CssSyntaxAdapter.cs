@@ -108,6 +108,14 @@ internal static class CssSyntaxAdapter
                     ValidateAlignContent(node);
                     continue;
                 }
+                // all: a CSS-wide keyword for every property FactsPDF models, at the position of the
+                // declaration in the cascade (everything else is at its initial value already, and
+                // direction and unicode-bidi are not reset by all).
+                if (name == "all")
+                {
+                    CompileAll(node, budget, fixedOrder, output);
+                    continue;
+                }
                 if (name == "tab-size" && !(node.Values.Count == 1 && node.Values[0] is CssTokenComponent { Token: var tabToken }
                     && (tabToken.Kind is CssSyntaxTokenKind.Number or CssSyntaxTokenKind.Dimension
                         || tabToken.Kind == CssSyntaxTokenKind.Ident && Wide(tabToken.Value.ToLowerInvariant()))))
@@ -115,7 +123,7 @@ internal static class CssSyntaxAdapter
                 // Fail unsupported properties first even when the value contains
                 // functions or multiple tokens.
                 var initialOnly = InitialOnlyValue(name);
-                var property = initialOnly is null && !IsInteractionOnly(name) && name != "font" ? Property(name, node.Span.Start) : default;
+                var property = initialOnly is null && !IsInteractionOnly(name) && !IsBackgroundLayerNoOp(name) && name != "font" ? Property(name, node.Span.Start) : default;
                 // A supported property whose value holds var() can be checked only after substitution,
                 // for each element it applies to (CSS Custom Properties: valid at parse time when the
                 // var() syntax is). It keeps one cascade order for every declaration it expands into.
@@ -134,6 +142,14 @@ internal static class CssSyntaxAdapter
                 if (initialOnly is not null)
                 {
                     ValidateInitialOnly(name, initialOnly, node);
+                    continue;
+                }
+                // background-repeat, -position and -size place a background image, and none is ever
+                // painted (only background-image:none is accepted), so every valid value changes
+                // nothing a browser prints on a box that has only a background colour.
+                if (IsBackgroundLayerNoOp(name))
+                {
+                    ValidateBackgroundLayer(node, name);
                     continue;
                 }
                 // Interaction-only properties (cursor, pointer-events, user-select, resize) change
@@ -189,6 +205,24 @@ internal static class CssSyntaxAdapter
                     CompileGridColumns(node, budget, output);
                     continue;
                 }
+                // counter-reset, counter-increment and counter-set: a list of counter names with optional
+                // integers, kept as normalised "name value" pairs and applied by the reader in document order.
+                if (name is "counter-reset" or "counter-increment" or "counter-set")
+                {
+                    budget.UsesCounters = true;
+                    output.Add(CssDeclaration.Create(property, name, CounterList(node, name == "counter-increment" ? 1 : 0),
+                        node.Important, fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start), node.Span.Start));
+                    continue;
+                }
+                // background-clip: the clip of the first background layer paints the colour (one layer,
+                // since the image is none); a later list item names a layer that does not exist.
+                if (name == "background-clip")
+                {
+                    ValidateBackgroundLayer(node, name);
+                    output.Add(CssDeclaration.Create(CssProperty.BackgroundClip, name, BackgroundClipKeyword(node), node.Important,
+                        fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start), node.Span.Start));
+                    continue;
+                }
                 // RGB and HSL functions are lowered to their equivalent hex colour
                 // (#rrggbb, or #rrggbbaa when translucent), so the cascade, box paint
                 // and PDF serializers share one colour path.
@@ -204,6 +238,15 @@ internal static class CssSyntaxAdapter
                     var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
                     if (value == "revert-layer") budget.UsesRevertLayer = true;
                     output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
+                }
+                // object-position: one to four position terms, kept normalised and parsed when the
+                // winner is computed (em and rem need the element's font size).
+                if (name == "object-position" && !(valueTokens.Length == 1 && Wide(terms[0])))
+                {
+                    var joined = string.Join(' ', terms);
+                    _ = CssObjectValues.Position(joined, node.Span.Start, 16, 16);
+                    Emit(property, joined, node.Span.Start);
+                    continue;
                 }
                 // Logical border component declarations use the existing *physical*
                 // per-side width/style/colour cascade slots. The pair forms accept
@@ -796,6 +839,8 @@ internal static class CssSyntaxAdapter
                     throw new FactsPdfException("FPDF1202", "orphans and widows require a positive integer.", tokenOffset);
                 if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
                 Emit(property, token, tokenOffset);
+                // The background shorthand resets the clip to its initial value, border-box.
+                if (name == "background") Emit(CssProperty.BackgroundClip, "initial", tokenOffset, "background-clip");
             }
             catch (FactsPdfException error) when (warnings is not null && error.Code is "FPDF1201" or "FPDF1202"
                 && CssSpecValidity.InvalidDeclaration(node.Name, CanonicalName(node.Name.ToLowerInvariant()), node.Values))
@@ -1008,6 +1053,10 @@ internal static class CssSyntaxAdapter
         // already paints as slices, which is what box-decoration-break:slice describes.
         "line-clamp" or "-webkit-line-clamp" => "none",
         "box-decoration-break" or "-webkit-box-decoration-break" => "slice",
+        // Named pages: every page has the one geometry and furniture of the writer's options (and the
+        // unnamed @page rule), so only the initial page:auto asks for what is printed; a page name would
+        // force a page break wherever it changes and apply its own @page size and margins.
+        "page" => "auto",
         // Transform, masking and float-shape resets: like transform:none, the individual
         // transforms and perspective at none and transform-style:flat move nothing; no mask or
         // float shape is ever applied, so none asks for exactly what is drawn.
@@ -1109,6 +1158,123 @@ internal static class CssSyntaxAdapter
         "text-emphasis-color" => "currentcolor",
         _ => null
     };
+
+    // The value of a counter-reset, counter-increment or counter-set: none, a CSS-wide keyword, or one or
+    // more counter names (case-sensitive custom identifiers) each with an optional integer, as "name value"
+    // pairs separated by spaces.
+    private static string CounterList(CssDeclarationNode node, int defaultValue)
+    {
+        var pairs = new System.Text.StringBuilder();
+        string? name = null;
+        var count = 0;
+        var any = false;
+        void Finish(int value)
+        {
+            if (name is null) return;
+            if (pairs.Length > 0) pairs.Append(' ');
+            pairs.Append(name).Append(' ').Append(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            name = null;
+        }
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            var component = node.Values[i];
+            if (component is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            any = true;
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word })
+            {
+                Finish(defaultValue);
+                var lower = word.Value.ToLowerInvariant();
+                if (Wide(lower) || lower is "none" or "default")
+                {
+                    if (count == 0 && i == LastValue(node) && lower != "default") return lower;
+                    throw new FactsPdfException("FPDF1202", "A counter name cannot be none, default or a CSS-wide keyword; none and the CSS-wide keywords stand alone.", component.Span.Start);
+                }
+                if (word.Value.Any(char.IsWhiteSpace))
+                    throw new FactsPdfException("FPDF1202", "A counter name cannot contain white space.", component.Span.Start);
+                name = word.Value;
+                count++;
+                continue;
+            }
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Number, IsInteger: true } number } && name is not null
+                && long.TryParse(number.Value, System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            {
+                Finish((int)Math.Clamp(parsed, int.MinValue, int.MaxValue));
+                continue;
+            }
+            throw new FactsPdfException("FPDF1202",
+                "Counter properties take none or counter names with optional integers.", component.Span.Start);
+        }
+        if (!any) throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+        Finish(defaultValue);
+        return pairs.ToString();
+    }
+
+    // The index of the last non-whitespace component of a declaration value.
+    private static int LastValue(CssDeclarationNode node)
+    {
+        for (var i = node.Values.Count - 1; i >= 0; i--)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) return i;
+        return -1;
+    }
+
+    // Every property the cascade models, by a name Property() maps to its slot. Properties FactsPDF does not
+    // model are never anything but their initial value, which is what all would give them.
+    private static readonly string[] AllProperties =
+    [
+        "font-size", "font-weight", "font-style", "color", "line-height", "text-align", "text-align-last",
+        "border-collapse", "orphans", "widows", "white-space", "overflow-wrap", "word-break", "text-indent",
+        "letter-spacing", "word-spacing", "text-transform", "hyphens", "display", "content", "flex-direction",
+        "flex-wrap", "justify-content", "align-items", "align-self", "flex-grow", "flex-shrink", "flex-basis",
+        "column-gap", "row-gap", "order", "grid-template-columns", "justify-items", "justify-self",
+        "list-style-type", "list-style-position", "text-decoration-line", "text-decoration-color",
+        "text-decoration-style", "text-decoration-thickness", "text-underline-offset", "border-top-left-radius",
+        "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius", "margin-top",
+        "margin-bottom", "margin-left", "margin-right", "break-before", "break-after", "break-inside", "width",
+        "min-width", "max-width", "min-height", "height", "max-height", "box-sizing", "outline-width",
+        "outline-style", "outline-color", "outline-offset", "padding-top", "padding-right", "padding-bottom",
+        "padding-left", "background-color", "background-clip", "border-top-width", "border-right-width",
+        "border-bottom-width", "border-left-width", "border-top-style", "border-right-style",
+        "border-bottom-style", "border-left-style", "border-top-color", "border-right-color",
+        "border-bottom-color", "border-left-color", "table-layout", "object-fit", "object-position",
+        "counter-reset", "counter-increment", "counter-set", "vertical-align"
+    ];
+
+    private static void CompileAll(CssDeclarationNode node, CssBudget budget, int fixedOrder, List<CssDeclaration> output)
+    {
+        var keyword = FirstIdent(node);
+        var components = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) components++;
+        if (components != 1 || keyword is null || !Wide(keyword))
+            throw new FactsPdfException("FPDF1202",
+                "all takes initial, inherit, unset, revert or revert-layer.", node.Span.Start);
+        var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start);
+        foreach (var property in AllProperties)
+            output.Add(CssDeclaration.Create(Property(property, node.Span.Start), "all", keyword, node.Important, order, node.Span.Start));
+    }
+
+    private static bool IsBackgroundLayerNoOp(string name) =>
+        name is "background-repeat" or "background-position" or "background-size";
+
+    // A background layer property is valid when its grammar (a superset of Chrome's) matches; a
+    // value it proves invalid is dropped by every browser, so strict mode fails it.
+    private static void ValidateBackgroundLayer(CssDeclarationNode node, string name)
+    {
+        if (CssSpecValidity.InvalidDeclaration(node.Name, name, node.Values))
+            throw new FactsPdfException("FPDF1202", $"Invalid {name} value.", node.Span.Start);
+    }
+
+    // The computed clip keyword of a validated background-clip value: the first list item, or the
+    // CSS-wide keyword that is the whole value. text and border-area paint the colour in glyph or
+    // border shapes, which no report box does.
+    private static string BackgroundClipKeyword(CssDeclarationNode node)
+    {
+        var keyword = FirstIdent(node) ?? throw new FactsPdfException("FPDF1202", "Invalid background-clip value.", node.Span.Start);
+        if (keyword is "border-box" or "padding-box" or "content-box" || Wide(keyword)) return keyword;
+        throw new FactsPdfException("FPDF1202",
+            $"background-clip supports border-box, padding-box and content-box; '{keyword}' is not rendered.", node.Span.Start);
+    }
 
     private static void ValidateInitialOnly(string name, string initial, CssDeclarationNode node)
     {
@@ -1917,6 +2083,13 @@ internal static class CssSyntaxAdapter
         "padding-bottom" or "padding-block-end" => CssProperty.PaddingBottom,
         "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
+        "background-clip" => CssProperty.BackgroundClip,
+        "object-fit" => CssProperty.ObjectFit,
+        "table-layout" => CssProperty.TableLayout,
+        "counter-reset" => CssProperty.CounterReset,
+        "counter-increment" => CssProperty.CounterIncrement,
+        "counter-set" => CssProperty.CounterSet,
+        "object-position" => CssProperty.ObjectPosition,
         "border-inline-width" or "border-inline-start-width" => CssProperty.BorderLeftWidth,
         "border-inline-end-width" => CssProperty.BorderRightWidth,
         "border-block-width" or "border-block-start-width" => CssProperty.BorderTopWidth,
@@ -2204,9 +2377,12 @@ internal static class CssSyntaxAdapter
 
     private static void CompileContent(CssDeclarationNode node, CssBudget budget, List<CssDeclaration> output)
     {
-        var text = new System.Text.StringBuilder();
+        // The items in order: literal text and counter references. Without a counter the value is the
+        // plain joined text; with one it is encoded (see CounterContent).
+        var items = new List<(char Kind, string A, string B, string C)>();
         string? keyword = null;
         var strings = 0;
+        var counters = false;
         var start = node.Span.Start;
         var first = true;
         for (var i = 0; i < node.Values.Count; i++)
@@ -2216,24 +2392,93 @@ internal static class CssSyntaxAdapter
             if (first) { start = component.Span.Start; first = false; }
             if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.String } literal } && keyword is null)
             {
-                text.Append(literal.Value);
+                items.Add(('T', literal.Value, "", ""));
                 strings++;
                 continue;
             }
-            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word } && strings == 0 && keyword is null
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word } && strings == 0 && items.Count == 0 && keyword is null
                 && word.Value.ToLowerInvariant() is "none" or "normal" or "inherit" or "initial" or "unset")
             {
                 keyword = word.Value.ToLowerInvariant();
                 continue;
             }
+            if (component is CssFunctionComponent function && keyword is null
+                && function.Name.ToLowerInvariant() is "counter" or "counters")
+            {
+                items.Add(CounterReference(function));
+                counters = true;
+                continue;
+            }
             throw new FactsPdfException("FPDF1202",
-                "content supports only none, normal and strings; counter(), attr(), url() and quotes are not supported.",
+                "content supports only none, normal, strings, counter() and counters(); attr(), url() and quotes are not supported.",
                 component.Span.Start);
         }
-        if (keyword is null && strings == 0)
+        if (keyword is null && items.Count == 0)
             throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
-        output.Add(CssDeclaration.Create(CssProperty.Content, "content", keyword ?? "\"" + text,
+        string value;
+        if (keyword is not null) value = keyword;
+        else if (!counters)
+        {
+            var text = new System.Text.StringBuilder();
+            foreach (var item in items) text.Append(item.A);
+            value = "\"" + text;
+        }
+        else
+        {
+            budget.UsesCounters = true;
+            var encoded = new System.Text.StringBuilder().Append(CounterContent.Marker);
+            foreach (var (kind, a, b, c) in items)
+            {
+                if (kind == 'T') CounterContent.AppendText(encoded, a);
+                else if (kind == 'C') CounterContent.AppendCounter(encoded, a, c);
+                else CounterContent.AppendCounters(encoded, a, b, c);
+            }
+            value = encoded.ToString();
+        }
+        output.Add(CssDeclaration.Create(CssProperty.Content, "content", value,
             node.Important, budget.Declaration(start), start));
+    }
+
+    // counter(name, style?) or counters(name, separator, style?): the counter name is case-sensitive, the
+    // style one of the supported counter styles (decimal by default).
+    private static (char Kind, string A, string B, string C) CounterReference(CssFunctionComponent function)
+    {
+        var arguments = new List<List<CssSyntaxComponent>> { new() };
+        foreach (var part in function.Values)
+        {
+            if (part is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (part is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Comma }) arguments.Add([]);
+            else arguments[^1].Add(part);
+        }
+        var plural = function.Name.Equals("counters", StringComparison.OrdinalIgnoreCase);
+        var expected = plural ? 2 : 1;
+        if (arguments.Count is < 1 || arguments.Count < expected || arguments.Count > expected + 1
+            || arguments.Any(argument => argument.Count != 1))
+            throw new FactsPdfException("FPDF1202", plural
+                ? "counters() takes a counter name, a separator string and an optional counter style."
+                : "counter() takes a counter name and an optional counter style.", function.Span.Start);
+        string Name(List<CssSyntaxComponent> argument) =>
+            argument[0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token } && !Wide(token.Value.ToLowerInvariant())
+                && token.Value.ToLowerInvariant() is not ("none" or "default") && !token.Value.Any(char.IsWhiteSpace)
+                ? token.Value
+                : throw new FactsPdfException("FPDF1202", "A counter name must be an identifier.", argument[0].Span.Start);
+        var name = Name(arguments[0]);
+        var separator = "";
+        if (plural)
+            separator = arguments[1][0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.String } text } ? text.Value
+                : throw new FactsPdfException("FPDF1202", "counters() needs a separator string.", arguments[1][0].Span.Start);
+        var style = "decimal";
+        if (arguments.Count == expected + 1)
+        {
+            var argument = arguments[^1][0];
+            style = argument is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token } ? token.Value.ToLowerInvariant()
+                : throw new FactsPdfException("FPDF1202", "A counter style must be an identifier.", argument.Span.Start);
+            if (!CounterStyles.Supported(style))
+                throw new FactsPdfException("FPDF1202",
+                    "counter styles supported are decimal, decimal-leading-zero, lower-alpha, lower-latin, upper-alpha, upper-latin, lower-roman, upper-roman and none.",
+                    argument.Span.Start);
+        }
+        return plural ? ('S', name, separator, style) : ('C', name, "", style);
     }
 
     private static void CompileGridColumns(CssDeclarationNode node, CssBudget budget, List<CssDeclaration> output)
@@ -2546,6 +2791,20 @@ internal static class CssSyntaxAdapter
             if (!InlineVerticalAlign.TryParse(token, out _))
                 throw new FactsPdfException("FPDF1202",
                     "vertical-align supports baseline, middle, top, bottom, text-top, text-bottom, lengths and percentages (table cells: top, middle and bottom).", offset);
+        }
+        else if (name == "object-fit") _ = CssObjectValues.Fit(token, offset);
+        else if (name == "table-layout")
+        {
+            if (token is not ("auto" or "fixed"))
+                throw new FactsPdfException("FPDF1202", "table-layout requires auto or fixed.", offset);
+        }
+        else if (name == "hyphens")
+        {
+            if (token == "auto")
+                throw new FactsPdfException("FPDF1202",
+                    "hyphens:auto needs a hyphenation dictionary for the language, which Chrome loads at run time; use none or manual (soft hyphens).", offset);
+            if (token is not ("none" or "manual"))
+                throw new FactsPdfException("FPDF1202", "hyphens requires none or manual.", offset);
         }
         else if (name is "overflow-x" or "overflow-y")
         {

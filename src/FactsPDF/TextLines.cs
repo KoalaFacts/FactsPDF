@@ -87,7 +87,8 @@ internal static class TextLines
                 charge(node.CommandCount + (placed.LinkUri is null ? 0 : 1), node.SourceOffset);
                 if (geometry.Width > 0 && geometry.Height > 0)
                     images.Add(new PlacedImage(node.Image, x + geometry.Left, outerTop + geometry.Top,
-                        geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration));
+                        geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration,
+                        node.Placement));
                 x += first.Width;
                 start++;
                 continue;
@@ -440,6 +441,8 @@ internal static class TextLines
             var fit = 0d;      // width up to the last glyph that cannot hang
             var total = 0d;    // width including hanging spaces
             var lastBreak = -1;
+            // The first soft hyphen whose hyphen does not fit: where nothing fits, Chrome still breaks there.
+            var overflowingHyphen = -1;
             var end = -1;
             var soft = false;
             var offset = firstLine ? firstIndent : 0;
@@ -457,13 +460,18 @@ internal static class TextLines
                 var glyph = all[i];
                 if (glyph.Scalar == 10) { end = i; next = i + 1; break; }
                 // A line that ends at a soft hyphen shows a hyphen, which has to fit as well.
-                if (i > start && MayWrapBefore(i) && (all[i - 1].Scalar != 0xAD || fit + HyphenWidth(all[i - 1]) <= capacity)) lastBreak = i;
+                if (i > start && MayWrapBefore(i))
+                {
+                    if (all[i - 1].Scalar != 0xAD || fit + HyphenWidth(all[i - 1]) <= capacity) lastBreak = i;
+                    else if (overflowingHyphen < 0) overflowingHyphen = i;
+                }
                 var advance = Advance(glyph, offset + total);
                 var hangs = Hangs(glyph);
                 var candidate = hangs ? fit : total + advance;
                 if (!glyph.Style.NoWrap && candidate > capacity)
                 {
                     if (lastBreak > start) { end = lastBreak; next = lastBreak; soft = true; break; }
+                    if (overflowingHyphen > start) { end = overflowingHyphen; next = overflowingHyphen; soft = true; break; }
                     if (i > start && (glyph.Style.EmergencyBreak || glyph.Style.BreakAnywhere))
                     {
                         end = i; next = i; soft = true; break;
