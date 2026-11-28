@@ -447,7 +447,7 @@ def verify_native_list_markers(executable, root, output, work):
                      'nativePdf': True, 'nativePdfTextPositions': True})
     for name, html, code in [
         ('unknown-type', '<ol style="list-style-type:diamond"><li>A</li></ol>', 'FPDF1202'),
-        ('invalid-element', '<p style="list-style-type:upper-roman">A</p>', 'FPDF1201')
+        ('invalid-element', '<table><tr><td style="list-style-type:upper-roman">A</td></tr></table>', 'FPDF1201')
     ]:
         bad = output / f'list-marker-{name}.html'
         dest = output / f'list-marker-{name}.pdf'
