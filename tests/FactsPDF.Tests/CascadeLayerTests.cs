@@ -116,6 +116,28 @@ public sealed class CascadeLayerTests
     }
 
     [Test]
+    public void CustomPropertiesCascadeByLayerToo()
+    {
+        Assert.That(Pdf($"<style>@layer a{{:root{{--c:{Red}}}}} :root{{--c:{Blue}}} p{{color:var(--c)}}</style><p>T</p>"), Is.EqualTo(Pdf(Winner(Blue))));
+        Assert.That(Pdf($"<style>:root{{--c:{Blue}}} @layer a{{:root{{--c:{Red}}}}} p{{color:var(--c)}}</style><p>T</p>"), Is.EqualTo(Pdf(Winner(Blue))));
+        Assert.That(Pdf($"<style>@layer a{{:root{{--c:{Red}!important}}}} :root{{--c:{Blue}!important}} p{{color:var(--c)}}</style><p>T</p>"),
+            Is.EqualTo(Pdf(Winner(Red))));
+        Assert.That(Pdf($"<style>@layer a{{.s{{color:var(--z, {Red})}}}} .s{{--z:{Blue}}}</style><p class=s>T</p>"), Is.EqualTo(Pdf(Winner(Blue))));
+    }
+
+    [Test]
+    public void TheKeyframesOfANameFollowTheLayerOrder()
+    {
+        string Frames(string rules) => $"<style>{rules} div{{height:30pt}} .s{{animation:k 1s}}</style><div class=s>T</div>";
+        string Shown(string color) => $"<style>div{{height:30pt}} .s{{background:{color}}}</style><div class=s>T</div>";
+        const string red = "@keyframes k{from{background:#f00}}", blue = "@keyframes k{from{background:#00f}}";
+        Assert.That(Pdf(Frames($"@layer a{{{red}}} {blue}")), Is.EqualTo(Pdf(Shown("#00f"))));
+        Assert.That(Pdf(Frames($"{blue} @layer a{{{red}}}")), Is.EqualTo(Pdf(Shown("#00f"))));
+        Assert.That(Pdf(Frames($"@layer a{{{red}}} @layer b{{{blue}}}")), Is.EqualTo(Pdf(Shown("#00f"))));
+        Assert.That(Pdf(Frames($"@layer b, a; @layer a{{{red}}} @layer b{{{blue}}}")), Is.EqualTo(Pdf(Shown("#f00"))));
+    }
+
+    [Test]
     public void ADocumentWithoutLayersCascadesAsBefore()
     {
         Assert.That(Pdf($"<style>p{{color:{Red}}}.s{{color:{Blue}}}</style><p class=s>T</p>"), Is.EqualTo(Pdf(Winner(Blue))));

@@ -62,6 +62,7 @@ public sealed class HtmlSyntaxLeniencyTests
     [TestCase("<p ONCLICK=\"alert(1)\" onmouseover=x>A</p>", "<p>A</p>")]
     [TestCase("<div onload='y' onfoo>A</div>", "<div>A</div>")]
     [TestCase("<body onload='init()'><p>A</p></body>", "<body><p>A</p></body>")]
+    [TestCase("<html onclick='x'><body><p>A</p></body></html>", "<html><body><p>A</p></body></html>")]
     [TestCase("<table onclick='x'><tr onclick='x'><td onclick='x'>A</td></tr></table>", "<table><tr><td>A</td></tr></table>")]
     [TestCase("<ul onclick='x'><li onclick='x'>A</li></ul>", "<ul><li>A</li></ul>")]
     [TestCase("<p><a href='https://example.com' onclick='x'>A</a></p>", "<p><a href='https://example.com'>A</a></p>")]
