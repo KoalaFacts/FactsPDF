@@ -127,16 +127,6 @@ public sealed class TableRichTests
         Assert.That(paragraphs.Select(p => string.Concat(p.Runs.Select(r => r.Text))), Is.EqualTo(new[] { "A", "B", "C" }));
     }
     [Test]
-    public void FormerOversizeRichRowsContinueWhileUnbreakableParagraphsAndNarrowSpansFail()
-    {
-        var options = TableImageTests.Options() with { PageHeight = 100, Margin = 10 };
-        Assert.That(TableLayoutTests.NLayout(Rich("<p>A</p><img src='logo' style='width:80pt'><p>B</p>"), options), Has.Count.EqualTo(2));
-        TableStructureTests.Fails(Rich("<p>A</p><img src='logo' style='width:80pt;padding-top:50pt'><p>B</p>"), "FPDF1302", options);
-        TableStructureTests.Fails(Rich("<p>UNBREAKABLEUNBREAKABLE</p>"), "FPDF1302");
-        TableStructureTests.Fails(Rich("A", "padding:50pt"), "FPDF1302");
-        Assert.That(TableLayoutTests.NPdf(Rich("<p>A</p>"), options), Is.Not.Empty);
-    }
-    [Test]
     public void OmittedAndExplicitUnitSpanAreByteEquivalent()
     {
         var html = TableLayoutTests.Table("<span style='text-align:right'>A</span>");
@@ -237,16 +227,6 @@ public sealed class TableRichTests
         var table = BlockLayout.Steps(root, options, default).OfType<LayoutTable>().Single(); // the body's own margin adds steps
         Assert.Throws<OperationCanceledException>(() => TableLayout.Measure(table, options, new(),
             (_, _) => measuring.Cancel(), (_, _) => { }, measuring.Token));
-    }
-
-    [Test]
-    public void PendingMarginsAreBoundedBeforeFollowingFontResolution()
-    {
-        var html = Rich("<p style='margin-top:81pt'></p><p><b>A</b></p>");
-        TableStructureTests.Fails(html, "FPDF1302", new() { PageHeight = 100, Margin = 10 });
-        var unbreakable = Rich("<p>UNBREAKABLEUNBREAKABLE</p>");
-        var error = Assert.Throws<FactsPdfException>(() => TableLayoutTests.Layout(unbreakable))!;
-        Assert.That(error.SourceOffset, Is.EqualTo(unbreakable.IndexOf("<p>", StringComparison.Ordinal)));
     }
 
 }

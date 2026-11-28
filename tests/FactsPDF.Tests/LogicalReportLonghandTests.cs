@@ -187,8 +187,6 @@ public sealed class LogicalReportLonghandTests
         Assert.That(Render("<body style='margin-inline-start:4pt'><p>A</p></body>"),
             Is.EqualTo(Render("<body style='margin-left:4pt'><p>A</p></body>")));
         Reject("<span style='padding-block-end:2pt'>A</span>", "FPDF1201");
-        Reject("<p style='width:250pt;margin-inline-start:40pt;" +
-            "margin-inline-end:40pt'>OVERWIDE</p>", "FPDF1302");
     }
 
     [Test]

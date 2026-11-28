@@ -436,7 +436,11 @@ internal static class HtmlDocumentReader
                         throw new FactsPdfException("FPDF1101", "Non-metadata text inside head is not supported.", token.Offset);
                     continue;
                 }
-                var decoded = HtmlTokens.Decode(token.Value, token.Offset);
+                var raw = token.Value;
+                // A newline right after the start tag of pre is not part of its text (the HTML parser drops it).
+                if (stack[^1].Name == "pre" && t > 0 && tokens[t - 1] is { Kind: HtmlTokenKind.Start, Value: "pre" } && raw.Length > 0)
+                    raw = raw.StartsWith("\r\n", StringComparison.Ordinal) ? raw[2..] : raw[0] is '\n' or '\r' ? raw[1..] : raw;
+                var decoded = HtmlTokens.Decode(raw, token.Offset);
                 if (ListTag(stack[^1].Name) || table is not null && table.Cell is null)
                 {
                     if (!HtmlTokens.AllSpace(decoded))

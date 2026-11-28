@@ -146,10 +146,6 @@ public sealed class TableImageTests
         Assert.That(Pdf(html, options), Is.EqualTo(pdf));
     }
 
-    [TestCase("width:81pt")] [TestCase("width:80pt;padding:1pt")] [TestCase("width:0pt")]
-    public void InvalidImageGeometryFailsAtomically(string style)
-        => TableStructureTests.Fails(Cell($"<img src='logo' style='{style}'>"), "FPDF1302", Options());
-
     [Test]
     public void ImpossibleInitialImageEdgeFailsButFormerOversizeHeaderCombinationContinues()
     {

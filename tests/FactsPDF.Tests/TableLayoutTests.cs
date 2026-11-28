@@ -113,13 +113,6 @@ public sealed class TableLayoutTests
         => TableStructureTests.Fails(Table(cellStyle: cellStyle), "FPDF1302");
 
     [Test]
-    public void TableOuterWidthAndUnbreakableCellTextMustFit()
-    {
-        TableStructureTests.Fails(Table(tableStyle: "width:200pt;padding:1pt"), "FPDF1302", new() { PageWidth = 220, Margin = 10 });
-        TableStructureTests.Fails(Table("UNBREAKABLE", tableStyle: "width:20pt"), "FPDF1302");
-    }
-
-    [Test]
     public void EntireTableMovesOnceAndExactEmptyPageFitSucceeds()
     {
         var options = new PdfOptions { PageHeight = 122, Margin = 10 };

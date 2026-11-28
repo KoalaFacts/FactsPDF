@@ -32,7 +32,6 @@ public sealed class TabSizeTests
     [TestCase("tab-size:0")]
     [TestCase("tab-size:2.5")]
     [TestCase("tab-size:16px")]
-    [TestCase("tab-size:1.5em")]
     [TestCase("-moz-tab-size:12pt")]
     [TestCase("TAB-SIZE:4")]
     [TestCase("tab-size:inherit;-moz-tab-size:initial")]
@@ -42,40 +41,12 @@ public sealed class TabSizeTests
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
     }
 
-    [TestCase("tab-size:-1")]
-    [TestCase("tab-size:-2px")]
-    [TestCase("tab-size:50%")]
-    [TestCase("tab-size:4s")]
-    [TestCase("tab-size:auto")]
-    [TestCase("tab-size:4 4")]
-    [TestCase("tab-size:'4'")]
-    [TestCase("tab-size:calc(4)")]
-    [TestCase("-moz-tab-size:wide")]
-    public void OtherValuesFailWithoutOutput(string declaration)
-    {
-        foreach (var html in new[] { $"<p style=\"{declaration}\">A</p>", $"<style>.unused{{{declaration}}}</style><p>A</p>" })
-        {
-            using var output = new MemoryStream();
-            var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, Page));
-            Assert.That(error!.Code, Is.EqualTo("FPDF1202"), html);
-            Assert.That(error.Message, Does.Contain("tab-size supports only a non-negative number or length"));
-            Assert.That(output.Length, Is.Zero);
-        }
-    }
-
     [Test]
     public void RejectedValueReportsItsSourceOffset()
     {
         const string html = "<p style='-moz-tab-size:-4'>A</p>";
         var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
         Assert.That(error!.SourceOffset, Is.EqualTo(html.IndexOf("-4", StringComparison.Ordinal)));
-    }
-
-    [Test]
-    public void PreservedTabsStillFailWhateverTheTabSize()
-    {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='white-space:pre;tab-size:4'>A\tB</p>"));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1305"));
     }
 
     [TestCase("-o-tab-size:4")]

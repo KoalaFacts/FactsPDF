@@ -123,7 +123,6 @@ public sealed class ImageHeightSizingTests
         SamePdf(cell, cell.Replace("height:36pt", "width:72pt", StringComparison.Ordinal));
     }
 
-    [TestCase("<img src=chart style='height:0'>", "FPDF1302")]
     [TestCase("<img src=chart style='height:0.1pt;box-sizing:border-box;padding:2pt'>", "FPDF1302")]
     [TestCase("<img src=chart style='height:50%'>", "FPDF1202")]
     [TestCase("<img src=chart style='height:calc(20pt - 1pt)'>", "FPDF1202")]

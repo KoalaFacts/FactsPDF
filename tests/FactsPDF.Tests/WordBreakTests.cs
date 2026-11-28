@@ -95,14 +95,6 @@ public sealed class WordBreakTests
     }
 
     [Test]
-    public void NoWrapAndOversizedGlyphsStillFailBeforeReplacingCustomerOutput()
-    {
-        Reject("<p style='width:60pt;white-space:nowrap;word-break:break-all'>PAID EXAMPLE</p>", "FPDF1302");
-        Reject("<p style='width:20pt;font-size:100pt;word-break:break-all'>W</p>", "FPDF1302");
-        Reject("<p style='width:20pt;word-break:break-all'>ABCDE 中文</p>", "FPDF1301");
-    }
-
-    [Test]
     public void LegacyBreakWordWrapsLikeOverflowWrapBreakWord()
     {
         const string token = "INV2026000123456789";
@@ -126,31 +118,8 @@ public sealed class WordBreakTests
     public void LegacyBreakWordIgnoresOverflowWrapAndInheritsThroughTheCascade(string html)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf("<p style='width:60pt;overflow-wrap:break-word'>PAID INV2026000123456789</p>")));
 
-    [Test]
-    public void LaterWordBreakValuesReplaceBreakWord()
-    {
-        const string html = "<style>div{word-break:break-word}.n{word-break:normal}.a{word-break:break-all}" +
-            ".i{word-break:initial}</style><div><p>A</p><p class=n>B</p><p class=a>C</p><p class=i>D</p></div>";
-        var paragraphs = HtmlDocumentReader.Read(html, Page, default);
-        Assert.That(paragraphs.Select(p => p.Style.BreakWordsByWordBreak), Is.EqualTo(new[] { true, false, false, false }));
-        Assert.That(paragraphs.Select(p => p.Style.BreakAll), Is.EqualTo(new[] { false, false, true, false }));
-        Reject("<p style='width:60pt;word-break:break-word;overflow-wrap:break-word;word-break:normal'>PAID INV2026000123456789XYZ</p>" +
-            "<p style='width:60pt;word-break:normal'>INV2026000123456789XYZ</p>", "FPDF1302");
-    }
-
-    [Test]
-    public void UnsupportedWordBreakMessageNamesBreakWord()
-    {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf("<p style='word-break:keep-all'>A</p>"));
-        Assert.That(error!.Message, Does.Contain("normal, break-all and break-word"));
-    }
-
-    [TestCase("<span style='word-break:break-all'>A</span>", "FPDF1201")]
-    [TestCase("<ul style='word-break:break-all'><li>A</li></ul>", "FPDF1201")]
-    [TestCase("<p style='word-break:keep-all'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-break:normal break-all'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-break:calc(1)'>A</p>", "FPDF1202")]
-    [TestCase("<style>.absent{word-break:keep-all}</style><p>A</p>", "FPDF1202")]
     public void UnsupportedContextsAndValuesKeepExistingPDFIntact(string html, string code)
         => Reject(html, code);
 }

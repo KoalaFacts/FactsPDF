@@ -83,7 +83,6 @@ public sealed class BoxPaintingTests
         var tree = HtmlDocumentReader.ReadTree(html, Options, default);
         var pages = TextLayout.Layout(tree, Options, default);
         Assert.That(pages[0].Runs.Single().X, Is.EqualTo(34).Within(0.00001));
-        Failure("<div style='width:260pt;border:1pt solid red'>X</div>", "FPDF1302");
     }
 
     [Test]

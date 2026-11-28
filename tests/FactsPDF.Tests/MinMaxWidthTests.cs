@@ -148,8 +148,6 @@ public sealed class MinMaxWidthTests
     [TestCase("<p style='max-width:-1pt'>Negative</p>", "FPDF1202")]
     [TestCase("<p style='min-width:calc(2pt + 3pt)'>Function</p>", "FPDF1202")]
     [TestCase("<style>.never{max-width:3vw}</style><p>A</p>", "FPDF1202")]
-    [TestCase("<p style='min-width:300pt'>Too wide</p>", "FPDF1302")]
-    [TestCase("<p style='box-sizing:border-box;max-width:5pt;padding:10pt'>Too small</p>", "FPDF1302")]
     [TestCase("<span style='max-width:50pt'>Inline</span>", "FPDF1201")]
     [TestCase("<img src='logo' style='min-width:-1rem'>", "FPDF1202")]
     [TestCase("<table><tr><td style='max-width:50pt'>A</td></tr></table>", "FPDF1201")]

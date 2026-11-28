@@ -46,7 +46,7 @@ internal sealed class PdfLinkAnnotations
                     throw new FactsPdfException("FPDF1302",
                         "Linked text must have a visible bounded PDF annotation rectangle.", run.SourceOffset);
                 var id = checked(firstId + entries.Count);
-                entries.Add(new(id, left, bottom, right, top, uri));
+                entries.Add(new(id, left / options.PrintShrink, bottom / options.PrintShrink, right / options.PrintShrink, top / options.PrintShrink, uri));
                 pageIds[page].Add(id);
             }
             // An inline image inside a link is clickable over its box, as Chrome's link
@@ -64,7 +64,7 @@ internal sealed class PdfLinkAnnotations
                     throw new FactsPdfException("FPDF1302",
                         "A linked image must have a visible bounded PDF annotation rectangle.", image.SourceOffset);
                 var id = checked(firstId + entries.Count);
-                entries.Add(new(id, left, bottom, right, top, uri));
+                entries.Add(new(id, left / options.PrintShrink, bottom / options.PrintShrink, right / options.PrintShrink, top / options.PrintShrink, uri));
                 pageIds[page].Add(id);
             }
         }

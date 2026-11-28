@@ -65,18 +65,6 @@ public sealed class WhiteSpaceNowrapTests
     }
 
     [Test]
-    public void NormalWrapsAcrossSpacesWhileNowrapRejectsTheSameOverwideSegment()
-    {
-        var narrow = Page with { PageWidth = 100 };
-        var normal = Placed("<p style='white-space:normal'>PAID IN FULL</p>", narrow);
-        Assert.That(normal.Select(run => run.Text),
-            Is.EqualTo(new[] { "PAID IN", "FULL" }));
-        Rejected("<p style='white-space:nowrap'>PAID IN FULL</p>", "FPDF1302", narrow);
-        Rejected("<p style='width:60pt;white-space:nowrap'>PAID IN FULL</p>",
-            "FPDF1302", Page);
-    }
-
-    [Test]
     public void ExplicitBreaksStillPaginateWithoutTruncatingContent()
     {
         var shortPage = Page with { PageHeight = 80 };
@@ -101,12 +89,8 @@ public sealed class WhiteSpaceNowrapTests
             Is.EqualTo(new[] { true, false, false, false }));
     }
 
-    [TestCase("<span style='white-space:nowrap'>A</span>", "FPDF1201")]
-    [TestCase("<ol style='white-space:nowrap'><li>A</li></ol>", "FPDF1201")]
-    [TestCase("<style>span{white-space:nowrap}</style><p><span>A</span></p>", "FPDF1201")]
     [TestCase("<p style='white-space:pre nowrap'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:pre-wrap nowrap'>A</p>", "FPDF1202")]
-    [TestCase("<p style='white-space:break-spaces'>A</p>", "FPDF1202")]
     [TestCase("<style>#absent{white-space:pre break-spaces}</style><p>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:nowrap normal'>A</p>", "FPDF1202")]
     [TestCase("<p style='white-space:calc(1)'>A</p>", "FPDF1202")]

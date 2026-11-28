@@ -43,6 +43,8 @@ internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double
     }
 }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
+internal enum TextVisibility : byte { Visible, Hidden, Collapse }
+internal enum OverflowKind : byte { Visible, Hidden, Clip, Scroll, Auto }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
 internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
 // Each channel is held as one byte (n/255): every colour CSS gives FactsPDF is a byte per channel,
@@ -119,6 +121,19 @@ internal sealed record TextStyle
     public Rgb? DecorationColor { get; set; }
     public TextDecorationPattern DecorationPattern { get; set; }
     public bool BreakAll { get; set; }
+    /// <summary>word-break:keep-all: no break between letters, ideographs, kana or Hangul syllables.</summary>
+    public bool KeepAll { get; set; }
+    /// <summary>hyphens:none: a soft hyphen (U+00AD) is no line break opportunity; manual, the initial value, breaks there and shows a hyphen.</summary>
+    public bool NoHyphens { get; set; }
+    /// <summary>white-space:break-spaces (white-space-collapse:break-spaces): preserved spaces never hang and each may wrap.</summary>
+    public bool BreakSpaces { get; set; }
+    /// <summary>tab-size: a count of space advances, or a length in points when <see cref="TabSizeIsLength"/>.</summary>
+    public double TabSize { get; set; } = 8;
+    public bool TabSizeIsLength { get; set; }
+    /// <summary>line-break; Normal is also auto.</summary>
+    public LineBreakStrictness LineBreak { get; set; }
+    /// <summary>visibility (inherited): hidden and collapse keep the layout and paint nothing.</summary>
+    public TextVisibility Visibility { get; set; }
     /// <summary>word-break:break-word, which wraps like overflow-wrap:anywhere whatever overflow-wrap computes to.</summary>
     public bool BreakWordsByWordBreak { get; set; }
     /// <summary>overflow-wrap:anywhere: wraps like break-word, but its breaks also count for min-content.</summary>
@@ -275,8 +290,20 @@ internal sealed record PlacedImage(PdfImage? Image, double X, double Top, double
 {
     internal int CommandCount => Vector?.CommandCount ?? 1;
 }
+/// <summary>
+/// A rectangle (the padding box of an overflow:hidden, clip, scroll or auto box, in top-origin page points)
+/// that clips what it holds: the page's runs, list markers and images in the given index ranges and the
+/// paint boxes that name it. Parent is the enclosing region's number plus one, or 0.
+/// </summary>
+internal sealed record ClipRegion(double X, double Top, double Width, double Height, bool ClipX, bool ClipY,
+    int RunStart, int RunEnd, int DiscStart, int DiscEnd, int ImageStart, int ImageEnd)
+{
+    public int Parent { get; set; }
+}
+
 internal sealed class LayoutPage
 {
+    public List<ClipRegion> Clips { get; } = [];
     public List<PlacedText> Runs { get; } = [];
     public List<PaintedBox> PaintBoxes { get; } = [];
     public List<PlacedDisc> Discs { get; } = [];
@@ -285,7 +312,7 @@ internal sealed class LayoutPage
 
 internal sealed record PaintedBox(double X, double Top, double Width, double Height,
     BoxStyle Style, Rgb TextColor, int Order,
-    bool IsFirstFragment = true, bool IsLastFragment = true, int SourceOffset = -1)
+    bool IsFirstFragment = true, bool IsLastFragment = true, int SourceOffset = -1, int Clip = 0)
 {
     // A page fragment can be shorter than its specified border. Use the same
     // clipped geometry for serialization and display-command accounting.
@@ -406,6 +433,19 @@ internal sealed record BoxStyle
     // These never inherit unless the winning CSS keyword is inherit.
     public bool BreakBefore { get; set; }
     public bool BreakAfter { get; set; }
+    // overflow-x and overflow-y as declared; see ClipsX and ClipsY for what they compute to.
+    public OverflowKind OverflowX { get; set; }
+    public OverflowKind OverflowY { get; set; }
+    // text-overflow:ellipsis (the initial clip ends a line of overflowing text at the box edge).
+    public bool TextOverflowEllipsis { get; set; }
+    // A visible axis computes to auto beside a scrolling or hidden one, and a clip axis to hidden, so only
+    // clip beside visible leaves the other axis alone (CSS Overflow 3, section 3).
+    public bool ClipsX => OverflowX != OverflowKind.Visible || OverflowY is OverflowKind.Hidden or OverflowKind.Scroll or OverflowKind.Auto;
+    // An axis that computes to auto draws a scrollbar when its content overflows, which is not supported.
+    public bool AutoX => OverflowX == OverflowKind.Auto || OverflowX == OverflowKind.Visible && OverflowY is OverflowKind.Hidden or OverflowKind.Auto;
+    public bool AutoY => OverflowY == OverflowKind.Auto || OverflowY == OverflowKind.Visible && OverflowX is OverflowKind.Hidden or OverflowKind.Auto;
+    public bool Radius => HasRoundedCorners;
+    public bool ClipsY => OverflowY != OverflowKind.Visible || OverflowX is OverflowKind.Hidden or OverflowKind.Scroll or OverflowKind.Auto;
     // A bounded, top-level flat report card can be preflighted and moved
     // intact rather than letting its paragraphs split between PDF pages.
     public bool AvoidBreakInside { get; set; }

@@ -66,14 +66,6 @@ public sealed class ListMarkerPositionTests
     }
 
     [Test]
-    public void AuthoredTextIndentStillRejectsFirstWordThatCannotFit()
-    {
-        const string html = "<p style='width:100pt;text-indent:20pt'>ABCDEFGHIJKL</p>";
-        var error = Assert.Throws<FactsPdfException>(() => Pdf(html));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
-    }
-
-    [Test]
     public void OutsideIsDefaultAndRetainsIdenticalPdfBytes()
     {
         const string body = "<li>Alpha Beta Gamma Delta</li><li>Small details</li>";

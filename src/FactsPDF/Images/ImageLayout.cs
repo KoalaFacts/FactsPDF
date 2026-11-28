@@ -77,8 +77,7 @@ internal static class ImageLayout
         }
         var outerWidth = Checked(width + edges, image.SourceOffset);
         var outerHeight = Checked(height + verticalEdges, image.SourceOffset);
-        if (width <= 0 || height <= 0 || outerWidth > containingWidth + 0.000001)
-            throw new FactsPdfException("FPDF1302", "Image content dimensions must be positive and the outer width must fit its containing content.", image.SourceOffset);
+        // A zero-sized image keeps its (empty) box and paints nothing, as in a browser.
         return new(left, top, width, height, outerWidth, outerHeight);
     }
 

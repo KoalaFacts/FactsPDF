@@ -60,10 +60,21 @@ internal static class TextLines
         for (var start = 0; start < line.Glyphs.Count;)
         {
             var first = line.Glyphs[start];
+            if (!first.IsAtom && first.Style.Visibility != TextVisibility.Visible)
+            {
+                // visibility:hidden keeps the text's room and paints nothing.
+                var hidden = 0d;
+                var stop = start;
+                while (stop < line.Glyphs.Count && !line.Glyphs[stop].IsAtom && line.Glyphs[stop].Style.Visibility != TextVisibility.Visible)
+                    hidden += line.Glyphs[stop++].Width;
+                x += hidden; start = stop;
+                continue;
+            }
             if (first.IsAtom)
             {
                 var placed = line.Atoms![atom++];
                 var node = placed.Node;
+                if (node.Style.Visibility != TextVisibility.Visible) { x += first.Width; start++; continue; }
                 if (images is null) throw new InvalidOperationException("A line with inline images needs an image target.");
                 var geometry = placed.Geometry;
                 var outerTop = topOrigin - baseline - placed.Top;
@@ -74,8 +85,9 @@ internal static class TextLines
                 var decoration = commands == 0 ? null : new PaintedBox(-geometry.Left, -geometry.Top,
                     geometry.OuterWidth, geometry.OuterHeight, node.BoxStyle, node.Style.Color, 0, SourceOffset: node.SourceOffset);
                 charge(node.CommandCount + (placed.LinkUri is null ? 0 : 1), node.SourceOffset);
-                images.Add(new PlacedImage(node.Image, x + geometry.Left, outerTop + geometry.Top,
-                    geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration));
+                if (geometry.Width > 0 && geometry.Height > 0)
+                    images.Add(new PlacedImage(node.Image, x + geometry.Left, outerTop + geometry.Top,
+                        geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration));
                 x += first.Width;
                 start++;
                 continue;
@@ -84,15 +96,20 @@ internal static class TextLines
             // a combined underline/strike/overline uses up to three commands.
             charge(1 + TextDecorationCommands.Count(first.Style.Decoration)
                 + (first.Style.LinkUri is null ? 0 : 1), sourceOffset); var width = 0d; var end = start; var utf16Length = 0;
-            while (end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
-                && ReferenceEquals(line.Glyphs[end].Font, first.Font))
+            // A tab is a space glyph of its own whose advance reaches the next tab stop.
+            if (first.Scalar == 9)
+            {
+                utf16Length = 1; width = first.Width; end = start + 1;
+            }
+            while (first.Scalar != 9 && end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
+                && ReferenceEquals(line.Glyphs[end].Font, first.Font) && line.Glyphs[end].Scalar != 9)
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
                 var glyph = line.Glyphs[end++];
-                utf16Length = checked(utf16Length + (glyph.Scalar <= 65535 ? 1 : 2));
+                if (!IsInvisible(glyph.Scalar)) utf16Length = checked(utf16Length + (glyph.Scalar <= 65535 ? 1 : 2));
                 width += glyph.Width;
             }
-            var text = string.Create(utf16Length,
+            var text = first.Scalar == 9 ? " " : string.Create(utf16Length,
                 (Glyphs: line.Glyphs, Start: start, End: end, Cancellation: cancellation),
                 static (destination, state) =>
                 {
@@ -100,14 +117,45 @@ internal static class TextLines
                     for (var i = state.Start; i < state.End; i++)
                     {
                         if ((i & 255) == 0) state.Cancellation.ThrowIfCancellationRequested();
-                        offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
+                        if (!IsInvisible(state.Glyphs[i].Scalar)) offset += new Rune(state.Glyphs[i].Scalar).EncodeToUtf16(destination[offset..]);
                     }
                 });
+            // Only default-ignorable characters: nothing to paint, just their (zero) advance.
+            if (text.Length == 0) { x += width; start = end; continue; }
             target.Add(sourceOffset >= 0 && (first.Style.Decoration != TextDecoration.None || first.Style.LinkUri is not null)
                 ? new LocatedText(text, x, baseline, first.Style, first.Font, width, sourceOffset)
                 : new PlacedText(text, x, baseline, first.Style, first.Font, width));
             x += width; start = end;
         }
+    }
+
+    /// <summary>
+    /// Ends a line that overflows its box (text-overflow:ellipsis) with an ellipsis: the glyphs that fit beside
+    /// it stay. Chrome draws U+2026 where the font has it and three full stops otherwise.
+    /// </summary>
+    internal static Line Ellipsize(Line line, double available, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, int sourceOffset)
+    {
+        var glyphs = line.Glyphs;
+        if (glyphs.Count == 0) return line;
+        var style = glyphs[^1].Style;
+        Glyph[] ellipsis;
+        try { ellipsis = [Resolve(0x2026, style, sourceOffset, options, resolved)]; }
+        catch (FactsPdfException failure) when (failure.Code is "FPDF1504" or "FPDF1301")
+        {
+            var stop = Resolve('.', style, sourceOffset, options, resolved);
+            ellipsis = [stop, stop, stop];
+        }
+        var ellipsisWidth = ellipsis.Sum(glyph => glyph.Width);
+        var width = 0d;
+        foreach (var glyph in glyphs) width += glyph.Width;
+        while (glyphs.Count > 0 && (width + ellipsisWidth > available + 0.000001 || glyphs[^1].Scalar == 32 && !glyphs[^1].Style.PreserveSpaces))
+        {
+            width -= glyphs[^1].Width;
+            glyphs.RemoveAt(glyphs.Count - 1);
+        }
+        glyphs.AddRange(ellipsis);
+        return line with { Width = width + ellipsisWidth };
     }
 
     internal static bool HasTextContent(Paragraph paragraph, CancellationToken cancellation)
@@ -135,65 +183,17 @@ internal static class TextLines
     /// </summary>
     /// <remarks>
     /// Max-content is the widest line between forced breaks (<c>br</c> and preserved newlines).
-    /// Min-content is the widest unbreakable segment: a word between spaces and CJK break
-    /// opportunities, a single glyph under <c>word-break:break-all</c>, <c>word-break:break-word</c> or
-    /// <c>overflow-wrap:anywhere</c> (whose emergency breaks count for min-content), a whole
-    /// line under <c>white-space:nowrap</c>, and also a single preserved space.
+    /// Min-content is the widest unbreakable segment between soft wrap opportunities: a word, a CJK
+    /// character, a single glyph under <c>word-break:break-all</c>, <c>word-break:break-word</c> or
+    /// <c>overflow-wrap:anywhere</c> (whose emergency breaks count for min-content) and a whole
+    /// line under <c>white-space:nowrap</c>. Spaces that hang at the end of a line add nothing.
     /// <c>overflow-wrap:break-word</c> leaves both unchanged, as in CSS. The first-line indent is added to the first line and to its first segment.
     /// </remarks>
     internal static (double Min, double Max) IntrinsicWidths(Paragraph paragraph, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
     {
-        var style = paragraph.Style;
-        var indent = style.FirstLineIndent.Value;
-        var reader = new GlyphReader(paragraph, options, resolved, double.NaN, cancellation);
-        double min = 0, max = 0, line = 0, segment = 0;
-        var firstLine = true;
-        var firstSegment = true;
-        var lineStarted = false;
-        var previous = -1;
-        void EndSegment()
-        {
-            if (segment == 0) return;
-            min = Math.Max(min, firstLine && firstSegment ? segment + indent : segment);
-            firstSegment = false;
-            segment = 0;
-        }
-        while (reader.MoveNext())
-        {
-            var glyph = reader.Current;
-            if (glyph.Scalar == 10)
-            {
-                EndSegment();
-                max = Math.Max(max, lineStarted && firstLine ? line + indent : line);
-                line = 0; firstLine = false; lineStarted = false; previous = -1;
-                continue;
-            }
-            lineStarted = true;
-            if (style.NoWrap)
-            {
-                line += glyph.Width;
-                segment = line;
-                continue;
-            }
-            if (glyph.Scalar == 32)
-            {
-                EndSegment();
-                line += glyph.Width;
-                // A preserved space is painted and can wrap on its own, so a line must hold one.
-                if (style.PreserveSpaces) min = Math.Max(min, firstLine && firstSegment ? glyph.Width + indent : glyph.Width);
-                previous = 32;
-                continue;
-            }
-            if (style.BreakAll || style.BreakWordsByWordBreak || style.BreakAnywhere || previous is not (-1 or 32) && CanBreak(previous, glyph.Scalar))
-                EndSegment();
-            segment += glyph.Width;
-            line += glyph.Width;
-            previous = glyph.Scalar;
-        }
-        EndSegment();
-        max = Math.Max(max, lineStarted && firstLine ? line + indent : line);
-        return (min, Math.Max(min, max));
+        using var lines = LineWrapper.Rent(paragraph, double.NaN, options, resolved, null, 0, cancellation).GetEnumerator();
+        return lines.MeasureIntrinsic();
     }
 
     internal static WrappedLines Wrap(Paragraph paragraph, double available, PdfOptions options,
@@ -217,32 +217,41 @@ internal static class TextLines
             public Line Current => wrapper.CurrentFor(rental);
             object IEnumerator.Current => Current;
             public bool MoveNext() => wrapper.MoveNextFor(rental);
+            internal (double Min, double Max) MeasureIntrinsic() => wrapper.MeasureFor(rental);
             public void Dispose() => wrapper.DisposeFor(rental);
             public void Reset() => throw new NotSupportedException();
         }
     }
 
-    // Breaks one paragraph into lines, one line per MoveNext. A hand-written resumable
-    // state machine instead of a compiler iterator: one wrapper per thread is reused across
-    // paragraphs (taken out of its slot while in use, so a Wrap opened inside another gets
-    // its own), and its line and word glyph lists are reused with it. Nothing runs until the
-    // first MoveNext; Dispose clears the lists and returns the wrapper. Callers reach it only
-    // through WrappedLines, whose rental number keeps a stale handle away from a later Wrap;
-    // every enumerator of one WrappedLines shares the wrapper, so it is enumerated once.
+    // Breaks one paragraph into lines, one line per MoveNext. The paragraph's glyphs are read once into a
+    // pooled list and their soft wrap opportunities worked out over the whole text (see
+    // LineBreakAnalyzer), then each MoveNext fills one line greedily, as Chrome does: a line ends at
+    // the last opportunity before the glyph that no longer fits, a glyph that fits nowhere breaks
+    // the word only when overflow-wrap or word-break allows it, and otherwise the line overflows its
+    // box to the next opportunity. One wrapper per thread is reused across paragraphs (taken out of
+    // its slot while in use, so a Wrap opened inside another gets its own); Dispose clears the lists
+    // and returns it. Callers reach it only through WrappedLines, whose rental number keeps a stale
+    // handle away from a later Wrap; every enumerator of one WrappedLines shares the wrapper.
     internal sealed class LineWrapper
     {
         private const int MaxPooledGlyphs = 4096;
         [ThreadStatic] private static LineWrapper? pooled;
 
-        private enum State { Start, Loop, AfterBreak, AfterPreservedSpaceWrap, AfterBreakWordStart, AfterBreakWordGlyph, AfterWordWrap, Done }
+        // Lookahead a break decision needs (LB15b, LB19a, LB25 and LB28a read up to two units ahead), the
+        // glyphs kept before the next line for the rules that read behind, and how many are read at a time.
+        private const int Lookahead = 3, Overlap = 16, ReadChunk = 256;
 
+        // The window of the paragraph being wrapped: from a little before the next line to a little past it.
+        private readonly List<Glyph> all = [];
         private readonly List<Glyph> current = [];
-        private readonly List<Glyph> word = [];
+        private readonly LineBreakAnalyzer analyzer = new();
+        private int[] scalars = [];
+        private byte[] opportunities = [];
         // Created by the first line with an inline image, so text-only wrapping allocates nothing more.
         private List<InlineAtom>? atoms;
         private bool rented;
         private int rental;
-        private State state;
+        private bool started, done;
         private Paragraph paragraph = null!;
         private double available;
         private PdfOptions options = null!;
@@ -251,19 +260,17 @@ internal static class TextLines
         private ListMarker? firstMarker;
         private double firstLineMarkerInset;
         private double firstIndent;
-        private GlyphReader cursor;
-        private bool hasGlyph;
         private double width;
-        private Glyph? space;
+        private int next;
         private bool firstLine;
-        private double wordWidth;
-        private double gap;
-        private int wordIndex;
+        private GlyphReader reader;
+        private bool readerDone;
 
         private Line Current { get; set; }
 
         internal Line CurrentFor(int handle) => handle == rental && rented ? Current : default;
         internal bool MoveNextFor(int handle) => handle == rental && rented && MoveNext();
+        internal (double Min, double Max) MeasureFor(int handle) => handle == rental && rented ? Measure() : default;
         internal void DisposeFor(int handle)
         {
             if (handle == rental) Dispose();
@@ -276,7 +283,8 @@ internal static class TextLines
             var wrapper = pooled ?? new LineWrapper();
             pooled = null;
             wrapper.rented = true;
-            wrapper.state = State.Start;
+            wrapper.started = wrapper.done = wrapper.readerDone = false;
+            wrapper.next = 0;
             wrapper.paragraph = paragraph;
             wrapper.available = available;
             wrapper.options = options;
@@ -293,254 +301,283 @@ internal static class TextLines
             if (!rented) return;
             rented = false;
             unchecked { rental++; }
-            state = State.Done;
+            done = true;
+            all.Clear();
             current.Clear();
-            word.Clear();
             atoms?.Clear();
             paragraph = null!; options = null!; resolved = null!; firstMarker = null;
-            cursor = default; Current = default; space = null; cancellation = default;
-            if (current.Capacity <= MaxPooledGlyphs && word.Capacity <= MaxPooledGlyphs) pooled = this;
+            Current = default; cancellation = default; reader = default;
+            if (all.Capacity <= MaxPooledGlyphs && current.Capacity <= MaxPooledGlyphs) pooled = this;
         }
 
         private bool MoveNext()
         {
-            switch (state)
+            if (done) return false;
+            if (!started)
             {
-                case State.Start:
-                    Validate();
-                    current.Clear(); width = 0; space = null; firstLine = true;
-                    // The consumer finishes a borrowed line before MoveNext clears it.
-                    // Retained page strings/paint and the PDF buffer are unchanged: this
-                    // is line-at-a-time wrapping, not a streaming document serializer.
-                    cursor = new GlyphReader(paragraph, options, resolved, available, cancellation);
-                    hasGlyph = cursor.MoveNext();
-                    break;
-                case State.AfterBreak:
-                    ResetLine();
-                    hasGlyph = cursor.MoveNext();
-                    break;
-                case State.AfterPreservedSpaceWrap:
-                    // Every authored space remains painted, including one at a soft wrap
-                    // boundary; it starts the next line.
-                    ResetLine();
-                    current.Add(cursor.Current);
-                    width += cursor.Current.Width;
-                    hasGlyph = cursor.MoveNext();
-                    break;
-                case State.AfterBreakWordStart:
-                    ResetLine();
-                    wordIndex = 0;
-                    if (PlaceBrokenWord()) return true;
-                    break;
-                case State.AfterBreakWordGlyph:
-                    {
-                        ResetLine();
-                        var glyph = word[wordIndex++];
-                        current.Add(glyph);
-                        width += glyph.Width;
-                        if (PlaceBrokenWord()) return true;
-                        break;
-                    }
-                case State.AfterWordWrap:
-                    ResetLine();
-                    gap = 0;
-                    AppendWord();
-                    break;
-                case State.Done:
-                    return false;
+                Start();
+                started = true;
             }
-            state = State.Loop;
-            while (hasGlyph)
+            Trim();
+            if (!Has(next))
             {
-                cancellation.ThrowIfCancellationRequested();
-                if (paragraph.Style.NoWrap)
-                {
-                    // The paragraph deliberately has no automatic break
-                    // opportunities; HTML <br> remains an explicit break.
-                    if (cursor.Current.Scalar == 10) return Yield(CurrentLine(), State.AfterBreak);
-                    current.Add(cursor.Current);
-                    width += cursor.Current.Width;
-                    hasGlyph = cursor.MoveNext();
-                    continue;
-                }
-                if (cursor.Current.Scalar == 10) return Yield(CurrentLine(), State.AfterBreak);
-                if (cursor.Current.Scalar == 32)
-                {
-                    if (paragraph.Style.PreserveSpaces)
-                    {
-                        var glyph = cursor.Current;
-                        var capacity = firstLine ? available - firstIndent : available;
-                        if (width + glyph.Width > capacity + 0.000001)
-                        {
-                            if (current.Count == 0)
-                                throw new FactsPdfException("FPDF1302",
-                                    "A preserved space cannot fit within the report text width.", glyph.SourceOffset);
-                            // Every authored space remains painted, including one
-                            // at a soft wrap boundary; never trim the existing line.
-                            return Yield(CurrentLine(softWrapped: true), State.AfterPreservedSpaceWrap);
-                        }
-                        current.Add(glyph);
-                        width += glyph.Width;
-                    }
-                    else space = cursor.Current;
-                    hasGlyph = cursor.MoveNext();
-                    continue;
-                }
-                word.Clear();
-                wordWidth = 0d;
-                int previous;
-                do
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    var glyph = cursor.Current;
-                    word.Add(glyph);
-                    wordWidth += glyph.Width;
-                    if (!paragraph.Style.EmergencyBreak && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
-                        throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.", glyph.SourceOffset);
-                    previous = glyph.Scalar;
-                    hasGlyph = cursor.MoveNext();
-                }
-                while (hasGlyph && cursor.Current.Scalar is not (32 or 10) &&
-                    !paragraph.Style.BreakAll && !CanBreak(previous, cursor.Current.Scalar));
-                gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
-                var lineAvailable = firstLine ? available - firstIndent : available;
-                // An inside marker is already first-line content. A word which
-                // fits the normal line but not the remaining marker line may move
-                // intact to the next line. An authored text-indent alone must
-                // still reject a first word that cannot fit after that indent.
-                var markerOnlyWrap = firstLine && firstMarker is { Inside: true } &&
-                    firstLineMarkerInset > 0 &&
-                    wordWidth <= available - paragraph.Style.FirstLineIndent.Resolve(available) + 0.000001;
-                // Break only a token that cannot fit a fresh line, or the
-                // indented first line when no earlier text can move. A fitting
-                // word moves as a whole at the preceding ordinary space.
-                if (paragraph.Style.EmergencyBreak &&
-                    (wordWidth > available + 0.000001 ||
-                     current.Count == 0 && wordWidth > lineAvailable + 0.000001 && !markerOnlyWrap))
-                {
-                    if (current.Count > 0) return Yield(CurrentLine(softWrapped: true), State.AfterBreakWordStart);
-                    wordIndex = 0;
-                    if (PlaceBrokenWord()) return true;
-                    continue;
-                }
-                if (width + gap + wordWidth > lineAvailable + 0.000001)
-                {
-                    // With an inside marker and no text yet, paint the marker on this empty
-                    // logical line, then wrap the whole first word using the full continuation width.
-                    if (current.Count > 0 || markerOnlyWrap) return Yield(CurrentLine(softWrapped: true), State.AfterWordWrap);
-                    throw new FactsPdfException("FPDF1302",
-                        "The first word cannot fit after first-line indentation.", paragraph.SourceOffset);
-                }
-                AppendWord();
+                done = true;
+                if (!(firstLine && firstMarker is not null)) return false;
+                current.Clear();
+                width = 0;
+                Current = CurrentLine();
+                return true;
             }
-            if (current.Count > 0 || firstLine && firstMarker is not null) return Yield(CurrentLine(), State.Done);
-            state = State.Done;
-            return false;
-        }
-
-        private bool Yield(Line line, State next)
-        {
-            Current = line;
-            state = next;
+            cancellation.ThrowIfCancellationRequested();
+            var soft = BuildLine();
+            Current = CurrentLine(soft);
+            firstLine = false;
             return true;
         }
 
-        private void AppendWord()
+        // Validates the whole paragraph (so a missing glyph is reported before any width or page problem,
+        // in glyph order), then reads its glyphs line by line. The first-line inset is relative to the
+        // paragraph's resolved content width, not to the page or its painted border box, and belongs
+        // only to the first logical line; continuation pages never re-indent.
+        private void Start()
         {
-            if (gap > 0) { current.Add(space!.Value); width += gap; }
-            current.AddRange(word);
-            width += wordWidth; space = null;
+            var check = new GlyphReader(paragraph, options, resolved, available, cancellation);
+            while (check.MoveNext()) { }
+            Open(available);
+            firstLine = true;
+            firstIndent = paragraph.Style.FirstLineIndent.Resolve(available) + firstLineMarkerInset;
+            if (!double.IsFinite(firstIndent) || firstIndent < 0) firstIndent = 0;
         }
 
-        // Places word[wordIndex..] glyph by glyph; returns true when a full line is ready first.
-        private bool PlaceBrokenWord()
+        private void Open(double containingWidth)
         {
-            for (; wordIndex < word.Count; wordIndex++)
+            all.Clear();
+            next = 0;
+            readerDone = false;
+            reader = new GlyphReader(paragraph, options, resolved, containingWidth, cancellation);
+        }
+
+        // Reads more glyphs into the window and works out where the window may break.
+        private void Fill()
+        {
+            var added = 0;
+            while (added < ReadChunk && !readerDone)
             {
-                cancellation.ThrowIfCancellationRequested();
-                var glyph = word[wordIndex];
-                var capacity = firstLine ? available - firstIndent : available;
-                if (width + glyph.Width > capacity + 0.000001)
+                if (reader.MoveNext()) { all.Add(reader.Current); added++; }
+                else readerDone = true;
+            }
+            Analyze();
+        }
+
+        private void Analyze()
+        {
+            var count = all.Count;
+            if (scalars.Length < count)
+            {
+                scalars = new int[Math.Max(count, scalars.Length * 2)];
+                opportunities = new byte[scalars.Length];
+            }
+            for (var i = 0; i < count; i++) scalars[i] = all[i].Scalar;
+            var style = paragraph.Style;
+            analyzer.Analyze(scalars.AsSpan(0, count), style.LineBreak,
+                style.KeepAll ? WordBreakMode.KeepAll : style.BreakAll ? WordBreakMode.BreakAll : WordBreakMode.Normal)
+                .CopyTo(opportunities);
+            // break-spaces: a soft wrap opportunity follows every preserved space, even before another one.
+            for (var i = 1; i < count; i++)
+            {
+                if (all[i - 1].Scalar == 32 && all[i - 1].Style.BreakSpaces && all[i].Scalar != 10)
+                    opportunities[i] = LineBreakAnalyzer.Allowed;
+                // A soft hyphen breaks only where hyphens is manual (the initial value).
+                else if (all[i - 1].Scalar == 0xAD && all[i - 1].Style.NoHyphens) opportunities[i] = LineBreakAnalyzer.No;
+            }
+        }
+
+        // Whether glyph `index` exists, with its break decision final.
+        private bool Has(int index)
+        {
+            while (!readerDone && index + Lookahead >= all.Count) Fill();
+            return index < all.Count;
+        }
+
+        // Drops the glyphs of finished lines, keeping a few before the next one.
+        private void Trim()
+        {
+            var drop = next - Overlap;
+            if (drop < 4 * ReadChunk) return;
+            all.RemoveRange(0, drop);
+            next -= drop;
+            Analyze();
+        }
+
+        private static bool IsCollapsibleSpace(Glyph glyph) => glyph.Scalar == 32 && !glyph.Style.PreserveSpaces;
+
+        // A space that hangs past the end of its line instead of forcing a wrap: a collapsible one, or a
+        // preserved one that may wrap (pre-wrap, but not pre or break-spaces).
+        private static bool Hangs(Glyph glyph) => glyph.Scalar == 32
+            && (!glyph.Style.PreserveSpaces || !glyph.Style.NoWrap && !glyph.Style.BreakSpaces);
+
+        // Whether a line may end before glyph i. A space's own white-space decides after it; elsewhere
+        // wrapping is off only where both sides forbid it.
+        private bool MayWrapBefore(int i)
+        {
+            if (opportunities[i] == LineBreakAnalyzer.No) return false;
+            var previous = all[i - 1];
+            return previous.Scalar == 32 ? !previous.Style.NoWrap : !(previous.Style.NoWrap && all[i].Style.NoWrap);
+        }
+
+        // The advance of a glyph at offset x of its line; a tab runs to the next tab stop.
+        private static double Advance(Glyph glyph, double x)
+        {
+            if (glyph.Scalar != 9) return glyph.Width;
+            var style = glyph.Style;
+            var space = style.FontSize * glyph.Width1000 / 1000 + style.LetterSpacing + style.WordSpacing;
+            var stop = style.TabSizeIsLength ? style.TabSize : style.TabSize * space;
+            if (!(stop > 0)) return 0;
+            return stop - x % stop;
+        }
+
+        // Fills `current` with the next line and returns whether it ended at a soft wrap.
+        private bool BuildLine()
+        {
+            var start = next;
+            var capacity = (firstLine ? available - firstIndent : available) + 0.000001;
+            var fit = 0d;      // width up to the last glyph that cannot hang
+            var total = 0d;    // width including hanging spaces
+            var lastBreak = -1;
+            var end = -1;
+            var soft = false;
+            var offset = firstLine ? firstIndent : 0;
+            // An inside list marker is inline content of the first line: a first word that fits a whole line
+            // but not what the marker leaves moves to the second line, leaving the marker alone on the first.
+            if (firstLine && firstMarker is { Inside: true } && firstLineMarkerInset > 0 && Has(start) && all[start].Scalar != 10
+                && FirstSegmentWidth(start) is var segmentWidth && segmentWidth > capacity && segmentWidth <= available + 0.000001)
+            {
+                current.Clear();
+                width = 0;
+                return true;
+            }
+            for (var i = start; Has(i); i++)
+            {
+                var glyph = all[i];
+                if (glyph.Scalar == 10) { end = i; next = i + 1; break; }
+                // A line that ends at a soft hyphen shows a hyphen, which has to fit as well.
+                if (i > start && MayWrapBefore(i) && (all[i - 1].Scalar != 0xAD || fit + HyphenWidth(all[i - 1]) <= capacity)) lastBreak = i;
+                var advance = Advance(glyph, offset + total);
+                var hangs = Hangs(glyph);
+                var candidate = hangs ? fit : total + advance;
+                if (!glyph.Style.NoWrap && candidate > capacity)
                 {
-                    if (current.Count == 0)
-                        throw new FactsPdfException("FPDF1302",
-                            "An individual glyph cannot fit within the report text width.", glyph.SourceOffset);
-                    return Yield(CurrentLine(softWrapped: true), State.AfterBreakWordGlyph);
+                    if (lastBreak > start) { end = lastBreak; next = lastBreak; soft = true; break; }
+                    if (i > start && (glyph.Style.EmergencyBreak || glyph.Style.BreakAnywhere))
+                    {
+                        end = i; next = i; soft = true; break;
+                    }
+                }
+                total += advance;
+                if (!hangs) fit = total;
+            }
+            if (end < 0) { end = all.Count; next = all.Count; }
+            // The line is glyphs [start, end): copy them, fixing each tab's advance to its stop, and drop the
+            // collapsible spaces at its end.
+            current.Clear();
+            width = 0;
+            for (var g = start; g < end; g++)
+            {
+                var glyph = all[g];
+                if (glyph.Scalar == 9)
+                {
+                    var advance = Advance(glyph, offset + width);
+                    glyph = glyph with { Width1000 = (advance - glyph.Style.LetterSpacing) * 1000 / glyph.Style.FontSize };
                 }
                 current.Add(glyph);
                 width += glyph.Width;
             }
-            space = null;
-            state = State.Loop;
-            return false;
-        }
-
-        private void ResetLine()
-        {
-            current.Clear(); width = 0; space = null;
-            firstLine = false;
-        }
-
-        private void Validate()
-        {
-            // The opt-in first-line inset is relative to the paragraph's resolved
-            // content width, not to the page or its painted border box. It belongs
-            // only to the first logical line; continuation pages never re-indent.
-            firstIndent = paragraph.Style.FirstLineIndent.Resolve(available) + firstLineMarkerInset;
-            // Resolve the complete paragraph before reporting width errors, and
-            // validate every word before yielding a line to pagination. Recording
-            // a width failure (rather than throwing immediately) keeps the legacy
-            // glyph -> width -> layout/budget error order without retaining lines.
-            var segmentWidth = 0d;
-            var previousScalar = -1;
-            var tooWide = false;
-            var tooWideOffset = -1;
-            var firstSegment = true;
-            var reader = new GlyphReader(paragraph, options, resolved, available, cancellation);
-            while (reader.MoveNext())
+            // A soft hyphen that ends the line becomes a visible hyphen.
+            if (soft && end > start && all[end - 1].Scalar == 0xAD)
             {
-                var glyph = reader.Current;
-                cancellation.ThrowIfCancellationRequested();
-                if (paragraph.Style.NoWrap)
-                {
-                    // Collapsed spaces remain advance widths, but only an explicit
-                    // <br> starts a new line. Validate the whole forced-break
-                    // segment before painting any page.
-                    if (glyph.Scalar == 10) { segmentWidth = 0; firstSegment = false; continue; }
-                    segmentWidth += glyph.Width;
-                    if (!tooWide && segmentWidth > (firstSegment ? available - firstIndent : available) + 0.000001) { tooWide = true; tooWideOffset = glyph.SourceOffset; }
-                    continue;
-                }
-                if (glyph.Scalar is 32 or 10)
-                {
-                    if (paragraph.Style.PreserveSpaces && glyph.Scalar == 32 && !tooWide && glyph.Width > available + 0.000001)
-                    {
-                        tooWide = true; tooWideOffset = glyph.SourceOffset;
-                    }
-                    segmentWidth = 0;
-                    previousScalar = -1;
-                    continue;
-                }
-                if (paragraph.Style.EmergencyBreak || paragraph.Style.BreakAll)
-                {
-                    // Both breaking modes use only supported resolved glyphs.
-                    // A glyph wider than the fresh content line still fails.
-                    if (!tooWide && glyph.Width > available + 0.000001) { tooWide = true; tooWideOffset = glyph.SourceOffset; }
-                    previousScalar = glyph.Scalar;
-                    continue;
-                }
-                segmentWidth = previousScalar < 0 || CanBreak(previousScalar, glyph.Scalar)
-                    ? glyph.Width : segmentWidth + glyph.Width;
-                if (!tooWide && segmentWidth > available + 0.000001) { tooWide = true; tooWideOffset = glyph.SourceOffset; }
-                previousScalar = glyph.Scalar;
+                var hyphen = HyphenGlyph(all[end - 1]);
+                current.Add(hyphen);
+                width += hyphen.Width;
             }
-            // Keep the legacy resource/diagnostic priority: resolve every glyph
-            // before reporting indentation geometry, including for overwide boxes.
-            if (!double.IsFinite(firstIndent) || firstIndent < 0 ||
-                firstIndent > 0 && firstIndent >= available - 0.000001)
-                throw new FactsPdfException("FPDF1302", "First-line indentation leaves no usable text width.", paragraph.SourceOffset);
-            if (tooWide)
-                throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.", tooWideOffset);
+            while (current.Count > 0 && IsCollapsibleSpace(current[^1]))
+            {
+                width -= current[^1].Width;
+                current.RemoveAt(current.Count - 1);
+            }
+            // Preserved spaces that hang at a soft wrap stay painted but take no part in aligning the line;
+            // before a forced break or at the end of the text they count.
+            if (soft)
+                for (var g = current.Count - 1; g >= 0 && current[g].Scalar == 32 && Hangs(current[g]); g--) width -= current[g].Width;
+            return soft;
+        }
+
+        // The width of the unbreakable segment that starts at glyph `start`, without its hanging spaces.
+        private double FirstSegmentWidth(int start)
+        {
+            var sum = 0d;
+            for (var i = start; Has(i) && all[i].Scalar != 10; i++)
+            {
+                if (i > start && MayWrapBefore(i)) break;
+                if (!Hangs(all[i])) sum += Advance(all[i], sum);
+            }
+            return sum;
+        }
+
+        // The hyphen a line that breaks at a soft hyphen ends with: U+2010 where the font has it, else a hyphen-minus.
+        private Glyph HyphenGlyph(Glyph softHyphen)
+        {
+            try { return Resolve(0x2010, softHyphen.Style, softHyphen.SourceOffset, options, resolved); }
+            catch (FactsPdfException failure) when (failure.Code is "FPDF1504" or "FPDF1301")
+            {
+                return Resolve('-', softHyphen.Style, softHyphen.SourceOffset, options, resolved);
+            }
+        }
+
+        private double HyphenWidth(Glyph softHyphen) => HyphenGlyph(softHyphen).Width;
+
+        // The widths IntrinsicWidths reports: the glyphs as a table cell or flex item sees them.
+        internal (double Min, double Max) Measure()
+        {
+            Open(double.NaN);
+            var indent = paragraph.Style.FirstLineIndent.Value;
+            double min = 0, max = 0, line = 0, segment = 0, hanging = 0;
+            var firstLineOfText = true;
+            var firstSegment = true;
+            var lineStarted = false;
+            void EndSegment()
+            {
+                if (segment > 0)
+                {
+                    min = Math.Max(min, firstLineOfText && firstSegment ? segment + indent : segment);
+                    firstSegment = false;
+                }
+                segment = 0; hanging = 0;
+            }
+            for (var i = 0; Has(i); i++)
+            {
+                if ((i & 1023) == 1023) { next = i; Trim(); i = next; }
+                var glyph = all[i];
+                if (glyph.Scalar == 10)
+                {
+                    EndSegment();
+                    max = Math.Max(max, lineStarted && firstLineOfText ? line + indent : line);
+                    line = 0; firstLineOfText = false; lineStarted = false; hanging = 0;
+                    continue;
+                }
+                lineStarted = true;
+                var advance = Advance(glyph, line);
+                if (!glyph.Style.NoWrap && i > 0 && all[i - 1].Scalar != 10
+                    && (glyph.Style.BreakAnywhere || glyph.Style.BreakWordsByWordBreak || MayWrapBefore(i)))
+                    EndSegment();
+                line += advance;
+                if (Hangs(glyph)) { hanging += advance; continue; }
+                segment += hanging + advance; hanging = 0;
+                // A preserved space is painted and can wrap on its own, so a line must hold one.
+                if (glyph.Scalar == 32) min = Math.Max(min, firstLineOfText && firstSegment ? advance + indent : advance);
+            }
+            EndSegment();
+            max = Math.Max(max, lineStarted && firstLineOfText ? line + indent : line);
+            return (min, Math.Max(min, max));
         }
 
         // CSS Inline Layout: a specified (non-normal) line-height uses the
@@ -730,7 +767,10 @@ internal static class TextLines
         if (!resolved.TryGetValue((role, scalar), out var value))
         {
             var fonts = FontRoles.Chain(options, role, sourceOffset);
-            if (fonts.Count == 0)
+            if (IsInvisible(scalar))
+                // Default-ignorable: no advance and nothing painted, but the line breaking rules still see it.
+                value = (fonts.Count == 0 ? null : fonts[0], 0);
+            else if (fonts.Count == 0)
             {
                 if (scalar is < 32 or > 126) throw new FactsPdfException("FPDF1301", $"U+{scalar:X4} requires an explicitly supplied font.", sourceOffset);
                 value = (null, 600);
@@ -841,7 +881,7 @@ internal static class TextLines
                         throw new FactsPdfException("FPDF1304", "Invalid UTF-16 text; unpaired surrogate.", run.SourceOffset);
                     textIndex += consumed;
                     var scalar = rune.Value;
-                    if (paragraph.Style.PreserveLineBreaks)
+                    if (run.Style.PreserveLineBreaks)
                     {
                         // HTML's CRLF segment break is one break even across
                         // differently styled spans; CR and FF also separate lines.
@@ -860,13 +900,11 @@ internal static class TextLines
                             return true;
                         }
                     }
-                    // Preserving modes retain ordinary U+0020 only. Never
-                    // attempt to resolve unsupported control whitespace as
-                    // a font glyph or accidentally output it; report a stable
-                    // error before any PDF bytes replace the destination.
-                    if (paragraph.Style.PreserveSpaces && (scalar is < 32 or 127))
+                    // Preserving modes retain spaces and tabs; any other control character has no glyph here, so
+                    // report a stable error before any PDF bytes replace the destination.
+                    if (run.Style.PreserveSpaces && (scalar is < 32 and not 9 || scalar == 127))
                         throw new FactsPdfException("FPDF1305",
-                            "Preformatted report text does not support tab stops or control whitespace.",
+                            "Preformatted report text does not support control characters other than tab and newline.",
                             run.SourceOffset);
                     // Scoped word definition: ASCII letters/digits form tokens;
                     // punctuation, spaces and non-ASCII scalars delimit them.
@@ -899,17 +937,13 @@ internal static class TextLines
                     insideAsciiWord = wordCharacter;
                     if (scalar <= 127 && HtmlTokens.Space((char)scalar))
                     {
-                        if (paragraph.Style.PreserveSpaces)
+                        if (run.Style.PreserveSpaces)
                         {
-                            // Pre-wrap retains each literal U+0020 glyph and its
-                            // authored style, even before/after a line break.
-                            // Tabs need tab-stop layout; never collapse them
-                            // silently or pretend they are literal spaces.
-                            if (scalar != 32)
-                                throw new FactsPdfException("FPDF1305",
-                                    "Bounded pre-wrap supports literal spaces, not tabs or other control whitespace.",
-                                    run.SourceOffset);
+                            // Preserved spaces and tabs each keep a glyph and the authored style, even
+                            // before or after a line break. A tab is a space glyph whose advance the
+                            // line wrapper stretches to the next tab stop.
                             Current = Resolve(32, run.Style, run.SourceOffset, options, resolved);
+                            if (scalar != 32) Current = Current with { Scalar = scalar };
                             afterText = true;
                             return true;
                         }
@@ -940,27 +974,22 @@ internal static class TextLines
         }
     }
 
+    // Zero width space, the joiners, the word joiner, the byte order mark and the variation selectors: nothing is
+    // painted for them (a font need not have a glyph) and they advance nothing, as in Chrome.
+    internal static bool IsInvisible(int scalar) => scalar is 0x00AD or 0x200B or 0x200C or 0x200D or 0x2060 or 0xFEFF
+        or >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF;
+
     private static void CheckSimpleScalar(int scalar, int sourceOffset)
     {
         var category = Rune.GetUnicodeCategory(new Rune(scalar));
         var simpleRange = scalar is >= 32 and <= 0x052f or >= 0x1e00 and <= 0x1fff or >= 0x2000 and <= 0x2bff
-            or >= 0x3000 and <= 0x30ff or >= 0x3400 and <= 0x9fff or >= 0xac00 and <= 0xd7a3
-            or >= 0xf900 and <= 0xfaff or >= 0xff00 and <= 0xffef or >= 0x20000 and <= 0x323af;
+            or >= 0x2e80 and <= 0x2fdf or >= 0x2ff0 and <= 0x2fff
+            or >= 0x3000 and <= 0x33ff or >= 0x3400 and <= 0x9fff or >= 0xa000 and <= 0xa4cf or >= 0xac00 and <= 0xd7a3
+            or >= 0xf900 and <= 0xfaff or >= 0xfe30 and <= 0xfe6f or >= 0xff00 and <= 0xffef
+            or >= 0x1b000 and <= 0x1b2ff or >= 0x1f200 and <= 0x1f2ff or >= 0x20000 and <= 0x3347f;
         if (!simpleRange || category is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark
             or UnicodeCategory.EnclosingMark or UnicodeCategory.Format or UnicodeCategory.Control
             or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator or UnicodeCategory.OtherNotAssigned)
             throw new FactsPdfException("FPDF1305", $"U+{scalar:X4} needs text processing outside this simple horizontal Unicode subset (shaping/bidi/sequence support is not implemented).", sourceOffset);
-    }
-    private static bool Cjk(int scalar) => scalar is >= 0x3000 and <= 0x30ff or >= 0x3400 and <= 0x9fff
-        or >= 0xac00 and <= 0xd7a3 or >= 0xf900 and <= 0xfaff or >= 0xff01 and <= 0xff65 or >= 0x20000 and <= 0x323af;
-    private static bool CanBreak(int previous, int next)
-    {
-        // CSS Text: a soft wrap opportunity before and after every atomic inline, even beside a
-        // no-break space.
-        if (previous < -1 || next < -1) return true;
-        if (previous == 160 || next == 160) return false;
-        const string opening = "（〔［｛〈《「『【〖〘〚‘“([{", closing = "、。，．？！：；）》」』】〕］｝〗〙〛’”!?;:.,)]}";
-        if (previous <= 65535 && opening.Contains((char)previous) || next <= 65535 && closing.Contains((char)next)) return false;
-        return Cjk(previous) || Cjk(next);
     }
 }

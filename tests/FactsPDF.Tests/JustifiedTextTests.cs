@@ -179,7 +179,4 @@ public sealed class JustifiedTextTests
     public void InlineJustifyDoesNotSilentlyAffectAnAncestorParagraph(string tag)
         => Reject("<p>Start <" + tag + " style='text-align:justify'>end</" + tag + "></p>", "FPDF1201");
 
-    [Test]
-    public void ExistingNowrapOverflowStillFailsAndKeepsDestination()
-        => Reject("<p style='text-align:justify;white-space:nowrap;width:50pt'>One two three four five</p>", "FPDF1302");
 }

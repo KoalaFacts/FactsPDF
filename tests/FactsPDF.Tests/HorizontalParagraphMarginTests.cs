@@ -135,13 +135,6 @@ public sealed class HorizontalParagraphMarginTests
         => Reject("<style>.unused{" + css + "}</style><p style='" + css + "'>A</p>", code);
 
     [Test]
-    public void OverflowAndExplicitWidthCannotEscapeContainingRectangle()
-    {
-        Reject("<div style='width:100pt'><p style='margin-left:80pt;margin-right:30pt'>A</p></div>", "FPDF1302");
-        Reject("<div style='width:100pt'><p style='width:100%;margin-left:5pt'>A</p></div>", "FPDF1302");
-    }
-
-    [Test]
     public void AnAuthoredBodyMarginReplacesTheUserAgentMargin()
     {
         // The body is a real box: its author margin-left of 2pt replaces the 6pt user-agent one.

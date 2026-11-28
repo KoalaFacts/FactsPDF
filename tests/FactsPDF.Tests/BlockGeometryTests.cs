@@ -117,15 +117,6 @@ public sealed class BlockGeometryTests
         Assert.That(runs.Select(x => x.X), Is.EqualTo(new[] { 60d, 40d, 40d }));
     }
 
-    [Test]
-    public void ExplicitOrAutoWidthCannotExceedParentContentRectangle()
-    {
-        var tooWide = Fails("<div style='width:100%;padding-left:1pt'>A</div>", "FPDF1302");
-        Assert.That(tooWide.SourceOffset, Is.EqualTo(Reset.Length));
-        Fails("<div style='padding-left:150pt;padding-right:150pt'>A</div>", "FPDF1302");
-        Fails("<div style='width:0'>A</div>", "FPDF1302");
-    }
-
     [TestCase("width:-1pt")]
     [TestCase("padding:1pt 2pt 3pt 4pt 5pt")]
     [TestCase("padding:1pt auto")]

@@ -47,6 +47,25 @@ internal static class PdfConverter
                 throw new FactsPdfException("FPDF1202", "@page produces invalid page options: " + problem.Message);
         }
         var pages = TextLayout.Layout(document, options, cancellationToken);
+        // Content that spills past the right edge of the page area is not clipped by a browser: it prints the
+        // page scaled down. Chrome lays the document out again on a page as much wider as the overflow (at
+        // most 1.5 times), and prints that page at the original size.
+        var overflow = TextLayout.OverflowRight(pages);
+        if (overflow > options.PageWidth - options.MarginRight + 0.01)
+        {
+            var shrink = Math.Min((overflow - options.MarginLeft) / options.ContentWidth, MaxPrintShrink);
+            if (options.PageFurniture is not null || options.PageNumbers || options.HeaderText is not null || options.FooterText is not null)
+                throw new FactsPdfException("FPDF1302",
+                    "Content wider than the page prints scaled down, which page headers, footers and numbers do not support.");
+            options = options with
+            {
+                PageWidth = options.PageWidth * shrink, PageHeight = options.PageHeight * shrink,
+                Margin = options.Margin * shrink, PrintShrink = shrink,
+                SideMargins = options.SideMargins is { } sides
+                    ? new PageMargins(sides.Top * shrink, sides.Right * shrink, sides.Bottom * shrink, sides.Left * shrink) : null,
+            };
+            pages = TextLayout.Layout(document, options, cancellationToken);
+        }
         // The root background is the canvas: Chrome prints it over each whole sheet, margins
         // included. Opaque white paints nothing visible on paper, so it adds no command.
         if (document.CanvasColor is { IsInvisible: false } canvas && canvas != new Rgb(1, 1, 1))
@@ -83,6 +102,9 @@ internal static class PdfConverter
         pageCount = pages.Count;
         return pdf;
     }
+
+    // Chrome's limit on shrinking a page to fit overflowing content (measured: 260pt of content wide prints up to 390pt).
+    private const double MaxPrintShrink = 1.5;
 
     // ParamName is always the public "options" parameter; the message names the property.
     private static void Validate(PdfOptions options)

@@ -177,11 +177,30 @@ test('block-margin-collapse explains rendered differences of existing examples w
   assert.deepEqual(kinds({ ...failed, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, before), []);
 });
 
+test('overflow-and-line-breaking explains new line breaks and overflow that no longer fails', () => {
+  const kinds = (b: RunResult, a: RunResult, newExample = false) => classifyDifferences(b, a, newExample, false, false, false, false);
+  const before = ok('%PDF-1.7 broke after the word');
+  const after = ok('%PDF-1.7 broke after the hyphen');
+  assert.ok(kinds(before, after).includes('overflow-and-line-breaking'));
+  assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
+  assert.ok(!kinds(before, { ...after, stderr: 'warning\n' }).includes('overflow-and-line-breaking'), 'changed diagnostics are not a layout difference');
+  const wide = { exitCode: 3, stderr: 'FPDF1302: Box outer width exceeds containing content width.\nLocation: line 3, column 1.\n', pdf: null };
+  assert.ok(kinds(wide, after).includes('overflow-and-line-breaking'), 'overflow the head now renders');
+  assert.ok(kinds(wide, { ...wide, stderr: 'FPDF1302: Decorated box fragment exceeds the usable page area.\n' }).includes('overflow-and-line-breaking'));
+  assert.ok(kinds(wide, { exitCode: 3, stderr: 'FPDF1507: Supply an explicit font chain for bold text.\n', pdf: null }).includes('overflow-and-line-breaking'),
+    'a later failure shows once the overflow one is gone');
+  assert.ok(!kinds(wide, { ...wide, stderr: 'FPDF1302: An unbreakable text segment exceeds the usable page width.\n' }).includes('overflow-and-line-breaking'),
+    'still an overflow failure');
+  assert.ok(!kinds({ ...wide, stderr: 'FPDF1302: Line height exceeds the usable page height.\n' }, after).includes('overflow-and-line-breaking'),
+    'a failure that is not an overflow failure stays unexplained');
+  assert.ok(!kinds(before, wide).includes('overflow-and-line-breaking'), 'a new failure is not an overflow change');
+});
+
 test('ua-stylesheet explains rendered differences and moved decorated bottom edges of existing examples', () => {
   const before = ok('%PDF-1.7 old defaults');
   const after = ok('%PDF-1.7 chrome defaults');
   const kinds = (b: RunResult, a: RunResult, newExample = false) => classifyDifferences(b, a, newExample, false, false, false, false);
-  assert.deepEqual(kinds(before, after), ['orphans-widows-initial-2', 'ua-stylesheet']);
+  assert.deepEqual(kinds(before, after), ['orphans-widows-initial-2', 'ua-stylesheet', 'overflow-and-line-breaking']);
   assert.deepEqual(kinds(before, after, true), [], 'a new example is not an existing one');
   assert.ok(!kinds(before, { ...after, stderr: 'warning\n' }).includes('ua-stylesheet'), 'changed diagnostics are not a layout difference');
   assert.ok(!kinds(before, { ...after, exitCode: 3, pdf: null }).includes('ua-stylesheet'), 'a new failure is not a layout difference');

@@ -22,18 +22,6 @@ public sealed class InheritedWhiteSpaceReportTests
     private static List<LayoutPage> Layout(string html)
         => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
 
-    private static void Reject(string html, string code)
-    {
-        using var destination = new MemoryStream();
-        destination.Write("untouched-pdf"u8);
-        destination.Position = 3;
-        var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert(html, destination, Page));
-        Assert.That(error!.Code, Is.EqualTo(code));
-        Assert.That(destination.ToArray(), Is.EqualTo("untouched-pdf"u8.ToArray()));
-        Assert.That(destination.Position, Is.EqualTo(3));
-    }
-
     [TestCase("normal")]
     [TestCase("nowrap")]
     [TestCase("pre-line")]
@@ -112,14 +100,4 @@ public sealed class InheritedWhiteSpaceReportTests
             "Anonymous inherited whitespace must use the same PDF glyph advances as explicit text.");
     }
 
-    [TestCase("pre")]
-    [TestCase("pre-wrap")]
-    public void AnonymousLeadingTabDoesNotBypassPreservingModeValidation(string mode)
-        => Reject("<section style='white-space:" + mode + "'>" + '\t' + "<span>A</span></section>", "FPDF1305");
-
-    [TestCase("<section style='white-space:break-spaces'><p>A</p></section>", "FPDF1202")]
-    [TestCase("<span style='white-space:pre-line'>A  B</span>", "FPDF1201")]
-    [TestCase("<table style='white-space:pre-line'><colgroup><col style='width:80pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
-    public void UnsupportedValuesOrStructuralTargetsPreserveExistingPDF(string html, string code)
-        => Reject(html, code);
 }

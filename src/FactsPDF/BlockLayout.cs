@@ -7,10 +7,12 @@ internal sealed record BeginBlock(double PaddingTop, BoxStyle Style, double X,
     double MinimumOuterHeight = 0, double TrailingSpace = 0,
     double? FixedOuterHeight = null,
     double? IndivisibleEmptyClosingMargin = null,
-    double DeferredBlankParagraphMargin = 0) : BlockLayoutStep;
+    double DeferredBlankParagraphMargin = 0,
+    bool ClipX = false, bool ClipY = false, bool AutoX = false, bool AutoY = false,
+    TextVisibility Visibility = TextVisibility.Visible, double BottomEdges = 0) : BlockLayoutStep;
 internal sealed record EndBlock(double PaddingBottom, double MarginBottom = 0) : BlockLayoutStep;
 internal sealed record LayoutParagraph(Paragraph Paragraph, double ContentX, double ContentWidth,
-    ListMarker? Marker = null, double MarkerRightX = 0) : BlockLayoutStep;
+    ListMarker? Marker = null, double MarkerRightX = 0, bool Ellipsis = false) : BlockLayoutStep;
 internal sealed record LayoutImage(ImageNode Node, double X, double ContentX, double ContentTop,
     double Width, double Height, double OuterWidth, double OuterHeight) : BlockLayoutStep;
 internal sealed record LayoutHeadingGroup(IReadOnlyList<BlockChild> Children, int Start, int End,
@@ -31,7 +33,7 @@ internal static class BlockLayout
     private readonly record struct Frame(IReadOnlyList<BlockChild> Children, int Index, double X,
         double ContentWidth, double Bottom, bool IsRoot, double MarkerGap = 0,
         double MarkerRightX = 0, int KeepUntil = 0, double MarginBottom = 0, bool IsDocumentBody = false,
-        double? ParagraphMarginBasis = null);
+        double? ParagraphMarginBasis = null, bool Ellipsis = false);
 
     internal static IEnumerable<BlockLayoutStep> Steps(DocumentRoot root, PdfOptions options,
         CancellationToken cancellation, ListLayout? lists = null)
@@ -82,11 +84,18 @@ internal static class BlockLayout
                     yield return new LayoutParagraph(
                         ResolveParagraphMargins(paragraph, frame.ParagraphMarginBasis ?? frame.ContentWidth, options),
                         frame.X, frame.ContentWidth,
-                        lists?.Marker(paragraph), frame.MarkerRightX);
+                        lists?.Marker(paragraph), frame.MarkerRightX, frame.Ellipsis);
                     break;
                 case BlockNode node:
                 {
                     var style = ReferenceEquals(node, root.ShrunkBody) ? node.BoxStyle with { Width = null } : node.BoxStyle;
+                    // Chrome prints the scrollbars of a scrolling box and gives them room; they are not drawn here.
+                    if (style.OverflowX == OverflowKind.Scroll || style.OverflowY == OverflowKind.Scroll)
+                        throw new FactsPdfException("FPDF1201",
+                            "overflow:scroll prints scrollbars, which are not supported; use hidden, clip or visible.", node.SourceOffset);
+                    if ((style.ClipsX || style.ClipsY) && style.Radius)
+                        throw new FactsPdfException("FPDF1201",
+                            "Clipping a box with rounded corners is not supported.", node.SourceOffset);
                     var containing = frame.ContentWidth;
                     var (marginLeft, _, width) = ResolveMargins(style, containing, node.SourceOffset);
                     var x = frame.X + marginLeft;
@@ -193,7 +202,9 @@ internal static class BlockLayout
                         indivisibleClosingMargin.HasValue ? emptyOuterHeight : requiredEmptyPaintHeight,
                         minimumOuterHeight, box.Bottom + marginBottom, fixedOuterHeight,
                         indivisibleClosingMargin,
-                        DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0);
+                        DeferredBlankParagraphMargin: blankNested ? blankParagraphMargin : 0,
+                        ClipX: style.ClipsX, ClipY: style.ClipsY, AutoX: style.AutoX, AutoY: style.AutoY,
+                        Visibility: node.Style.Visibility, BottomEdges: box.Bottom);
                     IReadOnlyList<BlockChild> children = node.Children.Count != 0 && style.IsFlexContainer
                         ? [new FlexLine(node, box.Top + box.Bottom)]
                         : node.Children.Count != 0 && style.IsGridContainer ? [new GridRows(node)]
@@ -202,7 +213,8 @@ internal static class BlockLayout
                         node.Name is "ol" or "ul" or "menu" ? 0.5 * node.Style.FontSize : 0, markerRight,
                          MarginBottom: marginBottom, IsDocumentBody: node.Name == "body" && frame.IsRoot,
                         ParagraphMarginBasis: node.Name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
-                            ? containing : null));
+                            ? containing : null,
+                        Ellipsis: style.TextOverflowEllipsis && style.ClipsX));
                     break;
                 }
                 default:
@@ -332,8 +344,7 @@ internal static class BlockLayout
     {
         var left = style.MarginLeftAuto ? 0 : Checked(style.MarginLeft.Resolve(containingWidth), offset);
         var right = style.MarginRightAuto ? 0 : Checked(style.MarginRight.Resolve(containingWidth), offset);
-        if (left + right > containingWidth + 0.000001)
-            throw new FactsPdfException("FPDF1302", "Paragraph horizontal margins exceed containing width.", offset);
+        // Margins wider than the containing block leave the box no width and overflow it, as in a browser.
         var available = Math.Max(0, containingWidth - left - right);
         if (!style.MarginLeftAuto && !style.MarginRightAuto)
             return (left, right, available);
@@ -343,10 +354,8 @@ internal static class BlockLayout
         // With width:auto, the box already fills the available width, so an
         // auto side resolves to zero, preserving existing full-width behavior.
         var box = ResolveBox(style, available, offset, containingWidth);
-        var free = available - box.OuterWidth;
-        if (free < -0.000001)
-            throw new FactsPdfException("FPDF1302", "Auto margins cannot fit the specified box width.", offset);
-        free = Math.Max(0, free);
+        // A box wider than its block leaves nothing for an auto margin, which then computes to zero.
+        var free = Math.Max(0, available - box.OuterWidth);
         if (style.MarginLeftAuto && style.MarginRightAuto)
         {
             left += free / 2;
@@ -387,8 +396,7 @@ internal static class BlockLayout
                 measure = Math.Max(measure, Resolve(style.MinWidth.Value)); // min wins over max
             inner = measure - (style.BorderBoxSizing ? edges : 0);
         }
-        if (inner < -0.000001 || inner + edges > width + 0.000001)
-            throw new FactsPdfException("FPDF1302", "Box outer width exceeds containing content width.", offset);
+        // A box wider than its containing block overflows it; a negative content width computes to zero.
         inner = Math.Max(0, inner);
         return new(left, top + bTop, bottom + bBottom, inner, inner + left + right + bLeft + bRight);
     }

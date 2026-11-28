@@ -121,33 +121,15 @@ public sealed class TextIndentTests
     [TestCase("text-indent:-2em", "FPDF1202")]
     [TestCase("text-indent:calc(1pt + 2pt)", "FPDF1202")]
     [TestCase("text-indent:2pt 3pt", "FPDF1202")]
-    [TestCase("text-indent:100%", "FPDF1302")]
-    [TestCase("text-indent:200pt", "FPDF1302")]
     public void UnsafeInputsAreNotIgnoredAndLeaveExistingPdfUntouched(string declaration, string code)
         => Rejected("<p style='" + declaration + "'>SHORT</p>", code,
             Page with { PageWidth = 110 });
-
-    [Test]
-    public void AFirstWordThatFitsTheBoxButNotIndentedFirstLineCannotBeClipped()
-        => Rejected("<p style='text-indent:50pt'>LONG</p>", "FPDF1302",
-            Page with { PageWidth = 100 });
 
     [TestCase("<ul style='text-indent:10pt'><li>A</li></ul>")]
     [TestCase("<p><span style='text-indent:10pt'>A</span></p>")]
     [TestCase("<table><colgroup><col style='width:80pt'></colgroup><tbody><tr style='text-indent:5pt'><td>A</td></tr></tbody></table>")]
     public void UnsupportedElementScopesFailRatherThanSilentlyDiscard(string html)
         => Rejected(html, "FPDF1201");
-
-    [Test]
-    public void NowrapRespectsIndentedFirstLineButNotLaterExplicitBreaks()
-    {
-        var narrow = Page with { PageWidth = 100 };
-        Rejected("<p style='white-space:nowrap;text-indent:15pt'>PAID IN</p>", "FPDF1302", narrow);
-        var layout = Layout("<p style='white-space:nowrap;text-indent:15pt'>OK<br>PAID IN</p>", narrow);
-        var runs = layout.Single().Runs;
-        Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { "OK", "PAID IN" }));
-        Assert.That(runs.Select(r => r.X), Is.EqualTo(new[] { 35d, 20d }).Within(0.001));
-    }
 
     [Test]
     public void InvalidFirstLineGeometryDoesNotHideLaterMissingFontResource()

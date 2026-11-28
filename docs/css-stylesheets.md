@@ -733,10 +733,11 @@ when losing the cascade. Existing selector specificity, `!important`,
 source order, CSS-wide `inherit/initial/unset`, per-paragraph applicability
 and inherited text style are used; there is no silent fallback to a browser.
 Unlike `overflow-wrap:break-word`, `break-all` is not an emergency-only
-wrap. Combining characters, shaping, bidi, grapheme clusters, hyphenation,
-`word-break:keep-all` and general CSS Text are **not** implemented. Unfitting single glyphs fail
-`FPDF1302`; unsupported values/contexts fail `FPDF1202/1201`; missing
-font glyphs and unsupported Unicode retain their existing explicit errors.
+wrap. Combining characters, shaping, bidi, grapheme clusters and hyphenation
+are **not** implemented. `word-break:keep-all` and the rest of the line breaking and
+overflow rules are described under [Overflow, clipping and line breaking](#overflow-clipping-and-line-breaking);
+a glyph wider than its box now overflows it instead of failing `FPDF1302`; unsupported values/contexts
+fail `FPDF1202/1201`; missing font glyphs and unsupported Unicode retain their existing explicit errors.
 All pre-output failures preserve the caller's destination bytes/position.
 
 The [48-record source report](../examples/report-word-break-identifiers.html)
@@ -2988,3 +2989,48 @@ reflow or animations. See the
 multi-page PDF parity and output-preserving failure cases. This source change
 does not create a retained preview binary, customer distribution right, or
 human-approved PDF reference.
+
+## Overflow, clipping and line breaking
+
+Text and boxes overflow as they do in Chrome instead of failing, and lines break where Chrome breaks them. Every
+expectation below was read back from headless Chrome with the same font files (`OverflowAndLineBreakingTests.cs`).
+
+**Line breaking.** Soft wrap opportunities come from the Unicode line breaking algorithm (UAX #14, Unicode 16
+`LineBreak.txt`; `src/FactsPDF/Text/LineBreaker.cs`, generated data by `scripts/generate_line_break_data.py`). The rules are
+checked against the Unicode `LineBreakTest.txt` conformance file, and then follow Chrome where it differs: a break is
+allowed after every run of spaces whatever follows, two printable ASCII characters break by Blink's own table (read
+back for every pair, with `word-break:normal` and `break-all`), a minus sign before a digit splits from a letter or digit
+that precedes it only, and a hyphen or en dash that starts a word stays with the letter after it. Spaces hang at the end
+of a line. CJK text breaks between ideographs, kana and Hangul syllables; closing punctuation never starts a line and
+opening punctuation never ends one; small kana and the prolonged sound mark start a line (`line-break:auto|normal`) unless
+`line-break:strict`, and `loose` also lets the iteration marks start one. `line-break:anywhere` breaks between any two
+grapheme clusters. No dictionary is loaded, so scripts written without spaces (Thai, Lao, Khmer, Burmese) have no break
+opportunities inside a word. A soft hyphen (`&#173;`) breaks the line and shows a hyphen (U+2010, or a hyphen-minus where the font
+has no U+2010) only where it fits; `hyphens:none` removes it as a break opportunity, `hyphens:auto` needs a dictionary and fails `FPDF1202`.
+
+**white-space.** `white-space` and its longhands `white-space-collapse` (`collapse`, `preserve`, `preserve-breaks`,
+`break-spaces`) and `text-wrap-mode` (`wrap`, `nowrap`; `text-wrap:wrap|nowrap`) apply to every element, `span` and other
+inline elements included. Preserved spaces and tabs keep their glyphs; spaces at a soft wrap hang (`pre-wrap`) or wrap too
+(`break-spaces`), and trailing spaces count for alignment only before a forced break or at the end of the text. A tab runs
+to the next multiple of `tab-size` (a number of space advances, default 8, or a length) from the start of the line, first-line
+indent included. `word-break:keep-all` keeps letters, ideographs, kana and Hangul syllables together; `break-all` also
+splits Latin words and digits (still honouring opening and closing brackets and quotes); `overflow-wrap:break-word|anywhere`
+and `word-break:break-word` break a word only when no earlier opportunity fits.
+
+**Overflow.** A word, line, box or image wider than its box overflows it instead of failing `FPDF1302`; a line always holds at
+least one unbreakable unit. Content that spills past the right edge of the page area prints scaled down, as in Chrome: the
+document is laid out again on a page as much wider as the overflow (at most 1.5 times) and printed at the original size
+(`PdfOptions.PrintShrink`). Overflow beyond that is cut off by the page. Page headers, footers and numbers cannot be combined
+with a scaled page (`FPDF1302`). Zero-width spaces, joiners, the word joiner and variation selectors advance nothing and paint
+nothing; a zero-sized image keeps an empty box and paints nothing; supplementary Han (planes 2 and 3), CJK compatibility forms and the enclosed and radical blocks are accepted.
+
+**overflow, overflow-x, overflow-y, text-overflow, visibility.** `overflow:hidden|clip` (and `visible`) on a block clips to
+its padding box with a PDF clip path, one region per page the box spans; `clip` beside a visible axis clips one axis. A fixed
+height lets content overflow it (or cuts it off with `hidden`), and the next block follows the box. `scroll` fails
+`FPDF1201`, as does an axis computing to `auto` (explicit `auto`, or `hidden` beside `visible`) whose content overflows,
+because Chrome prints the scrollbars and gives them room; `auto` over content that fits prints nothing extra. Clipping a box
+with rounded corners fails `FPDF1201`. On an inline box and on table parts other than cells these properties do nothing or
+fail as before. `text-overflow:ellipsis` ends a line that overflows its clipped block with an ellipsis (three full stops
+where the font has no U+2026). `visibility:hidden|collapse` keeps the layout and paints no text, background, border, image or
+list marker; a visible child of a hidden box paints. `visibility:hidden|collapse` declared on a table part fails `FPDF1201`, as does a hidden table whose cells have backgrounds or borders
+(a hidden table without paint keeps its room and prints no text).

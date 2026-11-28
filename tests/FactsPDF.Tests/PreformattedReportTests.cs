@@ -133,15 +133,8 @@ public sealed class PreformattedReportTests
         Assert.That(stdout.ToArray(), Is.EqualTo(expected.ToArray()));
     }
 
-    [TestCase("<pre>AB\tBA</pre>", "FPDF1305")]
-    [TestCase("<p style='white-space:pre'>AB\tBA</p>", "FPDF1305")]
     [TestCase("<pre>AB\vBA</pre>", "FPDF1305")]
-    [TestCase("<pre>ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ</pre>", "FPDF1302")]
-    [TestCase("<p style='white-space:pre;width:20pt'>AB  WA</p>", "FPDF1302")]
     [TestCase("<pre style='white-space:pre-wrap nowrap'>AB</pre>", "FPDF1202")]
-    [TestCase("<pre style='white-space:break-spaces'>AB</pre>", "FPDF1202")]
-    [TestCase("<pre><span style='white-space:pre'>AB</span></pre>", "FPDF1201")]
-    [TestCase("<ul style='white-space:pre'><li>AB</li></ul>", "FPDF1201")]
     [TestCase("<ul><li><pre>AB</pre></li></ul>", "FPDF1101")]
     [TestCase("<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><pre>AB</pre></td></tr></tbody></table>", "FPDF1101")]
     [TestCase("<pre><p>AB</p></pre>", "FPDF1101")]

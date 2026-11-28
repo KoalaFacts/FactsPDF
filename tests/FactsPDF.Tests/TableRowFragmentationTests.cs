@@ -227,19 +227,6 @@ public sealed class TableRowFragmentationTests
     }
 
     [Test]
-    public void TerminalAmbiguityResolvesBeforePaintAndKeepsExactPositiveBudget()
-    {
-        var html = TableLayoutTests.Table("A<br>B<br>C", "width:100pt;font-size:10pt;line-height:2;padding-bottom:30pt", "background-color:red")
-            .Replace("</tbody>", "<tr><td>D</td></tr><tr><td></td></tr></tbody>");
-        var pages = Layout(html, Page);
-        Assert.That(pages, Has.Count.EqualTo(2)); Assert.That(Commands(pages), Is.EqualTo(5));
-        Assert.That(Pdf(html, Page with { MaxDisplayCommands = 5 }), Is.Not.Empty);
-        Fails(html, "FPDF1401", Page with { MaxDisplayCommands = 4 });
-        var overwide = html.Replace(">D<", ">UNBREAKABLEUNBREAKABLEUNBREAKABLE<");
-        Fails(overwide, "FPDF1302", Page with { MaxDisplayCommands = 4 });
-    }
-
-    [Test]
     public void AtomicHeaderLineImageAndEdgeOnlyRowsRemainLocatedFailures()
     {
         foreach (var html in new[] { Pair("A", Lines("B", 20), "line-height:8"), Pair("A", Lines("B", 20)).Replace(">HEAD<", ">" + Lines("H", 7) + "<"), Pair("", "", "padding-top:81pt", header: false) })
