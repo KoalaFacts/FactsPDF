@@ -43,9 +43,9 @@ public sealed class InheritedReportTextFlowTests
         const string first = "PAID REFERENCE INVOICE";
         const string second = "NEXT MONTHLY INSPECTION";
         var actual = "<section style='" + rule + "'><p style='width:90pt'>" + first +
-            "</p><article><h3 style='width:110pt'>" + second + "</h3></article></section>";
+            "</p><article><h3 style='font-weight:normal;width:110pt'>" + second + "</h3></article></section>";
         var oracle = "<section><p style='width:90pt;" + rule + "'>" + first +
-            "</p><article><h3 style='width:110pt;" + rule + "'>" + second + "</h3></article></section>";
+            "</p><article><h3 style='font-weight:normal;width:110pt;" + rule + "'>" + second + "</h3></article></section>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)),
             "Inherited computed CSS must generate the same searchable, positioned PDF as explicit child CSS.");
         Assert.That(Layout(actual).SelectMany(p => p.Runs).Select(x => x.Text),
@@ -58,12 +58,12 @@ public sealed class InheritedReportTextFlowTests
     {
         const string css = "overflow-wrap:break-word;word-break:break-all;text-indent:8pt";
         const string inner = "<section><p style='width:65pt'>PAID REFERENCE2026</p>" +
-            "<blockquote><h4 style='width:90pt'>OPEN INSPECTION2026</h4></blockquote></section>";
+            "<blockquote><h4 style='font-weight:normal;width:90pt'>OPEN INSPECTION2026</h4></blockquote></section>";
         var actual = "<html" + (target == "html" ? " style='" + css + "'" : "") +
             "><body" + (target == "body" ? " style='" + css + "'" : "") +
             ">" + inner + "</body></html>";
         const string explicitInner = "<section><p style='width:65pt;" + css + "'>PAID REFERENCE2026</p>" +
-            "<blockquote><h4 style='width:90pt;" + css + "'>OPEN INSPECTION2026</h4></blockquote></section>";
+            "<blockquote><h4 style='font-weight:normal;width:90pt;" + css + "'>OPEN INSPECTION2026</h4></blockquote></section>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf("<html><body>" + explicitInner + "</body></html>")));
     }
 

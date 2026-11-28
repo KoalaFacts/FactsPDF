@@ -167,8 +167,8 @@ public sealed class ReportPanelVerticalMarginTests
     public void ChildParagraphAndHeadingInheritComputedPanelVerticalMargins(string tag)
     {
         const string prefix = "<div style='margin-top:11pt;margin-bottom:4pt'>";
-        var actual = prefix + "<" + tag + " style='margin-top:inherit;margin-bottom:inherit'>A</" + tag + "></div>";
-        var oracle = prefix + "<" + tag + " style='margin-top:11pt;margin-bottom:4pt'>A</" + tag + "></div>";
+        var actual = prefix + "<" + tag + " style='font-weight:normal;margin-top:inherit;margin-bottom:inherit'>A</" + tag + "></div>";
+        var oracle = prefix + "<" + tag + " style='font-weight:normal;margin-top:11pt;margin-bottom:4pt'>A</" + tag + "></div>";
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));
     }
 
@@ -231,7 +231,7 @@ public sealed class ReportPanelVerticalMarginTests
         var leading = "<p style='margin:0'>" + string.Join("<br>",
             Enumerable.Range(1, 7).Select(index => $"Row-{index:00}")) + "</p>";
         var panel = "<section style='margin-top:25pt;background:blue'>" +
-            $"<{tag} style='font-size:12pt;margin-top:12pt;margin-bottom:0'>FIRST-PANEL-TEXT</{tag}>" +
+            $"<{tag} style='font-weight:normal;font-size:12pt;margin-top:12pt;margin-bottom:0'>FIRST-PANEL-TEXT</{tag}>" +
             "</section>";
         var fresh = Layout(panel, options);
         var moved = Layout(leading + panel, options);
@@ -253,7 +253,7 @@ public sealed class ReportPanelVerticalMarginTests
         // 95pt + 12pt added would leave no room for the line on a 110pt page; collapsed it is 95pt.
         var options = Page with { PageHeight = 150, MaxPages = 1 };
         var html = "<section style='margin-top:95pt;background:blue'>" +
-            $"<{tag} style='font-size:12pt;margin-top:12pt;margin-bottom:0'>A</{tag}>" +
+            $"<{tag} style='font-weight:normal;font-size:12pt;margin-top:12pt;margin-bottom:0'>A</{tag}>" +
             "</section>";
         var pages = Layout(html, options);
         Assert.That(pages, Has.Count.EqualTo(1));

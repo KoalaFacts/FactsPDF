@@ -157,8 +157,8 @@ public sealed class AttributeOperatorReportTests
     {
         var root = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
             "..", "..", "..", "..", ".."));
-        var actual = File.ReadAllText(Path.Combine(root, "examples", "report-attribute-operators.html"));
-        var control = File.ReadAllText(Path.Combine(root, "examples", "report-attribute-operators-oracle.html"));
+        var actual = File.ReadAllText(Path.Combine(root, "examples", "report-attribute-operators.html")).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
+        var control = File.ReadAllText(Path.Combine(root, "examples", "report-attribute-operators-oracle.html")).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
         var pages = Layout(actual);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(pages.SelectMany(page => page.Runs).Count(run =>

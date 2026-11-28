@@ -13,6 +13,9 @@ public sealed class ReportPrintSpacingTests
     // The user-agent sheet gives body an 8px margin; tests that assert the tree shape or page coordinates zero it.
     private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
 
+    // The user-agent sheet makes headings bold, which needs a bold font chain; these tests are not about bold.
+    private const string NormalHeadings = "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>";
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var pdf = new MemoryStream();
@@ -44,7 +47,7 @@ public sealed class ReportPrintSpacingTests
     [TestCase("margin:unset", "margin-top:unset;margin-bottom:unset")]
     public void ValidShorthandMatchesExplicitLonghandsInRealPdf(string shorthand, string longhands)
     {
-        const string before = "<div style='background:#cee8fb;padding:2mm'><h1 style='";
+        const string before = NormalHeadings + "<div style='background:#cee8fb;padding:2mm'><h1 style='";
         const string after = "'>Maintenance report</h1><p>Checked machine safety.</p></div>";
         Assert.That(Render(before + shorthand + after), Is.EqualTo(Render(before + longhands + after)));
     }
@@ -82,7 +85,7 @@ public sealed class ReportPrintSpacingTests
     [Test]
     public void InchCentimetreMillimetreAndPixelEquivalentsMatchActualPdfBytes()
     {
-        const string start = "<div style='width:144pt;padding-left:18pt;border:9pt solid red'>" +
+        const string start = NormalHeadings + "<div style='width:144pt;padding-left:18pt;border:9pt solid red'>" +
             "<h2 style='font-size:18pt;margin:9pt 0 18pt'>Business report</h2></div>";
         var physical = start.Replace("144pt", "2in").Replace("18pt", "0.25in").Replace("9pt", "0.125in");
         Assert.That(Render(physical), Is.EqualTo(Render(start)));
@@ -114,7 +117,7 @@ public sealed class ReportPrintSpacingTests
     [Test]
     public void ManagedCliMatchesTypedPdfOutputForPrintSpacing()
     {
-        const string html = "<style>.card{width:2in;padding:2mm;border:0.5mm solid blue}" +
+        const string html = NormalHeadings + "<style>.card{width:2in;padding:2mm;border:0.5mm solid blue}" +
             "h1{margin:0 0 5mm}p{margin:0 0 3mm}</style>" +
             "<div class=card><h1>Inspection</h1><p>Service summary</p></div>";
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(html));
@@ -142,7 +145,7 @@ public sealed class ReportPrintSpacingTests
             "margin:12pt 0 24pt;background:#e5eff5}" +
             ".card h2{font-size:12pt;line-height:12pt;margin:0}" +
             ".card p{font-size:12pt;line-height:12pt;margin:0}</style>";
-        var body = "<article class=card><h2>Quarterly maintenance</h2>" +
+        var body = NormalHeadings + "<article class=card><h2>Quarterly maintenance</h2>" +
             records + "</article><p>REPORT COMPLETE</p>";
         var printable = print + body;
         Assert.That(Render(printable, options), Is.EqualTo(Render(points + body, options)),
@@ -160,13 +163,13 @@ public sealed class ReportPrintSpacingTests
     [Test]
     public void PrintUnitsRespectLogicalShorthandsCascadeFontAndBoxGeometry()
     {
-        const string print = NoBodyMargin + "<style>.card{width:14pc;padding-inline:4q 1pc;" +
+        const string print = NoBodyMargin + NormalHeadings + "<style>.card{width:14pc;padding-inline:4q 1pc;" +
             "padding-block:4q;margin-block:1pc 2pc;" +
             "border-left:4q solid #23456a}" +
             "h2{font-size:1pc;line-height:1pc!important}</style>" +
             "<section class=card><h2 style='line-height:2pc'>REPORT</h2>" +
             "<p style='margin-block:4q 1pc;letter-spacing:4q;word-spacing:4q'>WIDE LABEL</p></section>";
-        const string physical = NoBodyMargin + "<style>.card{width:168pt;padding-left:1mm;padding-right:12pt;" +
+        const string physical = NoBodyMargin + NormalHeadings + "<style>.card{width:168pt;padding-left:1mm;padding-right:12pt;" +
             "padding-top:1mm;padding-bottom:1mm;margin-top:12pt;margin-bottom:24pt;" +
             "border-left:1mm solid #23456a}" +
             "h2{font-size:12pt;line-height:12pt!important}</style>" +

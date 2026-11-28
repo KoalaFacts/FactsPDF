@@ -23,7 +23,7 @@ public sealed class TranslucentColourTests
         return Encoding.Latin1.GetString(stream.ToArray());
     }
 
-    private static string Page(string c) => $"<style>h1{{color:{c}}}</style><h1>Total</h1>" +
+    private static string Page(string c) => $"<style>h1{{font-weight:normal;color:{c}}}</style><h1>Total</h1>" +
         $"<div style='background:{c};border:2pt dashed {c};outline:1pt solid {c};text-decoration:underline {c}'>A</div>" +
         $"<div style='border:3pt solid {c};border-radius:4pt'>R</div>" +
         $"<ul style='color:{c}'><li>Item</li></ul><p style='color:{c}'>B</p>";

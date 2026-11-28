@@ -180,7 +180,7 @@ public sealed class DecorationThicknessReportTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
             directory = directory.Parent;
         Assert.That(directory, Is.Not.Null);
-        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name)).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
     }
 
     [Test]
