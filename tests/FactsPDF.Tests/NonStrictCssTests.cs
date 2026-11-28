@@ -142,7 +142,6 @@ public sealed class NonStrictCssTests
     [TestCase("@import url(x.css);")]
     [TestCase("@media screen{p{color:red}}")]
     [TestCase("@media print{color:red}")]
-    [TestCase("p{a{color:red}}")]
     [TestCase("p{display:var(--missing)}")]
     [TestCase(":root{--d:flex}p{display:var(--d)}")]
     [TestCase("", "<style media='screen'>p{color:red}</style><p>x</p>", Description = "style media other than print or all")]

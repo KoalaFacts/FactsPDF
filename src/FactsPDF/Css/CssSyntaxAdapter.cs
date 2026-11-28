@@ -190,6 +190,7 @@ internal static class CssSyntaxAdapter
                 {
                     var sourceOffset = offset < 0 ? node.Span.Start : offset;
                     var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(sourceOffset);
+                    if (value == "revert-layer") budget.UsesRevertLayer = true;
                     output.Add(CssDeclaration.Create(target, targetName ?? name, value, node.Important, order, sourceOffset));
                 }
                 // Logical border component declarations use the existing *physical*
@@ -2599,17 +2600,17 @@ internal static class CssSyntaxAdapter
             : error;
 
     internal static CssSelector[] CompileSelectors(
-        IReadOnlyList<CssSyntaxComponent> prelude, CssBudget budget, int offset)
+        IReadOnlyList<CssSyntaxComponent> prelude, CssBudget budget, int offset, bool nested = false)
     {
         var tokens = new List<CssToken>();
         var space = SelectorTokens(prelude, budget, tokens);
         tokens.Add(new(CssTokenKind.Symbol, "{", space, offset));
         var i = 0;
-        var selectors = new List<CssSelector> { CssSelector.Parse(tokens, ref i, budget) };
+        var selectors = new List<CssSelector> { CssSelector.Parse(tokens, ref i, budget, nested) };
         while (tokens[i].Is(","))
         {
             i++;
-            selectors.Add(CssSelector.Parse(tokens, ref i, budget));
+            selectors.Add(CssSelector.Parse(tokens, ref i, budget, nested));
         }
         if (!tokens[i].Is("{"))
             throw new FactsPdfException("FPDF1203", "Invalid CSS selector list.", tokens[i].Offset);

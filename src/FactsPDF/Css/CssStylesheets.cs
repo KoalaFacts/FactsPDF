@@ -12,13 +12,16 @@ internal readonly record struct InlineStyle(CssDeclaration[]? Declarations, int 
 /// <summary>Per-conversion compiled rules. No static mutable cache, network access or public DOM dependency.</summary>
 internal sealed class CssStylesheets
 {
-    private sealed record Rule(CssSelector Selector, CssDeclaration[] Declarations);
-    private readonly record struct Winner(CssDeclaration Declaration, bool Inline, CssSpecificity Specificity)
+    private sealed record Rule(CssSelector Selector, CssDeclaration[] Declarations, Layer? Layer = null);
+    // Layer: where the declaration's cascade layer sorts (see LayerOrder), compared after importance and
+    // the style attribute and before specificity, as the cascade orders them.
+    private readonly record struct Winner(CssDeclaration Declaration, bool Inline, CssSpecificity Specificity, int Layer)
     {
         internal bool Beats(Winner other)
         {
             var c = Declaration.Important.CompareTo(other.Declaration.Important); if (c != 0) return c > 0;
             c = Inline.CompareTo(other.Inline); if (c != 0) return c > 0;
+            c = Layer.CompareTo(other.Layer); if (c != 0) return c > 0;
             c = Specificity.CompareTo(other.Specificity); return c != 0 ? c > 0 : Declaration.Order >= other.Declaration.Order;
         }
     }
@@ -71,16 +74,19 @@ internal sealed class CssStylesheets
     // Custom property and var() declarations an element matched, kept until every other declaration
     // has been offered: custom properties cascade by name, then each var() declaration is compiled
     // against the element's computed custom properties and offered at its own cascade position.
-    private readonly record struct Deferral(CssDeclaration Shared, int Order, int Offset, bool Inline, CssSpecificity Specificity)
+    private readonly record struct Deferral(CssDeclaration Shared, int Order, int Offset, bool Inline, CssSpecificity Specificity, int Layer = 0)
     {
         internal bool Beats(Deferral other)
         {
             var c = Shared.Important.CompareTo(other.Shared.Important); if (c != 0) return c > 0;
             c = Inline.CompareTo(other.Inline); if (c != 0) return c > 0;
+            c = Layer.CompareTo(other.Layer); if (c != 0) return c > 0;
             c = Specificity.CompareTo(other.Specificity); return c != 0 ? c > 0 : Order >= other.Order;
         }
     }
     private readonly List<Deferral> customDeclarations = [], pendingDeclarations = [];
+    // Every declaration offered to the element being computed, kept only when a stylesheet uses revert-layer.
+    private readonly List<Winner> offered = [];
     // The computed custom properties of each element on the current ancestor path, by depth.
     private readonly List<CssCustomEnvironment> environments = [];
     private readonly List<CssDeclaration.Slot> substitutionSlots = [];
@@ -205,6 +211,7 @@ internal sealed class CssStylesheets
         }
         if (templates > 0) throw new FactsPdfException("FPDF1101", "template element is not closed.", templateOffset);
         shape.Finish(tokens);
+        sheet.FinalizeLayers();
         return sheet;
     }
     /// <summary>
@@ -382,90 +389,247 @@ internal sealed class CssStylesheets
         return !expectSelector;
     }
 
-    private void ParseRules(IReadOnlyList<CssRuleNode> rules)
+    // A cascade layer: a name (empty for an anonymous layer) under its parent, with the layers declared
+    // inside it in order of first appearance. Rank is the position of the layer's own declarations in
+    // the final order (set by FinalizeLayers): a layer's sublayers rank below its own declarations and
+    // every layer ranks below the unlayered declarations.
+    private sealed class Layer(string name, Layer? parent)
     {
-        foreach (var rule in rules)
+        internal string Name { get; } = name;
+        internal Layer? Parent { get; } = parent;
+        internal List<Layer> Children { get; } = [];
+        internal int Rank { get; set; }
+    }
+
+    private readonly Layer layerRoot = new("", null);
+    private int layerCount;
+
+    private Layer LayerAt(Layer? scope, string name)
+    {
+        var parent = scope ?? layerRoot;
+        foreach (var child in parent.Children)
+            if (child.Name.Length > 0 && string.Equals(child.Name, name, StringComparison.Ordinal)) return child;
+        var created = new Layer(name, parent);
+        parent.Children.Add(created);
+        return created;
+    }
+
+    private Layer AnonymousLayer(Layer? scope)
+    {
+        var parent = scope ?? layerRoot;
+        var created = new Layer("", parent);
+        parent.Children.Add(created);
+        return created;
+    }
+
+    // Layers rank in post order: the sublayers of a layer come before its own declarations, and
+    // the layers of one level in the order they first appeared.
+    private void FinalizeLayers()
+    {
+        var next = 0;
+        void Visit(Layer layer)
+        {
+            foreach (var child in layer.Children) Visit(child);
+            layer.Rank = next++;
+        }
+        foreach (var layer in layerRoot.Children) Visit(layer);
+        layerCount = next;
+    }
+
+    // Where a declaration of a layer sorts: normal declarations of a later layer win, and the unlayered
+    // ones win over every layer; important declarations reverse that, so the earliest layer wins and an
+    // unlayered important declaration loses to every layered one.
+    private int LayerOrder(Layer? layer, bool important) => layer is null
+        ? important ? int.MinValue : int.MaxValue
+        : important ? layerCount - layer.Rank : layer.Rank;
+
+    // A layer name: identifiers joined by dots, with no white space (CSS Cascade 5, <layer-name>).
+    private static bool TryLayerName(CssSyntaxComponent[] prelude, ref int at, out string[] segments)
+    {
+        var parts = new List<string>();
+        while (true)
+        {
+            if (at >= prelude.Length || prelude[at] is not CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } ident }) { segments = []; return false; }
+            parts.Add(ident.Value);
+            at++;
+            if (at + 1 < prelude.Length && prelude[at] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Delim, Value: "." } }
+                && prelude[at + 1] is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Ident }) { at++; continue; }
+            segments = [.. parts];
+            return true;
+        }
+    }
+
+    // Handles @layer: a statement names layers (creating them in order), a block puts its rules in
+    // one layer, and a block without a name opens an anonymous layer. Returns false for a malformed
+    // rule, which a browser drops whole.
+    private bool TryLayerRule(CssAtRuleNode at, Layer? scope, out List<Layer> statement, out Layer? block)
+    {
+        statement = [];
+        block = null;
+        var prelude = at.Prelude.Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }).ToArray();
+        var i = 0;
+        if (at.Contents is null)
+        {
+            // @layer a, b.c;
+            while (true)
+            {
+                if (!TryLayerName(prelude, ref i, out var segments)) return false;
+                var layer = scope;
+                foreach (var segment in segments) layer = LayerAt(layer, segment);
+                statement.Add(layer!);
+                if (i == prelude.Length) return true;
+                if (prelude[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Comma }) return false;
+                i++;
+            }
+        }
+        if (prelude.Length == 0) { block = AnonymousLayer(scope); return true; }
+        if (!TryLayerName(prelude, ref i, out var name) || i != prelude.Length) return false;
+        var target = scope;
+        foreach (var segment in name) target = LayerAt(target, segment);
+        block = target;
+        return true;
+    }
+
+    private void ParseRules(IReadOnlyList<CssRuleNode> rules)
+        => ParseBlock(rules, parents: null, layer: null);
+
+    // The rules of a stylesheet or of a conditional group rule (parents null), or the contents of a style
+    // rule or of a group rule nested in one (parents: the selectors of the enclosing style rule, which the
+    // declarations in the block apply to and the nested rules extend). Declarations a style rule holds
+    // after a nested rule apply at their own position in the cascade, as the Nesting specification says.
+    private void ParseBlock(IReadOnlyList<CssSyntaxContent> contents, CssSelector[]? parents, Layer? layer)
+    {
+        List<CssDeclarationNode>? declarations = null;
+        void Flush()
+        {
+            if (declarations is { Count: > 0 })
+            {
+                AddStyleRule(parents!, declarations, layer);
+                declarations = null;
+            }
+        }
+        foreach (var item in contents)
         {
             budget.Token.ThrowIfCancellationRequested();
-            if (rule is CssAtRuleNode at)
+            if (item is CssDeclarationNode declaration)
             {
-                // Keyframes only drive on-screen animations; a written PDF page shows none of them,
-                // so a well-formed @keyframes block is validated and dropped.
-                if (at.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
-                    || at.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase))
-                {
-                    // A malformed @keyframes rule (or keyframe) is dropped by a browser; every
-                    // keyframe is dropped here anyway, so the page is the same either way.
-                    try { ValidateKeyframes(at); }
-                    catch (FactsPdfException error) when (budget.Warnings is { } warnings) { warnings.Add(error); }
-                    continue;
-                }
-                // An unknown at-rule, and @media without a block, are invalid: a browser drops
-                // the whole at-rule (to its semicolon or with its block).
-                if (budget.Warnings is { } dropped && (CssSpecValidity.UnknownAtRule(at.Name)
-                    || at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) && at.Contents is null))
-                {
-                    dropped.Add("FPDF1204", "Only block-form @media print/all is supported.", rule.Span.Start);
-                    continue;
-                }
-                // Paged-media page context: size, margins and the six top/bottom margin boxes.
-                if (at.Name.Equals("page", StringComparison.OrdinalIgnoreCase))
-                {
-                    (PageRules ??= new()).Add(at, budget);
-                    continue;
-                }
-                // Bounded print-only conditionals: no device queries, nesting,
-                // imports or ignored rules. Reuse the exact same selector,
-                // declaration, cascade and resource budgets as top-level CSS.
-                if (!at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) || at.Contents is null)
-                    throw new FactsPdfException("FPDF1204", "Only block-form @media print/all is supported.", rule.Span.Start);
-                var prelude = at.Prelude
-                    .Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
-                    .ToArray();
-                if (prelude.Length != 1 || prelude[0] is not CssTokenComponent
-                    { Token.Kind: CssSyntaxTokenKind.Ident } medium ||
-                    !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
-                      || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
-                    throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", rule.Span.Start);
-                var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", rule.Span.Start);
-                // A print stylesheet may carry @keyframes, which ParseRules validates and drops, and
-                // @page, which it compiles like a top-level one.
-                if (contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode nested
-                        && (nested.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
-                            || nested.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
-                            || nested.Name.Equals("page", StringComparison.OrdinalIgnoreCase)))))
+                if (parents is null)
                     throw new FactsPdfException("FPDF1204",
-                        "Nested media, other at-rules and loose declarations are unsupported.", rule.Span.Start);
-                ParseRules(contents.Cast<CssRuleNode>().ToArray());
+                        "Nested media, other at-rules and loose declarations are unsupported.", item.Span.Start);
+                (declarations ??= []).Add(declaration);
                 continue;
             }
-            if (rule is not CssQualifiedRuleNode qualified)
-                throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", rule.Span.Start);
-            CssSelector[] selectors;
-            try { selectors = CssSyntaxAdapter.CompileSelectors(qualified.Prelude, budget, rule.Span.Start); }
-            // An invalid selector list makes a browser drop the whole style rule, declarations included.
-            catch (FactsPdfException error) when (budget.Warnings is { } warnings && error.Code == "FPDF1203"
-                && CssSpecValidity.InvalidSelectorList(qualified.Prelude))
+            Flush();
+            if (item is CssAtRuleNode at) ParseAtRule(at, parents, layer);
+            else if (item is CssQualifiedRuleNode qualified) ParseStyleRule(qualified, parents, layer);
+            else throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", item.Span.Start);
+        }
+        Flush();
+    }
+
+    private void ParseAtRule(CssAtRuleNode at, CssSelector[]? parents, Layer? layer)
+    {
+        var nested = parents is not null;
+        // Keyframes only drive on-screen animations; a written PDF page shows none of them,
+        // so a well-formed @keyframes block is validated and dropped.
+        if (at.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
+            || at.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase))
+        {
+            // A malformed @keyframes rule (or keyframe) is dropped by a browser; every
+            // keyframe is dropped here anyway, so the page is the same either way.
+            try { ValidateKeyframes(at); }
+            catch (FactsPdfException error) when (budget.Warnings is { } warnings) { warnings.Add(error); }
+            return;
+        }
+        // An unknown at-rule, and @media without a block, are invalid: a browser drops
+        // the whole at-rule (to its semicolon or with its block).
+        if (budget.Warnings is { } dropped && (CssSpecValidity.UnknownAtRule(at.Name)
+            || at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) && at.Contents is null))
+        {
+            dropped.Add(nested ? "FPDF1203" : "FPDF1204", nested ? "Nested CSS rules are not supported by the PDF renderer." : "Only block-form @media print/all is supported.", at.Span.Start);
+            return;
+        }
+        // Paged-media page context: size, margins and the six top/bottom margin boxes.
+        if (at.Name.Equals("page", StringComparison.OrdinalIgnoreCase) && !nested)
+        {
+            (PageRules ??= new()).Add(at, budget);
+            return;
+        }
+        if (at.Name.Equals("layer", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryLayerRule(at, layer, out _, out var inner))
             {
-                warnings.Add(error);
-                continue;
+                var error = new FactsPdfException("FPDF1204", "@layer takes a layer name (identifiers joined by dots), a comma-separated list of names, or a block.", at.Span.Start);
+                if (budget.Warnings is { } warnings) { warnings.Add(error); return; }
+                throw error;
             }
-            var ruleContents = WithoutUnknownAtRules(qualified.Contents, "Nested CSS rules are not supported by the PDF renderer.", "FPDF1203", rule.Span.Start);
-            if (ruleContents.Any(x => x is not CssDeclarationNode))
-                throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", rule.Span.Start);
-            var declarations = CssSyntaxAdapter.CompileKnownDeclarations(
-                ruleContents.OfType<CssDeclarationNode>().ToArray(), budget, hostSelectors: selectors);
-            foreach (var selector in selectors)
-            {
-                usesStructure |= selector.UsesStructure;
-                if (selector.PseudoElement != CssPseudoElement.None) HasPseudoRules = true;
-                var entry = new Rule(selector, declarations);
-                var last = selector.Rightmost;
-                if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
-                else if (last.Classes.Length > 0) Add(classes, last.Classes[0], entry);
-                else if (last.Type is not null) Add(types, last.Type, entry);
-                else universal.Add(entry);
-            }
+            if (inner is not null) ParseBlock(at.Contents!, parents, inner);
+            return;
+        }
+        // Bounded print-only conditionals: no device queries, imports or ignored rules. They reuse the
+        // exact same selector, declaration, cascade and resource budgets as top-level CSS, and nest in
+        // one another and in style rules.
+        if (!at.Name.Equals("media", StringComparison.OrdinalIgnoreCase) || at.Contents is null)
+        {
+            if (nested)
+                throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", at.Span.Start);
+            throw new FactsPdfException("FPDF1204", "Only block-form @media print/all is supported.", at.Span.Start);
+        }
+        var prelude = at.Prelude
+            .Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
+            .ToArray();
+        if (prelude.Length != 1 || prelude[0] is not CssTokenComponent
+            { Token.Kind: CssSyntaxTokenKind.Ident } medium ||
+            !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
+              || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
+            throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", at.Span.Start);
+        var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", at.Span.Start);
+        // A print stylesheet may carry @keyframes, which is validated and dropped, @page, which compiles
+        // like a top-level one, and nested @media and @layer.
+        if (!nested && contents.Any(x => x is not CssQualifiedRuleNode && !(x is CssAtRuleNode inner
+                && (inner.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
+                    || inner.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
+                    || inner.Name.Equals("page", StringComparison.OrdinalIgnoreCase)
+                    || inner.Name.Equals("media", StringComparison.OrdinalIgnoreCase)
+                    || inner.Name.Equals("layer", StringComparison.OrdinalIgnoreCase)))))
+            throw new FactsPdfException("FPDF1204",
+                "Nested media, other at-rules and loose declarations are unsupported.", at.Span.Start);
+        ParseBlock(contents, parents, layer);
+    }
+
+    private void ParseStyleRule(CssQualifiedRuleNode rule, CssSelector[]? parents, Layer? layer)
+    {
+        CssSelector[] selectors;
+        try { selectors = CssSyntaxAdapter.CompileSelectors(rule.Prelude, budget, rule.Span.Start, nested: parents is not null); }
+        // An invalid selector list makes a browser drop the whole style rule, declarations included.
+        catch (FactsPdfException error) when (budget.Warnings is { } warnings && error.Code == "FPDF1203"
+            && CssSpecValidity.InvalidSelectorList(rule.Prelude))
+        {
+            warnings.Add(error);
+            return;
+        }
+        // Relative to the enclosing style rule (or, outside one, to the root element, as :scope is).
+        if (parents is not null || selectors.Any(s => s.NestingCount > 0))
+            selectors = CssSelector.ResolveNesting(selectors, parents ?? [CssSelector.RootParent], budget, rule.Span.Start);
+        var contents = WithoutUnknownAtRules(rule.Contents, "Nested CSS rules are not supported by the PDF renderer.", "FPDF1203", rule.Span.Start);
+        if (budget.Warnings is null && contents.Any(x => x is CssAtRuleNode nested && CssSpecValidity.UnknownAtRule(nested.Name)))
+            throw new FactsPdfException("FPDF1203", "Nested CSS rules are not supported by the PDF renderer.", rule.Span.Start);
+        ParseBlock(contents, selectors, layer);
+    }
+
+    private void AddStyleRule(CssSelector[] selectors, List<CssDeclarationNode> nodes, Layer? layer)
+    {
+        var declarations = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget, hostSelectors: selectors);
+        foreach (var selector in selectors)
+        {
+            usesStructure |= selector.UsesStructure;
+            if (selector.PseudoElement != CssPseudoElement.None) HasPseudoRules = true;
+            var entry = new Rule(selector, declarations, layer);
+            var last = selector.Rightmost;
+            if (last.Ids.Length > 0) Add(ids, last.Ids[0], entry);
+            else if (last.Classes.Length > 0) Add(classes, last.Classes[0], entry);
+            else if (last.Type is not null) Add(types, last.Type, entry);
+            else universal.Add(entry);
         }
     }
 
@@ -522,7 +686,7 @@ internal sealed class CssStylesheets
                 if (rule.Selector.PseudoElement != pseudo || !rule.Selector.Matches(path, budget, Positions)) continue;
                 foreach (var declaration in rule.Declarations)
                 {
-                    var candidate = new Winner(declaration, false, rule.Selector.Specificity);
+                    var candidate = new Winner(declaration, false, rule.Selector.Specificity, LayerOrder(rule.Layer, declaration.Important));
                     if (declaration.Property == CssProperty.Display)
                     { if (display is not { } old || candidate.Beats(old)) display = candidate; }
                     else if (declaration.Property == CssProperty.Content)
@@ -544,6 +708,7 @@ internal sealed class CssStylesheets
         CssDeclaration? widthHint = null, CssDeclaration? heightHint = null)
     {
         Array.Clear(winners); var element = path[^1];
+        if (budget.UsesRevertLayer) offered.Clear();
         // A pseudo-element is matched through its originating element but validated and computed
         // as the box it generates: an inline span or a block div.
         var subject = pseudoName ?? element.Name;
@@ -558,20 +723,21 @@ internal sealed class CssStylesheets
         var reportTextFlowHost = subject is ("html" or "body" or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
             && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                 or "td" or "th" or "thead" or "tbody" or "tfoot");
-        void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity)
+        void Offer(CssDeclaration declaration, bool isInline, CssSpecificity specificity, int layer)
         {
             budget.Work(declaration.Offset);
             if (declaration.Property is CssProperty.Custom or CssProperty.Pending)
             {
                 (declaration.Property == CssProperty.Custom ? customDeclarations : pendingDeclarations)
-                    .Add(new(declaration.Shared, declaration.Order, declaration.Offset, isInline, specificity));
+                    .Add(new(declaration.Shared, declaration.Order, declaration.Offset, isInline, specificity, layer));
                 return;
             }
             // revert and revert-layer roll the author origin back: the winner is discarded after the
             // cascade, so nothing the element would apply needs checking here.
             if (declaration.Value is "revert" or "revert-layer")
             {
-                var reverting = new Winner(declaration, isInline, specificity); var current = winners[(int)declaration.Property];
+                var reverting = new Winner(declaration, isInline, specificity, layer); var current = winners[(int)declaration.Property];
+                if (budget.UsesRevertLayer) offered.Add(reverting);
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
             }
@@ -884,7 +1050,8 @@ internal sealed class CssStylesheets
                 && !(parent.CollapseBorders && subject is "tr" or "thead" or "tbody" or "tfoot"
                     && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor))
                 throw new FactsPdfException("FPDF1201", $"CSS box property '{declaration.Name}' is only supported on block elements.", declaration.Offset);
-            var candidate = new Winner(declaration, isInline, specificity); var old = winners[(int)declaration.Property];
+            var candidate = new Winner(declaration, isInline, specificity, layer); var old = winners[(int)declaration.Property];
+            if (budget.UsesRevertLayer) offered.Add(candidate);
             if (!old.HasValue || candidate.Beats(old.Value)) winners[(int)declaration.Property] = candidate;
         }
         void Match(List<Rule> rules)
@@ -893,26 +1060,26 @@ internal sealed class CssStylesheets
             {
                 budget.Work(rule.Selector.Offset);
                 if (rule.Selector.PseudoElement != pseudo || !rule.Selector.Matches(path, budget, Positions)) continue;
-                foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity);
+                foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity, LayerOrder(rule.Layer, declaration.Important));
             }
         }
         // The width and height attributes are presentational hints: author-level declarations of
         // specificity zero that precede every rule, so any author declaration wins.
-        if (widthHint is not null) Offer(widthHint, false, default);
-        if (heightHint is not null) Offer(heightHint, false, default);
+        if (widthHint is not null) Offer(widthHint, false, default, LayerOrder(null, false));
+        if (heightHint is not null) Offer(heightHint, false, default, LayerOrder(null, false));
         Match(universal);
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
         foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Match(classRules);
         if (pseudo == CssPseudoElement.None && inlineDeclarations.Declarations is { } inline)
         {
-            if (inlineDeclarations.FirstOrder == 0) foreach (var d in inline) Offer(d, true, default);
+            if (inlineDeclarations.FirstOrder == 0) foreach (var d in inline) Offer(d, true, default, LayerOrder(null, d.Important));
             else
                 for (var i = 0; i < inline.Length; i++)
                 {
                     if (i == inlineSlots.Count) inlineSlots.Add(new CssDeclaration.Slot());
                     var d = inline[i];
-                    Offer(inlineSlots[i].Retarget(d, inlineDeclarations.FirstOrder + i, d.Offset + inlineDeclarations.OffsetShift), true, default);
+                    Offer(inlineSlots[i].Retarget(d, inlineDeclarations.FirstOrder + i, d.Offset + inlineDeclarations.OffsetShift), true, default, LayerOrder(null, d.Important));
                 }
         }
         if (budget.UsesVariables)
@@ -937,10 +1104,25 @@ internal sealed class CssStylesheets
                     foreach (var substituted in Substitute(pending, environment, element.Name))
                     {
                         if (used == substitutionSlots.Count) substitutionSlots.Add(new CssDeclaration.Slot());
-                        Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity);
+                        Offer(substitutionSlots[used++].Retarget(substituted, pending.Order, pending.Offset), pending.Inline, pending.Specificity, pending.Layer);
                     }
                 }
             }
+        }
+
+        // The best declaration of the same property and importance in a layer below the rolling one (the
+        // style attribute sorts with the unlayered declarations), or none.
+        Winner? RollBack(Winner rolling)
+        {
+            Winner? best = null;
+            foreach (var candidate in offered)
+            {
+                if (candidate.Declaration.Property != rolling.Declaration.Property || candidate.Inline
+                    || candidate.Declaration.Important != rolling.Declaration.Important
+                    || candidate.Layer >= rolling.Layer) continue;
+                if (best is not { } old || candidate.Beats(old)) best = candidate;
+            }
+            return best;
         }
 
         // The element's computed font size from the font-size declaration that won so far.
@@ -953,11 +1135,12 @@ internal sealed class CssStylesheets
         // A winning revert computes the property as if the author origin declared nothing for it: the
         // user-agent defaults below apply, or inheritance. Chrome 158 also discards the presentational
         // hints (the list type attribute, the hidden attribute's display:none) for such a property.
-        // With no cascade layers, revert-layer rolls back to the unlayered author styles below the
-        // declaration, where Chrome keeps those hints, so it only drops the winner.
+        // revert-layer rolls back to the declarations of the layers below the declaration's own, where
+        // Chrome keeps those hints, so it only replaces the winner.
         var displayReverted = false;
         for (var index = 0; index < winners.Length; index++)
         {
+            while (winners[index] is { Declaration.Value: "revert-layer" } rolling) winners[index] = RollBack(rolling);
             if (winners[index] is not { Declaration.Value: "revert" or "revert-layer" } reverted) continue;
             winners[index] = null;
             if (reverted.Declaration.Value == "revert-layer") continue;

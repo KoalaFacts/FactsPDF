@@ -116,7 +116,6 @@ public sealed class PrintMediaReportTests
     [TestCase("@media (min-width:300px){p{color:red}}", "FPDF1204")]
     [TestCase("@media print and (color){p{color:red}}", "FPDF1204")]
     [TestCase("@media print;", "FPDF1204")]
-    [TestCase("@media print{ @media all{p{color:red}} }", "FPDF1204")]
     [TestCase("@media print{ @supports(display:grid){p{color:red}} }", "FPDF1204")]
     [TestCase("@media print{color:red; p{color:blue}}", "FPDF1204")]
     [TestCase("@supports(display:grid){p{color:red}}", "FPDF1204")]

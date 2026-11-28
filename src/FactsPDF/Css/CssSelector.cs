@@ -105,14 +105,14 @@ internal sealed record CssPseudoClass(CssPseudoKind Kind, long A = 0, long B = 0
 internal enum CssCombinator : byte { Descendant, Child, NextSibling, SubsequentSibling }
 
 internal sealed record CssCompound(string? Type, string[] Ids, string[] Classes,
-    CssAttributeMatch[] Attributes, CssPseudoClass[] PseudoClasses, CssCombinator Combinator);
+    CssAttributeMatch[] Attributes, CssPseudoClass[] PseudoClasses, CssCombinator Combinator, bool Nesting = false);
 
 // The pseudo-element a selector ends in: generated ::before and ::after boxes (also written
 // :before and :after) are styled by their own rules, never the element's.
 internal enum CssPseudoElement { None, Before, After }
 
 internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificity, int offset, bool structural,
-    CssPseudoElement pseudoElement = CssPseudoElement.None, bool siblings = false)
+    CssPseudoElement pseudoElement = CssPseudoElement.None, bool siblings = false, int nestingCount = 0)
 {
     // An+B values beyond this fail: Chrome stops matching some valid selectors near the 32-bit
     // limits (for example -n+2147483647), so larger values cannot follow the browser.
@@ -123,23 +123,46 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         => token.Kind == CssTokenKind.Symbol && token.Is(value);
 
     internal CssCompound Rightmost => parts[^1];
+    /// <summary>How many nesting selectors (&amp;, written or implied) the selector holds before it is
+    /// resolved against its parent rule; zero for an ordinary selector.</summary>
+    internal int NestingCount => nestingCount;
+    internal CssCompound[] Parts => parts;
+    /// <summary>Whether the selector holds a next-sibling or subsequent-sibling combinator.</summary>
+    internal bool HasSiblings => siblings;
+
+    /// <summary>The parent a top-level &amp; stands for: the root element (:scope in a stylesheet).</summary>
+    internal static readonly CssSelector RootParent = new(
+        [new(null, [], [], [], [new CssPseudoClass(CssPseudoKind.Root)], CssCombinator.Descendant)],
+        new CssSpecificity(0, 1, 0), 0, false);
     internal CssSpecificity Specificity => specificity;
     internal int Offset => offset;
     /// <summary>Whether matching reads an element's position among its siblings or its emptiness.</summary>
     internal bool UsesStructure => structural;
     internal CssPseudoElement PseudoElement => pseudoElement;
 
-    internal static CssSelector Parse(List<CssToken> tokens, ref int i, CssBudget budget)
+    internal static CssSelector Parse(List<CssToken> tokens, ref int i, CssBudget budget, bool nested = false)
     {
         var offset = tokens[i].Offset; budget.Selector(offset);
         var parts = new List<CssCompound>(); var specificity = default(CssSpecificity); var combinator = CssCombinator.Descendant; var structural = false;
-        var siblings = false;
+        var siblings = false; var nestingCount = 0;
+        // Inside a style rule a selector may begin with a combinator, which then relates the rule's own
+        // element (the nesting selector, implied here) to the compound that follows.
+        if (nested && (IsSymbol(tokens[i], ">") || IsSymbol(tokens[i], "+") || IsSymbol(tokens[i], "~")))
+        {
+            parts.Add(new(null, [], [], [], [], CssCombinator.Descendant, Nesting: true));
+            nestingCount++;
+            combinator = tokens[i].Text == ">" ? CssCombinator.Child : tokens[i].Text == "+" ? CssCombinator.NextSibling : CssCombinator.SubsequentSibling;
+            siblings = combinator != CssCombinator.Child;
+            i++;
+        }
         var pseudo = CssPseudoElement.None;
         while (true)
         {
             budget.Token.ThrowIfCancellationRequested();
             CssBudget.Check(parts.Count < 32, "A selector may contain at most 32 compounds.", offset);
-            parts.Add(ParseCompound(tokens, ref i, budget, offset, combinator, 0, ref specificity, ref structural));
+            var compound = ParseCompound(tokens, ref i, budget, offset, combinator, 0, ref specificity, ref structural);
+            if (compound.Nesting) nestingCount++;
+            parts.Add(compound);
             // ::before and ::after (or the legacy :before and :after) end the selector with the
             // specificity of a type selector; any other pseudo-element fails in ParseCompound.
             if (IsSymbol(tokens[i], ":") && PseudoElementAt(tokens, i) is var element and not CssPseudoElement.None)
@@ -159,7 +182,13 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
             else if (tokens[i].LeadingSpace) combinator = CssCombinator.Descendant;
             else throw CssTokens.Invalid("Unsupported or malformed selector/combinator.", tokens[i].Offset);
         }
-        return new(parts.ToArray(), specificity, offset, structural || siblings, pseudo, siblings);
+        // A relative selector without a nesting selector is a descendant of the parent rule's element.
+        if (nested && nestingCount == 0)
+        {
+            parts.Insert(0, new(null, [], [], [], [], CssCombinator.Descendant, Nesting: true));
+            nestingCount++;
+        }
+        return new(parts.ToArray(), specificity, offset, structural || siblings, pseudo, siblings, nestingCount);
     }
 
     // The ::before or ::after (or :before or :after) starting at the colon tokens[i], or None.
@@ -182,8 +211,14 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         string? type = null; var ids = new List<string>(); var classes = new List<string>();
         var attrs = new List<CssAttributeMatch>(); List<CssPseudoClass>? pseudos = null; var simple = 0;
         var idCount = 0; var classCount = 0; var typeCount = 0;
+        var nesting = false;
         if (tokens[i].Kind == CssTokenKind.Identifier) { type = tokens[i++].Text.ToLowerInvariant(); simple++; typeCount++; }
         else if (IsSymbol(tokens[i], "*")) { i++; simple++; }
+        else if (IsSymbol(tokens[i], "&"))
+        {
+            if (depth > 0) throw CssTokens.Invalid("The nesting selector cannot appear inside :not().", tokens[i].Offset);
+            nesting = true; i++; simple++;
+        }
         while (true)
         {
             var current = tokens[i];
@@ -281,7 +316,8 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
         }
         if (simple == 0) throw CssTokens.Invalid("Expected a supported selector.", tokens[i].Offset);
         specificity = specificity.Add(new(idCount, classCount, typeCount));
-        return new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), pseudos?.ToArray() ?? [], combinator);
+        if (nesting && type is not null) throw CssTokens.Invalid("A type selector cannot be combined with the nesting selector.", offset);
+        return new(type, ids.ToArray(), classes.ToArray(), attrs.ToArray(), pseudos?.ToArray() ?? [], combinator, nesting);
     }
 
     // weight starts as one pseudo-class (0,1,0); :not() replaces it with its most specific argument.
@@ -444,6 +480,75 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 throw CssTokens.Invalid("An+B values beyond ±1000000000 are not supported.", offset);
         }
         return negative ? -value : value;
+    }
+
+    /// <summary>
+    /// The selectors a nested rule stands for under its parent rule. The nesting selector means the
+    /// parent's selector list (:is(), whose specificity is that of its most specific selector): each
+    /// resolved selector replaces it with one parent selector, merging it into the compound it is
+    /// written in. A parent selector of several compounds can replace the nesting selector only in the
+    /// first compound of the nested selector (and then the parent's own combinators come first); any
+    /// other place would need :is() to match a complex selector and fails.
+    /// </summary>
+    internal static CssSelector[] ResolveNesting(CssSelector[] nested, CssSelector parent, CssBudget budget, int offset)
+        => ResolveNesting(nested, [parent], budget, offset);
+
+    internal static CssSelector[] ResolveNesting(CssSelector[] nested, IReadOnlyList<CssSelector> parents, CssBudget budget, int offset)
+    {
+        var result = new List<CssSelector>();
+        var maxParent = default(CssSpecificity);
+        foreach (var parent in parents)
+        {
+            if (parent.PseudoElement != CssPseudoElement.None)
+                throw new FactsPdfException("FPDF1203", "A nested rule cannot be written inside a rule whose selector ends in a pseudo-element.", offset);
+            if (parent.Specificity.CompareTo(maxParent) > 0) maxParent = parent.Specificity;
+        }
+        foreach (var selector in nested)
+        {
+            budget.Selector(selector.Offset);
+            if (selector.NestingCount == 0) { result.Add(selector); continue; }
+            var combinations = 1L;
+            for (var k = 0; k < selector.NestingCount; k++)
+            {
+                combinations *= parents.Count;
+                CssBudget.Check(combinations <= 64, "A nested selector with several & expands to at most 64 selectors.", selector.Offset);
+            }
+            for (var combination = 0L; combination < combinations; combination++)
+            {
+                var rest = combination;
+                var parts = new List<CssCompound>(selector.Parts.Length + 4);
+                var structural = selector.UsesStructure; var siblings = selector.HasSiblings;
+                foreach (var part in selector.Parts)
+                {
+                    if (!part.Nesting) { parts.Add(part); continue; }
+                    var parent = parents[(int)(rest % parents.Count)];
+                    rest /= parents.Count;
+                    structural |= parent.UsesStructure; siblings |= parent.HasSiblings;
+                    if (parent.Parts.Length > 1)
+                    {
+                        if (parts.Count != 0)
+                            throw new FactsPdfException("FPDF1203",
+                                "The nesting selector can stand for a selector with combinators only at the start of the nested selector.", selector.Offset);
+                        for (var p = 0; p < parent.Parts.Length - 1; p++) parts.Add(parent.Parts[p]);
+                    }
+                    var last = parent.Parts[^1];
+                    parts.Add(Merge(last, part, parent.Parts.Length > 1 ? last.Combinator : part.Combinator, selector.Offset));
+                }
+                var specificity = selector.Specificity;
+                for (var k = 0; k < selector.NestingCount; k++) specificity = specificity.Add(maxParent);
+                result.Add(new(parts.ToArray(), specificity, selector.Offset, structural, selector.PseudoElement, siblings, 0));
+            }
+        }
+        return result.ToArray();
+    }
+
+    // The compound a nesting selector written inside `own` becomes when it stands for `parent`.
+    private static CssCompound Merge(CssCompound parent, CssCompound own, CssCombinator combinator, int offset)
+    {
+        if (parent.Type is not null && own.Type is not null && !parent.Type.Equals(own.Type, StringComparison.Ordinal))
+            throw new FactsPdfException("FPDF1203", "A nesting selector merged with a different type selector never matches.", offset);
+        return new(parent.Type ?? own.Type, [.. parent.Ids, .. own.Ids], [.. parent.Classes, .. own.Classes],
+            [.. parent.Attributes, .. own.Attributes], [.. parent.PseudoClasses, .. own.PseudoClasses], combinator);
     }
 
     internal bool Matches(IReadOnlyList<CssElement> path, CssBudget budget, HtmlElementPositions? positions = null)
