@@ -50,7 +50,8 @@ public sealed class QuoteElementTests
     public void TableCellQuotesRenderLikeText()
     {
         static string Table(string cell) =>
-            $"<table><colgroup><col style='width:236pt'></colgroup><tbody><tr><td>{cell}</td></tr></tbody></table>";
+            // The 236pt column fills the page content box, so the user-agent body margin is zeroed.
+            $"<style>body{{margin:0}}</style><table><colgroup><col style='width:236pt'></colgroup><tbody><tr><td>{cell}</td></tr></tbody></table>";
         Assert.That(Pdf(Table("<q>AB</q>"), Supplied), Is.EqualTo(Pdf(Table("“AB”"), Supplied)));
     }
 

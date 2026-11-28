@@ -27,7 +27,8 @@ foreach (var (name, input, settings, expected) in new[]
     // FPDF1201); keep checking the exact diagnostic and untouched destination.
     ("list-css", "<ul style='list-style-type:diamond'><li>A</li></ul>", options, "FPDF1202"),
     ("marker-style", "<ol><li style='font-weight:bold'><p style='font-weight:normal'>A</p></li></ol>", options, "FPDF1507"),
-    ("gutter", "<ol style='width:10pt'><li>A</li></ol>", options, "FPDF1302"),
+    // The list's 30pt user-agent padding does not fit a 20pt containing block.
+    ("gutter", "<div style='width:20pt'><ol><li>A</li></ol></div>", options, "FPDF1302"),
     ("pages", html, options with { MaxPages = 1 }, "FPDF1303"),
     ("commands", "<ul><li>A</li><li>B</li></ul>", options with { MaxDisplayCommands = 3 }, "FPDF1401"),
     ("bytes", "<ol><li>A</li></ol>", options with { MaxOutputBytes = 100 }, "FPDF1401")

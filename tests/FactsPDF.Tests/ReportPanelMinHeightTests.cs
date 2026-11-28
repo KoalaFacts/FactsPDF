@@ -13,17 +13,23 @@ public sealed class ReportPanelMinHeightTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // Page coordinates below are measured from the page margin, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
+    // A document that opens with its own html element keeps its own markup.
+    private static string Neutral(string html) => html.StartsWith("<html", StringComparison.Ordinal) ? html : NoBodyMargin + html;
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? Page);
+        PdfConverter.Convert(Neutral(html), output, options ?? Page);
         return output.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var page = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, page, default), page, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), page, default), page, default);
     }
 
     private static void Reject(string html, string code, PdfOptions? options = null)
@@ -53,8 +59,8 @@ public sealed class ReportPanelMinHeightTests
         var painted = layout.Single().PaintBoxes.Single();
         Assert.That(painted.Height, Is.EqualTo(104).Within(0.00001),
             "Content-box minimum reserves real height in addition to 14pt vertical border/padding.");
-        Assert.That(painted.Top, Is.EqualTo(tag == "blockquote" ? 28 : 20).Within(0.00001),
-            "Blockquotes retain their pre-existing 8pt outside top margin.");
+        Assert.That(painted.Top, Is.EqualTo(tag == "blockquote" ? 32 : 20).Within(0.00001),
+            "Blockquotes keep their 1em (12pt) user-agent outside top margin.");
         Assert.That(layout.Single().Runs.Select(run => run.Text), Is.EqualTo(new[] { "FIRST", "AFTER" }));
         Assert.That(layout.Single().Runs[0].X, Is.EqualTo(Layout(control).Single().Runs[0].X));
         Assert.That(layout.Single().Runs[1].Baseline,
@@ -108,7 +114,9 @@ public sealed class ReportPanelMinHeightTests
             "background:blue'><p style='margin:0'>A</p><div style='background:red;" +
             "min-height:inherit'>B</div><article style='background:red;min-height:unset'>" +
             "C</article></section>";
-        var root = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        // The implied body is the root's only child and the section is the body's only child.
+        var body = (BlockNode)HtmlDocumentReader.ReadTree(actual, Page, default).Children.Single();
+        var root = (BlockNode)body.Children.Single();
         Assert.That(root.BoxStyle.MinHeight!.Value.Value, Is.EqualTo(70));
         var children = root.Children.OfType<BlockNode>().ToArray();
         Assert.That(children, Has.Length.EqualTo(3));
@@ -282,7 +290,9 @@ public sealed class ReportPanelMinHeightTests
         using var output = new MemoryStream();
         using var diagnostics = new StringWriter();
         Assert.That(CliApplication.Run(["-", "-"], input, output, diagnostics), Is.Zero, diagnostics.ToString());
-        Assert.That(output.ToArray(), Is.EqualTo(Render(html, new PdfOptions())),
+        using var expected = new MemoryStream();
+        PdfConverter.Convert(html, expected, new PdfOptions());
+        Assert.That(output.ToArray(), Is.EqualTo(expected.ToArray()),
             "The installed CLI and typed converter use the same source rendering path.");
     }
 }

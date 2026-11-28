@@ -25,7 +25,7 @@ public sealed class UnusedZeroInsetTests
     }
 
     private static string Doc(string css) =>
-        $"<!doctype html><html><head><style>th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
+        $"<!doctype html><html><head><style>h2,th{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
 
     [TestCase("table{margin:0}")]
     [TestCase("table{margin:initial}")]
@@ -39,8 +39,8 @@ public sealed class UnusedZeroInsetTests
     }
 
     // The universal reset now reaches every element of a list and table page; only the elements
-    // with real insets (headings, paragraphs, list and cell padding) change, exactly as if the reset
-    // named them alone.
+    // with real insets (the body margin, headings, paragraphs, list and cell padding) change,
+    // exactly as if the reset named them alone.
     [TestCase("*{margin:0;padding:0}")]
     [TestCase("html,body,h2,p,br,table,colgroup,col,thead,tbody,tfoot,tr,th,td,ul,ol,li{margin:0;padding:0}")]
     public void TheUniversalResetEqualsTheResetOfTheElementsWithInsets(string css)
@@ -48,7 +48,7 @@ public sealed class UnusedZeroInsetTests
         Assert.That(Pdf(Doc(css)), Is.EqualTo(Pdf(Doc(Insets))), css);
     }
 
-    private const string Insets = "h2,p{margin:0;padding:0}ul,ol{margin:0}ul,ol,li,th,td{padding:0}";
+    private const string Insets = "body,h2,p{margin:0;padding:0}ul,ol{margin:0}ul,ol,li,th,td{padding:0}";
 
     // Lists have the user-agent 1em above and below, so a zero margin is a real declaration there.
     [TestCase("ul,ol{margin:0}")]

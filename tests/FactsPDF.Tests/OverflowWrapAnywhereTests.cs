@@ -32,7 +32,7 @@ public sealed class OverflowWrapAnywhereTests
     public static IEnumerable<TestCaseData> Contexts()
     {
         yield return new TestCaseData("<p style='width:60pt;@'>PAID " + Code + "</p>").SetName("Paragraph");
-        yield return new TestCaseData("<h2 style='width:80pt;@'>" + Code + "</h2>").SetName("Heading");
+        yield return new TestCaseData("<h2 style='font-weight:normal;width:80pt;@'>" + Code + "</h2>").SetName("Heading");
         yield return new TestCaseData("<div style='@'><p style='width:60pt'>" + Code + "</p></div>").SetName("InheritedFromDiv");
         yield return new TestCaseData("<html><body style='@'><p style='width:60pt'>" + Code + "</p></body></html>").SetName("InheritedFromBody");
         yield return new TestCaseData("<blockquote style='@'><p style='width:60pt'>" + Code + "</p></blockquote>").SetName("InheritedFromBlockquote");

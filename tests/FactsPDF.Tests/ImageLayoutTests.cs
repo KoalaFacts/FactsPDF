@@ -8,10 +8,12 @@ public sealed class ImageLayoutTests
 {
     private static PdfOptions Options(string file = "rgb-420") => new()
     { Images = new Dictionary<string, PdfImage> { ["chart"] = PdfImage.FromBytes(JpegResourceTests.Bytes(file)) } };
+    // Positions and page counts below are measured from the page margin, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
     private static (byte[] Bytes, string Text, int Pages) Render(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        var result = PdfConverter.Convert(html, output, options ?? Options());
+        var result = PdfConverter.Convert(NoBodyMargin + html, output, options ?? Options());
         return (output.ToArray(), Encoding.Latin1.GetString(output.ToArray()), result.PageCount);
     }
 
@@ -119,7 +121,7 @@ public sealed class ImageLayoutTests
             + "<p style='margin-top:0;margin-bottom:0;font-size:10pt;line-height:2'>BEFORE</p>"
             + "<img src='chart' style='width:200pt;padding:1pt;border:1pt solid blue'>"
             + "<p style='margin-top:0;margin-bottom:0;font-size:10pt;line-height:2'>AFTER</p></div>";
-        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default);
         Assert.That(pages.Count, Is.EqualTo(3));
         Assert.That(pages[0].Runs.Single().Text, Is.EqualTo("BEFORE"));
         var image = pages[1].Images.Single();

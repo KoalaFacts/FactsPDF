@@ -1,42 +1,18 @@
-# Contributions and inbound rights
+# Contributions
 
-FactsPDF is licensed by Koala Facts Trading Pty Ltd under PolyForm Small
-Business 1.0.0 or PolyForm Noncommercial 1.0.0, with separate commercial
-licenses. Clear inbound rights are required before another person's
-copyrightable work can be incorporated into that distribution model.
+FactsPDF is licensed under the [Apache License 2.0](LICENSE.md). Unless you
+state otherwise, any contribution you intentionally submit for inclusion is
+licensed under the same terms, as set out in section 5 of the license
+(inbound = outbound). You keep your copyright; no separate agreement or
+assignment is required.
 
-## Current acceptance policy
-
-Bug reports, feature discussions, and descriptions of independently observed
+Bug reports, feature discussions and descriptions of independently observed
 behavior are welcome. Do not include confidential documents, personal data,
-private source code, or materials You are not entitled to share.
+private source code or materials you are not entitled to share. Use
+non-secret placeholders and synthetic fixtures.
 
-**External copyrightable code, tests, substantial documentation, and assets must
-not be merged until their ownership and the necessary licensing authority are
-recorded.** The project has not yet established a counsel-reviewed contributor
-agreement with a verified legal receiving party. Maintainers should discuss a
-proposed contribution before asking its author to invest substantial work.
-
-Before acceptance, record either a suitable signed contributor agreement or
-another documented rights basis approved for this project. Where a separate
-agreement is needed, it must identify the actual parties and expressly cover
-the rights needed for modification, distribution, and commercial sublicensing,
-including relevant patents and employer authorization where applicable. A
-contributor need not surrender ownership merely to provide a suitable license.
-
-A GitHub pull request, repository access, or Developer Certificate of Origin
-sign-off alone must not be treated as copyright assignment or an unrestricted
-right to issue commercial sublicenses. This file does not itself impose a new
-contributor agreement or retrospectively change a submitted work's license.
-
-## Forks and private changes
-
-Neither PolyForm license requires anyone to publish changes to FactsPDF. A
-public fork does not grant the project any rights in its changes; maintainers
-must still complete the inbound-rights process above before incorporating
-another person's work into licensed releases. Do not publish secrets, private
-rights records or customer documents with a contribution; use non-secret
-placeholders and synthetic fixtures.
+Only submit work you have the right to contribute under Apache-2.0, including
+any employer authorization where it applies.
 
 ## Third-party and generated material
 
@@ -48,12 +24,7 @@ reference implementation without complying with its terms.
 
 AI-assisted contributions require the same rights and provenance review. Do
 not assert sole ownership of copied third-party material or discard notices
-because a tool reproduced it. Maintainers' own work also requires an appropriate
-chain of authority where employment or contracting terms may apply.
-
-Keep rights records securely; do not publish private contracts or identity
-records in this repository. A future automated CLA check is not implemented
-and is not claimed by this policy.
+because a tool reproduced it.
 
 ## Documenting a new feature
 

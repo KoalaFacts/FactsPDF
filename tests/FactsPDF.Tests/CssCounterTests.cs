@@ -43,7 +43,7 @@ public sealed partial class CssCounterTests
     [GeneratedRegex(@"1 0 0 1 [\d.-]+ ([\d.-]+) Tm <([0-9A-F]+)> Tj")]
     private static partial Regex TextOperator();
 
-    private const string Base = "<style>h1,h2,p,div,ol,ul,li,section{margin:0;padding:0}";
+    private const string Base = "<style>h1,h2,p,div,ol,ul,li,section{margin:0;padding:0}h1,h2{font-weight:normal}";
 
     [Test]
     public void IncrementThenPrintNumbersHeadings() =>

@@ -113,7 +113,7 @@ def main():
             else:
                 assert independent.convert('RGBA').tobytes() == expected_rgba, 'fixture/Pillow disagreement'
         source = output / (case['name'] + '.html')
-        source.write_text('<div style="width:264pt;background-color:#204060">'
+        source.write_text('<style>body{margin:0}</style><div style="width:264pt;background-color:#204060">'
                           '<img src="sample" style="width:264pt"></div>'
                           f'<p>PNG-{case["name"]}</p>')
         previous = None

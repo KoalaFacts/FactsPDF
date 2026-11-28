@@ -20,7 +20,7 @@ public sealed partial class ObjectFitTests
     private static string Render(string html)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, new PdfOptions { PageWidth = 300, PageHeight = 500, Margin = 20, Images = new Dictionary<string, PdfImage> { ["logo"] = Image } });
+        PdfConverter.Convert("<style>body{margin:0}</style>" + html, output, new PdfOptions { PageWidth = 300, PageHeight = 500, Margin = 20, Images = new Dictionary<string, PdfImage> { ["logo"] = Image } });
         return Encoding.Latin1.GetString(output.ToArray());
     }
 

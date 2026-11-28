@@ -710,13 +710,6 @@ internal static partial class FlexLayout
             Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved, CancellationToken cancellation)
         {
             double min = 0, max = 0;
-            var gutter = 0d;
-            if (node.Name is "ol" or "ul" or "menu" && node.Children.Count > 0)
-            {
-                var list = new DocumentRoot { HasLists = true };
-                list.Children.Add(node);
-                gutter = ListLayout.Prepare(list, options, cancellation)?.Gutter(node) ?? 0;
-            }
             if (node.BoxStyle.IsGridContainer)
             {
                 // A grid is as wide as its columns: fixed tracks at their length (percentages of
@@ -759,9 +752,8 @@ internal static partial class FlexLayout
             {
                 var (childMin, childMax) = Of(child, options, resolved, cancellation);
                 if (double.IsNaN(childMax)) return (double.NaN, double.NaN);
-                var inset = child is BlockNode { Name: "li" } item && !item.BoxStyle.MarkerInside ? gutter : 0;
-                min = Math.Max(min, childMin + inset);
-                max = Math.Max(max, childMax + inset);
+                min = Math.Max(min, childMin);
+                max = Math.Max(max, childMax);
             }
             return (min, max);
         }

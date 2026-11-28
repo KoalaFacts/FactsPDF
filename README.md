@@ -240,12 +240,4 @@ and [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).
 
 ## Licensing
 
-Source-available under your choice of three standard [PolyForm](https://polyformproject.org) licenses ([full text](LICENSE.md)):
-
-| License | Free for |
-| --- | --- |
-| [PolyForm Small Business 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0) | Companies with **< 100 people** and **< USD 1M revenue**, including commercial use |
-| [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) | Personal, noncommercial, charity, education and government use |
-| [PolyForm Free Trial 1.0.0](https://polyformproject.org/licenses/free-trial/1.0.0) | Anyone evaluating it for **up to 90 days** |
-
-Everyone else: [commercial license](COMMERCIAL.md) from Koala Facts Trading Pty Ltd. Details: [LICENSING.md](LICENSING.md).
+Licensed under the [Apache License 2.0](LICENSE.md): free for any use, including commercial. Paid [commercial support](COMMERCIAL.md) is available from Koala Facts Trading Pty Ltd. Summary: [LICENSING.md](LICENSING.md).

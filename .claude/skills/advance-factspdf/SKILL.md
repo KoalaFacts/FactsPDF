@@ -101,9 +101,9 @@ only from the existing same-harness benchmark workflow (`box-layout-resources.ym
   (autonomous-dev §3 step 0).
 
 ## Project rules
-- Never edit `LICENSE.md`, `LICENSING.md`, `COMMERCIAL.md` or
-  `docs/license-history.md`; add no legal disclaimers. The copyright holder is
-  Koala Facts Trading Pty Ltd.
+- Never change the licence or edit `LICENSE.md`, `LICENSING.md` or
+  `COMMERCIAL.md` on your own; add no legal disclaimers. FactsPDF is
+  Apache-2.0 and the copyright holder is Koala Facts Trading Pty Ltd.
 - Extension methods follow `shared/ExtensionsToString.cs`.
 - A new capability also updates `site/data/compatibility.json`,
   `docs/feature-notes.md` and the area's docs page (`AGENTS.md`).

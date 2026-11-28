@@ -17,8 +17,11 @@ public sealed class LogicalReportSpacingTests
         return output.ToArray();
     }
 
+    // Coordinates are measured from the page margin, so zero the user-agent body margin for layout checks.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, Page, default), Page, default);
 
     private static void Reject(string html, string code)
     {
@@ -160,11 +163,16 @@ public sealed class LogicalReportSpacingTests
     [TestCase("<section style='padding-inline:calc(2pt + 3pt)'>A</section>", "FPDF1202")]
     [TestCase("<p style='margin-inline:inherit 0'>A</p>", "FPDF1202")]
     [TestCase("<p style='padding-block:1pt 2pt 3pt'>A</p>", "FPDF1202")]
-    [TestCase("<body style='margin-inline:5pt'>A</body>", "FPDF1201")]
     [TestCase("<span style='padding-inline:5pt'>A</span>", "FPDF1201")]
     [TestCase("<style>.never{margin-inline:-1pt}</style><p>A</p>", "FPDF1202")]
     [TestCase("<p style='width:280pt;margin-inline:20pt 20pt'>A</p>", "FPDF1302")]
     public void InvalidOrUnsupportedValuesPreservePriorOutput(string html, string code) => Reject(html, code);
+
+    // Body has a real margin in the user-agent sheet, so its logical margin is accepted like any panel's.
+    [Test]
+    public void BodyLogicalMarginRendersLikeThePhysicalMargins()
+        => Assert.That(Render("<body style='margin-inline:5pt'>A</body>"),
+            Is.EqualTo(Render("<body style='margin-left:5pt;margin-right:5pt'>A</body>")));
 
     [Test]
     public void ExpandedLogicalShorthandsCountEachSideAgainstCssBudget()

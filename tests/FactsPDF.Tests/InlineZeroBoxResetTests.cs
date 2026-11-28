@@ -15,7 +15,7 @@ public sealed class InlineZeroBoxResetTests
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 400, Margin = 20 };
 
     private const string Content =
-        "<h2>Invoice</h2><p>Paid <span>in</span> <a href='https://example.com'>full</a>, " +
+        "<h2 style='font-weight:normal'>Invoice</h2><p>Paid <span>in</span> <a href='https://example.com'>full</a>, " +
         "<small>see</small> <u>below</u> <s>old</s> <del>x</del> <ins>y</ins></p>" +
         "<div style='background-color:#eee'><p>Total <span>42</span></p></div>";
 

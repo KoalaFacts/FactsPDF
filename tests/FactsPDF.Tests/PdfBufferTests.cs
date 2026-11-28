@@ -62,7 +62,7 @@ public sealed class PdfBufferTests
     public void EveryOutputPathWritesTheSameBytes()
     {
         var writer = Pdf.Write().WithPageNumbers();
-        const string Html = "<h1>Title</h1><p>Body text that spans a little.</p>";
+        const string Html = "<h1 style='font-weight:normal'>Title</h1><p>Body text that spans a little.</p>";
         var expected = writer.ToBytes(Html);
         using var stream = new MemoryStream();
         writer.ToStream(Html, stream);

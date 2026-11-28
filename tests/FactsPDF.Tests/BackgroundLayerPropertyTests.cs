@@ -15,7 +15,7 @@ public sealed class BackgroundLayerPropertyTests
     private static string Render(string html)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, Options);
+        PdfConverter.Convert("<style>body{margin:0}</style>" + html, stream, Options);
         return Encoding.ASCII.GetString(stream.ToArray());
     }
 

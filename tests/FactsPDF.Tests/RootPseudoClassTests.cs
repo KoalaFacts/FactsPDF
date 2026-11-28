@@ -25,7 +25,7 @@ public sealed class RootPseudoClassTests
     }
 
     private static string Document(string css, string htmlAttributes = "") =>
-        $"<!doctype html><html{htmlAttributes}><head><style>{css}</style></head><body>{Content}</body></html>";
+        $"<!doctype html><html{htmlAttributes}><head><style>h2{{font-weight:normal}}{css}</style></head><body>{Content}</body></html>";
 
     [TestCase(":root{color:#1f4e79}", "html{color:#1f4e79}")]
     [TestCase(":ROOT{color:#1f4e79}", "html{color:#1f4e79}")]

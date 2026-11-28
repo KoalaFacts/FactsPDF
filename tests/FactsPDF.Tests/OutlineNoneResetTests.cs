@@ -14,7 +14,7 @@ public sealed class OutlineNoneResetTests
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 400, Margin = 20 };
 
     private const string Body =
-        "<h1>Invoice</h1><p>Total <span>due</span> <span>now</span></p>" +
+        "<h1 style='font-weight:normal'>Invoice</h1><p>Total <span>due</span> <span>now</span></p>" +
         "<ul><li>One</li></ul>" +
         "<table style='width:120pt'><colgroup><col style='width:120pt'></colgroup><tbody><tr><td>Cell</td></tr></tbody></table>" +
         "<div><p>Panel text</p></div>";

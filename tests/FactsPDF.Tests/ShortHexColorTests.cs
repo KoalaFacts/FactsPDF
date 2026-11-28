@@ -46,7 +46,8 @@ public sealed class ShortHexColorTests
     public void ShortAndLongHexBordersRenderTheSameBytes()
     {
         static byte[] Render(string color) => Pdf.Write().ToBytes(
-            "<table style=\"width:520pt\"><colgroup><col style=\"width:520pt\"></colgroup><tbody>"
+            // The 520pt table fills the page content box, so the user-agent body margin is zeroed.
+            "<style>body{margin:0}</style><table style=\"width:520pt\"><colgroup><col style=\"width:520pt\"></colgroup><tbody>"
             + $"<tr><td style=\"padding:3pt;border:0.5pt solid {color};color:{color}\">AB</td></tr></tbody></table>"
             + $"<p style=\"color:{color};background-color:{color}\">x</p>");
         Assert.That(Render("#789"), Is.EqualTo(Render("#778899")));

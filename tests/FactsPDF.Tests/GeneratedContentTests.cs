@@ -13,8 +13,11 @@ public sealed class GeneratedContentTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // The expected positions start at the page margin, so the user-agent body and paragraph margins are reset.
+    private const string Neutral = "<style>body{margin:0}p{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, Page, default), Page, default);
 
     private static string Text(LayoutPage page) => string.Concat(page.Runs.Select(run => run.Text));
 

@@ -27,7 +27,7 @@ def validate_row_fixture(path):
     """Pin authored bytes modulo checkout CRLF; keep raw hashes in the receipt."""
     normalized = path.read_bytes().replace(b"\r\n", b"\n")
     digest = hashlib.sha256(normalized).hexdigest()
-    assert digest == "e6dd417ec5da8193124c18110a6b48575508d034c9c91cbbc3e002ef3dc26650", \
+    assert digest == "3fdc0e776f7be361e4b4dcf0bcea8310850edb6994553acc06466cff7437c0ef", \
         "Unreviewed row fixture change"
     return digest
 
@@ -785,7 +785,8 @@ def verify_native_last_line_alignment(executable, output, work):
         assert w > 500 and h > 800
         aligned.extend(x for x in words if x[0] == 'Gamma')
     assert len(aligned) == 44, 'Last-line words omitted from native report'
-    assert all(abs(word[1] - 51) < 2 for word in aligned), 'Last-line PDF word X coordinate did not match centred 60pt track'
+    # The 60pt track starts after the 36pt page margin and Chrome's 6pt (8px) user-agent body margin; the 30pt word centres in it.
+    assert all(abs(word[1] - (36 + 6 + 15)) < 2 for word in aligned), 'Last-line PDF word X coordinate did not match centred 60pt track'
     invalid = output / 'report-last-line-alignment-invalid.html'
     invalid.write_text(authored.replace('text-align-last:center',
                                         'text-align-last:stretch', 1), encoding='utf-8')

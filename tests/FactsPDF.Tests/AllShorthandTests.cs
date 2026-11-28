@@ -47,7 +47,7 @@ public sealed class AllShorthandTests
             Is.EqualTo(Render("<p>aa</p>")));
         Assert.That(Render("<style>a{color:green;font-size:20pt}a{all:revert}</style><p>aa <a href='https://example.com/x'>bb</a></p>"),
             Is.EqualTo(Render("<p>aa <a href='https://example.com/x'>bb</a></p>")));
-        Assert.That(Render("<style>.r{all:revert-layer}h1{font-size:30pt}</style><h1 class='r'>t</h1>"), Is.EqualTo(Render("<h1>t</h1>")));
+        Assert.That(Render("<style>.r{all:revert-layer}p{font-size:30pt}</style><p class='r'>t</p>"), Is.EqualTo(Render("<p>t</p>")));
         Assert.DoesNotThrow(() => Render("<style>*{all:revert}</style><ul><li>a</li></ul><table><tbody><tr><td>b</td></tr></tbody></table><p>c <span>d</span></p><hr>"));
     }
 

@@ -16,12 +16,14 @@ public sealed class SectioningElementTests
         return output.ToArray();
     }
 
+    private const string Pin = "<style>h1{font-weight:normal}</style>";
+
     private static readonly string[] Names = ["header", "footer", "main", "nav", "aside", "hgroup", "search"];
 
     [TestCaseSource(nameof(Names))]
     public void RendersLikeADiv(string name)
-        => Assert.That(Pdf($"<{name}><h1>Invoice</h1><p>Due 25 Nov.</p></{name}><p>After</p>"),
-            Is.EqualTo(Pdf("<div><h1>Invoice</h1><p>Due 25 Nov.</p></div><p>After</p>")));
+        => Assert.That(Pdf($"{Pin}<{name}><h1>Invoice</h1><p>Due 25 Nov.</p></{name}><p>After</p>"),
+            Is.EqualTo(Pdf(Pin + "<div><h1>Invoice</h1><p>Due 25 Nov.</p></div><p>After</p>")));
 
     [TestCaseSource(nameof(Names))]
     public void AuthorCssAppliesAsToADiv(string name)
@@ -47,9 +49,9 @@ public sealed class SectioningElementTests
     [Test]
     public void AHeadingGroupAndSearchRegionRenderLikeDivs()
     {
-        const string source = "<hgroup><h1>Quarterly report</h1><p>Q3 2026</p></hgroup>" +
+        const string source = Pin + "<hgroup><h1>Quarterly report</h1><p>Q3 2026</p></hgroup>" +
             "<search><p>Filter: open invoices</p></search><p>Body</p>";
-        const string oracle = "<div><h1>Quarterly report</h1><p>Q3 2026</p></div>" +
+        const string oracle = Pin + "<div><h1>Quarterly report</h1><p>Q3 2026</p></div>" +
             "<div><p>Filter: open invoices</p></div><p>Body</p>";
         Assert.That(Pdf(source), Is.EqualTo(Pdf(oracle)));
     }

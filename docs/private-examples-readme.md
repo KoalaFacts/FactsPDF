@@ -2,7 +2,7 @@
 
 This component contains the existing synthetic first-use API example and HTML,
 not customer data, fonts, binaries or an accepted delivery candidate. No new
-API or licensing rights are granted. See LICENSE.md. Publication and distribution
+API or licensing rights are granted. See LICENSE.md (Apache-2.0). Publication and distribution
 remain unauthorized until separately approved.
 
 Use the installed .NET SDK 10.0.403 and runtime 10.0.14. Extract to a fresh directory

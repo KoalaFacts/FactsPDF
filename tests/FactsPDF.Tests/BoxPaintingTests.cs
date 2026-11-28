@@ -11,8 +11,11 @@ namespace FactsPDF.Tests;
 public sealed class BoxPaintingTests
 {
     private static readonly PdfOptions Options = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
+    // The user-agent sheet gives body an 8px margin; tests that place boxes on the page measure without it.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+    // With the body margin zeroed the bare body adds no box, so the tested box is the root's only child.
     private static BlockNode Block(string html, PdfOptions? options = null)
-        => (BlockNode)HtmlDocumentReader.ReadTree(html, options ?? Options, default).Children.Single();
+        => (BlockNode)HtmlDocumentReader.ReadTree(NoBodyMargin + html, options ?? Options, default).Children.Single();
     private static (PdfWriteResult Result, string Pdf) Render(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
@@ -75,7 +78,7 @@ public sealed class BoxPaintingTests
     [Test]
     public void BordersContributeToWidthAndTextXCoordinates()
     {
-        const string html = "<div style='width:150pt;padding:10pt;border-left:4pt solid red;" +
+        const string html = NoBodyMargin + "<div style='width:150pt;padding:10pt;border-left:4pt solid red;" +
             "border-right:2pt solid blue'>A</div>";
         var tree = HtmlDocumentReader.ReadTree(html, Options, default);
         var pages = TextLayout.Layout(tree, Options, default);
@@ -86,9 +89,10 @@ public sealed class BoxPaintingTests
     [Test]
     public void NoneBorderDoesNotConsumeLayoutWidthOrPaint()
     {
-        var (_, pdf) = Render("<div style='border:10pt none red;width:260pt'>A</div>");
+        const string html = "<div style='border:10pt none red;width:260pt'>A</div>";
+        var (_, pdf) = Render(NoBodyMargin + html);
         Assert.That(pdf, Does.Not.Contain(" re f Q"));
-        var box = Block("<div style='border:10pt none red;width:260pt'>A</div>");
+        var box = Block(html);
         Assert.That(box.BoxStyle.BorderLeft.EffectiveWidth, Is.Zero);
     }
 
@@ -99,7 +103,7 @@ public sealed class BoxPaintingTests
             "background-color:#111111}div.x{border-right:4pt solid #008000}</style>" +
             "<div class=x style='border:3pt solid #ffffff;border-left-color:#222222;" +
             "background-color:transparent'>X</div>";
-        var box = (BlockNode)HtmlDocumentReader.ReadTree(html, Options, default).Children.Single();
+        var box = Block(html);
         Assert.That(box.BoxStyle.BorderTop.EffectiveWidth, Is.EqualTo(3));
         Assert.That(box.BoxStyle.BorderRight.EffectiveWidth, Is.EqualTo(3));
         Assert.That(box.BoxStyle.BorderLeft.Color, Is.EqualTo(new Rgb(0, 0, 1)));
@@ -329,7 +333,7 @@ public sealed class BoxPaintingTests
     public void DecoratedParagraphTopMarginStaysOutsidePaintedRectangle()
     {
         PaintedBox Measure(string margin) => TextLayout.Layout(HtmlDocumentReader.ReadTree(
-            "<p style='margin-top:" + margin + ";margin-bottom:0pt;background-color:red'>A</p>",
+            NoBodyMargin + "<p style='margin-top:" + margin + ";margin-bottom:0pt;background-color:red'>A</p>",
             Options, default), Options, default)[0].PaintBoxes.Single();
         var a = Measure("0pt");
         var b = Measure("40pt");
@@ -366,7 +370,8 @@ public sealed class BoxPaintingTests
     [Test]
     public void EmptyPaintedParagraphBreakBeforeMovesItsOwnBox()
     {
-        const string html = "<p>A</p><p style='background-color:red;padding:10pt;break-before:page'></p>";
+        // p{margin:0}: the UA's 1em top margin is kept after a forced break and would shift the box.
+        const string html = NoBodyMargin + "<style>p{margin:0}</style><p>A</p><p style='background-color:red;padding:10pt;break-before:page'></p>";
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Options, default),
             Options, default);
         Assert.That(pages, Has.Count.EqualTo(2));

@@ -145,7 +145,7 @@ public sealed partial class HyphensTests
     [Test]
     public void HyphensIsAcceptedOnEveryElement()
     {
-        const string body = "<ul><li>a</li></ul><table><tr><td>b</td></tr></table><p>c <span>d</span></p><h1>e</h1>";
+        const string body = "<ul><li>a</li></ul><table><tr><td>b</td></tr></table><p>c <span>d</span></p><h1 style='font-weight:normal'>e</h1>";
         Assert.That(Render("<style>*{hyphens:manual}</style>" + body), Is.EqualTo(Render(body)));
     }
 }

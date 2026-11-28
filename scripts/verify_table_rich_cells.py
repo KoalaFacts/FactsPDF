@@ -27,8 +27,8 @@ BORDER = [36, 68, 90]
 IMAGE_BORDER = [204, 85, 0]
 QUADRANTS = [(240, 20, 40, 255), (20, 220, 60, 128),
              (30, 50, 230, 0), (40, 70, 200, 255)]
-COMMON = ('<style>table{width:200pt;font-size:10pt;line-height:1.2}'
-          'td,th{padding:4pt;border:1pt solid #24445a;background-color:#e4f3f0}'
+COMMON = ('<style>body{margin:0}p{margin:0 0 8pt}table{width:200pt;font-size:10pt;line-height:1.2}'
+          'td,th{vertical-align:top;padding:4pt;border:1pt solid #24445a;background-color:#e4f3f0}'
           'th{font-weight:normal}'
           'img{width:50%;padding:2pt;border:1pt solid #cc5500}</style>')
 # Courier 10pt at line-height 1.2: baselines sit 9pt into a 12pt line, so a line holding an

@@ -10,7 +10,7 @@
     <PackageTags>pdf;html-to-pdf;css;report;invoice;pdf-generation;no-browser;native-aot</PackageTags>
     <PackageProjectUrl>https://github.com/KoalaFacts/FactsPDF</PackageProjectUrl>
     <PackageReleaseNotes>See https://github.com/KoalaFacts/FactsPDF/blob/main/docs/releases/0.1.0-preview.1.md and check supported features at https://koalafacts.github.io/FactsPDF/</PackageReleaseNotes>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/KoalaFacts/FactsPDF</RepositoryUrl>
   </PropertyGroup>

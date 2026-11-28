@@ -88,5 +88,5 @@ not guaranteed throughput, startup time or lower resource use across all
 stylesheets; see the generated run artifact and development ledger.
 
 No extra runtime parser, browser, JavaScript or PDF engine dependency has
-been added. Existing Community/Commercial licensing and contributor
+been added. Licensing and contributor
 policies are unchanged.

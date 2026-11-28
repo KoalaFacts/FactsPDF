@@ -24,7 +24,7 @@ public sealed class OutputCancellationTests
 
     private static string BuildLargeHtml()
     {
-        var html = new StringBuilder("<h1>Report</h1>");
+        var html = new StringBuilder("<h1 style='font-weight:normal'>Report</h1>");
         for (var i = 0; i < 18_000; i++)
             html.Append("<p>Row ").Append(i).Append(" of a long report with enough words to wrap across the page width.</p>");
         return html.ToString();

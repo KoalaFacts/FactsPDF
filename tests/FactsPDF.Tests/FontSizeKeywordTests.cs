@@ -6,6 +6,9 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class FontSizeKeywordTests
 {
+    // The example reports use headings and table headers; the user-agent sheet makes them bold, which needs a bold font chain these tests do not supply.
+    private const string BoldPin = "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>";
+
     private static readonly PdfOptions Page = new() { PageWidth = 245, PageHeight = 175, Margin = 15 };
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
@@ -112,7 +115,7 @@ public sealed class FontSizeKeywordTests
         while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "FactsPDF.slnx")))
             folder = folder.Parent;
         Assert.That(folder, Is.Not.Null, "A source checkout is required for report fixtures.");
-        return File.ReadAllText(Path.Combine(folder!.FullName, "examples", name));
+        return File.ReadAllText(Path.Combine(folder!.FullName, "examples", name)).Replace("</head>", BoldPin + "</head>");
     }
 
     private static void Reject(string html)
