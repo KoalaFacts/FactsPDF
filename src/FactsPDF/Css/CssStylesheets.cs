@@ -1173,6 +1173,10 @@ internal sealed class CssStylesheets
                         || cellTextIndentHost && declaration.Property is CssProperty.TextIndent, computedRoot);
             }
         }
+        if (!userAgentTextStyle && parent.Decoration != TextDecoration.None)
+            DecorationPropagation.Resolve(ref style, ref styleOwned, parent, DecorationPropagation.DeclaredLines(
+                winners[(int)CssProperty.TextDecoration] is { } decorationWinner ? decorationWinner.Declaration.Value : null,
+                winners[(int)CssProperty.TextDecoration]?.Declaration.Offset ?? elementOffset, parent), elementOffset);
         if (userAgentTextOnly && !userAgentTextStyle && styleOwned && userAgentTextStyles.Count < MaxUserAgentTextStyles)
             userAgentTextStyles[userAgentTextKey] = style;
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)

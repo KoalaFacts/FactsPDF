@@ -219,7 +219,10 @@ internal static class CssDeclarations
                 style.UnderlineOffset = offset.Value;
                 return style;
             }
-            return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
+            InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
+            // A decoration propagates: a descendant's value adds to the ancestors' lines and never removes them.
+            if (property == CssProperty.TextDecoration) style.Decoration |= parent.Decoration;
+            return style;
         }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpaceCollapse or CssProperty.TextWrapMode or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TabSize or CssProperty.LineBreak or CssProperty.Visibility or CssProperty.Hyphens or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
             or CssProperty.Orphans or CssProperty.Widows;
@@ -236,7 +239,7 @@ internal static class CssDeclarations
             case CssProperty.BorderCollapse: style.CollapseBorders = source.CollapseBorders; break;
             case CssProperty.Orphans: style.Orphans = source.Orphans; break;
             case CssProperty.Widows: style.Widows = source.Widows; break;
-            case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
+            case CssProperty.TextDecoration: style.Decoration = source.Decoration | parent.Decoration; break;
             case CssProperty.TextDecorationColor: style.DecorationColor = source.DecorationColor; break;
             case CssProperty.TextDecorationStyle: style.DecorationPattern = source.DecorationPattern; break;
             case CssProperty.TextDecorationThickness: style.DecorationThickness = source.DecorationThickness; break;
