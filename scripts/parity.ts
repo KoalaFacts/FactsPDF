@@ -45,7 +45,7 @@
 // margin, 1em paragraph, heading and block margins, heading sizes, list padding, cell padding,
 // font-metric line height ...) below the author's rules, so the content moves. Each example's pages
 // are reviewed against Chrome; an author rule that sets the property keeps winning.
-// A run that rendered before and now fails FPDF1507 is this kind too: headings and th are bold in
+// A run that rendered before (or failed for another reason) and now fails FPDF1507 is this kind too: headings and th are bold in
 // the sheet, so an example with a heading and no bold font chain needs one (or font-weight:normal).
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
@@ -221,9 +221,12 @@ function rendersDifferently(base: RunResult, head: RunResult): boolean {
 
 const boldFailure = /^FPDF1507: Supply an explicit font chain for bold text\.$/m;
 
-/** Whether the base renders and the head fails only because bold text now needs a bold font chain. */
+/**
+ * Whether the head fails because bold text now needs a bold font chain, where the base rendered or failed
+ * earlier or later for another reason (a missing CJK font, a decorated edge) or at another place.
+ */
 function boldChainFailure(base: RunResult, head: RunResult): boolean {
-  return base.exitCode === 0 && base.pdf !== null && head.exitCode === 3 && head.pdf === null &&
+  return (base.exitCode === 0 && base.pdf !== null || base.exitCode === 3 && base.pdf === null) && head.exitCode === 3 && head.pdf === null &&
     boldFailure.test(head.stderr.replace(/\r\n/g, '\n'));
 }
 
