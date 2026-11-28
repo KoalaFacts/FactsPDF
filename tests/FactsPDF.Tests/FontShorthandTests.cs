@@ -2,7 +2,7 @@ using NUnit.Framework;
 
 namespace FactsPDF.Tests;
 
-// The font shorthand (R5dv) expands into font-style, font-weight, font-size and line-height at the
+// The font shorthand (R5du) expands into font-style, font-weight, font-size and line-height at the
 // declaration's own position in the cascade and resets the ones it does not mention, so a later font
 // overrides an earlier font-weight as in Chrome. Every longhand is compiled by the code of that
 // longhand: values the renderer cannot draw (small-caps, a stretch keyword, oblique, a weight that is
