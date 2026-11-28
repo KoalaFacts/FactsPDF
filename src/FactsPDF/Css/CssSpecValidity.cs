@@ -819,6 +819,7 @@ internal static class CssSpecValidity
         ["hanging-punctuation"] = "none | [first | force-end | allow-end | last]{1,3}",
         ["background-attachment"] = "[scroll | fixed | local]#",
         ["background-origin"] = "[border-box | padding-box | content-box]#",
+        ["hyphens"] = "none | manual | auto",
         ["background-clip"] = "[border-box | padding-box | content-box | text | border-area | -webkit-text]#",
         ["background-repeat"] = "[repeat-x | repeat-y | [repeat | space | round | no-repeat]{1,2}]#",
         ["background-size"] = "[cover | contain | [<length-percentage [0,]> | auto]{1,2}]#",

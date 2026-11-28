@@ -7,6 +7,11 @@ namespace FactsPDF;
 
 internal static class TextLines
 {
+    // U+00AD stays in a paragraph's glyphs as an invisible zero-width break opportunity: a line that
+    // breaks there replaces it with a hyphen, every other line drops it (hyphens:manual); with
+    // hyphens:none the reader never emits it.
+    internal const int SoftHyphen = 0xAD;
+
     // An inline img or svg is one atomic glyph: its Scalar is -(run index + 2) in its paragraph
     // (-1 stays "no glyph" for the break scans) and Width1000 holds its outer width in points;
     // letter- and word-spacing never apply to it.
@@ -17,8 +22,9 @@ internal static class TextLines
         // PDF Tc adds fixed character spacing after each shown glyph, across
         // ASCII and embedded CID TrueType font runs. Layout must count the
         // identical advance before wrapping, centring or underlining.
-        public double Width => IsAtom ? Width1000 : Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
+        public double Width => IsAtom ? Width1000 : Scalar == SoftHyphen ? 0 : Style.FontSize * Width1000 / 1000 + Style.LetterSpacing
             + (Scalar == 32 ? Style.WordSpacing : 0);
+        internal bool IsSoftHyphen => Scalar == SoftHyphen;
     }
     // An inline image placed on a line: its geometry and the height of its outer box's top above
     // the line's baseline, in the line's glyph order.
@@ -176,6 +182,17 @@ internal static class TextLines
                 segment = line;
                 continue;
             }
+            if (glyph.IsSoftHyphen)
+            {
+                // The text before a soft hyphen and its hyphen is a segment of its own.
+                if (!(style.BreakAll || style.BreakWordsByWordBreak || style.BreakAnywhere))
+                {
+                    segment += HyphenFor(glyph, options, resolved).Width;
+                    EndSegment();
+                    previous = -1;
+                }
+                continue;
+            }
             if (glyph.Scalar == 32)
             {
                 EndSegment();
@@ -234,7 +251,7 @@ internal static class TextLines
         private const int MaxPooledGlyphs = 4096;
         [ThreadStatic] private static LineWrapper? pooled;
 
-        private enum State { Start, Loop, AfterBreak, AfterPreservedSpaceWrap, AfterBreakWordStart, AfterBreakWordGlyph, AfterWordWrap, Done }
+        private enum State { Start, Loop, AfterBreak, AfterPreservedSpaceWrap, AfterBreakWordStart, AfterBreakWordGlyph, AfterWordWrap, AfterSoftHyphenBreak, Done }
 
         private readonly List<Glyph> current = [];
         private readonly List<Glyph> word = [];
@@ -259,6 +276,10 @@ internal static class TextLines
         private double wordWidth;
         private double gap;
         private int wordIndex;
+        // The word collected so far holds a soft hyphen; resumeWord re-runs the fit check on word
+        // (the rest of a word after a soft-hyphen break, or a word moved to a fresh line).
+        private bool wordHasSoftHyphen;
+        private bool resumeWord;
 
         private Line Current { get; set; }
 
@@ -309,6 +330,7 @@ internal static class TextLines
                 case State.Start:
                     Validate();
                     current.Clear(); width = 0; space = null; firstLine = true;
+                    resumeWord = false; wordHasSoftHyphen = false;
                     // The consumer finishes a borrowed line before MoveNext clears it.
                     // Retained page strings/paint and the PDF buffer are unchanged: this
                     // is line-at-a-time wrapping, not a streaming document serializer.
@@ -344,15 +366,24 @@ internal static class TextLines
                 case State.AfterWordWrap:
                     ResetLine();
                     gap = 0;
-                    AppendWord();
+                    // A word with soft hyphens may still be wider than a fresh line: check it again.
+                    if (wordHasSoftHyphen) resumeWord = true;
+                    else AppendWord();
+                    break;
+                case State.AfterSoftHyphenBreak:
+                    ResetLine();
+                    gap = 0;
+                    resumeWord = true;
                     break;
                 case State.Done:
                     return false;
             }
             state = State.Loop;
-            while (hasGlyph)
+            while (hasGlyph || resumeWord)
             {
                 cancellation.ThrowIfCancellationRequested();
+                if (!resumeWord)
+                {
                 if (paragraph.Style.NoWrap)
                 {
                     // The paragraph deliberately has no automatic break
@@ -388,6 +419,8 @@ internal static class TextLines
                 }
                 word.Clear();
                 wordWidth = 0d;
+                wordHasSoftHyphen = false;
+                var segmentWidth = 0d;
                 int previous;
                 do
                 {
@@ -395,13 +428,17 @@ internal static class TextLines
                     var glyph = cursor.Current;
                     word.Add(glyph);
                     wordWidth += glyph.Width;
-                    if (!paragraph.Style.EmergencyBreak && !paragraph.Style.BreakAll && wordWidth > available + 0.000001)
+                    if (glyph.IsSoftHyphen) { wordHasSoftHyphen = true; segmentWidth = 0; }
+                    else segmentWidth += glyph.Width;
+                    if (!paragraph.Style.EmergencyBreak && !paragraph.Style.BreakAll && segmentWidth > available + 0.000001)
                         throw new FactsPdfException("FPDF1302", "An unbreakable text segment exceeds the usable page width.", glyph.SourceOffset);
                     previous = glyph.Scalar;
                     hasGlyph = cursor.MoveNext();
                 }
                 while (hasGlyph && cursor.Current.Scalar is not (32 or 10) &&
                     !paragraph.Style.BreakAll && !CanBreak(previous, cursor.Current.Scalar));
+                }
+                resumeWord = false;
                 gap = current.Count > 0 && space.HasValue ? space.Value.Width : 0;
                 var lineAvailable = firstLine ? available - firstIndent : available;
                 // An inside marker is already first-line content. A word which
@@ -411,6 +448,10 @@ internal static class TextLines
                 var markerOnlyWrap = firstLine && firstMarker is { Inside: true } &&
                     firstLineMarkerInset > 0 &&
                     wordWidth <= available - paragraph.Style.FirstLineIndent.Resolve(available) + 0.000001;
+                // Chrome fits as much of a word as it can before a soft hyphen on the current line,
+                // even after earlier words, and only then moves the word to the next line.
+                if (wordHasSoftHyphen && width + gap + wordWidth > lineAvailable + 0.000001 && BreakAtSoftHyphen(lineAvailable))
+                    return true;
                 // Break only a token that cannot fit a fresh line, or the
                 // indented first line when no earlier text can move. A fitting
                 // word moves as a whole at the preceding ordinary space.
@@ -443,6 +484,37 @@ internal static class TextLines
             Current = line;
             state = next;
             return true;
+        }
+
+        // Ends the line at the last soft hyphen of the word whose prefix and hyphen still fit, keeps the
+        // rest of the word for the next line and returns true; false when no soft hyphen fits.
+        private bool BreakAtSoftHyphen(double lineAvailable)
+        {
+            var prefix = 0d; var best = -1; var visible = false; Glyph bestHyphen = default;
+            for (var i = 0; i < word.Count; i++)
+            {
+                var glyph = word[i];
+                if (!glyph.IsSoftHyphen) { prefix += glyph.Width; visible = true; continue; }
+                if (!visible) continue;
+                var hyphen = HyphenFor(glyph, options, resolved);
+                if (width + gap + prefix + hyphen.Width > lineAvailable + 0.000001) break;
+                // Only a hyphen with text after it ends a line: a trailing one breaks nothing.
+                for (var j = i + 1; j < word.Count; j++)
+                    if (!word[j].IsSoftHyphen) { best = i; bestHyphen = hyphen; break; }
+            }
+            if (best < 0) return false;
+            if (gap > 0) { current.Add(space!.Value); width += gap; }
+            for (var i = 0; i < best; i++) { current.Add(word[i]); width += word[i].Width; }
+            current.Add(bestHyphen); width += bestHyphen.Width;
+            word.RemoveRange(0, best + 1);
+            wordWidth = 0; wordHasSoftHyphen = false;
+            foreach (var glyph in word)
+            {
+                wordWidth += glyph.Width;
+                wordHasSoftHyphen |= glyph.IsSoftHyphen;
+            }
+            space = null;
+            return Yield(CurrentLine(softWrapped: true), State.AfterSoftHyphenBreak);
         }
 
         private void AppendWord()
@@ -521,6 +593,20 @@ internal static class TextLines
                     previousScalar = -1;
                     continue;
                 }
+                if (glyph.IsSoftHyphen)
+                {
+                    // A word breaks at a soft hyphen when the text before it and the hyphen fit a line
+                    // (the text after the last one needs no hyphen); a word is breakable when each of
+                    // those stretches fits.
+                    if (!paragraph.Style.EmergencyBreak && !paragraph.Style.BreakAll)
+                    {
+                        if (!tooWide && segmentWidth + HyphenFor(glyph, options, resolved).Width > available + 0.000001)
+                        { tooWide = true; tooWideOffset = glyph.SourceOffset; }
+                        segmentWidth = 0;
+                        previousScalar = -1;
+                    }
+                    continue;
+                }
                 if (paragraph.Style.EmergencyBreak || paragraph.Style.BreakAll)
                 {
                     // Both breaking modes use only supported resolved glyphs.
@@ -566,6 +652,8 @@ internal static class TextLines
             // ragged end. Stretch existing collapsed U+0020 space advances;
             // this uses the same WordSpacing/TJ paint path as authored gaps.
             var paintedWidth = width;
+            // A soft hyphen that ended no line is invisible and has no width.
+            if (cursor.SawSoftHyphen) current.RemoveAll(static glyph => glyph.IsSoftHyphen);
             if (softWrapped && paragraph.Style.Alignment == TextAlignment.Justify ||
                 !softWrapped && paragraph.Style.LastLineAlignment == TextAlignment.Justify)
             {
@@ -687,6 +775,7 @@ internal static class TextLines
     private static Glyph Resolve(int scalar, TextStyle style, int sourceOffset, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
     {
+        if (scalar == SoftHyphen) return new(scalar, style, null, 0, sourceOffset);
         var role = FontRoles.Role(style);
         if (!resolved.TryGetValue((role, scalar), out var value))
         {
@@ -709,6 +798,17 @@ internal static class TextLines
             resolved.Add((role, scalar), value);
         }
         return new(scalar, style, value.Font, value.Width, sourceOffset);
+    }
+
+    // The hyphen a line prints where it breaks at a soft hyphen: U+2010 when the style's first font has
+    // it, as Chrome chooses, else the hyphen-minus every font and the built-in font carry.
+    private static Glyph HyphenFor(Glyph softHyphen, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
+    {
+        var style = softHyphen.Style;
+        var fonts = FontRoles.Chain(options, FontRoles.Role(style), softHyphen.SourceOffset);
+        var scalar = fonts.Count > 0 && fonts[0].GlyphFor(0x2010) != 0 ? 0x2010 : '-';
+        return Resolve(scalar, style, softHyphen.SourceOffset, options, resolved);
     }
 
     // Reads a paragraph's glyphs after HTML whitespace collapsing, line-break handling and
@@ -738,6 +838,8 @@ internal static class TextLines
         private Glyph? queuedAtom;
 
         internal Glyph Current { get; private set; }
+        /// <summary>Whether the reader has produced a soft hyphen glyph, which the line wrapper must drop or turn into a hyphen.</summary>
+        internal bool SawSoftHyphen { get; private set; }
 
         internal bool MoveNext()
         {
@@ -856,6 +958,12 @@ internal static class TextLines
                             scalar += 'a' - 'A';
                         else if (run.Style.Transform == TextTransform.Capitalize && !insideAsciiWord && scalar is >= 'a' and <= 'z')
                             scalar -= 'a' - 'A';
+                    }
+                    if (scalar == SoftHyphen)
+                    {
+                        // hyphens:none ignores a soft hyphen: no break opportunity, nothing printed.
+                        if (run.Style.NoHyphens) continue;
+                        SawSoftHyphen = true;
                     }
                     insideAsciiWord = wordCharacter;
                     if (scalar <= 127 && HtmlTokens.Space((char)scalar))

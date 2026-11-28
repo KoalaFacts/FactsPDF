@@ -139,6 +139,14 @@ internal static class InlineCss
                     throw Invalid("word-spacing must be from 0pt to 24pt.", offset);
                 style.WordSpacing = wordGap;
                 break;
+            case "hyphens":
+                style.NoHyphens = value switch
+                {
+                    "manual" => false,
+                    "none" => true,
+                    _ => throw Invalid("hyphens supports none and manual.", offset)
+                };
+                break;
             case "text-transform":
                 style.Transform = value switch
                 {

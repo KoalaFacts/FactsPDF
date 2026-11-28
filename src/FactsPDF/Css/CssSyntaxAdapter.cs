@@ -1848,6 +1848,7 @@ internal static class CssSyntaxAdapter
         "word-break" => CssProperty.WordBreak, "text-indent" => CssProperty.TextIndent,
         "letter-spacing" => CssProperty.LetterSpacing, "word-spacing" => CssProperty.WordSpacing,
         "text-transform" => CssProperty.TextTransform,
+        "hyphens" => CssProperty.Hyphens,
         "display" => CssProperty.Display,
         "content" => CssProperty.Content,
         "flex-direction" => CssProperty.FlexDirection, "flex-wrap" => CssProperty.FlexWrap,
@@ -2438,6 +2439,14 @@ internal static class CssSyntaxAdapter
             if (!InlineVerticalAlign.TryParse(token, out _))
                 throw new FactsPdfException("FPDF1202",
                     "vertical-align supports baseline, middle, top, bottom, text-top, text-bottom, lengths and percentages (table cells: top, middle and bottom).", offset);
+        }
+        else if (name == "hyphens")
+        {
+            if (token == "auto")
+                throw new FactsPdfException("FPDF1202",
+                    "hyphens:auto needs a hyphenation dictionary for the language, which Chrome loads at run time; use none or manual (soft hyphens).", offset);
+            if (token is not ("none" or "manual"))
+                throw new FactsPdfException("FPDF1202", "hyphens requires none or manual.", offset);
         }
         else if (name == "outline-width") _ = CssPaintValues.OutlineWidth(token, offset);
         else if (name == "outline-offset") _ = CssPaintValues.OutlineOffset(token, offset);

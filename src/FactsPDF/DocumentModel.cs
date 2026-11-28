@@ -108,6 +108,8 @@ internal sealed record TextStyle
     public Rgb? DecorationColor { get; set; }
     public TextDecorationPattern DecorationPattern { get; set; }
     public bool BreakAll { get; set; }
+    /// <summary>hyphens:none (inherited): a soft hyphen (U+00AD) is ignored. The initial manual breaks a word there and prints a hyphen.</summary>
+    public bool NoHyphens { get; set; }
     /// <summary>word-break:break-word, which wraps like overflow-wrap:anywhere whatever overflow-wrap computes to.</summary>
     public bool BreakWordsByWordBreak { get; set; }
     /// <summary>overflow-wrap:anywhere: wraps like break-word, but its breaks also count for min-content.</summary>

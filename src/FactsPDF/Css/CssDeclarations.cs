@@ -222,7 +222,7 @@ internal static class CssDeclarations
             return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
         var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
-            or CssProperty.Orphans or CssProperty.Widows;
+            or CssProperty.Orphans or CssProperty.Widows or CssProperty.Hyphens;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         switch (property)
         {
@@ -234,6 +234,7 @@ internal static class CssDeclarations
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;
             case CssProperty.TextAlignLast: style.LastLineAlignment = source.LastLineAlignment; break;
             case CssProperty.BorderCollapse: style.CollapseBorders = source.CollapseBorders; break;
+            case CssProperty.Hyphens: style.NoHyphens = source.NoHyphens; break;
             case CssProperty.Orphans: style.Orphans = source.Orphans; break;
             case CssProperty.Widows: style.Widows = source.Widows; break;
             case CssProperty.TextDecoration: style.Decoration = source.Decoration; break;
